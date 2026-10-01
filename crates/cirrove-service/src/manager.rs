@@ -206,6 +206,18 @@ impl WriteContext {
         })
     }
 }
+#[cfg(test)]
+struct NativeReplaceEnqueuePause {
+    ready: tokio::sync::oneshot::Sender<uuid::Uuid>,
+    release: std::sync::mpsc::Receiver<()>,
+}
+#[cfg(test)]
+struct NativeReplaceCaptureFixture {
+    account: String,
+    original: cirrove_core::Node,
+    semantic: cirrove_core::upload::PackageSemanticIdentity,
+    calls: std::sync::atomic::AtomicUsize,
+}
 pub struct Manager {
     pub status: RwLock<Vec<AccountStatus>>,
     /// Changes to `status`, as edges, for desktop clients that cannot poll.
@@ -229,6 +241,10 @@ pub struct Manager {
     writers: RwLock<HashMap<String, crate::filesystem::WriteControl>>,
     export_slots: Arc<tokio::sync::Semaphore>,
     native_import_slots: Arc<tokio::sync::Semaphore>,
+    #[cfg(test)]
+    native_replace_capture_fixture: std::sync::Mutex<Option<Arc<NativeReplaceCaptureFixture>>>,
+    #[cfg(test)]
+    native_replace_after_enqueue: std::sync::Mutex<Option<NativeReplaceEnqueuePause>>,
 }
 impl Default for Manager {
     fn default() -> Self {
@@ -238,6 +254,10 @@ impl Default for Manager {
             writers: RwLock::default(),
             export_slots: Arc::new(tokio::sync::Semaphore::new(1)),
             native_import_slots: Arc::new(tokio::sync::Semaphore::new(1)),
+            #[cfg(test)]
+            native_replace_capture_fixture: std::sync::Mutex::new(None),
+            #[cfg(test)]
+            native_replace_after_enqueue: std::sync::Mutex::new(None),
             events: tokio::sync::broadcast::channel(crate::events::EVENT_QUEUE_DEPTH).0,
         }
     }

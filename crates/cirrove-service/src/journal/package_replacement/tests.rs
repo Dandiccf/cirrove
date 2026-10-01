@@ -520,3 +520,93 @@ fn package_handoff_schema17_fences_older_writers_and_preserves_schema16_payloads
     );
     assert!(j.get(old.id).unwrap().representation.is_file_bytes());
 }
+
+#[test]
+fn native_selection_after_completed_namespace_handoff_refuses_pending_successor() {
+    let root = temp();
+    let staging = temp();
+    let mut j = UploadJournal::open(root.path(), &scope().account, 1024 * 1024).unwrap();
+    let row = enqueue(&mut j, &staging);
+    let attempt = j.claim_next().unwrap().unwrap().attempt.unwrap();
+    j.reserve_identity_handoff(row.id, attempt, location())
+        .unwrap();
+    let result = receipt(&row);
+    let current = result.current.remote.clone();
+    let semantic = result.current.semantic.clone();
+    j.acknowledge_package_handoff(row.id, attempt, result)
+        .unwrap();
+    let completed = j.get(row.id).unwrap();
+    j.finish_package_publication(
+        &completed,
+        PackagePublicationStatus::Present(current.clone()),
+        now_seconds(),
+    )
+    .unwrap();
+    let owner = j.namespace_for_operation(row.id).unwrap().unwrap();
+    let followed = j
+        .handoff_namespace(owner.id, owner.revision, current.clone())
+        .unwrap();
+    assert!(followed.follows_remote && followed.latest.is_none());
+    assert!(
+        !j.namespace_is_clean(&followed).unwrap(),
+        "already-following objects are not handoff candidates"
+    );
+    let selection = |j: &UploadJournal| {
+        let parent = Node {
+            id: current.parent_id.clone().unwrap(),
+            parent_id: None,
+            name: "Owned".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: Some("parent-v1".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        crate::native_trash::NativeTrashAdmission {
+            parent: crate::native_import::ImportParent {
+                scope: scope(),
+                route: vec![parent.clone()],
+                parent,
+                // The old remote membership is deliberately still cached.
+                children: vec![before(), current.clone()],
+                frontier: j.namespace_publication(0).unwrap().through,
+            },
+            target: current.clone(),
+        }
+    };
+    j.validate_native_selection(&selection(&j), &CancellationToken::new())
+        .unwrap();
+    let cancelled = CancellationToken::new();
+    cancelled.cancel();
+    assert!(
+        j.validate_native_selection(&selection(&j), &cancelled)
+            .is_err()
+    );
+    let mut stale = selection(&j);
+    stale.target.etag = Some("different-revision".into());
+    assert!(
+        j.validate_native_selection(&stale, &CancellationToken::new())
+            .is_err()
+    );
+    // A concrete queued successor makes this owner dirty again. Its current
+    // remote receipt alone must never authorize another overlapping operation.
+    let successor = j
+        .enqueue_validated_package_replacement(
+            scope(),
+            current.clone(),
+            semantic,
+            archive(&staging),
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    let pending = j.namespace_for_operation(successor.id).unwrap().unwrap();
+    assert!(!pending.follows_remote && pending.latest == Some(successor.id));
+    assert!(!j.namespace_is_clean(&pending).unwrap());
+    assert!(
+        j.validate_native_selection(&selection(&j), &CancellationToken::new())
+            .is_err()
+    );
+    assert_eq!(j.list(0, 100).unwrap().len(), 2);
+}

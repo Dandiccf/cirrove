@@ -26,10 +26,15 @@ impl WriteControl {
         {
             return Err(unavailable());
         }
-        let mut candidates = parent.children.iter().filter(|n| n.name == name);
-        let selected = candidates.next().ok_or_else(unavailable)?;
-        if candidates.next().is_some()
-            || !crate::native_trash::matches(input, selected, &parent.parent.id)
+        // Select through the mounted overlay, then map its stable local identity
+        // back to the exact provider node. Raw cached membership may still carry
+        // the old identity after a completed native handoff.
+        let (scope, selected) = self
+            .resolve_visible_path_mode(engine, &input.path, false)
+            .await?;
+        if scope != parent.scope
+            || selected.name != name
+            || !crate::native_trash::matches(input, &selected, &parent.parent.id)
         {
             return Err(unavailable());
         }
@@ -38,7 +43,7 @@ impl WriteControl {
             .await
             .map_err(|_| unavailable())?;
         if !crate::native_trash::matches(input, &target, &parent.parent.id)
-            || &target != selected
+            || target != selected
             || cancel.is_cancelled()
         {
             return Err(unavailable());
@@ -83,6 +88,17 @@ impl WriteControl {
     ) -> std::io::Result<crate::native_trash::NativeTrashListing> {
         self.writer
             .native_trash_list(scope, after, limit)
+            .await
+            .map_err(|_| unavailable())
+    }
+    pub(crate) async fn native_replacement_list(
+        &self,
+        scope: Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> std::io::Result<crate::journal::NativeReplacementListing> {
+        self.writer
+            .native_replacement_list(scope, after, limit)
             .await
             .map_err(|_| unavailable())
     }

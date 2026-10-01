@@ -126,4 +126,43 @@ impl Manager {
         }
         Ok(page)
     }
+    pub async fn list_native_replacements(
+        &self,
+        engine: &Arc<Engine>,
+        expected_account_id: &str,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<crate::journal::NativeReplacementListing> {
+        if engine.account.id != expected_account_id
+            || !engine.account.enabled
+            || engine.cancel.is_cancelled()
+            || engine.account.registration.provider_id() != "icloud"
+            || !(1..=100).contains(&limit)
+            || after.is_some_and(|cursor| cursor > i64::MAX as u64)
+        {
+            bail!("native replacement listing account or page changed");
+        }
+        {
+            let engines = self.engines.read().await;
+            if engines
+                .get(expected_account_id)
+                .is_none_or(|e| !Arc::ptr_eq(e, engine))
+            {
+                bail!("native replacement listing account changed");
+            }
+        }
+        let control = self.recovery_control(engine.clone()).await?;
+        let page = control
+            .native_replacement_list(engine.scope(&engine.account.drive.id), after, limit)
+            .await?;
+        let engines = self.engines.read().await;
+        if engine.cancel.is_cancelled()
+            || engines
+                .get(expected_account_id)
+                .is_none_or(|e| !Arc::ptr_eq(e, engine))
+        {
+            bail!("native replacement listing account changed");
+        }
+        Ok(page)
+    }
 }

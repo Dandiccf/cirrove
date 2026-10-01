@@ -2264,3 +2264,5 @@ mod tests {
         assert_eq!(feed_notice("indexing", "offline"), FeedNotice::Failed);
     }
 }
+
+mod native_replace;

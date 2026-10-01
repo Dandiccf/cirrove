@@ -155,6 +155,7 @@ pub struct AccountCard {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunningJob {
     pub native_import: bool,
+    pub native_replace: bool,
     /// What `stop` takes. Not shown.
     pub id: String,
     /// What is being kept, as a path in the drive.
@@ -186,7 +187,18 @@ impl RunningJob {
                 &human_bytes(job.bytes_total),
             ],
         );
-        let detail = if job.kind == cirrove_service::jobs::JobKind::ImportNativePackage {
+        let detail = if job.kind == cirrove_service::jobs::JobKind::ReplaceNativePackage {
+            match (job.state, &job.issue) {
+                (_, Some(issue)) => issue.clone(),
+                (JobState::Succeeded, _) => gettext(
+                    "Document replaced and available in Files. Original Trash receipt recorded.",
+                ),
+                (JobState::Stopped, _) => gettext(
+                    "Stopped watching the replacement; its saved operation remains retained.",
+                ),
+                _ => gettext("Replacing native document…"),
+            }
+        } else if job.kind == cirrove_service::jobs::JobKind::ImportNativePackage {
             match (job.state, &job.issue) {
                 (_, Some(issue)) => issue.clone(),
                 (JobState::Succeeded, _) => gettext("Document imported and available in Files."),
@@ -216,6 +228,7 @@ impl RunningJob {
             }
         };
         Self {
+            native_replace: job.kind == cirrove_service::jobs::JobKind::ReplaceNativePackage,
             native_import: job.kind == cirrove_service::jobs::JobKind::ImportNativePackage,
             id: job.id.clone(),
             name: job.name.clone(),

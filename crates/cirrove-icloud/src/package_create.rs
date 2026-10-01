@@ -64,7 +64,7 @@ pub struct ICloudPackageCreate {
     body_dispatch_probe: Option<Arc<std::sync::atomic::AtomicUsize>>,
 }
 impl ICloudPackageCreate {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn native_handoff_test_provider(
         scope: Scope,
         parent: Node,
@@ -76,6 +76,7 @@ impl ICloudPackageCreate {
             parent,
             staging: staging.into(),
             session: Mutex::new(Session::Ready(Box::new(session))),
+            #[cfg(test)]
             body_dispatch_probe: None,
         }
     }

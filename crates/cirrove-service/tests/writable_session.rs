@@ -64,8 +64,14 @@ struct Remote {
     moves: Vec<MutationRequest>,
     deletes: Vec<MutationRequest>,
 }
+struct NativePublicationPause {
+    item: String,
+    ready: Arc<Notify>,
+    release: Arc<Notify>,
+}
 #[derive(Default)]
 struct Cloud {
+    native_publication_pause: Mutex<Option<NativePublicationPause>>,
     refused_write_target: Mutex<Option<String>>,
     admission_targets: Mutex<Vec<String>>,
     hold_admission: AtomicBool,
@@ -176,6 +182,17 @@ impl ReadProvider for Cloud {
     ) -> Result<Node, ProviderError> {
         if id == self.root().id {
             return Ok(self.root());
+        }
+        let pause = self
+            .native_publication_pause
+            .lock()
+            .unwrap()
+            .as_ref()
+            .filter(|p| p.item == id)
+            .map(|p| (p.ready.clone(), p.release.clone()));
+        if let Some((ready, release)) = pause {
+            ready.notify_one();
+            release.notified().await;
         }
         self.remote
             .lock()
@@ -6139,3 +6156,6 @@ async fn real_native_trash_publication_preserves_held_generated_archive_reader()
     );
     session.shutdown().await.unwrap();
 }
+
+#[path = "writable_session/native_replacement_publication.rs"]
+mod native_replacement_publication;

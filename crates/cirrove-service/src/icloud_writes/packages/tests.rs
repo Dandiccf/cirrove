@@ -388,3 +388,334 @@ async fn package_callbacks_are_operation_bound_and_do_not_enter_file_envelope() 
             .is_none()
     );
 }
+
+fn enqueue_native_replacement(
+    provider: &ICloudWriteProvider,
+    parent: &Node,
+) -> (String, UploadRequest) {
+    use std::io::Write;
+    let staging = provider
+        .state
+        .join(format!("native-router-staging-{}", Uuid::new_v4()));
+    std::fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&staging)
+        .unwrap();
+    let source = staging.join("source.zip");
+    let mut file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&source)
+        .unwrap();
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .unwrap();
+    file.write_all(&crate::native_import::synthetic_package_archive(
+        "Source.pages/Document",
+        b"edited owned native bytes",
+    ))
+    .unwrap();
+    file.sync_all().unwrap();
+    let cancel = CancellationToken::new();
+    let archive = crate::native_import::ValidatedPackageArchive::capture(
+        &source,
+        &staging,
+        "Source.pages",
+        &cancel,
+    )
+    .unwrap();
+    let original = Node {
+        id: format!("FILE::com.apple.CloudDocs::{}", Uuid::new_v4()),
+        parent_id: Some(parent.id.clone()),
+        name: "Original.pages".into(),
+        kind: NodeKind::Folder,
+        size: 123,
+        modified_unix: 0,
+        etag: Some("selected-v1".into()),
+        content_version: None,
+        target: None,
+        package: true,
+    };
+    let row = provider
+        .journal
+        .lock()
+        .unwrap()
+        .enqueue_validated_package_replacement(
+            provider.scope.clone(),
+            original,
+            PackageSemanticIdentity {
+                version: 1,
+                sha256: "a".repeat(64),
+                entries: 1,
+                files: 1,
+                expanded_bytes: 123,
+            },
+            archive,
+            &cancel,
+        )
+        .unwrap();
+    (
+        row.id.to_string(),
+        UploadRequest {
+            scope: row.scope,
+            intent: row.intent,
+            representation: row.representation,
+            size: row.size,
+            sha256: row.sha256,
+        },
+    )
+}
+fn native_checkpoint(
+    provider: &ICloudWriteProvider,
+    operation: &str,
+    request: &UploadRequest,
+    parent: &Node,
+) -> SecretString {
+    use sha2::{Digest, Sha256};
+    let UploadRepresentation::PackageReplacementArchive {
+        expected_root,
+        semantic,
+        ..
+    } = &request.representation
+    else {
+        panic!("native replacement")
+    };
+    let stage = UploadRequest {
+        scope: request.scope.clone(),
+        intent: UploadIntent::Create {
+            parent: parent.id.clone(),
+            name: format!("staged-by-cirrove-{operation}.pages"),
+        },
+        representation: UploadRepresentation::PackageArchive {
+            expected_root: expected_root.clone(),
+            semantic: semantic.clone(),
+        },
+        size: request.size,
+        sha256: request.sha256.clone(),
+    };
+    let account_hash = hex::encode(Sha256::digest(
+        provider.apple_id.trim().to_lowercase().as_bytes(),
+    ));
+    SecretString::from(json!({"version":1,"operation":operation,"request":request,"parent":parent,"account_hash":account_hash,"phase":{"Stage":{"inner":{"version":1,"operation":operation,"request":stage,"parent":parent,"account_hash":account_hash,"phase":"AllocationArmed","slot":null,"registration":null}}}}).to_string())
+}
+#[tokio::test]
+async fn native_replacement_router_restores_without_metadata_or_credentials_and_refuses_rebinding()
+{
+    let (_temp, mut provider) = super::super::tests::fixture();
+    let parent = super::super::tests::folder(ROOT_ID);
+    let (operation, request) = enqueue_native_replacement(&provider, &parent);
+    let saved = native_checkpoint(&provider, &operation, &request, &parent);
+    provider.metadata = provider.state.join("missing-metadata-parent/metadata.db");
+    assert!(
+        provider
+            .package_adapter(&operation, &request, None)
+            .await
+            .is_err()
+    );
+    assert!(
+        provider
+            .package_adapter(&operation, &request, Some(&saved))
+            .await
+            .is_ok()
+    );
+    // The recorded allocation arm has no returned slot. Inspect/reconcile must
+    // return uncertainty without loading a keyring or repeating allocation.
+    let cancel = CancellationToken::new();
+    assert!(matches!(
+        provider
+            .inspect_upload_for_operation(&operation, &request, &saved, &cancel)
+            .await,
+        Err(UploadError::Uncertain)
+    ));
+    assert!(matches!(
+        provider
+            .reconcile_upload_for_operation(&operation, &request, Some(&saved), &cancel)
+            .await,
+        Err(UploadError::Uncertain)
+    ));
+    assert!(!provider.metadata.exists());
+    assert!(
+        provider
+            .package_adapter(&Uuid::new_v4().to_string(), &request, Some(&saved))
+            .await
+            .is_err()
+    );
+    for change in [
+        "account",
+        "original_semantic",
+        "replacement_semantic",
+        "original_revision",
+        "raw_hash",
+    ] {
+        let mut changed = request.clone();
+        match change {
+            "account" => changed.scope.account = Uuid::new_v4().to_string(),
+            "raw_hash" => changed.sha256 = "f".repeat(64),
+            _ => {
+                let UploadRepresentation::PackageReplacementArchive {
+                    semantic,
+                    original_semantic,
+                    original,
+                    ..
+                } = &mut changed.representation
+                else {
+                    panic!("native")
+                };
+                match change {
+                    "original_semantic" => original_semantic.sha256 = "b".repeat(64),
+                    "replacement_semantic" => semantic.sha256 = "c".repeat(64),
+                    _ => original.etag = Some("other".into()),
+                }
+            }
+        }
+        assert!(
+            provider
+                .package_adapter(&operation, &changed, Some(&saved))
+                .await
+                .is_err(),
+            "{change}"
+        );
+        // A forged envelope cannot relabel the exact journal request either.
+        let mut wire: serde_json::Value = serde_json::from_str(saved.expose_secret()).unwrap();
+        wire["request"] = serde_json::to_value(changed).unwrap();
+        assert!(
+            provider
+                .package_adapter(
+                    &operation,
+                    &request,
+                    Some(&SecretString::from(wire.to_string()))
+                )
+                .await
+                .is_err(),
+            "{change}"
+        );
+    }
+    for nested in ["operation", "semantic", "parent"] {
+        let mut wire: serde_json::Value = serde_json::from_str(saved.expose_secret()).unwrap();
+        let inner = &mut wire["phase"]["Stage"]["inner"];
+        match nested {
+            "operation" => inner["operation"] = json!(Uuid::new_v4()),
+            "semantic" => {
+                inner["request"]["representation"]["semantic"]["sha256"] = json!("d".repeat(64))
+            }
+            _ => inner["parent"]["id"] = json!("FOLDER::com.apple.CloudDocs::other"),
+        }
+        let forged = SecretString::from(wire.to_string());
+        assert!(
+            matches!(
+                provider
+                    .inspect_upload_for_operation(&operation, &request, &forged, &cancel)
+                    .await,
+                Err(UploadError::CheckpointInvalid)
+            ),
+            "nested {nested}"
+        );
+    }
+    let mut wire: serde_json::Value = serde_json::from_str(saved.expose_secret()).unwrap();
+    wire["account_hash"] = json!("0".repeat(64));
+    assert!(
+        provider
+            .package_adapter(
+                &operation,
+                &request,
+                Some(&SecretString::from(wire.to_string()))
+            )
+            .await
+            .is_err()
+    );
+}
+#[tokio::test]
+async fn native_replacement_fresh_router_requires_plain_scoped_parent_ancestry() {
+    let (_temp, provider) = super::super::tests::fixture();
+    let parent = super::super::tests::folder(ROOT_ID);
+    let (operation, request) = enqueue_native_replacement(&provider, &parent);
+    let mut store = Store::open(&provider.metadata).unwrap();
+    let root = Node {
+        id: ROOT_ID.into(),
+        parent_id: None,
+        ..super::super::tests::folder(ROOT_ID)
+    };
+    store.observe_node(&provider.scope, &root).unwrap();
+    // No parent indexed yet: construction cannot guess it from the request.
+    assert!(
+        provider
+            .package_adapter(&operation, &request, None)
+            .await
+            .is_err()
+    );
+    store.observe_node(&provider.scope, &parent).unwrap();
+    assert!(
+        provider
+            .package_adapter(&operation, &request, None)
+            .await
+            .is_ok()
+    );
+    for variant in ["app", "file", "alias", "ancestor"] {
+        let mut changed = parent.clone();
+        let mut ancestor = root.clone();
+        match variant {
+            "app" => changed.package = true,
+            "file" => changed.kind = NodeKind::File,
+            "alias" => {
+                changed.target = Some(Box::new(cirrove_core::RemoteRef {
+                    collection: "foreign".into(),
+                    item: "foreign".into(),
+                    kind: Some(NodeKind::Folder),
+                }))
+            }
+            _ => {
+                ancestor.id = "FOLDER::com.apple.CloudDocs::package-ancestor".into();
+                ancestor.parent_id = Some(ROOT_ID.into());
+                ancestor.package = true;
+                changed.parent_id = Some(ancestor.id.clone());
+            }
+        }
+        store.observe_node(&provider.scope, &changed).unwrap();
+        store.observe_node(&provider.scope, &ancestor).unwrap();
+        assert!(
+            provider
+                .package_adapter(&operation, &request, None)
+                .await
+                .is_err(),
+            "{variant}"
+        );
+    }
+    store.observe_node(&provider.scope, &parent).unwrap();
+    store.observe_node(&provider.scope, &root).unwrap();
+    assert!(
+        provider
+            .package_adapter(&operation, &request, None)
+            .await
+            .is_ok()
+    );
+}
+#[tokio::test]
+async fn native_replacement_router_reserves_pages_recovery_and_only_safe_begin() {
+    use cirrove_core::upload::RecoveryLocation;
+    let (_temp, provider) = super::super::tests::fixture();
+    let parent = super::super::tests::folder(ROOT_ID);
+    let (operation, request) = enqueue_native_replacement(&provider, &parent);
+    assert!(provider.begin_is_mutation_free_until_checkpoint(&request));
+    assert!(
+        matches!(provider.staged_recovery_location(&operation,&request),Some(RecoveryLocation::Trash{local_name,parent}) if local_name==format!("recovery-by-cirrove-{operation}.pages") && parent=="FOLDER::com.apple.CloudDocs::TRASH_ROOT")
+    );
+    assert!(
+        provider
+            .staged_recovery_location(&Uuid::new_v4().to_string(), &request)
+            .is_none()
+    );
+    let mut ordinary = request.clone();
+    ordinary.representation = UploadRepresentation::FileBytes;
+    assert!(!provider.begin_is_mutation_free_until_checkpoint(&ordinary));
+    assert!(
+        provider
+            .staged_recovery_location(&operation, &ordinary)
+            .is_none()
+    );
+    let (create, request) = enqueue(&provider, ROOT_ID);
+    assert!(provider.begin_is_mutation_free_until_checkpoint(&request));
+    assert!(
+        provider
+            .staged_recovery_location(&create, &request)
+            .is_none()
+    );
+}

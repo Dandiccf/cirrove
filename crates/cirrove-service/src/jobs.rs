@@ -50,6 +50,8 @@ pub enum JobKind {
     ExportLocal,
     /// Capture, upload and verify an explicitly imported native document.
     ImportNativePackage,
+    /// Observe explicit native-document replacement.
+    ReplaceNativePackage,
     /// Observe an explicitly requested, recoverable native-document removal.
     TrashNativeDocument,
     #[serde(other)]
@@ -108,6 +110,8 @@ pub struct Job {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_import: Option<NativeImportProgress>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_replace: Option<NativeReplaceProgress>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_trash: Option<NativeTrashProgress>,
 }
 
@@ -129,6 +133,15 @@ pub struct NativeImportProgress {
     pub remote: Option<cirrove_core::Node>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// Exact recorded handoff identities. Recovery is historical receipt evidence;
+/// current availability of the original in Trash requires separate observation.
+pub struct NativeReplaceProgress {
+    pub operation: uuid::Uuid,
+    pub original: cirrove_core::Node,
+    pub current: Option<cirrove_core::Node>,
+    pub recovery: Option<cirrove_core::Node>,
+}
 impl Job {
     /// Whether this is still moving, so a client knows to keep asking.
     pub fn running(&self) -> bool {
@@ -216,6 +229,7 @@ impl Jobs {
             export: None,
             working_export: None,
             native_import: None,
+            native_replace: None,
             native_trash: None,
         };
         self.inner().running.push(Running {
@@ -401,6 +415,71 @@ impl JobHandle {
             } else {
                 job.state = JobState::Failed;
                 job.issue = Some("native import receipt did not match the queued operation".into());
+            }
+            if inner.ended.len() == RETAINED {
+                inner.ended.pop_front();
+            }
+            inner.ended.push_back((Instant::now(), job));
+        }
+        self.jobs.ended.notify_waiters();
+    }
+    pub(crate) fn native_replace_queued(
+        &self,
+        operation: uuid::Uuid,
+        original: cirrove_core::Node,
+        size: u64,
+    ) {
+        let mut inner = self.jobs.inner();
+        if let Some(entry) = inner.running.iter_mut().find(|r| r.job.id == self.id) {
+            entry.job.bytes_total = size;
+            entry.job.native_replace = Some(NativeReplaceProgress {
+                operation,
+                original,
+                current: None,
+                recovery: None,
+            });
+        }
+    }
+    pub(crate) fn native_replaced(
+        self,
+        operation: uuid::Uuid,
+        original: cirrove_core::Node,
+        current: cirrove_core::Node,
+        recovery: cirrove_core::Node,
+    ) {
+        {
+            // Bind the receipt and choose the terminal state under the same lock
+            // as Jobs::stop. An accepted stop must never be overwritten by a
+            // success callback between two separately locked transitions.
+            let mut inner = self.jobs.inner();
+            let Some(index) = inner
+                .running
+                .iter()
+                .position(|entry| entry.job.id == self.id)
+            else {
+                return;
+            };
+            let entry = inner.running.remove(index);
+            let mut job = entry.job;
+            if entry.cancel.is_cancelled() || job.state == JobState::Stopping {
+                job.state = JobState::Stopped;
+                job.issue =
+                    Some("stopped watching; the queued replacement operation is retained".into());
+            } else if let Some(progress) = job.native_replace.as_mut()
+                && progress.operation == operation
+                && progress.original == original
+                && current.id != original.id
+                && recovery.id == original.id
+                && job.kind == JobKind::ReplaceNativePackage
+            {
+                progress.current = Some(current);
+                progress.recovery = Some(recovery);
+                job.state = JobState::Succeeded;
+                job.issue = None;
+            } else {
+                job.state = JobState::Failed;
+                job.issue =
+                    Some("native replacement receipt did not match the queued operation".into());
             }
             if inner.ended.len() == RETAINED {
                 inner.ended.pop_front();
@@ -800,5 +879,63 @@ mod tests {
             jobs.list().is_empty(),
             "a daemon shutting down has nobody to tell"
         );
+    }
+}
+
+#[cfg(test)]
+mod native_replace_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    fn node(id: &str) -> cirrove_core::Node {
+        cirrove_core::Node {
+            id: id.into(),
+            parent_id: Some("parent".into()),
+            name: "Owned.pages".into(),
+            kind: cirrove_core::NodeKind::Folder,
+            size: 1,
+            modified_unix: 0,
+            etag: Some("v1".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        }
+    }
+    #[tokio::test]
+    async fn native_replace_job_rejects_wrong_operation_and_honors_accepted_stop() {
+        for stop in [false, true] {
+            let jobs = Arc::new(Jobs::default());
+            let handle = jobs.start(
+                JobKind::ReplaceNativePackage,
+                "Owned.pages".into(),
+                1,
+                1,
+                &CancellationToken::new(),
+            );
+            let id = handle.id().to_owned();
+            let op = uuid::Uuid::new_v4();
+            let before = node("old");
+            handle.native_replace_queued(op, before.clone(), 1);
+            if stop {
+                jobs.stop(&id);
+            }
+            handle.native_replaced(
+                if stop { op } else { uuid::Uuid::new_v4() },
+                before,
+                node("new"),
+                node("old"),
+            );
+            let job = jobs.find(&id).unwrap();
+            assert_eq!(
+                job.state,
+                if stop {
+                    JobState::Stopped
+                } else {
+                    JobState::Failed
+                }
+            );
+            let progress = job.native_replace.unwrap();
+            assert_eq!(progress.operation, op);
+            assert!(progress.current.is_none() && progress.recovery.is_none());
+        }
     }
 }

@@ -509,6 +509,15 @@ impl MetadataProvider for ICloudDrive {
 
 #[async_trait]
 impl ReadProvider for ICloudDrive {
+    async fn resolve_native_archive(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<Option<cirrove_core::reads::NativeArchiveBinding>, ProviderError> {
+        self.resolve_selected_native_archive(scope, node, cancel)
+            .await
+    }
     async fn validate_write_target(
         &self,
         scope: &Scope,

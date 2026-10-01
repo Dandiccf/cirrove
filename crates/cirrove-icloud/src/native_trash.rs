@@ -258,6 +258,20 @@ impl ICloudNativeTrash {
         }
         Ok(())
     }
+    /// Independently read and bind active native contents. No checkpoint or mutation.
+    pub async fn capture_active_semantic(
+        &self,
+        cancel: &CancellationToken,
+    ) -> Result<PackageSemanticIdentity> {
+        tokio::select! { biased;
+            _ = cancel.cancelled() => Err(cirrove_core::ProviderError::Cancelled.into()),
+            result = tokio::time::timeout(crate::VERIFICATION_TRANSFER_TIMEOUT, async {
+                let mut state = self.session.lock().await;
+                let session = Self::active(&mut state).await?;
+                self.capture(session, cancel).await
+            }) => result.map_err(|_| MutationError::Uncertain)?,
+        }
+    }
     async fn capture(
         &self,
         session: &mut ICloudReadSession,

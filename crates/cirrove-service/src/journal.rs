@@ -18,10 +18,14 @@ mod handoff;
 mod identity_handoff;
 mod mutations;
 mod namespace;
+mod native_replacement_list;
 mod native_trash_publication;
 mod owner;
 mod package_publication;
 mod package_replacement;
+pub use native_replacement_list::{
+    NativeReplacementIdentity, NativeReplacementListing, NativeReplacementSelection,
+};
 pub(crate) use package_publication::PackagePublicationStatus;
 mod native_trash_admission;
 mod native_trash_list;
@@ -370,6 +374,7 @@ impl UploadJournal {
         representation::migrate(&mut db, version)?;
         package_publication::migrate(&mut db)?;
         native_trash_publication::migrate(&mut db)?;
+        native_replacement_list::migrate(&db)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',

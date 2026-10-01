@@ -19,3 +19,10 @@ pub(crate) struct ImportParent {
 
 #[cfg(test)]
 pub(crate) use staging::tests::archive as synthetic_package_archive;
+
+/// Explicit native replacement input; it does not authorize a mounted save.
+pub struct NativeReplaceInput {
+    pub selected: crate::native_trash::NativeTrashInput,
+    pub source: std::path::PathBuf,
+    pub expected_root: String,
+}

@@ -248,12 +248,20 @@ impl UploadProvider for ICloudWriteProvider {
         operation: &str,
         request: &UploadRequest,
     ) -> Option<cirrove_core::upload::RecoveryLocation> {
-        if request.require_file_bytes().is_err()
-            || !matches!(request.intent, UploadIntent::Replace { .. })
-        {
+        if !matches!(request.intent, UploadIntent::Replace { .. }) {
             return None;
         }
         let operation = self.validate_operation(operation, request).ok()?;
+        if matches!(
+            request.representation,
+            cirrove_core::upload::UploadRepresentation::PackageReplacementArchive { .. }
+        ) {
+            return Some(cirrove_core::upload::RecoveryLocation::Trash {
+                local_name: format!("recovery-by-cirrove-{operation}.pages"),
+                parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
+            });
+        }
+        request.require_file_bytes().ok()?;
         Some(cirrove_icloud::ICloudFileReplace::recovery_location(
             operation,
         ))
@@ -279,7 +287,14 @@ impl UploadProvider for ICloudWriteProvider {
     fn begin_is_mutation_free_until_checkpoint(&self, request: &UploadRequest) -> bool {
         request.validate().is_ok()
             && request.scope == self.scope
-            && matches!(request.intent, UploadIntent::Create { .. })
+            && (matches!(request.intent, UploadIntent::Create { .. })
+                || matches!(
+                    (&request.intent, &request.representation),
+                    (
+                        UploadIntent::Replace { .. },
+                        cirrove_core::upload::UploadRepresentation::PackageReplacementArchive { .. }
+                    )
+                ))
     }
     async fn begin_upload(&self, _: &UploadRequest, _: &CancellationToken) -> Result<UploadStep> {
         Err(UploadError::Unsupported(

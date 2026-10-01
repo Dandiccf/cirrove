@@ -444,3 +444,12 @@ mod native_trash_tests;
 
 #[path = "native_trash_list_tests.rs"]
 mod native_trash_list_tests;
+
+#[path = "native_replace_tests.rs"]
+mod native_replace_tests;
+
+#[path = "native_replace_observer_tests.rs"]
+mod native_replace_observer_tests;
+
+#[path = "tests/replacement_socket.rs"]
+mod replacement_socket;

@@ -294,3 +294,7 @@ impl Manager {
 
 #[cfg(test)]
 mod tests;
+
+mod native_replace;
+
+mod native_replace_observer;

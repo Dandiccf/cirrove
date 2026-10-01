@@ -290,4 +290,21 @@ impl RecoveryControl {
             }
         }
     }
+    pub(crate) async fn native_replacement_list(
+        &self,
+        scope: cirrove_core::Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<crate::journal::NativeReplacementListing> {
+        match &self.access {
+            Access::Writer(writer) => {
+                Ok(writer.native_replacement_list(scope, after, limit).await?)
+            }
+            Access::ReadOnly(None) => Ok(crate::journal::NativeReplacementListing::default()),
+            _ => {
+                self.local(move |j| j.native_replacement_list(&scope, after, limit))
+                    .await
+            }
+        }
+    }
 }

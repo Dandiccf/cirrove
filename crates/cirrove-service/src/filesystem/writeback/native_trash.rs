@@ -30,4 +30,13 @@ impl Writeback {
         self.local(move |j| j.native_trash_list(&scope, after, limit))
             .await
     }
+    pub(in crate::filesystem) async fn native_replacement_list(
+        &self,
+        scope: Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<crate::journal::NativeReplacementListing> {
+        self.local(move |j| j.native_replacement_list(&scope, after, limit))
+            .await
+    }
 }

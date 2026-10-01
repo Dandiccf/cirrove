@@ -674,7 +674,7 @@
       "blocker": "needs-live-account",
       "blocks_release": "yes",
       "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
-      "evidence": "crates/cirrove-icloud/src/package_create.rs refuses native replacement. docs/icloud-write-integration.md describes create-only native import; ordinary-file two-ID handoff evidence is not native-package replacement proof.",
+      "evidence": "docs/native-document-replacement.md: explicit Pages archive replacement CLI/socket plus retained listing/watch are implemented; ordinary package editor saves remain refused. docs/benchmarks/icloud-native-package-replacement-2026-10-01.md: actual-worker synthetic HTTPS faults, encrypted checkpoint recovery, routing, publication observation and bounded read-only discovery evidence. docs/benchmarks/icloud-native-replacement-live-2026-10-01.md: owned live replacement remains pending; source preparation is not completed replacement or installed/application-fidelity proof. docs/benchmarks/icloud-public-native-trash-2026-10-01.md: separate owned native recoverable-removal arm passed.",
       "asserted_by": null
     },
     {

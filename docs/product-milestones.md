@@ -511,3 +511,14 @@ Supporting evidence and remaining limits are in
 Native Trash readability or a stale-ETag experiment alone cannot establish native
 replacement. Evidence from these scopes must not be reused as proof of arbitrary
 formats, live quota behavior or atomic cloud replacement.
+
+
+For the unchecked native editing/replacement row (486), the explicit public
+Pages replacement CLI/socket and retained list/watch interfaces are now present;
+see [the workflow contract](native-document-replacement.md).
+[Recorded synthetic evidence](benchmarks/icloud-native-package-replacement-2026-10-01.md)
+covers worker fault recovery, routing, publication observation and bounded retained
+discovery. The [owned live arm](benchmarks/icloud-native-replacement-live-2026-10-01.md)
+remains separate and incomplete. Two-ID archive replacement does not establish
+ordinary native editor saves, preserved sharing/history, Apple application
+fidelity or installed acceptance; the requirement therefore remains open.

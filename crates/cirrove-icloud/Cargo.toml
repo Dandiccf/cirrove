@@ -9,6 +9,8 @@ publish = false
 [features]
 # Explicitly invoked developer probe; never linked into the normal service.
 write-probe = []
+# Explicit synthetic transport seam, enabled only by downstream test builds.
+test-support = []
 
 [dependencies]
 anyhow.workspace = true

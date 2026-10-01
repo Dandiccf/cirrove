@@ -524,3 +524,14 @@ An opt-in [Strata integration](strata.md) adds asynchronous conditional pin menu
 availability details and Cirrove's branded badges through a companion generic
 file-provider API. Stock Strata 0.20.1 does not yet expose that API. The isolated
 preview does not replace a working file manager or install global custom actions.
+
+
+## Explicit native replacement jobs
+
+The service and CLI provide an experimental
+[explicit Pages archive replacement workflow](native-document-replacement.md).
+There is currently no desktop replacement chooser and no normal editor-save
+admission for generated iCloud package children. A CLI-started replacement job
+can appear in the desktop transfer area. Its Stop action stops watching; it
+does not undo or discard an already queued replacement. The recorded original
+Trash receipt is historical evidence, not a promise of present recovery availability.

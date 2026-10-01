@@ -1,5 +1,107 @@
 use anyhow::{Context, Result, bail};
 
+async fn follow_native_replacement(
+    socket: &std::path::Path,
+    label: &str,
+    account: &str,
+    initial: &cirrove_service::jobs::Job,
+    expected_operation: Option<uuid::Uuid>,
+    selected: Option<(String, String)>,
+) -> Result<()> {
+    let following = async {
+        let mut operation = expected_operation;
+        let mut original = initial.native_replace.as_ref().map(|p| p.original.clone());
+        loop {
+            let snapshot = cirrove_service::status(socket).await.context("replacement observation lost; use list-native-replacements before submitting again")?;
+            let job = snapshot
+                .accounts
+                .iter()
+                .filter(|a| a.label == label && a.account_id == account)
+                .flat_map(|a| &a.jobs)
+                .find(|j| j.id == initial.id)
+                .context("replacement observer unavailable; use retained-operation discovery")?;
+            if job.kind != cirrove_service::jobs::JobKind::ReplaceNativePackage
+                || job.native_import.is_some()
+                || job.native_trash.is_some()
+                || job.export.is_some()
+                || job.working_export.is_some()
+            {
+                bail!("unexpected replacement job");
+            }
+            if let Some(progress) = &job.native_replace {
+                if operation.is_some_and(|op| op != progress.operation)
+                    || original.as_ref().is_some_and(|n| n != &progress.original)
+                    || selected.as_ref().is_some_and(|(id, etag)| {
+                        &progress.original.id != id || progress.original.etag.as_ref() != Some(etag)
+                    })
+                {
+                    bail!("replacement operation or selected original changed");
+                }
+                if operation.is_none() {
+                    eprintln!("Queued replacement operation {}", progress.operation);
+                }
+                operation = Some(progress.operation);
+                original = Some(progress.original.clone());
+            }
+            if job.state == cirrove_service::jobs::JobState::Succeeded {
+                let receipt = job
+                    .native_replace
+                    .as_ref()
+                    .context("replacement receipt missing")?;
+                let current = receipt
+                    .current
+                    .as_ref()
+                    .context("replacement current identity missing")?;
+                let backup = receipt
+                    .recovery
+                    .as_ref()
+                    .context("replacement recovery receipt missing")?;
+                if operation != Some(receipt.operation)
+                    || current.id == receipt.original.id
+                    || backup.id != receipt.original.id
+                    || current.parent_id != receipt.original.parent_id
+                    || current.name != receipt.original.name
+                    || backup.parent_id.as_deref()
+                        != Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
+                    || backup.name != receipt.original.name
+                    || backup.size != receipt.original.size
+                    || [current, backup].iter().any(|n| {
+                        n.kind != cirrove_core::NodeKind::Folder
+                            || !n.package
+                            || n.target.is_some()
+                            || n.content_version.is_some()
+                            || n.etag.as_ref().is_none_or(String::is_empty)
+                    })
+                {
+                    bail!("replacement completion identity mismatch");
+                }
+                println!(
+                    "Replacement completed [{}]; new document {:?}. Original Trash receipt recorded; current recovery availability may differ.",
+                    receipt.operation, current.id
+                );
+                return Ok(());
+            }
+            if !job.running() {
+                bail!(
+                    "{}",
+                    job.issue
+                        .as_deref()
+                        .unwrap_or("replacement unconfirmed; inspect its retained operation")
+                );
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+    };
+    tokio::select! {
+        biased;
+        _ = tokio::signal::ctrl_c() => {
+            let _ = cirrove_service::stop_job(socket, &cirrove_service::StopJobRequest {label:label.into(),id:initial.id.clone()}).await;
+            bail!("stopped watching; any queued replacement remains retained and may complete; use list-native-replacements if its ID was not received");
+        }
+        result = following => result,
+    }
+}
+
 async fn follow_native_trash(
     socket: &std::path::Path,
     label: &str,
@@ -818,6 +920,53 @@ enum Command {
         generation: u64,
         #[arg(long)]
         destination: PathBuf,
+    },
+    /// Replace one exact selected Pages PACKAGE with a validated local archive.
+    /// Creates a new identity; original Trash receipt is retained. Not a normal editor save.
+    ReplaceNativePackage {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        path: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        item_id: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        etag: String,
+        #[arg(long)]
+        archive: PathBuf,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        source_root: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Observe a saved replacement; never capture, queue or retry it.
+    WatchNativeReplacement {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// List one bounded retained-replacement page; follow next even if empty.
+    /// Receipts are historical evidence, not current recovery availability.
+    ListNativeReplacements {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        after: Option<u64>,
+        #[arg(long, default_value_t = 100, value_parser=clap::value_parser!(u32).range(1..=100))]
+        limit: u32,
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
     },
     /// List durable native Trash operations after lost replies/restarts; evidence is historical.
     /// Reads one bounded page without enqueueing or retrying any removal.
@@ -1951,6 +2100,131 @@ async fn main() -> Result<()> {
             };
             println!("{}", serde_json::to_string_pretty(&receipt)?);
         }
+        Command::ReplaceNativePackage {
+            label,
+            account_id,
+            path,
+            item_id,
+            etag,
+            archive,
+            source_root,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("replace-native-package")
+                != Some(&1)
+            {
+                bail!("this service does not support explicit native replacement");
+            }
+            let account = account_id.to_string();
+            let selected = (item_id.clone(), etag.clone());
+            let reply=cirrove_service::replace_native_package(&socket,&cirrove_service::ReplaceNativePackageRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag,archive,expected_root:source_root}).await.context("replacement reply unavailable; use list-native-replacements for this account before submitting again")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("replacement job was not started")?;
+            follow_native_replacement(&socket, &label, &account, &initial, None, Some(selected))
+                .await?;
+        }
+        Command::WatchNativeReplacement {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("watch-native-replacement")
+                != Some(&1)
+            {
+                bail!("this service does not support native replacement observation");
+            }
+            let account = account_id.to_string();
+            let reply = cirrove_service::watch_native_replacement(
+                &socket,
+                &cirrove_service::WatchNativeReplacementRequest {
+                    label: label.clone(),
+                    expected_account_id: account.clone(),
+                    operation,
+                },
+            )
+            .await
+            .context("replacement observation could not attach; no replacement submitted")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("replacement watch was not started")?;
+            eprintln!("Observing retained replacement {operation}; no replacement submitted.");
+            follow_native_replacement(&socket, &label, &account, &initial, Some(operation), None)
+                .await?;
+        }
+        Command::ListNativeReplacements {
+            label,
+            account_id,
+            after,
+            limit,
+            json,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("list-native-replacements")
+                != Some(&1)
+            {
+                bail!("this service does not support retained replacement discovery");
+            }
+            let reply = cirrove_service::list_native_replacements(
+                &socket,
+                &cirrove_service::ListNativeReplacementsRequest {
+                    label,
+                    expected_account_id: account_id.to_string(),
+                    after,
+                    limit,
+                },
+            )
+            .await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            if json {
+                println!("{}", serde_json::to_string_pretty(&reply)?);
+            } else {
+                println!(
+                    "Retained replacements for {account_id}; historical receipts, current recovery availability may differ."
+                );
+                for item in &reply.operations {
+                    println!(
+                        "{} {:?} original {:?} revision {:?} current {:?} recovery {:?} handoff receipt {}",
+                        item.operation,
+                        item.state,
+                        item.original.item,
+                        item.original.etag,
+                        item.current.as_ref().map(|n| &n.item),
+                        item.recovery.as_ref().map(|n| &n.item),
+                        item.handoff_receipt_recorded
+                    );
+                }
+                if let Some(next) = reply.next {
+                    println!("Next page: --after {next}");
+                }
+            }
+        }
         Command::ListNativeTrash {
             label,
             account_id,
@@ -2651,5 +2925,71 @@ mod icloud_access_tests {
             ])
             .is_err()
         );
+    }
+    #[test]
+    fn native_replacement_cli_requires_bound_original_and_keeps_observers_read_only() {
+        let base = [
+            "cirrove",
+            "replace-native-package",
+            "--label",
+            "Owned",
+            "--account-id",
+            "00000000-0000-4000-8000-000000000001",
+            "--path",
+            "Folder/Owned.pages",
+            "--item-id",
+            "FILE::com.apple.CloudDocs::owned",
+            "--etag",
+            "v1",
+            "--archive",
+            "/var/tmp/source ; $(literal).zip",
+            "--source-root",
+            "Source.pages",
+        ];
+        assert!(matches!(
+            Args::try_parse_from(base).expect("valid replacement arguments").command,
+            Command::ReplaceNativePackage { archive, .. }
+                if archive == std::path::Path::new(base[13])
+        ));
+        for option in [
+            "--account-id",
+            "--path",
+            "--item-id",
+            "--etag",
+            "--archive",
+            "--source-root",
+        ] {
+            let index = base
+                .iter()
+                .position(|s| *s == option)
+                .expect("required option in fixture");
+            let mut args = base.to_vec();
+            args.drain(index..index + 2);
+            assert!(Args::try_parse_from(args).is_err(), "{option}");
+        }
+        for verb in ["watch-native-replacement", "list-native-replacements"] {
+            let mut args = vec!["cirrove", verb, "--label", "Owned", "--account-id", base[5]];
+            if verb.starts_with("watch") {
+                args.extend(["--operation", base[5]]);
+            }
+            assert!(Args::try_parse_from(args.clone()).is_ok());
+            args.extend(["--archive", "/var/tmp/not-submitted.zip"]);
+            assert!(Args::try_parse_from(args).is_err());
+        }
+        for limit in ["0", "101"] {
+            assert!(
+                Args::try_parse_from([
+                    "cirrove",
+                    "list-native-replacements",
+                    "--label",
+                    "Owned",
+                    "--account-id",
+                    base[5],
+                    "--limit",
+                    limit
+                ])
+                .is_err()
+            );
+        }
     }
 }

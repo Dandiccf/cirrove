@@ -245,6 +245,19 @@ impl std::fmt::Display for NameProblem {
 /// Read-only filesystem operations, deliberately separate from change feeds.
 #[async_trait]
 pub trait ReadProvider: MetadataProvider {
+    /// Resolve one selected native-document export archive, if supported. This
+    /// may perform bounded content reads and semantic validation; never call it
+    /// for menu rendering or while holding a journal/filesystem lock. None means
+    /// this item has no supported archive binding, not ordinary-write approval.
+    /// No provider mutation or write admission is performed by this operation.
+    async fn resolve_native_archive(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<reads::NativeArchiveBinding>, ProviderError> {
+        Ok(None)
+    }
     /// Metadata-only admission before changing an existing remote item's local
     /// bytes or namespace. Providers may refuse representations that ordinary
     /// filesystem writes cannot preserve. This must not download file content or

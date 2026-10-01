@@ -63,6 +63,11 @@ async-trait.workspace = true
 rpassword = "7.4"
 
 [dev-dependencies]
+cirrove-icloud = { path = "../cirrove-icloud", features = ["test-support"] }
+reqwest.workspace = true
+base64.workspace = true
+tokio-rustls = "0.26.5"
+
 # Self-dependency so the crate's own integration tests get test-support without
 # every cargo invocation naming it. The crash fixtures need the durable-site
 # recorder, and they link the library without cfg(test).

@@ -434,3 +434,44 @@ fn backup_location_matches(
         }
     }
 }
+
+impl UploadRecord {
+    /// Recorded typed acknowledgment only, not a fresh provider observation.
+    pub(crate) fn native_replacement_receipt(&self) -> Option<(&Node, &Node, &Node)> {
+        let UploadRepresentation::PackageReplacementArchive {
+            original,
+            semantic,
+            original_semantic,
+            ..
+        } = &self.representation
+        else {
+            return None;
+        };
+        let handoff = self.identity_handoff.as_ref()?;
+        let backup = handoff.backup.as_ref()?;
+        let current = self.remote.as_ref()?;
+        let native = |n: &Node| {
+            n.kind == NodeKind::Folder
+                && n.package
+                && n.target.is_none()
+                && n.content_version.is_none()
+                && n.etag.as_ref().is_some_and(|s| !s.is_empty())
+        };
+        (self.representation.validate().is_ok()&&original_semantic.validate().is_ok()&&self.state==UploadState::Uploaded&&self.package_completion.as_ref()==Some(semantic)
+        &&matches!(&self.intent,UploadIntent::Replace{item,expected_etag} if item==&original.id&&original.etag.as_ref()==Some(expected_etag))
+        &&handoff.old_item==original.id&&handoff.trash_parent.as_deref()==Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
+        &&native(current)&&native(backup)&&current.id!=original.id&&current.id.starts_with("FILE::com.apple.CloudDocs::")&&current.parent_id==original.parent_id&&current.name==original.name
+        &&backup.id==original.id&&backup.parent_id==handoff.trash_parent&&backup.name==original.name&&backup.size==original.size).then_some((original,current,backup))
+    }
+}
+
+impl Reservation {
+    /// Validate persisted recovery identity without exposing private reservation fields.
+    pub(super) fn matches_native_replacement_backup(&self, original: &Node) -> bool {
+        self.old_item == original.id
+            && self.trash_parent.as_deref() == Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
+            && self.backup.as_ref().is_some_and(|backup| {
+                backup.id == original.id && backup.parent_id == self.trash_parent
+            })
+    }
+}

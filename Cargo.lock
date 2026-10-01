@@ -496,6 +496,7 @@ version = "0.2.0-dev"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.23.1",
  "cirrove-allocator",
  "cirrove-auth",
  "cirrove-core",
@@ -509,6 +510,7 @@ dependencies = [
  "fuser",
  "hex",
  "libc",
+ "reqwest",
  "rpassword",
  "rusqlite",
  "rustix",
@@ -519,6 +521,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+ "tokio-rustls",
  "tokio-util",
  "tracing",
  "tracing-subscriber",

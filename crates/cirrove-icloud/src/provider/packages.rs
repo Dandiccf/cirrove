@@ -9,6 +9,8 @@ use std::{
 };
 use tokio::sync::OwnedSemaphorePermit;
 
+mod native_archive;
+
 const BLOCK: u32 = 4 * 1024 * 1024;
 const VERSION: &str = "icloud-artifact-v2:";
 const ITEM: &str = "icloud-artifact:";
@@ -19,6 +21,9 @@ pub(super) struct Packages {
     directory: PathBuf,
     limit: u64,
     transfers: Semaphore,
+    resolutions: Arc<Semaphore>,
+    #[cfg(test)]
+    resolution_probe: Mutex<Option<Arc<native_archive::ParserProbe>>>,
     storage: Arc<Semaphore>,
     classifications: Mutex<VecDeque<(String, String, u64, bool)>>,
     artifacts: Mutex<VecDeque<(Node, Arc<DiskArtifact>)>>,
@@ -98,6 +103,9 @@ impl ICloudDrive {
                 .join("icloud-artifacts"),
             limit,
             transfers: Semaphore::new(2),
+            resolutions: Arc::new(Semaphore::new(2)),
+            #[cfg(test)]
+            resolution_probe: Mutex::new(None),
             storage: Arc::new(Semaphore::new(4)),
             classifications: Mutex::new(VecDeque::new()),
             artifacts: Mutex::new(VecDeque::new()),
@@ -318,6 +326,13 @@ impl ICloudDrive {
         node: &Node,
         cancel: &CancellationToken,
     ) -> Outcome<Arc<dyn ReadSession>> {
+        Ok(self.artifact_disk(node, cancel).await?)
+    }
+    async fn artifact_disk(
+        &self,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Outcome<Arc<DiskArtifact>> {
         let expected = ReadIdentity::new(&self.scope, node)?;
         let packages = self.packages.as_ref().ok_or(ProviderError::Unavailable)?;
         {

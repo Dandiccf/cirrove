@@ -1061,3 +1061,28 @@ compatibility. Each format needs a fresh UUID-owned synthetic document, actual
 representation classification, independent content verification, mounted/offline
 reads and reopening in the corresponding Apple application before admission is
 widened. No existing user document should be repurposed as a write fixture.
+
+
+## Explicit native Pages replacement: current public contract
+
+The current service exposes `replace-native-package`,
+`watch-native-replacement` and `list-native-replacements` capability version 1.
+The [explicit replacement guide](native-document-replacement.md) documents exact
+CLI arguments, account/revision binding and recovery after a lost reply. This is
+a separately submitted, validated local archive; ordinary writes to generated
+package children remain refused. Public admission remains Pages-only.
+
+A confirmed replacement creates a new provider identity and records the old
+identity in Trash. It does not promise same-ID updates, preservation of revision
+history or sharing links, or an atomic replacement against another cloud client.
+Stopping a watch stops observation; already queued durable work remains retained
+and may finish. Lost replies require retained-operation discovery, not resubmission.
+
+The [replacement validation record](benchmarks/icloud-native-package-replacement-2026-10-01.md)
+records actual-worker synthetic HTTPS fault tests, encrypted checkpoint recovery,
+router/admission checks, observer/publication checks and bounded read-only
+discovery, including their failed negative controls. These results do not prove
+Apple application fidelity or installed reliability. The
+[owned live replacement arm](benchmarks/icloud-native-replacement-live-2026-10-01.md)
+is separately registered; its current source-preparation evidence is not a
+completed replacement. Full-iCloud acceptance row 486 remains unchecked.

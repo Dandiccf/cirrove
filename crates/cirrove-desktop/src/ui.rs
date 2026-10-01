@@ -1254,13 +1254,18 @@ impl Window {
         // opening anything: a progress bar inside a collapsed expander is a
         // progress bar nobody sees.
         row.kept.set_title(&gettext(
-            if card.running.iter().any(|job| job.native_import) {
+            if card
+                .running
+                .iter()
+                .any(|job| job.native_import || job.native_replace)
+            {
                 n("Transfers and kept offline")
             } else {
                 "Kept offline"
             },
         ));
         let summary = match card.running.iter().find(|job| job.running) {
+            Some(job) if job.native_replace => job.detail.clone(),
             Some(job) if job.native_import => {
                 fill(&gettext("Importing {} · {}"), &[&job.name, &job.detail])
             }
@@ -1867,6 +1872,10 @@ impl Window {
             label: card.label.clone(),
             id: job.to_owned(),
         };
+        let native_replace = card
+            .running
+            .iter()
+            .any(|entry| entry.id == job && entry.native_replace);
         let native_import = card
             .running
             .iter()
@@ -1889,6 +1898,7 @@ impl Window {
             match result {
                 Ok(Ok(reply)) => match (&reply.refusal, reply.stopped, running) {
                     (Some(refusal), _, _) => ui.notify(refusal),
+                    (None, true, true) if native_replace => ui.notify(&gettext("Stopped watching the replacement; its saved operation remains retained.")),
                     (None, true, true) if native_import => ui.notify(&gettext("Stopped watching the import. An already queued document may still finish uploading.")),
                     (None, true, true) => ui.notify(&fill(
                         &gettext("Stopping. {} will not be kept offline."),

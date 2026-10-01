@@ -18,7 +18,7 @@ pub(super) struct Context {
     provider: ICloudPackageCreate,
     staging: PathBuf,
     account_hash: String,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fixture_transport: Option<(reqwest::Client, url::Url)>,
 }
 #[derive(Serialize, Deserialize)]
@@ -82,6 +82,54 @@ fn unpack(mut inner: Value) -> UploadResult<SecretString> {
     Ok(text.into())
 }
 impl ICloudFileReplace {
+    /// Synthetic HTTPS only, absent from default/release builds. The fixed
+    /// fixture origin carries no account credentials; caller maps it to loopback.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn synthetic_native_package(
+        request: UploadRequest,
+        folder: Node,
+        operation: Uuid,
+        staging: &Path,
+        client: reqwest::Client,
+    ) -> UploadResult<Self> {
+        Self::native_identity(&request, &folder)?;
+        let endpoint: url::Url = "https://fixture.icloud-content.com/"
+            .parse()
+            .map_err(|_| UploadError::Invalid)?;
+        let account_hash =
+            crate::account_hash("fixture@example.com").map_err(|_| UploadError::Invalid)?;
+        let mut session =
+            ICloudReadSession::new().map_err(crate::file_create::map_session_error)?;
+        session.account_hash = Some(account_hash.clone());
+        session.http = client.clone();
+        session.drive_endpoint = Some(endpoint.clone());
+        session.docs_endpoint = Some(endpoint.clone());
+        let provider = ICloudPackageCreate::native_handoff_test_provider(
+            request.scope.clone(),
+            folder.clone(),
+            staging,
+            session,
+        );
+        let mut owner = Self::with_native(
+            request,
+            folder,
+            operation,
+            SessionSource::Snapshot {
+                apple_id: "fixture@example.com".into(),
+                snapshot: SecretString::from("synthetic-only"),
+            },
+            provider,
+            staging,
+            account_hash,
+        )?;
+        owner
+            .native
+            .as_mut()
+            .ok_or(UploadError::Invalid)?
+            .fixture_transport = Some((client, endpoint));
+        Ok(owner)
+    }
     /// Explicit archive replacement only. Normal filesystem writes do not use
     /// this constructor. The old identity is recovered in Trash, not overwritten.
     #[allow(clippy::too_many_arguments)]
@@ -213,7 +261,7 @@ impl ICloudFileReplace {
                 provider,
                 staging: staging.into(),
                 account_hash,
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-support"))]
                 fixture_transport: None,
             }),
         };
@@ -452,7 +500,7 @@ impl ICloudFileReplace {
         Ok(plan)
     }
     async fn native_session(&self, cancel: &CancellationToken) -> UploadResult<ICloudReadSession> {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         if let Some((client, endpoint)) = self
             .native
             .as_ref()

@@ -2,6 +2,18 @@
 use crate::{CancellationToken, Node, NodeKind, ProviderError, Scope};
 use async_trait::async_trait;
 
+/// A selected generated archive and the exact native document it represents.
+/// This is read evidence, not permission to edit or a durable working generation.
+/// Callers must bind it to account, pathname and local generation before accepting
+/// edits, and preserve both identities when later sealing a replacement archive.
+#[derive(Clone, PartialEq, Eq)]
+pub struct NativeArchiveBinding {
+    pub scope: Scope,
+    pub archive: Node,
+    pub source: Node,
+    pub semantic: crate::upload::PackageSemanticIdentity,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ReadIdentity {
     pub scope: Scope,

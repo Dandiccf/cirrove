@@ -363,3 +363,5 @@ mod tests {
         assert!(gate.admit().is_err());
     }
 }
+
+mod native_replace;

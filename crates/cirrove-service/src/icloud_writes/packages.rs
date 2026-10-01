@@ -1,6 +1,7 @@
 //! Package checkpoints stay provider-owned: no FILE envelope or metadata-dependent recovery.
 use super::*;
-use cirrove_icloud::ICloudPackageCreate;
+use cirrove_core::upload::UploadRepresentation;
+use cirrove_icloud::{ICloudFileReplace, ICloudPackageCreate, ICloudSealedSignIn};
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
 impl ICloudWriteProvider {
     pub(super) fn package_staging(&self) -> Result<PathBuf> {
@@ -39,17 +40,58 @@ impl ICloudWriteProvider {
         request: &UploadRequest,
         checkpoint: Option<&SecretString>,
     ) -> Result<Arc<dyn UploadProvider>> {
-        self.validate_operation(operation, request)?;
-        if request.representation.is_file_bytes()
-            || !matches!(request.intent, UploadIntent::Create { .. })
-        {
-            return Err(UploadError::Unsupported("native package replacement"));
+        let operation_id = self.validate_operation(operation, request)?;
+        match (&request.representation, &request.intent) {
+            (UploadRepresentation::PackageArchive { .. }, UploadIntent::Create { .. }) => {}
+            (
+                UploadRepresentation::PackageReplacementArchive { .. },
+                UploadIntent::Replace { .. },
+            ) => {}
+            _ => return Err(UploadError::Unsupported("invalid native package operation")),
         }
         #[cfg(test)]
         if let Some(adapter) = &self.package_test_adapter {
             return Ok(adapter.clone());
         }
         let staging = self.package_staging()?;
+        if let UploadRepresentation::PackageReplacementArchive { original, .. } =
+            &request.representation
+        {
+            let sign_in = ICloudSealedSignIn {
+                apple_id: self.apple_id.clone(),
+                credential_id: self.credential_id.clone(),
+            };
+            if let Some(saved) = checkpoint {
+                // The original may already be in Trash. Restore only the exact
+                // captured operation/request/parent, never today's path index.
+                return Ok(Arc::new(
+                    ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
+                        request.clone(),
+                        operation_id,
+                        sign_in,
+                        &self.state,
+                        &staging,
+                        saved,
+                    )?,
+                ));
+            }
+            let parent = self
+                .parent(original.parent_id.as_deref().ok_or(UploadError::Invalid)?)
+                .await?;
+            // Construction performs no provider I/O; begin/allocation verify
+            // the selected original's actual representation and semantic bytes.
+            return Ok(Arc::new(
+                ICloudFileReplace::native_package_from_sealed_session(
+                    request.clone(),
+                    parent,
+                    operation_id,
+                    sign_in,
+                    &self.state,
+                    &staging,
+                )?,
+            ));
+        }
+
         if let Some(checkpoint) = checkpoint {
             return Ok(Arc::new(
                 ICloudPackageCreate::restore_from_sealed_checkpoint(

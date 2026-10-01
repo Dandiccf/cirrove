@@ -221,6 +221,8 @@ impl SealedSessionVault {
 pub struct SealedUploadCheckpointVault {
     account_dir: PathBuf,
     account_id: String,
+    #[cfg(feature = "test-support")]
+    test_keys: Option<std::sync::Arc<dyn CredentialVault>>,
 }
 
 impl SealedUploadCheckpointVault {
@@ -232,9 +234,31 @@ impl SealedUploadCheckpointVault {
         Ok(Self {
             account_dir: state.join("accounts").join(account_id),
             account_id: account_id.into(),
+            #[cfg(feature = "test-support")]
+            test_keys: None,
         })
     }
 
+    /// Test-only wrapping-key injection. Checkpoint values still use the same
+    /// authenticated encryption and private persistent files as production.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn with_test_key_vault(
+        state: &Path,
+        account_id: &str,
+        key_vault: std::sync::Arc<dyn CredentialVault>,
+    ) -> Result<Self> {
+        let mut vault = Self::new(state, account_id)?;
+        vault.test_keys = Some(key_vault);
+        Ok(vault)
+    }
+    fn key_vault(&self) -> &dyn CredentialVault {
+        #[cfg(feature = "test-support")]
+        if let Some(keys) = &self.test_keys {
+            return keys.as_ref();
+        }
+        &DesktopVault
+    }
     fn operation(&self, key: &str) -> Result<SealedSessionVault> {
         let operation = key
             .strip_prefix("upload/")
@@ -253,17 +277,19 @@ impl SealedUploadCheckpointVault {
 #[async_trait]
 impl CredentialVault for SealedUploadCheckpointVault {
     async fn load(&self, key: &str) -> Result<Option<SecretString>> {
-        self.operation(key)?.load_with(key, &DesktopVault).await
+        self.operation(key)?.load_with(key, self.key_vault()).await
     }
 
     async fn save(&self, key: &str, value: SecretString) -> Result<()> {
         self.operation(key)?
-            .save_with(key, value, &DesktopVault)
+            .save_with(key, value, self.key_vault())
             .await
     }
 
     async fn remove(&self, key: &str) -> Result<()> {
-        self.operation(key)?.remove(key).await
+        self.operation(key)?
+            .remove_with(key, self.key_vault())
+            .await
     }
 }
 
@@ -577,7 +603,16 @@ impl CredentialVault for SealedSessionVault {
     }
 
     async fn remove(&self, credential_id: &str) -> Result<()> {
-        DesktopVault.remove(credential_id).await?;
+        self.remove_with(credential_id, &DesktopVault).await
+    }
+}
+impl SealedSessionVault {
+    async fn remove_with(
+        &self,
+        credential_id: &str,
+        key_vault: &dyn CredentialVault,
+    ) -> Result<()> {
+        key_vault.remove(credential_id).await?;
         match fs::remove_file(self.path()) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),

@@ -397,3 +397,15 @@ impl RecoveryJournal {
         self.journal.mutation(id)
     }
 }
+
+impl RecoveryJournal {
+    #[allow(dead_code)] // Read-only local observer contract; service wiring follows.
+    pub(crate) fn native_replacement_list(
+        &self,
+        scope: &Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<NativeReplacementListing> {
+        self.journal.native_replacement_list(scope, after, limit)
+    }
+}

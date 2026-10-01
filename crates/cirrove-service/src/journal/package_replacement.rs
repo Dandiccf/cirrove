@@ -155,3 +155,6 @@ pub(super) fn attach(tx: &Transaction<'_>, record: &UploadRecord) -> Result<()> 
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod worker_transport;

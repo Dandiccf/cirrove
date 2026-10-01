@@ -1216,3 +1216,5 @@ mod tests {
         p.merge(other, None).expect("separate scope");
     }
 }
+
+mod native_replace;

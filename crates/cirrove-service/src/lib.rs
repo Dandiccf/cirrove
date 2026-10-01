@@ -593,6 +593,88 @@ pub struct KeepBothReply {
     pub refusal: Option<String>,
 }
 
+/// Explicit replacement of one exact selected native PACKAGE revision.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReplaceNativePackageRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub path: String,
+    pub item_id: String,
+    pub etag: String,
+    pub archive: PathBuf,
+    pub expected_root: String,
+}
+/// Observation only; never submits a replacement or changes its archive.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchNativeReplacementRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub operation: uuid::Uuid,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct NativeReplacementReply {
+    #[serde(default)]
+    pub job: Option<jobs::Job>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListNativeReplacementsRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    #[serde(default)]
+    pub after: Option<u64>,
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ListNativeReplacementsReply {
+    #[serde(default)]
+    pub operations: Vec<journal::NativeReplacementSelection>,
+    #[serde(default)]
+    pub next: Option<u64>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn replace_native_package(
+    socket: &Path,
+    body: &ReplaceNativePackageRequest,
+) -> Result<NativeReplacementReply> {
+    request(
+        socket,
+        "replace-native-package",
+        Some(body),
+        "Cirrove explicit native replacement",
+    )
+    .await
+}
+pub async fn watch_native_replacement(
+    socket: &Path,
+    body: &WatchNativeReplacementRequest,
+) -> Result<NativeReplacementReply> {
+    request(
+        socket,
+        "watch-native-replacement",
+        Some(body),
+        "Cirrove native replacement observation",
+    )
+    .await
+}
+pub async fn list_native_replacements(
+    socket: &Path,
+    body: &ListNativeReplacementsRequest,
+) -> Result<ListNativeReplacementsReply> {
+    request(
+        socket,
+        "list-native-replacements",
+        Some(body),
+        "Cirrove retained native replacements",
+    )
+    .await
+}
+
 /// Discover retained native Trash operations after a lost reply or daemon restart.
 /// This bounded read never enqueues, wakes a worker or retries a mutation.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1109,6 +1191,9 @@ impl Capabilities {
                 ("trash-native-document".to_string(), 1),
                 ("watch-native-trash".to_string(), 1),
                 ("list-native-trash".to_string(), 1),
+                ("replace-native-package".to_string(), 1),
+                ("watch-native-replacement".to_string(), 1),
+                ("list-native-replacements".to_string(), 1),
                 ("import-native-package-account-binding".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
@@ -1333,6 +1418,33 @@ pub async fn serve_managed(
                                 _=>ExportSaveReply{refusal:Some("working export request or account service is unavailable".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="replace-native-package" {
+                            let reply=match (serde_json::from_str::<ReplaceNativePackageRequest>(body),&manager){
+                                (Ok(r),Some(m)) if !r.label.is_empty()=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.start_native_replacement(engine,crate::native_import::NativeReplaceInput{selected:crate::native_trash::NativeTrashInput{expected_account_id:r.expected_account_id,path:r.path,item_id:r.item_id,etag:r.etag},source:r.archive,expected_root:r.expected_root}).await {
+                                        Ok(job)=>NativeReplacementReply{job:Some(job),refusal:None},Err(_)=>NativeReplacementReply{job:None,refusal:Some("native replacement admission could not be started".into())},
+                                    },_=>NativeReplacementReply{job:None,refusal:Some("selected replacement account changed or is unavailable".into())},
+                                },_=>NativeReplacementReply{job:None,refusal:Some("replacement requires an exact account and available service".into())},
+                            };return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="watch-native-replacement" {
+                            let reply=match (serde_json::from_str::<WatchNativeReplacementRequest>(body),&manager){
+                                (Ok(r),Some(m)) if !r.label.is_empty()=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.watch_native_replacement(engine,&r.expected_account_id,r.operation).await {
+                                        Ok(job)=>NativeReplacementReply{job:Some(job),refusal:None},Err(_)=>NativeReplacementReply{job:None,refusal:Some("saved replacement observation could not attach".into())},
+                                    },_=>NativeReplacementReply{job:None,refusal:Some("selected replacement account changed or is unavailable".into())},
+                                },_=>NativeReplacementReply{job:None,refusal:Some("replacement observation request or service unavailable".into())},
+                            };return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="list-native-replacements" {
+                            let reply=match (serde_json::from_str::<ListNativeReplacementsRequest>(body),&manager){
+                                (Ok(r),Some(m)) if !r.label.is_empty() && (1..=100).contains(&r.limit) && r.after.is_none_or(|n|n<=i64::MAX as u64)=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.list_native_replacements(&engine,&r.expected_account_id,r.after,r.limit).await {
+                                        Ok(page)=>ListNativeReplacementsReply{operations:page.operations,next:page.next,refusal:None},Err(_)=>ListNativeReplacementsReply{refusal:Some("retained replacements unavailable for selected account".into()),..Default::default()},
+                                    },_=>ListNativeReplacementsReply{refusal:Some("selected replacement account changed or is unavailable".into()),..Default::default()},
+                                },_=>ListNativeReplacementsReply{refusal:Some("replacement listing requires an exact account and bounded page".into()),..Default::default()},
+                            };return write_reply(&mut stream,&reply).await;
                         }
                         if verb=="list-native-trash" {
                             let reply=match (serde_json::from_str::<ListNativeTrashRequest>(body),&manager) {
@@ -2134,6 +2246,133 @@ mod tests {
             assert_eq!(nodes.len(), 1);
             assert_eq!(nodes[0].id, format!("round-{round}"));
         }
+    }
+    #[test]
+    fn native_replacement_protocol_requires_exact_selection_and_observers_reject_write_fields() {
+        let input = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"path":"Owned.pages","item_id":"FILE::com.apple.CloudDocs::owned","etag":"v1","archive":"/var/tmp/Owned.zip","expected_root":"Owned.pages"});
+        assert!(serde_json::from_value::<ReplaceNativePackageRequest>(input.clone()).is_ok());
+        for field in [
+            "expected_account_id",
+            "path",
+            "item_id",
+            "etag",
+            "archive",
+            "expected_root",
+        ] {
+            let mut v = input.clone();
+            v.as_object_mut().unwrap().remove(field);
+            assert!(
+                serde_json::from_value::<ReplaceNativePackageRequest>(v).is_err(),
+                "{field}"
+            );
+        }
+        let watch = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"operation":uuid::Uuid::new_v4()});
+        let list = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"limit":100});
+        for key in ["archive", "expected_root", "item_id", "etag", "retry"] {
+            let mut w = watch.clone();
+            w[key] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<WatchNativeReplacementRequest>(w).is_err());
+            let mut l = list.clone();
+            l[key] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<ListNativeReplacementsRequest>(l).is_err());
+        }
+    }
+    #[tokio::test]
+    async fn native_replacement_public_routes_refuse_missing_manager_and_invalid_pages() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        let caps = capabilities(&socket).await.unwrap();
+        for name in [
+            "replace-native-package",
+            "watch-native-replacement",
+            "list-native-replacements",
+        ] {
+            assert_eq!(caps.capabilities.get(name), Some(&1));
+        }
+        let account = uuid::Uuid::new_v4().to_string();
+        let reply = replace_native_package(
+            &socket,
+            &ReplaceNativePackageRequest {
+                label: "Owned".into(),
+                expected_account_id: account.clone(),
+                path: "Owned.pages".into(),
+                item_id: "FILE::com.apple.CloudDocs::owned".into(),
+                etag: "v1".into(),
+                archive: "/var/tmp/Owned.zip".into(),
+                expected_root: "Owned.pages".into(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        let reply = watch_native_replacement(
+            &socket,
+            &WatchNativeReplacementRequest {
+                label: "Owned".into(),
+                expected_account_id: account.clone(),
+                operation: uuid::Uuid::new_v4(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        for (limit, after) in [(0, None), (101, None), (100, Some(u64::MAX)), (100, None)] {
+            let reply = list_native_replacements(
+                &socket,
+                &ListNativeReplacementsRequest {
+                    label: "Owned".into(),
+                    expected_account_id: account.clone(),
+                    limit,
+                    after,
+                },
+            )
+            .await
+            .unwrap();
+            assert!(reply.refusal.is_some() && reply.operations.is_empty() && reply.next.is_none());
+        }
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+    #[tokio::test]
+    async fn native_replacement_client_preserves_structured_archive_and_selection() {
+        use tokio::io::AsyncBufReadExt;
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("control.sock");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let input = ReplaceNativePackageRequest {
+            label: "Owned".into(),
+            expected_account_id: uuid::Uuid::new_v4().to_string(),
+            path: "Folder/quote \"; $(literal).pages".into(),
+            item_id: "FILE::com.apple.CloudDocs::owned".into(),
+            etag: "e-tag".into(),
+            archive: PathBuf::from("/var/tmp/source \"; $(literal)\n.zip"),
+            expected_root: "Source.pages".into(),
+        };
+        let expected = serde_json::to_value(&input).unwrap();
+        let task = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut reader = tokio::io::BufReader::new(stream);
+            let mut line = String::new();
+            reader.read_line(&mut line).await.unwrap();
+            let request: ReplaceNativePackageRequest =
+                serde_json::from_str(line.strip_prefix("replace-native-package ").unwrap())
+                    .unwrap();
+            assert_eq!(serde_json::to_value(request).unwrap(), expected);
+            assert_eq!(line.bytes().filter(|b| *b == b'\n').count(), 1);
+            reader
+                .get_mut()
+                .write_all(b"{\"job\":null,\"refusal\":\"synthetic\"}\n")
+                .await
+                .unwrap();
+        });
+        assert_eq!(
+            replace_native_package(&socket, &input)
+                .await
+                .unwrap()
+                .refusal
+                .as_deref(),
+            Some("synthetic")
+        );
+        task.await.unwrap();
     }
 }
 

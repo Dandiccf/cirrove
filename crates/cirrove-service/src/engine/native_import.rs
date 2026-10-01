@@ -195,7 +195,7 @@ impl Engine {
         }
     }
 }
-async fn fresh_publication(
+pub(super) async fn fresh_publication(
     engine: &Engine,
     row: &UploadRecord,
 ) -> Result<crate::journal::PackagePublicationStatus> {
@@ -217,7 +217,7 @@ async fn fresh_publication(
     }
 }
 
-async fn observe<T>(
+pub(super) async fn observe<T>(
     cancel: &cirrove_core::CancellationToken,
     deadline: tokio::time::Instant,
     read: impl std::future::Future<Output = T>,
@@ -232,7 +232,10 @@ fn stop_observing(handle: crate::jobs::JobHandle, state: JobState) {
     handle.failed(state, Some("stopped watching or observation deadline reached; the queued import remains retained and may finish uploading".into()));
 }
 
-fn same_publication(receipt: &cirrove_core::Node, observed: &cirrove_core::Node) -> bool {
+pub(super) fn same_publication(
+    receipt: &cirrove_core::Node,
+    observed: &cirrove_core::Node,
+) -> bool {
     receipt.id == observed.id
         && receipt.parent_id == observed.parent_id
         && receipt.name == observed.name
