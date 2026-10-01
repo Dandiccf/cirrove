@@ -33,20 +33,20 @@ pub(crate) fn validate_temporary(db: &Connection, object: &NamespaceObject) -> R
         || object.remote_owned
         || object.remote.is_some()
         || object.latest.is_some()
-        || object.unlinked
+        || object.unlinked != file.unlinked
         || object.follows_remote
         || object.working_file != Some(object.id)
         || file.id != object.id
         || !file.native
-        || file.unlinked
         || file.latest.is_some()
         || file.scope != owner.scope
         || object.scope != owner.scope
         || file.node != object.node
-        || object.node.parent_id.as_ref() != Some(&owner.node.id)
-        || object.node.name == owner.node.name
-        || owner.unlinked
-        || !owner.remote_owned
+        || (!object.unlinked
+            && (object.node.parent_id.as_ref() != Some(&owner.node.id)
+                || object.node.name == owner.node.name
+                || owner.unlinked
+                || !owner.remote_owned))
         || !owner.node.package
         || owner.node.kind != NodeKind::Folder
         || owner.node.target.is_some()
@@ -121,7 +121,11 @@ impl UploadJournal {
         projection::validate_child(&self.db, &child)?;
         let role = child.native_archive.as_ref().ok_or(JournalError::Stale)?;
         let owner = self.namespace_object(role.source_owner)?;
-        if owner.scope.account != self.account || child.unlinked || name == child.node.name {
+        if owner.scope.account != self.account
+            || child.unlinked
+            || name == child.node.name
+            || name == owner.node.name
+        {
             return Err(JournalError::Intent);
         }
         UploadIntent::Create {
@@ -313,7 +317,7 @@ impl UploadJournal {
             original_semantic,
         };
         let mut record = transfer.temporary.clone();
-        record.node.name = transfer.victim.node.name.clone();
+        record.node.name = transfer.owner.node.name.clone();
         record.latest = transfer.victim.latest;
         record.intent = intent.clone();
         let order = WriteOrder {
@@ -402,16 +406,16 @@ pub(crate) fn transfer(
     {
         return Err(JournalError::Stale);
     }
+    let backed_up = backup::gap(tx, t.victim.id)?;
     let mut old = t.victim.clone();
-    old.unlinked = true;
+    old.unlinked = backed_up.is_none();
     let mut old_object = t.victim_object.clone();
-    old_object.unlinked = true;
+    old_object.unlinked = backed_up.is_none();
     old_object.native_archive = None;
     old_object.revision = old_object
         .revision
         .checked_add(1)
         .ok_or(JournalError::Quota)?;
-    namespace::save(tx, &old_object)?;
     tx.execute(
         "UPDATE working_files SET slot=NULL,body=?2 WHERE id=?1",
         params![old.id.to_string(), serde_json::to_string(&old)?],
@@ -420,6 +424,9 @@ pub(crate) fn transfer(
         "INSERT INTO native_detached_streams VALUES(?1,?2,?3)",
         params![old.id.to_string(), t.owner.id.to_string(), actual_binding],
     )?;
+    if let Some(gap) = backed_up {
+        backup::detach(tx, &gap)?;
+    }
     tx.execute(
         "DELETE FROM native_working_bindings WHERE working=?1",
         [old.id.to_string()],
@@ -454,9 +461,15 @@ pub(crate) fn transfer(
             row.id.to_string()
         ],
     )?;
+    namespace::save(tx, &old_object)?;
     let mut child = t.temporary_object.clone();
     child.node = commit.record.node.clone();
     child.native_archive = t.victim_object.native_archive.clone();
+    child
+        .native_archive
+        .as_mut()
+        .ok_or(JournalError::Corrupt)?
+        .backed_up = false;
     child
         .native_archive
         .as_mut()
@@ -505,13 +518,14 @@ pub(crate) fn snapshot_role(
             validate_temporary(db, object)?;
             Ok(Some(crate::journal::NativeLocalStream {
                 source_owner: Uuid::parse_str(&owner).map_err(|_| JournalError::Corrupt)?,
-                detached: false,
+                detached: object.unlinked,
+                backup: false,
             }))
         }
         (None, Some((owner, binding))) => {
             let binding: Binding = serde_json::from_str(&binding)?;
             binding.validate()?;
-            if !object.unlinked
+            if (!object.unlinked && !backup::validate_local_backup(db, object)?)
                 || object.remote_owned
                 || object.remote.is_some()
                 || object.native_archive.is_some()
@@ -523,6 +537,7 @@ pub(crate) fn snapshot_role(
             Ok(Some(crate::journal::NativeLocalStream {
                 source_owner: Uuid::parse_str(&owner).map_err(|_| JournalError::Corrupt)?,
                 detached: true,
+                backup: backup::validate_local_backup(db, object)?,
             }))
         }
         (None, None) => Ok(None),
@@ -537,7 +552,7 @@ impl UploadJournal {
         snapshot_role(&self.db, &self.namespace_object(id)?)
     }
     pub(crate) fn sync_native_local_stream(&self, id: Uuid) -> Result<bool> {
-        if self.native_local_stream(id)?.is_none() {
+        if self.native_local_stream(id)?.is_none() && backup::gap(&self.db, id)?.is_none() {
             return Ok(false);
         }
         self.working_descriptor(id, false)?.sync_all()?;

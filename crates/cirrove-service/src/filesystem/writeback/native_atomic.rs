@@ -20,18 +20,34 @@ impl Inner {
                     && !n.package
                     && n.target.is_none()
             })
-            .cloned()
-            .ok_or(Errno::EOPNOTSUPP)?;
-        let view = self
-            .insert(parent, canonical.clone())
+            .cloned();
+        let writer = self.writeback.as_ref().ok_or(Errno::EROFS)?;
+        if self.engine.account.access != cirrove_auth::AccessMode::ReadWrite
+            || self.engine.scope(&parent.scope.collection) != *parent.scope
+        {
+            return Err(Errno::EACCES);
+        }
+        let canonical = if let Some(canonical) = canonical {
+            let view = self
+                .insert(parent, canonical.clone())
+                .await
+                .map_err(|e| errno(&e))?;
+            self.prepare_path_edit(&view, Some(&canonical), None)
+                .await?
+        } else {
+            let scope = parent.scope.as_ref().clone();
+            let id = parent.id.to_string();
+            writer
+                .local(move |j| j.native_backup_selection(&scope, &id))
+                .await?
+                .ok_or(Errno::EOPNOTSUPP)?
+                .0
+        };
+        let checked = self
+            .insert(parent, canonical.node.clone())
             .await
             .map_err(|e| errno(&e))?;
-        // This performs the exact provider resolver/grant/ancestry check on first
-        // use, and the retained exact working binding check on later saves.
-        let canonical = self
-            .prepare_path_edit(&view, Some(&canonical), None)
-            .await?;
-        let writer = self.writeback.as_ref().ok_or(Errno::EROFS)?;
+        self.validate_native_local_route(&checked)?;
         let cancel = self.cancel.clone();
         let expected = canonical.clone();
         let file = writer
@@ -51,6 +67,62 @@ impl Inner {
             })
             .await?;
         Ok(Some(writer.publish(file).await?))
+    }
+    /// Local temporary lifecycle only: never dispatch a namespace mutation.
+    pub(in crate::filesystem) async fn change_native_temporary(
+        &self,
+        parent: &View,
+        source: Node,
+        name: Option<String>,
+    ) -> Result<()> {
+        if !parent.package || parent.kind != NodeKind::Folder {
+            return Err(Errno::EOPNOTSUPP);
+        }
+        let writer = self.writeback.as_ref().ok_or(Errno::EROFS)?;
+        if self.engine.account.access != cirrove_auth::AccessMode::ReadWrite
+            || self.engine.scope(&parent.scope.collection) != *parent.scope
+        {
+            return Err(Errno::EACCES);
+        }
+        let selected = {
+            let projection = writer.projection.lock().map_err(|_| Errno::EIO)?;
+            let object = projection
+                .local_object(&parent.scope, &source.id)
+                .ok_or(Errno::EOPNOTSUPP)?;
+            if projection
+                .native_local
+                .get(&object.id)
+                .is_none_or(|role| role.detached)
+                || object.unlinked
+            {
+                return Err(Errno::EOPNOTSUPP);
+            }
+            object.id
+        };
+        let scope = parent.scope.as_ref().clone();
+        let cancel = self.cancel.clone();
+        let account_cancel = self.engine.cancel.clone();
+        let file = writer
+            .local(move |journal| {
+                if cancel.is_cancelled() || account_cancel.is_cancelled() {
+                    return Err(JournalError::Stale);
+                }
+                match name {
+                    Some(name) => {
+                        journal.rename_native_local_temporary(selected, &scope, &source, name)
+                    }
+                    None => journal.unlink_native_local_temporary(selected, &scope, &source),
+                }
+            })
+            .await?;
+        let file = writer.publish(file).await?;
+        if !file.unlinked {
+            self.insert(parent, file.node)
+                .await
+                .map_err(|e| errno(&e))?;
+        }
+        self.engine.changed.notify_waiters();
+        Ok(())
     }
     pub(in crate::filesystem) async fn rename_native_temporary(
         &self,
@@ -99,10 +171,12 @@ impl Writeback {
             let Some(object) = p.local_object(&view.scope, &view.id) else {
                 return Ok(None);
             };
-            let Some(role) = p.native_local.get(&object.id) else {
+            let gap = object.native_archive.as_ref().is_some_and(|r| r.backed_up);
+            let role = p.native_local.get(&object.id);
+            if !gap && role.is_none() {
                 return Ok(None);
-            };
-            if role.detached || object.unlinked {
+            }
+            if (!gap && role.is_some_and(|r| r.detached && !r.backup)) || object.unlinked {
                 return Err(Errno::ESTALE);
             }
             object.clone()
@@ -123,10 +197,7 @@ impl Writeback {
                     return Err(JournalError::Stale);
                 }
                 let actual = j.namespace_object(selected.id)?;
-                let role = j
-                    .native_local_stream(selected.id)?
-                    .ok_or(JournalError::Stale)?;
-                if role.detached
+                if !j.native_local_writable(selected.id)?
                     || actual.scope != selected.scope
                     || actual.node.id != selected.node.id
                     || actual.node.parent_id != selected.node.parent_id
@@ -148,7 +219,7 @@ impl Writeback {
             .await?;
         Ok(Some(self.publish(file).await?))
     }
-    async fn replace_native_temporary(
+    pub(super) async fn replace_native_temporary(
         &self,
         engine: &Engine,
         scope: &Scope,

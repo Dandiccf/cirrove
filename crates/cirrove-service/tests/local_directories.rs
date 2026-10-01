@@ -266,11 +266,11 @@ fn schema_thirteen_migrates_and_missing_or_future_destination_state_fails_closed
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        18
+        19
     );
     db.execute_batch("DROP TABLE write_destinations;").unwrap();
     assert!(UploadJournal::open(&root, &scope().account, 1024 * 1024).is_err());
-    db.execute_batch("PRAGMA user_version=19;").unwrap();
+    db.execute_batch("PRAGMA user_version=20;").unwrap();
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 1024 * 1024),
         Err(JournalError::Schema)

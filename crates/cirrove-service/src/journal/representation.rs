@@ -3,13 +3,16 @@ use super::*;
 use cirrove_core::CancellationToken;
 
 pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
-    if version < JOURNAL_SCHEMA {
+    if version < 17 {
         let tx = db.transaction()?;
         // Older binaries ignore new JSON fields. The schema gate prevents them
         // from replaying a package archive as ordinary file bytes, or opening
         // a journal containing explicit native-container Trash or two-identity
         // package archive replacements (schema 17).
-        tx.pragma_update(None, "user_version", JOURNAL_SCHEMA)?;
+        // Native working/gap schemas are published by native::migrate in the
+        // same transaction as their tables. Never advance an existing schema18
+        // journal to19 before that transaction succeeds.
+        tx.pragma_update(None, "user_version", 17)?;
         tx.commit()?;
     }
     Ok(())

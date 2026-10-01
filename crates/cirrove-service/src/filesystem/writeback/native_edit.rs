@@ -42,6 +42,11 @@ struct NativeRoute {
     ancestors: Vec<(Scope, Node)>,
 }
 impl Inner {
+    pub(super) fn validate_native_local_route(&self, view: &View) -> Result<()> {
+        self.native_route(view)?
+            .ok_or(Errno::EOPNOTSUPP)
+            .map(|_| ())
+    }
     fn native_route(&self, view: &View) -> Result<Option<NativeRoute>> {
         let views = self.views.lock().map_err(|_| Errno::EIO)?;
         let mut current = view.clone();

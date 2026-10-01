@@ -264,9 +264,9 @@ fn version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema()
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        18
+        19
     );
-    db.execute_batch("PRAGMA user_version=19;").unwrap();
+    db.execute_batch("PRAGMA user_version=20;").unwrap();
     drop(db);
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 1024),
@@ -276,7 +276,7 @@ fn version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema()
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        19
+        20
     );
 }
 

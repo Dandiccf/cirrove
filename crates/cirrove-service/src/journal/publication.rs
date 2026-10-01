@@ -8,6 +8,8 @@ use super::*;
 pub struct NativeLocalStream {
     pub source_owner: Uuid,
     pub detached: bool,
+    /// Exact retained backup marker; never inferred from a visible name.
+    pub backup: bool,
 }
 #[derive(Clone, Debug)]
 pub struct NamespaceSnapshot {

@@ -626,18 +626,18 @@ Upgrading properly is: install the new binaries first, then restart the service,
 then use the new commands.
 
 
-### Native working journal schema18: held prerelease policy
+### Native working journal schema19: held prerelease policy
 
-Schema18 is a prepared native-working prerequisite, not permission to upgrade
+Schema19 adds native backup-first state to the native-working prerequisite, not permission to upgrade
 installed accounts. Until its recovery, successor and application acceptance is
 complete, validation must use explicitly isolated state, sockets, mounts and
-binaries. Do not open the user's current journal with a schema18 writer, restart
+binaries. Do not open the user's current journal with a schema19 writer, restart
 the installed service or change package/developer installation state for these tests.
 
 Every writable journal opened by that build migrates, including ordinary-only
 accounts with no native documents. The fence protects native working bytes from
-older code that could interpret them as ordinary uploads. Schema17 binaries must
-refuse schema18 rather than ignore the marker or lower the version. A table being
+older code that could interpret them as ordinary uploads. Schema17 and schema18 binaries must
+refuse schema19 rather than ignore the marker or lower the version. A table being
 additive does not make the writer downgrade safe.
 
 Before any later authorized deployment, identify the actual installed version,

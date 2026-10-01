@@ -1520,8 +1520,18 @@ impl Filesystem for CloudFs {
                         .find(|n| {
                             n.id != source.id && n.name.to_lowercase() == newname.to_lowercase()
                         })
-                        .cloned()
-                        .ok_or(Errno::EOPNOTSUPP)?;
+                        .cloned();
+                    let Some(victim) = victim else {
+                        if inner
+                            .rename_native_backup(&parent, source.clone(), newname.clone())
+                            .await?
+                        {
+                            return Ok(());
+                        }
+                        return inner
+                            .change_native_temporary(&parent, source, Some(newname))
+                            .await;
+                    };
                     if flags.contains(RenameFlags::RENAME_NOREPLACE) || victim.name != newname {
                         return Err(Errno::EEXIST);
                     }
@@ -1713,6 +1723,12 @@ impl Filesystem for CloudFs {
                 }
                 if source.target.is_some() {
                     return Err(Errno::EOPNOTSUPP);
+                }
+                if parent.package {
+                    if inner.unlink_native_backup(&parent, source.clone()).await? {
+                        return Ok(());
+                    }
+                    return inner.change_native_temporary(&parent, source, None).await;
                 }
                 let view = inner.insert(&parent, source).await.map_err(|e| errno(&e))?;
                 // unlink and rmdir never walk their ancestors, so neither was

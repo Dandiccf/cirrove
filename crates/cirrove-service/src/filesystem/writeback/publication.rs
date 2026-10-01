@@ -87,7 +87,7 @@ impl Projection {
                     .is_some_and(|id| {
                         *id != object.id
                             && !changed_objects.get(id).is_some_and(|old| {
-                                old.unlinked
+                                (old.unlinked || changed_local.get(id).is_some_and(|r| r.backup))
                                     && old.native_archive.is_none()
                                     && changed_local.get(id).is_some_and(|local| {
                                         local.detached && local.source_owner == role.source_owner
@@ -119,6 +119,9 @@ impl Projection {
                     || owner.node.kind != NodeKind::Folder
                     || !owner.node.package
                     || owner.node.target.is_some()
+                    || (local.backup
+                        && (object.node.parent_id.as_ref() != Some(&owner.node.id)
+                            || object.node.name == owner.node.name))
                     || (!local.detached
                         && (owner.unlinked
                             || !owner.remote_owned

@@ -289,7 +289,7 @@ fn schema17_migration_preserves_ordinary_rows_and_native_quota_refusal_is_local(
     assert_eq!(
         j.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0))
             .unwrap(),
-        18
+        19
     );
     assert_eq!(j.get(ordinary.id).unwrap().sha256, ordinary.sha256);
     let f = publish(&mut j, b, &data);

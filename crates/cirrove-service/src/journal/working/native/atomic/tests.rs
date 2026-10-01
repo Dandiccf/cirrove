@@ -325,3 +325,110 @@ fn native_atomic_readonly_recovery_exports_temp_and_detached_bytes_without_journ
     drop(ro);
     assert_eq!(std::fs::read(database).unwrap(), before);
 }
+
+#[test]
+fn native_temporary_rename_unlink_preserves_handles_and_readonly_recovery() {
+    let root = temp();
+    let original = bytes(b"original");
+    let mut j = journal(&root);
+    let canonical = publish(&mut j, binding(&root, &original), &original);
+    let t = temporary(&mut j, canonical.id, ".save", b"temporary");
+    let held = j.working_descriptor(t.id, false).unwrap();
+    let moved = j
+        .rename_native_local_temporary(t.id, &t.scope, &t.node, ".save-two".into())
+        .unwrap();
+    assert_eq!(moved.id, t.id);
+    assert_eq!(moved.generation, t.generation);
+    assert!(
+        j.unlink_native_local_temporary(t.id, &t.scope, &t.node)
+            .is_err()
+    );
+    let removed = j
+        .unlink_native_local_temporary(t.id, &moved.scope, &moved.node)
+        .unwrap();
+    assert!(removed.unlinked);
+    assert!(j.native_local_stream(t.id).unwrap().unwrap().detached);
+    let mut read = vec![0; bytes(b"temporary").len()];
+    held.read_exact_at(&mut read, 0).unwrap();
+    assert_eq!(read, bytes(b"temporary"));
+    edit(&mut j, t.id, &bytes(b"late unlinked descriptor"));
+    assert!(j.sync_native_local_stream(t.id).unwrap());
+    assert!(j.capture_native_temporary(t.id, canonical.id).is_err());
+    assert!(j.seal_working(t.id).is_err());
+    let reused = temporary(&mut j, canonical.id, ".save-two", b"new stream");
+    assert_ne!(reused.id, t.id);
+    assert_eq!(j.read_working(canonical.id, 0, 4096).unwrap(), original);
+    assert_eq!(count(&j), 0);
+    assert!(j.claim_mutation().unwrap().is_none());
+    let generation = j.working_file(t.id).unwrap().generation;
+    drop(held);
+    drop(j);
+    let db = root.path().join("journal/uploads.db");
+    let before = std::fs::read(&db).unwrap();
+    let ro = RecoveryJournal::open(&root.path().join("journal"), "native-working").unwrap();
+    let destination = root.path().join("unlinked-export");
+    let staged = ro
+        .working_export_source(t.id, generation)
+        .unwrap()
+        .prepare_copy(&destination, &CancellationToken::new(), |_| {})
+        .unwrap();
+    ro.verify_working_export(staged)
+        .unwrap()
+        .publish(&CancellationToken::new())
+        .unwrap();
+    assert_eq!(
+        std::fs::read(destination).unwrap(),
+        bytes(b"late unlinked descriptor")
+    );
+    drop(ro);
+    assert_eq!(std::fs::read(db).unwrap(), before);
+}
+
+#[test]
+fn native_temporary_path_changes_reject_authority_collision_and_roll_back() {
+    let root = temp();
+    let original = bytes(b"original");
+    let mut j = journal(&root);
+    let canonical = publish(&mut j, binding(&root, &original), &original);
+    let t = temporary(&mut j, canonical.id, ".save", b"temporary");
+    let occupied = temporary(&mut j, canonical.id, ".occupied", b"occupant");
+    let before = serde_json::to_string(&j.namespace_object(t.id).unwrap()).unwrap();
+    for name in ["Owned.pages", "OWNED.PAGES", ".occupied", "../escape"] {
+        assert!(
+            j.rename_native_local_temporary(t.id, &t.scope, &t.node, name.into())
+                .is_err()
+        );
+        assert_eq!(
+            serde_json::to_string(&j.namespace_object(t.id).unwrap()).unwrap(),
+            before
+        );
+        assert_eq!(j.working_file(t.id).unwrap().node, t.node);
+    }
+    let mut foreign = t.scope.clone();
+    foreign.account = "another-account".into();
+    assert!(
+        j.unlink_native_local_temporary(t.id, &foreign, &t.node)
+            .is_err()
+    );
+    assert!(
+        j.unlink_native_local_temporary(canonical.id, &canonical.scope, &canonical.node)
+            .is_err()
+    );
+    j.db.execute_batch("CREATE TEMP TRIGGER refuse_local_temp BEFORE UPDATE ON namespace_objects BEGIN SELECT RAISE(ABORT,'test rollback'); END;").unwrap();
+    assert!(
+        j.unlink_native_local_temporary(t.id, &t.scope, &t.node)
+            .is_err()
+    );
+    assert!(!j.working_file(t.id).unwrap().unlinked);
+    assert_eq!(
+        serde_json::to_string(&j.namespace_object(t.id).unwrap()).unwrap(),
+        before
+    );
+    j.db.execute_batch("DROP TRIGGER refuse_local_temp;")
+        .unwrap();
+    assert_eq!(
+        j.read_working(occupied.id, 0, 4096).unwrap(),
+        bytes(b"occupant")
+    );
+    assert_eq!(count(&j), 0);
+}

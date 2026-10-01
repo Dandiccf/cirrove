@@ -480,3 +480,56 @@ fn native_retirement_temporary_owner_blocks_selection_and_late_commit() {
     assert_eq!(j.read_working(temporary.id, 0, 1_000_000).unwrap(), pending);
     assert!(j.native_retirement_candidate(canonical.id).is_err());
 }
+
+#[test]
+fn native_retirement_unlinked_temp_does_not_permanently_pin_source_owner() {
+    let root = temp();
+    let initial = bytes(b"original");
+    let mut j = journal(&root);
+    let f = publish(&mut j, binding(&root, &initial), &initial);
+    let (_, remote) = complete(&mut j, f.id, b"committed");
+    let temporary = j
+        .create_native_temporary(f.id, ".abandoned".into())
+        .unwrap();
+    edit(&mut j, temporary.id, b"recoverable partial bytes");
+    assert!(j.native_retirement_candidate(f.id).is_err());
+    let selected = j.working_file(temporary.id).unwrap();
+    j.unlink_native_local_temporary(selected.id, &selected.scope, &selected.node)
+        .unwrap();
+    let candidate = j.native_retirement_candidate(f.id).unwrap();
+    j.retire_native_working(&candidate, &remote).unwrap();
+    assert_eq!(
+        j.read_working(temporary.id, 0, 4096).unwrap(),
+        b"recoverable partial bytes"
+    );
+    edit(&mut j, temporary.id, b"late local descriptor");
+    assert!(j.sync_native_local_stream(temporary.id).unwrap());
+    assert!(j.namespace_object(temporary.id).unwrap().unlinked);
+    assert_eq!(count(&j, "uploads"), 1);
+    let generation = j.working_file(temporary.id).unwrap().generation;
+    drop(j);
+    let database = root.path().join("journal/uploads.db");
+    let before = std::fs::read(&database).unwrap();
+    let recovery =
+        crate::journal::RecoveryJournal::open(&root.path().join("journal"), "native-working")
+            .unwrap();
+    let destination = root.path().join("retired-owner-temp-export");
+    let staged = recovery
+        .working_export_source(temporary.id, generation)
+        .unwrap()
+        .prepare_copy(&destination, &CancellationToken::new(), |_| {})
+        .unwrap();
+    let receipt = recovery
+        .verify_working_export(staged)
+        .unwrap()
+        .publish(&CancellationToken::new())
+        .unwrap();
+    assert_eq!(receipt.source.file, temporary.id);
+    assert_eq!(receipt.source.generation, generation);
+    assert_eq!(
+        std::fs::read(destination).unwrap(),
+        b"late local descriptor"
+    );
+    drop(recovery);
+    assert_eq!(std::fs::read(database).unwrap(), before);
+}

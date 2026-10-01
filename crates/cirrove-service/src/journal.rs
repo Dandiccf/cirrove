@@ -42,7 +42,7 @@ pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
 use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use cirrove_core::{Node, NodeKind, Scope};
-pub(crate) const JOURNAL_SCHEMA: u32 = 18;
+pub(crate) const JOURNAL_SCHEMA: u32 = 19;
 pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;

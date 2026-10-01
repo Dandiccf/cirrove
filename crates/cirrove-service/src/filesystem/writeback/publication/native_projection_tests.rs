@@ -70,6 +70,7 @@ fn pair() -> (NamespaceObject, NamespaceObject, WorkingFile) {
     let child = NamespaceObject {
         native_archive: Some(NativeArchiveRole {
             retired: false,
+            backed_up: false,
             source_owner: owner.id,
             working: file_id,
             artifact: format!("icloud-artifact:{}", remote.id),
@@ -269,6 +270,7 @@ fn native_atomic_projection_requires_complete_paired_roles_and_preserves_old_uui
     let temp_role = crate::journal::NativeLocalStream {
         source_owner: owner.id,
         detached: false,
+        backup: false,
     };
     p.publish_batch(NamespacePublication {
         after: 1,
@@ -289,6 +291,7 @@ fn native_atomic_projection_requires_complete_paired_roles_and_preserves_old_uui
     let detached_role = crate::journal::NativeLocalStream {
         source_owner: owner.id,
         detached: true,
+        backup: false,
     };
     let mut current = temp;
     current.revision += 1;

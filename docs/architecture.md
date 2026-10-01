@@ -1243,3 +1243,26 @@ sequence and therefore cannot provide atomic POSIX `rmdir`.
 - [Google change tracking](https://developers.google.com/workspace/drive/api/guides/manage-changes)
 - [Apple CloudKit](https://developer.apple.com/documentation/cloudkit)
 - [Rclone iCloud compatibility notes](https://rclone.org/iclouddrive/)
+
+## Native archive temporary streams and backup-first saves
+
+Experimental native PACKAGE archive editing retains a local temporary stream's
+identity and bytes across rename/unlink. Held descriptors may continue local
+writes after unlink; those bytes remain available to read-only recovery and never
+become an ordinary cloud upload. Known unlinked temporaries no longer prevent
+clean canonical working-copy retirement; linked or missing-owner records do.
+
+Journal schema 19 adds explicit backup-gap and retained-backup records. A local
+canonical-to-backup rename leaves provider identity and immutable content proofs
+on the original owner. The canonical pathname becomes absent until exact local
+rollback or validated temporary promotion. Promotion transfers canonical authority
+and queues the typed replacement atomically; the old stream remains a visible
+local backup. Backup reads, late writes, fsync and unlink stay local. A filename
+alone cannot acquire either canonical or backup authority. Occupied destinations,
+stale selections and unsupported cross-owner changes are refused.
+
+Native tables and schema 19 commit in one migration transaction. Read-only
+recovery accepts supported older journals without migrating them. Older binaries
+must refuse schema 19; editing the header is not a downgrade mechanism. These
+changes have synthetic journal and actual FUSE coverage; installed transitions
+and real Pages/Numbers/Keynote application acceptance remain separate release gates.

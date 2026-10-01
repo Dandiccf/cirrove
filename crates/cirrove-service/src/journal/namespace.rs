@@ -18,6 +18,9 @@ pub struct NativeArchiveRole {
     /// Dormant same-UUID slot; no working bytes or provider authority.
     #[serde(default)]
     pub retired: bool,
+    /// Local backup-first gap; provider name/identity remain on source owner.
+    #[serde(default)]
+    pub backed_up: bool,
     pub source_owner: Uuid,
     pub working: Uuid,
     pub artifact: String,
@@ -78,6 +81,7 @@ impl NamespaceObject {
     pub(crate) fn valid_retired_native_archive(&self) -> bool {
         self.native_archive.as_ref().is_some_and(|role| {
             role.retired
+                && !role.backed_up
                 && role.working == self.id
                 && self.node.id == format!("local-native-archive-{}", self.id)
                 && self.node.kind == NodeKind::File
@@ -116,7 +120,11 @@ impl NamespaceObject {
                 && owner.node.target.is_none()
                 && self.names == owner.names
                 && self.node.parent_id.as_ref() == Some(&owner.node.id)
-                && self.node.name == owner.node.name
+                && (if role.backed_up {
+                    self.node.name != owner.node.name
+                } else {
+                    self.node.name == owner.node.name
+                })
                 && owner.remote.as_ref().is_some_and(|remote| {
                     remote.kind == NodeKind::Folder
                         && remote.package
@@ -268,7 +276,10 @@ pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()>
     ancestry::check_new_slot(tx, object)?;
     if object.native_archive.is_some() {
         working::native::projection::validate_child(tx, object)?;
-    } else if !object.remote_owned && !object.unlinked {
+    } else if !object.remote_owned
+        && !object.unlinked
+        && !working::native::backup::validate_local_backup(tx, object)?
+    {
         working::native::atomic::validate_temporary(tx, object)?;
     }
 
@@ -937,7 +948,13 @@ pub(crate) fn project_retained_namespace<'a>(
             if node.kind != NodeKind::File
                 || node.package
                 || node.target.is_some()
-                || node.name != archive.node.name
+                || node.name
+                    != if archive.native_archive.as_ref().is_some_and(|r| r.backed_up) {
+                        &owner.node.name
+                    } else {
+                        &archive.node.name
+                    }
+                    .as_str()
                 || node.parent_id.as_ref() != owner.remote.as_ref().map(|n| &n.id)
             {
                 return Err(JournalError::Corrupt);

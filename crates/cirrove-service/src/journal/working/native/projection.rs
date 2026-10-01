@@ -59,6 +59,7 @@ pub(super) fn attach(
     let object = NamespaceObject {
         native_archive: Some(NativeArchiveRole {
             retired: false,
+            backed_up: false,
             source_owner: owner.id,
             working: record.id,
             artifact: binding.archive.id.clone(),
@@ -106,6 +107,7 @@ pub(crate) fn validate_child(db: &Connection, object: &NamespaceObject) -> Resul
     binding.validate()?;
     let head = successors::head(db, role.working)?;
     let owner = namespace::by_id(db, role.source_owner)?;
+    backup::validate_gap(db, object, &owner)?;
     if !object.valid_native_archive_shape(&working)
         || !object.valid_native_archive_owner(&owner)
         || binding.scope != object.scope

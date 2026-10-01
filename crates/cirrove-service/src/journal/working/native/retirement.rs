@@ -254,13 +254,16 @@ impl UploadJournal {
         &self,
         id: Uuid,
     ) -> Result<NativeRetirementCandidate> {
+        if backup::gap(&self.db, id)?.is_some() {
+            return Err(JournalError::Stale);
+        }
         let working = self.working_file(id)?;
         let child = self.namespace_object(id)?;
         projection::validate_child(&self.db, &child)?;
         let head = successors::head(&self.db, id)?;
         let owner = self.namespace_object(head.owner)?;
         let temporary: bool = self.db.query_row(
-            "SELECT EXISTS(SELECT 1 FROM native_temporary_streams WHERE owner=?1)",
+            "SELECT EXISTS(SELECT 1 FROM native_temporary_streams t LEFT JOIN namespace_objects n ON n.id=t.working WHERE t.owner=?1 AND (n.id IS NULL OR COALESCE(json_extract(n.body,'$.unlinked'),0)!=1))",
             [owner.id.to_string()],
             |r| r.get(0),
         )?;

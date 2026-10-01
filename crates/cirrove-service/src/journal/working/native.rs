@@ -4,10 +4,12 @@ use cirrove_core::{CancellationToken, reads::NativeArchiveBinding};
 use std::os::fd::AsRawFd;
 
 pub(crate) mod atomic;
+pub(crate) mod backup;
 mod edit;
 pub(crate) mod projection;
 pub(crate) mod retirement;
 pub(crate) mod successors;
+mod temporary;
 
 const MAX_ARCHIVE: u64 = 64 * 1024 * 1024;
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -89,6 +91,7 @@ pub(crate) fn migrate(db: &mut Connection) -> Result<()> {
     tx.execute_batch("CREATE TABLE IF NOT EXISTS native_working_bindings(working TEXT PRIMARY KEY, source TEXT NOT NULL UNIQUE, body TEXT NOT NULL);")?;
     successors::migrate(&tx)?;
     atomic::migrate(&tx)?;
+    backup::migrate(&tx)?;
     retirement::migrate(&tx)?;
     tx.pragma_update(None, "user_version", JOURNAL_SCHEMA)?;
     tx.commit()?;
@@ -398,6 +401,9 @@ impl UploadJournal {
     pub fn capture_native_working(&mut self, id: Uuid) -> Result<NativeWorkingCapture> {
         let record = self.working_file(id)?;
         if !record.native || !record.dirty || record.unlinked {
+            return Err(JournalError::Stale);
+        }
+        if backup::gap(&self.db, id)?.is_some() {
             return Err(JournalError::Stale);
         }
         let binding = self.native_binding(id)?;

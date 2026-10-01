@@ -5,6 +5,7 @@ mod ancestry;
 mod handoff;
 mod native_abandon;
 mod native_atomic;
+mod native_backup;
 pub(super) mod native_edit;
 mod native_import;
 mod native_retirement;
@@ -87,7 +88,8 @@ impl Projection {
                 || object.remote.is_some()
                 || object.latest.is_some()
                 || object.follows_remote
-                || object.unlinked != local.detached
+                || (!local.backup && object.unlinked != local.detached)
+                || (local.backup && !local.detached)
                 || object.node.kind != NodeKind::File
                 || object.node.package
                 || object.node.target.is_some()
@@ -192,7 +194,16 @@ impl Projection {
             .as_ref()
             .map(|r| (r.source_owner, r.working));
         if old_role == new_role {
-            return self.native_local.get(&old.id) == local;
+            return self.native_local.get(&old.id) == local
+                || (old_role.is_none()
+                    && !old.unlinked
+                    && new.unlinked
+                    && self.native_local.get(&old.id).is_some_and(|before| {
+                        !before.detached
+                            && local.is_some_and(|after| {
+                                after.detached && after.source_owner == before.source_owner
+                            })
+                    }));
         }
         match (old_role, new_role) {
             (Some((owner, id)), None) => {

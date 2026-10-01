@@ -575,6 +575,14 @@ async fn real_native_archive_atomic_temp_fsync_rename_keeps_old_descriptors_loca
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires /dev/fuse"]
 async fn real_native_atomic_pending_chain_reopens_mount_without_submission() {
+    native_pending_chain(false).await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse"]
+async fn real_native_backup_first_gap_rollback_promote_reopen_and_suffix_reuse() {
+    native_pending_chain(true).await;
+}
+async fn native_pending_chain(backup_first: bool) {
     let temp = tempfile::tempdir().unwrap();
     std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     let mount = temp.path().join("mount");
@@ -681,6 +689,75 @@ async fn real_native_atomic_pending_chain_reopens_mount_without_submission() {
         let original = oldbytes.clone();
         move || {
             let mut held = std::fs::File::open(&path).unwrap();
+            let backup = path.with_file_name("Owned.pages~");
+            if backup_first {
+                assert!(
+                    std::fs::rename(&path, path.with_file_name("owned.PAGES")).is_err(),
+                    "case-only alias is not a separate backup slot"
+                );
+                assert_eq!(std::fs::read(&path).unwrap(), original);
+                std::fs::rename(&path, &backup).unwrap();
+                assert!(!path.exists());
+                assert_eq!(std::fs::read(&backup).unwrap(), original);
+                let reopen = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&backup)
+                    .unwrap();
+                reopen.sync_all().unwrap();
+                std::fs::rename(&backup, &path).unwrap();
+                assert_eq!(std::fs::read(&path).unwrap(), original);
+                assert_eq!(journal.lock().unwrap().list(0, 10).unwrap().len(), 0);
+            }
+            // Real local-only abort-save lifecycle before the pending A/B/C chain.
+            let scratch = path.parent().unwrap().join(".aborted-save");
+            let renamed = path.parent().unwrap().join(".aborted-renamed");
+            let mut temp_handle = std::fs::OpenOptions::new()
+                .create_new(true)
+                .read(true)
+                .write(true)
+                .open(&scratch)
+                .unwrap();
+            temp_handle.write_all(b"partial document").unwrap();
+            temp_handle.sync_all().unwrap();
+            std::fs::rename(&scratch, &renamed).unwrap();
+            assert!(!scratch.exists());
+            assert_eq!(std::fs::read(&renamed).unwrap(), b"partial document");
+            let occupied = path.parent().unwrap().join(".occupied-temp");
+            let occupant = std::fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&occupied)
+                .unwrap();
+            assert!(std::fs::rename(&renamed, &occupied).is_err());
+            drop(occupant);
+            std::fs::remove_file(&occupied).unwrap();
+            std::fs::remove_file(&renamed).unwrap();
+            assert!(!renamed.exists());
+            assert_eq!(temp_handle.metadata().unwrap().nlink(), 0);
+            temp_handle.write_all(b" late descriptor bytes").unwrap();
+            temp_handle.sync_all().unwrap();
+            temp_handle.rewind().unwrap();
+            let mut retained = Vec::new();
+            temp_handle.read_to_end(&mut retained).unwrap();
+            assert_eq!(retained, b"partial document late descriptor bytes");
+            let recreated = std::fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&renamed)
+                .unwrap();
+            assert_ne!(
+                recreated.metadata().unwrap().ino(),
+                temp_handle.metadata().unwrap().ino()
+            );
+            drop(recreated);
+            std::fs::remove_file(&renamed).unwrap();
+            assert!(
+                std::fs::remove_file(&path).is_err(),
+                "canonical unlink escaped guard"
+            );
+            assert_eq!(journal.lock().unwrap().list(0, 10).unwrap().len(), 0);
+            assert_eq!(std::fs::read(&path).unwrap(), original);
             for (index, bytes) in [
                 archive(b"A pending"),
                 archive(b"B pending"),
@@ -690,6 +767,18 @@ async fn real_native_atomic_pending_chain_reopens_mount_without_submission() {
             .enumerate()
             {
                 let temporary = path.parent().unwrap().join(".save");
+                let mut old_writer = if backup_first {
+                    let held = std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open(&path)
+                        .unwrap();
+                    std::fs::rename(&path, &backup).unwrap();
+                    assert!(!path.exists());
+                    Some(held)
+                } else {
+                    None
+                };
                 let mut file = std::fs::OpenOptions::new()
                     .create_new(true)
                     .read(true)
@@ -706,6 +795,29 @@ async fn real_native_atomic_pending_chain_reopens_mount_without_submission() {
                 std::fs::rename(&temporary, &path).unwrap();
                 assert_eq!(std::fs::read(&path).unwrap(), bytes);
                 assert!(!temporary.exists());
+                if let Some(mut old) = old_writer.take() {
+                    old.set_len(0).unwrap();
+                    old.seek(SeekFrom::Start(0)).unwrap();
+                    let late = archive(b"late backup descriptor bytes");
+                    old.write_all(&late).unwrap();
+                    old.sync_all().unwrap();
+                    assert_eq!(std::fs::read(&backup).unwrap(), late);
+                    let reopened = std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open(&backup)
+                        .unwrap();
+                    reopened.sync_all().unwrap();
+                    std::fs::remove_file(&backup).unwrap();
+                    assert!(!backup.exists());
+                    old.sync_all().unwrap();
+                    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+                    assert_eq!(
+                        journal.lock().unwrap().list(0, 10).unwrap().len(),
+                        index + 1,
+                        "backup lifecycle enqueued provider work"
+                    );
+                }
             }
             let mut old = Vec::new();
             held.read_to_end(&mut old).unwrap();
