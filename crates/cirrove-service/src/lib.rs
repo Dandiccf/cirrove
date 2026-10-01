@@ -12,6 +12,7 @@ pub mod jobs;
 pub mod journal;
 pub mod manager;
 pub mod mutations;
+pub mod native_import;
 pub mod recent;
 mod recovery;
 pub mod transfers;
@@ -588,6 +589,35 @@ pub struct KeepBothReply {
     pub refusal: Option<String>,
 }
 
+/// Explicit native archive import; representation is verified by the daemon.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImportNativePackageRequest {
+    pub label: String,
+    pub archive: PathBuf,
+    pub expected_root: String,
+    /// Visible relative destination directory inside the selected mount.
+    pub parent: String,
+    pub name: String,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ImportNativePackageReply {
+    pub job: Option<jobs::Job>,
+    pub refusal: Option<String>,
+}
+pub async fn import_native_package(
+    socket: &Path,
+    body: &ImportNativePackageRequest,
+) -> Result<ImportNativePackageReply> {
+    request(
+        socket,
+        "import-native-package",
+        Some(body),
+        "Cirrove native import",
+    )
+    .await
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExportSaveRequest {
     pub label: String,
@@ -959,6 +989,7 @@ impl Capabilities {
                 ("retry-stuck".to_string(), 1),
                 ("keep-both".to_string(), 1),
                 ("export-save".to_string(), 1),
+                ("import-native-package".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
@@ -1182,6 +1213,21 @@ pub async fn serve_managed(
                                 _=>ExportSaveReply{refusal:Some("working export request or account service is unavailable".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="import-native-package" {
+                            let reply = match (serde_json::from_str::<ImportNativePackageRequest>(body), &manager) {
+                                (Ok(r), Some(m)) => match m.engine(&r.label).await {
+                                    Ok(engine) => match engine.start_native_import(m.clone(), crate::native_import::NativeImportInput {
+                                        source:r.archive, expected_root:r.expected_root, parent:r.parent, name:r.name,
+                                    }) {
+                                        Ok(job) => ImportNativePackageReply {job:Some(job), refusal:None},
+                                        Err(_) => ImportNativePackageReply {job:None, refusal:Some("native import could not be started".into())},
+                                    },
+                                    Err(_) => ImportNativePackageReply {job:None, refusal:Some("choose an active writable iCloud connection".into())},
+                                },
+                                _ => ImportNativePackageReply {job:None, refusal:Some("native import request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream, &reply).await;
                         }
                         if verb=="export-save" {
                             let reply=match (serde_json::from_str::<ExportSaveRequest>(body),&manager) {

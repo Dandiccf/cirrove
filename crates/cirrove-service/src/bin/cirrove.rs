@@ -683,6 +683,23 @@ enum Command {
         #[arg(long)]
         destination: PathBuf,
     },
+    /// Import a validated native Pages archive as a new iCloud document; never overwrites.
+    ImportNativePackage {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        archive: PathBuf,
+        /// Exact enclosing directory name inside the source archive.
+        #[arg(long)]
+        source_root: String,
+        /// Visible relative destination directory; empty means the drive root.
+        #[arg(long, default_value = "")]
+        parent: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Export an immutable local save without changing its cloud operation.
     ExportSave {
         #[arg(long, default_value = "")]
@@ -1177,7 +1194,9 @@ async fn main() -> Result<()> {
                 for job in &account.jobs {
                     let state = match job.state {
                         cirrove_service::jobs::JobState::Running => {
-                            if job.kind == cirrove_service::jobs::JobKind::ExportLocal {
+                            if job.kind == cirrove_service::jobs::JobKind::ImportNativePackage {
+                                "importing native document"
+                            } else if job.kind == cirrove_service::jobs::JobKind::ExportLocal {
                                 "exporting local save"
                             } else {
                                 "keeping offline"
@@ -1732,6 +1751,100 @@ async fn main() -> Result<()> {
             };
             println!("{}", serde_json::to_string_pretty(&receipt)?);
         }
+        Command::ImportNativePackage {
+            label,
+            archive,
+            source_root,
+            parent,
+            name,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let capabilities = cirrove_service::capabilities(&socket).await?;
+            if capabilities.capabilities.get("import-native-package") != Some(&1) {
+                bail!("this service does not support native document import");
+            }
+            let archive = if archive.is_absolute() {
+                archive
+            } else {
+                std::env::current_dir()?.join(archive)
+            };
+            let reply = cirrove_service::import_native_package(
+                &socket,
+                &cirrove_service::ImportNativePackageRequest {
+                    label: label.clone(),
+                    archive,
+                    expected_root: source_root,
+                    parent,
+                    name: name.clone(),
+                },
+            )
+            .await
+            .context(
+                "import response unavailable; inspect Cirrove jobs before submitting another copy",
+            )?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("import was not accepted")?;
+            eprintln!(
+                "Native import started [{}]. Closing this command does not discard a queued upload.",
+                initial.id
+            );
+            let mut operation = None;
+            loop {
+                let state = cirrove_service::status(&socket).await.context("import observation lost; inspect Cirrove jobs and retained operations before retrying")?;
+                let current = state
+                    .accounts
+                    .iter()
+                    .filter(|a| a.label == label)
+                    .flat_map(|a| &a.jobs)
+                    .find(|job| job.id == initial.id)
+                    .context(
+                        "import result unavailable; inspect retained operations before retrying",
+                    )?;
+                if current.kind != cirrove_service::jobs::JobKind::ImportNativePackage {
+                    bail!("unexpected import job");
+                }
+                if let Some(progress) = &current.native_import {
+                    if operation.is_some_and(|id| id != progress.operation) {
+                        bail!("import operation changed");
+                    }
+                    if operation.is_none() {
+                        eprintln!("Queued operation {}", progress.operation);
+                        operation = Some(progress.operation);
+                    }
+                }
+                if current.state == cirrove_service::jobs::JobState::Succeeded {
+                    let receipt = current
+                        .native_import
+                        .as_ref()
+                        .context("import receipt missing")?;
+                    let remote = receipt
+                        .remote
+                        .as_ref()
+                        .context("verified document receipt missing")?;
+                    if remote.name != name
+                        || !remote.package
+                        || remote.kind != cirrove_core::NodeKind::Folder
+                    {
+                        bail!("unexpected imported document receipt");
+                    }
+                    println!(
+                        "Verified native document import [{}]: {}",
+                        receipt.operation, remote.name
+                    );
+                    break;
+                }
+                if !current.running() {
+                    bail!("{}", current.issue.as_deref().unwrap_or("native import is not confirmed; inspect the retained operation before retrying"));
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            }
+        }
         Command::ExportSave {
             label,
             operation,
@@ -1984,6 +2097,44 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod icloud_access_tests {
     use super::*;
+    #[test]
+    fn native_import_requires_explicit_source_root_and_destination_name() {
+        let valid = [
+            "cirrove",
+            "import-native-package",
+            "--label",
+            "Cloud",
+            "--archive",
+            "/local/source.pages",
+            "--source-root",
+            "Source.pages",
+            "--name",
+            "Copy.pages",
+        ];
+        let mut empty_label = valid;
+        empty_label[3] = "";
+        assert!(Args::try_parse_from(empty_label).is_err());
+        assert!(matches!(
+            Args::try_parse_from(valid)
+                .expect("explicit import")
+                .command,
+            Command::ImportNativePackage { .. }
+        ));
+        assert!(
+            Args::try_parse_from([
+                "cirrove",
+                "import-native-package",
+                "--label",
+                "Cloud",
+                "--archive",
+                "/local/source.pages",
+                "--name",
+                "Copy.pages"
+            ])
+            .is_err()
+        );
+    }
+
     use cirrove_auth::AccessMode;
 
     #[test]

@@ -3,6 +3,8 @@
 mod admission;
 mod ancestry;
 mod handoff;
+mod native_import;
+mod package_publication;
 mod publication;
 mod replacement;
 mod unlinked;

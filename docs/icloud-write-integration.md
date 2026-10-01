@@ -842,3 +842,28 @@ This feature-gated validator does not yet route native saves through the normal
 journal or enable package editing in mounted accounts. Ordinary native-package
 write refusal remains in place pending durable create/replacement integration
 and its separate recovery, conflict and mounted acceptance.
+
+### Explicit native import under development
+
+The development branch now routes a validated Pages archive through the normal
+daemon and durable upload journal. This is a create-only import into an active
+experimental writable iCloud mount, with an explicit source archive root:
+
+```sh
+cirrove import-native-package --label iCloudValidation \
+  --archive /absolute/local/Source.pages --source-root Source.pages \
+  --parent 'Validation' --name 'Imported.pages'
+```
+
+The source must be a regular local ZIP archive outside Cirrove mounts and private
+state. Cirrove validates a private snapshot before allocation; an existing
+destination is refused. Completion requires a verified remote identity and local
+metadata publication. Closing the CLI stops watching, not the queued upload. If
+confirmation is lost, inspect the retained operation before submitting another
+copy: uncertain allocation is never blindly repeated.
+
+This route has synthetic admission and metadata-publication coverage; public
+socket-to-mount and live acceptance remain pending. It does not enable editing or
+replacing existing native documents, and does not yet support Numbers or Keynote
+imports or a desktop import picker. The earlier owned validator evidence does not
+close these new delivery gates.

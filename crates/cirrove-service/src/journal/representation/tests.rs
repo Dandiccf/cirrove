@@ -563,3 +563,55 @@ fn package_readonly_recovery_exports_exact_archive_without_changing_pending_or_u
         );
     }
 }
+
+#[test]
+fn native_import_slot_releases_published_history_but_retains_uncertainty() {
+    let temp = private_tempdir();
+    let mut journal = UploadJournal::open(temp.path(), "owned", 1024 * 1024).unwrap();
+    let row = enqueue(&mut journal);
+    assert!(
+        journal
+            .native_import_destination_reserved(&scope(), "root", "Import.pages")
+            .unwrap()
+    );
+    assert!(
+        journal
+            .native_import_destination_reserved(&scope(), "root", "IMPORT.PAGES")
+            .unwrap()
+    );
+    assert!(
+        !journal
+            .native_import_destination_reserved(&scope(), "root", "Other.pages")
+            .unwrap()
+    );
+    let claimed = journal.claim_next().unwrap().unwrap();
+    journal
+        .acknowledge_package(row.id, claimed.attempt.unwrap(), receipt())
+        .unwrap();
+    assert!(
+        journal
+            .native_import_destination_reserved(&scope(), "root", "Import.pages")
+            .unwrap()
+    );
+    let completed = journal.get(row.id).unwrap();
+    journal
+        .finish_package_publication(
+            &completed,
+            crate::journal::PackagePublicationStatus::Absent,
+            1,
+        )
+        .unwrap();
+    assert!(
+        !journal
+            .native_import_destination_reserved(&scope(), "root", "Import.pages")
+            .unwrap()
+    );
+    // A new queued package takes the released slot without old receipt replay.
+    let second = enqueue(&mut journal);
+    assert_ne!(second.id, row.id);
+    assert!(
+        journal
+            .native_import_destination_reserved(&scope(), "root", "Import.pages")
+            .unwrap()
+    );
+}

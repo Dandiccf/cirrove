@@ -44,9 +44,7 @@ mod owned_upload;
 pub use owned_package_create::{
     OwnedPackageCreate, OwnedPackagePlan, PackageAllocationRefusal, PackageCreateInspection,
 };
-#[cfg(feature = "write-probe")]
 mod package_semantic;
-#[cfg(feature = "write-probe")]
 pub use package_semantic::{
     PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageSemanticComparison, PackageSemanticIdentity,
     compare_package_archives, compare_package_archives_with_roots,
@@ -57,10 +55,8 @@ mod probe_timing;
 #[cfg(feature = "write-probe")]
 pub use package_archive::canonical_export;
 mod package_download;
-#[cfg(any(test, feature = "write-probe"))]
 mod package_upload;
 pub use package_download::PackageDownload;
-#[cfg(any(test, feature = "write-probe"))]
 pub use package_upload::{PackageReceiptError, PackageUploadReceipt, parse_package_upload_receipt};
 mod provider;
 mod sealed_session;
@@ -1914,3 +1910,7 @@ mod tests {
 
 #[cfg(test)]
 mod storage_refusal_tests;
+
+mod package_create;
+mod package_transport;
+pub use package_create::ICloudPackageCreate;

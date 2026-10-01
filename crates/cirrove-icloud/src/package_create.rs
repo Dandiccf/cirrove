@@ -1,0 +1,668 @@
+//! Native package creation through the shared durable upload worker.
+//! No mount routing and no package replacement. Recovery only observes exact IDs.
+use crate::file_create::{map_content_error, map_session_error};
+use crate::{ICloudReadSession, ROOT_ID, SealedSessionVault, package_transport as wire};
+use async_trait::async_trait;
+use cirrove_auth::CredentialVault;
+use cirrove_core::upload::{
+    PackageUploadReceipt, Reconciliation, Result, UploadError, UploadIntent, UploadProvider,
+    UploadRepresentation, UploadRequest, UploadStep,
+};
+use cirrove_core::{
+    CancellationToken, Node, NodeKind, ProviderError, Scope, reads::ReadWindowSink,
+};
+use secrecy::{ExposeSecret, SecretString};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::{
+    fs::File,
+    io::{Read, Seek, SeekFrom, Write},
+    os::unix::fs::{MetadataExt, PermissionsExt},
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
+use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
+use uuid::Uuid;
+const MAX_CHECKPOINT: usize = 96 * 1024;
+const MAX_ARCHIVE: u64 = 64 * 1024 * 1024;
+// These persisted names emphasize uncertainty: none proves remote completion.
+#[allow(clippy::enum_variant_names)]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
+enum Phase {
+    AllocationArmed,
+    BodyArmed,
+    RegistrationArmed,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Checkpoint {
+    version: u8,
+    operation: String,
+    request: UploadRequest,
+    account_hash: String,
+    parent: Node,
+    phase: Phase,
+    slot: Option<wire::Slot>,
+    registration: Option<String>,
+}
+enum Session {
+    Ready(Box<ICloudReadSession>),
+    Sealed {
+        apple_id: String,
+        credential_id: String,
+        vault: Arc<dyn CredentialVault>,
+    },
+}
+pub struct ICloudPackageCreate {
+    scope: Scope,
+    parent: Node,
+    session: Mutex<Session>,
+    staging: PathBuf,
+    #[cfg(test)]
+    body_dispatch_probe: Option<Arc<std::sync::atomic::AtomicUsize>>,
+}
+impl ICloudPackageCreate {
+    /// Caller-owned private persistent staging; no user archive path is retained.
+    pub fn from_sealed_session(
+        scope: Scope,
+        apple_id: String,
+        credential_id: String,
+        state: &Path,
+        parent: Node,
+        staging: &Path,
+    ) -> Result<Self> {
+        Self::identity(&scope, &parent, staging)?;
+        if apple_id.trim().is_empty() || Uuid::parse_str(&credential_id).is_err() {
+            return Err(UploadError::Invalid);
+        }
+        let vault =
+            SealedSessionVault::new(state, &scope.account).map_err(|_| UploadError::Invalid)?;
+        Ok(Self {
+            scope,
+            parent,
+            staging: staging.into(),
+            #[cfg(test)]
+            body_dispatch_probe: None,
+            session: Mutex::new(Session::Sealed {
+                apple_id,
+                credential_id,
+                vault: Arc::new(vault),
+            }),
+        })
+    }
+    pub fn from_session_snapshot(
+        scope: Scope,
+        apple_id: &str,
+        snapshot: &SecretString,
+        parent: Node,
+        staging: &Path,
+    ) -> Result<Self> {
+        Self::identity(&scope, &parent, staging)?;
+        let session = ICloudReadSession::from_session_snapshot(snapshot, apple_id)
+            .map_err(map_session_error)?;
+        if session.account_hash.is_none() {
+            return Err(UploadError::Invalid);
+        }
+        Ok(Self {
+            scope,
+            parent,
+            staging: staging.into(),
+            #[cfg(test)]
+            body_dispatch_probe: None,
+            session: Mutex::new(Session::Ready(Box::new(session))),
+        })
+    }
+    /// Restore only this provider's typed checkpoint. Does not consult current
+    /// metadata or load credentials; every continuation retains its exact parent.
+    #[allow(clippy::too_many_arguments)]
+    pub fn restore_from_sealed_checkpoint(
+        scope: Scope,
+        apple_id: String,
+        credential_id: String,
+        state: &Path,
+        staging: &Path,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+    ) -> Result<Self> {
+        if checkpoint.expose_secret().len() > MAX_CHECKPOINT {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
+            .map_err(|_| UploadError::CheckpointInvalid)?;
+        let UploadIntent::Create { parent, .. } = &request.intent else {
+            return Err(UploadError::Unsupported("native package replacement"));
+        };
+        if &saved.parent.id != parent {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let adapter = Self::from_sealed_session(
+            scope,
+            apple_id,
+            credential_id,
+            state,
+            saved.parent,
+            staging,
+        )?;
+        adapter.decode(operation, request, checkpoint)?;
+        Ok(adapter)
+    }
+    fn identity(scope: &Scope, parent: &Node, staging: &Path) -> Result<()> {
+        let meta = std::fs::symlink_metadata(staging).map_err(|_| UploadError::Invalid)?;
+        if Uuid::parse_str(&scope.account).is_err()
+            || scope.provider != "icloud"
+            || scope.collection != "drive"
+            || parent.kind != NodeKind::Folder
+            || parent.package
+            || parent.target.is_some()
+            || !parent.id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || parent.id.rsplit("::").next().is_none_or(str::is_empty)
+            || !staging.is_absolute()
+            || !meta.is_dir()
+            || meta.permissions().mode() & 0o077 != 0
+            || meta.uid()
+                != std::fs::metadata("/proc/self")
+                    .map_err(|_| UploadError::Invalid)?
+                    .uid()
+        {
+            return Err(UploadError::Invalid);
+        }
+        Ok(())
+    }
+    fn request<'a>(&self, request: &'a UploadRequest) -> Result<&'a str> {
+        request.validate()?;
+        let UploadIntent::Create { parent, name } = &request.intent else {
+            return Err(UploadError::Unsupported("native package replacement"));
+        };
+        if request.scope != self.scope
+            || parent != &self.parent.id
+            || request.size == 0
+            || request.size > MAX_ARCHIVE
+            || name.len() > 255
+            || name
+                .chars()
+                .any(|c| c.is_control() || matches!(c, '\\' | ':'))
+            || !matches!(
+                request.representation,
+                UploadRepresentation::PackageArchive { .. }
+            )
+        {
+            return Err(UploadError::Invalid);
+        }
+        Ok(name)
+    }
+    fn encode(saved: &Checkpoint) -> Result<SecretString> {
+        let text = serde_json::to_string(saved).map_err(|_| UploadError::Invalid)?;
+        if text.len() > MAX_CHECKPOINT {
+            return Err(UploadError::Invalid);
+        }
+        Ok(SecretString::from(text))
+    }
+    fn decode(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+    ) -> Result<Checkpoint> {
+        self.request(request)?;
+        if checkpoint.expose_secret().len() > MAX_CHECKPOINT {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
+            .map_err(|_| UploadError::CheckpointInvalid)?;
+        if saved.version != 1
+            || Uuid::parse_str(operation).is_err()
+            || saved.operation != operation
+            || saved.request != *request
+            || saved.parent != self.parent
+            || saved.account_hash.is_empty()
+            || saved.account_hash.len() > 256
+        {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let valid = match saved.phase {
+            Phase::AllocationArmed => saved.slot.is_none() && saved.registration.is_none(),
+            Phase::BodyArmed => saved.slot.is_some() && saved.registration.is_none(),
+            Phase::RegistrationArmed => {
+                saved.slot.is_some()
+                    && saved
+                        .registration
+                        .as_ref()
+                        .is_some_and(|s| s.len() <= 64 * 1024)
+            }
+        };
+        if !valid
+            || saved
+                .slot
+                .as_ref()
+                .is_some_and(|slot| slot.validate().is_err())
+        {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        if let Some(fragment) = &saved.registration {
+            wire::registration(
+                &self.parent.id,
+                self.request(request)?,
+                saved.slot.as_ref().ok_or(UploadError::CheckpointInvalid)?,
+                fragment,
+            )
+            .map_err(|_| UploadError::CheckpointInvalid)?;
+        }
+        Ok(saved)
+    }
+    async fn active(state: &mut Session) -> Result<&mut ICloudReadSession> {
+        if let Session::Sealed {
+            apple_id,
+            credential_id,
+            vault,
+        } = state
+        {
+            let saved = vault
+                .load(credential_id)
+                .await
+                .map_err(map_session_error)?
+                .ok_or(UploadError::Uncertain)?;
+            let session = ICloudReadSession::from_session_snapshot(&saved, apple_id)
+                .map_err(map_session_error)?;
+            if session.account_hash.is_none() {
+                return Err(UploadError::Invalid);
+            }
+            *state = Session::Ready(Box::new(session));
+        }
+        match state {
+            Session::Ready(s) => Ok(s),
+            _ => Err(UploadError::Uncertain),
+        }
+    }
+    fn binding(session: &ICloudReadSession, saved: &Checkpoint) -> Result<()> {
+        if session.account_hash.as_deref() != Some(saved.account_hash.as_str()) {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        Ok(())
+    }
+    async fn parent(&self, session: &mut ICloudReadSession) -> Result<()> {
+        let mut next = self.parent.id.clone();
+        for depth in 0..128 {
+            if next == ROOT_ID {
+                return Ok(());
+            }
+            let entry = session
+                .folder_metadata(&next)
+                .await
+                .map_err(map_session_error)?;
+            if entry.kind != "FOLDER"
+                || entry.zone != "com.apple.CloudDocs"
+                || entry.drivewsid != next
+                || (depth == 0
+                    && (Some(&entry.parent_id) != self.parent.parent_id.as_ref()
+                        || entry.display_name() != self.parent.name))
+                || !entry.parent_id.starts_with("FOLDER::com.apple.CloudDocs::")
+                || entry.parent_id == next
+            {
+                return Err(UploadError::Conflict);
+            }
+            next = entry.parent_id;
+        }
+        Err(UploadError::Conflict)
+    }
+    async fn vacant(&self, session: &mut ICloudReadSession, name: &str) -> Result<()> {
+        self.parent(session).await?;
+        let entries = session
+            .list_folder(&self.parent.id)
+            .await
+            .map_err(map_session_error)?;
+        if entries.iter().any(|entry| entry.display_name() == name) {
+            return Err(UploadError::Conflict);
+        }
+        Ok(())
+    }
+    async fn payload(
+        &self,
+        mut source: File,
+        request: &UploadRequest,
+        cancel: &CancellationToken,
+    ) -> Result<File> {
+        let request = request.clone();
+        let cancel = cancel.clone();
+        let staging = self.staging.clone();
+        tokio::task::spawn_blocking(move || {
+            let UploadRepresentation::PackageArchive {
+                expected_root,
+                semantic,
+            } = &request.representation
+            else {
+                return Err(UploadError::Invalid);
+            };
+            if !source
+                .metadata()
+                .map_err(|_| UploadError::Invalid)?
+                .is_file()
+            {
+                return Err(UploadError::Invalid);
+            }
+            source
+                .seek(SeekFrom::Start(0))
+                .map_err(|_| UploadError::Invalid)?;
+            let mut target = tempfile::tempfile_in(staging).map_err(|_| UploadError::Invalid)?;
+            let mut hash = Sha256::new();
+            let mut size = 0u64;
+            let mut buffer = [0; 64 * 1024];
+            loop {
+                if cancel.is_cancelled() {
+                    return Err(UploadError::Uncertain);
+                }
+                let n = source.read(&mut buffer).map_err(|_| UploadError::Invalid)?;
+                if n == 0 {
+                    break;
+                }
+                size += n as u64;
+                if size > request.size {
+                    return Err(UploadError::Invalid);
+                }
+                target
+                    .write_all(&buffer[..n])
+                    .map_err(|_| UploadError::Invalid)?;
+                hash.update(&buffer[..n]);
+            }
+            let digest = hex::encode(hash.finalize());
+            if size != request.size || digest != request.sha256 {
+                return Err(UploadError::Invalid);
+            }
+            let receipt = crate::PackageDownload {
+                size,
+                sha256: digest,
+            };
+            let actual = crate::package_archive_semantic_identity(
+                &target,
+                &receipt,
+                expected_root,
+                &cancel,
+            )?;
+            if &actual != semantic {
+                return Err(UploadError::Invalid);
+            }
+            target
+                .seek(SeekFrom::Start(0))
+                .map_err(|_| UploadError::Invalid)?;
+            Ok(target)
+        })
+        .await
+        .map_err(|_| UploadError::Uncertain)?
+    }
+    async fn verify(
+        &self,
+        session: &mut ICloudReadSession,
+        saved: &Checkpoint,
+        cancel: &CancellationToken,
+    ) -> Result<PackageUploadReceipt> {
+        Self::binding(session, saved)?;
+        let slot = saved.slot.as_ref().ok_or(UploadError::Uncertain)?;
+        self.parent(session).await?;
+        let name = self.request(&saved.request)?;
+        let entries = session
+            .list_folder(&self.parent.id)
+            .await
+            .map_err(map_session_error)?;
+        let exact: Vec<_> = entries
+            .iter()
+            .filter(|e| e.docwsid == slot.document_id)
+            .collect();
+        if exact.len() != 1 {
+            return Err(UploadError::Uncertain);
+        }
+        let entry = exact[0];
+        if entry.kind != "FILE"
+            || entry.zone != "com.apple.CloudDocs"
+            || entry.drivewsid != format!("FILE::com.apple.CloudDocs::{}", slot.document_id)
+            || entry.parent_id != self.parent.id
+            || entry.display_name() != name
+            || entry.etag.is_empty()
+            || entries.iter().filter(|e| e.display_name() == name).count() != 1
+        {
+            return Err(UploadError::Conflict);
+        }
+        let file = tempfile::tempfile_in(&self.staging).map_err(|_| UploadError::Uncertain)?;
+        let clone = file.try_clone().map_err(|_| UploadError::Uncertain)?;
+        let mut sink = DiskSink(tokio::fs::File::from_std(clone));
+        let receipt = session
+            .download_package(&self.parent.id, entry, MAX_ARCHIVE, &mut sink, cancel)
+            .await
+            .map_err(map_session_error)?;
+        sink.0.flush().await.map_err(|_| UploadError::Uncertain)?;
+        drop(sink);
+        let token = cancel.clone();
+        let root = name.to_owned();
+        let semantic = tokio::task::spawn_blocking(move || {
+            crate::package_archive_semantic_identity(&file, &receipt, &root, &token)
+        })
+        .await
+        .map_err(|_| UploadError::Uncertain)??;
+        let UploadRepresentation::PackageArchive {
+            semantic: expected, ..
+        } = &saved.request.representation
+        else {
+            return Err(UploadError::Invalid);
+        };
+        if &semantic != expected {
+            return Err(UploadError::Conflict);
+        }
+        // A final independent listing also binds name, uniqueness and parent.
+        let after = session
+            .list_folder(&self.parent.id)
+            .await
+            .map_err(map_session_error)?;
+        if after
+            .iter()
+            .filter(|e| e.docwsid == slot.document_id)
+            .count()
+            != 1
+            || after.iter().filter(|e| e.display_name() == name).count() != 1
+            || !after.iter().any(|e| e == entry)
+        {
+            return Err(UploadError::Conflict);
+        }
+        Ok(PackageUploadReceipt {
+            remote: Node {
+                id: entry.drivewsid.clone(),
+                parent_id: Some(entry.parent_id.clone()),
+                name: entry.display_name(),
+                kind: NodeKind::Folder,
+                size: entry.size,
+                modified_unix: 0,
+                etag: Some(entry.etag.clone()),
+                content_version: Some(entry.etag.clone()),
+                target: None,
+                package: true,
+            },
+            semantic,
+        })
+    }
+}
+struct DiskSink(tokio::fs::File);
+#[async_trait]
+impl ReadWindowSink for DiskSink {
+    async fn write_chunk(&mut self, bytes: &[u8]) -> std::result::Result<(), ProviderError> {
+        self.0
+            .write_all(bytes)
+            .await
+            .map_err(|_| ProviderError::Protocol("package verification staging unavailable"))
+    }
+}
+#[async_trait]
+impl UploadProvider for ICloudPackageCreate {
+    fn begin_is_mutation_free_until_checkpoint(&self, request: &UploadRequest) -> bool {
+        self.request(request).is_ok()
+    }
+    async fn begin_upload(&self, _: &UploadRequest, _: &CancellationToken) -> Result<UploadStep> {
+        Err(UploadError::Unsupported(
+            "package upload requires operation binding",
+        ))
+    }
+    async fn begin_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        self.request(request)?;
+        if Uuid::parse_str(operation).is_err() {
+            return Err(UploadError::Invalid);
+        }
+        tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let mut state = self.session.lock().await; let session = Self::active(&mut state).await?;
+            self.vacant(session, self.request(request)?).await?;
+            let saved = Checkpoint {version:1, operation:operation.into(), request:request.clone(), parent:self.parent.clone(), account_hash:session.account_hash.clone().ok_or(UploadError::Invalid)?, phase:Phase::AllocationArmed, slot:None, registration:None};
+            Ok(UploadStep::Allocate(Self::encode(&saved)?))
+        } => result}
+    }
+    async fn allocate_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        let mut saved = self.decode(operation, request, checkpoint)?;
+        if saved.phase != Phase::AllocationArmed {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let mut state = self.session.lock().await; let session = Self::active(&mut state).await?; Self::binding(session, &saved)?;
+            self.vacant(session, self.request(request)?).await?;
+            if cancel.is_cancelled() {return Err(UploadError::Uncertain);}
+            saved.slot = Some(wire::allocate(session, self.request(request)?, request.size).await.map_err(map_session_error)?);
+            saved.phase = Phase::BodyArmed;
+            Ok(UploadStep::Stream(Self::encode(&saved)?))
+        } => result}
+    }
+    async fn inspect_upload(
+        &self,
+        _: &UploadRequest,
+        _: &SecretString,
+        _: &CancellationToken,
+    ) -> Result<UploadStep> {
+        Err(UploadError::Unsupported(
+            "package upload requires operation binding",
+        ))
+    }
+    async fn inspect_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        let saved = self.decode(operation, request, checkpoint)?;
+        if saved.slot.is_none() {
+            return Err(UploadError::Uncertain);
+        }
+        tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let mut state = self.session.lock().await; let session = Self::active(&mut state).await?;
+            Ok(UploadStep::PackageComplete(self.verify(session, &saved, cancel).await?))
+        } => result}
+    }
+    fn inspection_timeout(&self, _: &UploadRequest) -> Duration {
+        Duration::from_secs(240)
+    }
+    fn commit_timeout(&self, _: &UploadRequest) -> Duration {
+        Duration::from_secs(240)
+    }
+    async fn upload_part(
+        &self,
+        _: &UploadRequest,
+        _: &SecretString,
+        _: u64,
+        _: Vec<u8>,
+        _: &CancellationToken,
+    ) -> Result<UploadStep> {
+        Err(UploadError::Unsupported(
+            "package requires complete archive stream",
+        ))
+    }
+    async fn upload_stream_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        payload: File,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        let mut saved = self.decode(operation, request, checkpoint)?;
+        if saved.phase != Phase::BodyArmed {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let file = self.payload(payload, request, cancel).await?;
+        tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let mut state = self.session.lock().await; let session = Self::active(&mut state).await?; Self::binding(session, &saved)?;
+            // Vault loading can cancel and return Ready in the same poll. The
+            // enclosing select must not be the only pre-dispatch boundary.
+            if cancel.is_cancelled() { return Err(UploadError::Uncertain); }
+            #[cfg(test)]
+            if let Some(probe) = &self.body_dispatch_probe {
+                // Immediate test transport: observes dispatch without DNS or I/O.
+                probe.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                return Err(UploadError::Uncertain);
+            }
+            let receipt = wire::upload(session, saved.slot.as_ref().ok_or(UploadError::CheckpointInvalid)?, file, request.size).await.map_err(map_content_error)?;
+            saved.registration = Some(receipt.expose_secret().to_owned()); saved.phase = Phase::RegistrationArmed;
+            Ok(UploadStep::Commit(Self::encode(&saved)?))
+        } => result}
+    }
+    async fn commit_upload(
+        &self,
+        _: &UploadRequest,
+        _: &SecretString,
+        _: &CancellationToken,
+    ) -> Result<UploadStep> {
+        Err(UploadError::Unsupported(
+            "package upload requires operation binding",
+        ))
+    }
+    async fn commit_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        let saved = self.decode(operation, request, checkpoint)?;
+        if saved.phase != Phase::RegistrationArmed {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let mut state = self.session.lock().await; let session = Self::active(&mut state).await?; Self::binding(session, &saved)?;
+            self.vacant(session, self.request(request)?).await?;
+            if cancel.is_cancelled() {return Err(UploadError::Uncertain);}
+            wire::register(session, &self.parent.id, self.request(request)?, saved.slot.as_ref().ok_or(UploadError::CheckpointInvalid)?, saved.registration.as_deref().ok_or(UploadError::CheckpointInvalid)?).await.map_err(map_session_error)?;
+            Ok(UploadStep::PackageComplete(self.verify(session, &saved, cancel).await?))
+        } => result}
+    }
+    async fn reconcile_upload(
+        &self,
+        _: &UploadRequest,
+        _: Option<&SecretString>,
+        _: &CancellationToken,
+    ) -> Result<Reconciliation> {
+        Err(UploadError::Uncertain)
+    }
+    async fn reconcile_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: Option<&SecretString>,
+        cancel: &CancellationToken,
+    ) -> Result<Reconciliation> {
+        let checkpoint = checkpoint.ok_or(UploadError::Uncertain)?;
+        match self
+            .inspect_upload_for_operation(operation, request, checkpoint, cancel)
+            .await?
+        {
+            UploadStep::PackageComplete(receipt) => Ok(Reconciliation::PackageCommitted(receipt)),
+            _ => Err(UploadError::Uncertain),
+        }
+    }
+}
+#[cfg(test)]
+mod tests;

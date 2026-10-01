@@ -39,6 +39,8 @@ pub struct ICloudWriteProvider {
     folder_vault: Arc<dyn CredentialVault>,
     #[cfg(test)]
     folder_create_test_adapter: Option<Arc<dyn MutationProvider>>,
+    #[cfg(test)]
+    package_test_adapter: Option<Arc<dyn UploadProvider>>,
     #[cfg(feature = "icloud-write-probe")]
     discard_registration: Option<Uuid>,
 }
@@ -72,6 +74,8 @@ impl ICloudWriteProvider {
         Ok(Self {
             #[cfg(test)]
             folder_create_test_adapter: None,
+            #[cfg(test)]
+            package_test_adapter: None,
             #[cfg(feature = "icloud-write-probe")]
             discard_registration: None,
             scope: Scope {
@@ -104,7 +108,7 @@ impl ICloudWriteProvider {
     }
 
     fn validate_operation(&self, operation: &str, request: &UploadRequest) -> Result<Uuid> {
-        request.require_file_bytes()?;
+        request.validate()?;
         if request.scope != self.scope {
             return Err(UploadError::Invalid);
         }
@@ -186,6 +190,7 @@ impl ICloudWriteProvider {
         request: &UploadRequest,
         checkpoint: &SecretString,
     ) -> Result<(CreateEnvelope, ICloudFileCreate)> {
+        request.require_file_bytes()?;
         let id = self.validate_operation(operation, request)?;
         if checkpoint.expose_secret().len() > 32 * 1024 {
             return Err(UploadError::CheckpointInvalid);
@@ -243,7 +248,9 @@ impl UploadProvider for ICloudWriteProvider {
         operation: &str,
         request: &UploadRequest,
     ) -> Option<cirrove_core::upload::RecoveryLocation> {
-        if !matches!(request.intent, UploadIntent::Replace { .. }) {
+        if request.require_file_bytes().is_err()
+            || !matches!(request.intent, UploadIntent::Replace { .. })
+        {
             return None;
         }
         let operation = self.validate_operation(operation, request).ok()?;
@@ -257,6 +264,9 @@ impl UploadProvider for ICloudWriteProvider {
     }
 
     fn commit_timeout(&self, request: &UploadRequest) -> std::time::Duration {
+        if !request.representation.is_file_bytes() {
+            return std::time::Duration::from_secs(240);
+        }
         // Full integrity verification exceeded the default in the registered
         // owned-replacement runs. Keep those checks and their tested deadline.
         std::time::Duration::from_secs(if matches!(request.intent, UploadIntent::Replace { .. }) {
@@ -267,7 +277,9 @@ impl UploadProvider for ICloudWriteProvider {
     }
 
     fn begin_is_mutation_free_until_checkpoint(&self, request: &UploadRequest) -> bool {
-        request.scope == self.scope && matches!(request.intent, UploadIntent::Create { .. })
+        request.validate().is_ok()
+            && request.scope == self.scope
+            && matches!(request.intent, UploadIntent::Create { .. })
     }
     async fn begin_upload(&self, _: &UploadRequest, _: &CancellationToken) -> Result<UploadStep> {
         Err(UploadError::Unsupported(
@@ -280,6 +292,14 @@ impl UploadProvider for ICloudWriteProvider {
         request: &UploadRequest,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if !request.representation.is_file_bytes() {
+            return self
+                .package_adapter(operation, request, None)
+                .await?
+                .begin_upload_for_operation(operation, request, cancel)
+                .await;
+        }
+
         if matches!(request.intent, UploadIntent::Replace { .. }) {
             return self
                 .replacement(operation, request, None)
@@ -302,6 +322,23 @@ impl UploadProvider for ICloudWriteProvider {
         }
         .wrap(step)
     }
+    async fn allocate_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        if request.representation.is_file_bytes() {
+            return Err(UploadError::Unsupported(
+                "ordinary iCloud allocation callback",
+            ));
+        }
+        self.package_adapter(operation, request, Some(checkpoint))
+            .await?
+            .allocate_upload_for_operation(operation, request, checkpoint, cancel)
+            .await
+    }
     async fn inspect_upload(
         &self,
         _: &UploadRequest,
@@ -319,6 +356,14 @@ impl UploadProvider for ICloudWriteProvider {
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if !request.representation.is_file_bytes() {
+            return self
+                .package_adapter(operation, request, Some(checkpoint))
+                .await?
+                .inspect_upload_for_operation(operation, request, checkpoint, cancel)
+                .await;
+        }
+
         if matches!(request.intent, UploadIntent::Replace { .. }) {
             return self
                 .replacement(operation, request, Some(checkpoint))
@@ -350,6 +395,14 @@ impl UploadProvider for ICloudWriteProvider {
         payload: File,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if !request.representation.is_file_bytes() {
+            return self
+                .package_adapter(operation, request, Some(checkpoint))
+                .await?
+                .upload_stream_for_operation(operation, request, checkpoint, payload, cancel)
+                .await;
+        }
+
         if matches!(request.intent, UploadIntent::Replace { .. }) {
             return self
                 .replacement(operation, request, Some(checkpoint))
@@ -385,6 +438,14 @@ impl UploadProvider for ICloudWriteProvider {
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if !request.representation.is_file_bytes() {
+            return self
+                .package_adapter(operation, request, Some(checkpoint))
+                .await?
+                .commit_upload_for_operation(operation, request, checkpoint, cancel)
+                .await;
+        }
+
         if matches!(request.intent, UploadIntent::Replace { .. }) {
             let adapter = self
                 .replacement(operation, request, Some(checkpoint))
@@ -427,6 +488,15 @@ impl UploadProvider for ICloudWriteProvider {
         checkpoint: Option<&SecretString>,
         cancel: &CancellationToken,
     ) -> Result<Reconciliation> {
+        if !request.representation.is_file_bytes() {
+            let saved = checkpoint.ok_or(UploadError::Uncertain)?;
+            return self
+                .package_adapter(operation, request, Some(saved))
+                .await?
+                .reconcile_upload_for_operation(operation, request, Some(saved), cancel)
+                .await;
+        }
+
         if matches!(request.intent, UploadIntent::Replace { .. }) {
             return self
                 .replacement(operation, request, checkpoint)
@@ -443,6 +513,7 @@ impl UploadProvider for ICloudWriteProvider {
 }
 
 mod folders;
+mod packages;
 mod replacements;
 
 #[cfg(test)]
@@ -459,6 +530,8 @@ mod tests {
         Store::open(&metadata).unwrap();
         let provider = ICloudWriteProvider {
             folder_create_test_adapter: None,
+            #[cfg(test)]
+            package_test_adapter: None,
             #[cfg(feature = "icloud-write-probe")]
             discard_registration: None,
             scope: Scope {
@@ -605,7 +678,7 @@ mod tests {
         assert!(p.begin_upload(&root_request, &cancel).await.is_err());
     }
     #[tokio::test]
-    async fn package_archive_cannot_enter_the_normal_icloud_router() {
+    async fn package_archive_cannot_relabel_an_ordinary_journal_row() {
         let (_temp, provider) = fixture();
         let (operation, mut request) = enqueue(&provider, ROOT_ID);
         request.representation = cirrove_core::upload::UploadRepresentation::PackageArchive {
@@ -622,7 +695,7 @@ mod tests {
             provider
                 .begin_upload_for_operation(&operation, &request, &CancellationToken::new())
                 .await,
-            Err(UploadError::Unsupported(_))
+            Err(UploadError::Invalid)
         ));
     }
 }

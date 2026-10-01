@@ -8,7 +8,7 @@ publish = false
 
 [features]
 # Explicitly invoked developer probe; never linked into the normal service.
-write-probe = ["zip/deflate-flate2-zlib-rs"]
+write-probe = []
 
 [dependencies]
 anyhow.workspace = true
@@ -33,7 +33,10 @@ rpassword = "7.4"
 srp = "0.7.0-rc.3"
 tempfile.workspace = true
 zeroize = "1.8"
-zip = { version = "8.6.0", default-features = false }
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tokio-rustls = "0.26.5"

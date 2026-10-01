@@ -182,22 +182,29 @@ impl RunningJob {
                 &human_bytes(job.bytes_total),
             ],
         );
-        let detail = match (job.state, &job.issue) {
-            (JobState::Running, _) => counted,
-            (JobState::Stopping, _) => gettext("Stopping…"),
-            (JobState::Stopped, _) => fill(
-                &gettext("Stopped after {} of {} files. Nothing is kept offline for it."),
-                &[&job.files_done.to_string(), &job.files_total.to_string()],
-            ),
-            (_, Some(issue)) => fill(
-                &gettext("Kept {} of {} files, then stopped: {}"),
-                &[
-                    &job.files_done.to_string(),
-                    &job.files_total.to_string(),
-                    issue,
-                ],
-            ),
-            (_, None) => counted,
+        let detail = if job.kind == cirrove_service::jobs::JobKind::ImportNativePackage {
+            match &job.issue {
+                Some(issue) => issue.clone(),
+                None => counted,
+            }
+        } else {
+            match (job.state, &job.issue) {
+                (JobState::Running, _) => counted,
+                (JobState::Stopping, _) => gettext("Stopping…"),
+                (JobState::Stopped, _) => fill(
+                    &gettext("Stopped after {} of {} files. Nothing is kept offline for it."),
+                    &[&job.files_done.to_string(), &job.files_total.to_string()],
+                ),
+                (_, Some(issue)) => fill(
+                    &gettext("Kept {} of {} files, then stopped: {}"),
+                    &[
+                        &job.files_done.to_string(),
+                        &job.files_total.to_string(),
+                        issue,
+                    ],
+                ),
+                (_, None) => counted,
+            }
         };
         Self {
             id: job.id.clone(),

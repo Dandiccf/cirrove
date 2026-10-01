@@ -1,5 +1,6 @@
 //! Durable format boundary for explicitly qualified package archives.
 use super::*;
+use cirrove_core::CancellationToken;
 
 pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     if version < JOURNAL_SCHEMA {
@@ -12,7 +13,70 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     Ok(())
 }
 
+pub(super) struct Admission {
+    pub representation: UploadRepresentation,
+    pub receipt: Option<BoundReceipt>,
+}
+pub(super) struct BoundReceipt {
+    pub size: u64,
+    pub sha256: String,
+    pub cancel: CancellationToken,
+}
+
 impl UploadJournal {
+    /// Exact indexed queue slot; completed historical creates do not reserve
+    /// their old names. A confirmed PACKAGE keeps its slot until metadata was
+    /// published, including a published observation that it has disappeared.
+    pub(crate) fn native_import_destination_reserved(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+    ) -> Result<bool> {
+        let intent = UploadIntent::Create {
+            parent: parent.to_owned(),
+            name: name.to_owned(),
+        };
+        let keys = mutations::upload_resources(scope, &intent)?;
+        let key = keys.first().ok_or(JournalError::Intent)?;
+        Ok(self.db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM write_resources r INDEXED BY write_resource
+             JOIN write_queue q ON q.id=r.id
+             LEFT JOIN package_metadata_publication p ON p.operation=q.id
+             WHERE r.resource=?1 AND (q.complete=0 OR p.done=0))",
+            [key],
+            |row| row.get(0),
+        )?)
+    }
+
+    /// Consume a privately captured and semantically validated archive. Raw bytes
+    /// are verified again before snapshot/row publication, never afterwards.
+    /// Caller must independently authorize account, destination and lifecycle.
+    pub fn enqueue_validated_package_archive(
+        &mut self,
+        scope: Scope,
+        intent: UploadIntent,
+        archive: crate::native_import::ValidatedPackageArchive,
+        cancel: &CancellationToken,
+    ) -> Result<UploadRecord> {
+        let (file, representation, size, sha256) = archive.into_parts();
+        self.enqueue_admitted(
+            scope,
+            intent,
+            WriteOrder::default(),
+            None,
+            Admission {
+                representation,
+                receipt: Some(BoundReceipt {
+                    size,
+                    sha256,
+                    cancel: cancel.clone(),
+                }),
+            },
+            file,
+        )
+    }
+
     /// Explicit validator entry point, not reachable from normal mounted writes.
     /// A future production caller must verify the exact sealed archive during
     /// admission before enqueue: begin/allocation receives no payload descriptor.

@@ -64,6 +64,11 @@ impl WriteWorkers {
             issue.clone(),
         ));
         workers.spawn(maintain(control.clone(), cancel.clone(), issue.clone()));
+        workers.spawn(publish_packages(
+            control.clone(),
+            cancel.clone(),
+            issue.clone(),
+        ));
         workers.close();
         Self {
             control,
@@ -422,5 +427,39 @@ async fn pump(
             _=changed=>{},
             _=tokio::time::sleep(Duration::from_secs(1))=>{},
         }
+    }
+}
+
+// Independent of upload/mutation pumps: a slow metadata provider never delays
+// another ordinary save. Queue failures carry their own durable cooldown.
+async fn publish_packages(
+    control: WriteControl,
+    cancel: CancellationToken,
+    issue: Arc<Mutex<Option<String>>>,
+) {
+    let wake = control.wake();
+    loop {
+        let changed = wake.notified();
+        tokio::pin!(changed);
+        changed.as_mut().enable();
+        let result = tokio::select! {biased;_=cancel.cancelled()=>return,result=control.publish_completed_package()=>result};
+        let delay = match result {
+            Ok(true) => {
+                if let Ok(mut issue) = issue.lock()
+                    && issue.as_deref() == Some("native package metadata refresh is pending")
+                {
+                    *issue = None;
+                }
+                Duration::from_millis(100)
+            }
+            Ok(false) => Duration::from_secs(1),
+            Err(error) => {
+                if let Ok(mut issue) = issue.lock() {
+                    *issue = Some(error.to_string());
+                }
+                Duration::from_secs(1)
+            }
+        };
+        tokio::select! {biased;_=cancel.cancelled()=>return,_=changed=>{},_=tokio::time::sleep(delay)=>{}}
     }
 }

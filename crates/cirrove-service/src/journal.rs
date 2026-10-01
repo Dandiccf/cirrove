@@ -19,6 +19,8 @@ mod identity_handoff;
 mod mutations;
 mod namespace;
 mod owner;
+mod package_publication;
+pub(crate) use package_publication::PackagePublicationStatus;
 mod preparation;
 mod publication;
 mod replacements;
@@ -362,6 +364,7 @@ impl UploadJournal {
         preparation::migrate(&mut db, version)?;
         directories::migrate(&mut db, version)?;
         representation::migrate(&mut db, version)?;
+        package_publication::migrate(&mut db)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -461,8 +464,33 @@ impl UploadJournal {
         order: WriteOrder,
         working: Option<GenerationCommit>,
         representation: UploadRepresentation,
+        bytes: impl Read,
+    ) -> Result<UploadRecord> {
+        self.enqueue_admitted(
+            scope,
+            intent,
+            order,
+            working,
+            representation::Admission {
+                representation,
+                receipt: None,
+            },
+            bytes,
+        )
+    }
+    fn enqueue_admitted(
+        &mut self,
+        scope: Scope,
+        intent: UploadIntent,
+        order: WriteOrder,
+        working: Option<GenerationCommit>,
+        admission: representation::Admission,
         mut bytes: impl Read,
     ) -> Result<UploadRecord> {
+        let representation::Admission {
+            representation,
+            receipt,
+        } = admission;
         representation
             .validate()
             .map_err(|_| JournalError::Intent)?;
@@ -495,6 +523,9 @@ impl UploadJournal {
         let mut hash = Sha256::new();
         let mut buffer = [0u8; 128 * 1024];
         loop {
+            if receipt.as_ref().is_some_and(|r| r.cancel.is_cancelled()) {
+                return Err(JournalError::Stale);
+            }
             let count = bytes.read(&mut buffer)?;
             if count == 0 {
                 break;
@@ -505,6 +536,15 @@ impl UploadJournal {
             }
             temporary.write_all(&buffer[..count])?;
             hash.update(&buffer[..count]);
+        }
+        let sha256 = hex::encode(hash.finalize());
+        if let Some(expected) = &receipt {
+            if expected.cancel.is_cancelled() {
+                return Err(JournalError::Stale);
+            }
+            if size != expected.size || sha256 != expected.sha256 {
+                return Err(JournalError::Corrupt);
+            }
         }
         temporary
             .as_file()
@@ -521,7 +561,7 @@ impl UploadJournal {
             intent,
             state: UploadState::Pending,
             size,
-            sha256: hex::encode(hash.finalize()),
+            sha256,
             attempt: None,
             remote: None,
             identity_handoff: None,
@@ -533,6 +573,11 @@ impl UploadJournal {
             saved_at: now_seconds(),
             failed_attempts: 0,
         };
+        // Cancellation before this publication boundary leaves no durable object
+        // or row. Once publication starts, finish the existing durable enqueue.
+        if receipt.as_ref().is_some_and(|r| r.cancel.is_cancelled()) {
+            return Err(JournalError::Stale);
+        }
         temporary
             .persist_noclobber(self.objects.join(record.id.to_string()))
             .map_err(|_| JournalError::Storage)?;

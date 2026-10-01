@@ -1,6 +1,7 @@
 //! Per-account metadata service. Change feeds and foreground directory requests
 //! share a provider client but never hold SQLite locks across network awaits.
 mod changes;
+mod native_import;
 
 /// An item's mount-relative path, by walking parents up to the drive root.
 ///

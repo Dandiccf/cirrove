@@ -1,5 +1,6 @@
 //! Desired account state, mount ownership and status. Observation failures never
 //! count as an ejection; mount directories are checked on every mount attempt.
+mod native_import;
 use crate::writable::WriteProvider;
 use crate::{
     accounts::{Account, Settings},
@@ -226,6 +227,7 @@ pub struct Manager {
     /// caller asking to clear stuck changes on one should be told.
     writers: RwLock<HashMap<String, crate::filesystem::WriteControl>>,
     export_slots: Arc<tokio::sync::Semaphore>,
+    native_import_slots: Arc<tokio::sync::Semaphore>,
 }
 impl Default for Manager {
     fn default() -> Self {
@@ -234,6 +236,7 @@ impl Default for Manager {
             engines: RwLock::default(),
             writers: RwLock::default(),
             export_slots: Arc::new(tokio::sync::Semaphore::new(1)),
+            native_import_slots: Arc::new(tokio::sync::Semaphore::new(1)),
             events: tokio::sync::broadcast::channel(crate::events::EVENT_QUEUE_DEPTH).0,
         }
     }

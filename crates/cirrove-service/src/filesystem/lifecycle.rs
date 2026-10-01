@@ -1,4 +1,5 @@
 //! Close edit admission atomically before awaiting the admitted callbacks.
+mod native_import;
 use super::*;
 use tokio_util::task::{TaskTracker, task_tracker::TaskTrackerToken};
 
@@ -142,6 +143,12 @@ impl WriteControl {
             .maintain(&self.inner.engine)
             .await
             .map_err(|_| std::io::Error::other("local namespace maintenance failed"))
+    }
+    pub(crate) async fn publish_completed_package(&self) -> std::io::Result<bool> {
+        self.writer
+            .publish_completed_package(&self.inner.engine)
+            .await
+            .map_err(|_| std::io::Error::other("native package metadata refresh is pending"))
     }
     pub async fn refresh_operation(&self, id: uuid::Uuid) -> std::io::Result<()> {
         self.writer

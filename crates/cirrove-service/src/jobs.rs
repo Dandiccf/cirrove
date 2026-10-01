@@ -47,6 +47,8 @@ pub enum JobKind {
     KeepOffline,
     /// Export one immutable saved generation without any cloud request.
     ExportLocal,
+    /// Capture, upload and verify an explicitly imported native document.
+    ImportNativePackage,
     #[serde(other)]
     Unknown,
 }
@@ -100,6 +102,15 @@ pub struct Job {
     pub export: Option<crate::journal::LocalExportReceipt>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub working_export: Option<crate::journal::WorkingExportReceipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_import: Option<NativeImportProgress>,
+}
+
+/// A durable queued operation; remote is present only after verified completion.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeImportProgress {
+    pub operation: uuid::Uuid,
+    pub remote: Option<cirrove_core::Node>,
 }
 
 impl Job {
@@ -188,6 +199,7 @@ impl Jobs {
             issue: None,
             export: None,
             working_export: None,
+            native_import: None,
         };
         self.inner().running.push(Running {
             job,
@@ -334,6 +346,52 @@ impl JobHandle {
     pub fn advance(&self, files_done: u64, bytes_done: u64) {
         self.jobs.advance(&self.id, files_done, bytes_done);
     }
+    pub(crate) fn native_import_queued(&self, operation: uuid::Uuid, size: u64) {
+        let mut inner = self.jobs.inner();
+        if let Some(entry) = inner.running.iter_mut().find(|r| r.job.id == self.id) {
+            entry.job.bytes_total = size;
+            entry.job.native_import = Some(NativeImportProgress {
+                operation,
+                remote: None,
+            });
+        }
+    }
+    pub(crate) fn native_imported(self, operation: uuid::Uuid, remote: cirrove_core::Node) {
+        {
+            // Bind the receipt and choose the terminal state under the same lock
+            // as Jobs::stop. An accepted stop must never be overwritten by a
+            // success callback between two separately locked transitions.
+            let mut inner = self.jobs.inner();
+            let Some(index) = inner
+                .running
+                .iter()
+                .position(|entry| entry.job.id == self.id)
+            else {
+                return;
+            };
+            let entry = inner.running.remove(index);
+            let mut job = entry.job;
+            if entry.cancel.is_cancelled() || job.state == JobState::Stopping {
+                job.state = JobState::Stopped;
+                job.issue =
+                    Some("stopped watching; the queued import operation is retained".into());
+            } else if let Some(progress) = job.native_import.as_mut()
+                && progress.operation == operation
+            {
+                progress.remote = Some(remote);
+                job.state = JobState::Succeeded;
+                job.issue = None;
+            } else {
+                job.state = JobState::Failed;
+                job.issue = Some("native import receipt did not match the queued operation".into());
+            }
+            if inner.ended.len() == RETAINED {
+                inner.ended.pop_front();
+            }
+            inner.ended.push_back((Instant::now(), job));
+        }
+        self.jobs.ended.notify_waiters();
+    }
     /// Whether this job's token has been cancelled, for any reason.
     pub fn stopping(&self) -> bool {
         self.cancel.is_cancelled()
@@ -408,6 +466,169 @@ mod tests {
 
     fn register() -> Arc<Jobs> {
         Arc::new(Jobs::default())
+    }
+
+    fn imported_node() -> cirrove_core::Node {
+        cirrove_core::Node {
+            id: "FILE::com.apple.CloudDocs::synthetic-import".into(),
+            parent_id: Some("FOLDER::com.apple.CloudDocs::root".into()),
+            name: "Imported.pages".into(),
+            kind: cirrove_core::NodeKind::Folder,
+            size: 17,
+            modified_unix: 0,
+            etag: Some("verified-version".into()),
+            content_version: Some("verified-version".into()),
+            target: None,
+            package: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn native_import_queue_is_running_with_durable_operation_but_no_remote_receipt() {
+        let jobs = register();
+        let handle = jobs.start(
+            JobKind::ImportNativePackage,
+            "Imported.pages".into(),
+            1,
+            0,
+            &CancellationToken::new(),
+        );
+        let operation = uuid::Uuid::new_v4();
+        handle.native_import_queued(operation, 1234);
+        let job = jobs.find(handle.id()).unwrap();
+        assert_eq!(job.state, JobState::Running);
+        assert!(job.running());
+        assert_eq!(
+            (job.files_done, job.bytes_done, job.bytes_total),
+            (0, 0, 1234)
+        );
+        let progress = job.native_import.unwrap();
+        assert_eq!(progress.operation, operation);
+        assert!(
+            progress.remote.is_none(),
+            "queued bytes do not prove remote creation"
+        );
+        assert_eq!(jobs.running(), 1);
+    }
+
+    #[tokio::test]
+    async fn native_import_failure_preserves_operation_for_recovery_without_claiming_remote_success()
+     {
+        let jobs = register();
+        let handle = jobs.start(
+            JobKind::ImportNativePackage,
+            "Imported.pages".into(),
+            1,
+            0,
+            &CancellationToken::new(),
+        );
+        let id = handle.id().to_owned();
+        let operation = uuid::Uuid::new_v4();
+        handle.native_import_queued(operation, 1234);
+        handle.failed(
+            JobState::Failed,
+            Some("verification is still uncertain".into()),
+        );
+        let job = jobs.wait(&id).await.unwrap();
+        assert_eq!(job.state, JobState::Failed);
+        assert_eq!(
+            job.issue.as_deref(),
+            Some("verification is still uncertain")
+        );
+        assert!(!job.running());
+        let progress = job.native_import.unwrap();
+        assert_eq!(progress.operation, operation);
+        assert!(progress.remote.is_none());
+        assert_eq!(
+            (job.files_done, job.bytes_done, job.bytes_total),
+            (0, 0, 1234)
+        );
+    }
+
+    #[tokio::test]
+    async fn native_import_wrong_operation_cannot_publish_a_success_receipt() {
+        let jobs = register();
+        let handle = jobs.start(
+            JobKind::ImportNativePackage,
+            "Imported.pages".into(),
+            1,
+            0,
+            &CancellationToken::new(),
+        );
+        let id = handle.id().to_owned();
+        let operation = uuid::Uuid::new_v4();
+        handle.native_import_queued(operation, 1234);
+        handle.native_imported(uuid::Uuid::new_v4(), imported_node());
+        let job = jobs.wait(&id).await.unwrap();
+        assert_eq!(job.state, JobState::Failed);
+        assert!(job.issue.is_some());
+        let progress = job.native_import.unwrap();
+        assert_eq!(progress.operation, operation);
+        assert!(
+            progress.remote.is_none(),
+            "a foreign operation must not overwrite the original binding"
+        );
+        assert_eq!(jobs.running(), 0);
+    }
+
+    #[tokio::test]
+    async fn native_import_accepted_stop_cannot_be_overwritten_by_completion() {
+        let jobs = register();
+        let parent = CancellationToken::new();
+        let handle = jobs.start(
+            JobKind::ImportNativePackage,
+            "Imported.pages".into(),
+            1,
+            0,
+            &parent,
+        );
+        let id = handle.id().to_owned();
+        let operation = uuid::Uuid::new_v4();
+        handle.native_import_queued(operation, 1234);
+        assert_eq!(jobs.stop(&id), Stopped::Asked);
+        assert!(handle.stopping());
+        handle.native_imported(operation, imported_node());
+        let job = tokio::time::timeout(Duration::from_secs(1), jobs.wait(&id))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(job.state, JobState::Stopped);
+        let progress = job.native_import.unwrap();
+        assert_eq!(progress.operation, operation);
+        assert!(progress.remote.is_none());
+        assert!(!parent.is_cancelled());
+        assert_eq!(jobs.stop(&id), Stopped::Dismissed);
+        assert!(jobs.find(&id).is_none());
+    }
+
+    #[tokio::test]
+    async fn native_import_matching_completion_retains_exact_remote_receipt_until_dismissed() {
+        let jobs = register();
+        let handle = jobs.start(
+            JobKind::ImportNativePackage,
+            "Imported.pages".into(),
+            1,
+            0,
+            &CancellationToken::new(),
+        );
+        let id = handle.id().to_owned();
+        let operation = uuid::Uuid::new_v4();
+        let remote = imported_node();
+        handle.native_import_queued(operation, 1234);
+        handle.advance(1, 1234);
+        handle.native_imported(operation, remote.clone());
+        let job = jobs.wait(&id).await.unwrap();
+        assert_eq!(job.state, JobState::Succeeded);
+        assert!(job.issue.is_none());
+        assert_eq!(
+            (job.files_done, job.bytes_done, job.bytes_total),
+            (1, 1234, 1234)
+        );
+        let progress = job.native_import.unwrap();
+        assert_eq!(progress.operation, operation);
+        assert_eq!(progress.remote, Some(remote));
+        assert_eq!(jobs.stop(&id), Stopped::Dismissed);
+        assert!(jobs.find(&id).is_none());
     }
 
     #[tokio::test]
