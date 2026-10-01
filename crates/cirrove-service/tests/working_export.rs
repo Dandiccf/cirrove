@@ -2,6 +2,7 @@
 #![allow(clippy::unwrap_used)]
 use cirrove_core::{Node, NodeKind, Scope};
 use cirrove_service::{accounts::Settings, journal::UploadJournal};
+use sha2::Digest;
 use std::{fs, os::unix::fs::PermissionsExt, path::Path, process::Command};
 fn fixture(state: &Path) -> (String, uuid::Uuid, u64) {
     cirrove_service::private_dir(state).unwrap();
@@ -328,4 +329,241 @@ fn working_pagination_looks_ahead_without_skipping_the_next_file() {
     let ids: std::collections::HashSet<_> =
         first.into_iter().chain(last).map(|row| row.file).collect();
     assert_eq!(ids.len(), 201);
+}
+
+fn active_fixture(state: &Path) -> (UploadJournal, uuid::Uuid, u64) {
+    let (account, id, generation) = fixture(state);
+    let journal = UploadJournal::open(
+        &state.join("accounts").join(&account).join("journal"),
+        &account,
+        4 * 1024 * 1024,
+    )
+    .unwrap();
+    (journal, id, generation)
+}
+fn records(journal: &UploadJournal) -> serde_json::Value {
+    serde_json::json!({
+        "working": journal.working_files().unwrap(),
+        "uploads": journal.list(0, 200).unwrap(),
+    })
+}
+#[test]
+fn active_working_export_copies_without_sealing_or_changing_journal() {
+    let temp = tempfile::tempdir().unwrap();
+    let (journal, id, generation) = active_fixture(&temp.path().join("state"));
+    let before = records(&journal);
+    let destination = temp.path().join("copy");
+    let cancel = cirrove_core::CancellationToken::new();
+    let source = journal.working_export_source(id, generation).unwrap();
+    let prepared = source.prepare_copy(&destination, &cancel, |_| {}).unwrap();
+    assert!(!destination.exists());
+    let verified = journal.verify_working_export(prepared).unwrap();
+    assert!(!destination.exists());
+    let receipt = verified.publish(&cancel).unwrap();
+    assert_eq!(receipt.source.file, id);
+    assert_eq!(receipt.source.generation, generation);
+    assert_eq!(receipt.destination, destination);
+    assert_eq!(fs::read(&destination).unwrap(), b"unsealed working bytes");
+    assert_eq!(
+        receipt.sha256,
+        hex::encode(sha2::Sha256::digest(b"unsealed working bytes"))
+    );
+    assert_eq!(records(&journal), before);
+}
+#[test]
+fn active_working_export_refuses_edits_between_staging_and_verification() {
+    // Staging has already finished, so its timestamp check cannot catch this edit.
+    // Removing the journal generation check makes this regression fail.
+    for truncate in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let (mut journal, id, generation) = active_fixture(&temp.path().join("state"));
+        let destination = temp.path().join("copy");
+        let cancel = cirrove_core::CancellationToken::new();
+        let prepared = journal
+            .working_export_source(id, generation)
+            .unwrap()
+            .prepare_copy(&destination, &cancel, |_| {})
+            .unwrap();
+        if truncate {
+            journal.truncate_working(id, 0).unwrap();
+        }
+        // Restore identical bytes too: generation, not byte equality, owns selection.
+        journal
+            .write_working(id, 0, b"unsealed working bytes")
+            .unwrap();
+        let after_edit = records(&journal);
+        assert!(journal.verify_working_export(prepared).is_err());
+        assert!(!destination.exists());
+        assert_eq!(records(&journal), after_edit);
+        assert!(!fs::read_dir(temp.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".cirrove-export-")
+        }));
+    }
+}
+#[test]
+fn active_working_export_refuses_a_source_changed_before_copying() {
+    let temp = tempfile::tempdir().unwrap();
+    let (mut journal, id, generation) = active_fixture(&temp.path().join("state"));
+    let source = journal.working_export_source(id, generation).unwrap();
+    journal
+        .write_working(id, 0, b"different working data")
+        .unwrap();
+    let destination = temp.path().join("copy");
+    let cancel = cirrove_core::CancellationToken::new();
+    let prepared = source.prepare_copy(&destination, &cancel, |_| {}).unwrap();
+    assert!(journal.verify_working_export(prepared).is_err());
+    assert!(!destination.exists());
+}
+#[test]
+fn active_working_export_refuses_mutation_during_copy_without_blocking_writes() {
+    let temp = tempfile::tempdir().unwrap();
+    let (mut journal, id, _) = active_fixture(&temp.path().join("state"));
+    let bytes = vec![b'a'; 512 * 1024];
+    let (_, working) = journal.write_working(id, 0, &bytes).unwrap();
+    let source = journal
+        .working_export_source(id, working.generation)
+        .unwrap();
+    let destination = temp.path().join("copy");
+    let cancel = cirrove_core::CancellationToken::new();
+    let mut edited = false;
+    let prepared = source.prepare_copy(&destination, &cancel, |_| {
+        if !edited {
+            edited = true;
+            journal.write_working(id, 256 * 1024, b"changed").unwrap();
+        }
+    });
+    assert!(edited);
+    // Either the source stamp or the generation validation must reject it.
+    if let Ok(prepared) = prepared {
+        assert!(journal.verify_working_export(prepared).is_err());
+    }
+    assert!(!destination.exists());
+}
+#[test]
+fn active_working_export_publishes_selected_generation_after_a_later_edit() {
+    let temp = tempfile::tempdir().unwrap();
+    let (mut journal, id, generation) = active_fixture(&temp.path().join("state"));
+    let destination = temp.path().join("copy");
+    let cancel = cirrove_core::CancellationToken::new();
+    let prepared = journal
+        .working_export_source(id, generation)
+        .unwrap()
+        .prepare_copy(&destination, &cancel, |_| {})
+        .unwrap();
+    let verified = journal.verify_working_export(prepared).unwrap();
+    journal.write_working(id, 0, b"newest").unwrap();
+    let after_edit = records(&journal);
+    let receipt = verified.publish(&cancel).unwrap();
+    assert_eq!(receipt.source.generation, generation);
+    assert_eq!(fs::read(destination).unwrap(), b"unsealed working bytes");
+    assert_eq!(journal.read_working(id, 0, 6).unwrap(), b"newest");
+    assert_eq!(records(&journal), after_edit);
+}
+#[test]
+fn active_working_export_cancellation_after_verification_preserves_source() {
+    let temp = tempfile::tempdir().unwrap();
+    let (journal, id, generation) = active_fixture(&temp.path().join("state"));
+    let before = records(&journal);
+    let destination = temp.path().join("copy");
+    let cancel = cirrove_core::CancellationToken::new();
+    let prepared = journal
+        .working_export_source(id, generation)
+        .unwrap()
+        .prepare_copy(&destination, &cancel, |_| {})
+        .unwrap();
+    let verified = journal.verify_working_export(prepared).unwrap();
+    cancel.cancel();
+    assert!(verified.publish(&cancel).is_err());
+    assert!(!destination.exists());
+    assert_eq!(records(&journal), before);
+}
+#[test]
+fn active_working_export_rejects_a_different_journal_and_keeps_owner_alive() {
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    let (journal, id, generation) = active_fixture(&state);
+    let account = journal.working_file(id).unwrap().scope.account;
+    let root = state.join("accounts").join(&account).join("journal");
+    let source = journal.working_export_source(id, generation).unwrap();
+    let cancel = cirrove_core::CancellationToken::new();
+    let destination = temp.path().join("copy");
+    let prepared = source.prepare_copy(&destination, &cancel, |_| {}).unwrap();
+    drop(journal);
+    assert!(UploadJournal::open(&root, &account, 4 * 1024 * 1024).is_err());
+    let (other, _, _) = active_fixture(&temp.path().join("other"));
+    assert!(other.verify_working_export(prepared).is_err());
+    assert!(!destination.exists());
+    assert!(UploadJournal::open(&root, &account, 4 * 1024 * 1024).is_ok());
+}
+#[test]
+fn active_working_export_retains_unlinked_descriptor_bytes_without_a_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let (mut journal, id, _) = active_fixture(&temp.path().join("state"));
+    journal.seal_working(id).unwrap();
+    let working = journal.working_file(id).unwrap();
+    let object = journal
+        .namespace_by_local(&working.scope, &working.node.id)
+        .unwrap()
+        .unwrap();
+    journal
+        .unlink_namespace_file(object.id, object.revision, true)
+        .unwrap();
+    let (_, working) = journal
+        .write_working(id, 0, b"retained after unlink")
+        .unwrap();
+    let before = records(&journal);
+    let destination = temp.path().join("copy");
+    let cancel = cirrove_core::CancellationToken::new();
+    let prepared = journal
+        .working_export_source(id, working.generation)
+        .unwrap()
+        .prepare_copy(&destination, &cancel, |_| {})
+        .unwrap();
+    let receipt = journal
+        .verify_working_export(prepared)
+        .unwrap()
+        .publish(&cancel)
+        .unwrap();
+    assert!(receipt.source.unlinked);
+    assert_eq!(
+        fs::read(destination).unwrap(),
+        journal.read_working(id, 0, 100).unwrap()
+    );
+    assert_eq!(records(&journal), before);
+}
+#[test]
+fn active_working_export_preserves_no_overwrite_and_parent_identity_after_validation() {
+    use std::os::unix::fs::symlink;
+    for renamed in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let (journal, id, generation) = active_fixture(&temp.path().join("state"));
+        let output = temp.path().join("output");
+        fs::create_dir(&output).unwrap();
+        let destination = output.join("copy");
+        let cancel = cirrove_core::CancellationToken::new();
+        let prepared = journal
+            .working_export_source(id, generation)
+            .unwrap()
+            .prepare_copy(&destination, &cancel, |_| {})
+            .unwrap();
+        let verified = journal.verify_working_export(prepared).unwrap();
+        if renamed {
+            let moved = temp.path().join("moved");
+            fs::rename(&output, &moved).unwrap();
+            let other = temp.path().join("other");
+            fs::create_dir(&other).unwrap();
+            symlink(&other, &output).unwrap();
+            assert!(verified.publish(&cancel).is_err());
+            assert!(!moved.join("copy").exists());
+            assert!(!other.join("copy").exists());
+        } else {
+            fs::write(&destination, b"keep me").unwrap();
+            assert!(verified.publish(&cancel).is_err());
+            assert_eq!(fs::read(destination).unwrap(), b"keep me");
+        }
+    }
 }

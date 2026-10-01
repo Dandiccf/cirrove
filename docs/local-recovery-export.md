@@ -121,6 +121,15 @@ The same private, cancellable, no-overwrite local destination rules apply.
 Unexpected source size/timestamp changes during copying abort publication;
 `Ctrl+C` requests cancellation. The source and journal remain unchanged.
 
+## Active working-file core
+
+An [internal staged-copy API](benchmarks/icloud-active-working-export-core-2026-10-01.md)
+now supports selecting working bytes from a running journal, copying outside its
+mutex, and validating the exact generation before publication. Tests cover edits
+at each boundary and retain the selected version in the receipt. The active
+working-file socket, CLI and desktop wiring remains pending; use the existing
+offline workflow above until that integration is available.
+
 ## Current limits
 
 - Desktop recovery supports active writable journals and configured disabled

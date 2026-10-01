@@ -9,7 +9,8 @@ mod directories;
 mod export;
 mod generations;
 pub use export::{
-    LocalExportReceipt, LocalExportSource, RecoveryJournal, WorkingExportReceipt, WorkingRecovery,
+    LocalExportReceipt, LocalExportSource, PreparedWorkingExport, RecoveryJournal,
+    VerifiedWorkingExport, WorkingExportReceipt, WorkingExportSource, WorkingRecovery,
 };
 mod handoff;
 mod identity_handoff;

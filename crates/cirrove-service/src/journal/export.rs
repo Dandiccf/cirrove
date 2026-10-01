@@ -1,6 +1,8 @@
 //! Local recovery without replay: pinned immutable saves and offline working bytes.
 use super::*;
+mod active;
 mod working;
+pub use active::{PreparedWorkingExport, VerifiedWorkingExport, WorkingExportSource};
 use cirrove_core::CancellationToken;
 use std::os::fd::AsRawFd;
 pub use working::{WorkingExportReceipt, WorkingRecovery};
@@ -123,7 +125,7 @@ impl LocalExportSource {
     }
 }
 
-fn copy_local_file(
+fn prepare_local_copy(
     mut file: File,
     journal_root: &Path,
     size: u64,
@@ -131,7 +133,7 @@ fn copy_local_file(
     destination: &Path,
     cancel: &CancellationToken,
     mut progress: impl FnMut(u64),
-) -> Result<(u64, String)> {
+) -> Result<PreparedLocalCopy> {
     let stamp = |file: &File| -> std::io::Result<_> {
         let meta = file.metadata()?;
         Ok((
@@ -196,17 +198,60 @@ fn copy_local_file(
     {
         return Err(JournalError::Stale);
     }
-    if cancel.is_cancelled() {
-        return Err(JournalError::Stale);
+    Ok(PreparedLocalCopy {
+        temporary,
+        directory: dir,
+        resolved_parent: resolved,
+        destination: destination.into(),
+        size: copied,
+        sha256,
+    })
+}
+
+struct PreparedLocalCopy {
+    temporary: tempfile::NamedTempFile,
+    directory: File,
+    resolved_parent: PathBuf,
+    destination: PathBuf,
+    size: u64,
+    sha256: String,
+}
+impl PreparedLocalCopy {
+    fn publish(self, cancel: &CancellationToken) -> Result<(u64, String)> {
+        if cancel.is_cancelled() {
+            return Err(JournalError::Stale);
+        }
+        let anchored = PathBuf::from(format!("/proc/self/fd/{}", self.directory.as_raw_fd()));
+        if std::fs::read_link(&anchored)? != self.resolved_parent {
+            return Err(JournalError::Stale);
+        }
+        let name = self.destination.file_name().ok_or(JournalError::Intent)?;
+        self.temporary
+            .persist_noclobber(anchored.join(name))
+            .map_err(|error| JournalError::from(error.error))?;
+        self.directory.sync_all()?;
+        Ok((self.size, self.sha256))
     }
-    if std::fs::read_link(&anchored)? != resolved {
-        return Err(JournalError::Stale);
-    }
-    temporary
-        .persist_noclobber(&target)
-        .map_err(|error| JournalError::from(error.error))?;
-    dir.sync_all()?;
-    Ok((copied, sha256))
+}
+fn copy_local_file(
+    file: File,
+    journal_root: &Path,
+    size: u64,
+    expected_hash: Option<&str>,
+    destination: &Path,
+    cancel: &CancellationToken,
+    progress: impl FnMut(u64),
+) -> Result<(u64, String)> {
+    prepare_local_copy(
+        file,
+        journal_root,
+        size,
+        expected_hash,
+        destination,
+        cancel,
+        progress,
+    )?
+    .publish(cancel)
 }
 
 /// Exclusive, read-only access to retained saves from a stopped account.
