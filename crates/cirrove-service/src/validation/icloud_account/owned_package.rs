@@ -429,4 +429,4 @@ mod tests {
 }
 
 mod public_verify;
-pub use public_verify::icloud_public_native_verify;
+pub use public_verify::{icloud_public_native_manifest, icloud_public_native_verify};

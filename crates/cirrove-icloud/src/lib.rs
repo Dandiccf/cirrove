@@ -19,6 +19,10 @@ mod handoff_transport;
 #[cfg(feature = "write-probe")]
 mod metadata_shape_probe;
 #[cfg(feature = "write-probe")]
+mod owned_manifest_probe;
+#[cfg(feature = "write-probe")]
+pub use owned_manifest_probe::OwnedManifestObservation;
+#[cfg(feature = "write-probe")]
 mod owned_file_rename;
 #[cfg(feature = "write-probe")]
 mod owned_folder;

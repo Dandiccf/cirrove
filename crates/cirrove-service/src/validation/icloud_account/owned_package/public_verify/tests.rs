@@ -132,7 +132,16 @@ fn public_verifier_refuses_duplicate_identity_names_and_changed_revision() {
             2 => changed.parent_id = "other".into(),
             _ => changed.zone = "com.apple.Pages".into(),
         }
-        assert!(exact_entry(&[changed], &node).is_err());
+        let expected = match arm {
+            0 => "public imported revision changed",
+            1 => "public imported size changed",
+            2 => "public imported parent changed",
+            _ => "public imported zone changed",
+        };
+        assert_eq!(
+            exact_entry(&[changed], &node).unwrap_err().to_string(),
+            expected
+        );
     }
 }
 
@@ -165,4 +174,40 @@ fn public_verifier_accepts_canonical_etag_receipt_and_exact_legacy_alias_only() 
     row.remote.as_mut().unwrap().etag = None;
     row.remote.as_mut().unwrap().content_version = None;
     assert!(receipt_binding(&row, &account, &plan, &semantic).is_err());
+}
+
+#[tokio::test]
+async fn public_manifest_wrong_run_refused_before_retained_state_or_network() {
+    let error = icloud_public_native_manifest(Uuid::nil())
+        .await
+        .expect_err("unregistered run must not access retained fixture");
+    assert_eq!(
+        error.to_string(),
+        "run is not the preregistered public native import"
+    );
+}
+
+#[test]
+fn manifest_current_revision_is_read_bound_without_weakening_import_verification() {
+    let (_, _, _, row, mut entry) = fixture();
+    let receipt = row.remote.unwrap();
+    entry.etag = "current-revision".into();
+    assert!(exact_entry(std::slice::from_ref(&entry), &receipt).is_err());
+    let (_, current) = manifest_current_entry(std::slice::from_ref(&entry), &receipt).unwrap();
+    assert_eq!(current.etag.as_deref(), Some("current-revision"));
+    assert_ne!(current.etag, receipt.etag);
+    assert!(exact_entry(std::slice::from_ref(&entry), &current).is_ok());
+    for arm in 0..5 {
+        let mut changed = entry.clone();
+        match arm {
+            0 => changed.etag.clear(),
+            1 => changed.drivewsid.push_str("-other"),
+            2 => changed.parent_id.push_str("-other"),
+            3 => changed.name.push_str("-other"),
+            _ => changed.size += 1,
+        }
+        assert!(manifest_current_entry(&[changed], &receipt).is_err());
+    }
+    entry.etag = "later-revision".into();
+    assert!(exact_entry(&[entry], &current).is_err());
 }

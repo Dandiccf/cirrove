@@ -69,26 +69,50 @@ fn exact_entry(entries: &[DriveEntry], node: &Node) -> Result<DriveEntry> {
         .next()
         .context("public imported identity not visible")?;
     ensure!(
-        matches.next().is_none()
-            && entries
-                .iter()
-                .filter(|entry| entry.display_name() == node.name)
-                .count()
-                == 1
-            && entry.kind == "FILE"
-            && entry.zone == "com.apple.CloudDocs"
-            && Some(entry.parent_id.as_str()) == node.parent_id.as_deref()
-            && entry.display_name() == node.name
-            && entry.size == node.size
-            && Some(entry.etag.as_str()) == node.etag.as_deref(),
-        "public imported metadata changed or ambiguous"
+        matches.next().is_none(),
+        "public imported identity ambiguous"
+    );
+    ensure!(
+        entries
+            .iter()
+            .filter(|candidate| candidate.display_name() == node.name)
+            .count()
+            == 1,
+        "public imported name absent or ambiguous"
+    );
+    ensure!(entry.kind == "FILE", "public imported kind changed");
+    ensure!(
+        entry.zone == "com.apple.CloudDocs",
+        "public imported zone changed"
+    );
+    ensure!(
+        Some(entry.parent_id.as_str()) == node.parent_id.as_deref(),
+        "public imported parent changed"
+    );
+    ensure!(
+        entry.display_name() == node.name,
+        "public imported name changed"
+    );
+    ensure!(entry.size == node.size, "public imported size changed");
+    ensure!(
+        Some(entry.etag.as_str()) == node.etag.as_deref(),
+        "public imported revision changed"
     );
     Ok(entry.clone())
 }
 
 /// The public daemon must be stopped first: RecoveryJournal retains its exclusive
 /// owner lease throughout the read-only verification and refuses an active writer.
-pub async fn icloud_public_native_verify(run: Uuid) -> Result<()> {
+struct PublicImportBinding {
+    account: Account,
+    plan: OwnedPackagePlan,
+    node: Node,
+    journal: RecoveryJournal,
+    source_file: File,
+    source_receipt: PackageDownload,
+    semantic: PackageSemanticIdentity,
+}
+fn retained_public_import(run: Uuid) -> Result<PublicImportBinding> {
     ensure!(
         run.to_string() == RUN,
         "run is not the preregistered public native import"
@@ -152,6 +176,30 @@ pub async fn icloud_public_native_verify(run: Uuid) -> Result<()> {
     );
     let row = &rows[0];
     let node = receipt_binding(row, &account, &plan, &semantic)?.clone();
+    Ok(PublicImportBinding {
+        account,
+        plan,
+        node,
+        journal,
+        source_file,
+        source_receipt,
+        semantic,
+    })
+}
+
+pub async fn icloud_public_native_verify(run: Uuid) -> Result<()> {
+    let PublicImportBinding {
+        account,
+        plan,
+        node,
+        journal,
+        source_file,
+        source_receipt,
+        semantic,
+    } = retained_public_import(run)?;
+    let rows = journal.list(0, 2)?;
+    let row = rows.first().context("public import receipt disappeared")?;
+    let directory = Path::new(PUBLIC);
     let attempt = verification_directory(directory)?;
     manifest(&attempt, run, "public-mounted")?;
     let mut remote = session(directory, &account).await?;
@@ -266,3 +314,65 @@ pub async fn icloud_public_native_verify(run: Uuid) -> Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+/// Read only: no model fetch/session initialization; existing fixture only.
+// The manifest observes the current exact owned document, not the historical
+// import revision. Preserve every identity/shape check and bind both sides of
+// the read to the same freshly observed nonempty revision. Never update receipts.
+fn manifest_current_entry(entries: &[DriveEntry], receipt: &Node) -> Result<(DriveEntry, Node)> {
+    let candidate = entries
+        .iter()
+        .find(|entry| entry.drivewsid == receipt.id)
+        .context("public imported identity not visible")?;
+    ensure!(
+        !candidate.etag.is_empty(),
+        "manifest current revision absent"
+    );
+    let mut current = receipt.clone();
+    current.etag = Some(candidate.etag.clone());
+    let entry = exact_entry(entries, &current)?;
+    Ok((entry, current))
+}
+
+pub async fn icloud_public_native_manifest(run: Uuid) -> Result<()> {
+    let PublicImportBinding {
+        account,
+        plan,
+        node,
+        journal,
+        ..
+    } = retained_public_import(run)?;
+    ensure!(
+        node.id == "FILE::com.apple.CloudDocs::8A909C8D-32D7-4E39-9202-DF1862E46C5A",
+        "manifest exact document binding mismatch"
+    );
+    let rows = journal.list(0, 2)?;
+    ensure!(
+        rows.len() == 1 && rows[0].id.to_string() == "b534c269-8b9e-47e0-97a0-a512d0127765",
+        "manifest operation binding mismatch"
+    );
+    let directory = Path::new(PUBLIC);
+    let attempt = verification_directory(directory)?;
+    manifest(&attempt, run, "public-manifest-read-only")?;
+    let mut remote = session(directory, &account).await?;
+    let before = remote
+        .list_folder(&plan.parent)
+        .await
+        .map_err(|_| anyhow::anyhow!("manifest preflight metadata unavailable"))?;
+    let (_, current) = manifest_current_entry(&before, &node)?;
+    let original_revision_unchanged = current.etag == node.etag;
+    let result = remote
+        .probe_owned_pages_manifest(&node.id, &CancellationToken::new())
+        .await?;
+    let after = remote
+        .list_folder(&plan.parent)
+        .await
+        .map_err(|_| anyhow::anyhow!("manifest postflight metadata unavailable"))?;
+    exact_entry(&after, &current)?;
+    record(
+        &attempt.join("manifest-observation.json"),
+        &serde_json::json!({"run":run,"metadata_unchanged":true,"original_import_revision_unchanged":original_revision_unchanged,"observation":result,"model_fetched":false,"session_initialized":false,"cloud_mutated":false}),
+    )?;
+    println!("Owned Pages manifest identity verified; no model or document content fetched.");
+    Ok(())
+}

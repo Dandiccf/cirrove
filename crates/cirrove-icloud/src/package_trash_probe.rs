@@ -1,10 +1,10 @@
 //! One-shot owned PACKAGE metadata-revision experiment, never a write adapter.
 //! The caller preregisters a fresh sacrificial run before creating its import.
 //! No API resumes a mutation after cancellation, an error, or process death.
+use crate::sealed_session::SealedPackageTrashCheckpointVault;
 use crate::{
     DriveEntry, ICloudReadSession, OwnedPackageCreate, OwnedPackagePlan, OwnedPackageTrashRequest,
-    PackageDownload, PackageSemanticIdentity, ROOT_ID, SealedUploadCheckpointVault,
-    package_archive_semantic_identity,
+    PackageDownload, PackageSemanticIdentity, ROOT_ID, package_archive_semantic_identity,
 };
 use anyhow::{Context, Result, ensure};
 use cirrove_auth::CredentialVault;
@@ -44,7 +44,7 @@ struct Checkpoint {
 }
 impl Checkpoint {
     fn key(&self) -> String {
-        format!("upload/{}", self.plan.operation)
+        SealedPackageTrashCheckpointVault::key(&self.plan.scope.account, self.plan.operation)
     }
     fn renamed_name(&self) -> String {
         format!("Cirrove Package Trash {}.pages", self.plan.operation)
@@ -220,7 +220,7 @@ impl OwnedPackageTrashProbe {
             .context("package Trash operation already started or unavailable")?;
         marker.sync_all()?;
         File::open(probe_state)?.sync_all()?;
-        let vault = Arc::new(SealedUploadCheckpointVault::new(
+        let vault = Arc::new(SealedPackageTrashCheckpointVault::new(
             probe_state,
             &saved.plan.scope.account,
         )?);
@@ -330,9 +330,12 @@ impl OwnedPackageTrashProbe {
         cancel: &CancellationToken,
     ) -> Result<PackageTrashInspection> {
         private_directory(probe_state)?;
-        let vault = SealedUploadCheckpointVault::new(probe_state, &plan.scope.account)?;
+        let vault = SealedPackageTrashCheckpointVault::new(probe_state, &plan.scope.account)?;
         let secret = vault
-            .load(&format!("upload/{}", plan.operation))
+            .load(&SealedPackageTrashCheckpointVault::key(
+                &plan.scope.account,
+                plan.operation,
+            ))
             .await?
             .context("package Trash checkpoint absent")?;
         ensure!(

@@ -490,6 +490,16 @@ async fn main() -> Result<()> {
         .await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--public-native-manifest"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(120),
+            cirrove_service::validation::icloud_public_native_manifest(Uuid::parse_str(run)?),
+        )
+        .await
+        .context("public manifest observation timed out")?;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--public-native-verify"
     {
         return tokio::time::timeout(

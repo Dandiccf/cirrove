@@ -348,7 +348,7 @@ async fn package_trash_execute_generic_refusal_never_claims_stale_revision_enfor
             assert_eq!(
                 error.to_string(),
                 format!(
-                    "package stale Trash lacks explicit revision refusal: {}",
+                    "package stale Trash lacks explicit revision refusal: {} {{ http_status: {status} }}",
                     if status == 409 {
                         "Conflict"
                     } else {

@@ -267,6 +267,69 @@ impl CredentialVault for SealedUploadCheckpointVault {
     }
 }
 
+/// One-shot package Trash checkpoints use a distinct keyring purpose as well
+/// as a distinct file and authenticated domain. Import and Trash intentionally
+/// share the operation UUID, but must never share a sealing-key identity.
+#[cfg(feature = "write-probe")]
+pub(crate) struct SealedPackageTrashCheckpointVault {
+    account_dir: PathBuf,
+    account_id: String,
+}
+
+#[cfg(feature = "write-probe")]
+impl SealedPackageTrashCheckpointVault {
+    pub fn new(state: &Path, account_id: &str) -> Result<Self> {
+        Uuid::parse_str(account_id).context("invalid iCloud account identifier")?;
+        if !state.is_absolute() {
+            bail!("iCloud state directory must be absolute");
+        }
+        Ok(Self {
+            account_dir: state.join("accounts").join(account_id),
+            account_id: account_id.into(),
+        })
+    }
+
+    pub(crate) fn key(account: &str, operation: Uuid) -> String {
+        format!("icloud-package-trash/{account}/{operation}")
+    }
+
+    fn operation(&self, key: &str) -> Result<SealedSessionVault> {
+        let prefix = format!("icloud-package-trash/{}/", self.account_id);
+        let operation = key
+            .strip_prefix(&prefix)
+            .context("invalid iCloud package Trash checkpoint key")?;
+        Uuid::parse_str(operation).context("invalid iCloud package Trash operation")?;
+        Ok(SealedSessionVault {
+            account_dir: self
+                .account_dir
+                .join("package-trash-checkpoints")
+                .join(operation),
+            account_id: self.account_id.clone(),
+            file_name: "checkpoint.sealed",
+            temp_prefix: ".checkpoint",
+            aad_domain: "icloud-package-trash-checkpoint",
+        })
+    }
+}
+
+#[cfg(feature = "write-probe")]
+#[async_trait]
+impl CredentialVault for SealedPackageTrashCheckpointVault {
+    async fn load(&self, key: &str) -> Result<Option<SecretString>> {
+        self.operation(key)?.load_with(key, &DesktopVault).await
+    }
+
+    async fn save(&self, key: &str, value: SecretString) -> Result<()> {
+        self.operation(key)?
+            .save_with(key, value, &DesktopVault)
+            .await
+    }
+
+    async fn remove(&self, key: &str) -> Result<()> {
+        self.operation(key)?.remove(key).await
+    }
+}
+
 /// Durable folder-create receipts, isolated from upload checkpoints. The key
 /// carries both the account and journal operation; neither may select a path
 /// outside this account's private state.
@@ -674,5 +737,171 @@ mod tests {
         foreign.private_account_dir().expect("synthetic fixture");
         fs::copy(reopened.path(), foreign.path()).expect("synthetic fixture");
         assert!(foreign.load_with(&operation, &keyring).await.is_err());
+    }
+}
+
+#[cfg(all(test, feature = "write-probe"))]
+mod package_trash_tests {
+    use super::*;
+    use std::{collections::BTreeMap, sync::Mutex};
+
+    #[derive(Default)]
+    struct Keyring(Mutex<BTreeMap<String, String>>);
+
+    #[async_trait]
+    impl CredentialVault for Keyring {
+        async fn load(&self, key: &str) -> Result<Option<SecretString>> {
+            Ok(self
+                .0
+                .lock()
+                .expect("fixture")
+                .get(key)
+                .cloned()
+                .map(SecretString::from))
+        }
+        async fn save(&self, key: &str, value: SecretString) -> Result<()> {
+            self.0
+                .lock()
+                .expect("fixture")
+                .insert(key.into(), value.expose_secret().into());
+            Ok(())
+        }
+        async fn remove(&self, key: &str) -> Result<()> {
+            self.0.lock().expect("fixture").remove(key);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn import_and_trash_same_operation_have_independent_sealed_checkpoints() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let account = Uuid::new_v4().to_string();
+        let operation = Uuid::new_v4();
+        let keyring = Keyring::default();
+        let upload_key = format!("upload/{operation}");
+        let trash_key = SealedPackageTrashCheckpointVault::key(&account, operation);
+        let import_state = temp.path().join("import");
+        let probe_state = temp.path().join("probe");
+        let import = SealedUploadCheckpointVault::new(&import_state, &account)
+            .expect("fixture")
+            .operation(&upload_key)
+            .expect("fixture");
+        import
+            .save_with(&upload_key, SecretString::from("import receipt"), &keyring)
+            .await
+            .expect("fixture");
+        let import_bytes = fs::read(import.path()).expect("fixture");
+        let import_key = keyring
+            .load(&upload_key)
+            .await
+            .expect("fixture")
+            .expect("fixture");
+        // This is the failed live path: a global upload key exists, but the
+        // separate probe state has no matching encrypted upload file.
+        let old_probe = SealedUploadCheckpointVault::new(&probe_state, &account)
+            .expect("fixture")
+            .operation(&upload_key)
+            .expect("fixture");
+        assert!(old_probe.load_with(&upload_key, &keyring).await.is_err());
+        let vault =
+            SealedPackageTrashCheckpointVault::new(&probe_state, &account).expect("fixture");
+        let trash = vault.operation(&trash_key).expect("fixture");
+        assert!(
+            trash
+                .load_with(&trash_key, &keyring)
+                .await
+                .expect("fixture")
+                .is_none()
+        );
+        trash
+            .save_with(&trash_key, SecretString::from("trash armed"), &keyring)
+            .await
+            .expect("fixture");
+        let reopened = SealedPackageTrashCheckpointVault::new(&probe_state, &account)
+            .expect("fixture")
+            .operation(&trash_key)
+            .expect("fixture");
+        assert_eq!(
+            reopened
+                .load_with(&trash_key, &keyring)
+                .await
+                .expect("fixture")
+                .expect("fixture")
+                .expose_secret(),
+            "trash armed"
+        );
+        assert_eq!(
+            import
+                .load_with(&upload_key, &keyring)
+                .await
+                .expect("fixture")
+                .expect("fixture")
+                .expose_secret(),
+            "import receipt"
+        );
+        assert_eq!(fs::read(import.path()).expect("fixture"), import_bytes);
+        assert_eq!(
+            keyring
+                .load(&upload_key)
+                .await
+                .expect("fixture")
+                .expect("fixture")
+                .expose_secret(),
+            import_key.expose_secret()
+        );
+        assert_eq!(keyring.0.lock().expect("fixture").len(), 2);
+        // Missing encrypted files are never interpreted as an unused operation.
+        fs::remove_file(reopened.path()).expect("fixture");
+        assert!(reopened.load_with(&trash_key, &keyring).await.is_err());
+        assert!(vault.operation(&upload_key).is_err());
+        let foreign_key =
+            SealedPackageTrashCheckpointVault::key(&Uuid::new_v4().to_string(), operation);
+        assert!(vault.operation(&foreign_key).is_err());
+    }
+
+    #[tokio::test]
+    async fn trash_checkpoint_authenticates_purpose_even_with_identical_key_material() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let account = Uuid::new_v4().to_string();
+        let operation = Uuid::new_v4();
+        let keyring = Keyring::default();
+        let upload_key = format!("upload/{operation}");
+        let trash_key = SealedPackageTrashCheckpointVault::key(&account, operation);
+        let import = SealedUploadCheckpointVault::new(temp.path(), &account)
+            .expect("fixture")
+            .operation(&upload_key)
+            .expect("fixture");
+        let mut trash = SealedPackageTrashCheckpointVault::new(temp.path(), &account)
+            .expect("fixture")
+            .operation(&trash_key)
+            .expect("fixture");
+        import
+            .save_with(&upload_key, SecretString::from("import receipt"), &keyring)
+            .await
+            .expect("fixture");
+        // Force equal encryption keys so authentication refusal cannot be
+        // explained merely by independent random keys.
+        keyring
+            .save(
+                &trash_key,
+                keyring
+                    .load(&upload_key)
+                    .await
+                    .expect("fixture")
+                    .expect("fixture"),
+            )
+            .await
+            .expect("fixture");
+        trash.private_account_dir().expect("fixture");
+        fs::copy(import.path(), trash.path()).expect("fixture");
+        assert!(trash.load_with(&trash_key, &keyring).await.is_err());
+        // Holding the key ID constant independently checks the purpose AAD.
+        assert!(trash.load_with(&upload_key, &keyring).await.is_err());
+        trash
+            .save_with(&trash_key, SecretString::from("trash receipt"), &keyring)
+            .await
+            .expect("fixture");
+        trash.aad_domain = "icloud-upload-checkpoint";
+        assert!(trash.load_with(&trash_key, &keyring).await.is_err());
     }
 }

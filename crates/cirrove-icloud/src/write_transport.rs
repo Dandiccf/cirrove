@@ -10,14 +10,15 @@ use uuid::Uuid;
 pub(crate) const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
 
 /// Probe-only sanitized classification. Generic conflict/rejection does not
-/// establish that a stale revision was the reason for refusal.
+/// establish that a stale revision was the reason for refusal. Numeric HTTP
+/// status is retained for diagnostics; provider body text is never included.
 #[cfg(feature = "write-probe")]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ProbeTrashResult {
     Accepted,
     PreconditionFailed,
-    Conflict,
-    Rejected,
+    Conflict { http_status: u16 },
+    Rejected { http_status: u16 },
 }
 
 #[derive(Deserialize)]
@@ -372,8 +373,12 @@ impl ICloudReadSession {
             classify_trash(status, None)?;
             return Ok(match status {
                 StatusCode::PRECONDITION_FAILED => ProbeTrashResult::PreconditionFailed,
-                StatusCode::CONFLICT => ProbeTrashResult::Conflict,
-                _ => ProbeTrashResult::Rejected,
+                StatusCode::CONFLICT => ProbeTrashResult::Conflict {
+                    http_status: status.as_u16(),
+                },
+                _ => ProbeTrashResult::Rejected {
+                    http_status: status.as_u16(),
+                },
             });
         }
         let reply: TrashReply = read_json(response, "iCloud conditional Trash").await?;
@@ -383,9 +388,13 @@ impl ICloudReadSession {
         Ok(if classify_trash(status, Some(&reply.items[0].status))? {
             ProbeTrashResult::Accepted
         } else if reply.items[0].status == "CONFLICT" {
-            ProbeTrashResult::Conflict
+            ProbeTrashResult::Conflict {
+                http_status: status.as_u16(),
+            }
         } else {
-            ProbeTrashResult::Rejected
+            ProbeTrashResult::Rejected {
+                http_status: status.as_u16(),
+            }
         })
     }
 

@@ -190,3 +190,78 @@ ledger and docs all completed in that one command. Rustdoc reports a broken
 internal link to `Writeback::retry_stuck`; it is a warning, not a clean-warning
 claim. Window scenarios and installed validation are outside this command.
 No native Trash live success is inferred from this result.
+
+## Second live outcome: checkpoint namespace collision
+
+Run 02cd completed creation and independent semantic verification of both its own
+source and imported Pages package, then stopped at Trash preparation with exit 1
+at 2026-10-01T12:12:58.452720+00:00. Its permanent probe owner marker exists, but no sealed
+Trash checkpoint or Complete receipt exists. No probe rename/Trash execute phase
+was entered. Source/import IDs and exact receipts remain in the private run.
+
+The importer and Trash coordinator both used `upload/<plan.operation>` in the
+shared desktop keyring despite separate checkpoint directories. Loading the
+probe found the import sealing key and then failed because its corresponding
+probe file did not exist. Missing sealed files must remain an error; the remedy
+is a distinct purpose-bound Trash credential namespace, not weakening recovery.
+The live run and marker stay retained and must not be replayed. This result
+proves another owned create/readback, not conditional Trash or recovery.
+Evidence: `icloud-access-native-trash-live2-2026-10-01` and the exact 02cd run.
+
+## Third preregistered arm, not yet executed
+
+Fresh run `e6ec6113-dcce-42da-9836-4afce35e0d28` retains the same source ac9,
+strict 412 question/prediction, semantic bounds and dedicated owned fixture
+naming. No previous run or owner marker is reused. Prerequisite: dedicated
+Trash keyring prefix/path/AAD, tested against the real sealed-file implementation
+with one shared synthetic keyring, including purpose separation and missing-file
+refusal. Then run focused coordinator/harness tests, Clippy and a fresh probe
+build. Execute only with an exclusive source/binary/process manifest and private
+btrfs temporaries; 30-minute outer limit. Missing/uncertain responses stop.
+No cloud action is authorized by a missing checkpoint; no legacy import-key
+fallback or automatic replay is introduced. Previous folders/documents remain
+retained. A full repository check remains required before the next commit.
+
+### Dedicated Trash vault validation
+
+The purpose-specific Trash key namespace, checkpoint path and authenticated-data
+label are now implemented. `trash-vault-purpose` passed both real encrypted-file
+fixtures using a shared synthetic keyring. Restoring the old `upload/` namespace
+failed with the original missing-file error (`trash-vault-key-negative`); restoring
+the upload AAD failed the cross-purpose authentication assertion
+(`trash-vault-aad-negative`). Production code was restored after both controls.
+`trash-vault-restored` passed all 19 matching coordinator/vault tests;
+`trash-vault-harness` passed all four harness tests. The selected probe Clippy
+check passed with warnings denied (`trash-vault-clippy`). These are local checks,
+not evidence that Apple enforces native-package Trash revision preconditions.
+
+## Third live outcome: generic stale-request refusal, gate remains open
+
+Fresh e6 run ended with exit 1 at 2026-10-01T12:28:35.664878+00:00.
+Source creation, imported package semantic verification, purpose-separated vault
+preparation and metadata rename completed. The stale Trash request returned the
+adapter's `Rejected` category, not the required explicit HTTP 412 category. The
+probe stopped at `StaleTrashArmed`; it did not send the current-revision Trash.
+This must not be relabelled as demonstrated revision enforcement.
+
+The separate read-only `native-trash-live3-inspect` arm succeeded. Its observation
+is `StaleTrashArmed` / `RenamedActive`, with both stale-refusal and current-Trash
+semantic-recovery proof flags false. The owned item remains active under the
+probe rename; no mutation is replayed. Original and imported fixture artifacts,
+owner marker and sealed checkpoint remain retained. Evidence is the live3 and
+live3-inspect arm manifests plus the e6 run's private inspection receipt.
+The generic refusal category does not identify its exact HTTP reason; investigate
+safe numeric status diagnostics before designing another independent experiment.
+
+### Sanitized refusal diagnostics
+
+The probe now retains numeric HTTP status for generic conflict/rejection, without
+logging body text, URLs or identity values. The earlier `Rejected` category could
+mean HTTP 400/404 or a non-OK item result inside a successful HTTP response; e6's
+precise discarded status cannot be reconstructed. HTTP 412 remains the sole
+accepted explicit-precondition category; ordinary write transport is unchanged.
+All 248 adapter tests passed in `manifest-and-trash-tests`. Substituting a fixed
+200 in the diagnostic mapping failed the exact status assertion in
+`trash-status-negative`; production source was restored. The next full check
+must validate the restored source before committing. No new cloud mutation was
+performed for this diagnostic change.
