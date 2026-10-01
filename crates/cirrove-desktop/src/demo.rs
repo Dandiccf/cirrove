@@ -66,6 +66,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                     issue: None,
                     export: None,
                     native_import: None,
+                    native_trash: None,
                     working_export: None,
                 }]
             } else {

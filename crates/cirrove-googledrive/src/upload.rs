@@ -2821,6 +2821,9 @@ impl MutationProvider for GoogleValidationMutations {
         cancel: &CancellationToken,
     ) -> cirrove_core::mutation::Result<Option<String>> {
         request.validate()?;
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            return Err(MutationError::Unsupported("native document Trash"));
+        }
         self.drive
             .check_scope(&request.scope)
             .map_err(MutationError::Provider)?;
@@ -2841,6 +2844,9 @@ impl MutationProvider for GoogleValidationMutations {
         cancel: &CancellationToken,
     ) -> cirrove_core::mutation::Result<MutationReceipt> {
         request.validate()?;
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            return Err(MutationError::Unsupported("native document Trash"));
+        }
         self.drive
             .check_scope(&request.scope)
             .map_err(MutationError::Provider)?;
@@ -2888,6 +2894,9 @@ impl MutationProvider for GoogleValidationMutations {
                 } else {
                     self.drive.validation_remove(request, cancel).await
                 }
+            }
+            MutationIntent::TrashNativeDocument { .. } => {
+                Err(UploadError::Unsupported("native document Trash"))
             }
             MutationIntent::CreateFolder { .. } => Err(UploadError::Unsupported(
                 "Google validation folder creation must carry a prepared identity",
@@ -2942,6 +2951,9 @@ impl MutationProvider for GoogleValidationMutations {
         cancel: &CancellationToken,
     ) -> cirrove_core::mutation::Result<MutationReconciliation> {
         request.validate()?;
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            return Err(MutationError::Unsupported("native document Trash"));
+        }
         self.drive
             .check_scope(&request.scope)
             .map_err(MutationError::Provider)?;
@@ -3525,6 +3537,30 @@ mod tests {
                 response_body: serde_json::to_vec(&body).unwrap(),
             }
         }
+    }
+
+    #[tokio::test]
+    async fn native_trash_refused_before_any_google_request() {
+        let (provider, server) = fixture(|_| vec![]).await;
+        server.await.unwrap();
+        let mut request = folder_removal_request("version-1");
+        let mut before = request.intent.before().unwrap().clone();
+        before.package = true;
+        request.intent = MutationIntent::TrashNativeDocument { before };
+        let cancel = CancellationToken::new();
+        assert!(request.validate().is_ok());
+        assert!(matches!(
+            provider.prepare_mutation(&request, &cancel).await,
+            Err(MutationError::Unsupported(_))
+        ));
+        assert!(matches!(
+            provider.mutate(&request, &cancel).await,
+            Err(MutationError::Unsupported(_))
+        ));
+        assert!(matches!(
+            provider.reconcile_mutation(&request, &cancel).await,
+            Err(MutationError::Unsupported(_))
+        ));
     }
 
     fn scope() -> Scope {

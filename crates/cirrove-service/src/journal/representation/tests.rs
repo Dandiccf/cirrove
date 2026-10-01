@@ -127,7 +127,7 @@ fn package_representation_schema_upgrade_and_readonly_old_new_recovery_preserve_
         .db
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 15);
+    assert_eq!(version, JOURNAL_SCHEMA);
     // Source-level check against the previous version > 14 opening gate.
     // This fixture does not execute an older binary.
     assert!(version > 14);
@@ -143,7 +143,8 @@ fn package_representation_schema_upgrade_and_readonly_old_new_recovery_preserve_
         );
     }
     let db = Connection::open(temp.path().join("uploads.db")).unwrap();
-    db.pragma_update(None, "user_version", 16).unwrap();
+    db.pragma_update(None, "user_version", JOURNAL_SCHEMA + 1)
+        .unwrap();
     drop(db);
     assert!(matches!(
         UploadJournal::open(temp.path(), "owned", 1024 * 1024),
@@ -614,4 +615,101 @@ fn native_import_slot_releases_published_history_but_retains_uncertainty() {
             .native_import_destination_reserved(&scope(), "root", "Import.pages")
             .unwrap()
     );
+}
+
+#[test]
+fn native_trash_schema16_preserves_pending_and_uncertain_intents_and_local_recovery() {
+    use cirrove_core::mutation::{MutationIntent, MutationRequest};
+    for uncertain in [false, true] {
+        let temp = private_tempdir();
+        let root = temp.path().join("journal");
+        let mut journal = UploadJournal::open(&root, "owned", 1024 * 1024).unwrap();
+        let retained = journal
+            .enqueue(scope(), intent(), b"retained ordinary bytes".as_slice())
+            .unwrap();
+        // Upgrade an ordinary-only schema15 journal before introducing the new tag.
+        journal.db.pragma_update(None, "user_version", 15).unwrap();
+        drop(journal);
+        let mut journal = UploadJournal::open(&root, "owned", 1024 * 1024).unwrap();
+        let version: u32 = journal
+            .db
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 16);
+        // This is a source-level old-binary guard assertion, not an old binary run.
+        assert!(version > 15);
+        let mut before = node();
+        before.name = "Original.pages".into();
+        let request = MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::TrashNativeDocument { before },
+        };
+        let removal = journal.enqueue_mutation(request.clone()).unwrap();
+        assert!(
+            serde_json::to_string(&removal)
+                .unwrap()
+                .contains("trash_native_document")
+        );
+        if uncertain {
+            let claimed = journal.claim_mutation().unwrap().unwrap();
+            assert_eq!(claimed.id, removal.id);
+            assert_eq!(claimed.state, MutationState::Applying);
+        }
+        drop(journal);
+        let before_db = std::fs::read(root.join("uploads.db")).unwrap();
+        let destination = temp.path().join("retained.txt");
+        {
+            let recovery = RecoveryJournal::open(&root, "owned").unwrap();
+            let receipt = recovery
+                .local_export_source(retained.id)
+                .unwrap()
+                .copy_to(&destination, &CancellationToken::new(), |_| {})
+                .unwrap();
+            assert_eq!(receipt.operation, retained.id);
+            assert_eq!(
+                std::fs::read(destination).unwrap(),
+                b"retained ordinary bytes"
+            );
+        }
+        assert_eq!(std::fs::read(root.join("uploads.db")).unwrap(), before_db);
+        let journal = UploadJournal::open(&root, "owned", 1024 * 1024).unwrap();
+        let restored = journal.mutation(removal.id).unwrap();
+        assert!(restored.request == request);
+        assert!(restored.receipt.is_none());
+        assert_eq!(
+            restored.state,
+            if uncertain {
+                MutationState::VerifyRequired
+            } else {
+                MutationState::Pending
+            }
+        );
+        assert!(restored.attempt.is_none());
+    }
+}
+
+#[test]
+fn native_trash_is_terminal_and_cannot_chain_from_existing_generation() {
+    use cirrove_core::mutation::{MutationIntent, MutationReceipt, MutationRequest};
+    let temp = private_tempdir();
+    let mut journal = UploadJournal::open(temp.path(), "owned", 1024 * 1024).unwrap();
+    let created = enqueue(&mut journal);
+    let request = MutationRequest {
+        scope: scope(),
+        intent: MutationIntent::TrashNativeDocument { before: node() },
+    };
+    assert!(
+        journal
+            .enqueue_mutation_after(created.id, request.clone())
+            .is_err()
+    );
+    assert!(journal.list_mutations(0, 100).unwrap().is_empty());
+    let removal = journal.enqueue_mutation(request.clone()).unwrap();
+    assert!(journal.enqueue_mutation_after(removal.id, request).is_err());
+    assert_eq!(journal.list_mutations(0, 100).unwrap().len(), 1);
+    // Native removal cannot be acknowledged by an unrelated or still-active node.
+    assert!(!removal.request.accepts(&MutationReceipt::Removed {
+        item: "foreign".into()
+    }));
+    assert!(!removal.request.accepts(&MutationReceipt::Upsert(node())));
 }

@@ -979,8 +979,11 @@ existing session, and setup readiness stopped because the returned Apple-ID did
 not match the saved login address. Neither result proves why editor authorization
 failed. See [manifest observation](benchmarks/icloud-owned-pages-manifest-plan-2026-10-01.md)
 and [readiness observation](benchmarks/icloud-owned-pages-readiness-plan-2026-10-01.md).
-A trusted stable account anchor at successful account login is being prepared;
-validation must not silently adopt an unmatched account or infer an alias.
+A trusted stable account anchor is now captured only after successful account
+login; validation cannot adopt an unmatched account or infer an alias. Legacy
+snapshots remain supported. A one-shot renewal with the retained token was
+rejected with HTTP 421; the next editor test awaits fresh isolated sign-in. See
+[renewal result](benchmarks/icloud-owned-pages-renewal-plan-2026-10-01.md).
 
 
 A fresh native Pages Trash arm now passed protocol-bound stale-revision refusal
@@ -990,3 +993,50 @@ A separate read-only process reproduced the durable completion report. See the
 [bound-refusal Trash record](benchmarks/icloud-native-package-bound-refusal-trash-2026-10-01.md).
 This proves one owned native metadata/Trash path, not native editing, replacement,
 restoration or installed package deletion support.
+
+
+### Native recovery and normal-service integration under development
+
+The exact successful native Trash fixture was subsequently inspected read-only.
+Apple supplied a bounded two-segment restore path matching the owned original
+parent and renamed document; independent package semantics, Trash metadata and
+the source-only original parent remained stable. This does not prove restoration
+or server-atomic destination vacancy protection. See
+[restore-path observation](benchmarks/icloud-owned-native-restore-shape-2026-10-01.md).
+
+The subsequent single conditional restoration received a bound Apple receipt.
+Initial postflight comparison refused a list/detail difference in optional
+item_id; a failing HTTP regression and narrow target-only comparison fix were
+followed by independent read-only verification of the same Drive/document IDs,
+name and full native target/source semantics. The sealed ReceiptObserved history
+was retained and no second mutation occurred. See the
+[owned restoration record](benchmarks/icloud-owned-native-restore-2026-10-01.md).
+This is one owned Pages recovery result, not general restore or replacement safety.
+
+The next normal-service slice is explicit native-document Trash, distinct from
+empty-folder POSIX removal. Admission must bind the selected account UUID, active
+writable mount lifetime, original native container identity and ETag. Generated
+archive children, shortcuts, app containers, pending conflicting operations and
+read-only accounts remain ineligible. Metadata lookup and provider preparation
+must occur outside journal locks; admission must recheck the same engine/writer
+and namespace frontier after awaited work and before durable enqueue.
+
+A queued operation must return its durable UUID and support observer-only status.
+Completion requires exact recoverable Trash identity and semantic verification
+plus publication of removal into the mounted view. Existing opened read sessions
+must retain their version. An uncertain request is inspected, never replayed
+automatically; absence alone cannot establish successful recoverable removal.
+The new journal intent requires a compatibility fence against older writers.
+The explicit service/CLI implementation is present in this worktree, including
+bounded retained-operation discovery after a lost reply and restart. See the
+[native Trash contract](native-document-trash.md) and
+[service validation record](benchmarks/icloud-native-trash-service-2026-10-01.md).
+This is not yet an installed or live-validated normal-service capability.
+
+Numbers/Keynote acceptance remains separate. Retained read probes observed DATA
+representations, whereas the owned Pages fixture used PACKAGE. Public import
+therefore remains Pages-only: broadening extensions would not establish native
+compatibility. Each format needs a fresh UUID-owned synthetic document, actual
+representation classification, independent content verification, mounted/offline
+reads and reopening in the corresponding Apple application before admission is
+widened. No existing user document should be repurposed as a write fixture.

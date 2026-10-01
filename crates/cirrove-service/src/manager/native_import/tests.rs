@@ -438,3 +438,9 @@ async fn retained_import_receipt_refuses_same_engine_remount_during_journal_wait
     );
     f.engine.stop().await;
 }
+
+#[path = "native_trash_tests.rs"]
+mod native_trash_tests;
+
+#[path = "native_trash_list_tests.rs"]
+mod native_trash_list_tests;

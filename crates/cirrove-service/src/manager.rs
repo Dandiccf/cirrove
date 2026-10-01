@@ -1,6 +1,7 @@
 //! Desired account state, mount ownership and status. Observation failures never
 //! count as an ejection; mount directories are checked on every mount attempt.
 mod native_import;
+mod native_trash;
 use crate::writable::WriteProvider;
 use crate::{
     accounts::{Account, Settings},

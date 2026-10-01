@@ -593,6 +593,8 @@ async fn recover(
         .await?;
     Ok(())
 }
+mod restore;
+pub use restore::{OwnedPackageRestoreProbe, PackageRestoreInspection, PackageRestorePhase};
 mod restore_shape;
 pub use restore_shape::{OwnedPackageRestoreShape, RestorePathShape};
 #[cfg(test)]

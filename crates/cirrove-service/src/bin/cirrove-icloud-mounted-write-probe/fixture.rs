@@ -1192,6 +1192,9 @@ pub fn restored_owned(
                 "foreign account in isolated mutation journal"
             );
             match &row.request.intent {
+                MutationIntent::TrashNativeDocument { .. } => {
+                    anyhow::bail!("native Trash is outside ordinary fixture")
+                }
                 MutationIntent::CreateFolder { parent, .. } => ensure!(
                     parent == root,
                     "non-fixture folder create in isolated journal"
@@ -2257,6 +2260,9 @@ impl MutationProvider for Fixture {
         c: &CancellationToken,
     ) -> cirrove_core::mutation::Result<Option<String>> {
         match &r.intent {
+            MutationIntent::TrashNativeDocument { .. } => {
+                Err(MutationError::Unsupported("native document Trash"))
+            }
             MutationIntent::CreateFolder { .. } => {
                 self.guard_folder(r)?;
                 Ok(None)
@@ -2330,6 +2336,9 @@ impl MutationProvider for Fixture {
         c: &CancellationToken,
     ) -> cirrove_core::mutation::Result<MutationReceipt> {
         match &r.intent {
+            MutationIntent::TrashNativeDocument { .. } => {
+                Err(MutationError::Unsupported("native document Trash"))
+            }
             MutationIntent::CreateFolder { .. } => {
                 self.guard_folder(r)?;
                 let receipt = self
@@ -2404,6 +2413,9 @@ impl MutationProvider for Fixture {
         c: &CancellationToken,
     ) -> cirrove_core::mutation::Result<MutationReconciliation> {
         match &r.intent {
+            MutationIntent::TrashNativeDocument { .. } => {
+                Err(MutationError::Unsupported("native document Trash"))
+            }
             MutationIntent::CreateFolder { .. } => {
                 self.guard_folder(r)?;
                 let result = self

@@ -3,6 +3,7 @@
 mod cached_status;
 mod changes;
 mod native_import;
+mod native_trash;
 
 /// An item's mount-relative path, by walking parents up to the drive root.
 ///

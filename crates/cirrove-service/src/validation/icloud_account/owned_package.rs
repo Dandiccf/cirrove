@@ -12,6 +12,7 @@ pub use mounted::icloud_owned_package_mounted;
 use std::{fs::File, io::Read, os::unix::fs::PermissionsExt, path::PathBuf};
 use tokio::io::AsyncWriteExt;
 pub use trash::{
+    icloud_owned_package_restore, icloud_owned_package_restore_inspect,
     icloud_owned_package_restore_shape, icloud_owned_package_trash,
     icloud_owned_package_trash_inspect,
 };
@@ -83,7 +84,7 @@ fn manifest(dir: &Path, run: Uuid, phase: &str) -> Result<()> {
     let digest = sha256(&mut File::open(&binary)?)?;
     record(
         &dir.join(format!("{phase}-manifest.json")),
-        &serde_json::json!({"run":run,"phase":phase,"pid":std::process::id(),"binary":binary,"binary_sha256":digest,"filesystem":"btrfs","private_staging":dir,"expected_max_seconds":900,"started_unix_seconds":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),"cloud_mutation":phase=="import"}),
+        &serde_json::json!({"run":run,"phase":phase,"pid":std::process::id(),"binary":binary,"binary_sha256":digest,"filesystem":"btrfs","private_staging":dir,"expected_max_seconds":900,"started_unix_seconds":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),"cloud_mutation":matches!(phase,"import"|"restore")}),
     )?;
     File::open(dir)?.sync_all()?;
     Ok(())

@@ -237,6 +237,9 @@ async fn existing_schema15_ack_before_publication_converges_after_reopen() {
     {
         let db = rusqlite::Connection::open(temp.path().join("journal/uploads.db")).unwrap();
         db.execute_batch("DROP TRIGGER package_metadata_on_insert; DROP TRIGGER package_metadata_on_update; DROP TABLE package_metadata_publication;").unwrap();
+        // The fixture is created by the current writer; explicitly restore the
+        // legacy version for this migration arm (there are no native intents).
+        db.pragma_update(None, "user_version", 15).unwrap();
         let version: u32 = db
             .pragma_query_value(None, "user_version", |r| r.get(0))
             .unwrap();

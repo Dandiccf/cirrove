@@ -90,6 +90,10 @@ fn archive_with_content(root: &str, content: &[u8]) -> Vec<u8> {
     zip.finish().unwrap().into_inner()
 }
 struct Remote {
+    restore_vault: Option<Arc<restore_tests::RestoreVault>>,
+    restore_mode: &'static str,
+    restore_calls: usize,
+    restore_collision: bool,
     restore_path: Option<serde_json::Value>,
     change_after_stale: bool,
     corrupt_after_stale: bool,
@@ -146,6 +150,10 @@ impl Server {
             .build()
             .unwrap();
         let state = Arc::new(Mutex::new(Remote {
+            restore_vault: None,
+            restore_mode: "preserve",
+            restore_calls: 0,
+            restore_collision: false,
             restore_path: None,
             change_after_stale: false,
             corrupt_after_stale: false,
@@ -179,7 +187,30 @@ impl Server {
                         match (method,path.split('?').next().unwrap()) {
                             ("POST","/retrieveItemDetailsInFolders")=>{
                                 let body:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(body[0]["drivewsid"],plan.parent);
-                                let items=if state.trashed{vec![plan.source.clone()]}else{vec![plan.source.clone(),state.current.clone()]};
+                                let mut items=if state.trashed{vec![plan.source.clone()]}else{vec![plan.source.clone(),state.current.clone()]};
+                                if state.restore_calls > 0 {
+                                    if state.restore_mode == "source-item-id-projection" {items[0].item_id="source-list-only-item-id".into();}
+                                    if state.restore_mode.starts_with("item-id-") {
+                                        let target=items.iter_mut().find(|entry|entry.drivewsid==state.current.drivewsid).unwrap();
+                                        target.item_id="target-list-only-item-id".into();
+                                        match state.restore_mode {
+                                            "item-id-projection" => (),
+                                            "item-id-plus-id" => target.drivewsid="FILE::com.apple.CloudDocs::foreign".into(),
+                                            "item-id-plus-doc" => target.docwsid="foreign".into(),
+                                            "item-id-plus-etag" => target.etag="other-revision".into(),
+                                            "item-id-plus-size" => target.size+=1,
+                                            "item-id-plus-name" => target.name="other name".into(),
+                                            "item-id-plus-extension" => target.extension="other".into(),
+                                            "item-id-plus-parent" => target.parent_id=ROOT_ID.into(),
+                                            "item-id-plus-kind" => target.kind="FOLDER".into(),
+                                            "item-id-plus-zone" => target.zone="foreign-zone".into(),
+                                            "item-id-plus-items" => target.items.push(plan.source.clone()),
+                                            "item-id-plus-number" => target.number_of_items=Some(1),
+                                            _ => panic!("unregistered projection fixture"),
+                                        }
+                                    }
+                                }
+                                if state.restore_collision {let mut collision=state.current.clone();collision.drivewsid="FILE::com.apple.CloudDocs::foreign-collision".into();collision.docwsid="foreign-collision".into();items.push(collision);}
                                 let mut folder=json!({"drivewsid":plan.parent,"docwsid":"parent","zone":"com.apple.CloudDocs","parentId":ROOT_ID,"name":plan.parent_name,"type":"FOLDER","etag":"parent-version","status":"OK","numberOfItems":items.len(),"items":items});
                                 if trash_parent{folder["restorePath"]=json!(["former-root"]);}
                                 Some((200,serde_json::to_vec(&json!([folder])).unwrap()))
@@ -190,7 +221,26 @@ impl Server {
                                 Some((200,serde_json::to_vec(&json!({"items":[item]})).unwrap()))
                             },
                             ("GET","/ws/com.apple.CloudDocs/download/by_id")=>{
-                                assert!(path.ends_with("document_id=allocated"));Some((200,serde_json::to_vec(&json!({"package_token":{"url":format!("{ORIGIN}/content")}})).unwrap()))
+                                assert!(path.ends_with("document_id=allocated") || path.ends_with("document_id=source"));let content=if path.ends_with("document_id=source"){"content-source"}else{"content"};Some((200,serde_json::to_vec(&json!({"package_token":{"url":format!("{ORIGIN}/{content}")}})).unwrap()))
+                            },
+                            ("GET","/content-source")=>Some((200,if state.restore_mode == "source-corrupt" {archive_with_content(&plan.source.display_name(), b"corrupt synthetic source")}else{archive(&plan.source.display_name())})),
+                            ("POST","/putBackItemsFromTrash")=>{
+                                assert_eq!(state.restore_vault.as_ref().expect("restore vault bound").phase(), restore::PackageRestorePhase::RestoreArmed, "restore before durable arm");
+                                let body:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(body,json!({"items":[{"drivewsid":original.drivewsid,"etag":"trash-E1"}]}));
+                                state.restore_calls += 1;
+                                if state.restore_mode == "http409" {Some((409,vec![]))}
+                                else if state.restore_mode == "body-refused" {Some((200,br#"{"items":[{"status":"ETAG_CONFLICT"}]}"#.to_vec()))}
+                                else {
+                                    state.trashed=false;state.current.etag="R1".into();
+                                    if state.restore_mode=="different-name" {state.current.name="Provider Selected Native Name".into();}
+                                    let mut item=serde_json::to_value(&state.current).unwrap();item["status"]=json!("OK");
+                                    if state.restore_mode=="receipt-foreign" {item["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");}
+                                    if state.restore_mode=="active-foreign" {state.current.docwsid="foreign".into();}
+                                    if state.restore_mode=="active-revision" {state.current.etag="R2".into();}
+                                    if state.restore_mode=="active-parent" {state.current.parent_id=ROOT_ID.into();}
+                                    if state.restore_mode=="target-corrupt" {state.content_changed=true;}
+                                    if state.restore_mode=="lost" {None} else {Some((200,serde_json::to_vec(&json!({"items":[item]})).unwrap()))}
+                                }
                             },
                             ("GET","/content")=>Some((200,if state.content_changed {archive_with_content(&state.current.display_name(), b"different synthetic native content")}else{archive(&state.current.display_name())})),
                             ("POST","/renameItems")=>{
@@ -553,3 +603,5 @@ async fn package_trash_bound_refusal_requires_durable_evidence_and_unchanged_act
     .await
     .unwrap();
 }
+
+mod restore_tests;

@@ -6,13 +6,13 @@ use crate::{
 };
 use cirrove_core::upload::{UploadIntent, UploadRepresentation};
 
-fn eligible(engine: &Engine) -> bool {
+pub(super) fn eligible(engine: &Engine) -> bool {
     engine.account.enabled
         && engine.account.access == cirrove_auth::AccessMode::ReadWrite
         && engine.account.registration.provider_id() == "icloud"
         && !engine.cancel.is_cancelled()
 }
-fn status_allows(status: &[AccountStatus], engine: &Engine) -> bool {
+pub(super) fn status_allows(status: &[AccountStatus], engine: &Engine) -> bool {
     status
         .iter()
         .any(|s| s.account_id == engine.account.id && s.enabled && s.mounted)
@@ -127,7 +127,7 @@ impl Manager {
         Ok(publication)
     }
 
-    async fn native_import_same_control(
+    pub(super) async fn native_import_same_control(
         &self,
         engine: &Arc<Engine>,
         previous: &WriteControl,
@@ -153,7 +153,7 @@ impl Manager {
         Ok(())
     }
 
-    async fn native_import_control(&self, engine: &Arc<Engine>) -> Result<WriteControl> {
+    pub(super) async fn native_import_control(&self, engine: &Arc<Engine>) -> Result<WriteControl> {
         if !eligible(engine) || !status_allows(&self.status.read().await, engine) {
             bail!("native import requires an active writable iCloud mount");
         }

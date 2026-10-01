@@ -273,3 +273,21 @@ impl RecoveryControl {
         }
     }
 }
+
+impl RecoveryControl {
+    pub(crate) async fn native_trash_list(
+        &self,
+        scope: cirrove_core::Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<crate::native_trash::NativeTrashListing> {
+        match &self.access {
+            Access::Writer(writer) => Ok(writer.native_trash_list(scope, after, limit).await?),
+            Access::ReadOnly(None) => Ok(crate::native_trash::NativeTrashListing::default()),
+            _ => {
+                self.local(move |j| j.native_trash_list(&scope, after, limit))
+                    .await
+            }
+        }
+    }
+}

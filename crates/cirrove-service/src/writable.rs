@@ -69,6 +69,11 @@ impl WriteWorkers {
             cancel.clone(),
             issue.clone(),
         ));
+        workers.spawn(publish_native_trash(
+            control.clone(),
+            cancel.clone(),
+            issue.clone(),
+        ));
         workers.close();
         Self {
             control,
@@ -447,6 +452,38 @@ async fn publish_packages(
             Ok(true) => {
                 if let Ok(mut issue) = issue.lock()
                     && issue.as_deref() == Some("native package metadata refresh is pending")
+                {
+                    *issue = None;
+                }
+                Duration::from_millis(100)
+            }
+            Ok(false) => Duration::from_secs(1),
+            Err(error) => {
+                if let Ok(mut issue) = issue.lock() {
+                    *issue = Some(error.to_string());
+                }
+                Duration::from_secs(1)
+            }
+        };
+        tokio::select! {biased;_=cancel.cancelled()=>return,_=changed=>{},_=tokio::time::sleep(delay)=>{}}
+    }
+}
+
+async fn publish_native_trash(
+    control: WriteControl,
+    cancel: CancellationToken,
+    issue: Arc<Mutex<Option<String>>>,
+) {
+    let wake = control.wake();
+    loop {
+        let changed = wake.notified();
+        tokio::pin!(changed);
+        changed.as_mut().enable();
+        let result = tokio::select! {biased;_=cancel.cancelled()=>return,result=control.publish_completed_native_trash()=>result};
+        let delay = match result {
+            Ok(true) => {
+                if let Ok(mut issue) = issue.lock()
+                    && issue.as_deref() == Some("native Trash metadata refresh is pending")
                 {
                     *issue = None;
                 }

@@ -13,6 +13,7 @@ pub mod journal;
 pub mod manager;
 pub mod mutations;
 pub mod native_import;
+pub mod native_trash;
 pub mod recent;
 mod recovery;
 pub mod transfers;
@@ -592,6 +593,91 @@ pub struct KeepBothReply {
     pub refusal: Option<String>,
 }
 
+/// Discover retained native Trash operations after a lost reply or daemon restart.
+/// This bounded read never enqueues, wakes a worker or retries a mutation.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListNativeTrashRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    #[serde(default)]
+    pub after: Option<u64>,
+    /// One bounded page; valid range is 1..=100.
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ListNativeTrashReply {
+    #[serde(default)]
+    pub operations: Vec<native_trash::NativeTrashSelection>,
+    #[serde(default)]
+    pub next: Option<u64>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn list_native_trash(
+    socket: &Path,
+    body: &ListNativeTrashRequest,
+) -> Result<ListNativeTrashReply> {
+    request(
+        socket,
+        "list-native-trash",
+        Some(body),
+        "Cirrove retained native Trash operations",
+    )
+    .await
+}
+
+/// Explicit, exact-revision removal into provider recovery; never permanent delete.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TrashNativeDocumentRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub path: String,
+    pub item_id: String,
+    pub etag: String,
+}
+/// Observer only: cannot enqueue or replay a removal. Completion means recorded
+/// historical removal/publication evidence, not current state after an external restore.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchNativeTrashRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub operation: uuid::Uuid,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct NativeTrashReply {
+    #[serde(default)]
+    pub job: Option<jobs::Job>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn trash_native_document(
+    socket: &Path,
+    body: &TrashNativeDocumentRequest,
+) -> Result<NativeTrashReply> {
+    request(
+        socket,
+        "trash-native-document",
+        Some(body),
+        "Cirrove native document Trash",
+    )
+    .await
+}
+pub async fn watch_native_trash(
+    socket: &Path,
+    body: &WatchNativeTrashRequest,
+) -> Result<NativeTrashReply> {
+    request(
+        socket,
+        "watch-native-trash",
+        Some(body),
+        "Cirrove native Trash observation",
+    )
+    .await
+}
+
 /// Attach an observer to an existing durable native import, never enqueue again.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1020,6 +1106,9 @@ impl Capabilities {
                 ("export-save".to_string(), 1),
                 ("import-native-package".to_string(), 1),
                 ("watch-native-import".to_string(), 1),
+                ("trash-native-document".to_string(), 1),
+                ("watch-native-trash".to_string(), 1),
+                ("list-native-trash".to_string(), 1),
                 ("import-native-package-account-binding".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
@@ -1245,6 +1334,45 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
+                        if verb=="list-native-trash" {
+                            let reply=match (serde_json::from_str::<ListNativeTrashRequest>(body),&manager) {
+                                (Ok(r),Some(m)) if (1..=100).contains(&r.limit) && r.after.is_none_or(|n|n<=i64::MAX as u64)=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.list_native_trash(&engine,&r.expected_account_id,r.after,r.limit).await {
+                                        Ok(list)=>ListNativeTrashReply{operations:list.operations,next:list.next,refusal:None},
+                                        Err(_)=>ListNativeTrashReply{refusal:Some("retained native Trash operations are unavailable for the selected account".into()),..Default::default()},
+                                    },
+                                    _=>ListNativeTrashReply{refusal:Some("selected native Trash account is unavailable or changed".into()),..Default::default()},
+                                },
+                                _=>ListNativeTrashReply{refusal:Some("native Trash listing requires an exact account and a page limit between 1 and 100".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="trash-native-document" {
+                            let reply=match (serde_json::from_str::<TrashNativeDocumentRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match engine.start_native_trash(m.clone(),crate::native_trash::NativeTrashInput{expected_account_id:r.expected_account_id,path:r.path,item_id:r.item_id,etag:r.etag}) {
+                                        Ok(job)=>NativeTrashReply{job:Some(job),refusal:None},
+                                        Err(_)=>NativeTrashReply{job:None,refusal:Some("native Trash admission could not be started".into())},
+                                    },
+                                    _=>NativeTrashReply{job:None,refusal:Some("selected native Trash account is unavailable or changed".into())},
+                                },
+                                _=>NativeTrashReply{job:None,refusal:Some("native Trash request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="watch-native-trash" {
+                            let reply=match (serde_json::from_str::<WatchNativeTrashRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match engine.start_native_trash_watch(m.clone(),r.expected_account_id,r.operation) {
+                                        Ok(job)=>NativeTrashReply{job:Some(job),refusal:None},
+                                        Err(_)=>NativeTrashReply{job:None,refusal:Some("native Trash observation could not be started".into())},
+                                    },
+                                    _=>NativeTrashReply{job:None,refusal:Some("selected native Trash account is unavailable or changed".into())},
+                                },
+                                _=>NativeTrashReply{job:None,refusal:Some("native Trash watch request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
                         if verb=="watch-native-import" {
                             let reply=match (serde_json::from_str::<WatchNativeImportRequest>(body),&manager) {
                                 (Ok(r),Some(m))=>match m.watch_native_import(&r).await {
@@ -1455,6 +1583,125 @@ mod tests {
         );
         cancel.cancel();
         task.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn native_trash_capabilities_and_missing_manager_refuse_without_starting_jobs() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        let caps = capabilities(&socket).await.unwrap();
+        assert_eq!(caps.capabilities.get("trash-native-document"), Some(&1));
+        assert_eq!(caps.capabilities.get("watch-native-trash"), Some(&1));
+        let account = uuid::Uuid::new_v4().to_string();
+        let reply = trash_native_document(
+            &socket,
+            &TrashNativeDocumentRequest {
+                label: "Cloud".into(),
+                expected_account_id: account.clone(),
+                path: "Own.pages".into(),
+                item_id: "FILE::com.apple.CloudDocs::own".into(),
+                etag: "E1".into(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        let reply = watch_native_trash(
+            &socket,
+            &WatchNativeTrashRequest {
+                label: "Cloud".into(),
+                expected_account_id: account,
+                operation: uuid::Uuid::new_v4(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+    #[tokio::test]
+    async fn native_trash_list_protocol_is_bounded_and_read_only() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        assert_eq!(
+            capabilities(&socket)
+                .await
+                .unwrap()
+                .capabilities
+                .get("list-native-trash"),
+            Some(&1)
+        );
+        let body = serde_json::json!({"label":"Cloud","expected_account_id":uuid::Uuid::new_v4().to_string(),"after":0,"limit":100});
+        for field in ["path", "item_id", "etag", "retry", "permanent", "operation"] {
+            let mut extra = body.clone();
+            extra[field] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<ListNativeTrashRequest>(extra).is_err());
+        }
+        for limit in [0, 1, 100, 101] {
+            let mut request: ListNativeTrashRequest = serde_json::from_value(body.clone()).unwrap();
+            request.limit = limit;
+            let reply = list_native_trash(&socket, &request).await.unwrap();
+            assert!(reply.operations.is_empty() && reply.next.is_none() && reply.refusal.is_some());
+        }
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+
+    #[test]
+    fn native_trash_protocol_requires_binding_and_watch_has_no_mutation_arguments() {
+        let input = serde_json::json!({"label":"Cloud","expected_account_id":uuid::Uuid::new_v4().to_string(),"path":"Own.pages","item_id":"FILE::com.apple.CloudDocs::own","etag":"E1"});
+        assert!(serde_json::from_value::<TrashNativeDocumentRequest>(input.clone()).is_ok());
+        for field in ["expected_account_id", "path", "item_id", "etag"] {
+            let mut missing = input.clone();
+            missing.as_object_mut().unwrap().remove(field);
+            assert!(serde_json::from_value::<TrashNativeDocumentRequest>(missing).is_err());
+        }
+        let watch = serde_json::json!({"label":"Cloud","expected_account_id":uuid::Uuid::new_v4().to_string(),"operation":uuid::Uuid::new_v4()});
+        for field in ["path", "item_id", "etag", "retry", "permanent", "archive"] {
+            let mut extra = watch.clone();
+            extra[field] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<WatchNativeTrashRequest>(extra).is_err());
+        }
+        let mut extra = input;
+        extra["permanent"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<TrashNativeDocumentRequest>(extra).is_err());
+    }
+    #[tokio::test]
+    async fn native_trash_client_transmits_unusual_paths_as_one_structured_request() {
+        use tokio::io::AsyncBufReadExt;
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("control.sock");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let path = "Folder/Own \"quoted\"; $()\nline.pages".to_owned();
+        let expected = path.clone();
+        let task = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut reader = tokio::io::BufReader::new(stream);
+            let mut line = String::new();
+            reader.read_line(&mut line).await.unwrap();
+            let body = line.strip_prefix("trash-native-document ").unwrap();
+            let parsed: TrashNativeDocumentRequest = serde_json::from_str(body).unwrap();
+            assert_eq!(parsed.path, expected);
+            assert_eq!(line.bytes().filter(|b| *b == b'\n').count(), 1);
+            reader
+                .get_mut()
+                .write_all(b"{\"job\":null,\"refusal\":\"synthetic refusal\"}\n")
+                .await
+                .unwrap();
+        });
+        let reply = trash_native_document(
+            &socket,
+            &TrashNativeDocumentRequest {
+                label: "Cloud".into(),
+                expected_account_id: uuid::Uuid::new_v4().to_string(),
+                path,
+                item_id: "FILE::com.apple.CloudDocs::own".into(),
+                etag: "E1".into(),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(reply.refusal.as_deref(), Some("synthetic refusal"));
+        task.await.unwrap();
     }
 
     /// The daemon cannot see a dialogue, so it will not act on the assumption

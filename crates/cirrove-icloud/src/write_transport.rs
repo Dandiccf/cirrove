@@ -39,6 +39,28 @@ struct ProbeTrashItem {
     etag: Option<String>,
 }
 
+#[cfg(feature = "write-probe")]
+pub(crate) struct ProbeRestoreReceipt {
+    pub http_status: u16,
+    pub etag: String,
+}
+
+#[cfg(feature = "write-probe")]
+#[derive(Deserialize)]
+struct ProbeRestoreReply {
+    items: Vec<ProbeRestoreItem>,
+}
+#[cfg(feature = "write-probe")]
+#[derive(Deserialize)]
+struct ProbeRestoreItem {
+    status: String,
+    drivewsid: Option<String>,
+    docwsid: Option<String>,
+    #[serde(rename = "parentId")]
+    parent_id: Option<String>,
+    etag: Option<String>,
+}
+
 #[derive(Deserialize)]
 struct TrashReply {
     items: Vec<TrashResult>,
@@ -431,6 +453,75 @@ impl ICloudReadSession {
             ProbeTrashResult::Rejected {
                 http_status: status.as_u16(),
             }
+        })
+    }
+
+    /// One request only. No generic Drive retry helper and no revision adoption.
+    #[cfg(feature = "write-probe")]
+    pub(crate) async fn send_probe_restore(
+        &mut self,
+        item_id: &str,
+        document_id: &str,
+        trash_etag: &str,
+        parent: &str,
+    ) -> Result<ProbeRestoreReceipt> {
+        if document_id.is_empty()
+            || item_id != format!("FILE::com.apple.CloudDocs::{document_id}")
+            || trash_etag.is_empty()
+            || trash_etag.len() > 4096
+            || trash_etag.contains(['\0', '\r', '\n', '*'])
+            || !parent.starts_with("FOLDER::com.apple.CloudDocs::")
+        {
+            bail!("invalid owned package restore identity");
+        }
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?
+            .join("putBackItemsFromTrash")?;
+        let response = self
+            .http
+            .post(endpoint)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({"items": [{"drivewsid": item_id, "etag": trash_etag}]}))
+            .send()
+            .await
+            .map_err(|_| anyhow!("owned package restore outcome is uncertain"))?;
+        let status = response.status();
+        if !status.is_success() {
+            if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
+                return Err(crate::SessionRejected.into());
+            }
+            if status == StatusCode::INSUFFICIENT_STORAGE {
+                return Err(crate::StorageRefused.into());
+            }
+            bail!(
+                "owned package restore did not return success (HTTP {})",
+                status.as_u16()
+            );
+        }
+        let reply: ProbeRestoreReply = read_json(response, "owned package restore").await?;
+        let [item] = reply.items.as_slice() else {
+            bail!("owned package restore receipt is incomplete");
+        };
+        if item.status != "OK"
+            || item.drivewsid.as_deref() != Some(item_id)
+            || item.docwsid.as_deref() != Some(document_id)
+            || item.parent_id.as_deref() != Some(parent)
+        {
+            bail!("owned package restore receipt is not bound to the expected item");
+        }
+        let etag = item
+            .etag
+            .as_deref()
+            .filter(|etag| {
+                !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\0', '\r', '\n', '*'])
+            })
+            .context("owned package restore receipt has no valid revision")?;
+        Ok(ProbeRestoreReceipt {
+            http_status: status.as_u16(),
+            etag: etag.into(),
         })
     }
 

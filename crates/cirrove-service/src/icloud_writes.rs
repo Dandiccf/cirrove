@@ -513,6 +513,7 @@ impl UploadProvider for ICloudWriteProvider {
 }
 
 mod folders;
+mod native_trash;
 mod packages;
 mod replacements;
 

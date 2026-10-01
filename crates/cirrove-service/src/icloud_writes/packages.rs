@@ -3,7 +3,7 @@ use super::*;
 use cirrove_icloud::ICloudPackageCreate;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
 impl ICloudWriteProvider {
-    fn package_staging(&self) -> Result<PathBuf> {
+    pub(super) fn package_staging(&self) -> Result<PathBuf> {
         let uid = std::fs::metadata("/proc/self")
             .map_err(|_| UploadError::Uncertain)?
             .uid();

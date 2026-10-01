@@ -5938,3 +5938,204 @@ assert open(p,'rb').read()==b'ol\0\0\0\0'
         session.shutdown().await.unwrap();
     }
 }
+
+/// Inject an already-confirmed receipt to isolate the kernel/publication boundary.
+/// This does not validate Apple's Trash or its generated ZIP implementation.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE"]
+async fn real_native_trash_publication_preserves_held_generated_archive_reader() {
+    use std::io::Read;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    let original = Node {
+        id: "FILE::com.apple.CloudDocs::synthetic-native".into(),
+        parent_id: Some("root".into()),
+        name: "Held.pages".into(),
+        kind: NodeKind::Folder,
+        package: true,
+        size: 5,
+        modified_unix: 1,
+        etag: Some("original-E1".into()),
+        content_version: Some("original-E1".into()),
+        target: None,
+    };
+    // Models already verified immutable artifact bytes, not native ZIP parsing.
+    let bytes: Vec<u8> = (0..128 * 1024).map(|n| (n % 251) as u8).collect();
+    let expected_sha256 = hex::encode(Sha256::digest(&bytes));
+    let artifact = Node {
+        id: format!("icloud-artifact:{}", original.id),
+        parent_id: Some(original.id.clone()),
+        name: original.name.clone(),
+        kind: NodeKind::File,
+        package: false,
+        size: bytes.len() as u64,
+        modified_unix: 1,
+        etag: None,
+        content_version: Some(format!("synthetic-verified-artifact:{expected_sha256}")),
+        target: None,
+    };
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        remote
+            .files
+            .insert(original.id.clone(), (original.clone(), Vec::new()));
+        remote
+            .files
+            .insert(artifact.id.clone(), (artifact.clone(), bytes.clone()));
+    }
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    let path = mount.join(&original.name).join(&artifact.name);
+    let (mut held, initial) = tokio::task::spawn_blocking({
+        let path = path.clone();
+        move || {
+            let mut held = std::fs::File::open(path).unwrap();
+            let mut contents = Vec::new();
+            held.read_to_end(&mut contents).unwrap();
+            (held, contents)
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(initial, bytes);
+    assert_eq!(hex::encode(Sha256::digest(&initial)), expected_sha256);
+    let reads_before = cloud.reads.load(Ordering::SeqCst);
+    assert!(reads_before > 0);
+    let scope = engine.scope("drive");
+    assert!(
+        cirrove_store::Store::open(&engine.db)
+            .unwrap()
+            .node(&scope, &original.id)
+            .unwrap()
+            .is_some()
+    );
+    let row = {
+        // Prevent workers from claiming between enqueue and acknowledgement.
+        let mut journal = journal.lock().unwrap();
+        let row = journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::TrashNativeDocument {
+                    before: original.clone(),
+                },
+            })
+            .unwrap();
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        assert_eq!(claimed.id, row.id);
+        {
+            let mut remote = cloud.remote.lock().unwrap();
+            remote.files.remove(&original.id).unwrap();
+            remote.files.remove(&artifact.id).unwrap();
+        }
+        journal
+            .acknowledge_mutation(
+                row.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Removed {
+                    item: original.id.clone(),
+                },
+            )
+            .unwrap();
+        journal.mutation(row.id).unwrap()
+    };
+    cloud.offline.store(true, Ordering::SeqCst);
+    let receipt_before = serde_json::to_vec(&row).unwrap();
+    // Engine's package rechecks may independently learn the same absence.
+    // Require this operation's durable publication acknowledgement as well;
+    // otherwise disabling the publication worker can falsely pass this test.
+    let publication_db = temp.path().join("journal/uploads.db");
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let db = rusqlite::Connection::open_with_flags(
+                &publication_db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+            ).unwrap();
+            let done: bool = db.query_row(
+                "SELECT EXISTS(SELECT 1 FROM native_trash_metadata_publication WHERE operation=?1 AND done=1)",
+                [row.id.to_string()], |r| r.get(0),
+            ).unwrap();
+            if done { break; }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }).await.expect("native Trash publication was not durably acknowledged");
+    // Also require visible Store convergence without triggering a frontend fetch.
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if cirrove_store::Store::open(&engine.db)
+                .unwrap()
+                .node(&scope, &original.id)
+                .unwrap()
+                .is_none()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let root = mount.clone();
+    let name = original.name.clone();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let present = tokio::task::spawn_blocking({
+                let root = root.clone();
+                let name = name.clone();
+                move || {
+                    std::fs::read_dir(root)
+                        .unwrap()
+                        .any(|entry| entry.unwrap().file_name() == name.as_str())
+                }
+            })
+            .await
+            .unwrap();
+            if !present {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let (contents, path_error) = tokio::task::spawn_blocking(move || {
+        assert_eq!(held.seek(SeekFrom::Start(0)).unwrap(), 0);
+        let mut contents = Vec::new();
+        held.read_to_end(&mut contents).unwrap();
+        let error = std::fs::File::open(path).expect_err("removed path reopened");
+        (contents, error.raw_os_error())
+    })
+    .await
+    .unwrap();
+    assert_eq!(contents, bytes);
+    assert_eq!(hex::encode(Sha256::digest(&contents)), expected_sha256);
+    assert_eq!(path_error, Some(libc::ENOENT));
+    assert_eq!(
+        cloud.reads.load(Ordering::SeqCst),
+        reads_before,
+        "held reader must not refetch deleted content"
+    );
+    assert_eq!(
+        cloud.write_calls.load(Ordering::SeqCst),
+        0,
+        "publication must not dispatch mutations"
+    );
+    assert_eq!(
+        serde_json::to_vec(&journal.lock().unwrap().mutation(row.id).unwrap()).unwrap(),
+        receipt_before
+    );
+    session.shutdown().await.unwrap();
+}

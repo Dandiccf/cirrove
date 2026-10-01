@@ -925,3 +925,29 @@ async fn package_archive_is_refused_before_any_ordinary_upload_request() {
     ));
     assert!(server.await.unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn native_trash_refused_before_any_onedrive_request() {
+    use cirrove_core::mutation::*;
+    let (provider, server) = fixture(vec![]).await;
+    server.await.unwrap(); // No listener remains: accidental HTTP cannot produce Unsupported.
+    let mut request = mutation_request(true);
+    let mut before = mutation_node();
+    before.kind = cirrove_core::NodeKind::Folder;
+    before.package = true;
+    request.intent = MutationIntent::TrashNativeDocument { before };
+    let cancel = CancellationToken::new();
+    assert!(request.validate().is_ok());
+    assert!(matches!(
+        provider.prepare_mutation(&request, &cancel).await,
+        Err(MutationError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider.mutate(&request, &cancel).await,
+        Err(MutationError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider.reconcile_mutation(&request, &cancel).await,
+        Err(MutationError::Unsupported(_))
+    ));
+}

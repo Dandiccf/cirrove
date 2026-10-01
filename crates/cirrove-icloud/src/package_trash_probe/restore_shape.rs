@@ -126,6 +126,20 @@ pub(super) async fn observe(
     staging: &Path,
     cancel: &CancellationToken,
 ) -> Result<OwnedPackageRestoreShape> {
+    Ok(
+        observe_bound(session, saved, apple_account, staging, cancel)
+            .await?
+            .0,
+    )
+}
+
+pub(super) async fn observe_bound(
+    session: &mut ICloudReadSession,
+    saved: &Checkpoint,
+    apple_account: &str,
+    staging: &Path,
+    cancel: &CancellationToken,
+) -> Result<(OwnedPackageRestoreShape, Value)> {
     ensure!(
         saved.version == 2
             && saved.phase == PackageTrashPhase::Recovered
@@ -156,11 +170,11 @@ pub(super) async fn observe(
             ensure!(after == before, "restore shape Trash metadata changed");
             ensure!(parent(session, saved).await? == owned_parent, "restore shape owned parent changed");
             ensure!(!cancel.is_cancelled(), "restore shape cancelled");
-            Ok(OwnedPackageRestoreShape {
+            Ok((OwnedPackageRestoreShape {
                 restore_path: shape(before.get("restorePath"), &saved.plan.parent_name, &saved.renamed_name()),
                 exact_trash_metadata_stable: true, semantic_recovery_verified: true,
                 owned_parent_stable_and_vacant: true, restore_authorized: false,
-            })
+            }, before))
         } => result,
     }
 }

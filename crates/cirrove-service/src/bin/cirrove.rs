@@ -1,5 +1,69 @@
 use anyhow::{Context, Result, bail};
 
+async fn follow_native_trash(
+    socket: &std::path::Path,
+    label: &str,
+    account: &str,
+    initial: &cirrove_service::jobs::Job,
+    expected_operation: Option<uuid::Uuid>,
+) -> Result<()> {
+    let following = async {
+        let mut operation = expected_operation;
+        loop {
+            let snapshot=cirrove_service::status(socket).await.context("native Trash observation lost; use list-native-trash with this account before submitting another removal")?;
+            let current=snapshot.accounts.iter().filter(|a|a.label==label && a.account_id==account).flat_map(|a|&a.jobs).find(|job|job.id==initial.id).context("native Trash observer unavailable; use watch-native-trash with the retained operation")?;
+            if current.kind != cirrove_service::jobs::JobKind::TrashNativeDocument {
+                bail!("unexpected native Trash job");
+            }
+            if let Some(progress) = &current.native_trash {
+                if progress.account_id != account
+                    || operation.is_some_and(|op| op != progress.operation)
+                {
+                    bail!("native Trash account or operation changed");
+                }
+                if operation.is_none() {
+                    eprintln!("Queued operation {}", progress.operation);
+                    operation = Some(progress.operation);
+                }
+            }
+            if current.state == cirrove_service::jobs::JobState::Succeeded {
+                let receipt = current
+                    .native_trash
+                    .as_ref()
+                    .context("native Trash receipt missing")?;
+                if operation != Some(receipt.operation)
+                    || !receipt.removal_receipt_recorded
+                    || !receipt.metadata_absence_recorded
+                {
+                    bail!("native Trash completion is not confirmed");
+                }
+                println!(
+                    "Recorded native Trash completion [{}]; historical receipt and metadata absence, current cloud state may differ",
+                    receipt.operation
+                );
+                return Ok(());
+            }
+            if !current.running() {
+                bail!(
+                    "{}",
+                    current
+                        .issue
+                        .as_deref()
+                        .unwrap_or("native Trash is unconfirmed; inspect its retained operation")
+                );
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+    };
+    tokio::select! {biased;
+        _=tokio::signal::ctrl_c()=>{
+            let _=cirrove_service::stop_job(socket,&cirrove_service::StopJobRequest{label:label.into(),id:initial.id.clone()}).await;
+            bail!("stopped watching; any queued native Trash operation remains retained and may complete");
+        }
+        result=following=>result,
+    }
+}
+
 async fn follow_native_import(
     socket: &std::path::Path,
     label: &str,
@@ -755,6 +819,50 @@ enum Command {
         #[arg(long)]
         destination: PathBuf,
     },
+    /// List durable native Trash operations after lost replies/restarts; evidence is historical.
+    /// Reads one bounded page without enqueueing or retrying any removal.
+    ListNativeTrash {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        after: Option<u64>,
+        #[arg(long, default_value_t = 100, value_parser=clap::value_parser!(u32).range(1..=100))]
+        limit: u32,
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Move one exact original native Pages revision to iCloud recovery; never permanent delete.
+    TrashNativeDocument {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        /// Mount-relative original document path (not a generated package child).
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        path: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        item_id: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        etag: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Observe recorded native Trash completion; historical evidence, not current cloud state.
+    /// Never enqueue or replay a removal.
+    WatchNativeTrash {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Import a validated native Pages archive as a new iCloud document; never overwrites.
     ImportNativePackage {
         #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
@@ -1277,16 +1385,18 @@ async fn main() -> Result<()> {
                 }
                 for job in &account.jobs {
                     let state = match job.state {
-                        cirrove_service::jobs::JobState::Running => {
-                            if job.kind == cirrove_service::jobs::JobKind::ImportNativePackage {
-                                "importing native document"
-                            } else if job.kind == cirrove_service::jobs::JobKind::ExportLocal {
-                                "exporting local save"
-                            } else {
-                                "keeping offline"
-                            }
-                            .to_owned()
+                        cirrove_service::jobs::JobState::Running => if job.kind
+                            == cirrove_service::jobs::JobKind::ImportNativePackage
+                        {
+                            "importing native document"
+                        } else if job.kind == cirrove_service::jobs::JobKind::TrashNativeDocument {
+                            "observing native document Trash"
+                        } else if job.kind == cirrove_service::jobs::JobKind::ExportLocal {
+                            "exporting local save"
+                        } else {
+                            "keeping offline"
                         }
+                        .to_owned(),
                         cirrove_service::jobs::JobState::Succeeded => "completed".to_owned(),
                         cirrove_service::jobs::JobState::Stopping => "stopping".to_owned(),
                         cirrove_service::jobs::JobState::Stopped => "stopped".to_owned(),
@@ -1307,6 +1417,12 @@ async fn main() -> Result<()> {
                         cirrove_service::human_bytes(job.bytes_total),
                         job.id
                     );
+                    if let Some(progress) = &job.native_trash {
+                        println!(
+                            "    account {}  retained operation {}",
+                            progress.account_id, progress.operation
+                        );
+                    }
                 }
             }
         }
@@ -1835,6 +1951,134 @@ async fn main() -> Result<()> {
             };
             println!("{}", serde_json::to_string_pretty(&receipt)?);
         }
+        Command::ListNativeTrash {
+            label,
+            account_id,
+            after,
+            limit,
+            json,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("list-native-trash")
+                != Some(&1)
+            {
+                bail!("this service does not support discovering retained native Trash operations");
+            }
+            let reply = cirrove_service::list_native_trash(
+                &socket,
+                &cirrove_service::ListNativeTrashRequest {
+                    label,
+                    expected_account_id: account_id.to_string(),
+                    after,
+                    limit,
+                },
+            )
+            .await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            if json {
+                println!("{}", serde_json::to_string_pretty(&reply)?);
+            } else {
+                println!(
+                    "Recorded native Trash operations for {account_id}; historical evidence, current cloud state may differ."
+                );
+                for row in &reply.operations {
+                    println!(
+                        "{}  {:?}  {:?}  item {:?}  original revision {:?}  removal receipt {}  metadata absence {}",
+                        row.operation,
+                        row.state,
+                        row.name,
+                        row.item_id,
+                        row.etag,
+                        row.removal_receipt_recorded,
+                        row.metadata_absence_recorded
+                    );
+                }
+                if let Some(next) = reply.next {
+                    println!("Next page: --after {next}");
+                }
+            }
+        }
+        Command::TrashNativeDocument {
+            label,
+            account_id,
+            path,
+            item_id,
+            etag,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("trash-native-document")
+                != Some(&1)
+            {
+                bail!("this service does not support explicit native document Trash");
+            }
+            let account = account_id.to_string();
+            let reply=cirrove_service::trash_native_document(&socket,&cirrove_service::TrashNativeDocumentRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag}).await.context("native Trash reply unavailable; use list-native-trash with this exact account before resubmitting")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply
+                .job
+                .context("native Trash admission was not started")?;
+            eprintln!(
+                "Native Trash admission started [{}]. Stopping observation never discards a queued removal.",
+                initial.id
+            );
+            follow_native_trash(&socket, &label, &account, &initial, None).await?;
+        }
+        Command::WatchNativeTrash {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("watch-native-trash")
+                != Some(&1)
+            {
+                bail!("this service does not support observing retained native Trash operations");
+            }
+            let account = account_id.to_string();
+            let reply = cirrove_service::watch_native_trash(
+                &socket,
+                &cirrove_service::WatchNativeTrashRequest {
+                    label: label.clone(),
+                    expected_account_id: account.clone(),
+                    operation,
+                },
+            )
+            .await
+            .context("native Trash observer could not attach; no removal was submitted")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply
+                .job
+                .context("native Trash observation was not started")?;
+            eprintln!("Checking retained native Trash [{operation}]. No removal was submitted.");
+            follow_native_trash(&socket, &label, &account, &initial, Some(operation)).await?;
+        }
         Command::ImportNativePackage {
             label,
             archive,
@@ -2186,6 +2430,95 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod icloud_access_tests {
     use super::*;
+    #[test]
+    fn native_trash_list_cli_has_exact_account_bounded_page_and_no_mutation_inputs() {
+        let base = [
+            "cirrove",
+            "list-native-trash",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+        ];
+        assert!(matches!(
+            Args::try_parse_from(base).expect("read page").command,
+            Command::ListNativeTrash {
+                limit: 100,
+                after: None,
+                ..
+            }
+        ));
+        for limit in ["0", "101", "4294967295"] {
+            let mut args = base.to_vec();
+            args.extend(["--limit", limit]);
+            assert!(Args::try_parse_from(args).is_err());
+        }
+        for extra in ["--path", "--etag", "--item-id", "--retry", "--permanent"] {
+            let mut args = base.to_vec();
+            args.extend([extra, "forbidden"]);
+            assert!(Args::try_parse_from(args).is_err());
+        }
+        let mut args = base.to_vec();
+        args.extend(["--limit", "1", "--after", "42", "--json"]);
+        assert!(matches!(
+            Args::try_parse_from(args).expect("bounded page").command,
+            Command::ListNativeTrash {
+                limit: 1,
+                after: Some(42),
+                json: true,
+                ..
+            }
+        ));
+        assert!(Args::try_parse_from(&base[..4]).is_err());
+    }
+    #[test]
+    fn native_trash_cli_requires_exact_binding_and_watch_cannot_accept_mutation_fields() {
+        let args = [
+            "cirrove",
+            "trash-native-document",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--path",
+            "Folder/Own \"quoted\"; $.pages",
+            "--item-id",
+            "FILE::com.apple.CloudDocs::own",
+            "--etag",
+            "original-v1",
+        ];
+        assert!(
+            matches!(Args::try_parse_from(args).expect("bound removal").command,Command::TrashNativeDocument{path,..} if path==args[7])
+        );
+        for missing in [4, 6, 8, 10] {
+            let mut incomplete = args.to_vec();
+            incomplete.drain(missing..missing + 2);
+            assert!(Args::try_parse_from(incomplete).is_err());
+        }
+        let watch = [
+            "cirrove",
+            "watch-native-trash",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--operation",
+            "22222222-2222-4222-8222-222222222222",
+        ];
+        assert!(Args::try_parse_from(watch).is_ok());
+        for extra in [
+            "--path",
+            "--item-id",
+            "--etag",
+            "--archive",
+            "--retry",
+            "--permanent",
+        ] {
+            let mut invalid = watch.to_vec();
+            invalid.extend([extra, "forbidden"]);
+            assert!(Args::try_parse_from(invalid).is_err());
+        }
+    }
     #[test]
     fn native_import_watch_requires_exact_account_and_operation_without_source_arguments() {
         let args = [

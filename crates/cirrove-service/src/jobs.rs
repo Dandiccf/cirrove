@@ -16,6 +16,7 @@
 //! everything -- the same reason [`mod@crate::recent`] refuses files a user merely
 //! opened -- and the application doing the reading draws its own progress bar.
 //! This register holds work a person asked for by name.
+mod native_trash;
 use cirrove_core::CancellationToken;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -49,6 +50,8 @@ pub enum JobKind {
     ExportLocal,
     /// Capture, upload and verify an explicitly imported native document.
     ImportNativePackage,
+    /// Observe an explicitly requested, recoverable native-document removal.
+    TrashNativeDocument,
     #[serde(other)]
     Unknown,
 }
@@ -104,6 +107,19 @@ pub struct Job {
     pub working_export: Option<crate::journal::WorkingExportReceipt>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_import: Option<NativeImportProgress>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_trash: Option<NativeTrashProgress>,
+}
+
+/// Exact durable operation retained after an observer stops or fails.
+/// Proof flags describe recorded receipts/publication, never current cloud state
+/// after an external restore or other later change.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeTrashProgress {
+    pub account_id: String,
+    pub operation: uuid::Uuid,
+    pub removal_receipt_recorded: bool,
+    pub metadata_absence_recorded: bool,
 }
 
 /// A durable queued operation; remote is present only after verified completion.
@@ -200,6 +216,7 @@ impl Jobs {
             export: None,
             working_export: None,
             native_import: None,
+            native_trash: None,
         };
         self.inner().running.push(Running {
             job,

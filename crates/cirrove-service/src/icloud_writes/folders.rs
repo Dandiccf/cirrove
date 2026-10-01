@@ -125,6 +125,11 @@ impl ICloudWriteProvider {
 
     async fn folder_plan(&self, request: &MutationRequest) -> MutationResult<FolderPlan> {
         request.validate()?;
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            return Err(MutationError::Unsupported(
+                "native document Trash adapter unavailable",
+            ));
+        }
         if request.scope != self.scope {
             return Err(MutationError::Invalid);
         }
@@ -171,7 +176,8 @@ impl ICloudWriteProvider {
             }
             MutationIntent::Relocate { .. }
             | MutationIntent::RemoveFolder { .. }
-            | MutationIntent::RemoveFile { .. } => None,
+            | MutationIntent::RemoveFile { .. }
+            | MutationIntent::TrashNativeDocument { .. } => None,
         };
         let plan = FolderPlan {
             version: 1,
@@ -417,6 +423,17 @@ impl MutationProvider for ICloudWriteProvider {
         request: &MutationRequest,
         cancel: &CancellationToken,
     ) -> MutationResult<Option<String>> {
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            self.mutation_operation(operation, request)?;
+            let before = request.intent.before().ok_or(MutationError::Invalid)?;
+            self.parent(before.parent_id.as_deref().ok_or(MutationError::Invalid)?)
+                .await
+                .map_err(local_error)?;
+            return self
+                .native_trash_adapter(request)?
+                .prepare_mutation_for_operation(operation, request, cancel)
+                .await;
+        }
         if relocations::combined(request) {
             return self.prepare_combined(operation, request, cancel).await;
         }
@@ -472,6 +489,13 @@ impl MutationProvider for ICloudWriteProvider {
         prepared: Option<&str>,
         cancel: &CancellationToken,
     ) -> MutationResult<MutationReceipt> {
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            self.mutation_operation(operation, request)?;
+            return self
+                .native_trash_adapter(request)?
+                .mutate_operation(operation, request, prepared, cancel)
+                .await;
+        }
         if relocations::combined(request) {
             return self
                 .mutate_combined(operation, request, prepared, cancel)
@@ -516,6 +540,13 @@ impl MutationProvider for ICloudWriteProvider {
         prepared: Option<&str>,
         cancel: &CancellationToken,
     ) -> MutationResult<MutationReconciliation> {
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            self.mutation_operation(operation, request)?;
+            return self
+                .native_trash_adapter(request)?
+                .reconcile_operation(operation, request, prepared, cancel)
+                .await;
+        }
         if relocations::combined(request) {
             return self
                 .reconcile_combined(operation, request, prepared, cancel)
@@ -561,6 +592,28 @@ impl MutationProvider for ICloudWriteProvider {
 pub(super) mod tests {
     use super::super::tests::{fixture, folder};
     use super::*;
+
+    #[tokio::test]
+    #[allow(clippy::unwrap_used)]
+    async fn ordinary_folder_plan_refuses_explicit_native_trash() {
+        let (_temp, provider) = fixture();
+        let before = Node {
+            id: "FILE::com.apple.CloudDocs::native".into(),
+            parent_id: Some(ROOT_ID.into()),
+            name: "Original.pages".into(),
+            package: true,
+            ..folder(ROOT_ID)
+        };
+        let request = MutationRequest {
+            scope: provider.scope.clone(),
+            intent: MutationIntent::TrashNativeDocument { before },
+        };
+        assert!(request.validate().is_ok());
+        assert!(matches!(
+            provider.folder_plan(&request).await,
+            Err(MutationError::Unsupported(_))
+        ));
+    }
 
     #[tokio::test]
     #[allow(clippy::unwrap_used)]

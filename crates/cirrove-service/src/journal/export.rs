@@ -373,3 +373,14 @@ impl RecoveryJournal {
         self.journal.local_export_source(id)
     }
 }
+
+impl RecoveryJournal {
+    pub(crate) fn native_trash_list(
+        &self,
+        scope: &Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<crate::native_trash::NativeTrashListing> {
+        self.journal.native_trash_list(scope, after, limit)
+    }
+}

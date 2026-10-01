@@ -12,8 +12,9 @@ use cirrove_core::{
     upload::UploadRepresentation,
 };
 use cirrove_icloud::{
-    ICloudFolderCreate, ICloudPackageCreate, OwnedPackageTrashProbe, PackageSemanticIdentity,
-    SealedFolderCheckpointVault, SealedUploadCheckpointVault, package_archive_semantic_identity,
+    ICloudFolderCreate, ICloudPackageCreate, OwnedPackageRestoreProbe, OwnedPackageTrashProbe,
+    PackageSemanticIdentity, SealedFolderCheckpointVault, SealedUploadCheckpointVault,
+    package_archive_semantic_identity,
 };
 use serde::{Deserialize, Serialize};
 use std::{os::unix::fs::MetadataExt, sync::Mutex};
@@ -618,6 +619,106 @@ pub async fn icloud_owned_package_restore_shape(run: Uuid) -> Result<()> {
     .await?;
     record(&output.join("restore-shape.json"), &report)?;
     println!("Owned package restore-path shape checked read-only; no restore authorized or sent.");
+    Ok(())
+}
+fn restore_context(run: Uuid) -> Result<(PathBuf, Account, OwnedPackagePlan)> {
+    ensure!(
+        run == Uuid::parse_str("97be33d2-b216-49bf-9e49-465b1ca85d1d")?,
+        "restore requires exact owned successful run"
+    );
+    check_run(run)?;
+    let dir = directory(run);
+    private_owned_dir(&dir)?;
+    let prereg: Preregistration = read_json(&dir.join("trash-preregistered.json"), 16 * 1024)?;
+    let account: Account = read_json(&dir.join("account.json"), 64 * 1024)?;
+    let (_, source_account, source_plan) = retained(Uuid::parse_str(SOURCE)?)?;
+    prereg.validate(&account, &source_account, &source_plan)?;
+    let complete: PhaseReceipt =
+        read_json(&dir.join(format!("{}.json", Phase::Complete.name())), 4096)?;
+    ensure!(
+        complete.run == run && complete.account == account.id && complete.phase == Phase::Complete,
+        "restore requires completed owned Trash arm"
+    );
+    let (_, retained_account, plan) = retained(run)?;
+    ensure!(
+        serde_json::to_value(&retained_account)? == serde_json::to_value(&account)?
+            && plan.scope == scope(&account),
+        "restore retained account mismatch"
+    );
+    Ok((dir, account, plan))
+}
+/// Explicit one-shot mutation of only the exact successful owned97be package.
+pub async fn icloud_owned_package_restore(run: Uuid) -> Result<()> {
+    let (dir, account, plan) = restore_context(run)?;
+    let state = dir.join("restore-state");
+    std::fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&state)
+        .context("owned restore attempt already exists; inspect only")?;
+    File::open(&dir)?.sync_all()?;
+    manifest(&state, run, "restore")?;
+    record(
+        &state.join("restore-preregistered.json"),
+        &serde_json::json!({
+            "version":1,"purpose":"owned-native-package-putback-v1","run":run,
+            "account":account.id,"scope":plan.scope,"source_sha256":plan.archive_sha256,
+            "destination":plan.parent,"one_shot":true,"destination_vacancy_atomicity_proven":false
+        }),
+    )?;
+    let cancel = CancellationToken::new();
+    let probe = OwnedPackageRestoreProbe::prepare(
+        session(&dir, &account).await?,
+        account.identity.username.clone(),
+        &plan,
+        &dir.join("trash-state"),
+        &state,
+        &cancel,
+    )
+    .await?;
+    let report = probe.execute(&cancel).await?;
+    ensure!(
+        report.restore_receipt_recorded
+            && report.restored_same_identity_and_semantics
+            && report.owned_source_semantics_verified,
+        "owned package restore incomplete"
+    );
+    record(&state.join("restore-result.json"), &report)?;
+    println!(
+        "Owned package restored once with same identity and verified native semantics; actual name observed, atomic vacancy unproven."
+    );
+    Ok(())
+}
+/// Never resumes a restore. Observes only its retained checkpoint and identities.
+pub async fn icloud_owned_package_restore_inspect(run: Uuid) -> Result<()> {
+    let (dir, account, plan) = restore_context(run)?;
+    let state = dir.join("restore-state");
+    private_owned_dir(&state)?;
+    let prereg: serde_json::Value =
+        read_json(&state.join("restore-preregistered.json"), 16 * 1024)?;
+    ensure!(
+        prereg["version"] == 1
+            && prereg["purpose"] == "owned-native-package-putback-v1"
+            && prereg["run"] == run.to_string()
+            && prereg["account"] == account.id
+            && prereg["scope"] == serde_json::to_value(&plan.scope)?
+            && prereg["source_sha256"] == plan.archive_sha256
+            && prereg["destination"] == plan.parent
+            && prereg["one_shot"] == true,
+        "owned restore preregistration mismatch"
+    );
+    let attempt = verification_directory(&dir)?;
+    manifest(&attempt, run, "restore-inspect")?;
+    let report = OwnedPackageRestoreProbe::inspect(
+        session(&dir, &account).await?,
+        &account.identity.username,
+        &plan,
+        &state,
+        &attempt,
+        &CancellationToken::new(),
+    )
+    .await?;
+    record(&attempt.join("restore-inspection.json"), &report)?;
+    println!("Owned package restore inspected read-only; no mutation resumed.");
     Ok(())
 }
 #[cfg(test)]

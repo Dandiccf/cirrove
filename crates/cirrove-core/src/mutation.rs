@@ -60,6 +60,12 @@ pub enum MutationIntent {
     RemoveFolder {
         before: Node,
     },
+    /// Trash one original native-document container, never its generated children.
+    /// This explicit action is not POSIX rmdir and does not require an empty
+    /// projected directory. Only an adapter with native recovery proof may apply it.
+    TrashNativeDocument {
+        before: Node,
+    },
 }
 impl MutationIntent {
     pub fn before(&self) -> Option<&Node> {
@@ -67,7 +73,8 @@ impl MutationIntent {
             Self::CreateFolder { .. } => None,
             Self::Relocate { before, .. }
             | Self::RemoveFile { before }
-            | Self::RemoveFolder { before } => Some(before),
+            | Self::RemoveFolder { before }
+            | Self::TrashNativeDocument { before } => Some(before),
         }
     }
 }
@@ -113,6 +120,9 @@ impl MutationRequest {
             } => text(parent) && name(value),
             MutationIntent::RemoveFile { before } => before.kind == NodeKind::File,
             MutationIntent::RemoveFolder { before } => before.kind == NodeKind::Folder,
+            MutationIntent::TrashNativeDocument { before } => {
+                before.kind == NodeKind::Folder && before.package
+            }
         };
         if !valid {
             return Err(MutationError::Invalid);
@@ -151,7 +161,9 @@ impl MutationRequest {
                     && node.etag.as_ref().is_some_and(|s| !s.is_empty())
             }
             (
-                MutationIntent::RemoveFile { before } | MutationIntent::RemoveFolder { before },
+                MutationIntent::RemoveFile { before }
+                | MutationIntent::RemoveFolder { before }
+                | MutationIntent::TrashNativeDocument { before },
                 MutationReceipt::Removed { item },
             ) => &before.id == item,
             _ => false,
@@ -399,5 +411,60 @@ pub trait MutationProvider: Send + Sync {
     ) -> Result<MutationReconciliation> {
         self.reconcile_prepared_mutation(request, prepared_item, cancel)
             .await
+    }
+}
+
+#[cfg(test)]
+mod native_trash_tests {
+    use super::*;
+    fn request() -> MutationRequest {
+        MutationRequest {
+            scope: Scope {
+                account: "owned".into(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            },
+            intent: MutationIntent::TrashNativeDocument {
+                before: Node {
+                    id: "FILE::com.apple.CloudDocs::owned".into(),
+                    parent_id: Some("parent".into()),
+                    name: "Owned.pages".into(),
+                    kind: NodeKind::Folder,
+                    package: true,
+                    etag: Some("E1".into()),
+                    content_version: None,
+                    target: None,
+                    size: 17,
+                    modified_unix: 0,
+                },
+            },
+        }
+    }
+    #[test]
+    fn native_trash_intent_requires_original_container_and_exact_removed_receipt() {
+        let valid = request();
+        assert!(valid.validate().is_ok());
+        let id = valid.intent.before().expect("source").id.clone();
+        assert!(valid.accepts(&MutationReceipt::Removed { item: id }));
+        assert!(!valid.accepts(&MutationReceipt::Removed {
+            item: "other".into()
+        }));
+        assert!(!valid.accepts(&MutationReceipt::Upsert(
+            valid.intent.before().expect("source").clone()
+        )));
+        for arm in 0..5 {
+            let mut changed = request();
+            let MutationIntent::TrashNativeDocument { before } = &mut changed.intent else {
+                unreachable!()
+            };
+            match arm {
+                0 => before.package = false,
+                1 => before.kind = NodeKind::File,
+                2 => before.etag = None,
+                3 => before.parent_id = None,
+                _ => before.kind = NodeKind::Shortcut,
+            }
+            assert!(changed.validate().is_err(), "arm {arm}");
+        }
     }
 }

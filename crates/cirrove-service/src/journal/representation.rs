@@ -6,7 +6,8 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     if version < JOURNAL_SCHEMA {
         let tx = db.transaction()?;
         // Older binaries ignore new JSON fields. The schema gate prevents them
-        // from replaying a package archive as ordinary file bytes.
+        // from replaying a package archive as ordinary file bytes, or opening
+        // a journal containing the explicit native-container Trash intent.
         tx.pragma_update(None, "user_version", JOURNAL_SCHEMA)?;
         tx.commit()?;
     }

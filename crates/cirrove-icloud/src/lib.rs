@@ -11,6 +11,8 @@ mod file_create;
 mod file_move;
 mod file_rename;
 mod file_trash;
+mod native_trash;
+pub use native_trash::ICloudNativeTrash;
 mod folder_create;
 mod folder_move;
 mod folder_rename;
@@ -69,10 +71,10 @@ pub use package_archive::canonical_export;
 mod package_trash_probe;
 #[cfg(feature = "write-probe")]
 pub use package_trash_probe::{
-    OwnedPackageRestoreShape, OwnedPackageTrashProbe, PackageTrashInspection, PackageTrashLocation,
+    OwnedPackageRestoreProbe, OwnedPackageRestoreShape, OwnedPackageTrashProbe,
+    PackageRestoreInspection, PackageRestorePhase, PackageTrashInspection, PackageTrashLocation,
     PackageTrashPhase, PackageTrashRefusal, RestorePathShape,
 };
-#[cfg(feature = "write-probe")]
 mod package_trash;
 #[cfg(feature = "write-probe")]
 pub use package_trash::{OwnedPackageTrashRequest, VerifiedPackageTrash};
@@ -127,7 +129,8 @@ pub use owned_mutation::ICloudOwnedFixtureRemove;
 pub use owned_upload::ICloudOwnedFixtureUpload;
 pub use provider::ICloudDrive;
 pub use sealed_session::{
-    SealedFolderCheckpointVault, SealedSessionVault, SealedUploadCheckpointVault,
+    SealedFolderCheckpointVault, SealedNativeTrashCheckpointVault, SealedSessionVault,
+    SealedUploadCheckpointVault,
 };
 #[cfg(feature = "write-probe")]
 pub use write_probe::{

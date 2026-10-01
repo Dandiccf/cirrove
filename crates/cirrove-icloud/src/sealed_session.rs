@@ -330,6 +330,127 @@ impl CredentialVault for SealedPackageTrashCheckpointVault {
     }
 }
 
+/// Independent one-shot restore history; never reuses or removes the import or
+/// Trash credential, even though the owned source operation is the same.
+#[cfg(feature = "write-probe")]
+pub(crate) struct SealedPackageRestoreCheckpointVault {
+    account_dir: PathBuf,
+    account_id: String,
+}
+
+#[cfg(feature = "write-probe")]
+impl SealedPackageRestoreCheckpointVault {
+    pub fn new(state: &Path, account_id: &str) -> Result<Self> {
+        Uuid::parse_str(account_id).context("invalid iCloud account identifier")?;
+        if !state.is_absolute() {
+            bail!("iCloud state directory must be absolute");
+        }
+        Ok(Self {
+            account_dir: state.join("accounts").join(account_id),
+            account_id: account_id.into(),
+        })
+    }
+
+    pub(crate) fn key(account: &str, operation: Uuid) -> String {
+        format!("icloud-package-restore/{account}/{operation}")
+    }
+
+    fn operation(&self, key: &str) -> Result<SealedSessionVault> {
+        let prefix = format!("icloud-package-restore/{}/", self.account_id);
+        let operation = key
+            .strip_prefix(&prefix)
+            .context("invalid iCloud package restore checkpoint key")?;
+        Uuid::parse_str(operation).context("invalid iCloud package restore operation")?;
+        Ok(SealedSessionVault {
+            account_dir: self
+                .account_dir
+                .join("package-restore-checkpoints")
+                .join(operation),
+            account_id: self.account_id.clone(),
+            file_name: "checkpoint.sealed",
+            temp_prefix: ".checkpoint",
+            aad_domain: "icloud-package-restore-checkpoint",
+        })
+    }
+}
+
+#[cfg(feature = "write-probe")]
+#[async_trait]
+impl CredentialVault for SealedPackageRestoreCheckpointVault {
+    async fn load(&self, key: &str) -> Result<Option<SecretString>> {
+        self.operation(key)?.load_with(key, &DesktopVault).await
+    }
+
+    async fn save(&self, key: &str, value: SecretString) -> Result<()> {
+        self.operation(key)?
+            .save_with(key, value, &DesktopVault)
+            .await
+    }
+
+    async fn remove(&self, key: &str) -> Result<()> {
+        self.operation(key)?.remove(key).await
+    }
+}
+
+/// Production native-document Trash has a separate key, path and authenticated
+/// domain from import and from the feature-only owned Trash experiment.
+pub struct SealedNativeTrashCheckpointVault {
+    account_dir: PathBuf,
+    account_id: String,
+}
+
+impl SealedNativeTrashCheckpointVault {
+    pub fn new(state: &Path, account_id: &str) -> Result<Self> {
+        Uuid::parse_str(account_id).context("invalid iCloud account identifier")?;
+        if !state.is_absolute() {
+            bail!("iCloud state directory must be absolute");
+        }
+        Ok(Self {
+            account_dir: state.join("accounts").join(account_id),
+            account_id: account_id.into(),
+        })
+    }
+
+    pub(crate) fn key(account: &str, operation: Uuid) -> String {
+        format!("icloud-native-trash/{account}/{operation}")
+    }
+
+    fn operation(&self, key: &str) -> Result<SealedSessionVault> {
+        let prefix = format!("icloud-native-trash/{}/", self.account_id);
+        let operation = key
+            .strip_prefix(&prefix)
+            .context("invalid iCloud native Trash checkpoint key")?;
+        Uuid::parse_str(operation).context("invalid iCloud native Trash operation")?;
+        Ok(SealedSessionVault {
+            account_dir: self
+                .account_dir
+                .join("native-trash-checkpoints")
+                .join(operation),
+            account_id: self.account_id.clone(),
+            file_name: "checkpoint.sealed",
+            temp_prefix: ".checkpoint",
+            aad_domain: "icloud-native-trash-checkpoint",
+        })
+    }
+}
+
+#[async_trait]
+impl CredentialVault for SealedNativeTrashCheckpointVault {
+    async fn load(&self, key: &str) -> Result<Option<SecretString>> {
+        self.operation(key)?.load_with(key, &DesktopVault).await
+    }
+
+    async fn save(&self, key: &str, value: SecretString) -> Result<()> {
+        self.operation(key)?
+            .save_with(key, value, &DesktopVault)
+            .await
+    }
+
+    async fn remove(&self, key: &str) -> Result<()> {
+        self.operation(key)?.remove(key).await
+    }
+}
+
 /// Durable folder-create receipts, isolated from upload checkpoints. The key
 /// carries both the account and journal operation; neither may select a path
 /// outside this account's private state.
@@ -412,6 +533,49 @@ impl CredentialVault for SealedSessionVault {
 mod tests {
     use super::*;
     use std::sync::Mutex;
+
+    #[tokio::test]
+    async fn native_trash_checkpoint_refuses_foreign_key_and_authenticates_purpose() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let account = Uuid::new_v4().to_string();
+        let operation = Uuid::new_v4();
+        let vault = SealedNativeTrashCheckpointVault::new(temp.path(), &account).expect("fixture");
+        let key = SealedNativeTrashCheckpointVault::key(&account, operation);
+        assert!(
+            vault
+                .operation(&format!("icloud-package-trash/{account}/{operation}"))
+                .is_err()
+        );
+        assert!(
+            vault
+                .operation(&SealedNativeTrashCheckpointVault::key(
+                    &Uuid::new_v4().to_string(),
+                    operation
+                ))
+                .is_err()
+        );
+        let keyring = LargeValueLost::default();
+        let native = vault.operation(&key).expect("fixture");
+        native
+            .save_with(&key, SecretString::from("native armed"), &keyring)
+            .await
+            .expect("fixture");
+        let mut reopened = vault.operation(&key).expect("fixture");
+        assert_eq!(
+            reopened
+                .load_with(&key, &keyring)
+                .await
+                .expect("fixture")
+                .expect("fixture")
+                .expose_secret(),
+            "native armed"
+        );
+        reopened.aad_domain = "icloud-package-trash-checkpoint";
+        assert!(reopened.load_with(&key, &keyring).await.is_err());
+        reopened.aad_domain = "icloud-native-trash-checkpoint";
+        fs::remove_file(reopened.path()).expect("fixture");
+        assert!(reopened.load_with(&key, &keyring).await.is_err());
+    }
 
     /// Models the observed failure's outcome (an empty large item), not its
     /// unexplained mechanism. The live gate still needs a delayed restart.
@@ -903,5 +1067,78 @@ mod package_trash_tests {
             .expect("fixture");
         trash.aad_domain = "icloud-upload-checkpoint";
         assert!(trash.load_with(&trash_key, &keyring).await.is_err());
+    }
+    #[tokio::test]
+    async fn restore_checkpoint_is_separate_from_import_and_trash_history() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let account = Uuid::new_v4().to_string();
+        let operation = Uuid::new_v4();
+        let keyring = Keyring::default();
+        let upload_key = format!("upload/{operation}");
+        let trash_key = SealedPackageTrashCheckpointVault::key(&account, operation);
+        let restore_key = SealedPackageRestoreCheckpointVault::key(&account, operation);
+        let upload = SealedUploadCheckpointVault::new(temp.path(), &account)
+            .expect("fixture")
+            .operation(&upload_key)
+            .expect("fixture");
+        let trash = SealedPackageTrashCheckpointVault::new(temp.path(), &account)
+            .expect("fixture")
+            .operation(&trash_key)
+            .expect("fixture");
+        let vault =
+            SealedPackageRestoreCheckpointVault::new(temp.path(), &account).expect("fixture");
+        let restore = vault.operation(&restore_key).expect("fixture");
+        upload
+            .save_with(&upload_key, SecretString::from("import"), &keyring)
+            .await
+            .expect("fixture");
+        trash
+            .save_with(&trash_key, SecretString::from("Trash proof"), &keyring)
+            .await
+            .expect("fixture");
+        let upload_bytes = fs::read(upload.path()).expect("fixture");
+        let trash_bytes = fs::read(trash.path()).expect("fixture");
+        assert!(
+            restore
+                .load_with(&restore_key, &keyring)
+                .await
+                .expect("fixture")
+                .is_none()
+        );
+        restore
+            .save_with(&restore_key, SecretString::from("restore armed"), &keyring)
+            .await
+            .expect("fixture");
+        assert_eq!(
+            restore
+                .load_with(&restore_key, &keyring)
+                .await
+                .expect("fixture")
+                .expect("fixture")
+                .expose_secret(),
+            "restore armed"
+        );
+        assert_eq!(keyring.0.lock().expect("fixture").len(), 3);
+        assert_eq!(fs::read(upload.path()).expect("fixture"), upload_bytes);
+        assert_eq!(fs::read(trash.path()).expect("fixture"), trash_bytes);
+        assert!(vault.operation(&trash_key).is_err() && vault.operation(&upload_key).is_err());
+        fs::remove_file(restore.path()).expect("fixture");
+        assert!(restore.load_with(&restore_key, &keyring).await.is_err());
+        keyring
+            .save(
+                &restore_key,
+                keyring
+                    .load(&trash_key)
+                    .await
+                    .expect("fixture")
+                    .expect("fixture"),
+            )
+            .await
+            .expect("fixture");
+        fs::copy(trash.path(), restore.path()).expect("fixture");
+        assert!(
+            restore.load_with(&trash_key, &keyring).await.is_err(),
+            "purpose AAD must bind even with identical key and key ID"
+        );
     }
 }

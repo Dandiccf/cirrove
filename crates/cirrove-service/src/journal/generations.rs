@@ -97,7 +97,9 @@ impl Operation {
                 MutationIntent::Relocate { before, .. } => Some(before.kind.clone()),
                 // A removal leaves no node behind, so it contributes no kind to
                 // the generation, folders included.
-                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => None,
+                MutationIntent::RemoveFile { .. }
+                | MutationIntent::RemoveFolder { .. }
+                | MutationIntent::TrashNativeDocument { .. } => None,
             },
         }
     }

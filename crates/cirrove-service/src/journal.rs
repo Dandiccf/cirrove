@@ -18,9 +18,12 @@ mod handoff;
 mod identity_handoff;
 mod mutations;
 mod namespace;
+mod native_trash_publication;
 mod owner;
 mod package_publication;
 pub(crate) use package_publication::PackagePublicationStatus;
+mod native_trash_admission;
+mod native_trash_list;
 mod preparation;
 mod publication;
 mod replacements;
@@ -32,7 +35,7 @@ pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
 use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use cirrove_core::{Node, NodeKind, Scope};
-const JOURNAL_SCHEMA: u32 = 15;
+const JOURNAL_SCHEMA: u32 = 16;
 pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;
@@ -365,6 +368,7 @@ impl UploadJournal {
         directories::migrate(&mut db, version)?;
         representation::migrate(&mut db, version)?;
         package_publication::migrate(&mut db)?;
+        native_trash_publication::migrate(&mut db)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',

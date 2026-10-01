@@ -4,6 +4,8 @@ mod admission;
 mod ancestry;
 mod handoff;
 mod native_import;
+mod native_trash;
+mod native_trash_publication;
 mod package_publication;
 mod publication;
 mod replacement;
@@ -466,6 +468,11 @@ impl Writeback {
                     MutationIntent::RemoveFile { before } => {
                         ("delete file", before.name.clone(), Some(before.id.clone()))
                     }
+                    MutationIntent::TrashNativeDocument { before } => (
+                        "trash native document",
+                        before.name.clone(),
+                        Some(before.id.clone()),
+                    ),
                     MutationIntent::RemoveFolder { before } => (
                         "delete folder",
                         before.name.clone(),

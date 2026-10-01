@@ -1,5 +1,6 @@
 //! Close edit admission atomically before awaiting the admitted callbacks.
 mod native_import;
+mod native_trash;
 use super::*;
 use tokio_util::task::{TaskTracker, task_tracker::TaskTrackerToken};
 
@@ -169,6 +170,21 @@ impl WriteControl {
             .publish_completed_package(&self.inner.engine)
             .await
             .map_err(|_| std::io::Error::other("native package metadata refresh is pending"))
+    }
+    pub(crate) async fn publish_completed_native_trash(&self) -> std::io::Result<bool> {
+        self.writer
+            .publish_completed_native_trash(&self.inner.engine)
+            .await
+            .map_err(|_| std::io::Error::other("native Trash metadata refresh is pending"))
+    }
+    pub(crate) async fn native_trash_publication(
+        &self,
+        id: uuid::Uuid,
+    ) -> std::io::Result<crate::journal::PackagePublicationStatus> {
+        self.writer
+            .native_trash_publication(id)
+            .await
+            .map_err(|_| std::io::Error::other("native Trash metadata publication is unavailable"))
     }
     pub async fn refresh_operation(&self, id: uuid::Uuid) -> std::io::Result<()> {
         self.writer
