@@ -1339,24 +1339,32 @@ fn content_range_matches(value: &str, start: u64, end: u64, size: u64) -> bool {
     )
 }
 
-async fn read_exact_range_response(
-    mut response: Response,
+fn diagnose_range_response(reason: &'static str) {
+    if std::env::var_os("CIRROVE_ICLOUD_PROBE_DIAGNOSTICS").is_some() {
+        eprintln!("iCloud content response rejected: {reason}");
+    }
+}
+
+fn checked_range_response_length(
+    response: &Response,
     offset: u64,
     end: u64,
     size: u64,
-) -> Result<Vec<u8>> {
-    let diagnose = |reason: &'static str| {
-        if std::env::var_os("CIRROVE_ICLOUD_PROBE_DIAGNOSTICS").is_some() {
-            eprintln!("iCloud content response rejected: {reason}");
-        }
-    };
+) -> Result<usize> {
+    if response
+        .headers()
+        .get(reqwest::header::CONTENT_ENCODING)
+        .is_some_and(|v| v != "identity")
+    {
+        bail!("iCloud range response has an unsupported content encoding");
+    }
     if response.status() == StatusCode::OK && offset == 0 && end.checked_add(1) == Some(size) {
         if let Some(content_range) = response.headers().get(CONTENT_RANGE)
             && !content_range
                 .to_str()
                 .is_ok_and(|value| content_range_matches(value, offset, end, size))
         {
-            diagnose("complete response has mismatched Content-Range");
+            diagnose_range_response("complete response has mismatched Content-Range");
             bail!("iCloud complete response identified different bytes");
         }
     } else if response.status() == StatusCode::PARTIAL_CONTENT {
@@ -1365,15 +1373,15 @@ async fn read_exact_range_response(
             .get(CONTENT_RANGE)
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| {
-                diagnose("partial response lacks Content-Range");
+                diagnose_range_response("partial response lacks Content-Range");
                 anyhow!("iCloud range response omitted Content-Range")
             })?;
         if !content_range_matches(content_range, offset, end, size) {
-            diagnose("partial response has mismatched Content-Range");
+            diagnose_range_response("partial response has mismatched Content-Range");
             bail!("iCloud range response identified different bytes");
         }
     } else {
-        diagnose("unexpected HTTP status or full response for partial range");
+        diagnose_range_response("unexpected HTTP status or full response for partial range");
         bail!("iCloud range response did not identify the requested bytes");
     }
     let expected = end
@@ -1381,19 +1389,35 @@ async fn read_exact_range_response(
         .and_then(|length| length.checked_add(1))
         .and_then(|length| usize::try_from(length).ok())
         .context("iCloud range exceeds memory bound")?;
+    if response
+        .content_length()
+        .is_some_and(|length| length != expected as u64)
+    {
+        bail!("iCloud range response length disagrees with its range");
+    }
+    Ok(expected)
+}
+
+async fn read_exact_range_response(
+    mut response: Response,
+    offset: u64,
+    end: u64,
+    size: u64,
+) -> Result<Vec<u8>> {
+    let expected = checked_range_response_length(&response, offset, end, size)?;
     let mut bytes = Vec::with_capacity(expected);
     while let Some(chunk) = response.chunk().await.map_err(|_| {
-        diagnose("response stream interrupted");
+        diagnose_range_response("response stream interrupted");
         anyhow!("iCloud range response was interrupted")
     })? {
         if bytes.len().saturating_add(chunk.len()) > expected {
-            diagnose("response exceeds requested length");
+            diagnose_range_response("response exceeds requested length");
             bail!("iCloud range response exceeded the requested length");
         }
         bytes.extend_from_slice(&chunk);
     }
     if bytes.len() != expected {
-        diagnose("response shorter than requested");
+        diagnose_range_response("response shorter than requested");
         bail!("iCloud range response was shorter than requested");
     }
     Ok(bytes)

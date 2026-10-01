@@ -636,3 +636,40 @@ bounded version selection, a local save chooser and receipt-checked progress.
 Disabled-account CLI export is now covered by [offline recovery tests](benchmarks/local-recovery-offline-2026-10-01.md).
 Unsealed working bytes, offline desktop selection and installed acceptance remain open;
 this does not enable ordinary iCloud writes.
+
+## Ordinary streamed reads
+
+The iCloud adapter now supplies version-bound `open_read_session` transports for
+ordinary files. Sequential reads can use the shared service's adaptive windows,
+up to 64 MiB, with chunks of at most 64 KiB written to private staging. This is a
+maximum capability, not eager whole-file prefetch. Single/random reads retain the
+exact-range fallback. Four read permits are shared across both paths. Ordinary
+reads retain the service's 30-second request deadline.
+
+Each window checks the exact parent/item ETag and size before transfer, obtains a
+fresh ordinary content URL, validates the response range/length/encoding, and
+checks metadata again after streaming. Only success permits staging publication;
+errors and cancellation require discarding the window. Signed URLs are not
+revision evidence. Package artifact staging remains a separate interface.
+
+Synthetic tests exercise varied bytes and a partial final block, changed initial
+and final revisions, malformed/truncated/oversized/encoded responses, sink errors,
+cancellation while waiting for the shared budget, scope and revision binding.
+The final-revision test was demonstrated to fail with its guard removed before
+restoring the guard. Content transfer fixtures use local HTTP responses directly
+at the response-processing boundary; production URL validation remains unchanged.
+They are not a complete Apple HTTPS end-to-end test.
+
+The owned mounted validator forwards the new read-session interface with item and
+parent ownership checks. Fresh-cache varied-content live comparison, mid-transfer
+network interruption and installed acceptance remain open. No speed or release
+claim follows from the synthetic tests, and ordinary write permissions are not
+changed by this step.
+
+Validation: complete `scripts/check.sh` passed on 2026-10-01, 01:03:52–01:10:39
+UTC, using the worktree-specific target and disk-backed btrfs temporary storage.
+Manifest/log: `.local-state/icloud-read-windows-check-2026-10-01/`. The five new
+adapter tests passed in both normal and write-probe test configurations. The
+existing shared-service tests also cover discarding partial staged windows and
+resetting after cancellation. No GUI changed; display scenarios were not rerun.
+This checkout has not yet been installed or live-benchmarked with these windows.

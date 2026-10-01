@@ -75,7 +75,8 @@ in this step; native-window scenarios were not rerun.
 
 Ordinary `ICloudDrive::read_range` currently performs parent metadata lookup,
 download-representation lookup and a final metadata check for each range.
-`open_read_session` returns a session only for package artifacts. The existing
+Correction after inspecting the separate hooks: package artifacts use
+`staged_content_session`; `open_read_session` had no iCloud override. The existing
 provider-neutral `ReadSession::read_window` interface permits larger streamed
 windows into private staging, published only after complete validation; ordinary
 iCloud files do not yet use it. This is a concrete candidate for reducing request

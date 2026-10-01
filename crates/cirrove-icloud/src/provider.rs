@@ -22,6 +22,7 @@ use tokio::sync::{Mutex, OnceCell, Semaphore};
 
 #[cfg(test)]
 mod cold_tests;
+mod ordinary;
 mod packages;
 
 const PROVIDER_ID: &str = "icloud";
@@ -39,7 +40,7 @@ pub struct ICloudDrive {
     index_mode: IndexMode,
     keyring_backed: bool,
     keyring_validated: OnceCell<()>,
-    reads: Semaphore,
+    reads: Arc<Semaphore>,
     packages: Option<packages::Packages>,
 }
 
@@ -98,7 +99,7 @@ impl ICloudDrive {
             index_mode: IndexMode::OnDemand,
             keyring_backed: false,
             keyring_validated: OnceCell::new(),
-            reads: Semaphore::new(4),
+            reads: Arc::new(Semaphore::new(4)),
             packages: None,
         })
     }
@@ -150,7 +151,7 @@ impl ICloudDrive {
             index_mode: IndexMode::OnDemand,
             keyring_backed: true,
             keyring_validated: OnceCell::new(),
-            reads: Semaphore::new(4),
+            reads: Arc::new(Semaphore::new(4)),
             packages: None,
         })
     }
@@ -175,7 +176,7 @@ impl ICloudDrive {
             index_mode,
             keyring_backed: false,
             keyring_validated: OnceCell::new(),
-            reads: Semaphore::new(4),
+            reads: Arc::new(Semaphore::new(4)),
             packages: None,
         })
     }
@@ -627,6 +628,30 @@ impl ReadProvider for ICloudDrive {
             self.package_children(parent, cancel).await
         } else {
             self.children(scope, &parent.id, cursor, cancel).await
+        }
+    }
+
+    async fn open_read_session(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<Option<Arc<dyn cirrove_core::reads::ReadSession>>, ProviderError> {
+        self.check_scope(scope)?;
+        if packages::artifact(node) || packages::package(node) {
+            return Ok(None);
+        }
+        ordinary::validate_node(node)?;
+        tokio::select! { biased;
+            _ = cancel.cancelled() => Err(ProviderError::Cancelled),
+            result = async {
+                let transport = {
+                    let mut state = self.session.lock().await;
+                    Self::active_session(&mut state).await?.read_only_fork()
+                };
+                let session = ordinary::OrdinarySession::new(scope, node, transport, self.reads.clone())?;
+                Ok(Some(Arc::new(session) as Arc<dyn cirrove_core::reads::ReadSession>))
+            } => result,
         }
     }
 

@@ -105,6 +105,22 @@ impl ReadProvider for View {
         });
         Ok(page)
     }
+    async fn open_read_session(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        c: &CancellationToken,
+    ) -> std::result::Result<Option<Arc<dyn cirrove_core::reads::ReadSession>>, ProviderError> {
+        if !self
+            .nodes(scope)?
+            .get(&node.id)
+            .is_some_and(|known| known.kind == NodeKind::File && known.parent_id == node.parent_id)
+        {
+            return Err(ProviderError::Permission);
+        }
+        self.read.open_read_session(scope, node, c).await
+    }
+
     async fn read_range(
         &self,
         scope: &Scope,
