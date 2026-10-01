@@ -1,0 +1,81 @@
+{
+  "run": "ece8507e-6347-4c0a-aff1-47d0052c3719",
+  "commands": [
+    [
+      "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+      "--account-registration-interrupt",
+      "ece8507e-6347-4c0a-aff1-47d0052c3719"
+    ],
+    [
+      "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+      "--account-registration-recover",
+      "ece8507e-6347-4c0a-aff1-47d0052c3719"
+    ]
+  ],
+  "binary_sha256": "fdd0575bea80faea35a80cad53c316b2488d0e657cd3a6c68f497e31a441698a",
+  "revision": "0c92fa20409ea01baf3c7f00bb6157eab34fbc1d",
+  "dirty": true,
+  "started_at": "2026-10-01T03:23:02.858020+00:00",
+  "expected_duration_seconds": 2400,
+  "TMPDIR": "/var/tmp/cirrove-registration-recovery-wbtji8vy",
+  "SQLITE_TMPDIR": "/var/tmp/cirrove-registration-recovery-wbtji8vy",
+  "filesystem": "btrfs",
+  "status": "finished",
+  "supervisor_pid": 131295,
+  "installed_service_changed": false,
+  "mounted": false,
+  "arms": [
+    {
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+        "--account-registration-interrupt",
+        "ece8507e-6347-4c0a-aff1-47d0052c3719"
+      ],
+      "started_at": "2026-10-01T03:23:02.858287+00:00",
+      "deadline_seconds": 1200,
+      "pid": 131320,
+      "process_group": 131320,
+      "status": "finished",
+      "exit_code": 86,
+      "finished_at": "2026-10-01T03:24:39.755750+00:00"
+    },
+    {
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+        "--account-registration-recover",
+        "ece8507e-6347-4c0a-aff1-47d0052c3719"
+      ],
+      "started_at": "2026-10-01T03:24:39.756235+00:00",
+      "deadline_seconds": 1200,
+      "pid": 133351,
+      "process_group": 133351,
+      "status": "finished",
+      "exit_code": 0,
+      "finished_at": "2026-10-01T03:24:58.057175+00:00"
+    }
+  ],
+  "interruption": {
+    "independent_remote_digest": true,
+    "pid": 131320,
+    "remote_registered": true,
+    "size": 67108881,
+    "state": "verify_required"
+  },
+  "passed": true,
+  "elapsed_seconds": 115.199,
+  "finished_at": "2026-10-01T03:24:58.057452+00:00",
+  "functional_endpoints": {
+    "exactly_one_remote_file": true,
+    "independent_remote_digest": true,
+    "inspection_calls": 1,
+    "installed_service_changed": false,
+    "local_export_verified": true,
+    "reconciliation_calls": 0,
+    "refused_replays": 0,
+    "run": "ece8507e-6347-4c0a-aff1-47d0052c3719",
+    "same_document_identity": true,
+    "same_remote_revision": true,
+    "size": 67108881,
+    "state": "uploaded"
+  }
+}

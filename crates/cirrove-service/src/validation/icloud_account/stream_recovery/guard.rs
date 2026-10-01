@@ -1,4 +1,4 @@
-//! Permit only inspection/reconciliation of the captured upload and pre-registration checkpoint.
+//! Permit only inspection/reconciliation at the captured body/registration boundary.
 use super::*;
 use cirrove_core::upload::{
     Reconciliation, UploadError, UploadProvider, UploadRequest, UploadStep,
@@ -9,6 +9,7 @@ pub(super) struct Guard {
     pub inner: ICloudWriteProvider,
     pub request: UploadRequest,
     pub operation: String,
+    pub complete_body: bool,
     pub inspections: AtomicU64,
     pub reconciliations: AtomicU64,
     pub refused: AtomicU64,
@@ -26,7 +27,7 @@ impl Guard {
     ) -> cirrove_core::upload::Result<()> {
         if operation != self.operation
             || request != &self.request
-            || allocated_document(checkpoint).is_none()
+            || document(checkpoint, self.complete_body).is_none()
         {
             return Err(UploadError::CheckpointInvalid);
         }
@@ -35,6 +36,12 @@ impl Guard {
 }
 // Local encrypted checkpoint envelope only; never expose its token fields.
 pub(super) fn allocated_document(checkpoint: &SecretString) -> Option<String> {
+    document(checkpoint, false)
+}
+pub(super) fn completed_body_document(checkpoint: &SecretString) -> Option<String> {
+    document(checkpoint, true)
+}
+fn document(checkpoint: &SecretString, complete_body: bool) -> Option<String> {
     if checkpoint.expose_secret().len() > 32768 {
         return None;
     }
@@ -51,7 +58,8 @@ pub(super) fn allocated_document(checkpoint: &SecretString) -> Option<String> {
         _ => return None,
     };
     let inner = serde_json::from_str::<serde_json::Value>(inner).ok()?;
-    if !inner.get("receipt")?.is_null() {
+    let receipt = inner.get("receipt")?;
+    if (complete_body && !receipt.is_object()) || (!complete_body && !receipt.is_null()) {
         return None;
     }
     let document = inner.get("slot")?.get("document_id")?.as_str()?;
@@ -186,5 +194,32 @@ mod replacement_tests {
         ] {
             assert!(allocated_document(&checkpoint(value)).is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod registration_tests {
+    use super::*;
+    #[test]
+    fn completed_body_boundary_cannot_be_confused_with_an_incomplete_stream() {
+        let checkpoint = |receipt: serde_json::Value| {
+            SecretString::from(serde_json::json!({"inner":serde_json::json!({"slot":{"document_id":"owned"},"receipt":receipt}).to_string()}).to_string())
+        };
+        // This helper classifies the envelope. The real adapter validates every
+        // receipt field and its size against the exact request before any read.
+        let complete = checkpoint(
+            serde_json::json!({"fileChecksum":"fixture","referenceChecksum":"fixture","wrappingKey":"fixture","size":3}),
+        );
+        assert_eq!(completed_body_document(&complete).as_deref(), Some("owned"));
+        assert!(allocated_document(&complete).is_none());
+        for receipt in [
+            serde_json::Value::Null,
+            serde_json::json!(false),
+            serde_json::json!("not a receipt"),
+            serde_json::json!([]),
+        ] {
+            assert!(completed_body_document(&checkpoint(receipt)).is_none());
+        }
+        assert!(completed_body_document(&SecretString::from("{}")).is_none());
     }
 }

@@ -397,9 +397,9 @@ router**, with explicit acceptance gates:
 
 | Gate | Current evidence | Required before enabling ordinary writes |
 | --- | --- | --- |
-| Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
+| Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves and [create registration-confirmation loss](benchmarks/icloud-registration-recovery-2026-10-01.md) | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps; mounted unlink recovered after confirmed Trash before journal acknowledgement | In-flight uncertainty, concurrent intermediate changes, other deletion boundaries and repeatability |
-| Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified; isolated [staging-body interruption](benchmarks/icloud-replace-stream-interruption-2026-10-01.md) recovered with original preserved, local export and fresh retry | Registration acknowledgement loss, other in-flight boundaries and repeatability; preserve both versions |
+| Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified; isolated [staging-body interruption](benchmarks/icloud-replace-stream-interruption-2026-10-01.md) recovered with original preserved, local export and fresh retry | Replacement-stage registration acknowledgement loss, other in-flight boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account working-byte export, per-operation explanation and safe resolution; installed validation and audit of earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
@@ -726,3 +726,17 @@ parent-listing and sibling-name uniqueness checks; root version 4 is unchanged.
 The registered [functional validation](benchmarks/icloud-handoff-folder-identity-2026-10-01.md)
 separates this reduced request path from unmeasured latency claims. Ordinary
 installed iCloud writes remain disabled pending the release gates above.
+
+
+## Lost create registration confirmation
+
+A fresh account-router live arm now covers a remotely registered 64 MiB + 17-byte
+create with its confirmation deliberately unaccepted. The worker retained
+`verify_required` and its completed-body checkpoint; independent remote hashing
+proved the reserved document already existed before exit 86. A fresh process
+exported the retained local bytes and completed through one inspection, with no
+mutating replay, duplicate or document/revision change. The
+[registered protocol and result](benchmarks/icloud-registration-recovery-2026-10-01.md)
+retain the binary/process evidence. This is a create confirmation-loss boundary,
+not all replacement-stage, in-flight network or power-loss outcomes, and it does
+not enable ordinary iCloud writes.

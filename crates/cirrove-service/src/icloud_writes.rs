@@ -37,6 +37,8 @@ pub struct ICloudWriteProvider {
     metadata: PathBuf,
     journal: Arc<Mutex<UploadJournal>>,
     folder_vault: Arc<dyn CredentialVault>,
+    #[cfg(feature = "icloud-write-probe")]
+    discard_create_registration: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -66,6 +68,8 @@ impl ICloudWriteProvider {
             "missing Apple account"
         );
         Ok(Self {
+            #[cfg(feature = "icloud-write-probe")]
+            discard_create_registration: None,
             scope: Scope {
                 account: account.id.clone(),
                 provider: "icloud".into(),
@@ -86,6 +90,12 @@ impl ICloudWriteProvider {
     #[cfg(feature = "icloud-write-probe")]
     pub(crate) fn validation_folder_vault(mut self, vault: Arc<dyn CredentialVault>) -> Self {
         self.folder_vault = vault;
+        self
+    }
+
+    #[cfg(feature = "icloud-write-probe")]
+    pub(crate) fn validation_discard_create_registration(mut self, operation: Uuid) -> Self {
+        self.discard_create_registration = Some(operation);
         self
     }
 
@@ -378,6 +388,12 @@ impl UploadProvider for ICloudWriteProvider {
                 .await;
         }
         let (saved, adapter) = self.restore(operation, request, checkpoint)?;
+        #[cfg(feature = "icloud-write-probe")]
+        let adapter = if self.discard_create_registration == Some(saved.operation) {
+            adapter.with_discarded_registration_response()
+        } else {
+            adapter
+        };
         let step = adapter
             .commit_upload(request, &SecretString::from(saved.inner.clone()), cancel)
             .await?;
@@ -429,6 +445,8 @@ mod tests {
         let metadata = temp.path().join("metadata.db");
         Store::open(&metadata).unwrap();
         let provider = ICloudWriteProvider {
+            #[cfg(feature = "icloud-write-probe")]
+            discard_create_registration: None,
             scope: Scope {
                 account,
                 provider: "icloud".into(),
