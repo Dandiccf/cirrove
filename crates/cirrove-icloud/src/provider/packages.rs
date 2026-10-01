@@ -7,7 +7,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, FileExt, MetadataExt, PermissionsExt},
     path::PathBuf,
 };
-use tokio::io::AsyncWriteExt;
+use tokio::sync::OwnedSemaphorePermit;
 
 const BLOCK: u32 = 4 * 1024 * 1024;
 const VERSION: &str = "icloud-artifact-v2:";
@@ -19,8 +19,36 @@ pub(super) struct Packages {
     directory: PathBuf,
     limit: u64,
     transfers: Semaphore,
+    storage: Arc<Semaphore>,
     classifications: Mutex<VecDeque<(String, String, u64, bool)>>,
     artifacts: Mutex<VecDeque<(Node, Arc<DiskArtifact>)>>,
+}
+
+impl Packages {
+    async fn stage_file(&self) -> Outcome<Arc<StagedFile>> {
+        let reservation = match self.storage.clone().try_acquire_owned() {
+            Ok(reservation) => reservation,
+            Err(_) => {
+                // Drop cache ownership, never an active reader's file. Do
+                // not wait indefinitely for applications to close files.
+                self.artifacts.lock().await.clear();
+                self.storage
+                    .clone()
+                    .try_acquire_owned()
+                    .map_err(|_| ProviderError::Unavailable)?
+            }
+        };
+        let directory = self.directory.clone();
+        tokio::task::spawn_blocking(move || {
+            let file = private_file(&directory)?;
+            Ok::<_, ProviderError>(Arc::new(StagedFile {
+                file,
+                _reservation: reservation,
+            }))
+        })
+        .await
+        .map_err(|_| ProviderError::Unavailable)?
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -50,9 +78,10 @@ pub(super) fn artifact(node: &Node) -> bool {
 
 impl ICloudDrive {
     /// Enable lazy native-document artifacts in private account storage. The
-    /// limit bounds one complete archive; two transfers and two retained
-    /// artifacts bound provider staging. The ordinary block-cache budget is
-    /// separate. No directory or provider request is made at construction.
+    /// limit bounds one complete archive; four lifetime reservations bound
+    /// all staged archives, including evicted artifacts held by active readers.
+    /// The ordinary block-cache budget is separate. No directory or provider
+    /// request is made at construction.
     pub fn with_package_artifacts(mut self, state: &Path, limit: u64) -> Outcome<Self> {
         if self.index_mode != IndexMode::OnDemand
             || !state.is_absolute()
@@ -69,6 +98,7 @@ impl ICloudDrive {
                 .join("icloud-artifacts"),
             limit,
             transfers: Semaphore::new(2),
+            storage: Arc::new(Semaphore::new(4)),
             classifications: Mutex::new(VecDeque::new()),
             artifacts: Mutex::new(VecDeque::new()),
         });
@@ -250,13 +280,10 @@ impl ICloudDrive {
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
             result = async {
                 let _permit = packages.transfers.acquire().await.map_err(|_| ProviderError::Unavailable)?;
-                let directory = packages.directory.clone();
-                let file = tokio::task::spawn_blocking(move || private_file(&directory)).await.map_err(|_| ProviderError::Unavailable)??;
-                let reader = file.try_clone().map_err(|_| ProviderError::Unavailable)?;
-                let mut sink = Sink(tokio::fs::File::from_std(file));
+                let reader = packages.stage_file().await?;
+                let mut sink = Sink { file: reader.clone(), offset: 0 };
                 let mut session = self.read_session().await?;
                 let receipt = session.download_package(parent, source, packages.limit, &mut sink, cancel).await.map_err(|e| map_read_error(&e))?;
-                sink.0.flush().await.map_err(|_| ProviderError::Unavailable)?;
                 drop(sink);
                 let token = cancel.clone();
                 let (reader, receipt) = tokio::task::spawn_blocking(move || {
@@ -363,27 +390,46 @@ fn private_file(directory: &Path) -> Outcome<File> {
     tempfile::tempfile_in(directory).map_err(|_| ProviderError::Unavailable)
 }
 
-struct Sink(tokio::fs::File);
+// Keep the permit beside the only File, not beside a cache entry or session.
+// Blocking tasks retain this Arc even when their async waiter is cancelled.
+struct StagedFile {
+    file: File,
+    _reservation: OwnedSemaphorePermit,
+}
+impl std::ops::Deref for StagedFile {
+    type Target = File;
+    fn deref(&self) -> &File {
+        &self.file
+    }
+}
+struct Sink {
+    file: Arc<StagedFile>,
+    offset: u64,
+}
 #[async_trait]
 impl ReadWindowSink for Sink {
     async fn write_chunk(&mut self, bytes: &[u8]) -> Outcome<()> {
         if bytes.len() > 64 * 1024 {
             return Err(ProviderError::Protocol("oversized package chunk"));
         }
-        self.0
-            .write_all(bytes)
+        let (file, offset, bytes) = (self.file.clone(), self.offset, bytes.to_vec());
+        let length = bytes.len() as u64;
+        tokio::task::spawn_blocking(move || file.write_all_at(&bytes, offset))
             .await
-            .map_err(|_| ProviderError::Unavailable)
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        self.offset += length;
+        Ok(())
     }
 }
 
 struct DiskArtifact {
     identity: ReadIdentity,
-    file: Arc<File>,
+    file: Arc<StagedFile>,
     hashes: Arc<Vec<[u8; 32]>>,
 }
 impl DiskArtifact {
-    fn new(identity: ReadIdentity, file: File, sha256: &str) -> Outcome<Self> {
+    fn new(identity: ReadIdentity, file: Arc<StagedFile>, sha256: &str) -> Outcome<Self> {
         if file
             .metadata()
             .map_err(|_| ProviderError::Unavailable)?
@@ -409,7 +455,7 @@ impl DiskArtifact {
         }
         Ok(Self {
             identity,
-            file: Arc::new(file),
+            file,
             hashes: Arc::new(hashes),
         })
     }
@@ -531,6 +577,96 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn staging_reservation_outlives_cache_eviction_and_cancelled_waiters() {
+        let temp = tempfile::tempdir().unwrap();
+        let (drive, scope, _, server) = fixture(temp.path(), false).await;
+        let packages = drive.packages.as_ref().unwrap();
+        let mut readers = Vec::new();
+        for index in 0..4 {
+            let file = packages.stage_file().await.unwrap();
+            file.write_all_at(b"data", 0).unwrap();
+            let identity = ReadIdentity {
+                scope: scope.clone(),
+                item: index.to_string(),
+                revision_namespace: "content".into(),
+                revision: "r1".into(),
+                size: 4,
+            };
+            let disk = Arc::new(
+                DiskArtifact::new(identity, file, &hex::encode(Sha256::digest(b"data"))).unwrap(),
+            );
+            let node = Node {
+                id: index.to_string(),
+                parent_id: None,
+                name: "artifact".into(),
+                kind: NodeKind::File,
+                size: 4,
+                modified_unix: 0,
+                etag: None,
+                content_version: Some("r1".into()),
+                target: None,
+                package: false,
+            };
+            let mut cache = packages.artifacts.lock().await;
+            cache.push_back((node, disk.clone()));
+            while cache.len() > 2 {
+                cache.pop_front();
+            }
+            readers.push(disk);
+        }
+        assert_eq!(packages.artifacts.lock().await.len(), 2);
+        // Admission evicts the remaining cache owners. Four live sessions still
+        // retain their files and must prevent a fifth allocation.
+        assert!(matches!(
+            packages.stage_file().await,
+            Err(ProviderError::Unavailable)
+        ));
+        assert!(packages.artifacts.lock().await.is_empty());
+        assert_eq!(
+            readers[0]
+                .read_range(0, 4, &CancellationToken::new())
+                .await
+                .unwrap(),
+            b"data"
+        );
+        let reader = readers.pop().unwrap();
+        let file = reader.file.clone();
+        let (release, wait) = std::sync::mpsc::channel();
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let task = tokio::task::spawn_blocking(move || {
+            started.send(()).unwrap();
+            wait.recv().unwrap();
+            let mut bytes = [0; 4];
+            file.read_exact_at(&mut bytes, 0).unwrap();
+            assert_eq!(&bytes, b"data");
+        });
+        ready.await.unwrap();
+        drop(reader);
+        task.abort(); // A running blocking read keeps the file even after cancellation.
+        assert!(matches!(
+            packages.stage_file().await,
+            Err(ProviderError::Unavailable)
+        ));
+        release.send(()).unwrap();
+        task.await.unwrap();
+        let replacement = packages.stage_file().await.unwrap();
+        assert!(matches!(
+            packages.stage_file().await,
+            Err(ProviderError::Unavailable)
+        ));
+        drop(replacement);
+        drop(readers);
+        assert_eq!(packages.storage.available_permits(), 4);
+        assert!(
+            std::fs::read_dir(&packages.directory)
+                .unwrap()
+                .next()
+                .is_none()
+        );
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn normal_listing_confirms_packages_without_downloading_or_misclassifying_names() {
         let temp = tempfile::tempdir().unwrap();
         let (drive, scope, lookups, server) = fixture(temp.path(), false).await;
@@ -610,6 +746,10 @@ mod tests {
             revision: "r1".into(),
             size: bytes.len() as u64,
         };
+        let file = Arc::new(StagedFile {
+            file,
+            _reservation: Arc::new(Semaphore::new(1)).try_acquire_owned().unwrap(),
+        });
         let disk = DiskArtifact::new(identity, file, &hex::encode(Sha256::digest(&bytes))).unwrap();
         let offset = BLOCK as u64 - 5;
         assert_eq!(

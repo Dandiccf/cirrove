@@ -51,7 +51,11 @@ and fresh-provider refetch of the sampled Pages document. Apple varies empty ZIP
 directory timestamps; the export normalizes those while preserving every regular
 file's data and timestamp. The account factory now configures this path, but it
 has not been installed into the user's regular daemon. Native-format coverage,
-ZIP64, aggregate private staging quota and native editing remain release gates.
+ZIP64, aggregate private staging acceptance and native editing remain release gates.
+A [lifetime staging reservation](benchmarks/icloud-package-staging-budget-2026-10-01.md)
+now bounds archive data per provider instance even when evicted artifacts remain
+held by active readers; it is separate from the block cache and has synthetic
+resource-ownership coverage, not a host-wide low-disk acceptance result.
 Empty-source write preflight now also requires an ordinary Data representation;
 logical size zero no longer skips the package/ambiguity guard. A
 [real empty-file compatibility arm](benchmarks/icloud-empty-representation-2026-09-30.md)
