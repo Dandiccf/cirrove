@@ -43,7 +43,11 @@ mod probe_timing;
 #[cfg(feature = "write-probe")]
 pub use package_archive::canonical_export;
 mod package_download;
+#[cfg(any(test, feature = "write-probe"))]
+mod package_upload;
 pub use package_download::PackageDownload;
+#[cfg(any(test, feature = "write-probe"))]
+pub use package_upload::{PackageReceiptError, PackageUploadReceipt, parse_package_upload_receipt};
 mod provider;
 mod sealed_session;
 #[cfg(feature = "write-probe")]
