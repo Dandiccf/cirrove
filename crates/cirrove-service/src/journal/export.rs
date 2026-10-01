@@ -384,3 +384,16 @@ impl RecoveryJournal {
         self.journal.native_trash_list(scope, after, limit)
     }
 }
+
+#[cfg(feature = "icloud-write-probe")]
+impl RecoveryJournal {
+    pub(crate) fn native_validation_upload(&self, id: Uuid) -> Result<UploadRecord> {
+        self.journal.get(id)
+    }
+    pub(crate) fn native_validation_absence(&self, id: Uuid) -> Result<bool> {
+        Ok(self.journal.native_trash_publication_status(id)? == PackagePublicationStatus::Absent)
+    }
+    pub(crate) fn native_validation_mutation(&self, id: Uuid) -> Result<MutationRecord> {
+        self.journal.mutation(id)
+    }
+}

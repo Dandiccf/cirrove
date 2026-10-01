@@ -144,7 +144,32 @@ pub async fn icloud_public_native_bootstrap(run: Uuid) -> Result<()> {
         run.to_string() == RUN,
         "run is not the preregistered public native import"
     );
-    let directory = PathBuf::from(DIRECTORY);
+    bootstrap(
+        run,
+        PathBuf::from(DIRECTORY),
+        LABEL,
+        format!("Cirrove Public Import {run}.pages"),
+    )
+    .await
+}
+
+pub(super) const TRASH_LABEL: &str = "iCloudPublicNativeTrashValidation";
+pub(super) fn trash_directory(run: Uuid, name: &str) -> Result<PathBuf> {
+    ensure!(
+        !run.is_nil()
+            && run.to_string() != RUN
+            && run.to_string() != "ac9e5456-bd10-4b7d-9215-21bbb85dde69"
+            && name == format!("Cirrove Public Trash {run}.pages"),
+        "fresh native Trash run and exact owned name required"
+    );
+    Ok(PathBuf::from(format!(
+        "/var/tmp/cirrove-public-native-trash-{run}"
+    )))
+}
+pub async fn icloud_public_native_trash_bootstrap(run: Uuid, name: &str) -> Result<()> {
+    bootstrap(run, trash_directory(run, name)?, TRASH_LABEL, name.into()).await
+}
+async fn bootstrap(run: Uuid, directory: PathBuf, label: &str, destination: String) -> Result<()> {
     claim(&directory)?;
     let filesystem = disk_filesystem(&directory)?;
     let state = directory.join("state");
@@ -167,7 +192,7 @@ pub async fn icloud_public_native_bootstrap(run: Uuid) -> Result<()> {
             "state": state, "socket": directory.join("control.sock"),
             "whole_drive_mount": true,
             "owned_parent": "Cirrove Package Validation ac9e5456-bd10-4b7d-9215-21bbb85dde69",
-            "destination": format!("Cirrove Public Import {run}.pages")
+            "destination": destination, "label": label
         }),
     )?;
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -182,7 +207,8 @@ pub async fn icloud_public_native_bootstrap(run: Uuid) -> Result<()> {
         .await
         .map_err(|_| anyhow::anyhow!("source session could not be loaded"))?
         .context("source session unavailable; sign in locally")?;
-    let account = cloned_account(original, &directory);
+    let mut account = cloned_account(original, &directory);
+    account.label = label.into();
     ensure!(
         account.id != original.id && account.credential_id != original.credential_id,
         "bootstrap identity collision"
@@ -195,7 +221,7 @@ pub async fn icloud_public_native_bootstrap(run: Uuid) -> Result<()> {
     record(
         &directory.join("bootstrap-ready.json"),
         &serde_json::json!({
-            "run": run, "account": account.id, "label": LABEL,
+            "run": run, "account": account.id, "label": label, "destination": destination,
             "state": state, "mount": account.mount_path,
             "socket": directory.join("control.sock"), "session_resealed": true,
             "source_unchanged_by_helper": true, "cloud_contacted": false

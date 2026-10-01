@@ -531,6 +531,44 @@ async fn main() -> Result<()> {
         .await
         .context("public verification timed out; artifacts retained")?;
     }
+    if let [flag, run, name] = args.as_slice()
+        && flag == "--public-native-trash-bootstrap"
+    {
+        return cirrove_service::validation::icloud_public_native_trash_bootstrap(
+            Uuid::parse_str(run)?,
+            name,
+        )
+        .await;
+    }
+    if let [flag, run, name, import] = args.as_slice()
+        && flag == "--public-native-trash-import-verify"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(900),
+            cirrove_service::validation::icloud_public_native_trash_import_verify(
+                Uuid::parse_str(run)?,
+                name,
+                Uuid::parse_str(import)?,
+            ),
+        )
+        .await
+        .context("owned import verification timed out; evidence retained")?;
+    }
+    if let [flag, run, name, import, trash] = args.as_slice()
+        && flag == "--public-native-trash-verify"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(900),
+            cirrove_service::validation::icloud_public_native_trash_verify(
+                Uuid::parse_str(run)?,
+                name,
+                Uuid::parse_str(import)?,
+                Uuid::parse_str(trash)?,
+            ),
+        )
+        .await
+        .context("owned Trash verification timed out; evidence retained")?;
+    }
     if let [flag, run] = args.as_slice()
         && flag == "--public-native-bootstrap"
     {

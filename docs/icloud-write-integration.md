@@ -1031,7 +1031,12 @@ The explicit service/CLI implementation is present in this worktree, including
 bounded retained-operation discovery after a lost reply and restart. See the
 [native Trash contract](native-document-trash.md) and
 [service validation record](benchmarks/icloud-native-trash-service-2026-10-01.md).
-This is not yet an installed or live-validated normal-service capability.
+One fresh owned Pages document has now passed the public normal-service import,
+exact-revision Trash, retained-operation listing/watch, mounted disappearance,
+held-reader and independent recoverable-content checks. See the
+[controlled live result](benchmarks/icloud-public-native-trash-2026-10-01.md).
+The initial cold-start preflight refusal remains unexplained. This is one
+isolated successful arm, not installed release acceptance or reliability proof.
 
 Numbers/Keynote acceptance remains separate. Retained read probes observed DATA
 representations, whereas the owned Pages fixture used PACKAGE. Public import

@@ -152,3 +152,27 @@ fn bootstrap_refuses_another_apple_identity_before_session_clone() {
     changed.identity.subject = "other-subject".into();
     assert!(source_identity_matches(&changed, &retained).is_err());
 }
+
+#[test]
+fn fresh_native_trash_bootstrap_refuses_old_runs_arbitrary_names_and_paths() {
+    let run = Uuid::new_v4();
+    let name = format!("Cirrove Public Trash {run}.pages");
+    assert_eq!(
+        trash_directory(run, &name).unwrap(),
+        PathBuf::from(format!("/var/tmp/cirrove-public-native-trash-{run}"))
+    );
+    for bad in [
+        "../elsewhere.pages",
+        "Existing.pages",
+        "Cirrove Public Trash other.pages",
+    ] {
+        assert!(trash_directory(run, bad).is_err());
+    }
+    for old in [
+        Uuid::nil(),
+        Uuid::parse_str(RUN).unwrap(),
+        Uuid::parse_str("ac9e5456-bd10-4b7d-9215-21bbb85dde69").unwrap(),
+    ] {
+        assert!(trash_directory(old, &format!("Cirrove Public Trash {old}.pages")).is_err());
+    }
+}

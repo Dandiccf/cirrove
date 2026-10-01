@@ -22,7 +22,22 @@ fn receipt_binding<'a>(
     plan: &OwnedPackagePlan,
     semantic: &PackageSemanticIdentity,
 ) -> Result<&'a Node> {
-    let name = format!("Cirrove Public Import {RUN}.pages");
+    named_receipt_binding(
+        row,
+        account,
+        plan,
+        semantic,
+        &format!("Cirrove Public Import {RUN}.pages"),
+    )
+}
+pub(super) fn named_receipt_binding<'a>(
+    row: &'a UploadRecord,
+    account: &Account,
+    plan: &OwnedPackagePlan,
+    semantic: &PackageSemanticIdentity,
+    name: &str,
+) -> Result<&'a Node> {
+    let name = name.to_owned();
     ensure!(
         row.scope == scope(account)
             && row.state == UploadState::Uploaded
@@ -63,7 +78,7 @@ fn receipt_binding<'a>(
     );
     Ok(node)
 }
-fn exact_entry(entries: &[DriveEntry], node: &Node) -> Result<DriveEntry> {
+pub(super) fn exact_entry(entries: &[DriveEntry], node: &Node) -> Result<DriveEntry> {
     let mut matches = entries.iter().filter(|entry| entry.drivewsid == node.id);
     let entry = matches
         .next()

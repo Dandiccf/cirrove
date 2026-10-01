@@ -437,3 +437,8 @@ pub use public_verify::{
     icloud_public_native_manifest, icloud_public_native_readiness,
     icloud_public_native_renewal_readiness, icloud_public_native_verify,
 };
+
+mod public_trash;
+pub use public_trash::{
+    icloud_public_native_trash_import_verify, icloud_public_native_trash_verify,
+};
