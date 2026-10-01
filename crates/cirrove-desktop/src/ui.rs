@@ -13,6 +13,7 @@ use std::{
 };
 
 mod connect;
+mod native_import;
 mod offline_recovery;
 mod recovery;
 
@@ -53,6 +54,8 @@ struct AccountRow {
     keep_both: gtk::Button,
     export: gtk::Button,
     recovery: adw::ActionRow,
+    import: adw::ActionRow,
+    import_choose: gtk::Button,
     destruction: adw::ActionRow,
     destroy: gtk::Button,
     wastebasket: adw::ActionRow,
@@ -706,6 +709,22 @@ impl Window {
         // Deliberately not beside "Keep offline": a surface that puts keeping
         // and destroying next to each other invites the wrong click. It sits
         // with the other destructive thing instead, and asks twice.
+        let import = adw::ActionRow::builder()
+            .title(gettext("Import a Pages document"))
+            .subtitle(gettext("Create a new iCloud document from a local Pages ZIP archive. Existing documents are never replaced."))
+            .use_markup(false).subtitle_lines(0).build();
+        let import_choose = gtk::Button::builder()
+            .label(gettext("Import document…"))
+            .valign(gtk::Align::Center)
+            .build();
+        import.add_suffix(&import_choose);
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        import_choose.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.choose_native_import(&key);
+            }
+        });
         let destruction = adw::ActionRow::builder()
             .title(gettext("Delete a file permanently"))
             .subtitle(gettext(
@@ -771,6 +790,7 @@ impl Window {
             .build();
         recovery.add_suffix(&export);
         row.add_row(&recovery);
+        row.add_row(&import);
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
         export.connect_clicked(move |_| {
@@ -878,6 +898,8 @@ impl Window {
             keep_both,
             export,
             recovery,
+            import,
+            import_choose,
             destruction,
             destroy,
             wastebasket,
@@ -917,6 +939,9 @@ impl Window {
         row.mount.set_label(&gettext(card.action_label()));
         row.mount.set_sensitive(card.controls_available && idle);
         row.open.set_sensitive(card.mounted && live);
+        row.import.set_visible(card.can_import_native_package());
+        row.import_choose
+            .set_sensitive(idle && live && card.can_import_native_package());
         // Offered wherever the state says so, in the preview too: the preview
         // shows what the window does, and the actions themselves are what
         // check for a live service.
@@ -1228,7 +1253,17 @@ impl Window {
         // The summary of what is running belongs where it can be read without
         // opening anything: a progress bar inside a collapsed expander is a
         // progress bar nobody sees.
+        row.kept.set_title(&gettext(
+            if card.running.iter().any(|job| job.native_import) {
+                n("Transfers and kept offline")
+            } else {
+                "Kept offline"
+            },
+        ));
         let summary = match card.running.iter().find(|job| job.running) {
+            Some(job) if job.native_import => {
+                fill(&gettext("Importing {} · {}"), &[&job.name, &job.detail])
+            }
             Some(job) => fill(
                 &gettext("Keeping {} offline · {}"),
                 &[&job.name, &job.detail],
@@ -1832,6 +1867,10 @@ impl Window {
             label: card.label.clone(),
             id: job.to_owned(),
         };
+        let native_import = card
+            .running
+            .iter()
+            .any(|entry| entry.id == job && entry.native_import);
         let shown = name.to_owned();
         let (send, receive) = tokio::sync::oneshot::channel();
         runtime.spawn(async move {
@@ -1850,6 +1889,7 @@ impl Window {
             match result {
                 Ok(Ok(reply)) => match (&reply.refusal, reply.stopped, running) {
                     (Some(refusal), _, _) => ui.notify(refusal),
+                    (None, true, true) if native_import => ui.notify(&gettext("Stopped watching the import. An already queued document may still finish uploading.")),
                     (None, true, true) => ui.notify(&fill(
                         &gettext("Stopping. {} will not be kept offline."),
                         &[&shown],

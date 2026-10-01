@@ -594,6 +594,10 @@ pub struct KeepBothReply {
 #[serde(deny_unknown_fields)]
 pub struct ImportNativePackageRequest {
     pub label: String,
+    /// Optional consent binding for callers that selected an existing account.
+    /// None preserves deliberate CLI label lookup; Some must match before a job starts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_account_id: Option<String>,
     pub archive: PathBuf,
     pub expected_root: String,
     /// Visible relative destination directory inside the selected mount.
@@ -990,6 +994,7 @@ impl Capabilities {
                 ("keep-both".to_string(), 1),
                 ("export-save".to_string(), 1),
                 ("import-native-package".to_string(), 1),
+                ("import-native-package-account-binding".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
@@ -1217,6 +1222,7 @@ pub async fn serve_managed(
                         if verb=="import-native-package" {
                             let reply = match (serde_json::from_str::<ImportNativePackageRequest>(body), &manager) {
                                 (Ok(r), Some(m)) => match m.engine(&r.label).await {
+                                    Ok(engine) if r.expected_account_id.as_ref().is_some_and(|expected| expected != &engine.account.id) => ImportNativePackageReply { job: None, refusal: Some("native import account changed; select the connection again".into()) },
                                     Ok(engine) => match engine.start_native_import(m.clone(), crate::native_import::NativeImportInput {
                                         source:r.archive, expected_root:r.expected_root, parent:r.parent, name:r.name,
                                     }) {

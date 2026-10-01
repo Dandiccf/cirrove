@@ -1593,3 +1593,111 @@ msgstr "Cirrove konnte die Offline-Verfügbarkeit nicht ändern"
 #~ msgid "Choose the private client JSON from Google Cloud Console"
 #~ msgstr ""
 #~ "Die private Client-JSON-Datei aus der Google Cloud Console auswählen"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import a Pages document"
+msgstr "Pages-Dokument importieren"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Create a new iCloud document from a local Pages ZIP archive. Existing documents are never replaced."
+msgstr "Ein neues iCloud-Dokument aus einem lokalen Pages-ZIP-Archiv erstellen. Vorhandene Dokumente werden nicht ersetzt."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import document…"
+msgstr "Dokument importieren…"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose a local Pages ZIP archive"
+msgstr "Lokales Pages-ZIP-Archiv auswählen"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "ZIP archives"
+msgstr "ZIP-Archive"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose an archive stored on this computer."
+msgstr "Wählen Sie ein auf diesem Computer gespeichertes Archiv aus."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose a ZIP archive containing one Pages document folder. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document."
+msgstr "Wählen Sie ein ZIP-Archiv mit einem Pages-Dokumentordner aus. Der Import erstellt ein neues Dokument mit bis zu 64 MiB. Vorhandene Dokumente werden weder ersetzt noch bearbeitet."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Local archive"
+msgstr "Lokales Archiv"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Document folder inside ZIP (including .pages)"
+msgstr "Dokumentordner im ZIP (einschließlich .pages)"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Destination folder in this drive (blank for top level)"
+msgstr "Zielordner in diesem Laufwerk (leer für oberste Ebene)"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "New document name (including .pages)"
+msgstr "Neuer Dokumentname (einschließlich .pages)"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import"
+msgstr "Importieren"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Starting document import…"
+msgstr "Dokumentimport wird gestartet…"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import started. Progress appears with this connection's transfers."
+msgstr "Import gestartet. Der Fortschritt wird bei den Übertragungen dieser Verbindung angezeigt."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "The service did not start the import."
+msgstr "Der Dienst hat den Import nicht gestartet."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Could not confirm the import. Check this connection's transfers before trying again."
+msgstr "Der Import konnte nicht bestätigt werden. Prüfen Sie die Übertragungen dieser Verbindung, bevor Sie es erneut versuchen."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Transfers and kept offline"
+msgstr "Übertragungen und offline verfügbar"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Importing {} · {}"
+msgstr "{} wird importiert · {}"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Stopped watching the import. An already queued document may still finish uploading."
+msgstr "Die Beobachtung des Imports wurde beendet. Ein bereits eingereihtes Dokument kann weiterhin hochgeladen werden."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Document imported and available in Files."
+msgstr "Das Dokument wurde importiert und ist in Dateien verfügbar."
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Importing document · {}"
+msgstr "Dokument wird importiert · {}"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose a local Pages archive"
+msgstr "Lokales Pages-Archiv auswählen"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Pages and ZIP archives"
+msgstr "Pages- und ZIP-Archive"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Document folder"
+msgstr "Dokumentordner"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Destination folder"
+msgstr "Zielordner"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "New document name"
+msgstr "Neuer Dokumentname"
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Use the exact .pages folder name inside the archive, and include .pages in the new name. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."
+msgstr "Geben Sie den genauen Namen des .pages-Ordners im Archiv an und verwenden Sie .pages auch im neuen Namen. Lassen Sie das Ziel für die oberste Ebene leer oder geben Sie einen Ordner wie Dokumente/Berichte an."

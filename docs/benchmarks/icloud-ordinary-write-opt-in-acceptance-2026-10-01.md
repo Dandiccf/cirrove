@@ -76,15 +76,36 @@ here or in linked registered artifacts before announcing this milestone achieved
   checks: [explicit access evidence](icloud-explicit-access-workflow-2026-10-01.md).
 - Two fresh owned-folder runs passed actual Neovim/Gio operations and independent
   provider readback: [application acceptance](icloud-real-applications-acceptance-2026-10-01.md).
-  They preceded the new selected-file admission hook; a new run must cover that
-  combined path before installed acceptance.
+  Those first two arms preceded the selected-file admission hook. The subsequently
+  registered combined arm C also passed (410.1 seconds), with all seven Neovim/Gio
+  operations, independent hashes/identities, Trash and remount checks. This is one
+  combined run, not repeatability or installed acceptance.
 - The selected-file hook refuses unknown-extension package representations before
   local acceptance in a synthetic FUSE scenario. Review found further existing-
   working-file and pathname-truncation races; both now have targeted passing
-  kernel tests and meaningful removed-guard failures. The full project check
-  and combined live acceptance remain required.
-  [Admission evidence](icloud-selected-write-admission-2026-10-01.md) records both
-  failed attempts and successful targeted checks.
+  kernel tests and meaningful removed-guard failures. The recorded full project
+  check passed at 08:13:13 UTC and combined live arm C passed at 08:43:57 UTC.
+  [Admission evidence](icloud-selected-write-admission-2026-10-01.md) records the
+  failed attempts and successful checks; the application artifact records arm C.
+  These results do not validate later source changes or the installed workflow.
 - The source now exposes the explicit ordinary-file opt-in. This does not close
   the above safety checks, native editing, or the installed GUI gate. The regular
   installed daemon remains unchanged.
+
+
+## Installed rollout must preserve the existing Strata integration
+
+The user's accepted Strata integration is maintained in the separate
+`feat/strata-integration` worktree. Its helper requires the daemon's
+`paths-cached: 1` capability; without it, menus and badges intentionally disappear.
+The current iCloud feasibility service does not contain that capability or the
+Strata installer. A successful iCloud build alone is therefore not safe evidence
+for replacing the installed daemon.
+
+Before installed acceptance, reconcile the already-working Strata service/helper
+changes with this branch, preserve the companion provider-enabled Strata binary,
+provider installation and default file-manager association, and check conditional
+pin menus, direct/inherited pins, kept/fetching badges and event-driven updates
+without visible clearing. Preserve all ordinary installed account settings and
+pending edits, check for measurements, and obey package/developer exclusivity.
+This is a compatibility gate, not a request to reinstall or change defaults now.

@@ -385,3 +385,5 @@ fn initial_profile_is_pages_only_and_rejects_unsafe_name_or_path() {
     input.expected_root = "Source.key".into();
     assert!(validate_input(&input).is_err());
 }
+
+mod socket;

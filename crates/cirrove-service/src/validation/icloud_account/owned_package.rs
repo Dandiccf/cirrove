@@ -425,3 +425,6 @@ mod tests {
         assert!(!String::from_utf8(bytes).expect("UTF8").contains("PRIVATE"));
     }
 }
+
+mod public_verify;
+pub use public_verify::icloud_public_native_verify;

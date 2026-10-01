@@ -489,6 +489,22 @@ async fn main() -> Result<()> {
         )?)
         .await;
     }
+    if let [flag, run] = args.as_slice()
+        && flag == "--public-native-verify"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(900),
+            cirrove_service::validation::icloud_public_native_verify(Uuid::parse_str(run)?),
+        )
+        .await
+        .context("public verification timed out; artifacts retained")?;
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--public-native-bootstrap"
+    {
+        return cirrove_service::validation::icloud_public_native_bootstrap(Uuid::parse_str(run)?)
+            .await;
+    }
     if let [flag, run] = args.as_slice() {
         let action = match flag.as_str() {
             "--owned-package-source" => Some(0),

@@ -76,6 +76,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         })
         .collect();
     Ok(Snapshot {
+        capabilities: cirrove_service::Capabilities::current(),
         // The demo showed an empty activity list, which is the one thing the
         // window does that a demo screenshot could not show. Times are
         // relative to now, so it reads the same whenever it is opened, and the

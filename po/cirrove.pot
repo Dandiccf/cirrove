@@ -1350,3 +1350,111 @@ msgstr ""
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:102
 msgid "Cirrove could not change offline availability"
 msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import a Pages document"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Create a new iCloud document from a local Pages ZIP archive. Existing documents are never replaced."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import document…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose a local Pages ZIP archive"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "ZIP archives"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose an archive stored on this computer."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose a ZIP archive containing one Pages document folder. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Local archive"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Document folder inside ZIP (including .pages)"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Destination folder in this drive (blank for top level)"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "New document name (including .pages)"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Starting document import…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Import started. Progress appears with this connection's transfers."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "The service did not start the import."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Could not confirm the import. Check this connection's transfers before trying again."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Transfers and kept offline"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Importing {} · {}"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Stopped watching the import. An already queued document may still finish uploading."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Document imported and available in Files."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Importing document · {}"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Choose a local Pages archive"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Pages and ZIP archives"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Document folder"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Destination folder"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "New document name"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/native_import.rs
+msgid "Use the exact .pages folder name inside the archive, and include .pages in the new name. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."
+msgstr ""

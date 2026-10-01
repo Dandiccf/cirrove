@@ -472,7 +472,10 @@ impl ICloudPackageCreate {
                 size: entry.size,
                 modified_unix: 0,
                 etag: Some(entry.etag.clone()),
-                content_version: Some(entry.etag.clone()),
+                // The source package folder is versioned by Apple's ETag,
+                // exactly like provider::directory_nodes. Only a generated
+                // archive child carries its own synthetic content version.
+                content_version: None,
                 target: None,
                 package: true,
             },

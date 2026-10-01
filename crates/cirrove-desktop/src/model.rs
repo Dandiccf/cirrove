@@ -88,6 +88,8 @@ pub struct AccountCard {
     pub id: String,
     /// The name the CLI and the daemon know the account by; every verb takes it.
     pub label: String,
+    pub collection_id: String,
+    pub root_id: String,
     pub title: String,
     pub username: String,
     pub tenant: String,
@@ -133,6 +135,7 @@ pub struct AccountCard {
     pub provider_id: &'static str,
     /// Ordinary writes do not imply an irreversible provider deletion API.
     pub supports_permanent_delete: bool,
+    pub supports_native_import: bool,
     /// The app registration this account signed in through, so connecting a
     /// second drive can start from it rather than from an empty field.
     pub client_id: String,
@@ -151,6 +154,7 @@ pub struct AccountCard {
 /// One piece of long work, in the words the window shows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunningJob {
+    pub native_import: bool,
     /// What `stop` takes. Not shown.
     pub id: String,
     /// What is being kept, as a path in the drive.
@@ -183,9 +187,14 @@ impl RunningJob {
             ],
         );
         let detail = if job.kind == cirrove_service::jobs::JobKind::ImportNativePackage {
-            match &job.issue {
-                Some(issue) => issue.clone(),
-                None => counted,
+            match (job.state, &job.issue) {
+                (_, Some(issue)) => issue.clone(),
+                (JobState::Succeeded, _) => gettext("Document imported and available in Files."),
+                (JobState::Stopping, _) => gettext("Stopping…"),
+                (JobState::Stopped, _) => gettext(
+                    "Stopped watching the import. An already queued document may still finish uploading.",
+                ),
+                _ => fill(&gettext("Importing document · {}"), &[&counted]),
             }
         } else {
             match (job.state, &job.issue) {
@@ -207,6 +216,7 @@ impl RunningJob {
             }
         };
         Self {
+            native_import: job.kind == cirrove_service::jobs::JobKind::ImportNativePackage,
             id: job.id.clone(),
             name: job.name.clone(),
             detail,
@@ -270,6 +280,33 @@ impl KeptOffline {
     }
 }
 impl AccountCard {
+    pub fn can_import_native_package(&self) -> bool {
+        self.supports_native_import
+            && self.provider_id == "icloud"
+            && self.enabled
+            && self.mounted
+            && self.writable
+            && self.controls_available
+            && matches!(
+                self.state,
+                ConnectionState::Connected | ConnectionState::Updating
+            )
+    }
+
+    /// A dialog cannot transfer consent to another connection or mount.
+    pub fn same_native_import_target(&self, selected: &Self) -> bool {
+        self.can_import_native_package()
+            && selected.can_import_native_package()
+            && self.id == selected.id
+            && self.label == selected.label
+            && self.collection_id == selected.collection_id
+            && self.root_id == selected.root_id
+            && self.username == selected.username
+            && self.tenant == selected.tenant
+            && self.mount_path == selected.mount_path
+            && self.provider_id == selected.provider_id
+    }
+
     /// Recheck at each chooser/confirmation boundary, not only when rendering.
     pub fn can_delete_permanently(&self) -> bool {
         self.supports_permanent_delete
@@ -292,6 +329,7 @@ impl AccountCard {
 }
 
 pub struct Snapshot {
+    pub capabilities: cirrove_service::Capabilities,
     pub settings: Result<Settings, SettingsFailure>,
     pub status: Result<Status, ServiceFailure>,
     /// What changed lately, per account label, latest first. Empty when the
@@ -498,6 +536,8 @@ impl Overview {
                 AccountCard {
                     id: account.id.clone(),
                     label: account.label.clone(),
+                    collection_id: account.drive.id.clone(),
+                    root_id: account.root_id.clone(),
                     title: match account.registration {
                         cirrove_auth::AppRegistration::Google { .. } => {
                             format!("Google Drive · {}", account.drive.name)
@@ -577,6 +617,16 @@ impl Overview {
                             || (s.mounted && account.access == cirrove_auth::AccessMode::ReadWrite)
                     }),
                     supports_writes: true,
+                    supports_native_import: snapshot
+                        .capabilities
+                        .capabilities
+                        .get("import-native-package")
+                        == Some(&1)
+                        && snapshot
+                            .capabilities
+                            .capabilities
+                            .get("import-native-package-account-binding")
+                            == Some(&1),
                     provider_id: account.registration.provider_id(),
                     supports_permanent_delete: matches!(
                         account.registration,
@@ -644,7 +694,8 @@ fn connection_state(s: &AccountStatus) -> ConnectionState {
 pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
     let settings = tokio::task::spawn_blocking(move || Settings::load(&state));
     let status = cirrove_service::status(&socket);
-    let (settings, status) = tokio::join!(settings, status);
+    let (settings, status, capabilities) =
+        tokio::join!(settings, status, cirrove_service::capabilities(&socket));
     // One `recent` per mounted account. An older daemon answers with a
     // refusal, which is an empty list here, not an error: activity is an
     // extra, and a window must not go blank for want of it.
@@ -663,6 +714,7 @@ pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
         }
     }
     Snapshot {
+        capabilities: capabilities.unwrap_or_default(),
         settings: match settings {
             Ok(result) => result.map_err(SettingsFailure::from_error),
             Err(_) => Err(SettingsFailure::WorkerUnavailable),
@@ -670,4 +722,32 @@ pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
         status: status.map_err(ServiceFailure::from_error),
         activity,
     }
+}
+
+/// Lightweight form validation only. The daemon checks archive contents and routes.
+pub fn native_import_fields_valid(
+    archive: &std::path::Path,
+    root: &str,
+    parent: &str,
+    name: &str,
+) -> bool {
+    let component = |s: &str| {
+        !s.is_empty()
+            && s.len() <= 255
+            && s != "."
+            && s != ".."
+            && !s
+                .chars()
+                .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
+    };
+    archive.is_absolute()
+        && !archive
+            .components()
+            .any(|p| matches!(p, std::path::Component::ParentDir))
+        && component(root)
+        && root.to_ascii_lowercase().ends_with(".pages")
+        && component(name)
+        && name.to_ascii_lowercase().ends_with(".pages")
+        && parent.len() <= 4096
+        && (parent.is_empty() || parent.split('/').all(component))
 }

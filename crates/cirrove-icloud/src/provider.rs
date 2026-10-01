@@ -24,6 +24,9 @@ use tokio::sync::{Mutex, OnceCell, Semaphore};
 mod cold_tests;
 #[cfg(test)]
 mod container_tests;
+#[cfg(test)]
+mod folder_node_tests;
+mod folders;
 mod ordinary;
 mod packages;
 mod write_target;
@@ -242,6 +245,8 @@ impl ICloudDrive {
 fn map_read_error(error: &anyhow::Error) -> ProviderError {
     if error.downcast_ref::<SessionRejected>().is_some() {
         ProviderError::Authentication
+    } else if error.downcast_ref::<crate::InactiveFolder>().is_some() {
+        ProviderError::NotFound
     } else if error.downcast_ref::<IncompleteFolder>().is_some() {
         ProviderError::Protocol("incomplete iCloud folder listing")
     } else if error.downcast_ref::<StaleRead>().is_some() {
@@ -547,8 +552,11 @@ impl ReadProvider for ICloudDrive {
         if id == ROOT_ID {
             return Ok(root_node());
         }
-        // Generated representations and folder IDs need their own projection
-        // context. Never send them through the ordinary FILE lookup.
+        if id.starts_with("FOLDER::") {
+            return self.plain_folder_node(id, cancel).await;
+        }
+        // Generated representations need their own projection context. Never
+        // send them through the ordinary FILE lookup.
         if crate::split_file_id(id).is_err() {
             return Err(ProviderError::Unavailable);
         }

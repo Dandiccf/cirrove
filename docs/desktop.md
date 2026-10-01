@@ -488,3 +488,32 @@ Synthetic journal tests cover restart, both operation kinds, inspection and
 completion; the native window scenario checks visibility, absence of destructive
 actions and clearing. This does not yet provide per-operation recovery export or
 complete iCloud conflict-resolution UX.
+
+## Explicit Pages archive import (preview)
+
+An active writable iCloud connection offers **Import a Pages document** when the
+running service advertises version 1 of `import-native-package`. Choose a local ZIP
+archive, enter the exact document folder inside it (including `.pages`), a relative
+destination folder (leave blank for the drive root), and a new `.pages` document
+name. The archive must be outside Cirrove mounts and private state. The daemon
+validates the archive and stages at most 64 MiB before queueing any cloud work.
+
+This imports a new Pages document; it does not edit or replace existing native
+documents. The daemon independently validates the returned package before reporting
+completion and waits for metadata publication before reporting availability in Files.
+Progress and refusals appear with the connection's transfers. **Stop** stops watching;
+an already queued import may still finish. An uncertain response never triggers an
+automatic desktop retry. Check transfers before starting another import.
+
+The dialog checks the selected account and mount again when submitted. Older services,
+read-only or disconnected accounts, and other providers do not offer this action.
+Local ZIP parsing and all provider calls remain outside the desktop process.
+
+The synthetic window scenario
+`native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request` uses
+only a local fake socket. Set `CIRROVE_NATIVE_IMPORT_SNAPSHOT` to a private PNG path
+to capture its actual import dialog. Validate it in light and dark themes, including
+German labels, keyboard submission, invalid fields, cancellation and a write-access
+change while the dialog is open. A successful synthetic dialog or socket test does
+not establish Apple document-editing compatibility. Installed desktop click-through
+and a new owned live Pages import remain separate acceptance steps.

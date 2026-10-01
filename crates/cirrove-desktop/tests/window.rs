@@ -245,7 +245,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                 accepted = server.accept() => {
                     let (stream, _) = accepted.unwrap();
                     let replies = replies.clone();
-                    let held = hold.swap(false, Ordering::SeqCst);
+                    let hold = hold.clone();
                     let gate = gate.clone();
                     let seen = seen.clone();
                     let working_support = working_support.clone();
@@ -256,12 +256,17 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                         reader.read_line(&mut line).await.unwrap();
                         let mut stream = reader.into_inner();
                         let data = if line == "status\n" {
-                            if held {
+                            if hold.swap(false, Ordering::SeqCst) {
                                 gate.acquire().await.unwrap().forget();
                             }
                             // A slow service must not block native GTK events.
                             tokio::time::sleep(Duration::from_millis(200)).await;
                             serde_json::to_vec(&*replies.lock().unwrap()).unwrap()
+                        } else if line == "capabilities\n" {
+                            serde_json::to_vec(&cirrove_service::Capabilities::current()).unwrap()
+                        } else if line.starts_with("import-native-package ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            serde_json::to_vec(&cirrove_service::ImportNativePackageReply { job:None, refusal:Some("synthetic import refusal".into()) }).unwrap()
                         } else if line.starts_with("recent ") {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             // One thing from the cloud and one saved here,
@@ -2471,6 +2476,10 @@ const SCENARIOS: &[(&str, fn())] = &[
         readonly_recovery_requires_exact_saved_and_working_receipts,
     ),
     (
+        "native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request",
+        native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request,
+    ),
+    (
         "permanent_delete_rechecks_capability_before_sending_a_request",
         permanent_delete_rechecks_capability_before_sending_a_request,
     ),
@@ -2685,4 +2694,145 @@ fn main() {
     if failed > 0 {
         std::process::exit(101);
     }
+}
+
+fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut sample = demo::snapshot().unwrap();
+    let settings = sample.settings.as_mut().unwrap();
+    settings.accounts[0].registration = cirrove_auth::AppRegistration::ICloud;
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    settings.accounts[0].drive.id = "drive".into();
+    settings.accounts[0].drive.drive_type = "icloud_drive".into();
+    settings.accounts[0].root_id = cirrove_icloud::ROOT_ID.into();
+    settings.accounts[0].identity.tenant_id.clear();
+    settings.accounts[0].identity.graph_user_id.clear();
+    write_settings(&state, settings);
+    let status = sample.status.as_mut().unwrap();
+    status.accounts[0].provider = "icloud".into();
+    status.accounts[0].drive_id = "drive".into();
+    status.accounts[0].root_id = cirrove_icloud::ROOT_ID.into();
+    status.accounts[0].tenant.clear();
+    status.accounts[0].mounted = true;
+    status.accounts[0].state = "ready".into();
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("NativeImport");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("eligible native import", || {
+        ui.current()
+            .is_some_and(|v| v.accounts[0].can_import_native_package())
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    let selected = ui.current().unwrap().accounts[0].clone();
+    assert!(
+        action_row(window.upcast_ref(), "Import a Pages document")
+            .unwrap()
+            .is_visible()
+    );
+    let archive = temp.path().join("Document.pages");
+    // No archive is opened in the desktop; a real daemon owns validation.
+    ui.native_import_dialog(selected.clone(), archive.clone());
+    pump_until("import fields", || {
+        entry_row(window.upcast_ref(), "New document name").is_some()
+    });
+    let name = entry_row(window.upcast_ref(), "New document name").unwrap();
+    assert_eq!(
+        name.text(),
+        "Document.pages",
+        "regular .pages archives keep their full suggested name"
+    );
+    assert_eq!(
+        entry_row(window.upcast_ref(), "Document folder")
+            .unwrap()
+            .text(),
+        "Document.pages"
+    );
+    assert!(entry_row(window.upcast_ref(), "Destination folder").is_some());
+    name.set_text("New 'document'.pages");
+    recovery_snapshot(&window, "CIRROVE_NATIVE_IMPORT_SNAPSHOT");
+    let mut changed = ui.current().unwrap();
+    changed.accounts[0].writable = false;
+    ui.render(changed);
+    // A previously opened chooser cannot authorize writes after downgrade.
+    pump_until("import confirmation mapped", || {
+        button(window.upcast_ref(), "Import").is_some()
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("import-native-package "))
+    );
+    let mut restored = ui.current().unwrap();
+    restored.accounts[0] = selected.clone();
+    ui.render(restored);
+    ui.submit_native_import(
+        &selected,
+        archive.clone(),
+        "Document.pages".into(),
+        "Reports".into(),
+        "New 'document'.pages".into(),
+    );
+    pump_until("single explicit import request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("import-native-package "))
+    });
+    let lines = service.requests.lock().unwrap();
+    let imports: Vec<_> = lines
+        .iter()
+        .filter(|line| line.starts_with("import-native-package "))
+        .collect();
+    assert_eq!(imports.len(), 1);
+    let request: cirrove_service::ImportNativePackageRequest =
+        serde_json::from_str(imports[0].strip_prefix("import-native-package ").unwrap()).unwrap();
+    assert_eq!(request.label, selected.label);
+    assert_eq!(
+        request.expected_account_id.as_deref(),
+        Some(selected.id.as_str())
+    );
+    assert_eq!(request.archive, archive);
+    assert_eq!(request.expected_root, "Document.pages");
+    assert_eq!(request.parent, "Reports");
+    assert_eq!(request.name, "New 'document'.pages");
+    drop(lines);
+    pump_until("explicit refusal visible", || {
+        displays_text(window.upcast_ref(), "synthetic import refusal")
+    });
+    // The fixture refuses the import; it must never cause a retry.
+    pump_until("refusal answered", || {
+        button(window.upcast_ref(), "Import document…").is_some_and(|b| b.is_sensitive())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        1
+    );
+    window.close();
+    service.task.abort();
 }

@@ -109,7 +109,18 @@ fn same_publication(receipt: &cirrove_core::Node, observed: &cirrove_core::Node)
     receipt.id == observed.id
         && receipt.parent_id == observed.parent_id
         && receipt.name == observed.name
-        && receipt.content_revision() == observed.content_revision()
+        && receipt.size == observed.size
+        && receipt.etag.as_ref().is_some_and(|etag| !etag.is_empty())
+        && receipt.etag == observed.etag
+        // Older iCloud PACKAGE-create receipts copied ETag into content_version.
+        // Recognize only that exact legacy alias; never collapse the two tag
+        // namespaces globally or accept a different content tag. The current
+        // read provider's source-folder observation remains canonical.
+        && receipt.content_version.as_ref().is_none_or(|tag| Some(tag) == receipt.etag.as_ref())
+        && observed.content_version.is_none()
+        && receipt.kind == cirrove_core::NodeKind::Folder
+        && receipt.package
+        && receipt.target.is_none()
         && observed.kind == cirrove_core::NodeKind::Folder
         && observed.package
         && observed.target.is_none()
@@ -150,6 +161,84 @@ mod tests {
         Node, NodeKind, Scope,
         upload::{PackageSemanticIdentity, UploadIntent},
     };
+
+    fn package_source() -> Node {
+        Node {
+            id: "FILE::com.apple.CloudDocs::import".into(),
+            parent_id: Some("FOLDER::com.apple.CloudDocs::parent".into()),
+            name: "Imported.pages".into(),
+            kind: NodeKind::Folder,
+            size: 98835,
+            modified_unix: 0,
+            etag: Some("native-v1".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        }
+    }
+    #[test]
+    fn native_publication_accepts_canonical_and_retained_etag_alias_receipts() {
+        let observed = package_source();
+        for legacy in [false, true] {
+            let mut receipt = observed.clone();
+            if legacy {
+                receipt.content_version = receipt.etag.clone();
+            }
+            let original = receipt.clone();
+            assert!(same_publication(&receipt, &observed), "legacy={legacy}");
+            assert_eq!(
+                receipt, original,
+                "comparison must not rewrite retained receipts"
+            );
+        }
+    }
+    #[test]
+    fn native_publication_keeps_identity_size_revision_and_package_shape_fenced() {
+        for legacy in [false, true] {
+            let observed = package_source();
+            let mut receipt = observed.clone();
+            if legacy {
+                receipt.content_version = receipt.etag.clone();
+            }
+            for arm in [
+                "id",
+                "parent",
+                "name",
+                "size",
+                "etag",
+                "missing-etag",
+                "empty-etag",
+                "foreign-content",
+                "aliased-observation",
+                "kind",
+                "package",
+            ] {
+                let mut changed = observed.clone();
+                match arm {
+                    "id" => changed.id.push_str("-other"),
+                    "parent" => changed.parent_id = Some("moved".into()),
+                    "name" => changed.name = "Other.pages".into(),
+                    "size" => changed.size += 1,
+                    "etag" => changed.etag = Some("native-v2".into()),
+                    "missing-etag" => changed.etag = None,
+                    "empty-etag" => changed.etag = Some(String::new()),
+                    "foreign-content" => changed.content_version = Some("different-tag".into()),
+                    "aliased-observation" => changed.content_version = changed.etag.clone(),
+                    "kind" => changed.kind = NodeKind::File,
+                    _ => changed.package = false,
+                }
+                assert!(
+                    !same_publication(&receipt, &changed),
+                    "{arm}, legacy={legacy}"
+                );
+            }
+            receipt.content_version = Some("different-tag".into());
+            assert!(!same_publication(&receipt, &observed));
+        }
+        let mut no_revision = package_source();
+        no_revision.etag = None;
+        assert!(!same_publication(&no_revision, &no_revision));
+    }
     #[tokio::test]
     async fn blocked_observation_can_be_stopped_or_timed_out() {
         for stopped in [true, false] {

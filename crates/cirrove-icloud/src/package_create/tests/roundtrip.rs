@@ -252,6 +252,15 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
         assert_eq!(receipt.remote.size, LOGICAL_SIZE);
         assert!(receipt.remote.package);
         assert_eq!(receipt.remote.kind, NodeKind::Folder);
+        assert_eq!(receipt.remote.etag.as_deref(), Some("native-v1"));
+        assert_eq!(
+            receipt.remote.content_version, None,
+            "package folder receipts must use the read provider's ETag namespace"
+        );
+        assert_eq!(
+            receipt.remote.content_revision(),
+            Some(("etag", "native-v1"))
+        );
         assert_eq!(receipt.semantic, semantic);
     }
     let calls = server.finish().await;

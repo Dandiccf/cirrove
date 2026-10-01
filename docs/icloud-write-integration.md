@@ -102,9 +102,11 @@ remain open; the experimental ordinary-file opt-in does not enable package write
   metadata and a complete, matching parent listing, using the normal package
   projection. Recoverable Trash entries are excluded. The
   [cold-file live arm](benchmarks/icloud-cold-node-2026-09-30.md) passed for one
-  active owned receipt and two Trash predecessors with a fresh provider. Folder
-  IDs and generated artifacts still require their parent/projection context;
-  missing or unqualified parent identity is refused, not inferred from a path.
+  active owned receipt and two Trash predecessors with a fresh provider. Ordinary owned CloudDocs folder IDs now use the exact folder-metadata endpoint
+  with identity, kind, zone, parent and recovery checks; recovered folders publish
+  absence. App-owned/shared folder identities and generated artifacts still
+  require their projection context. Missing or unqualified parent identity is
+  refused, not inferred from a path.
 - The normal-build iCloud Create, folder and file mutation adapters accept
   exact `Node` inputs and sealed account sessions. The account-wide router now
   selects file creation using the durable journal operation ID and verifies its
@@ -419,7 +421,7 @@ router**, with explicit acceptance gates:
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement and [two consecutive atomic saves](benchmarks/icloud-mounted-atomic-chain-2026-10-01.md); separate versions, receipt-gated editor cleanup and remount verified | More complex chains, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account and [read-only downgrade recovery](benchmarks/icloud-readonly-recovery-2026-10-01.md) have core/socket/CLI/FUSE and native-window evidence; installed validation, per-operation explanation and audit of earlier retained fixtures remain open |
 | Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | [Synthetic storage refusal](benchmarks/icloud-storage-refusal-2026-10-01.md) and [actual local ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md) passed their bounded arms; [provably unsent folder-create retry](benchmarks/icloud-folder-create-recovery-2026-10-01.md) also passed its bounded synthetic arms; real quota/slow-link/expired-session and larger-file acceptance remain open |
-| Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
+| Native document packages | Verified read-only exports; owned Pages creation and independent public-import content/FUSE verification, with corrected public completion still under validation | Keep mounted editing/replacement refused; finish public Pages acceptance, then separately implement and validate native replacement and Numbers/Keynote compatibility |
 | Installed release | Experimental isolated mounts | Explicit opt-in, existing read-only accounts preserved, packaged installation and file-manager validation |
 
 The first new recovery test must use a fresh Cirrove-owned fixture, register its
@@ -862,8 +864,19 @@ metadata publication. Closing the CLI stops watching, not the queued upload. If
 confirmation is lost, inspect the retained operation before submitting another
 copy: uncertain allocation is never blindly repeated.
 
-This route has synthetic admission and metadata-publication coverage; public
-socket-to-mount and live acceptance remain pending. It does not enable editing or
-replacing existing native documents, and does not yet support Numbers or Keynote
-imports or a desktop import picker. The earlier owned validator evidence does not
-close these new delivery gates.
+The [public import artifact](benchmarks/icloud-public-native-import-2026-10-01.md)
+records passing synthetic socket/FUSE, account-binding and native-window dialog
+checks. Its second live attempt reached a durable Uploaded package receipt and
+completed metadata publication. Independent exact-identity download, root-bound
+semantic comparison, normal read-only FUSE, offline remount and fresh refetch also
+passed. The public job nevertheless falsely reported a revision mismatch; the
+receipt/projection correction is under validation. The original runner therefore
+did not reach its post-success check on the public mount. Corrected public success,
+that mount check, and Apple Pages UI acceptance remain open for this arm; the
+independent verification is not a substitute for them.
+
+A capability-gated desktop Pages import dialog is implemented and has synthetic
+native-window coverage. Installed click-through remains open. This is create-only:
+editing or replacing existing native documents, Numbers/Keynote imports, and full
+native application compatibility are not supported by this route. Neither the
+old isolated validator nor the new live upload closes those remaining gates.

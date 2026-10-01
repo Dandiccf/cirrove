@@ -54,6 +54,10 @@ mod package_archive;
 mod probe_timing;
 #[cfg(feature = "write-probe")]
 pub use package_archive::canonical_export;
+#[cfg(feature = "write-probe")]
+mod package_trash;
+#[cfg(feature = "write-probe")]
+pub use package_trash::{OwnedPackageTrashRequest, VerifiedPackageTrash};
 mod package_download;
 mod package_upload;
 pub use package_download::PackageDownload;
@@ -176,6 +180,16 @@ impl std::fmt::Display for StorageRefused {
 }
 impl std::error::Error for StorageRefused {}
 
+/// Exact folder metadata identifies a recoverable item outside the active tree.
+#[derive(Debug)]
+pub(crate) struct InactiveFolder;
+impl std::fmt::Display for InactiveFolder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("iCloud folder is outside the active namespace")
+    }
+}
+impl std::error::Error for InactiveFolder {}
+
 #[derive(Debug)]
 pub(crate) struct IncompleteFolder;
 
@@ -272,6 +286,17 @@ pub struct DriveEntry {
     pub items: Vec<DriveEntry>,
     #[serde(default, rename = "numberOfItems")]
     pub number_of_items: Option<usize>,
+}
+
+// Retain the folder envelope's recovery marker without changing public child
+// entries or their serialized cursor fingerprints. Ordinary traversal preserves
+// its existing semantics; direct active-node observations use the stricter view.
+#[derive(Deserialize)]
+struct FolderEnvelope {
+    #[serde(flatten)]
+    entry: DriveEntry,
+    #[serde(default, rename = "restorePath")]
+    restore_path: Option<serde_json::Value>,
 }
 
 impl DriveEntry {
@@ -782,11 +807,31 @@ impl ICloudReadSession {
         }
     }
 
+    /// Active namespace observation must not resurrect a recoverable folder.
+    pub(crate) async fn active_folder_metadata(&mut self, folder_id: &str) -> Result<DriveEntry> {
+        let envelope = self.folder_metadata_envelope(folder_id, false).await?;
+        if envelope.restore_path.is_some() {
+            return Err(InactiveFolder.into());
+        }
+        Ok(envelope.entry)
+    }
+
     async fn list_folder_projection(
         &mut self,
         folder_id: &str,
         partial: bool,
     ) -> Result<DriveEntry> {
+        Ok(self
+            .folder_metadata_envelope(folder_id, partial)
+            .await?
+            .entry)
+    }
+
+    async fn folder_metadata_envelope(
+        &mut self,
+        folder_id: &str,
+        partial: bool,
+    ) -> Result<FolderEnvelope> {
         let _timing = probe_timing::Timing::start(if partial {
             "partial folder metadata"
         } else if folder_id == ROOT_ID {
@@ -837,7 +882,7 @@ impl ICloudReadSession {
             ));
         }
         #[cfg(feature = "write-probe")]
-        let mut folders: Vec<DriveEntry> = if partial {
+        let mut folders: Vec<FolderEnvelope> = if partial {
             let value: serde_json::Value =
                 read_json(response, "iCloud partial folder listing").await?;
             let first = &value[0];
@@ -862,15 +907,15 @@ impl ICloudReadSession {
             read_json(response, "iCloud folder listing").await?
         };
         #[cfg(not(feature = "write-probe"))]
-        let mut folders: Vec<DriveEntry> = read_json(response, "iCloud folder listing").await?;
-        if folders.len() != 1 || folders[0].drivewsid != folder_id {
+        let mut folders: Vec<FolderEnvelope> = read_json(response, "iCloud folder listing").await?;
+        if folders.len() != 1 || folders[0].entry.drivewsid != folder_id {
             bail!("iCloud Drive returned an unexpected folder identity");
         }
         let folder = folders.remove(0);
-        if folder.number_of_items != Some(folder.items.len()) {
+        if folder.entry.number_of_items != Some(folder.entry.items.len()) {
             return Err(IncompleteFolder.into());
         }
-        for item in &folder.items {
+        for item in &folder.entry.items {
             if item.drivewsid.is_empty() || item.name.is_empty() {
                 bail!("iCloud Drive returned an item without identity or name");
             }

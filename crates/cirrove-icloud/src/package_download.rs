@@ -24,7 +24,7 @@ fn check_source(expected: &DriveEntry, observed: &DriveEntry) -> Result<()> {
     Ok(())
 }
 
-async fn stage_response(
+pub(super) async fn stage_response(
     response: Response,
     sink: &mut dyn ReadWindowSink,
     max_bytes: u64,
