@@ -410,7 +410,7 @@ router**, with explicit acceptance gates:
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified; isolated [staging-body interruption](benchmarks/icloud-replace-stream-interruption-2026-10-01.md) recovered with original preserved, local export and fresh retry; [replacement-stage registration confirmation loss](benchmarks/icloud-replace-registration-recovery-2026-10-01.md) recovered the same staged ID without reupload/registration | Other in-flight boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement and [two consecutive atomic saves](benchmarks/icloud-mounted-atomic-chain-2026-10-01.md); separate versions, receipt-gated editor cleanup and remount verified | More complex chains, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account and [read-only downgrade recovery](benchmarks/icloud-readonly-recovery-2026-10-01.md) have core/socket/CLI/FUSE and native-window evidence; installed validation, per-operation explanation and audit of earlier retained fixtures remain open |
-| Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | [Synthetic storage refusal](benchmarks/icloud-storage-refusal-2026-10-01.md) and [actual local ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md) passed their bounded arms; folder-create preflight retry, real quota/slow-link/expired-session and larger-file acceptance remain open |
+| Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | [Synthetic storage refusal](benchmarks/icloud-storage-refusal-2026-10-01.md) and [actual local ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md) passed their bounded arms; [provably unsent folder-create retry](benchmarks/icloud-folder-create-recovery-2026-10-01.md) also passed its bounded synthetic arms; real quota/slow-link/expired-session and larger-file acceptance remain open |
 | Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
 | Installed release | Experimental isolated mounts | Explicit opt-in, existing read-only accounts preserved, packaged installation and file-manager validation |
 
@@ -795,12 +795,18 @@ mutation did not commit. Signed verification downloads distinguish this response
 from expired signed URLs: their 401/403 responses remain uncertain rather than
 forcing account reauthentication.
 
-Folder creation has a conservative limitation: if no created-item identity was
-saved, reconciliation returns `Indeterminate`, even when the refusal happened in
-preflight. Explicit retry does not guess an identity, infer absence from a name,
-or blindly replay creation. Storage becoming available alone cannot settle this
-case; the retained operation needs further reconciliation support or review.
-Synthetic tests cover this boundary and response classification; they do not
+Folder creation records a bound version-2 checkpoint before preflight. Its
+`not_sent` state proves that the create POST was not dispatched. After an explicit
+retry, this state allows the router to durably return to preparation and repeat
+all parent/child checks. Immediately before the POST, the adapter saves
+`may_have_sent`; only a confirmed identity changes that to `created`.
+
+Missing checkpoints, legacy operations without a created identity, and
+`may_have_sent` checkpoints remain `Indeterminate`. Explicit retry does not guess
+an identity, infer absence from a name, or blindly replay creation, including
+after a POST returned 507. Storage becoming available cannot by itself settle
+those cases. Existing version-1 identity receipts remain readable. Synthetic
+adapter HTTP and separate worker/router tests cover these boundaries; they do not
 establish Apple's live quota response format or general quota recovery.
 
 

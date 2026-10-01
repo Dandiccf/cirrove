@@ -37,6 +37,8 @@ pub struct ICloudWriteProvider {
     metadata: PathBuf,
     journal: Arc<Mutex<UploadJournal>>,
     folder_vault: Arc<dyn CredentialVault>,
+    #[cfg(test)]
+    folder_create_test_adapter: Option<Arc<dyn MutationProvider>>,
     #[cfg(feature = "icloud-write-probe")]
     discard_registration: Option<Uuid>,
 }
@@ -68,6 +70,8 @@ impl ICloudWriteProvider {
             "missing Apple account"
         );
         Ok(Self {
+            #[cfg(test)]
+            folder_create_test_adapter: None,
             #[cfg(feature = "icloud-write-probe")]
             discard_registration: None,
             scope: Scope {
@@ -453,6 +457,7 @@ mod tests {
         let metadata = temp.path().join("metadata.db");
         Store::open(&metadata).unwrap();
         let provider = ICloudWriteProvider {
+            folder_create_test_adapter: None,
             #[cfg(feature = "icloud-write-probe")]
             discard_registration: None,
             scope: Scope {

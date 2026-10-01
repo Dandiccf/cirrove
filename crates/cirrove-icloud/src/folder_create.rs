@@ -23,14 +23,26 @@ enum SessionState {
     },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "phase", rename_all = "snake_case", deny_unknown_fields)]
+enum CreatePhase {
+    NotSent,
+    MayHaveSent,
+    Created { id: String },
+}
+
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FolderCheckpoint {
     version: u8,
     operation: Uuid,
     scope: Scope,
     parent: String,
     name: String,
-    id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    state: Option<CreatePhase>,
 }
 
 pub struct ICloudFolderCreate {
@@ -145,25 +157,33 @@ impl ICloudFolderCreate {
         operation: Uuid,
         request: &MutationRequest,
         value: &SecretString,
-    ) -> MutationResult<String> {
+    ) -> MutationResult<CreatePhase> {
         let name = self.check_request(request)?;
         if value.expose_secret().len() > 4096 {
             return Err(MutationError::Invalid);
         }
         let saved: FolderCheckpoint =
             serde_json::from_str(value.expose_secret()).map_err(|_| MutationError::Invalid)?;
-        if saved.version != 1
-            || saved.operation != operation
+        if saved.operation != operation
             || saved.scope != self.scope
             || saved.parent != self.parent.id
             || saved.name != name
-            || !saved.id.starts_with("FOLDER::com.apple.CloudDocs::")
-            || saved.id.rsplit("::").next().is_none_or(str::is_empty)
-            || saved.id == self.parent.id
         {
             return Err(MutationError::Invalid);
         }
-        Ok(saved.id)
+        let phase = match (saved.version, saved.id, saved.state) {
+            (1, Some(id), None) => CreatePhase::Created { id },
+            (2, None, Some(phase)) => phase,
+            _ => return Err(MutationError::Invalid),
+        };
+        if let CreatePhase::Created { id } = &phase
+            && (!id.starts_with("FOLDER::com.apple.CloudDocs::")
+                || id.rsplit("::").next().is_none_or(str::is_empty)
+                || id == &self.parent.id)
+        {
+            return Err(MutationError::Invalid);
+        }
+        Ok(phase)
     }
 
     async fn active_session(state: &mut SessionState) -> MutationResult<&mut ICloudReadSession> {
@@ -270,33 +290,38 @@ impl ICloudFolderCreate {
         Ok(None)
     }
 
-    async fn save_identity(
+    async fn save_phase(
         &self,
         operation: Uuid,
         request: &MutationRequest,
-        id: &str,
+        phase: CreatePhase,
     ) -> MutationResult<()> {
         let name = self.check_request(request)?;
         let checkpoint = FolderCheckpoint {
-            version: 1,
+            version: 2,
             operation,
             scope: self.scope.clone(),
             parent: self.parent.id.clone(),
             name: name.into(),
-            id: id.into(),
+            id: None,
+            state: Some(phase.clone()),
         };
         let value = serde_json::to_string(&checkpoint).map_err(|_| MutationError::Invalid)?;
         self.checkpoint_vault
             .save(&self.key(operation), SecretString::from(value))
             .await
-            .map_err(crate::mutation_error)
+            .map_err(crate::mutation_error)?;
+        if self.saved_phase(operation, request).await? != Some(phase) {
+            return Err(MutationError::Uncertain);
+        }
+        Ok(())
     }
 
-    async fn saved_identity(
+    async fn saved_phase(
         &self,
         operation: Uuid,
         request: &MutationRequest,
-    ) -> MutationResult<Option<String>> {
+    ) -> MutationResult<Option<CreatePhase>> {
         let Some(value) = self
             .checkpoint_vault
             .load(&self.key(operation))
@@ -311,6 +336,31 @@ impl ICloudFolderCreate {
 
 #[async_trait]
 impl MutationProvider for ICloudFolderCreate {
+    async fn prepare_mutation_for_operation(
+        &self,
+        operation: &str,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> MutationResult<Option<String>> {
+        let operation = Uuid::parse_str(operation).map_err(|_| MutationError::Invalid)?;
+        self.check_request(request)?;
+        if cancel.is_cancelled() {
+            return Err(MutationError::Uncertain);
+        }
+        // The caller invokes preparation only for its durable unsent plan.
+        // Never reconstruct this evidence from a missing receipt during dispatch
+        // or reconciliation: that could belong to a previously sent operation.
+        match self.saved_phase(operation, request).await? {
+            None => {
+                self.save_phase(operation, request, CreatePhase::NotSent)
+                    .await?
+            }
+            Some(CreatePhase::NotSent) => {}
+            Some(_) => return Err(MutationError::Uncertain),
+        }
+        Ok(None)
+    }
+
     async fn mutate_operation(
         &self,
         operation: &str,
@@ -330,11 +380,22 @@ impl MutationProvider for ICloudFolderCreate {
         if cancel.is_cancelled() {
             return Err(MutationError::Uncertain);
         }
-        if self.saved_identity(operation, request).await?.is_some() {
+        let phase = self.saved_phase(operation, request).await?;
+        if phase.is_some() && phase != Some(CreatePhase::NotSent) {
             return Err(MutationError::Uncertain);
         }
         self.observe_parent().await?;
         self.observe_child(name, None).await?;
+        if cancel.is_cancelled() {
+            return Err(MutationError::Uncertain);
+        }
+        if phase != Some(CreatePhase::NotSent) {
+            return Err(MutationError::Uncertain);
+        }
+        // Once this durable boundary exists, even a failed POST is potentially
+        // committed. A failed save never authorizes a POST.
+        self.save_phase(operation, request, CreatePhase::MayHaveSent)
+            .await?;
         if cancel.is_cancelled() {
             return Err(MutationError::Uncertain);
         }
@@ -346,7 +407,8 @@ impl MutationProvider for ICloudFolderCreate {
                 .await
                 .map_err(crate::mutation_error)?
         };
-        self.save_identity(operation, request, &id).await?;
+        self.save_phase(operation, request, CreatePhase::Created { id: id.clone() })
+            .await?;
         let node = self
             .observe_child(name, Some(&id))
             .await?
@@ -366,8 +428,12 @@ impl MutationProvider for ICloudFolderCreate {
             return Err(MutationError::Invalid);
         }
         let name = self.check_request(request)?;
-        let Some(id) = self.saved_identity(operation, request).await? else {
-            return Ok(MutationReconciliation::Indeterminate);
+        let id = match self.saved_phase(operation, request).await? {
+            Some(CreatePhase::NotSent) => return Ok(MutationReconciliation::Uncommitted),
+            Some(CreatePhase::Created { id }) => id,
+            None | Some(CreatePhase::MayHaveSent) => {
+                return Ok(MutationReconciliation::Indeterminate);
+            }
         };
         match self.observe_child(name, Some(&id)).await {
             Ok(Some(node)) => Ok(MutationReconciliation::Applied(MutationReceipt::Upsert(
@@ -570,3 +636,6 @@ mod session_tests {
 
 #[cfg(test)]
 pub(crate) mod container_tests;
+
+#[cfg(test)]
+mod recovery_tests;

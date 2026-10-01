@@ -1325,6 +1325,136 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn fixture_folder_preparation_persists_bound_unsent_checkpoint_without_sign_in() {
+        use cirrove_auth::CredentialVault;
+        use secrecy::ExposeSecret;
+        #[derive(Default)]
+        struct Vault(Mutex<HashMap<String, String>>);
+        #[async_trait::async_trait]
+        impl CredentialVault for Vault {
+            async fn load(&self, key: &str) -> anyhow::Result<Option<SecretString>> {
+                Ok(self
+                    .0
+                    .lock()
+                    .unwrap()
+                    .get(key)
+                    .cloned()
+                    .map(SecretString::from))
+            }
+            async fn save(&self, key: &str, value: SecretString) -> anyhow::Result<()> {
+                self.0
+                    .lock()
+                    .unwrap()
+                    .insert(key.into(), value.expose_secret().into());
+                Ok(())
+            }
+            async fn remove(&self, _: &str) -> anyhow::Result<()> {
+                panic!("preparation must not remove evidence")
+            }
+        }
+        let private = tempfile::tempdir().unwrap();
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            ..scope()
+        };
+        let apple_id = "synthetic@example.invalid".to_owned();
+        let credential_id = Uuid::new_v4().to_string();
+        let root = Node {
+            id: "FOLDER::com.apple.CloudDocs::owned".into(),
+            parent_id: Some(cirrove_icloud::ROOT_ID.into()),
+            size: 0,
+            ..node("unused", NodeKind::Folder, "Owned fixture")
+        };
+        let vault = Arc::new(Vault::default());
+        // All providers are lazy sealed-session constructors. There is no saved
+        // sign-in, so preparation must remain entirely local.
+        let fixture = Fixture::new(
+            scope.clone(),
+            root.clone(),
+            ICloudDrive::on_demand_from_sealed_session(
+                scope.clone(),
+                apple_id.clone(),
+                credential_id.clone(),
+                private.path(),
+            )
+            .unwrap(),
+            ICloudFileCreate::from_sealed_session(
+                scope.clone(),
+                apple_id.clone(),
+                credential_id.clone(),
+                private.path(),
+                root.clone(),
+            )
+            .unwrap(),
+            ICloudFolderCreate::from_sealed_session(
+                scope.clone(),
+                apple_id.clone(),
+                credential_id.clone(),
+                private.path(),
+                root.clone(),
+                vault.clone(),
+            )
+            .unwrap(),
+            RemovalContext {
+                apple_id,
+                credential_id,
+                state: private.path().into(),
+                journal: Arc::new(Mutex::new(
+                    UploadJournal::open(&private.path().join("journal"), &scope.account, 4096)
+                        .unwrap(),
+                )),
+                metadata_db: private.path().join("unused-metadata.db"),
+            },
+            HashSet::new(),
+        );
+        let operation = Uuid::new_v4().to_string();
+        let request = MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::CreateFolder {
+                parent: root.id.clone(),
+                name: "Child".into(),
+            },
+        };
+        let mut foreign = request.clone();
+        foreign.scope.account = Uuid::new_v4().to_string();
+        let cancel = CancellationToken::new();
+        assert!(
+            fixture
+                .prepare_mutation_for_operation(&operation, &foreign, &cancel)
+                .await
+                .is_err()
+        );
+        assert!(vault.0.lock().unwrap().is_empty());
+        assert!(
+            fixture
+                .prepare_mutation_for_operation(&operation, &request, &cancel)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let key = format!("icloud-folder-create/{}/{operation}", scope.account);
+        let checkpoint = vault
+            .load(&key)
+            .await
+            .unwrap()
+            .expect("operation-aware preparation must persist evidence");
+        let value: serde_json::Value = serde_json::from_str(checkpoint.expose_secret()).unwrap();
+        assert_eq!(value["version"], 2);
+        assert_eq!(value["state"]["phase"], "not_sent");
+        assert_eq!(value["operation"], operation);
+        assert_eq!(value["scope"], serde_json::to_value(&scope).unwrap());
+        assert_eq!(value["parent"], root.id);
+        assert_eq!(value["name"], "Child");
+        assert!(matches!(
+            fixture
+                .reconcile_operation(&operation, &request, None, &cancel)
+                .await
+                .unwrap(),
+            MutationReconciliation::Uncommitted
+        ));
+    }
+
     #[test]
     fn restored_owned_accepts_only_confirmed_populated_folder_move() {
         let private = tempfile::tempdir().unwrap();
@@ -2087,6 +2217,22 @@ impl UploadProvider for Fixture {
 
 #[async_trait::async_trait]
 impl MutationProvider for Fixture {
+    async fn prepare_mutation_for_operation(
+        &self,
+        operation: &str,
+        r: &MutationRequest,
+        c: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<Option<String>> {
+        if matches!(&r.intent, MutationIntent::CreateFolder { .. }) {
+            self.guard_folder(r)?;
+            self.folders
+                .prepare_mutation_for_operation(operation, r, c)
+                .await
+        } else {
+            self.prepare_mutation(r, c).await
+        }
+    }
+
     async fn prepare_mutation(
         &self,
         r: &MutationRequest,

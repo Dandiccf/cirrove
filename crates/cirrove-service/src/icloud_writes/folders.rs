@@ -265,6 +265,10 @@ impl ICloudWriteProvider {
                     .as_ref()
                     .filter(|node| &node.id == parent)
                     .ok_or(MutationError::Invalid)?;
+                #[cfg(test)]
+                if let Some(adapter) = &self.folder_create_test_adapter {
+                    return Ok(adapter.clone());
+                }
                 Ok(Arc::new(ICloudFolderCreate::from_sealed_session(
                     scope,
                     apple,
@@ -443,7 +447,7 @@ impl MutationProvider for ICloudWriteProvider {
         };
         let prepared = self
             .folder_adapter(&saved.plan)?
-            .prepare_mutation(request, cancel)
+            .prepare_mutation_for_operation(&operation.to_string(), request, cancel)
             .await?;
         if prepared != saved.prepared {
             return Err(MutationError::Invalid);
@@ -518,7 +522,7 @@ impl MutationProvider for ICloudWriteProvider {
                 .await;
         }
         let operation = self.mutation_operation(operation, request)?;
-        let Some(saved) = self.saved_plan(operation, request, prepared).await? else {
+        let Some(mut saved) = self.saved_plan(operation, request, prepared).await? else {
             return Ok(MutationReconciliation::Indeterminate);
         };
         if saved.phase == PlanPhase::Prepared {
@@ -531,6 +535,22 @@ impl MutationProvider for ICloudWriteProvider {
         {
             MutationReconciliation::Applied(receipt) => {
                 verified_relocation_receipt(request, receipt, saved.plan.original_sha256.as_deref())
+            }
+            MutationReconciliation::Uncommitted
+                if matches!(request.intent, MutationIntent::CreateFolder { .. }) =>
+            {
+                // Only the adapter's bound NotSent checkpoint permits returning
+                // to preparation. Persist before the journal queues another try.
+                saved.phase = PlanPhase::Prepared;
+                self.save_plan(&saved).await?;
+                if self
+                    .saved_plan(operation, request, prepared)
+                    .await?
+                    .is_none_or(|restored| restored.phase != PlanPhase::Prepared)
+                {
+                    return Err(MutationError::Uncertain);
+                }
+                Ok(MutationReconciliation::Uncommitted)
             }
             other => Ok(other),
         }
@@ -1037,3 +1057,6 @@ pub(super) mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod create_recovery_tests;
