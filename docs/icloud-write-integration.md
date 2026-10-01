@@ -672,4 +672,16 @@ Manifest/log: `.local-state/icloud-read-windows-check-2026-10-01/`. The five new
 adapter tests passed in both normal and write-probe test configurations. The
 existing shared-service tests also cover discarding partial staged windows and
 resetting after cancellation. No GUI changed; display scenarios were not rerun.
-This checkout has not yet been installed or live-benchmarked with these windows.
+At that checkpoint the windows had not yet been installed or live-benchmarked.
+
+
+The subsequent [controlled live comparison](benchmarks/icloud-read-windows-2026-10-01.md)
+found and fixed a receipt compatibility error: upload receipts carry the same
+revision in both `content_version` and `etag`. Matching revisions now qualify for
+windows; distinct synthetic revisions retain exact-range reads. The regression
+test failed before the fix and passed afterward. On one fresh 64 MiB + 17-byte
+varied-content fixture, three fresh-cache arms per variant passed exact bytes,
+SHA-256 and cached sparse rereads. Median read duration was 28.394 s for exact
+ranges (26.918–31.348 s) and 14.247 s for windows (13.502–14.272 s). First-read
+latency did not improve. This validates the cache path against Apple, not FUSE,
+GUI or installed behavior; write/recovery release gates remain unchanged.

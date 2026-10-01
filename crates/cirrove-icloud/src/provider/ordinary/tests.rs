@@ -240,8 +240,36 @@ async fn adapter_binds_scope_revision_and_shared_budget_without_fetching_content
         drive
             .open_read_session(&scope(), &invalid, &cancel)
             .await
-            .is_err()
+            .unwrap()
+            .is_none()
     );
     assert!(!task.is_finished());
     task.abort();
+}
+
+#[tokio::test]
+async fn uploaded_receipt_with_content_revision_equal_to_etag_opens_a_session() {
+    let (session, task) = fixture(4, "v2").await;
+    let drive =
+        ICloudDrive::on_demand_from_live_session(scope(), session.transport.read_only_fork())
+            .unwrap();
+    let mut receipt = node(4);
+    receipt.content_version = receipt.etag.clone();
+    let cancel = CancellationToken::new();
+    let opened = drive
+        .open_read_session(&scope(), &receipt, &cancel)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        opened.identity(),
+        &ReadIdentity::new(&scope(), &receipt).unwrap()
+    );
+    let mut sink = Sink::default();
+    assert!(matches!(
+        opened.read_window(0, 4, &mut sink, &cancel).await,
+        Err(ProviderError::VersionChanged)
+    ));
+    assert!(sink.bytes.is_empty());
+    task.await.unwrap();
 }

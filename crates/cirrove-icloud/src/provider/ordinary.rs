@@ -7,7 +7,10 @@ pub(super) fn validate_node(node: &Node) -> Result<(), ProviderError> {
     if node.kind != NodeKind::File
         || node.package
         || node.target.is_some()
-        || node.content_version.is_some()
+        || node
+            .content_version
+            .as_deref()
+            .is_some_and(|version| Some(version) != node.etag.as_deref())
         || !node.id.starts_with("FILE::")
         || !node
             .parent_id

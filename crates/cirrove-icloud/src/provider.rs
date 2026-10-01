@@ -641,6 +641,16 @@ impl ReadProvider for ICloudDrive {
         if packages::artifact(node) || packages::package(node) {
             return Ok(None);
         }
+        // Upload receipts also carry the same ETag in the content namespace.
+        // Distinct synthetic revisions (e.g. owned move fixture digests) retain
+        // the existing exact-range path instead of making the file unreadable.
+        if node
+            .content_version
+            .as_deref()
+            .is_some_and(|version| Some(version) != node.etag.as_deref())
+        {
+            return Ok(None);
+        }
         ordinary::validate_node(node)?;
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
