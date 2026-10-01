@@ -721,3 +721,180 @@ async fn working_job_receipt_requires_exact_selection_and_preserves_sealed_compa
             .is_none()
     );
 }
+
+#[test]
+fn readonly_recovery_stages_dirty_and_unlinked_bytes_without_changing_records() {
+    use cirrove_service::journal::RecoveryJournal;
+    for unlinked in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let state = temp.path().join("state");
+        let (mut journal, id, _) = active_fixture(&state);
+        let sealed = journal.seal_working(id).unwrap().unwrap();
+        let working = journal.working_file(id).unwrap();
+        let account = working.scope.account.clone();
+        let root = state.join("accounts").join(&account).join("journal");
+        if unlinked {
+            let object = journal
+                .namespace_by_local(&working.scope, &working.node.id)
+                .unwrap()
+                .unwrap();
+            journal
+                .unlink_namespace_file(object.id, object.revision, true)
+                .unwrap();
+        }
+        let (_, working) = journal
+            .write_working(id, 0, b"retained newer bytes")
+            .unwrap();
+        let expected = journal.read_working(id, 0, 100).unwrap();
+        let before_records = records(&journal);
+        drop(journal);
+        let before_db = fs::read(root.join("uploads.db")).unwrap();
+        let recovery = RecoveryJournal::open(&root, &account).unwrap();
+        assert!(RecoveryJournal::open(&root, &account).is_err());
+        assert!(UploadJournal::open(&root, &account, 4 * 1024 * 1024).is_err());
+        let (rows, cursor) = recovery.working_recovery_list(None, 200).unwrap();
+        assert!(cursor.is_none());
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].file, id);
+        assert_eq!(rows[0].generation, working.generation);
+        assert_eq!(rows[0].unlinked, unlinked);
+        assert!(
+            recovery
+                .working_export_source(id, working.generation + 1)
+                .is_err()
+        );
+        // A sealed earlier generation remains independently available where the
+        // namespace still retains it; recovery does not replace it with dirty bytes.
+        if !unlinked {
+            assert!(recovery.local_export_source(sealed.id).is_ok());
+            assert_eq!(
+                serde_json::to_value(recovery.list(0, 200).unwrap()).unwrap(),
+                before_records["uploads"]
+            );
+        }
+        let destination = temp.path().join("copy");
+        let cancel = cirrove_core::CancellationToken::new();
+        let prepared = recovery
+            .working_export_source(id, working.generation)
+            .unwrap()
+            .prepare_copy(&destination, &cancel, |_| {})
+            .unwrap();
+        assert!(!destination.exists());
+        let receipt = recovery
+            .verify_working_export(prepared)
+            .unwrap()
+            .publish(&cancel)
+            .unwrap();
+        assert_eq!(receipt.source.unlinked, unlinked);
+        assert_eq!(receipt.source.generation, working.generation);
+        assert_eq!(fs::read(destination).unwrap(), expected);
+        drop(recovery);
+        assert_eq!(fs::read(root.join("uploads.db")).unwrap(), before_db);
+    }
+}
+
+fn root_descriptors(root: &Path) -> Vec<std::path::PathBuf> {
+    let canonical = root.canonicalize().unwrap();
+    fs::read_dir("/proc/self/fd")
+        .unwrap()
+        .filter_map(|entry| {
+            let path = entry.ok()?.path();
+            (fs::read_link(&path).ok()? == canonical).then_some(path)
+        })
+        .collect()
+}
+
+#[test]
+fn readonly_working_source_and_staging_retain_directory_and_exclusive_lease() {
+    use cirrove_service::journal::RecoveryJournal;
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    let (account, id, generation) = fixture(&state);
+    let root = state.join("accounts").join(&account).join("journal");
+    let recovery = RecoveryJournal::open(&root, &account).unwrap();
+    let anchors = root_descriptors(&root);
+    assert!(!anchors.is_empty());
+    let source = recovery.working_export_source(id, generation).unwrap();
+    drop(recovery);
+    assert!(anchors.iter().all(|path| path.join("working").is_dir()));
+    assert!(RecoveryJournal::open(&root, &account).is_err());
+    let destination = temp.path().join("copy");
+    let prepared = source
+        .prepare_copy(
+            &destination,
+            &cirrove_core::CancellationToken::new(),
+            |_| {},
+        )
+        .unwrap();
+    assert!(anchors.iter().all(|path| path.join("working").is_dir()));
+    assert!(UploadJournal::open(&root, &account, 4 * 1024 * 1024).is_err());
+    assert!(!destination.exists());
+    drop(prepared);
+    assert!(RecoveryJournal::open(&root, &account).is_ok());
+    assert!(!destination.exists());
+}
+
+#[test]
+fn readonly_verified_export_retains_lease_through_publication_after_owner_stops() {
+    use cirrove_service::journal::RecoveryJournal;
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    let (account, id, generation) = fixture(&state);
+    let root = state.join("accounts").join(&account).join("journal");
+    let before = fs::read(root.join("uploads.db")).unwrap();
+    let recovery = RecoveryJournal::open(&root, &account).unwrap();
+    let anchors = root_descriptors(&root);
+    assert!(!anchors.is_empty());
+    let cancel = cirrove_core::CancellationToken::new();
+    let destination = temp.path().join("copy");
+    let prepared = recovery
+        .working_export_source(id, generation)
+        .unwrap()
+        .prepare_copy(&destination, &cancel, |_| {})
+        .unwrap();
+    let verified = recovery.verify_working_export(prepared).unwrap();
+    drop(recovery);
+    assert!(anchors.iter().all(|path| path.join("working").is_dir()));
+    assert!(UploadJournal::open(&root, &account, 4 * 1024 * 1024).is_err());
+    let receipt = verified.publish(&cancel).unwrap();
+    assert_eq!(receipt.source.generation, generation);
+    assert_eq!(fs::read(destination).unwrap(), b"unsealed working bytes");
+    assert_eq!(fs::read(root.join("uploads.db")).unwrap(), before);
+    assert!(RecoveryJournal::open(&root, &account).is_ok());
+}
+
+#[test]
+fn readonly_recovery_keeps_clean_sealed_save_out_of_working_selection() {
+    use cirrove_service::journal::RecoveryJournal;
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    let (mut journal, id, _) = active_fixture(&state);
+    let sealed = journal.seal_working(id).unwrap().unwrap();
+    let working = journal.working_file(id).unwrap();
+    let account = working.scope.account;
+    let root = state.join("accounts").join(&account).join("journal");
+    drop(journal);
+    let before = fs::read(root.join("uploads.db")).unwrap();
+    let recovery = RecoveryJournal::open(&root, &account).unwrap();
+    let (rows, next) = recovery.working_recovery_list(None, 200).unwrap();
+    assert!(rows.is_empty());
+    assert!(next.is_none());
+    assert!(
+        recovery
+            .working_export_source(id, working.generation)
+            .is_err()
+    );
+    let destination = temp.path().join("sealed");
+    recovery
+        .local_export_source(sealed.id)
+        .unwrap()
+        .copy_to(
+            &destination,
+            &cirrove_core::CancellationToken::new(),
+            |_| {},
+        )
+        .unwrap();
+    assert_eq!(fs::read(destination).unwrap(), b"unsealed working bytes");
+    drop(recovery);
+    assert_eq!(fs::read(root.join("uploads.db")).unwrap(), before);
+}

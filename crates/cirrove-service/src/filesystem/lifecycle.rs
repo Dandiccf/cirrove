@@ -41,6 +41,9 @@ pub(crate) struct WriteControl {
     provider: Option<Arc<dyn cirrove_core::mutation::MutationProvider>>,
 }
 impl WriteControl {
+    pub(crate) fn belongs_to(&self, engine: &Arc<Engine>) -> bool {
+        Arc::ptr_eq(&self.inner.engine, engine)
+    }
     pub(crate) fn with_provider(
         mut self,
         provider: Arc<dyn cirrove_core::mutation::MutationProvider>,

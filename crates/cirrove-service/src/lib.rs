@@ -13,6 +13,7 @@ pub mod journal;
 pub mod manager;
 pub mod mutations;
 pub mod recent;
+mod recovery;
 pub mod transfers;
 pub mod validation;
 pub mod writable;

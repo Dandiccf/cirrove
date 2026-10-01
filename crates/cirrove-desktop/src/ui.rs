@@ -977,10 +977,14 @@ impl Window {
             )],
         ));
         row.unconfirmed.set_visible(card.unconfirmed_changes > 0);
-        row.unconfirmed.set_subtitle(&fill(
-            &gettext("{} changes have no confirmed cloud result yet. Cirrove is checking their outcome before continuing. Local recovery data is retained."),
-            &[&card.unconfirmed_changes.to_string()],
-        ));
+        row.unconfirmed.set_subtitle(&if card.writable {
+            fill(
+                &gettext("{} changes have no confirmed cloud result yet. Cirrove is checking their outcome before continuing. Local recovery data is retained."),
+                &[&card.unconfirmed_changes.to_string()],
+            )
+        } else {
+            fill(&gettext("{} changes have no confirmed cloud result. Recovery data is retained; read-only mode does not retry these changes."), &[&card.unconfirmed_changes.to_string()])
+        });
         row.refused.set_visible(card.stuck > 0);
         // The count, then which ones. A person told that two changes were
         // refused and not which cannot do anything about either -- the fourteen
@@ -993,7 +997,11 @@ impl Window {
         };
         // "They will not be retried" was true of all of them and is now true of
         // only some: a change that failed is one the cloud never decided about.
-        let mut refused = if card.retryable == 0 {
+        let mut refused = if !card.writable {
+            gettext(
+                "Local changes are retained while this connection is read-only. Recover a copy before deciding how to continue.",
+            )
+        } else if card.retryable == 0 {
             fill(
                 &gettext(
                     "{} that the cloud would not accept. The cloud has decided about these, so they are not re-sent; discarding removes the local copies and the cloud keeps its version.",
@@ -1035,24 +1043,34 @@ impl Window {
             }
         }
         row.refused.set_subtitle(&refused);
-        row.discard.set_sensitive(idle);
-        row.retry.set_sensitive(idle && card.retryable > 0);
+        row.discard.set_visible(card.writable);
+        row.discard
+            .set_sensitive(idle && card.mounted && card.writable);
+        row.retry.set_visible(card.writable);
+        row.retry
+            .set_sensitive(idle && card.mounted && card.writable && card.retryable > 0);
         row.retry.set_tooltip_text(Some(if card.retryable > 0 {
             "Send these to the cloud again"
         } else {
             "The cloud has decided about these; sending them again would act on what is there now"
         }));
         row.unsent.set_visible(card.failed_uploads > 0);
-        let mut unsent = fill(
-            &gettext(
-                "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
-            ),
-            &[&if card.failed_uploads == 1 {
-                gettext("1 save")
-            } else {
-                fill(&gettext("{} saves"), &[&card.failed_uploads.to_string()])
-            }],
-        );
+        let mut unsent = if !card.writable {
+            gettext(
+                "Local saves are retained while this connection is read-only. Saving a recovery copy does not upload or discard them.",
+            )
+        } else {
+            fill(
+                &gettext(
+                    "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
+                ),
+                &[&if card.failed_uploads == 1 {
+                    gettext("1 save")
+                } else {
+                    fill(&gettext("{} saves"), &[&card.failed_uploads.to_string()])
+                }],
+            )
+        };
         // Which file, not just how many. Without this the row is a warning sign
         // a person cannot act on: the owner met exactly that on 2026-09-16 and
         // asked what the triangle meant, and answering it needed the journal
@@ -1088,11 +1106,15 @@ impl Window {
         row.destroy
             .set_sensitive(idle && card.mounted && card.writable);
         let offline_recovery = !card.enabled && !card.mounted;
-        row.recovery.set_visible(card.writable || offline_recovery);
-        row.export
-            .set_sensitive(idle && (offline_recovery || (card.mounted && card.writable)));
+        row.recovery
+            .set_visible(card.local_recovery || offline_recovery);
+        row.export.set_sensitive(
+            idle && (offline_recovery || (card.enabled && card.mounted && card.local_recovery)),
+        );
         row.recovery.set_title(&gettext("Recover local changes"));
-        row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
+        row.keep_both.set_visible(card.writable);
+        row.keep_both
+            .set_sensitive(idle && card.mounted && card.writable && card.failed_uploads > 0);
         row.keep_both.set_tooltip_text(Some(&gettext(
             "Put your version beside the cloud's, under a new name, instead of losing one of them",
         )));
@@ -1847,7 +1869,10 @@ impl Window {
     /// Abandon the changes the cloud refused. The daemon does the unwinding
     /// and says how many it could; the row disappears with the last one.
     pub fn discard(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.stuck > 0) else {
+        let Some(card) = self
+            .card(id)
+            .filter(|c| c.mounted && c.writable && c.stuck > 0)
+        else {
             return;
         };
         let Backend::Live {
@@ -1908,7 +1933,10 @@ impl Window {
     /// digest, so they go beside the cloud's version under a new name and the
     /// person decides afterwards, with both in front of them.
     pub fn keep_both_saves(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.failed_uploads > 0) else {
+        let Some(card) = self
+            .card(id)
+            .filter(|c| c.mounted && c.writable && c.failed_uploads > 0)
+        else {
             return;
         };
         let Backend::Live {
@@ -1963,7 +1991,10 @@ impl Window {
         });
     }
     pub fn retry_refused(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.retryable > 0) else {
+        let Some(card) = self
+            .card(id)
+            .filter(|c| c.mounted && c.writable && c.retryable > 0)
+        else {
             return;
         };
         let Backend::Live {

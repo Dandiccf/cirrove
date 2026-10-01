@@ -409,8 +409,8 @@ router**, with explicit acceptance gates:
 | Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps; mounted unlink recovered after confirmed Trash before journal acknowledgement | In-flight uncertainty, concurrent intermediate changes, other deletion boundaries and repeatability |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified; isolated [staging-body interruption](benchmarks/icloud-replace-stream-interruption-2026-10-01.md) recovered with original preserved, local export and fresh retry; [replacement-stage registration confirmation loss](benchmarks/icloud-replace-registration-recovery-2026-10-01.md) recovered the same staged ID without reupload/registration | Other in-flight boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement and [two consecutive atomic saves](benchmarks/icloud-mounted-atomic-chain-2026-10-01.md); separate versions, receipt-gated editor cleanup and remount verified | More complex chains, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
-| Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account working-byte export now has core/socket/CLI/FUSE and native-window evidence; installed validation, per-operation explanation and audit of earlier retained fixtures remain open |
-| Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
+| Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account and [read-only downgrade recovery](benchmarks/icloud-readonly-recovery-2026-10-01.md) have core/socket/CLI/FUSE and native-window evidence; installed validation, per-operation explanation and audit of earlier retained fixtures remain open |
+| Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | [Synthetic storage refusal](benchmarks/icloud-storage-refusal-2026-10-01.md) and [actual local ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md) passed their bounded arms; folder-create preflight retry, real quota/slow-link/expired-session and larger-file acceptance remain open |
 | Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
 | Installed release | Experimental isolated mounts | Explicit opt-in, existing read-only accounts preserved, packaged installation and file-manager validation |
 
@@ -802,3 +802,17 @@ or blindly replay creation. Storage becoming available alone cannot settle this
 case; the retained operation needs further reconciliation support or review.
 Synthetic tests cover this boundary and response classification; they do not
 establish Apple's live quota response format or general quota recovery.
+
+
+## Recovery on a retained read-only connection
+
+The [read-only recovery path](benchmarks/icloud-readonly-recovery-2026-10-01.md)
+keeps saved and working versions exportable through the daemon after access is
+read-only. The journal remains read-only and the operation cannot start upload
+workers. Desktop capability checks expose local copies separately from retry,
+discard and cloud mutation controls. Installed iCloud access-transition acceptance
+is still separate from the synthetic journal, service and window tests.
+
+A [controlled full-device arm](benchmarks/icloud-full-device-export-2026-10-01.md)
+also recovered a saved and newer working version from a full ext4 fixture to a
+separate filesystem. This is local ENOSPC evidence, not a live Apple quota test.

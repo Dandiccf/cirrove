@@ -15,7 +15,10 @@ impl Window {
         self.load_active_recovery(id, Cursor::default());
     }
     fn load_active_recovery(self: &Rc<Self>, id: &str, cursor: Cursor) {
-        let Some(card) = self.card(id).filter(|c| c.mounted && c.writable) else {
+        let Some(card) = self
+            .card(id)
+            .filter(|c| c.enabled && c.mounted && c.local_recovery)
+        else {
             return;
         };
         let Backend::Live {
@@ -43,10 +46,9 @@ impl Window {
             if let Some(view) = ui.current() {
                 ui.render(view);
             }
-            if !ui
-                .card(&card.id)
-                .is_some_and(|c| c.mounted && c.writable && c.label == card.label)
-            {
+            if !ui.card(&card.id).is_some_and(|c| {
+                c.enabled && c.mounted && c.local_recovery && c.label == card.label
+            }) {
                 return;
             }
             match result {
@@ -178,7 +180,10 @@ impl Window {
         selection: Selection,
         destination: PathBuf,
     ) {
-        let Some(current) = self.card(id).filter(|c| c.mounted && c.writable) else {
+        let Some(current) = self
+            .card(id)
+            .filter(|c| c.enabled && c.mounted && c.local_recovery)
+        else {
             return;
         };
         if matches!(&selection, Selection::Saved(save) if !crate::recovery::eligible(save)) {

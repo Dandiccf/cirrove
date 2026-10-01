@@ -254,12 +254,12 @@ fn copy_local_file(
     .publish(cancel)
 }
 
-/// Exclusive, read-only access to retained saves from a stopped account.
+/// Exclusive, read-only access to retained saves without a write owner.
 /// This deliberately does not call `UploadJournal::open`: no migrations,
 /// reconciliation transitions, sealing or collection may run during recovery.
 pub struct RecoveryJournal {
     journal: UploadJournal,
-    _directory: File,
+    _directory: std::sync::Arc<File>,
 }
 impl RecoveryJournal {
     pub fn open(root: &Path, account: &str) -> Result<Self> {
@@ -336,13 +336,37 @@ impl RecoveryJournal {
                 quota: 1,
                 _owner: owner,
             },
-            _directory: dir,
+            _directory: std::sync::Arc::new(dir),
         })
     }
     /// Bounded sequence pagination, including historical terminal states so the
     /// caller can advance even when a page contains no exportable versions.
     pub fn list(&self, after: u64, limit: u32) -> Result<Vec<UploadRecord>> {
         self.journal.list(after, limit.clamp(1, 200))
+    }
+    /// Indexed identity lookups only; never scan the retained working set.
+    pub(crate) fn retained_name(&self, scope: &Scope, item: &str) -> Result<Option<String>> {
+        if scope.account != self.journal.account {
+            return Err(JournalError::Intent);
+        }
+        let object = super::namespace::by_local(&self.journal.db, scope, item)?
+            .or(super::namespace::by_remote(&self.journal.db, scope, item)?);
+        if let Some(object) = object {
+            if object.scope != *scope {
+                return Err(JournalError::Corrupt);
+            }
+            if !object.node.name.is_empty() {
+                return Ok(Some(object.node.name));
+            }
+        }
+        Ok(self
+            .journal
+            .working_by_identity(scope, item)?
+            .map(|file| file.node.name)
+            .filter(|name| !name.is_empty()))
+    }
+    pub fn recent_uploads(&self, limit: u32) -> Result<Vec<UploadRecord>> {
+        self.journal.recent_uploads(limit.min(200))
     }
     pub fn local_export_source(&self, id: Uuid) -> Result<LocalExportSource> {
         self.journal.local_export_source(id)

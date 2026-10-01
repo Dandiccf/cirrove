@@ -10,6 +10,7 @@ pub struct WorkingExportSource {
     journal_root: PathBuf,
     // Keep the same journal owner alive, including after account shutdown.
     owner: File,
+    directory: Option<std::sync::Arc<File>>,
 }
 /// Private copied bytes with no authority to publish until journal validation.
 pub struct PreparedWorkingExport {
@@ -18,12 +19,14 @@ pub struct PreparedWorkingExport {
     working: PathBuf,
     copy: PreparedLocalCopy,
     owner: File,
+    directory: Option<std::sync::Arc<File>>,
 }
 /// A coherent selected generation, independent of subsequent working-file edits.
 pub struct VerifiedWorkingExport {
     source: WorkingRecovery,
     copy: PreparedLocalCopy,
     _owner: File,
+    _directory: Option<std::sync::Arc<File>>,
 }
 impl UploadJournal {
     /// Bounded metadata-only pagination; clean records still advance the cursor.
@@ -112,6 +115,7 @@ impl UploadJournal {
                 .ok_or(JournalError::Storage)?
                 .canonicalize()?,
             owner: self._owner.try_clone()?,
+            directory: None,
         })
     }
 
@@ -135,9 +139,42 @@ impl UploadJournal {
             source: prepared.source,
             copy: prepared.copy,
             _owner: prepared.owner,
+            _directory: prepared.directory,
         })
     }
 }
+impl RecoveryJournal {
+    /// Metadata-only pagination using the same selection contract as an active
+    /// writer. The journal stays read-only; no recovery transition runs.
+    pub fn working_recovery_list(
+        &self,
+        after: Option<Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<WorkingRecovery>, Option<Uuid>)> {
+        self.journal.working_recovery_list(after, limit)
+    }
+
+    /// Acquire a selected generation without copying while the caller holds its
+    /// recovery mutex. Retain the exact directory descriptor behind the journal's
+    /// /proc/self/fd paths as well as the exclusive journal lease through staging
+    /// and publication, including if the read-only account stops meanwhile.
+    pub fn working_export_source(&self, id: Uuid, generation: u64) -> Result<WorkingExportSource> {
+        let mut source = self.journal.working_export_source(id, generation)?;
+        source.directory = Some(self._directory.clone());
+        Ok(source)
+    }
+
+    /// Verify only journal identity and the selected generation; never seal,
+    /// retry or modify retained records. Copying and publication stay outside
+    /// the caller's recovery mutex.
+    pub fn verify_working_export(
+        &self,
+        prepared: PreparedWorkingExport,
+    ) -> Result<VerifiedWorkingExport> {
+        self.journal.verify_working_export(prepared)
+    }
+}
+
 impl WorkingExportSource {
     pub fn source(&self) -> &WorkingRecovery {
         &self.source
@@ -164,6 +201,7 @@ impl WorkingExportSource {
             working: self.working,
             copy,
             owner: self.owner,
+            directory: self.directory,
         })
     }
 }

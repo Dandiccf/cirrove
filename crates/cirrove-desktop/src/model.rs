@@ -127,6 +127,8 @@ pub struct AccountCard {
     pub unconfirmed_changes: u64,
     /// Whether the grant allows changes; a read-only drive shows as such.
     pub writable: bool,
+    /// Active daemon can list and export retained local bytes without admitting writes.
+    pub local_recovery: bool,
     pub supports_writes: bool,
     pub provider_id: &'static str,
     /// The app registration this account signed in through, so connecting a
@@ -551,6 +553,10 @@ impl Overview {
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     unconfirmed_changes: status.map_or(0, |s| s.unconfirmed_changes),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
+                    local_recovery: status.is_some_and(|s| {
+                        s.local_recovery
+                            || (s.mounted && account.access == cirrove_auth::AccessMode::ReadWrite)
+                    }),
                     supports_writes: account.registration.provider_id() != "icloud",
                     provider_id: account.registration.provider_id(),
                     client_id: account.registration.client_id().to_owned(),

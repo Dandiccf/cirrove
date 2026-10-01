@@ -90,6 +90,7 @@ struct Cloud {
     offline: AtomicBool,
     google_names: AtomicBool,
     cross_parent_folder_move: AtomicBool,
+    write_calls: AtomicUsize,
 }
 fn root() -> Node {
     Node {
@@ -266,6 +267,7 @@ impl UploadProvider for Cloud {
         request: &UploadRequest,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         if self.stall.load(Ordering::SeqCst) {
             self.entered.notify_one();
             std::future::pending::<()>().await;
@@ -288,6 +290,7 @@ impl UploadProvider for Cloud {
         checkpoint: &SecretString,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         self.step(request, checkpoint)
     }
     async fn upload_part(
@@ -298,6 +301,7 @@ impl UploadProvider for Cloud {
         bytes: Vec<u8>,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         {
             let mut remote = self.remote.lock().unwrap();
             let data = remote
@@ -315,6 +319,7 @@ impl UploadProvider for Cloud {
         checkpoint: &SecretString,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         let mut remote = self.remote.lock().unwrap();
         let before = Self::target(&remote, &request.intent).map(|(n, _)| n.clone());
         let (id, parent, name) = match (&request.intent, before) {
@@ -366,6 +371,7 @@ impl UploadProvider for Cloud {
         _: Option<&SecretString>,
         _: &CancellationToken,
     ) -> upload::Result<Reconciliation> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         let remote = self.remote.lock().unwrap();
         let target = Self::target(&remote, &request.intent);
         Ok(match target {
@@ -401,6 +407,7 @@ impl MutationProvider for Cloud {
         request: &MutationRequest,
         _: &CancellationToken,
     ) -> mutation::Result<MutationReceipt> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         if self.stall.load(Ordering::SeqCst) {
             self.entered.notify_one();
             std::future::pending::<()>().await;
@@ -534,6 +541,7 @@ impl MutationProvider for Cloud {
         request: &MutationRequest,
         _: &CancellationToken,
     ) -> mutation::Result<MutationReconciliation> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         let MutationIntent::Relocate {
             before,
             parent,
@@ -5279,4 +5287,263 @@ with p.open('wb',buffering=0) as f:
     cancel.cancel();
     worker.await.unwrap();
     server.await.unwrap().unwrap();
+}
+
+/// A permission downgrade must keep local recovery available without reopening
+/// mutation workers. Working bytes here are written through the actual kernel
+/// mount, then unlinked while open so shutdown cannot seal them for upload.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse; synthetic RW-to-RO manager/socket lifecycle only"]
+async fn real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes()
+-> anyhow::Result<()> {
+    use cirrove_service::{
+        accounts::Settings,
+        manager::{Manager, ProviderFactory, WriteFactory},
+    };
+    let temp = tempfile::tempdir()?;
+    // Preserve this fixture on any failure; never recursively remove a mount.
+    let root = temp.keep();
+    let mount = root.join("mount");
+    std::fs::create_dir(&mount)?;
+    let state = root.join("state");
+    cirrove_service::private_dir(&state)?;
+    let mut config = account(&mount);
+    config.enabled = true;
+    config.access = AccessMode::ReadWrite;
+    config.label = "downgrade-fixture".into();
+    config.cache_bytes = 64 * 1024 * 1024;
+    let save_settings = |config: &Account| -> anyhow::Result<()> {
+        let next = state.join("accounts.next.json");
+        std::fs::write(
+            &next,
+            serde_json::to_vec(&Settings {
+                version: 2,
+                accounts: vec![config.clone()],
+            })?,
+        )?;
+        std::fs::rename(next, state.join("accounts.json"))?;
+        Ok(())
+    };
+    save_settings(&config)?;
+    let cloud = Arc::new(Cloud::default());
+    cloud.stall.store(true, Ordering::SeqCst);
+    let reads = cloud.clone();
+    let writes = cloud.clone();
+    let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
+    let factory_calls = Arc::new(AtomicUsize::new(0));
+    let calls = factory_calls.clone();
+    let captured = Arc::new(Mutex::new(None));
+    let capture = captured.clone();
+    let write_factory: WriteFactory = Arc::new(move |account, context| {
+        calls.fetch_add(1, Ordering::SeqCst);
+        let journal = context.journal();
+        let mut journal = journal.lock().unwrap();
+        let record = journal.enqueue(
+            Scope {
+                account: account.id.clone(),
+                provider: "fixture".into(),
+                collection: "home".into(),
+            },
+            UploadIntent::Create {
+                parent: "root".into(),
+                name: "Saved.txt".into(),
+            },
+            &b"sealed before downgrade"[..],
+        )?;
+        let attempt = journal.claim_next()?.unwrap();
+        journal.stop_attempt(record.id, attempt.attempt.unwrap(), UploadState::Conflict)?;
+        *capture.lock().unwrap() = Some((record.id, record.sha256, context.journal()));
+        Ok(writes.clone())
+    });
+    let cancel = CancellationToken::new();
+    let (manager, worker) = Manager::start_with_providers(
+        state.clone(),
+        cancel.clone(),
+        read_factory,
+        Some(write_factory),
+    );
+    let socket = root.join("runtime/control.sock");
+    let server_socket = socket.clone();
+    let server_cancel = cancel.clone();
+    let server_manager = manager.clone();
+    let db = state.join("status.sqlite");
+    let server = tokio::spawn(async move {
+        cirrove_service::serve_managed(db, server_socket, server_cancel, Some(server_manager)).await
+    });
+    let outcome: anyhow::Result<()> = async {
+        tokio::time::timeout(Duration::from_secs(20), async {
+            loop {
+                if socket.exists() && manager.status.read().await.iter().any(|row| row.mounted) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await?;
+        let old_engine = Arc::downgrade(&manager.engine(&config.label).await?);
+        // No fsync before unlink: no sealed copy can replace the dirty generation.
+        let path = mount.join("Open then removed.txt");
+        tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+            let mut file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create_new(true)
+                .open(&path)?;
+            file.write_all(b"initial")?;
+            std::fs::remove_file(&path)?;
+            file.set_len(0)?;
+            file.seek(SeekFrom::Start(0))?;
+            file.write_all(b"dirty retained after unlink")?;
+            drop(file);
+            Ok(())
+        })
+        .await??;
+        let (saved, saved_hash, journal) = captured.lock().unwrap().take().unwrap();
+        let dirty = journal
+            .lock()
+            .unwrap()
+            .working_files()?
+            .into_iter()
+            .find(|file| file.unlinked && file.dirty)
+            .ok_or_else(|| anyhow::anyhow!("kernel unlink did not retain dirty working bytes"))?;
+        anyhow::ensure!(
+            journal.lock().unwrap().read_working(dirty.id, 0, 128)?
+                == b"dirty retained after unlink"
+        );
+        drop(journal); // The retiring RW owner must be able to close.
+        config.access = AccessMode::ReadOnly;
+        save_settings(&config)?;
+        tokio::time::timeout(Duration::from_secs(30), async {
+            loop {
+                if let Ok(engine) = manager.engine(&config.label).await
+                    && engine.account.access == AccessMode::ReadOnly
+                    && manager
+                        .status
+                        .read()
+                        .await
+                        .iter()
+                        .any(|row| row.mounted && row.local_recovery)
+                    && old_engine.upgrade().is_none()
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await?;
+        let calls_after_downgrade = cloud.write_calls.load(Ordering::SeqCst);
+        anyhow::ensure!(
+            factory_calls.load(Ordering::SeqCst) == 1,
+            "downgrade reopened a write factory"
+        );
+        let path = mount.join("must-not-write.txt");
+        let error = tokio::task::spawn_blocking(move || std::fs::write(path, b"forbidden"))
+            .await?
+            .expect_err("RO mount accepted a write");
+        anyhow::ensure!(
+            error.raw_os_error() == Some(libc::EROFS),
+            "wrong readonly write refusal: {error}"
+        );
+        let journal_root = state.join("accounts").join(&config.id).join("journal");
+        let before_db = std::fs::read(journal_root.join("uploads.db"))?;
+        let listed = cirrove_service::recovery_working(
+            &socket,
+            &cirrove_service::RecoveryWorkingRequest {
+                label: config.label.clone(),
+                after: None,
+                limit: 200,
+            },
+        )
+        .await?;
+        anyhow::ensure!(
+            listed.refusal.is_none(),
+            "RO list refused: {:?}",
+            listed.refusal
+        );
+        let retained = listed
+            .files
+            .iter()
+            .find(|file| file.file == dirty.id)
+            .ok_or_else(|| anyhow::anyhow!("dirty generation disappeared"))?;
+        anyhow::ensure!(retained.generation == dirty.generation);
+        let wait_job = |id: String| {
+            let socket = socket.clone();
+            async move {
+                tokio::time::timeout(Duration::from_secs(5), async {
+                    loop {
+                        let status = cirrove_service::status(&socket).await?;
+                        if let Some(job) = status
+                            .accounts
+                            .iter()
+                            .flat_map(|row| &row.jobs)
+                            .find(|job| job.id == id && !job.running())
+                        {
+                            return Ok::<_, anyhow::Error>(job.clone());
+                        }
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                })
+                .await?
+            }
+        };
+        let saved_destination = root.join("sealed-export.txt");
+        let saved_reply = cirrove_service::export_save(
+            &socket,
+            &cirrove_service::ExportSaveRequest {
+                label: config.label.clone(),
+                operation: saved,
+                destination: saved_destination.clone(),
+            },
+        )
+        .await?;
+        let saved_job = saved_reply
+            .job
+            .ok_or_else(|| anyhow::anyhow!("RO saved export refused: {:?}", saved_reply.refusal))?;
+        let complete = wait_job(saved_job.id).await?;
+        let receipt = complete
+            .export
+            .ok_or_else(|| anyhow::anyhow!("missing sealed receipt"))?;
+        anyhow::ensure!(receipt.operation == saved && receipt.sha256 == saved_hash);
+        anyhow::ensure!(std::fs::read(saved_destination)? == b"sealed before downgrade");
+        let request = cirrove_service::ExportWorkingRequest {
+            label: config.label.clone(),
+            file: dirty.id,
+            generation: dirty.generation,
+            destination: root.join("dirty-export.txt"),
+        };
+        let working_reply = cirrove_service::export_working(&socket, &request).await?;
+        let initial = working_reply.job.ok_or_else(|| {
+            anyhow::anyhow!("RO working export refused: {:?}", working_reply.refusal)
+        })?;
+        let complete = wait_job(initial.id.clone()).await?;
+        let receipt = request
+            .confirmed_receipt(&initial, &complete)
+            .ok_or_else(|| anyhow::anyhow!("missing exact dirty receipt"))?;
+        anyhow::ensure!(
+            receipt.sha256 == hex::encode(Sha256::digest(b"dirty retained after unlink"))
+        );
+        anyhow::ensure!(std::fs::read(&request.destination)? == b"dirty retained after unlink");
+        anyhow::ensure!(manager.retry_stuck(&config.label).await.is_err());
+        anyhow::ensure!(manager.discard_stuck(&config.label).await.is_err());
+        // Cross a manager refresh as well as the export completion boundaries.
+        tokio::time::sleep(Duration::from_secs(6)).await;
+        anyhow::ensure!(
+            cloud.write_calls.load(Ordering::SeqCst) == calls_after_downgrade,
+            "RO account replayed provider work"
+        );
+        anyhow::ensure!(factory_calls.load(Ordering::SeqCst) == 1);
+        anyhow::ensure!(
+            std::fs::read(journal_root.join("uploads.db"))? == before_db,
+            "RO recovery changed the journal"
+        );
+        anyhow::ensure!(cloud.remote.lock().unwrap().history.is_empty());
+        Ok(())
+    }
+    .await;
+    cancel.cancel();
+    let stopped = tokio::time::timeout(Duration::from_secs(20), worker).await;
+    let served = tokio::time::timeout(Duration::from_secs(5), server).await;
+    stopped??;
+    served???;
+    outcome
 }

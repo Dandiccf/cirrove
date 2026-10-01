@@ -9,6 +9,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         .accounts
         .iter()
         .map(|a| AccountStatus {
+            local_recovery: a.enabled,
             wastebasket: None,
             account_id: a.id.clone(),
             provider: a.registration.provider_id().into(),

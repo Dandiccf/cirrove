@@ -276,6 +276,7 @@ pub struct Engine {
     /// alive, and it holds no transaction, so checkpointing stays normal.
     _keeper: StdMutex<Store>,
     _owner: std::fs::File,
+    pub(crate) recovery_journal: Mutex<Weak<StdMutex<crate::journal::RecoveryJournal>>>,
 }
 impl Engine {
     pub async fn new(
@@ -333,11 +334,24 @@ impl Engine {
             kept_generation: AtomicU64::new(0),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
+            recovery_journal: Mutex::new(Weak::new()),
         }))
+    }
+    /// Read one indexed display name through the already-owned metadata connection.
+    /// Recovery must not invoke the normal node lookup, which can fetch remotely.
+    pub(crate) fn cached_recovery_name(&self, scope: &Scope, item: &str) -> Result<Option<String>> {
+        let store = self
+            ._keeper
+            .lock()
+            .map_err(|_| anyhow::anyhow!("local metadata unavailable"))?;
+        Ok(store
+            .node(scope, item)?
+            .map(|node| node.name)
+            .filter(|name| !name.is_empty()))
     }
     pub(crate) fn start_working_export(
         &self,
-        control: crate::filesystem::WriteControl,
+        control: crate::recovery::RecoveryControl,
         source: crate::journal::WorkingExportSource,
         destination: PathBuf,
         permit: tokio::sync::OwnedSemaphorePermit,
@@ -357,9 +371,9 @@ impl Engine {
             let staged = tokio::task::spawn_blocking(move || {
                 let result = source.prepare_copy(&destination, &handle.cancel,
                     |bytes| handle.advance(0, bytes));
-                (handle, result, permit)
+                (handle, result, permit, control)
             }).await;
-            let Ok((handle, prepared, permit)) = staged else { return };
+            let Ok((handle, prepared, permit, control)) = staged else { return };
             let verified = match prepared {
                 Ok(prepared) if !handle.cancel.is_cancelled() => control.verify_working_export(prepared).await.ok(),
                 _ => None,
@@ -382,6 +396,7 @@ impl Engine {
     }
     pub(crate) fn start_local_export(
         &self,
+        control: crate::recovery::RecoveryControl,
         source: crate::journal::LocalExportSource,
         destination: PathBuf,
         permit: tokio::sync::OwnedSemaphorePermit,
@@ -399,6 +414,7 @@ impl Engine {
             .context("export job registration failed")?;
         self.tasks.spawn(async move {
             let _ = tokio::task::spawn_blocking(move || {
+                let _control = control;
                 let _permit = permit;
                 let result = source.copy_to(&destination, &handle.cancel, |bytes| handle.advance(0, bytes));
                 match result {

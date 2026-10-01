@@ -19,6 +19,10 @@ use tokio::sync::RwLock;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AccountStatus {
+    /// This running account supports local-only recovery listing and export.
+    /// Does not imply retained changes exist or authorize cloud writes.
+    #[serde(default)]
+    pub local_recovery: bool,
     /// Stable settings identity for desktop actions. Older daemon responses omit it.
     #[serde(default)]
     pub account_id: String,
@@ -327,21 +331,31 @@ impl Manager {
         let _ = self.events.send(event);
     }
 
-    pub async fn recovery_working(
+    async fn recovery_control(
         &self,
-        request: &crate::RecoveryWorkingRequest,
-    ) -> Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
-        let engine = self.engine(&request.label).await?;
-        let control = self
+        engine: Arc<Engine>,
+    ) -> Result<crate::recovery::RecoveryControl> {
+        if engine.account.access == cirrove_auth::AccessMode::ReadOnly {
+            return crate::recovery::RecoveryControl::read_only(engine).await;
+        }
+        let writer = self
             .writers
             .read()
             .await
             .get(&engine.account.id)
             .cloned()
-            .context("this account has no active working-change journal")?;
-        Ok(control
+            .context("this account has no active saved-change journal")?;
+        crate::recovery::RecoveryControl::writer(engine, writer)
+    }
+    pub async fn recovery_working(
+        &self,
+        request: &crate::RecoveryWorkingRequest,
+    ) -> Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        let engine = self.engine(&request.label).await?;
+        let control = self.recovery_control(engine.clone()).await?;
+        control
             .working_recovery_list(request.after, request.limit)
-            .await?)
+            .await
     }
     pub async fn export_working(
         &self,
@@ -369,13 +383,7 @@ impl Manager {
             bail!("choose a destination outside Cirrove mounts and local state");
         }
         drop(statuses);
-        let control = self
-            .writers
-            .read()
-            .await
-            .get(&engine.account.id)
-            .cloned()
-            .context("this account has no active working-change journal")?;
+        let control = self.recovery_control(engine.clone()).await?;
         let source = control
             .working_export_source(request.file, request.generation)
             .await?;
@@ -408,15 +416,9 @@ impl Manager {
             bail!("choose a destination outside Cirrove mounts and local state");
         }
         drop(statuses);
-        let control = self
-            .writers
-            .read()
-            .await
-            .get(&engine.account.id)
-            .cloned()
-            .context("this account has no active saved-change journal")?;
+        let control = self.recovery_control(engine.clone()).await?;
         let source = control.local_export_source(request.operation).await?;
-        engine.start_local_export(source, destination.clone(), permit)
+        engine.start_local_export(control, source, destination.clone(), permit)
     }
     /// The running engine for an account label, or for the only account when the
     /// label is empty. `Err` carries a message a user can act on.
@@ -548,6 +550,20 @@ impl Manager {
     pub async fn recent(&self, label: &str, limit: usize) -> Result<crate::RecentReply> {
         let engine = self.engine(label).await?;
         let remote = engine.recent.list(limit);
+        if engine.account.access == cirrove_auth::AccessMode::ReadOnly {
+            let local = self
+                .recovery_control(engine)
+                .await?
+                .recent_local(limit)
+                .await?;
+            return Ok(crate::RecentReply {
+                remote,
+                local,
+                stuck: Vec::new(),
+                failed: Vec::new(),
+                refusal: None,
+            });
+        }
         let id = self.account_id(label).await?;
         let control = self.writers.read().await.get(&id).cloned();
         let mut local = match &control {
@@ -891,6 +907,7 @@ impl Manager {
                     let mut statuses = vec![];
                     for account in &settings.accounts {
                         let mut status = AccountStatus {
+                            local_recovery: false,
                             wastebasket: None,
                             account_id: account.id.clone(),
                             provider: account.registration.provider_id().into(),
@@ -1002,6 +1019,10 @@ impl Manager {
                                         Some("mount observation unavailable".into());
                                 }
                             }
+                            status.local_recovery = account.enabled
+                                && !active.engine.cancel.is_cancelled()
+                                && (account.access == cirrove_auth::AccessMode::ReadOnly
+                                    || active.writers.is_some());
                             status.feeds = active.engine.health().await;
                             status.directory_freshness = active.engine.directory_freshness();
                             status.read_path = active.engine.provider.read_path_counters();
@@ -1417,3 +1438,6 @@ mod copy_names {
 
 #[cfg(test)]
 mod write_budget;
+
+#[cfg(test)]
+mod recovery_tests;

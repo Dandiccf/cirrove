@@ -211,6 +211,7 @@ struct FakeService {
     response: Arc<Mutex<Status>>,
     hold_next: Arc<AtomicBool>,
     working_supported: Arc<AtomicBool>,
+    retryable_fixture: Arc<AtomicBool>,
     reply_gate: Arc<tokio::sync::Semaphore>,
     requests: Arc<Mutex<Vec<String>>>,
     task: tokio::task::JoinHandle<()>,
@@ -227,6 +228,8 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
     };
     let response = Arc::new(Mutex::new(status));
     let replies = response.clone();
+    let retryable_fixture = Arc::new(AtomicBool::new(false));
+    let retryable = retryable_fixture.clone();
     let working_supported = Arc::new(AtomicBool::new(true));
     let working_support = working_supported.clone();
     let hold_next = Arc::new(AtomicBool::new(false));
@@ -246,6 +249,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                     let gate = gate.clone();
                     let seen = seen.clone();
                     let working_support = working_support.clone();
+                    let retryable = retryable.clone();
                     clients.spawn(async move {
                         let mut reader = tokio::io::BufReader::new(stream);
                         let mut line = String::new();
@@ -294,7 +298,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         what: "delete folder".into(),
                                         name: "Old invoices".into(),
                                         path: Some("Accounts/Old invoices".into()),
-                                        state: "conflict".into(),
+                                        state: if retryable.load(Ordering::SeqCst) { "failed" } else { "conflict" }.into(),
                                         instead: None,
                                     }],
                                     failed: Vec::new(),
@@ -447,6 +451,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
         response,
         hold_next,
         working_supported,
+        retryable_fixture,
         reply_gate,
         requests,
         task,
@@ -1357,17 +1362,30 @@ fn recovery_snapshot(window: &adw::ApplicationWindow, variable: &str) {
 }
 
 fn recovery_progress_requires_the_matching_service_receipt() {
+    recovery_progress_requires_the_matching_service_receipt_for_mode(false);
+}
+fn recovery_progress_requires_the_matching_service_receipt_for_mode(read_only: bool) {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let temp = tempfile::tempdir().unwrap();
     let state = temp.path().join("state");
     cirrove_service::private_dir(&state).unwrap();
     let sample = demo::snapshot().unwrap();
     let mut settings = sample.settings.unwrap();
-    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    settings.accounts[0].access = if read_only {
+        cirrove_auth::AccessMode::ReadOnly
+    } else {
+        cirrove_auth::AccessMode::ReadWrite
+    };
     let id = settings.accounts[0].id.clone();
     write_settings(&state, &settings);
-    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
-    let app = application("RecoveryProgress");
+    let mut status = sample.status.unwrap();
+    status.accounts[0].local_recovery = read_only;
+    let service = fake_service(&runtime, temp.path(), status);
+    let app = application(if read_only {
+        "ReadonlyRecoveryProgress"
+    } else {
+        "RecoveryProgress"
+    });
     let ui = Window::new(
         &app,
         Backend::Live {
@@ -2085,17 +2103,32 @@ fn active_working_recovery_handles_empty_pages_and_old_services() {
 }
 
 fn active_working_recovery_requires_exact_receipts_and_reports_stale_selection() {
+    active_working_recovery_requires_exact_receipts_and_reports_stale_selection_for_mode(false);
+}
+fn active_working_recovery_requires_exact_receipts_and_reports_stale_selection_for_mode(
+    read_only: bool,
+) {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let temp = tempfile::tempdir().unwrap();
     let state = temp.path().join("state");
     cirrove_service::private_dir(&state).unwrap();
     let sample = demo::snapshot().unwrap();
     let mut settings = sample.settings.unwrap();
-    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    settings.accounts[0].access = if read_only {
+        cirrove_auth::AccessMode::ReadOnly
+    } else {
+        cirrove_auth::AccessMode::ReadWrite
+    };
     let id = settings.accounts[0].id.clone();
     write_settings(&state, &settings);
-    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
-    let app = application("WorkingRecoveryProgress");
+    let mut status = sample.status.unwrap();
+    status.accounts[0].local_recovery = read_only;
+    let service = fake_service(&runtime, temp.path(), status);
+    let app = application(if read_only {
+        "ReadonlyWorkingRecoveryProgress"
+    } else {
+        "WorkingRecoveryProgress"
+    });
     let ui = Window::new(
         &app,
         Backend::Live {
@@ -2170,7 +2203,14 @@ fn active_working_recovery_requires_exact_receipts_and_reports_stale_selection()
             )
         });
         if outcome == "confirmed" {
-            recovery_snapshot(&window, "CIRROVE_ACTIVE_WORKING_RESULT_SNAPSHOT");
+            recovery_snapshot(
+                &window,
+                if read_only {
+                    "CIRROVE_READONLY_RECOVERY_RESULT_SNAPSHOT"
+                } else {
+                    "CIRROVE_ACTIVE_WORKING_RESULT_SNAPSHOT"
+                },
+            );
         }
         button(window.upcast_ref(), "Close").unwrap().emit_clicked();
         pump_until("working export dialog dismissed", || {
@@ -2198,7 +2238,134 @@ fn active_working_recovery_requires_exact_receipts_and_reports_stale_selection()
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn readonly_recovery_requires_exact_saved_and_working_receipts() {
+    recovery_progress_requires_the_matching_service_receipt_for_mode(true);
+    active_working_recovery_requires_exact_receipts_and_reports_stale_selection_for_mode(true);
+}
+
+fn readonly_recovery_requires_live_capability_and_never_enables_mutations() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts.truncate(1);
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadOnly;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let mut status = sample.status.unwrap();
+    status.accounts.truncate(1);
+    status.accounts[0].local_recovery = false;
+    status.accounts[0].stuck_changes = 1;
+    status.accounts[0].failed_uploads = 1;
+    let service = fake_service(&runtime, temp.path(), status);
+    service.retryable_fixture.store(true, Ordering::SeqCst);
+    let app = application("ReadonlyRecoveryCapability");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("read-only account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("read-only retained data", || {
+        displays_text_containing(window.upcast_ref(), "Local saves are retained")
+    });
+    assert!(button(window.upcast_ref(), "Save a local copy…").is_none());
+    let working = cirrove_desktop::recovery::Selection::Working(sample_working_recovery());
+    let destination = temp.path().join("copy");
+    ui.choose_recovery_save(&id);
+    ui.export_active_version(&id, working.clone(), destination.clone());
+    assert!(
+        !service.requests.lock().unwrap().iter().any(
+            |line| line.starts_with("recovery-working ") || line.starts_with("export-working ")
+        )
+    );
+
+    service.response.lock().unwrap().accounts[0].local_recovery = true;
+    ui.refresh();
+    pump_until("recovery capability", || {
+        ui.current().is_some_and(|v| v.accounts[0].local_recovery)
+    });
+    pump_until("read-only recovery button", || {
+        button(window.upcast_ref(), "Save a local copy…").is_some_and(|b| b.is_sensitive())
+    });
+    for label in ["Discard", "Try again", "Keep both copies", "Choose a file…"] {
+        assert!(
+            button(window.upcast_ref(), label).is_none(),
+            "unexpected read-only mutation: {label}"
+        );
+    }
+    pump_until("retained retryable count", || {
+        ui.current().is_some_and(|v| v.accounts[0].retryable > 0)
+    });
+    // Call action entry points too: stale widgets/programmatic activation must
+    // not turn retained counts into permission to mutate.
+    ui.discard(&id);
+    ui.retry_refused(&id);
+    ui.keep_both_saves(&id);
+    ui.choose_file_to_destroy(&id);
+    ui.choose_recovery_save(&id);
+    pump_until("read-only picker", || {
+        displays_text_containing(window.upcast_ref(), "Notes.txt — saved version 1")
+    });
+    recovery_snapshot(&window, "CIRROVE_READONLY_RECOVERY_PICKER_SNAPSHOT");
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    pump_until("picker dismissed", || {
+        button(window.upcast_ref(), "Cancel").is_none()
+    });
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("recovery-working "))
+    );
+
+    service.response.lock().unwrap().accounts[0].local_recovery = false;
+    ui.refresh();
+    pump_until("capability withdrawn", || {
+        ui.current().is_some_and(|v| !v.accounts[0].local_recovery)
+    });
+    ui.export_active_version(&id, working, destination);
+    // Refresh acts as an event-loop barrier for any queued request.
+    ui.refresh();
+    pump_until("export action hidden", || {
+        button(window.upcast_ref(), "Save a local copy…").is_none()
+    });
+    assert!(!service.requests.lock().unwrap().iter().any(
+        |line| line.starts_with("export-working ")
+            || line.starts_with("export-save ")
+            || line.starts_with("retry ")
+            || line.starts_with("discard-stuck ")
+            || line.starts_with("keep-both ")
+            || line.starts_with("destroy ")
+    ));
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "readonly_recovery_requires_exact_saved_and_working_receipts",
+        readonly_recovery_requires_exact_saved_and_working_receipts,
+    ),
+    (
+        "readonly_recovery_requires_live_capability_and_never_enables_mutations",
+        readonly_recovery_requires_live_capability_and_never_enables_mutations,
+    ),
     (
         "active_working_recovery_handles_empty_pages_and_old_services",
         active_working_recovery_handles_empty_pages_and_old_services,

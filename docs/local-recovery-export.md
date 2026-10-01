@@ -39,7 +39,7 @@ unchanged. No automatic cleanup walks the destination directory.
 
 ## Desktop
 
-Expand an active writable account and choose **Save a local copy…** under
+Expand an active account that offers local recovery and choose **Save a local copy…** under
 **Recover a saved version**. The picker lists eligible versions among the latest
 200 saves, identified by filename, generation number and byte length. Choose a
 new local destination; existing destinations are still refused even if the
@@ -61,6 +61,19 @@ Working files get a separate completion message: a process may have stopped in
 the middle of writing them. Neither success nor cancellation seals, uploads or
 discards these bytes. A changed account, changed generation or mismatching receipt
 cannot produce a confirmed-success message.
+
+## Recovery after switching to read-only
+
+A current daemon also offers saved and working recovery for an enabled read-only
+account. It opens the retained journal read-only, without starting write workers,
+replaying operations or sealing bytes. A missing journal produces an empty list;
+a busy or damaged journal is reported as unavailable, not silently empty.
+
+Use the same active `export-save` and `export-working --active` commands. The
+desktop displays **Save a local copy…** when the service advertises this capability.
+Retry, discard and keep-both actions remain unavailable while read-only. Local
+recovery never grants cloud write access. Names come from retained local metadata;
+an item identity is shown only if no local name remains.
 
 ## Recovery while the account is unmounted
 
