@@ -227,7 +227,7 @@ impl ICloudFileMove {
                 .filter(|entry| entry.drivewsid == self.destination.id)
                 .collect();
             if matches.len() != 1
-                || !matches[0].is_folder()
+                || matches[0].kind != "FOLDER"
                 || matches[0].parent_id != parent
                 || matches[0].display_name() != self.destination.name
             {
@@ -495,3 +495,6 @@ mod tests {
         assert!(ICloudFileMove::check_identity(&scope, &before, &destination, &digest).is_err());
     }
 }
+
+#[cfg(test)]
+mod container_tests;

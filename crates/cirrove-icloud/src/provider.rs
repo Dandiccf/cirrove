@@ -22,6 +22,8 @@ use tokio::sync::{Mutex, OnceCell, Semaphore};
 
 #[cfg(test)]
 mod cold_tests;
+#[cfg(test)]
+mod container_tests;
 mod ordinary;
 mod packages;
 
@@ -366,6 +368,10 @@ fn directory_nodes(parent: &str, items: Vec<DriveEntry>) -> Result<Vec<Node>, Pr
         if name.is_empty() || name.contains('/') {
             return Err(ProviderError::Protocol("invalid iCloud item name"));
         }
+        // App-owned containers remain browsable, but their contents are not
+        // ordinary writable folders. Preserve this provider evidence so the
+        // shared filesystem and router ancestry guards protect every descendant.
+        let package = matches!(item.kind.as_str(), "APP_CONTAINER" | "APP_LIBRARY");
         nodes.push(Node {
             id: item.drivewsid,
             parent_id: Some(parent.into()),
@@ -376,7 +382,7 @@ fn directory_nodes(parent: &str, items: Vec<DriveEntry>) -> Result<Vec<Node>, Pr
             etag: (!item.etag.is_empty()).then_some(item.etag),
             content_version: None,
             target: None,
-            package: false,
+            package,
         });
     }
     Ok(nodes)

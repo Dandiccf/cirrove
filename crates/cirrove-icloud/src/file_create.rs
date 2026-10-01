@@ -313,7 +313,7 @@ impl ICloudFileCreate {
             .map_err(map_session_error)?;
         if folder.drivewsid != self.parent.id
             || folder.display_name() != self.parent.name
-            || !folder.is_folder()
+            || folder.kind != "FOLDER"
             || folder.parent_id != grandparent
         {
             return Err(UploadError::Conflict);
@@ -653,6 +653,8 @@ mod tests {
             "parent",
             "name",
             "kind",
+            "app_container",
+            "app_library",
             "incomplete",
             "duplicate",
             "unauthorized",
@@ -677,6 +679,8 @@ mod tests {
                 "parent" => item["parentId"] = "foreign".into(),
                 "name" => item["name"] = "Changed".into(),
                 "kind" => item["type"] = "FILE".into(),
+                "app_container" => item["type"] = "APP_CONTAINER".into(),
+                "app_library" => item["type"] = "APP_LIBRARY".into(),
                 "incomplete" => item["numberOfItems"] = 1.into(),
                 _ => (),
             }

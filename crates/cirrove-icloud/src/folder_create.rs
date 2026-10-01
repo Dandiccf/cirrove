@@ -212,7 +212,7 @@ impl ICloudFolderCreate {
                 entry.drivewsid == self.parent.id
                     && entry.parent_id == ancestor
                     && entry.display_name() == self.parent.name
-                    && entry.is_folder()
+                    && entry.kind == "FOLDER"
             })
             .count()
             != 1
@@ -245,7 +245,7 @@ impl ICloudFolderCreate {
                 return Ok(None);
             };
             if matches.next().is_some()
-                || !entry.is_folder()
+                || entry.kind != "FOLDER"
                 || entry.display_name() != name
                 || entry.parent_id != self.parent.id
             {
@@ -488,3 +488,6 @@ mod session_tests {
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) mod container_tests;

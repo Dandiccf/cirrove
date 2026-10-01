@@ -113,6 +113,8 @@ async fn new_handoff_refuses_changed_folder_location_name_or_kind() {
         ("parentId", ""),
         ("name", "Renamed folder"),
         ("type", "FILE"),
+        ("type", "APP_CONTAINER"),
+        ("type", "APP_LIBRARY"),
     ] {
         let plan = plan();
         let mut response = folder(&plan);
@@ -201,4 +203,18 @@ fn new_contract_cannot_be_used_for_root_or_unknown_versions() {
     plan.version = 5;
     plan.folder_id = ROOT_ID.into();
     assert!(plan.validate().is_err());
+}
+
+#[tokio::test]
+async fn legacy_handoff_refuses_app_owned_container_before_fetching_children() {
+    for kind in ["APP_CONTAINER", "APP_LIBRARY"] {
+        let mut plan = plan();
+        plan.version = 3;
+        let mut response = parent(&plan, false);
+        response[0]["items"][0]["type"] = kind.into();
+        let (mut session, task) =
+            fixture(vec![plan.folder_parent_id.clone()], vec![response]).await;
+        assert!(session.handoff_items(&plan).await.unwrap().is_none());
+        task.await.unwrap();
+    }
 }

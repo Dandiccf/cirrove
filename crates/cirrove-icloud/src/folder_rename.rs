@@ -191,7 +191,7 @@ impl ICloudFolderRename {
             return Ok(Observation::Unknown);
         };
         if matches.next().is_some()
-            || !entry.is_folder()
+            || entry.kind != "FOLDER"
             || entry.parent_id != parent
             || children.iter().any(|other| {
                 other.drivewsid != self.before.id && other.display_name() == self.target_name
@@ -326,3 +326,6 @@ impl MutationProvider for ICloudFolderRename {
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) mod container_tests;

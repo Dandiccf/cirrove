@@ -239,23 +239,23 @@ Existing Linux clients demonstrate access through Apple's undocumented web
 transport; a Fedora 44/GNOME installation was confirmed to mount iCloud Drive
 read/write through rclone FUSE. Cirrove now has an experimental native read-only
 mount. Feature-gated, isolated FUSE validation has also exercised Cirrove-owned
-file and folder creation, recoverable deletion, conditional rename, one
-cross-folder file move and one two-ID file replacement through the shared
-journals and workers; the
-[mounted replacement record](docs/benchmarks/icloud-mounted-replace-2026-09-28.md)
-keeps its validator failures alongside the successful read-only remount.
-The isolated replacement code can verify up to 32 MiB per file with bounded
-streaming hashes, including its Trash backup. One
-[5-to-6-MiB live replacement](docs/benchmarks/icloud-mounted-large-replace-2026-09-28.md)
-and fresh-process read-only remount passed, but the replacement arm took over
-eight minutes. The
-[mounted file-move record](docs/benchmarks/icloud-mounted-file-move-2026-09-29.md)
-also retains the failed first remount and its shared read-path correction.
-Normal iCloud connections remain read-only while network
-interruption, concurrent edits, broader file sizes and application behavior
-are unverified. A [zero-byte file creation trial](docs/benchmarks/icloud-empty-file-create-2026-09-29.md)
-also stopped before a content receipt in two isolated attempts, so empty-file
-uploads remain unsupported. Cirrove does
+ordinary file and folder creation, recoverable deletion, conditional rename,
+cross-folder moves and replacement through the shared journals and workers.
+The [write integration record](docs/icloud-write-integration.md) separates these
+bounded live results from the remaining release gates. Mounted ordinary-file arms
+include [1 GiB create/replacement and remount reads](docs/benchmarks/icloud-mounted-gib-account-2026-10-01.md),
+[interrupted replacement staging](docs/benchmarks/icloud-replace-stream-interruption-2026-10-01.md),
+and [consecutive editor-save conflict recovery](docs/benchmarks/icloud-mounted-atomic-chain-2026-10-01.md).
+A [zero-byte compatibility arm](docs/benchmarks/icloud-empty-representation-2026-09-30.md)
+passed ordinary empty-file creation, independent verification and mounted EOF;
+earlier failed attempts remain recorded. These results do not establish arbitrary
+file-size support, stable latency or general real-application reliability.
+
+Normal iCloud connections remain read-only. Native document packages have a
+[verified read-only artifact path](docs/benchmarks/icloud-native-package-adapter-2026-09-30.md);
+native editing, unknown bundle classification, low-disk/session acceptance and
+installed writable-account validation remain open. The experimental changes are
+not automatically installed into an existing daemon. Cirrove does
 not copy or depend on Stratosync or rclone at runtime, build time or in tests;
 lessons from those integrations inform the recovery tests. A
 [native read-only protocol probe](docs/icloud-native-probe.md) is available for

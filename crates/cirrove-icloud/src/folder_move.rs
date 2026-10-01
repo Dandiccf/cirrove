@@ -207,7 +207,7 @@ impl ICloudFolderMove {
                 .filter(|entry| entry.drivewsid == self.destination.id)
                 .collect();
             if matches.len() != 1
-                || !matches[0].is_folder()
+                || matches[0].kind != "FOLDER"
                 || matches[0].parent_id != parent
                 || matches[0].display_name() != self.destination.name
             {
@@ -245,7 +245,7 @@ impl ICloudFolderMove {
             _ => return Ok(Observation::Unknown),
         };
         let etag = entry.etag.clone();
-        if !entry.is_folder()
+        if entry.kind != "FOLDER"
             || entry.parent_id != parent
             || entry.display_name() != self.before.name
             || etag.is_empty()
@@ -276,6 +276,7 @@ impl ICloudFolderMove {
             .filter(|candidate| candidate.drivewsid == self.before.id)
             .collect();
         if matches.len() != 1
+            || matches[0].kind != "FOLDER"
             || matches[0].etag != etag
             || matches[0].parent_id != parent
             || matches[0].display_name() != self.before.name
@@ -423,3 +424,6 @@ impl MutationProvider for ICloudFolderMove {
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) mod container_tests;

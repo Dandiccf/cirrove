@@ -78,7 +78,7 @@ impl ICloudReadSession {
             if folder.drivewsid != plan.folder_id
                 || folder.parent_id != plan.folder_parent()
                 || folder.display_name() != plan.folder_name
-                || !folder.is_folder()
+                || folder.kind != "FOLDER"
             {
                 return Ok(None);
             }
@@ -457,7 +457,7 @@ impl HandoffPlan {
                 entry.drivewsid == self.folder_id
                     && entry.parent_id == self.folder_parent()
                     && entry.display_name() == self.folder_name
-                    && entry.is_folder()
+                    && entry.kind == "FOLDER"
             })
     }
 
