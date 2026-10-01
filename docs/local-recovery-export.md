@@ -121,22 +121,45 @@ The same private, cancellable, no-overwrite local destination rules apply.
 Unexpected source size/timestamp changes during copying abort publication;
 `Ctrl+C` requests cancellation. The source and journal remain unchanged.
 
-## Active working-file core
+## Working bytes from a running account
 
-An [internal staged-copy API](benchmarks/icloud-active-working-export-core-2026-10-01.md)
-now supports selecting working bytes from a running journal, copying outside its
-mutex, and validating the exact generation before publication. Tests cover edits
-at each boundary and retain the selected version in the receipt. The active
-working-file socket, CLI and desktop wiring remains pending; use the existing
-offline workflow above until that integration is available.
+Use the explicit `--active` mode to recover working bytes without disabling the
+connection or closing the application's file:
+
+```sh
+cirrove recovery-working --active --label MyDrive --limit 200
+cirrove export-working --active --label MyDrive --file FILE_UUID --generation GENERATION --destination /absolute/local/copy
+```
+
+Use the UUID and generation from the listing. `--after UUID` follows its `next`
+cursor; a page may contain no eligible files and still provide a next cursor
+because clean working records are skipped. Listing reads local metadata only.
+`--socket PATH` selects an isolated daemon and requires `--active`. Omitting
+`--active` keeps the existing disabled-account offline workflow; `--state` cannot
+be combined with active mode.
+
+The daemon stages a private copy outside the journal lock, then checks that the
+selected generation did not change. A concurrent edit before that check refuses
+the export without publishing a destination. Later edits may coexist with the
+already verified copy; its receipt names the selected generation, not the latest
+version. The CLI waits for an exact UUID/generation/size/destination receipt and
+requests cancellation on Ctrl+C. A missing job or missing receipt is not success.
+The mount and application file remain usable. No export seals bytes, retries a
+cloud operation or queues a new upload.
+
+The [core tests](benchmarks/icloud-active-working-export-core-2026-10-01.md) and
+[service/CLI fixture](benchmarks/icloud-active-working-export-service-2026-10-01.md)
+cover the separate boundaries. Active working-file selection in the desktop
+is still pending.
 
 ## Current limits
 
 - Desktop recovery supports active writable journals and configured disabled
-  accounts. Removed/retired accounts and unsealed-byte export while a writable
-  mount is still active are not wired yet.
+  accounts. Removed/retired accounts and active unsealed-byte selection in the
+  desktop are not wired yet; the CLI provides active working-file export.
 - `export-save` selects an unresolved **sealed generation**, not unsealed working
-  bytes; the offline `export-working` command handles retained working files. `Preparing`, acknowledged, discarded and resolved
+  bytes; `export-working` handles retained working files in offline or explicit
+  active mode. `Preparing`, acknowledged, discarded and resolved
   generations are refused. Selecting an older ID exports that older generation.
 - Active-account desktop selection is bounded to the latest 200 saves; the
   offline picker supports further pages. The CLI can select an

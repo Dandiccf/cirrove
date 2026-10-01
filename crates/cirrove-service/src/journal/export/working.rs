@@ -1,7 +1,7 @@
 //! Working-byte recovery is offline only: the owner lease lasts through copying.
 use super::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkingRecovery {
     pub file: Uuid,
     pub generation: u64,
@@ -11,7 +11,7 @@ pub struct WorkingRecovery {
     pub recorded_size: u64,
     pub unlinked: bool,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkingExportReceipt {
     pub source: WorkingRecovery,
     /// Digest of the recovered bytes, not a prior sealed-save checksum.

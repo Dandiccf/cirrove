@@ -335,6 +335,51 @@ impl Engine {
             _owner: owner,
         }))
     }
+    pub(crate) fn start_working_export(
+        &self,
+        control: crate::filesystem::WriteControl,
+        source: crate::journal::WorkingExportSource,
+        destination: PathBuf,
+        permit: tokio::sync::OwnedSemaphorePermit,
+    ) -> Result<crate::jobs::Job> {
+        let handle = self.jobs.start(
+            crate::jobs::JobKind::ExportLocal,
+            destination.to_string_lossy().into_owned(),
+            1,
+            source.source().size,
+            &self.cancel,
+        );
+        let initial = self
+            .jobs
+            .find(handle.id())
+            .context("export job registration failed")?;
+        self.tasks.spawn(async move {
+            let staged = tokio::task::spawn_blocking(move || {
+                let result = source.prepare_copy(&destination, &handle.cancel,
+                    |bytes| handle.advance(0, bytes));
+                (handle, result, permit)
+            }).await;
+            let Ok((handle, prepared, permit)) = staged else { return };
+            let verified = match prepared {
+                Ok(prepared) if !handle.cancel.is_cancelled() => control.verify_working_export(prepared).await.ok(),
+                _ => None,
+            };
+            // Retain the active account and journal owner through publication.
+            let _ = tokio::task::spawn_blocking(move || {
+                let _control = control;
+                let _permit = permit;
+                let result = verified.and_then(|copy| copy.publish(&handle.cancel).ok());
+                match result {
+                    Some(receipt) => handle.exported_working(receipt),
+                    None if handle.stopping() => handle.failed(crate::jobs::JobState::Stopped,
+                        Some("export stopped; the working bytes are retained".into())),
+                    None => handle.failed(crate::jobs::JobState::Failed,
+                        Some("working export not confirmed; the version may have changed. Inspect the destination before retrying; local changes are retained".into())),
+                }
+            }).await;
+        });
+        Ok(initial)
+    }
     pub(crate) fn start_local_export(
         &self,
         source: crate::journal::LocalExportSource,

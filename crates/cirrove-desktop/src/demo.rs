@@ -64,6 +64,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                     state: cirrove_service::jobs::JobState::Running,
                     issue: None,
                     export: None,
+                    working_export: None,
                 }]
             } else {
                 Vec::new()

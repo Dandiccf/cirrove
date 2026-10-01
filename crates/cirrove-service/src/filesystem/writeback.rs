@@ -522,6 +522,30 @@ impl Writeback {
     ) -> Result<crate::journal::LocalExportSource> {
         self.local(move |j| j.local_export_source(id)).await
     }
+    pub async fn working_recovery_list(
+        &self,
+        after: Option<uuid::Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        self.local(move |j| j.working_recovery_list(after, limit))
+            .await
+    }
+    /// Select working bytes without sealing; staging must run outside the journal lock.
+    pub async fn working_export_source(
+        &self,
+        id: uuid::Uuid,
+        generation: u64,
+    ) -> Result<crate::journal::WorkingExportSource> {
+        self.local(move |j| j.working_export_source(id, generation))
+            .await
+    }
+    /// Verify that no byte mutation occurred while a private recovery copy was staged.
+    pub async fn verify_working_export(
+        &self,
+        prepared: crate::journal::PreparedWorkingExport,
+    ) -> Result<crate::journal::VerifiedWorkingExport> {
+        self.local(move |j| j.verify_working_export(prepared)).await
+    }
     /// The saves that could be kept beside the remote version, with what the
     /// caller needs to name the copy. A create already knows its parent and
     /// name; a replace knows only the item it was acting on, and the caller is

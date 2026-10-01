@@ -351,6 +351,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         state: cirrove_service::jobs::JobState::Running,
                                         issue: None,
                                         export: None,
+                                        working_export: None,
                                     });
                                     accepted = true;
                                 }
@@ -1720,6 +1721,7 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
                 state: cirrove_service::jobs::JobState::Running,
                 issue: None,
                 export: None,
+                working_export: None,
             },
             // One that gave up. Its row stays until somebody has seen it: a
             // progress bar that simply vanishes tells nobody anything.
@@ -1735,6 +1737,7 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
                 state: cirrove_service::jobs::JobState::Failed,
                 issue: Some("the cloud was unreachable".into()),
                 export: None,
+                working_export: None,
             },
         ];
     }

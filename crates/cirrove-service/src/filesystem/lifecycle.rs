@@ -162,6 +162,35 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("could not discard the stuck changes"))
     }
+    pub async fn working_recovery_list(
+        &self,
+        after: Option<uuid::Uuid>,
+        limit: u32,
+    ) -> std::io::Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        self.writer
+            .working_recovery_list(after, limit)
+            .await
+            .map_err(|_| std::io::Error::other("working versions are unavailable"))
+    }
+    pub async fn working_export_source(
+        &self,
+        id: uuid::Uuid,
+        generation: u64,
+    ) -> std::io::Result<crate::journal::WorkingExportSource> {
+        self.writer
+            .working_export_source(id, generation)
+            .await
+            .map_err(|_| std::io::Error::other("the working version changed or is unavailable"))
+    }
+    pub async fn verify_working_export(
+        &self,
+        prepared: crate::journal::PreparedWorkingExport,
+    ) -> std::io::Result<crate::journal::VerifiedWorkingExport> {
+        self.writer
+            .verify_working_export(prepared)
+            .await
+            .map_err(|_| std::io::Error::other("the working version changed while copying"))
+    }
     pub async fn local_export_source(
         &self,
         id: uuid::Uuid,

@@ -5095,6 +5095,187 @@ async fn real_recovery_export_uses_the_service_without_replaying_a_failed_save()
         cloud.remote.lock().unwrap().files.is_empty(),
         "export must never publish cloud content"
     );
+    // Keep an application descriptor open, with written but unsealed FUSE bytes.
+    // Recovery must not fsync/release that descriptor or trigger an upload.
+    let ready = temp.path().join("working-ready");
+    let release = temp.path().join("working-release");
+    let mut editor = tokio::process::Command::new("python3")
+        .args([
+            "-c",
+            r#"import pathlib,sys,time
+p,ready,release=map(pathlib.Path,sys.argv[1:])
+with p.open('wb',buffering=0) as f:
+    f.write(b'active unsaved bytes')
+    ready.touch()
+    end=time.monotonic()+30
+    while not release.exists():
+        if time.monotonic()>end: raise RuntimeError('test release deadline')
+        time.sleep(.02)
+"#,
+        ])
+        .arg(mount.join("Working.txt"))
+        .arg(&ready)
+        .arg(&release)
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !ready.exists() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let listed = cirrove_service::recovery_working(
+        &socket,
+        &cirrove_service::RecoveryWorkingRequest {
+            label: "export-fixture".into(),
+            after: None,
+            limit: 200,
+        },
+    )
+    .await
+    .unwrap();
+    assert!(listed.refusal.is_none());
+    let working = listed
+        .files
+        .iter()
+        .find(|file| file.name == "Working.txt")
+        .unwrap()
+        .clone();
+    let output = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+            .args([
+                "recovery-working",
+                "--active",
+                "--label",
+                "export-fixture",
+                "--socket",
+            ])
+            .arg(&socket)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let listing: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        listing["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|file| file["file"] == working.file.to_string())
+    );
+    let journal = captured.lock().unwrap().as_ref().unwrap().1.clone();
+    let before =
+        serde_json::to_value(journal.lock().unwrap().working_file(working.file).unwrap()).unwrap();
+    let uploads_before =
+        serde_json::to_value(journal.lock().unwrap().list(0, 200).unwrap()).unwrap();
+    let target = temp.path().join("working-copy");
+    let request = cirrove_service::ExportWorkingRequest {
+        label: "export-fixture".into(),
+        file: working.file,
+        generation: working.generation,
+        destination: target.clone(),
+    };
+    let initial = cirrove_service::export_working(&socket, &request)
+        .await
+        .unwrap()
+        .job
+        .unwrap();
+    let complete = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let status = cirrove_service::status(&socket).await.unwrap();
+            if let Some(job) = status
+                .accounts
+                .iter()
+                .flat_map(|a| &a.jobs)
+                .find(|job| job.id == initial.id && !job.running())
+            {
+                break job.clone();
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(request.confirmed_receipt(&initial, &complete).is_some());
+    assert_eq!(std::fs::read(&target).unwrap(), b"active unsaved bytes");
+    let cli_target = temp.path().join("working-cli-copy");
+    let output = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+            .args(["export-working", "--active", "--label", "", "--socket"])
+            .arg(&socket)
+            .arg("--file")
+            .arg(working.file.to_string())
+            .arg("--generation")
+            .arg(working.generation.to_string())
+            .arg("--destination")
+            .arg(&cli_target)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let receipt: cirrove_service::journal::WorkingExportReceipt =
+        serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(receipt.source.file, working.file);
+    assert_eq!(receipt.source.generation, working.generation);
+    assert_eq!(std::fs::read(cli_target).unwrap(), b"active unsaved bytes");
+    let mut stale = request.clone();
+    stale.generation += 1;
+    stale.destination = temp.path().join("stale-copy");
+    assert!(
+        cirrove_service::export_working(&socket, &stale)
+            .await
+            .unwrap()
+            .refusal
+            .is_some()
+    );
+    assert!(!stale.destination.exists());
+    stale.generation = request.generation;
+    stale.destination = mount.join("unsafe-working-export");
+    assert!(
+        cirrove_service::export_working(&socket, &stale)
+            .await
+            .unwrap()
+            .refusal
+            .is_some()
+    );
+    assert!(!stale.destination.exists());
+    assert_eq!(
+        serde_json::to_value(journal.lock().unwrap().working_file(working.file).unwrap()).unwrap(),
+        before
+    );
+    assert_eq!(
+        serde_json::to_value(journal.lock().unwrap().list(0, 200).unwrap()).unwrap(),
+        uploads_before
+    );
+    assert!(cloud.remote.lock().unwrap().files.is_empty());
+    // The mounted source remains readable while the editor still owns its stream.
+    application(&mount, "import pathlib,sys; assert (pathlib.Path(sys.argv[1])/'Working.txt').read_bytes()==b'active unsaved bytes'").await;
+    std::fs::write(&release, b"release").unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(5), editor.wait())
+            .await
+            .unwrap()
+            .unwrap()
+            .success()
+    );
     cancel.cancel();
     worker.await.unwrap();
     server.await.unwrap().unwrap();

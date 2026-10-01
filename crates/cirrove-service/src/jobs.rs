@@ -98,6 +98,8 @@ pub struct Job {
     pub issue: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub export: Option<crate::journal::LocalExportReceipt>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_export: Option<crate::journal::WorkingExportReceipt>,
 }
 
 impl Job {
@@ -185,6 +187,7 @@ impl Jobs {
             state: JobState::Running,
             issue: None,
             export: None,
+            working_export: None,
         };
         self.inner().running.push(Running {
             job,
@@ -291,6 +294,7 @@ impl Jobs {
                     job.state = ended.state;
                     job.issue = ended.issue;
                     job.export = ended.export;
+                    job.working_export = ended.working_export;
                     if inner.ended.len() == RETAINED {
                         inner.ended.pop_front();
                     }
@@ -306,6 +310,7 @@ struct Ended {
     state: JobState,
     issue: Option<String>,
     export: Option<crate::journal::LocalExportReceipt>,
+    working_export: Option<crate::journal::WorkingExportReceipt>,
 }
 
 /// The running job's half: where progress is written and cancellation is read.
@@ -357,6 +362,19 @@ impl JobHandle {
                 state: JobState::Succeeded,
                 issue: None,
                 export: Some(receipt),
+                working_export: None,
+            }),
+        );
+    }
+    pub fn exported_working(self, receipt: crate::journal::WorkingExportReceipt) {
+        self.advance(1, receipt.source.size);
+        self.jobs.end(
+            &self.id,
+            Some(Ended {
+                state: JobState::Succeeded,
+                issue: None,
+                export: None,
+                working_export: Some(receipt),
             }),
         );
     }
@@ -368,6 +386,7 @@ impl JobHandle {
                 state,
                 issue,
                 export: None,
+                working_export: None,
             }),
         );
     }

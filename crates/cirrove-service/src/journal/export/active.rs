@@ -26,6 +26,38 @@ pub struct VerifiedWorkingExport {
     _owner: File,
 }
 impl UploadJournal {
+    /// Bounded metadata-only pagination; clean records still advance the cursor.
+    pub fn working_recovery_list(
+        &self,
+        after: Option<Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<WorkingRecovery>, Option<Uuid>)> {
+        let limit = limit.clamp(1, 200);
+        let mut query = self
+            .db
+            .prepare("SELECT id FROM working_files WHERE id > ?1 ORDER BY id LIMIT ?2")?;
+        let ids = query
+            .query_map(
+                params![
+                    after.map(|id| id.to_string()).unwrap_or_default(),
+                    limit + 1
+                ],
+                |row| row.get::<_, String>(0),
+            )?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let more = ids.len() > limit as usize;
+        let mut rows = Vec::new();
+        let mut next = None;
+        for id in ids.into_iter().take(limit as usize) {
+            let id = Uuid::parse_str(&id).map_err(|_| JournalError::Corrupt)?;
+            next = Some(id);
+            let record = self.working_file(id)?;
+            if record.dirty || record.unlinked {
+                rows.push(self.working_export_source(id, record.generation)?.source);
+            }
+        }
+        Ok((rows, more.then_some(next).flatten()))
+    }
     pub fn working_export_source(&self, id: Uuid, generation: u64) -> Result<WorkingExportSource> {
         let record = self.working_file(id)?;
         if record.id != id

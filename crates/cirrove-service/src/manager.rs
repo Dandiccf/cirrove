@@ -327,6 +327,60 @@ impl Manager {
         let _ = self.events.send(event);
     }
 
+    pub async fn recovery_working(
+        &self,
+        request: &crate::RecoveryWorkingRequest,
+    ) -> Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        let engine = self.engine(&request.label).await?;
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&engine.account.id)
+            .cloned()
+            .context("this account has no active working-change journal")?;
+        Ok(control
+            .working_recovery_list(request.after, request.limit)
+            .await?)
+    }
+    pub async fn export_working(
+        &self,
+        request: &crate::ExportWorkingRequest,
+    ) -> Result<crate::jobs::Job> {
+        let permit = self
+            .export_slots
+            .clone()
+            .try_acquire_owned()
+            .context("another recovery export is running")?;
+        let destination = &request.destination;
+        if !destination.is_absolute() || destination.as_os_str().len() > 4096 {
+            bail!("choose an absolute local destination");
+        }
+        let engine = self.engine(&request.label).await?;
+        let statuses = self.status.read().await;
+        if statuses
+            .iter()
+            .any(|a| destination.starts_with(&a.mount_path))
+            || engine
+                .db
+                .parent()
+                .is_some_and(|p| destination.starts_with(p))
+        {
+            bail!("choose a destination outside Cirrove mounts and local state");
+        }
+        drop(statuses);
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&engine.account.id)
+            .cloned()
+            .context("this account has no active working-change journal")?;
+        let source = control
+            .working_export_source(request.file, request.generation)
+            .await?;
+        engine.start_working_export(control, source, destination.clone(), permit)
+    }
     /// Start a bounded local recovery copy; the journal and cloud intent remain unchanged.
     pub async fn export_save(
         &self,

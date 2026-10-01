@@ -1,5 +1,62 @@
 use anyhow::{Context, Result, bail};
 
+/// Recover one selected working generation through the daemon, with an exact receipt.
+async fn active_working_export(
+    socket: &std::path::Path,
+    request: cirrove_service::ExportWorkingRequest,
+) -> Result<()> {
+    let reply = cirrove_service::export_working(socket, &request).await?;
+    if let Some(refusal) = reply.refusal {
+        bail!("{refusal}");
+    }
+    let initial = reply.job.context("working export was not accepted")?;
+    eprintln!("Working export started [{}]", initial.id);
+    let interrupt = tokio::signal::ctrl_c();
+    tokio::pin!(interrupt);
+    let mut stopping = false;
+    loop {
+        let status = tokio::select! {
+            result = cirrove_service::status(socket) => result?,
+            _ = &mut interrupt, if !stopping => {
+                let reply = cirrove_service::stop_job(socket, &cirrove_service::StopJobRequest {
+                    label: request.label.clone(), id: initial.id.clone(),
+                }).await?;
+                stopping = true;
+                if reply.already_ended {
+                    bail!("export finished before cancellation; inspect the destination because its receipt was dismissed");
+                }
+                continue;
+            }
+        };
+        let current = status
+            .accounts
+            .iter()
+            .filter(|account| request.label.is_empty() || account.label == request.label)
+            .flat_map(|account| &account.jobs)
+            .find(|job| job.id == initial.id)
+            .context(
+                "working export result unavailable; inspect the destination before retrying",
+            )?;
+        if current.state == cirrove_service::jobs::JobState::Succeeded {
+            let receipt = request.confirmed_receipt(&initial, current)
+                .context("working export receipt does not match the selected version; inspect the destination")?;
+            println!("{}", serde_json::to_string_pretty(receipt)?);
+            return Ok(());
+        }
+        if !current.running() {
+            bail!(
+                "{}",
+                current
+                    .issue
+                    .as_deref()
+                    .unwrap_or("working export did not complete")
+            );
+        }
+        // A short interval also bounds interrupt handling when the previous poll finished.
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+}
+
 /// Print what the daemon did, in a sentence rather than as JSON.
 ///
 /// A refusal is an ordinary outcome here, not a crash: the exit status says the
@@ -566,23 +623,33 @@ enum Command {
         #[arg(long, default_value_t = 200)]
         limit: u32,
     },
-    /// List unsealed or unlinked working files from a disabled account.
+    /// List retained working files offline, or use --active for a running account.
     RecoveryWorking {
         #[arg(long)]
         label: String,
-        #[arg(long)]
+        #[arg(long, conflicts_with = "active")]
         state: Option<PathBuf>,
+        /// Use the running daemon; the default remains offline recovery.
+        #[arg(long)]
+        active: bool,
+        #[arg(long, requires = "active")]
+        socket: Option<PathBuf>,
         #[arg(long)]
         after: Option<uuid::Uuid>,
         #[arg(long, default_value_t = 200)]
         limit: u32,
     },
-    /// Recover actual working bytes offline; does not seal or upload them.
+    /// Recover working bytes offline or with --active; never seals or uploads.
     ExportWorking {
         #[arg(long)]
         label: String,
-        #[arg(long)]
+        #[arg(long, conflicts_with = "active")]
         state: Option<PathBuf>,
+        /// Use the running daemon; the default remains offline recovery.
+        #[arg(long)]
+        active: bool,
+        #[arg(long, requires = "active")]
+        socket: Option<PathBuf>,
         #[arg(long)]
         file: uuid::Uuid,
         #[arg(long)]
@@ -1546,9 +1613,33 @@ async fn main() -> Result<()> {
         Command::RecoveryWorking {
             label,
             state,
+            active,
+            socket,
             after,
             limit,
         } => {
+            if active {
+                let socket = socket.map(Ok).unwrap_or_else(socket_path)?;
+                let reply = cirrove_service::recovery_working(
+                    &socket,
+                    &cirrove_service::RecoveryWorkingRequest {
+                        label,
+                        after,
+                        limit,
+                    },
+                )
+                .await?;
+                if let Some(refusal) = reply.refusal {
+                    bail!("{refusal}");
+                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(
+                        &serde_json::json!({"files":reply.files,"next":reply.next})
+                    )?
+                );
+                return Ok(());
+            }
             let state = match state {
                 Some(state) => state,
                 None => state_dir()?,
@@ -1566,10 +1657,30 @@ async fn main() -> Result<()> {
         Command::ExportWorking {
             label,
             state,
+            active,
+            socket,
             file,
             generation,
             destination,
         } => {
+            if active {
+                let socket = socket.map(Ok).unwrap_or_else(socket_path)?;
+                let destination = if destination.is_absolute() {
+                    destination
+                } else {
+                    std::env::current_dir()?.join(destination)
+                };
+                return active_working_export(
+                    &socket,
+                    cirrove_service::ExportWorkingRequest {
+                        label,
+                        file,
+                        generation,
+                        destination,
+                    },
+                )
+                .await;
+            }
             let state = match state {
                 Some(state) => state,
                 None => state_dir()?,

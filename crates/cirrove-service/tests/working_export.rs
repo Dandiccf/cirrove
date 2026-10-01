@@ -567,3 +567,157 @@ fn active_working_export_preserves_no_overwrite_and_parent_identity_after_valida
         }
     }
 }
+
+#[test]
+fn active_working_list_pages_past_clean_rows_without_sealing() {
+    let temp = tempfile::tempdir().unwrap();
+    let (mut journal, id, _) = active_fixture(&temp.path().join("state"));
+    journal.seal_working(id).unwrap();
+    let before = records(&journal);
+    let (files, next) = journal.working_recovery_list(None, 1).unwrap();
+    assert!(files.is_empty());
+    assert!(next.is_none());
+    let original = journal.working_file(id).unwrap();
+    for index in 0..3 {
+        let mut node = original.node.clone();
+        node.name = format!("other-{index}.txt");
+        node.size = 0;
+        journal
+            .create_working(original.scope.clone(), node, true, &b""[..])
+            .unwrap();
+    }
+    let mut after = None;
+    let mut found = Vec::new();
+    let before_listing = records(&journal);
+    for _ in 0..5 {
+        let (files, next) = journal.working_recovery_list(after, 1).unwrap();
+        assert!(files.len() <= 1);
+        found.extend(files.into_iter().map(|file| file.file));
+        if next.is_none() {
+            break;
+        }
+        assert_ne!(after, next);
+        after = next;
+    }
+    assert_eq!(found.len(), 3);
+    assert!(!found.contains(&id));
+    assert_eq!(records(&journal), before_listing);
+    assert_eq!(before["uploads"], before_listing["uploads"]);
+}
+#[test]
+fn active_working_cli_requires_explicit_mode_and_rejects_offline_state() {
+    for args in [
+        vec!["recovery-working", "--label", "work", "--socket", "/absent"],
+        vec![
+            "recovery-working",
+            "--label",
+            "work",
+            "--active",
+            "--state",
+            "/absent",
+        ],
+        vec![
+            "export-working",
+            "--label",
+            "work",
+            "--file",
+            "00000000-0000-0000-0000-000000000001",
+            "--generation",
+            "1",
+            "--destination",
+            "/copy",
+            "--socket",
+            "/absent",
+        ],
+        vec![
+            "export-working",
+            "--label",
+            "work",
+            "--file",
+            "00000000-0000-0000-0000-000000000001",
+            "--generation",
+            "1",
+            "--destination",
+            "/copy",
+            "--active",
+            "--state",
+            "/absent",
+        ],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_cirrove"))
+            .args(args)
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+#[tokio::test]
+async fn working_job_receipt_requires_exact_selection_and_preserves_sealed_compatibility() {
+    use cirrove_service::{
+        ExportWorkingRequest,
+        jobs::{JobKind, JobState, Jobs},
+    };
+    use std::sync::Arc;
+    let request = ExportWorkingRequest {
+        label: "work".into(),
+        file: uuid::Uuid::new_v4(),
+        generation: 8,
+        destination: "/local/copy".into(),
+    };
+    let jobs = Arc::new(Jobs::default());
+    let handle = jobs.start(
+        JobKind::ExportLocal,
+        "copy".into(),
+        1,
+        3,
+        &cirrove_core::CancellationToken::new(),
+    );
+    let initial = jobs.find(handle.id()).unwrap();
+    let receipt = cirrove_service::journal::WorkingExportReceipt {
+        source: cirrove_service::journal::WorkingRecovery {
+            file: request.file,
+            generation: 8,
+            name: "dirty".into(),
+            size: 3,
+            recorded_size: 3,
+            unlinked: false,
+        },
+        sha256: "a".repeat(64),
+        destination: request.destination.clone(),
+    };
+    handle.exported_working(receipt.clone());
+    let completed = jobs.wait(&initial.id).await.unwrap();
+    assert_eq!(
+        request.confirmed_receipt(&initial, &completed),
+        Some(&receipt)
+    );
+    assert!(completed.export.is_none());
+    assert_eq!((completed.files_done, completed.bytes_done), (1, 3));
+    for variant in 0..8 {
+        let mut wrong = completed.clone();
+        match variant {
+            0 => wrong.id = "another-job".into(),
+            1 => wrong.state = JobState::Failed,
+            2 => wrong.working_export = None,
+            3 => wrong.working_export.as_mut().unwrap().source.generation += 1,
+            4 => wrong.working_export.as_mut().unwrap().source.file = uuid::Uuid::new_v4(),
+            5 => wrong.working_export.as_mut().unwrap().source.size += 1,
+            6 => wrong.working_export.as_mut().unwrap().destination = "/different".into(),
+            _ => wrong.working_export.as_mut().unwrap().sha256 = "not-a-digest".into(),
+        }
+        assert!(request.confirmed_receipt(&initial, &wrong).is_none());
+    }
+    let mut legacy = serde_json::to_value(&initial).unwrap();
+    legacy.as_object_mut().unwrap().remove("working_export");
+    assert!(
+        serde_json::from_value::<cirrove_service::jobs::Job>(legacy)
+            .unwrap()
+            .working_export
+            .is_none()
+    );
+}

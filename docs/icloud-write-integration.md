@@ -779,5 +779,6 @@ checks for the next intermediate milestone. It does not close any gate by itself
 or redefine full iCloud support as ordinary-file writing. Native editing and
 remaining compatibility/reliability work stay open. The
 [active working-file recovery core](benchmarks/icloud-active-working-export-core-2026-10-01.md)
-now has generation-checked private staging; its daemon/CLI/desktop wiring remains
-pending.
+now has generation-checked private staging and a
+[service/CLI route](benchmarks/icloud-active-working-export-service-2026-10-01.md)
+verified through a held writable FUSE descriptor. Desktop wiring remains pending.

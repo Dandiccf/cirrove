@@ -613,6 +613,70 @@ pub async fn export_save(
     .await
 }
 
+/// Metadata-only active working-file recovery, never a cloud refresh.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RecoveryWorkingRequest {
+    pub label: String,
+    pub after: Option<uuid::Uuid>,
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RecoveryWorkingReply {
+    pub files: Vec<journal::WorkingRecovery>,
+    pub next: Option<uuid::Uuid>,
+    pub refusal: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExportWorkingRequest {
+    pub label: String,
+    pub file: uuid::Uuid,
+    pub generation: u64,
+    pub destination: PathBuf,
+}
+impl ExportWorkingRequest {
+    /// Match an exact service receipt, never merely a terminal job status.
+    pub fn confirmed_receipt<'a>(
+        &self,
+        initial: &jobs::Job,
+        completed: &'a jobs::Job,
+    ) -> Option<&'a journal::WorkingExportReceipt> {
+        let receipt = completed.working_export.as_ref()?;
+        (initial.kind == jobs::JobKind::ExportLocal
+            && completed.kind == jobs::JobKind::ExportLocal
+            && completed.id == initial.id
+            && completed.state == jobs::JobState::Succeeded
+            && completed.export.is_none()
+            && receipt.source.file == self.file
+            && receipt.source.generation == self.generation
+            && receipt.source.size == initial.bytes_total
+            && receipt.destination == self.destination
+            && receipt.sha256.len() == 64
+            && receipt.sha256.bytes().all(|b| b.is_ascii_hexdigit()))
+        .then_some(receipt)
+    }
+}
+pub async fn recovery_working(
+    socket: &Path,
+    body: &RecoveryWorkingRequest,
+) -> Result<RecoveryWorkingReply> {
+    request(
+        socket,
+        "recovery-working",
+        Some(body),
+        "Cirrove working recovery",
+    )
+    .await
+}
+pub async fn export_working(socket: &Path, body: &ExportWorkingRequest) -> Result<ExportSaveReply> {
+    request(
+        socket,
+        "export-working",
+        Some(body),
+        "Cirrove working export",
+    )
+    .await
+}
+
 /// Put the person's version of every refused save beside the cloud's, under a
 /// new name, instead of making them choose which one to lose.
 pub async fn keep_both(socket: &Path, label: &str) -> Result<KeepBothReply> {
@@ -1095,6 +1159,26 @@ pub async fn serve_managed(
                                 },
                                 (Ok(_),None)=>PermanentDeleteReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
                                 (Err(_),_)=>PermanentDeleteReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="recovery-working" {
+                            let reply=match (serde_json::from_str::<RecoveryWorkingRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.recovery_working(&r).await {
+                                    Ok((files,next))=>RecoveryWorkingReply{files,next,refusal:None},
+                                    Err(error)=>RecoveryWorkingReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                _=>RecoveryWorkingReply{refusal:Some("working recovery request or account service is unavailable".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="export-working" {
+                            let reply=match (serde_json::from_str::<ExportWorkingRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.export_working(&r).await {
+                                    Ok(job)=>ExportSaveReply{job:Some(job),refusal:None},
+                                    Err(error)=>ExportSaveReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                _=>ExportSaveReply{refusal:Some("working export request or account service is unavailable".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
