@@ -555,6 +555,17 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// List retained saves from a disabled account without starting its worker.
+    RecoverySaves {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state: Option<PathBuf>,
+        #[arg(long, default_value_t = 0)]
+        after: u64,
+        #[arg(long, default_value_t = 200)]
+        limit: u32,
+    },
     /// Export an immutable local save without changing its cloud operation.
     ExportSave {
         #[arg(long, default_value = "")]
@@ -563,8 +574,13 @@ enum Command {
         operation: uuid::Uuid,
         #[arg(long)]
         destination: PathBuf,
-        #[arg(long)]
+        #[arg(long, conflicts_with = "offline")]
         socket: Option<PathBuf>,
+        /// Recover a disabled, unmounted account without the daemon or credentials.
+        #[arg(long)]
+        offline: bool,
+        #[arg(long, requires = "offline")]
+        state: Option<PathBuf>,
     },
     /// Keep both copies of every save the cloud refused.
     ///
@@ -1487,12 +1503,65 @@ async fn main() -> Result<()> {
                 bail!("{refused} of {} were not removed", reply.deletions.len());
             }
         }
+        Command::RecoverySaves {
+            label,
+            state,
+            after,
+            limit,
+        } => {
+            let state = match state {
+                Some(state) => state,
+                None => state_dir()?,
+            };
+            let rows = tokio::task::spawn_blocking(move || {
+                cirrove_service::accounts::OfflineRecovery::open(&state, &label)?.list(after, limit)
+            })
+            .await??;
+            println!("{}", serde_json::to_string_pretty(&rows)?);
+        }
         Command::ExportSave {
             label,
             operation,
             destination,
             socket,
+            offline,
+            state,
         } => {
+            if offline {
+                let state = match state {
+                    Some(state) => state,
+                    None => state_dir()?,
+                };
+                let destination = if destination.is_absolute() {
+                    destination
+                } else {
+                    std::env::current_dir()?.join(destination)
+                };
+                let cancel = CancellationToken::new();
+                let copy_cancel = cancel.clone();
+                let mut task = tokio::task::spawn_blocking(move || {
+                    cirrove_service::accounts::OfflineRecovery::open(&state, &label)?.export(
+                        operation,
+                        &destination,
+                        &copy_cancel,
+                        |_| {},
+                    )
+                });
+                let receipt = tokio::select! {
+                    result = &mut task => result??,
+                    _ = tokio::signal::ctrl_c() => {
+                        cancel.cancel();
+                        task.await??
+                    }
+                };
+                println!(
+                    "Saved {} verified bytes to {} (SHA-256 {}). The cloud operation is unchanged.",
+                    receipt.size,
+                    receipt.destination.display(),
+                    receipt.sha256
+                );
+                return Ok(());
+            }
             let socket = match socket {
                 Some(p) => p,
                 None => socket_path()?,

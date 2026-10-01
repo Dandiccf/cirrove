@@ -8,7 +8,7 @@ mod barriers;
 mod directories;
 mod export;
 mod generations;
-pub use export::{LocalExportReceipt, LocalExportSource};
+pub use export::{LocalExportReceipt, LocalExportSource, RecoveryJournal};
 mod handoff;
 mod identity_handoff;
 mod mutations;
@@ -602,6 +602,14 @@ impl UploadJournal {
         let rows = query.query_map(params![after, limit.clamp(1, 1000)], |r| {
             r.get::<_, String>(0)
         })?;
+        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+    }
+    /// Newest retained generations first, independently of the oldest page.
+    pub fn recent_uploads(&self, limit: u32) -> Result<Vec<UploadRecord>> {
+        let mut query = self
+            .db
+            .prepare("SELECT body FROM uploads ORDER BY sequence DESC LIMIT ?1")?;
+        let rows = query.query_map([limit.min(200)], |r| r.get::<_, String>(0))?;
         rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
     }
     /// Verify a sealed snapshot using bounded memory, then return an owned,

@@ -13,6 +13,7 @@ fn only_identified_unresolved_sealed_generations_are_offered() {
         "pending",
         "uploading",
         "verify_required",
+        "verifyrequired",
         "verifying",
         "conflict",
         "failed",

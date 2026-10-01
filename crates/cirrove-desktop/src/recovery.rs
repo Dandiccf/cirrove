@@ -9,7 +9,13 @@ pub fn eligible(save: &LocalChange) -> bool {
     save.operation.is_some()
         && matches!(
             save.state.as_str(),
-            "pending" | "uploading" | "verify_required" | "verifying" | "conflict" | "failed"
+            "pending"
+                | "uploading"
+                | "verify_required"
+                | "verifyrequired"
+                | "verifying"
+                | "conflict"
+                | "failed"
         )
 }
 

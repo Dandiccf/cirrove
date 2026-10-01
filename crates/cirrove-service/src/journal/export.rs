@@ -167,3 +167,98 @@ impl LocalExportSource {
         })
     }
 }
+
+/// Exclusive, read-only access to retained saves from a stopped account.
+/// This deliberately does not call `UploadJournal::open`: no migrations,
+/// reconciliation transitions, sealing or collection may run during recovery.
+pub struct RecoveryJournal {
+    journal: UploadJournal,
+    _directory: File,
+}
+impl RecoveryJournal {
+    pub fn open(root: &Path, account: &str) -> Result<Self> {
+        if account.is_empty() {
+            return Err(JournalError::Intent);
+        }
+        let dir = directory(root)?;
+        let meta = dir.metadata()?;
+        if meta.uid() != std::fs::metadata("/proc/self")?.uid()
+            || meta.permissions().mode() & 0o077 != 0
+        {
+            return Err(JournalError::Storage);
+        }
+        let anchored = PathBuf::from(format!("/proc/self/fd/{}", dir.as_raw_fd()));
+        let open_existing = |name: &str| -> Result<File> {
+            let file = OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NOFOLLOW)
+                .open(anchored.join(name))?;
+            owned_private(&file)?;
+            Ok(file)
+        };
+        let owner = open_existing("owner.lock")?;
+        fs2::FileExt::try_lock_exclusive(&owner).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::WouldBlock {
+                JournalError::Busy
+            } else {
+                JournalError::Storage
+            }
+        })?;
+        let _database = open_existing("uploads.db")?;
+        let db = Connection::open_with_flags(
+            root.join("uploads.db"),
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
+        )?;
+        // SQLite rejects /proc descriptor aliases with NOFOLLOW. Check that
+        // its ordinary pathname still identifies our held private directory
+        // and database before accepting any records from the connection.
+        let current_dir = std::fs::symlink_metadata(root)?;
+        let current_db = std::fs::symlink_metadata(root.join("uploads.db"))?;
+        let held_db = _database.metadata()?;
+        if current_dir.dev() != meta.dev()
+            || current_dir.ino() != meta.ino()
+            || current_db.dev() != held_db.dev()
+            || current_db.ino() != held_db.ino()
+        {
+            return Err(JournalError::Stale);
+        }
+        db.busy_timeout(std::time::Duration::from_secs(3))?;
+        let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        if version != 14 {
+            return Err(JournalError::Schema);
+        }
+        let stored: String =
+            db.query_row("SELECT account FROM identity WHERE singleton=1", [], |r| {
+                r.get(0)
+            })?;
+        if stored != account {
+            return Err(JournalError::Account);
+        }
+        let objects_meta = std::fs::symlink_metadata(anchored.join("objects"))?;
+        if !objects_meta.is_dir()
+            || objects_meta.uid() != meta.uid()
+            || objects_meta.permissions().mode() & 0o077 != 0
+        {
+            return Err(JournalError::Storage);
+        }
+        Ok(Self {
+            journal: UploadJournal {
+                db,
+                objects: anchored.join("objects"),
+                working: anchored.join("working"),
+                account: account.into(),
+                quota: 1,
+                _owner: owner,
+            },
+            _directory: dir,
+        })
+    }
+    /// Bounded sequence pagination, including historical terminal states so the
+    /// caller can advance even when a page contains no exportable versions.
+    pub fn list(&self, after: u64, limit: u32) -> Result<Vec<UploadRecord>> {
+        self.journal.list(after, limit.clamp(1, 200))
+    }
+    pub fn local_export_source(&self, id: Uuid) -> Result<LocalExportSource> {
+        self.journal.local_export_source(id)
+    }
+}

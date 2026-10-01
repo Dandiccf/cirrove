@@ -177,3 +177,194 @@ fn an_export_reads_its_pinned_generation_even_if_the_source_path_is_replaced() {
         .unwrap();
     assert_eq!(fs::read(target).unwrap(), b"original");
 }
+
+#[test]
+fn offline_reader_locks_without_recovering_or_creating_a_journal() {
+    use cirrove_service::journal::{RecoveryJournal, UploadState};
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    assert!(RecoveryJournal::open(&root, "owned").is_err());
+    assert!(!root.exists());
+    let (journal, id) = setup(temp.path(), b"retained version");
+    assert!(RecoveryJournal::open(&root, "owned").is_err());
+    drop(journal);
+    // Persist an interrupted state without running the ordinary reopen recovery.
+    let db = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
+    db.execute("UPDATE uploads SET state='uploading',body=json_set(body,'$.state','uploading') WHERE id=?1", [id.to_string()]).unwrap();
+    drop(db);
+    let before = fs::read(root.join("uploads.db")).unwrap();
+    assert!(RecoveryJournal::open(&root, "different-account").is_err());
+    let recovery = RecoveryJournal::open(&root, "owned").unwrap();
+    assert!(UploadJournal::open(&root, "owned", 1024).is_err());
+    let rows = recovery.list(0, 999).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].state, UploadState::Uploading);
+    recovery
+        .local_export_source(id)
+        .unwrap()
+        .copy_to(&temp.path().join("copy"), &CancellationToken::new(), |_| {})
+        .unwrap();
+    assert_eq!(
+        recovery.list(0, 200).unwrap()[0].state,
+        UploadState::Uploading
+    );
+    drop(recovery);
+    assert_eq!(fs::read(root.join("uploads.db")).unwrap(), before);
+    assert_eq!(
+        fs::read(temp.path().join("copy")).unwrap(),
+        b"retained version"
+    );
+    let alias = temp.path().join("alias");
+    symlink(&root, &alias).unwrap();
+    assert!(RecoveryJournal::open(&alias, "owned").is_err());
+}
+
+#[test]
+fn disabled_account_recovery_cli_preserves_state_and_refuses_active_owners() {
+    use cirrove_service::accounts::{OfflineRecovery, Settings, account_lock};
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut settings: Settings =
+        serde_json::from_str(include_str!("../../cirrove-desktop/fixtures/accounts.json")).unwrap();
+    settings.accounts.truncate(1);
+    let account = &mut settings.accounts[0];
+    account.enabled = false;
+    account.mount_path = temp.path().join("mount");
+    let id = account.id.clone();
+    let directory = state.join("accounts").join(&id);
+    let mut journal = UploadJournal::open(&directory.join("journal"), &id, 4096).unwrap();
+    let row = journal
+        .enqueue(
+            Scope {
+                account: id.clone(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            },
+            UploadIntent::Create {
+                parent: "root".into(),
+                name: "odd ' file\n.txt".into(),
+            },
+            &b"offline bytes"[..],
+        )
+        .unwrap();
+    drop(journal);
+    fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&settings).unwrap(),
+    )
+    .unwrap();
+    fs::set_permissions(
+        state.join("accounts.json"),
+        fs::Permissions::from_mode(0o600),
+    )
+    .unwrap();
+    let before = fs::read(state.join("accounts.json")).unwrap();
+    let held = account_lock(&directory).unwrap();
+    assert!(OfflineRecovery::open(&state, "work").is_err());
+    drop(held);
+    let recovery = OfflineRecovery::open(&state, "work").unwrap();
+    assert!(account_lock(&directory).is_err());
+    assert!(
+        recovery
+            .export(
+                row.id,
+                &state.join("forbidden"),
+                &CancellationToken::new(),
+                |_| {}
+            )
+            .is_err()
+    );
+    assert!(
+        recovery
+            .export(
+                row.id,
+                &temp.path().join("mount/forbidden"),
+                &CancellationToken::new(),
+                |_| {}
+            )
+            .is_err()
+    );
+    let rows = recovery.list(0, 200).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].operation, Some(row.id));
+    assert_eq!(rows[0].name, "odd ' file\n.txt");
+    assert!(recovery.list(rows[0].sequence, 200).unwrap().is_empty());
+    drop(recovery);
+    let listed = std::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+        .env_remove("HOME")
+        .env_remove("XDG_STATE_HOME")
+        .args(["recovery-saves", "--label", "work", "--state"])
+        .arg(&state)
+        .output()
+        .unwrap();
+    assert!(
+        listed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&listed.stderr)
+    );
+    let listed: Vec<cirrove_service::recent::LocalChange> =
+        serde_json::from_slice(&listed.stdout).unwrap();
+    assert_eq!(listed[0].operation, Some(row.id));
+    let destination = temp.path().join("rescued.txt");
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+        .env_remove("HOME")
+        .env_remove("XDG_STATE_HOME")
+        .args(["export-save", "--offline", "--label", "work", "--state"])
+        .arg(&state)
+        .arg("--operation")
+        .arg(row.id.to_string())
+        .arg("--destination")
+        .arg(&destination)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(fs::read(destination).unwrap(), b"offline bytes");
+    assert_eq!(fs::read(state.join("accounts.json")).unwrap(), before);
+    settings.accounts[0].enabled = true;
+    fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&settings).unwrap(),
+    )
+    .unwrap();
+    fs::set_permissions(
+        state.join("accounts.json"),
+        fs::Permissions::from_mode(0o600),
+    )
+    .unwrap();
+    assert!(OfflineRecovery::open(&state, "work").is_err());
+}
+
+#[test]
+fn offline_reader_refuses_future_schema_and_symlinked_database_or_objects() {
+    use cirrove_service::journal::RecoveryJournal;
+    let temp = tempfile::tempdir().unwrap();
+    let (journal, _) = setup(temp.path(), b"retained");
+    drop(journal);
+    let root = temp.path().join("journal");
+    let db_path = root.join("uploads.db");
+    let db = rusqlite::Connection::open(&db_path).unwrap();
+    db.pragma_update(None, "user_version", 15).unwrap();
+    drop(db);
+    let before = fs::read(&db_path).unwrap();
+    assert!(RecoveryJournal::open(&root, "owned").is_err());
+    assert_eq!(fs::read(&db_path).unwrap(), before);
+    let db = rusqlite::Connection::open(&db_path).unwrap();
+    db.pragma_update(None, "user_version", 14).unwrap();
+    drop(db);
+    let moved = root.join("retained-db");
+    fs::rename(&db_path, &moved).unwrap();
+    symlink(&moved, &db_path).unwrap();
+    assert!(RecoveryJournal::open(&root, "owned").is_err());
+    fs::remove_file(&db_path).unwrap();
+    fs::rename(moved, &db_path).unwrap();
+    let objects = root.join("objects");
+    let retained = root.join("retained-objects");
+    fs::rename(&objects, &retained).unwrap();
+    symlink(retained, objects).unwrap();
+    assert!(RecoveryJournal::open(&root, "owned").is_err());
+}

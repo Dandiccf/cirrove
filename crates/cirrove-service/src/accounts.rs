@@ -1630,6 +1630,105 @@ fn drive_choice(read: usize, line: &str, listing: &str) -> Result<usize> {
         .with_context(|| format!("{answer:?} is not a drive number"))
 }
 
+/// An offline account held against mount, settings changes and journal workers.
+/// No credentials, provider, migration or recovery worker is constructed.
+pub struct OfflineRecovery {
+    journal: crate::journal::RecoveryJournal,
+    state: PathBuf,
+    mounts: Vec<PathBuf>,
+    _operation: File,
+    _owner: File,
+}
+impl OfflineRecovery {
+    pub fn open(state: &Path, label: &str) -> Result<Self> {
+        let resolved = state.canonicalize()?;
+        let state = resolved.as_path();
+        let _settings = config_lock(state)?;
+        let settings = Settings::load(state)?;
+        let account = settings
+            .accounts
+            .iter()
+            .find(|a| a.label == label)
+            .context("no account carries that label")?;
+        let operation = account_operation(state, &account.id)?;
+        if account.enabled {
+            bail!(
+                "disable this account before offline recovery; use export-save for an active drive"
+            );
+        }
+        let directory = state.join("accounts").join(&account.id);
+        if !directory.is_dir() {
+            bail!("this account has no retained local data");
+        }
+        let owner = account_lock(&directory)?;
+        let journal =
+            crate::journal::RecoveryJournal::open(&directory.join("journal"), &account.id)
+                .context("could not open the retained journal for read-only recovery")?;
+        Ok(Self {
+            journal,
+            state: state.canonicalize()?,
+            mounts: settings
+                .accounts
+                .iter()
+                .map(|a| a.mount_path.clone())
+                .collect(),
+            _operation: operation,
+            _owner: owner,
+        })
+    }
+    pub fn list(&self, after: u64, limit: u32) -> Result<Vec<crate::recent::LocalChange>> {
+        self.journal
+            .list(after, limit)?
+            .into_iter()
+            .map(|record| {
+                let name = match &record.intent {
+                    crate::journal::UploadIntent::Create { name, .. } => name.clone(),
+                    crate::journal::UploadIntent::Replace { item, .. } => record
+                        .remote
+                        .as_ref()
+                        .map(|node| node.name.clone())
+                        .unwrap_or_else(|| item.clone()),
+                };
+                let state = serde_json::to_value(record.state)?
+                    .as_str()
+                    .context("invalid save state")?
+                    .to_owned();
+                Ok(crate::recent::LocalChange {
+                    operation: Some(record.id),
+                    sequence: record.sequence,
+                    name,
+                    state,
+                    size: record.size,
+                    item: None,
+                    saved_at: (record.saved_at > 0).then_some(record.saved_at),
+                    transferred: record.transferred_bytes,
+                })
+            })
+            .collect()
+    }
+    pub fn export(
+        &self,
+        id: uuid::Uuid,
+        destination: &Path,
+        cancel: &CancellationToken,
+        progress: impl FnMut(u64),
+    ) -> Result<crate::journal::LocalExportReceipt> {
+        if !destination.is_absolute()
+            || destination.starts_with(&self.state)
+            || self
+                .mounts
+                .iter()
+                .any(|mount| destination.starts_with(mount))
+        {
+            bail!("choose a destination outside Cirrove mounts and local state");
+        }
+        Ok(self
+            .journal
+            .local_export_source(id)?
+            .copy_to(destination, cancel, progress)?)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

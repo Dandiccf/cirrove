@@ -568,11 +568,11 @@ impl Writeback {
         Ok(kept)
     }
     pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
-        let records = self.local(|j| j.list(0, 10_000)).await?;
+        let records = self
+            .local(move |j| j.recent_uploads(limit.min(200) as u32))
+            .await?;
         Ok(records
             .into_iter()
-            .rev()
-            .take(limit)
             .map(|record| {
                 let (name, item) = match &record.intent {
                     cirrove_core::upload::UploadIntent::Create { name, .. } => (name.clone(), None),
@@ -851,6 +851,76 @@ impl Writeback {
 mod tests {
     use super::*;
     use crate::journal::project_namespace;
+    #[tokio::test]
+    async fn recent_local_includes_newest_saves_beyond_the_first_thousand() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let root = temp.path().join("journal");
+        let mut journal = UploadJournal::open(&root, "fixture", 4096).expect("journal");
+        let mut row = journal
+            .enqueue(
+                Scope {
+                    account: "fixture".into(),
+                    provider: "fixture".into(),
+                    collection: "drive".into(),
+                },
+                cirrove_core::upload::UploadIntent::Create {
+                    parent: "root".into(),
+                    name: "saved.txt".into(),
+                },
+                &b"bytes"[..],
+            )
+            .expect("save");
+        // Synthetic history only; no worker or provider observes these rows.
+        let mut db = rusqlite::Connection::open(root.join("uploads.db")).expect("fixture database");
+        let tx = db.transaction().expect("transaction");
+        for sequence in 2..=1002 {
+            row.id = Uuid::new_v4();
+            row.sequence = sequence;
+            tx.execute(
+                "INSERT INTO uploads(id,resource,state,body) VALUES(?1,'fixture','pending',?2)",
+                rusqlite::params![
+                    row.id.to_string(),
+                    serde_json::to_string(&row).expect("record")
+                ],
+            )
+            .expect("history");
+        }
+        tx.commit().expect("fixture commit");
+        let writeback = Writeback {
+            journal: Arc::new(Mutex::new(journal)),
+            refusals: Default::default(),
+            wake: Default::default(),
+            projection: Default::default(),
+            hydrating: Default::default(),
+            activity: Default::default(),
+            maintenance_cursor: Default::default(),
+            preserving_cursor: Default::default(),
+            maintenance_retries: Default::default(),
+            provider: Default::default(),
+        };
+        let recent = writeback.recent_local(8).await.expect("recent");
+        assert_eq!(
+            recent.iter().map(|r| r.sequence).collect::<Vec<_>>(),
+            (995..=1002).rev().collect::<Vec<_>>()
+        );
+        assert_eq!(recent[0].operation, Some(row.id));
+        assert_eq!(
+            writeback
+                .recent_local(usize::MAX)
+                .await
+                .expect("bounded history")
+                .len(),
+            200
+        );
+        assert!(
+            writeback
+                .recent_local(0)
+                .await
+                .expect("empty history")
+                .is_empty()
+        );
+    }
+
     #[test]
     fn delayed_save_publication_cannot_restore_an_old_name_or_drop_a_remote_alias() {
         let temp = tempfile::tempdir().expect("temporary state");

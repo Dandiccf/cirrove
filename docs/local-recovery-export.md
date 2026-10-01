@@ -48,10 +48,37 @@ Only a matching completed service receipt produces a success message. Missing
 jobs, disconnected services and incomplete receipts report an unconfirmed result
 and ask you to inspect the destination. These outcomes do not discard the save.
 
+## Recovery while the account is unmounted
+
+For an existing **disabled** account, the CLI can recover sealed versions without
+starting the daemon, mounting the account or opening its credentials:
+
+```sh
+cirrove recovery-saves --label NAME
+cirrove export-save --offline --label NAME --operation SAVE_UUID \
+  --destination "$HOME/Documents/Recovered copy.txt"
+```
+
+`recovery-saves` returns bounded JSON metadata (operation ID, sequence, name,
+state and size). Use `--after LAST_SEQUENCE` for the next page; pages include
+terminal history so pagination does not skip past it. A page contains at most
+200 records. The export still accepts only unresolved sealed generations.
+`--state PATH` selects an isolated state directory for both offline commands.
+`Ctrl+C` requests cancellation during a copy.
+
+Offline recovery holds the account operation, account owner and journal owner
+locks, refuses enabled or still-stopping accounts, and opens only the existing
+journal schema in SQLite read-only mode. It does not migrate the journal, rewrite
+interrupted upload states, seal working files or start reconciliation. It refuses
+symlinked journal/database/object locations and destinations inside the state or
+configured mount paths. Older/newer journal schemas are refused explicitly.
+The regular active-account command continues to use the daemon.
+
 ## Current limits
 
-- The account must have an active writable journal. Export from an unmounted or
-  retired account is not wired to this command yet.
+- The desktop picker requires an active writable journal. Offline recovery is
+  currently a CLI flow for configured disabled accounts; removed/retired accounts
+  and offline desktop selection are not wired yet.
 - It selects an unresolved **sealed generation**, not unsaved editor buffers or
   unsealed working bytes. `Preparing`, acknowledged, discarded and resolved
   generations are refused. Selecting an older ID exports that older generation.
