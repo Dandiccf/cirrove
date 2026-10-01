@@ -7,7 +7,8 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
         let tx = db.transaction()?;
         // Older binaries ignore new JSON fields. The schema gate prevents them
         // from replaying a package archive as ordinary file bytes, or opening
-        // a journal containing the explicit native-container Trash intent.
+        // a journal containing explicit native-container Trash or two-identity
+        // package archive replacements (schema 17).
         tx.pragma_update(None, "user_version", JOURNAL_SCHEMA)?;
         tx.commit()?;
     }

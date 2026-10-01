@@ -105,10 +105,22 @@ impl ICloudReadSession {
         staging: File,
         cancel: &CancellationToken,
     ) -> Result<VerifiedPackageTrash> {
+        let expected_account = account_hash(&request.apple_account)?;
+        self.verify_package_in_trash_for_account_hash(request, &expected_account, staging, cancel)
+            .await
+    }
+
+    pub(crate) async fn verify_package_in_trash_for_account_hash(
+        &mut self,
+        request: OwnedPackageTrashRequest,
+        expected_account: &str,
+        staging: File,
+        cancel: &CancellationToken,
+    ) -> Result<VerifiedPackageTrash> {
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled.into()),
             result = async {
-                if self.account_hash.as_deref() != Some(account_hash(&request.apple_account)?.as_str())
+                if self.account_hash.as_deref() != Some(expected_account)
                     || request.document_id.is_empty()
                     || request.drive_id != format!("FILE::com.apple.CloudDocs::{}", request.document_id)
                 { bail!("iCloud package recovery account or identity mismatch"); }

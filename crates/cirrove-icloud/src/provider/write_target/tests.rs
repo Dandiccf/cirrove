@@ -299,3 +299,100 @@ async fn stale_observation_invalidates_previously_accepted_cache_entry() {
     assert_eq!(fixture.count(), 4);
     assert!(fixture.drive.write_targets.lock().unwrap().0.is_empty());
 }
+
+#[tokio::test]
+async fn native_extensions_admit_actual_data_but_refuse_package_and_ambiguous_representations() {
+    for extension in ["pages", "numbers", "key"] {
+        let mut native = node();
+        native.name = format!("Owned.{extension}");
+        let accepted = Fixture::new(vec![
+            (META, 200, metadata(&native)),
+            (LOOKUP, 200, data()),
+            (META, 200, metadata(&native)),
+        ])
+        .await;
+        accepted.validate(&native).await.unwrap();
+        assert_eq!(accepted.count(), 3, "Data must be bracketed: {extension}");
+        assert_eq!(accepted.drive.write_targets.lock().unwrap().0.len(), 1);
+        for representation in [
+            json!({"package_token":{"url":"https://fixture.icloud-content.com/private"}}),
+            json!({"package_token":{"url":"https://fixture.icloud-content.com/private"},"data_token":{"url":"https://fixture.icloud-content.com/private"}}),
+        ] {
+            // A third valid response ensures deleting the Data-only gate can
+            // incorrectly succeed, rather than fail because a fixture ended.
+            let refused = Fixture::new(vec![
+                (META, 200, metadata(&native)),
+                (LOOKUP, 200, representation),
+                (META, 200, metadata(&native)),
+            ])
+            .await;
+            assert!(refused.validate(&native).await.is_err(), "{extension}");
+            assert_eq!(refused.count(), 2, "no content request: {extension}");
+            assert!(refused.drive.write_targets.lock().unwrap().0.is_empty());
+        }
+    }
+}
+
+#[tokio::test]
+async fn native_data_to_package_revision_change_cannot_reuse_write_admission() {
+    for extension in ["pages", "numbers", "key"] {
+        let mut old = node();
+        old.name = format!("Owned.{extension}");
+        let mut changed = old.clone();
+        // Nothing but the revision changes. In particular, a same-sized native
+        // document may change its representation without changing its suffix.
+        changed.etag = Some("v2".into());
+        let fixture = Fixture::new(vec![
+            (META, 200, metadata(&old)),
+            (LOOKUP, 200, data()),
+            (META, 200, metadata(&old)),
+            (META, 200, metadata(&changed)),
+            (
+                LOOKUP,
+                200,
+                json!({"package_token":{"url":"https://fixture.icloud-content.com/private"}}),
+            ),
+            (META, 200, metadata(&changed)),
+        ])
+        .await;
+        fixture.validate(&old).await.unwrap();
+        assert_eq!(fixture.count(), 3);
+        assert!(
+            matches!(
+                fixture.validate(&changed).await,
+                Err(ProviderError::Permission)
+            ),
+            "{extension}"
+        );
+        assert_eq!(
+            fixture.count(),
+            5,
+            "new revision must resolve representation: {extension}"
+        );
+        assert!(fixture.drive.write_targets.lock().unwrap().0.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn app_container_metadata_refuses_write_before_any_http_lookup() {
+    for kind in ["APP_CONTAINER", "APP_LIBRARY"] {
+        let entry: DriveEntry = serde_json::from_value(json!({
+            "drivewsid":"FOLDER::com.apple.CloudDocs::app", "type":kind,
+            "name":"Native app", "etag":"v1", "size":0
+        }))
+        .unwrap();
+        // Exercise the actual listing-to-node boundary, not a hand-set package
+        // flag which would miss regression in app-container classification.
+        let mapped = crate::provider::directory_nodes(ROOT_ID, vec![entry]).unwrap();
+        let fixture = Fixture::new(vec![]).await;
+        assert!(
+            matches!(
+                fixture.validate(&mapped[0]).await,
+                Err(ProviderError::Permission)
+            ),
+            "{kind}"
+        );
+        assert_eq!(fixture.count(), 0);
+        assert!(fixture.drive.write_targets.lock().unwrap().0.is_empty());
+    }
+}

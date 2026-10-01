@@ -1066,6 +1066,7 @@ impl ICloudReadSession {
             target_name: PROBE_FILE.into(),
             original_sha256: registration.original_sha256.clone(),
             staged_sha256: registration.staged_sha256.clone(),
+            package: None,
         };
         if self.inspect_durable_handoff(&plan).await? != HandoffObserved::Prepared {
             bail!("registered staged file changed before handoff");
@@ -2635,6 +2636,7 @@ impl ICloudReadSession {
             target_name: original.name.clone(),
             original_sha256: hex::encode(Sha256::digest(original_bytes)),
             staged_sha256: hex::encode(Sha256::digest(staged_bytes)),
+            package: None,
         };
         if self.inspect_durable_handoff(&plan).await? != HandoffObserved::Prepared {
             bail!("durable iCloud validation pair changed during preparation");

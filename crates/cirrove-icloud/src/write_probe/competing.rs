@@ -233,6 +233,7 @@ mod tests {
             target_name: "Account Router.txt".into(),
             original_sha256: hex::encode(Sha256::digest(b"old")),
             staged_sha256: hex::encode(Sha256::digest(b"new")),
+            package: None,
         }
     }
     #[test]

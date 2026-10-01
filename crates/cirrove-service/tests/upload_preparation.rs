@@ -279,7 +279,7 @@ fn old_schema_migration_retains_saves_and_missing_preparation_table_fails_closed
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i32>(0))
             .unwrap(),
-        16
+        17
     );
     db.execute_batch("DROP TABLE upload_preparations").unwrap();
     assert!(UploadJournal::open(&root, &scope().account, 4096).is_err());
@@ -292,7 +292,7 @@ fn old_schema_migration_retains_saves_and_missing_preparation_table_fails_closed
         .unwrap(),
         "preparing"
     );
-    db.execute_batch("PRAGMA user_version=17").unwrap();
+    db.execute_batch("PRAGMA user_version=18").unwrap();
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 4096),
         Err(JournalError::Schema)

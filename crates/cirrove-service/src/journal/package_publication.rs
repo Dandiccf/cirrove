@@ -12,29 +12,36 @@ pub(super) fn migrate(db: &mut Connection) -> Result<()> {
         operation TEXT PRIMARY KEY, done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),
         failures INTEGER NOT NULL DEFAULT 0, retry_after INTEGER NOT NULL DEFAULT 0, observed TEXT);
         CREATE INDEX IF NOT EXISTS package_metadata_due ON package_metadata_publication(done,retry_after,operation);
-        CREATE INDEX IF NOT EXISTS uploaded_package_receipts ON uploads(sequence)
-        WHERE state='uploaded' AND json_extract(body,'$.representation.kind')='package_archive'
+        CREATE INDEX IF NOT EXISTS uploaded_package_receipts_v17 ON uploads(sequence)
+        WHERE state='uploaded' AND json_extract(body,'$.representation.kind') IN('package_archive','package_replacement_archive')
           AND json_type(body,'$.package_completion')='object';
-        CREATE TRIGGER IF NOT EXISTS package_metadata_on_update AFTER UPDATE OF state,body ON uploads
-        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind')='package_archive'
+        CREATE TRIGGER IF NOT EXISTS package_metadata_on_update_v17 AFTER UPDATE OF state,body ON uploads
+        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind') IN('package_archive','package_replacement_archive')
           AND json_type(NEW.body,'$.package_completion')='object'
         BEGIN INSERT OR IGNORE INTO package_metadata_publication(operation) VALUES(NEW.id); END;
-        CREATE TRIGGER IF NOT EXISTS package_metadata_on_insert AFTER INSERT ON uploads
-        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind')='package_archive'
+        CREATE TRIGGER IF NOT EXISTS package_metadata_on_insert_v17 AFTER INSERT ON uploads
+        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind') IN('package_archive','package_replacement_archive')
           AND json_type(NEW.body,'$.package_completion')='object'
         BEGIN INSERT OR IGNORE INTO package_metadata_publication(operation) VALUES(NEW.id); END;
         INSERT OR IGNORE INTO package_metadata_publication(operation)
         SELECT id FROM uploads WHERE state='uploaded'
-          AND json_extract(body,'$.representation.kind')='package_archive'
+          AND json_extract(body,'$.representation.kind') IN('package_archive','package_replacement_archive')
           AND json_type(body,'$.package_completion')='object';")?;
     tx.commit()?;
     Ok(())
 }
 fn completed(record: &UploadRecord) -> bool {
-    let cirrove_core::upload::UploadRepresentation::PackageArchive { semantic, .. } =
-        &record.representation
-    else {
-        return false;
+    let semantic = match &record.representation {
+        UploadRepresentation::PackageArchive { semantic, .. } => semantic,
+        UploadRepresentation::PackageReplacementArchive { semantic, .. }
+            if record
+                .identity_handoff
+                .as_ref()
+                .is_some_and(|r| r.backup.is_some()) =>
+        {
+            semantic
+        }
+        _ => return false,
     };
     record.state == UploadState::Uploaded
         && record.package_completion.as_ref() == Some(semantic)

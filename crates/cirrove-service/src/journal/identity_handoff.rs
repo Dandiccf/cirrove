@@ -3,7 +3,7 @@
 //! no provider request runs while either SQLite transaction is held.
 use super::*;
 use cirrove_core::mutation::MutationReceipt;
-use cirrove_core::upload::RecoveryLocation;
+use cirrove_core::upload::{PackageHandoffReceipt, RecoveryLocation};
 use rusqlite::Transaction;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -14,7 +14,7 @@ pub(crate) struct Reservation {
     #[serde(default)]
     trash_parent: Option<String>,
     #[serde(default)]
-    backup: Option<Node>,
+    pub(super) backup: Option<Node>,
 }
 
 impl UploadJournal {
@@ -91,7 +91,16 @@ impl UploadJournal {
             RecoveryLocation::Trash { local_name, parent } => (local_name, Some(parent)),
         };
         let mut record = self.active_attempt(id, attempt)?;
-        if !record.representation.is_file_bytes() {
+        let native = package_replacement::original(&record.representation);
+        if native.is_some() {
+            package_replacement::validate(&record.scope, &record.intent, &record.representation)?;
+        }
+        if !record.representation.is_file_bytes() && native.is_none() {
+            return Err(JournalError::Intent);
+        }
+        if native.is_some()
+            && trash_parent.as_deref() != Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
+        {
             return Err(JournalError::Intent);
         }
         let UploadIntent::Replace {
@@ -141,7 +150,11 @@ impl UploadJournal {
             || owner.latest != Some(id)
             || old.id != *item
             || old.etag.as_deref() != Some(expected_etag)
-            || old.kind != NodeKind::File
+            || if native.is_some() {
+                old.kind != NodeKind::Folder || !old.package || native != Some(old)
+            } else {
+                old.kind != NodeKind::File || old.package
+            }
             || old.target.is_some()
             || old.parent_id.is_none()
             || owner.node.name != old.name
@@ -220,10 +233,75 @@ impl UploadJournal {
         current: Node,
         backup: Node,
     ) -> Result<()> {
+        self.acknowledge_handoff_inner(id, attempt, current, backup, None)
+    }
+
+    pub fn acknowledge_package_handoff(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        receipt: PackageHandoffReceipt,
+    ) -> Result<()> {
+        self.acknowledge_handoff_inner(
+            id,
+            attempt,
+            receipt.current.remote,
+            receipt.backup.remote,
+            Some((
+                receipt.original,
+                receipt.current.semantic,
+                receipt.backup.semantic,
+            )),
+        )
+    }
+
+    fn acknowledge_handoff_inner(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        current: Node,
+        backup: Node,
+        proof: Option<(Node, PackageSemanticIdentity, PackageSemanticIdentity)>,
+    ) -> Result<()> {
         let mut record = self.active_attempt(id, attempt)?;
-        if !record.representation.is_file_bytes() {
-            return Err(JournalError::Intent);
-        }
+        let native = match (&record.representation, &proof) {
+            (UploadRepresentation::FileBytes, None) => false,
+            (
+                UploadRepresentation::PackageReplacementArchive {
+                    original,
+                    semantic,
+                    original_semantic,
+                    ..
+                },
+                Some((selected, current_semantic, backup_semantic)),
+            ) if selected == original.as_ref()
+                && current_semantic == semantic
+                && backup_semantic == original_semantic =>
+            {
+                record
+                    .representation
+                    .validate()
+                    .map_err(|_| JournalError::Corrupt)?;
+                if backup.size != original.size
+                    || backup.name != original.name
+                    || current.content_version.is_some()
+                    || backup.content_version.is_some()
+                    || !current.id.starts_with("FILE::com.apple.CloudDocs::")
+                    || current.id.ends_with("::")
+                    || [&current, &backup].iter().any(|node| {
+                        node.etag.as_ref().is_none_or(|tag| {
+                            tag.is_empty()
+                                || tag.len() > 4096
+                                || tag.contains(['\0', '\r', '\n', '*'])
+                        })
+                    })
+                {
+                    return Err(JournalError::Corrupt);
+                }
+                true
+            }
+            _ => return Err(JournalError::Intent),
+        };
         let reservation = record
             .identity_handoff
             .as_mut()
@@ -231,21 +309,34 @@ impl UploadJournal {
         if !matches!(&record.intent, UploadIntent::Replace { item, .. } if item == &reservation.old_item)
             || current.id.is_empty()
             || current.id == reservation.old_item
-            || current.kind != NodeKind::File
-            || current.package
+            || current.kind
+                != if native {
+                    NodeKind::Folder
+                } else {
+                    NodeKind::File
+                }
+            || current.package != native
             || current.target.is_some()
-            || current.size != record.size
+            || (!native && current.size != record.size)
             || current.content_revision().is_none()
             || backup.id != reservation.old_item
             || !backup_location_matches(reservation, &backup, current.parent_id.as_ref())
-            || backup.kind != NodeKind::File
-            || backup.package
+            || backup.kind
+                != if native {
+                    NodeKind::Folder
+                } else {
+                    NodeKind::File
+                }
+            || backup.package != native
             || backup.target.is_some()
             || backup.content_revision().is_none()
         {
             return Err(JournalError::Corrupt);
         }
         reservation.backup = Some(backup);
+        if let Some((_, semantic, _)) = proof {
+            record.package_completion = Some(semantic);
+        }
         record.remote = Some(current);
         record.state = UploadState::Uploaded;
         record.transferred_bytes = record.size;
@@ -286,6 +377,7 @@ pub(super) fn confirm(tx: &Transaction<'_>, record: &UploadRecord, current: &Nod
             .as_ref()
             .is_none_or(|node| node.id != old.id)
         || old.id != reservation.old_item
+        || package_replacement::original(&record.representation).is_some_and(|before| before != old)
         || backup.id != old.id
         || !backup_location_matches(reservation, backup, old.parent_id.as_ref())
         || current.parent_id != old.parent_id

@@ -3,8 +3,8 @@ mod representation;
 use crate::{CancellationToken, Node, ProviderError, Scope};
 use async_trait::async_trait;
 pub use representation::{
-    PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageSemanticIdentity, PackageUploadReceipt,
-    UploadRepresentation,
+    PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageHandoffReceipt, PackageSemanticIdentity,
+    PackageUploadReceipt, UploadRepresentation,
 };
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
@@ -95,6 +95,13 @@ impl UploadRequest {
     pub fn validate(&self) -> Result<()> {
         self.intent.validate()?;
         self.representation.validate()?;
+        if let UploadRepresentation::PackageReplacementArchive { original, .. } =
+            &self.representation
+            && !matches!(&self.intent, UploadIntent::Replace { item, expected_etag }
+                if item == &original.id && original.etag.as_ref() == Some(expected_etag))
+        {
+            return Err(UploadError::Invalid);
+        }
         if !self.representation.is_file_bytes() && self.size > 64 * 1024 * 1024 {
             return Err(UploadError::Invalid);
         }
@@ -141,6 +148,7 @@ pub enum UploadStep {
     Commit(SecretString),
     Complete(Node),
     PackageComplete(PackageUploadReceipt),
+    PackageHandoffComplete(Box<PackageHandoffReceipt>),
     /// A staged replacement has installed a new item ID and retained the old
     /// exact ID at its reserved recovery name. The provider must verify both
     /// identities and exact content before returning this receipt.
@@ -157,6 +165,7 @@ impl std::fmt::Debug for UploadStep {
             Self::Continue(_) => "UploadStep::Continue([redacted])",
             Self::Stream(_) => "UploadStep::Stream([redacted])",
             Self::Commit(_) => "UploadStep::Commit([redacted])",
+            Self::PackageHandoffComplete(_) => "UploadStep::PackageHandoffComplete([redacted])",
             Self::PackageComplete(_) => "UploadStep::PackageComplete([redacted])",
             Self::Complete(_) => "UploadStep::Complete([redacted])",
             Self::HandoffComplete { .. } => "UploadStep::HandoffComplete([redacted])",
@@ -166,6 +175,7 @@ impl std::fmt::Debug for UploadStep {
 pub enum Reconciliation {
     Committed(Node),
     PackageCommitted(PackageUploadReceipt),
+    PackageHandoffCommitted(Box<PackageHandoffReceipt>),
     HandoffCommitted { current: Node, backup: Node },
     Uncommitted,
     Conflict,

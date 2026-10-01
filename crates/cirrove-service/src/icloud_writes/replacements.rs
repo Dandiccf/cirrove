@@ -332,4 +332,69 @@ mod tests {
             }
         }
     }
+    #[tokio::test]
+    async fn native_data_replacement_refuses_app_owned_ancestor_but_accepts_plain_cloud_folder() {
+        for extension in ["pages", "numbers", "key"] {
+            let (_temp, provider) = fixture();
+            let mut store = Store::open(&provider.metadata).unwrap();
+            let root = Node {
+                id: ROOT_ID.into(),
+                parent_id: None,
+                ..folder(ROOT_ID)
+            };
+            store.observe_node(&provider.scope, &root).unwrap();
+            let app = Node {
+                id: "FOLDER::com.apple.CloudDocs::app".into(),
+                package: true,
+                ..folder(ROOT_ID)
+            };
+            let parent = Node {
+                id: "FOLDER::com.apple.CloudDocs::nested".into(),
+                ..folder(&app.id)
+            };
+            let native = Node {
+                id: "FILE::com.apple.CloudDocs::native-data".into(),
+                parent_id: Some(parent.id.clone()),
+                name: format!("Owned.{extension}"),
+                kind: NodeKind::File,
+                etag: Some("v1".into()),
+                size: 3,
+                package: false,
+                ..folder(ROOT_ID)
+            };
+            for node in [&app, &parent, &native] {
+                store.observe_node(&provider.scope, node).unwrap();
+            }
+            assert!(
+                matches!(
+                    provider.replacement_metadata(&native.id, "v1").await,
+                    Err(UploadError::Invalid)
+                ),
+                "{extension}"
+            );
+            // Only the enclosing classification changes. The valid counterpart
+            // proves rejection is not an incomplete node chain or missing leaf.
+            store
+                .observe_node(
+                    &provider.scope,
+                    &Node {
+                        package: false,
+                        ..app
+                    },
+                )
+                .unwrap();
+            let (selected, selected_parent) = provider
+                .replacement_metadata(&native.id, "v1")
+                .await
+                .unwrap();
+            assert_eq!(selected, native);
+            assert_eq!(selected_parent, parent);
+            assert!(
+                provider
+                    .replacement_metadata(&native.id, "different")
+                    .await
+                    .is_err()
+            );
+        }
+    }
 }

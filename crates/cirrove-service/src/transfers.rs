@@ -274,6 +274,9 @@ impl TransferWorker {
                 )
                 .await?
             {
+                Reconciliation::PackageHandoffCommitted(receipt) => {
+                    step = Some(UploadStep::PackageHandoffComplete(receipt));
+                }
                 Reconciliation::PackageCommitted(receipt) => {
                     step = Some(UploadStep::PackageComplete(receipt))
                 }
@@ -351,6 +354,12 @@ impl TransferWorker {
                     .await?
                 }
                 UploadStep::Prepared(_) => return Err(UploadError::Invalid.into()),
+                UploadStep::PackageHandoffComplete(receipt) => {
+                    self.local(move |j| j.acknowledge_package_handoff(id, attempt, *receipt))
+                        .await?;
+                    self.clean_checkpoint(id).await;
+                    return Ok(UploadState::Uploaded);
+                }
                 UploadStep::PackageComplete(receipt) => {
                     self.local(move |j| j.acknowledge_package(id, attempt, receipt))
                         .await?;
@@ -397,6 +406,7 @@ impl TransferWorker {
                         UploadStep::Commit(_)
                             | UploadStep::Complete(_)
                             | UploadStep::PackageComplete(_)
+                            | UploadStep::PackageHandoffComplete(_)
                             | UploadStep::HandoffComplete { .. }
                     ) {
                         return Err(UploadError::Uncertain.into());
@@ -468,6 +478,7 @@ impl TransferWorker {
                         UploadStep::Commit(_)
                             | UploadStep::Complete(_)
                             | UploadStep::PackageComplete(_)
+                            | UploadStep::PackageHandoffComplete(_)
                     ) {
                         return Err(UploadError::Uncertain.into());
                     }

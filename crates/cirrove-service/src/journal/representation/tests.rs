@@ -635,7 +635,7 @@ fn native_trash_schema16_preserves_pending_and_uncertain_intents_and_local_recov
             .db
             .pragma_query_value(None, "user_version", |r| r.get(0))
             .unwrap();
-        assert_eq!(version, 16);
+        assert_eq!(version, JOURNAL_SCHEMA);
         // This is a source-level old-binary guard assertion, not an old binary run.
         assert!(version > 15);
         let mut before = node();

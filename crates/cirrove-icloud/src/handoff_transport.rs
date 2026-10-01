@@ -48,6 +48,8 @@ pub struct HandoffPlan {
     pub(crate) target_name: String,
     pub(crate) original_sha256: String,
     pub(crate) staged_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) package: Option<packages::NativePackageProof>,
 }
 
 fn default_handoff_target_name() -> String {
@@ -69,6 +71,18 @@ pub enum HandoffObserved {
 impl ICloudReadSession {
     async fn handoff_items(&mut self, plan: &HandoffPlan) -> Result<Option<Vec<DriveEntry>>> {
         plan.validate()?;
+        if matches!(plan.version, 6 | 7) {
+            let folder = self.active_folder_metadata(&plan.folder_id).await?;
+            if folder.drivewsid != plan.folder_id
+                || folder.kind != "FOLDER"
+                || (plan.version == 6
+                    && (folder.parent_id != plan.folder_parent()
+                        || folder.display_name() != plan.folder_name))
+            {
+                return Ok(None);
+            }
+            return Ok(Some(folder.items));
+        }
         if plan.version == 5 {
             // New non-root plans address the captured folder directly. The
             // complete envelope proves its identity and supplies its children;
@@ -93,6 +107,9 @@ impl ICloudReadSession {
     }
 
     pub async fn inspect_durable_handoff(&mut self, plan: &HandoffPlan) -> Result<HandoffObserved> {
+        if plan.package.is_some() {
+            bail!("native handoff requires semantic transport");
+        }
         let Some(items) = self.handoff_items(plan).await? else {
             return Ok(HandoffObserved::Diverged);
         };
@@ -328,6 +345,9 @@ impl ICloudReadSession {
         HandoffObserved,
         Option<(cirrove_core::Node, cirrove_core::Node)>,
     )> {
+        if plan.package.is_some() {
+            bail!("native handoff requires semantic transport");
+        }
         use cirrove_core::{Node, NodeKind};
         let Some(items) = self.handoff_items(plan).await? else {
             return Ok((HandoffObserved::Diverged, None));
@@ -522,16 +542,34 @@ impl HandoffPlan {
             && !self.folder_name.contains(['/', '\0', '\r', '\n']);
         let valid_version = match self.version {
             2 => self.folder_parent() == ROOT_ID && uuid_name(&self.folder_name, PROBE_PREFIX, ""),
-            3 | 5 => valid_parent && valid_folder_name && self.folder_parent_id != self.folder_id,
-            4 => self.folder_id == ROOT_ID && self.folder_parent_id.is_empty() && valid_folder_name,
+            3 | 5 | 6 => {
+                valid_parent && valid_folder_name && self.folder_parent_id != self.folder_id
+            }
+            4 | 7 => {
+                self.folder_id == ROOT_ID && self.folder_parent_id.is_empty() && valid_folder_name
+            }
+            _ => false,
+        };
+        let native = matches!(self.version, 6 | 7);
+        let suffix = if native { ".pages" } else { ".txt" };
+        let content_valid = match &self.package {
+            Some(proof) if native => {
+                proof.validate().is_ok()
+                    && self.original_sha256.is_empty()
+                    && self.staged_sha256.is_empty()
+                    && self.target_name.ends_with(".pages")
+                    && !self.original_etag.contains('*')
+                    && !self.staged_etag.contains('*')
+            }
+            None if !native => digest(&self.original_sha256) && digest(&self.staged_sha256),
             _ => false,
         };
         if !valid_version
-            || (self.folder_id == ROOT_ID && self.version != 4)
+            || (self.folder_id == ROOT_ID && !matches!(self.version, 4 | 7))
             || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
             || self.folder_id.rsplit("::").next().is_none_or(str::is_empty)
-            || !uuid_name(&self.staged_name, "staged-by-cirrove-", ".txt")
-            || !uuid_name(&self.recovery_name, "recovery-by-cirrove-", ".txt")
+            || !uuid_name(&self.staged_name, "staged-by-cirrove-", suffix)
+            || !uuid_name(&self.recovery_name, "recovery-by-cirrove-", suffix)
             || self.target_name.is_empty()
             || self.target_name.len() > 255
             || matches!(self.target_name.as_str(), "." | "..")
@@ -543,8 +581,7 @@ impl HandoffPlan {
             || new.0 != "com.apple.CloudDocs"
             || old.1 != self.original_doc_id
             || new.1 != self.staged_doc_id
-            || !digest(&self.original_sha256)
-            || !digest(&self.staged_sha256)
+            || !content_valid
             || !valid_etag(&self.original_etag)
             || !valid_etag(&self.staged_etag)
         {
@@ -605,6 +642,7 @@ mod tests {
             target_name: PROBE_FILE.into(),
             original_sha256: "a".repeat(64),
             staged_sha256: "b".repeat(64),
+            package: None,
         }
     }
 
@@ -848,3 +886,5 @@ mod tests {
 
 #[cfg(test)]
 mod folder_identity_tests;
+
+pub(crate) mod packages;

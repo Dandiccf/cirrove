@@ -236,7 +236,7 @@ async fn existing_schema15_ack_before_publication_converges_after_reopen() {
     // queue existed. This is solely the private fixture's local SQLite file.
     {
         let db = rusqlite::Connection::open(temp.path().join("journal/uploads.db")).unwrap();
-        db.execute_batch("DROP TRIGGER package_metadata_on_insert; DROP TRIGGER package_metadata_on_update; DROP TABLE package_metadata_publication;").unwrap();
+        db.execute_batch("DROP TRIGGER package_metadata_on_insert_v17; DROP TRIGGER package_metadata_on_update_v17; DROP INDEX uploaded_package_receipts_v17; DROP TABLE package_metadata_publication;").unwrap();
         // The fixture is created by the current writer; explicitly restore the
         // legacy version for this migration arm (there are no native intents).
         db.pragma_update(None, "user_version", 15).unwrap();

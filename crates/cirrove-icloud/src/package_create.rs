@@ -64,6 +64,22 @@ pub struct ICloudPackageCreate {
     body_dispatch_probe: Option<Arc<std::sync::atomic::AtomicUsize>>,
 }
 impl ICloudPackageCreate {
+    #[cfg(test)]
+    pub(crate) fn native_handoff_test_provider(
+        scope: Scope,
+        parent: Node,
+        staging: &Path,
+        session: ICloudReadSession,
+    ) -> Self {
+        Self {
+            scope,
+            parent,
+            staging: staging.into(),
+            session: Mutex::new(Session::Ready(Box::new(session))),
+            body_dispatch_probe: None,
+        }
+    }
+
     /// Caller-owned private persistent staging; no user archive path is retained.
     pub fn from_sealed_session(
         scope: Scope,

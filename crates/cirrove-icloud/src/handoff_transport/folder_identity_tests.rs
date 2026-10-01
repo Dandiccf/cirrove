@@ -21,6 +21,7 @@ fn plan() -> HandoffPlan {
         target_name: "File.txt".into(),
         original_sha256: "a".repeat(64),
         staged_sha256: "b".repeat(64),
+        package: None,
     }
 }
 async fn fixture(

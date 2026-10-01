@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path, sync::Arc};
 use uuid::Uuid;
 
+mod native;
+
 const MAX_CHECKPOINT: usize = 32 * 1024;
 
 #[derive(Serialize, Deserialize)]
@@ -58,7 +60,8 @@ pub struct ICloudFileReplace {
     stage_name: String,
     recovery_name: String,
     session: SessionSource,
-    stage: ICloudFileCreate,
+    stage: Option<ICloudFileCreate>,
+    native: Option<native::Context>,
 }
 
 enum SessionSource {
@@ -81,7 +84,10 @@ pub struct ICloudSealedSignIn {
 impl ICloudFileReplace {
     #[cfg(feature = "write-probe")]
     pub fn with_discarded_stage_registration_response(mut self) -> Self {
-        self.stage = self.stage.with_discarded_registration_response();
+        self.stage = self
+            .stage
+            .take()
+            .map(ICloudFileCreate::with_discarded_registration_response);
         self
     }
 
@@ -292,7 +298,8 @@ impl ICloudFileReplace {
             stage_name: format!("staged-by-cirrove-{operation}.txt"),
             recovery_name: format!("recovery-by-cirrove-{operation}.txt"),
             session,
-            stage,
+            stage: Some(stage),
+            native: None,
         }
     }
 
@@ -628,6 +635,7 @@ impl ICloudFileReplace {
             target_name: self.original.name.clone(),
             original_sha256: original_sha256.into(),
             staged_sha256: request.sha256.clone(),
+            package: None,
         };
         plan.validate().map_err(|_| UploadError::Invalid)?;
         Ok(plan)
@@ -690,6 +698,7 @@ impl ICloudFileReplace {
             }
             UploadStep::Allocate(_)
             | UploadStep::PackageComplete(_)
+            | UploadStep::PackageHandoffComplete(_)
             | UploadStep::HandoffComplete { .. } => return Err(UploadError::Invalid),
         })
     }
@@ -720,11 +729,89 @@ impl ICloudFileReplace {
 
 #[async_trait]
 impl UploadProvider for ICloudFileReplace {
+    async fn begin_upload_for_operation(
+        &self,
+        op: &str,
+        r: &UploadRequest,
+        c: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        if self.native.is_some() {
+            return self.native_begin(op, r, c).await;
+        }
+        self.begin_upload(r, c).await
+    }
+    async fn allocate_upload_for_operation(
+        &self,
+        op: &str,
+        r: &UploadRequest,
+        checkpoint: &SecretString,
+        c: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        self.native_allocate(op, r, checkpoint, c).await
+    }
+    async fn inspect_upload_for_operation(
+        &self,
+        op: &str,
+        r: &UploadRequest,
+        checkpoint: &SecretString,
+        c: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        if self.native.is_some() {
+            return self.native_inspect(op, r, checkpoint, c).await;
+        }
+        self.inspect_upload(r, checkpoint, c).await
+    }
+    async fn upload_stream_for_operation(
+        &self,
+        op: &str,
+        r: &UploadRequest,
+        checkpoint: &SecretString,
+        file: File,
+        c: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        if self.native.is_some() {
+            return self.native_stream(op, r, checkpoint, file, c).await;
+        }
+        self.upload_stream(r, checkpoint, file, c).await
+    }
+    async fn commit_upload_for_operation(
+        &self,
+        op: &str,
+        r: &UploadRequest,
+        checkpoint: &SecretString,
+        c: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        if self.native.is_some() {
+            return self.native_commit(op, r, checkpoint, c).await;
+        }
+        self.commit_upload(r, checkpoint, c).await
+    }
+    async fn reconcile_upload_for_operation(
+        &self,
+        op: &str,
+        r: &UploadRequest,
+        checkpoint: Option<&SecretString>,
+        c: &CancellationToken,
+    ) -> UploadResult<Reconciliation> {
+        if self.native.is_some() {
+            return self.native_reconcile(op, r, checkpoint, c).await;
+        }
+        self.reconcile_upload(r, checkpoint, c).await
+    }
+    fn inspection_timeout(&self, _: &UploadRequest) -> std::time::Duration {
+        std::time::Duration::from_secs(if self.native.is_some() { 480 } else { 125 })
+    }
+    fn commit_timeout(&self, _: &UploadRequest) -> std::time::Duration {
+        std::time::Duration::from_secs(if self.native.is_some() { 480 } else { 125 })
+    }
     fn staged_recovery_location(
         &self,
         operation: &str,
         request: &UploadRequest,
     ) -> Option<RecoveryLocation> {
+        if self.native.is_some() {
+            return self.native_recovery_location(operation, request);
+        }
         if operation != self.operation.to_string() || self.check_request(request).is_err() {
             return None;
         }
@@ -747,7 +834,11 @@ impl UploadProvider for ICloudFileReplace {
         self.wrap_stage(
             r,
             &original_sha256,
-            self.stage.begin_upload(&self.stage_request(r), c).await?,
+            self.stage
+                .as_ref()
+                .ok_or(UploadError::Invalid)?
+                .begin_upload(&self.stage_request(r), c)
+                .await?,
             c,
         )
         .await
@@ -765,6 +856,8 @@ impl UploadProvider for ICloudFileReplace {
                     r,
                     &original_sha256,
                     self.stage
+                        .as_ref()
+                        .ok_or(UploadError::Invalid)?
                         .inspect_upload(&self.stage_request(r), &SecretString::from(inner), c)
                         .await?,
                     c,
@@ -800,6 +893,8 @@ impl UploadProvider for ICloudFileReplace {
             r,
             &original_sha256,
             self.stage
+                .as_ref()
+                .ok_or(UploadError::Invalid)?
                 .upload_part(
                     &self.stage_request(r),
                     &SecretString::from(inner),
@@ -828,6 +923,8 @@ impl UploadProvider for ICloudFileReplace {
             r,
             &original_sha256,
             self.stage
+                .as_ref()
+                .ok_or(UploadError::Invalid)?
                 .upload_stream(&self.stage_request(r), &SecretString::from(inner), file, c)
                 .await?,
             c,
@@ -847,6 +944,8 @@ impl UploadProvider for ICloudFileReplace {
                     r,
                     &original_sha256,
                     self.stage
+                        .as_ref()
+                        .ok_or(UploadError::Invalid)?
                         .commit_upload(&self.stage_request(r), &SecretString::from(inner), c)
                         .await?,
                     c,
@@ -886,6 +985,8 @@ impl UploadProvider for ICloudFileReplace {
         match self.check_checkpoint(r, checkpoint.ok_or(UploadError::CheckpointInvalid)?)? {
             (_, Phase::Stage { inner }) => match self
                 .stage
+                .as_ref()
+                .ok_or(UploadError::Invalid)?
                 .reconcile_upload(&self.stage_request(r), Some(&SecretString::from(inner)), c)
                 .await?
             {
@@ -894,9 +995,9 @@ impl UploadProvider for ICloudFileReplace {
                 // A staged Create is not completion of the Replace. The next
                 // verification must observe its exact ID and enter handoff.
                 Reconciliation::Committed(_) => Err(UploadError::Uncertain),
-                Reconciliation::PackageCommitted(_) | Reconciliation::HandoffCommitted { .. } => {
-                    Err(UploadError::Invalid)
-                }
+                Reconciliation::PackageCommitted(_)
+                | Reconciliation::PackageHandoffCommitted(_)
+                | Reconciliation::HandoffCommitted { .. } => Err(UploadError::Invalid),
             },
             (_, Phase::Handoff { inner, plan }) => {
                 self.handoff(*plan, r.size)

@@ -21,6 +21,7 @@ mod namespace;
 mod native_trash_publication;
 mod owner;
 mod package_publication;
+mod package_replacement;
 pub(crate) use package_publication::PackagePublicationStatus;
 mod native_trash_admission;
 mod native_trash_list;
@@ -35,7 +36,7 @@ pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
 use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use cirrove_core::{Node, NodeKind, Scope};
-const JOURNAL_SCHEMA: u32 = 16;
+const JOURNAL_SCHEMA: u32 = 17;
 pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;
@@ -498,13 +499,19 @@ impl UploadJournal {
         representation
             .validate()
             .map_err(|_| JournalError::Intent)?;
-        if !representation.is_file_bytes()
-            && (!matches!(intent, UploadIntent::Create { .. })
-                || working.is_some()
-                || order.base.is_some()
-                || !order.prerequisites.is_empty())
-        {
-            return Err(JournalError::Intent);
+        if !representation.is_file_bytes() {
+            if working.is_some() || order.base.is_some() || !order.prerequisites.is_empty() {
+                return Err(JournalError::Intent);
+            }
+            if package_replacement::original(&representation).is_some() {
+                package_replacement::validate(&scope, &intent, &representation)?;
+                // Only the opaque archive admission API may create this format.
+                if receipt.is_none() {
+                    return Err(JournalError::Intent);
+                }
+            } else if !matches!(intent, UploadIntent::Create { .. }) {
+                return Err(JournalError::Intent);
+            }
         }
         if scope.account != self.account {
             return Err(JournalError::Account);
@@ -622,6 +629,7 @@ impl UploadJournal {
             "UPDATE uploads SET body=?2 WHERE id=?1",
             params![record.id.to_string(), serde_json::to_string(&record)?],
         )?;
+        package_replacement::attach(&tx, &record)?;
         if let Some(commit) = &working {
             match commit {
                 GenerationCommit::Working(commit) => {
@@ -793,7 +801,7 @@ impl UploadJournal {
         }
         mutations::queue_complete(&tx, record.id, record.state == UploadState::Uploaded)?;
         if record.state == UploadState::Uploaded
-            && record.representation.is_file_bytes()
+            && (record.representation.is_file_bytes() || record.identity_handoff.is_some())
             && let Some(remote) = &record.remote
         {
             if record.identity_handoff.is_some() {

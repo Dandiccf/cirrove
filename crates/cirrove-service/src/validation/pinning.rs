@@ -66,6 +66,7 @@ async fn place(
             UploadStep::Complete(node) => return Ok(node),
             UploadStep::Allocate(_)
             | UploadStep::PackageComplete(_)
+            | UploadStep::PackageHandoffComplete(_)
             | UploadStep::HandoffComplete { .. } => {
                 anyhow::bail!("a new OneDrive pinning fixture returned a replacement receipt")
             }

@@ -69,6 +69,14 @@ pub enum UploadRepresentation {
         expected_root: String,
         semantic: PackageSemanticIdentity,
     },
+    /// Explicit two-ID archive replacement. Original content/revision is retained
+    /// separately from the sealed replacement bytes; neither is a path alias.
+    PackageReplacementArchive {
+        expected_root: String,
+        semantic: PackageSemanticIdentity,
+        original: Box<crate::Node>,
+        original_semantic: PackageSemanticIdentity,
+    },
 }
 impl UploadRepresentation {
     pub fn is_file_bytes(&self) -> bool {
@@ -78,6 +86,11 @@ impl UploadRepresentation {
         if let Self::PackageArchive {
             expected_root,
             semantic,
+        }
+        | Self::PackageReplacementArchive {
+            expected_root,
+            semantic,
+            ..
         } = self
         {
             if expected_root.is_empty()
@@ -91,6 +104,34 @@ impl UploadRepresentation {
             }
             semantic.validate()?;
         }
+        if let Self::PackageReplacementArchive {
+            original,
+            original_semantic,
+            ..
+        } = self
+        {
+            original_semantic.validate()?;
+            if original.kind != crate::NodeKind::Folder
+                || !original.package
+                || original.target.is_some()
+                || original.id.is_empty()
+                || original.id.len() > 4096
+                || original.id.contains('\0')
+                || original.etag.as_ref().is_none_or(|v| {
+                    v.is_empty() || v.len() > 4096 || v.contains(['\0', '\r', '\n', '*'])
+                })
+                || original.content_version.is_some()
+                || original
+                    .parent_id
+                    .as_ref()
+                    .is_none_or(|v| v.is_empty() || v.len() > 4096 || v.contains('\0'))
+                || original.name.is_empty()
+                || original.name.len() > 255
+                || original.name.chars().any(|c| c.is_control() || c == '/')
+            {
+                return Err(super::UploadError::Invalid);
+            }
+        }
         Ok(())
     }
 }
@@ -99,4 +140,12 @@ impl UploadRepresentation {
 pub struct PackageUploadReceipt {
     pub remote: crate::Node,
     pub semantic: PackageSemanticIdentity,
+}
+
+/// Both exact package identities must be independently read back. This proves a
+/// two-ID handoff, not same-ID editing or preservation of external sharing links.
+pub struct PackageHandoffReceipt {
+    pub original: crate::Node,
+    pub current: PackageUploadReceipt,
+    pub backup: PackageUploadReceipt,
 }

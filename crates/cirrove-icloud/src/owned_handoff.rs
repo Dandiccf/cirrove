@@ -72,7 +72,7 @@ impl HandoffTiming {
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum Phase {
+pub(super) enum Phase {
     MoveOld,
     // Legacy checkpoint: the full preflight or the rename may have run.
     InstallNew,
@@ -134,6 +134,7 @@ impl ICloudHandoff {
             || scope.collection != "drive"
             || session.account_hash.is_none()
             || staged_size > crate::MAX_WRITE_FILE_SIZE
+            || plan.package.is_some()
             || plan.validate().is_err()
         {
             return Err(UploadError::Invalid);
@@ -686,6 +687,7 @@ mod tests {
             target_name: "created-by-cirrove.txt".into(),
             original_sha256: hex::encode(Sha256::digest(b"old")),
             staged_sha256: hex::encode(Sha256::digest(b"new")),
+            package: None,
         };
         let request = UploadRequest {
             representation: Default::default(),
