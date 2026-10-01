@@ -109,7 +109,8 @@ pub use mounted::{
     icloud_account_mounted_competing_autosaves, icloud_account_mounted_delete_interrupt,
     icloud_account_mounted_delete_recover, icloud_account_mounted_empty_replace,
     icloud_account_mounted_final_interrupt, icloud_account_mounted_final_recover,
-    icloud_account_mounted_interrupt, icloud_account_mounted_large, icloud_account_mounted_recover,
+    icloud_account_mounted_interrupt, icloud_account_mounted_large,
+    icloud_account_mounted_large_sized, icloud_account_mounted_recover,
     icloud_account_mounted_relocation_interrupt, icloud_account_mounted_relocation_recover,
     icloud_account_mounted_relocation_step_interrupt,
 };

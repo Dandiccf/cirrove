@@ -426,7 +426,7 @@ pub async fn icloud_account_mounted_empty_replace(run: Uuid) -> Result<()> {
 }
 
 mod large;
-pub use large::icloud_account_mounted_large;
+pub use large::{icloud_account_mounted_large, icloud_account_mounted_large_sized};
 
 mod atomic;
 pub use atomic::icloud_account_mounted_atomic;

@@ -92,17 +92,43 @@ async fn verify(f: &Fixture, node: &Node, size: u64, value: u8) -> Result<()> {
 }
 
 pub async fn icloud_account_mounted_large(run: Uuid) -> Result<()> {
-    let f = prepare_with_budget(run, "mounted-large", BUDGET).await?;
+    run_large(run, ORIGINAL_SIZE, REPLACEMENT_SIZE, BUDGET).await
+}
+
+fn sized_plan(mib: u64) -> Result<(u64, u64, u64)> {
+    ensure!(
+        (65..=2048).contains(&mib),
+        "large fixture size must be 65..2048 MiB"
+    );
+    Ok((
+        mib * 1024 * 1024 + 17,
+        (mib + 1) * 1024 * 1024 + 29,
+        mib * 8 * 1024 * 1024,
+    ))
+}
+
+pub async fn icloud_account_mounted_large_sized(run: Uuid, mib: u64) -> Result<()> {
+    let (original, replacement, budget) = sized_plan(mib)?;
+    run_large(run, original, replacement, budget).await
+}
+
+async fn run_large(
+    run: Uuid,
+    original_size: u64,
+    replacement_size: u64,
+    budget: u64,
+) -> Result<()> {
+    let f = prepare_with_budget(run, "mounted-large", budget).await?;
     let session = mount(&f).await?;
     let result: Result<()> = async {
-        app(&f, "create", ORIGINAL_SIZE, 0x35).await?;
+        app(&f, "create", original_size, 0x35).await?;
         let original = uploaded(&session, 1).await?;
-        verify(&f, &original, ORIGINAL_SIZE, 0x35).await?;
+        verify(&f, &original, original_size, 0x35).await?;
         record(&f.run_dir.join("original.json"), &original)?;
         println!("Large mounted file: create and independent digest verified");
-        app(&f, "replace", REPLACEMENT_SIZE, 0x6a).await?;
+        app(&f, "replace", replacement_size, 0x6a).await?;
         let replacement = uploaded(&session, 2).await?;
-        verify(&f, &replacement, REPLACEMENT_SIZE, 0x6a).await?;
+        verify(&f, &replacement, replacement_size, 0x6a).await?;
         let mut remote =
             ICloudReadSession::from_session_snapshot(&f.snapshot, &f.account.identity.username)?;
         ensure!(
@@ -117,17 +143,33 @@ pub async fn icloud_account_mounted_large(run: Uuid) -> Result<()> {
     result?;
     shutdown?;
     let reopened = mount(&f).await?;
-    let read = app(&f, "read", REPLACEMENT_SIZE, 0x6a).await;
+    let read = app(&f, "read", replacement_size, 0x6a).await;
     let shutdown = reopened.shutdown().await;
     read?;
     shutdown?;
     record(
         &f.run_dir.join("passed.json"),
         &serde_json::json!({"run":run,
-        "original_size":ORIGINAL_SIZE,"replacement_size":REPLACEMENT_SIZE,"journal_budget":BUDGET,
+        "original_size":original_size,"replacement_size":replacement_size,"journal_budget":budget,
         "mounted_create":true,"mounted_replace":true,"independent_digests":true,
         "original_in_trash":true,"remounted_full_read":true}),
     )?;
     println!("Large mounted file: replacement, recovery and full remounted read verified");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn sized_large_fixture_is_bounded_before_any_cloud_setup() {
+        for invalid in [0, 64, 2049, u64::MAX] {
+            assert!(sized_plan(invalid).is_err());
+        }
+        assert_eq!(
+            sized_plan(1024).expect("one GiB"),
+            (1_073_741_841, 1_074_790_429, 8_589_934_592)
+        );
+        assert!(sized_plan(2048).is_ok());
+    }
 }

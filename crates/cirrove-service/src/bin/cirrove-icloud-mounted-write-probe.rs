@@ -638,6 +638,15 @@ async fn main() -> Result<()> {
         return cirrove_service::validation::icloud_account_mounted_large(Uuid::parse_str(run)?)
             .await;
     }
+    if let [flag, run, mib] = args.as_slice()
+        && flag == "--account-mounted-large"
+    {
+        return cirrove_service::validation::icloud_account_mounted_large_sized(
+            Uuid::parse_str(run)?,
+            mib.parse()?,
+        )
+        .await;
+    }
     let large_file = args
         .first()
         .is_some_and(|flag| flag.starts_with("--large-"));
