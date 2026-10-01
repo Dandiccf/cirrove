@@ -587,3 +587,6 @@ pub async fn icloud_account_parent_listing_timing(run: Uuid) -> Result<()> {
 
 mod read_windows;
 pub use read_windows::icloud_account_read_windows;
+
+mod stream_recovery;
+pub use stream_recovery::{icloud_account_stream_interrupt, icloud_account_stream_recover};

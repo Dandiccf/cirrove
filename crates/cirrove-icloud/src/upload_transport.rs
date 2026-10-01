@@ -257,10 +257,10 @@ impl ICloudReadSession {
         let body = if size == 0 {
             reqwest::Body::from(Vec::<u8>::new())
         } else {
-            reqwest::Body::wrap_stream(ReaderStream::with_capacity(
-                tokio::fs::File::from_std(file),
-                64 * 1024,
-            ))
+            let file = tokio::fs::File::from_std(file);
+            #[cfg(feature = "write-probe")]
+            let file = crate::upload_stream_probe::reader(file, name, size);
+            reqwest::Body::wrap_stream(ReaderStream::with_capacity(file, 64 * 1024))
         };
         let response = self
             .http

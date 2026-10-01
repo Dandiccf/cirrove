@@ -266,7 +266,7 @@ mod tests {
             assert!(require_editor_ids(&p, &n, &ids).is_err());
         }
         for field in ["id", "parent_id", "name", "size", "package", "kind", "etag"] {
-            let mut encoded = serde_json::to_value(&n).unwrap();
+            let mut encoded = serde_json::to_value(&n).expect("synthetic node");
             encoded[field] = match field {
                 "id" => serde_json::json!(p.original_id),
                 "size" => serde_json::json!(4),
@@ -275,7 +275,7 @@ mod tests {
                 "etag" => serde_json::Value::Null,
                 _ => serde_json::json!("foreign"),
             };
-            let foreign: Node = serde_json::from_value(encoded).unwrap();
+            let foreign: Node = serde_json::from_value(encoded).expect("synthetic changed node");
             assert!(validate_editor(&p, Some(&foreign), 3).is_err(), "{field}");
         }
     }
@@ -290,9 +290,9 @@ mod tests {
             "original_sha256",
             "staged_sha256",
         ] {
-            let mut value = serde_json::to_value(&p).unwrap();
+            let mut value = serde_json::to_value(&p).expect("synthetic handoff");
             value[field] = serde_json::json!("unrelated");
-            let other = serde_json::from_value(value).unwrap();
+            let other = serde_json::from_value(value).expect("synthetic changed handoff");
             assert!(validate_fixture(&other, b"old", b"new").is_err(), "{field}");
         }
         assert!(validate_fixture(&p, b"changed", b"new").is_err());

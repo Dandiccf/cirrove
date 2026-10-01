@@ -632,6 +632,23 @@ async fn main() -> Result<()> {
         )?)
         .await;
     }
+    if let [flag, run] = args.as_slice() {
+        match flag.as_str() {
+            "--account-stream-interrupt" => {
+                return cirrove_service::validation::icloud_account_stream_interrupt(
+                    Uuid::parse_str(run)?,
+                )
+                .await;
+            }
+            "--account-stream-recover" => {
+                return cirrove_service::validation::icloud_account_stream_recover(
+                    Uuid::parse_str(run)?,
+                )
+                .await;
+            }
+            _ => (),
+        }
+    }
     if let [flag, run] = args.as_slice()
         && flag == "--account-read-windows"
     {

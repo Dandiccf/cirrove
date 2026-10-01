@@ -48,7 +48,11 @@ mod provider;
 mod sealed_session;
 #[cfg(feature = "write-probe")]
 mod trash_lookup_probe;
+#[cfg(feature = "write-probe")]
+mod upload_stream_probe;
 mod upload_transport;
+#[cfg(feature = "write-probe")]
+pub use upload_stream_probe::{UploadStreamBoundary, install_upload_stream_boundary};
 #[cfg(feature = "write-probe")]
 mod write_probe;
 mod write_transport;

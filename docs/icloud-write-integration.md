@@ -685,3 +685,17 @@ SHA-256 and cached sparse rereads. Median read duration was 28.394 s for exact
 ranges (26.918–31.348 s) and 14.247 s for windows (13.502–14.272 s). First-read
 latency did not improve. This validates the cache path against Apple, not FUSE,
 GUI or installed behavior; write/recovery release gates remain unchanged.
+
+## In-flight create stream recovery
+
+A [controlled live process interruption](benchmarks/icloud-stream-interruption-2026-10-01.md)
+now covers the HTTP body itself: the developer-only probe stalled after yielding
+8 MiB of a 64 MiB + 17-byte varied-content create, then exited before worker
+acknowledgement. The fresh process recovered the whole local generation and the
+allocated/no-receipt checkpoint. Read-only inspection/reconciliation proved it
+uncommitted; no mutation was attempted during that phase. Local export passed.
+Only afterward did a fresh transport attempt complete, with one visible file,
+a new document identity and independently verified remote digest. This is a
+successful create boundary, not a blanket transport/replacement or release gate.
+The fault observer is feature-gated out of ordinary binaries; installed behavior
+and ordinary write permissions were not changed.

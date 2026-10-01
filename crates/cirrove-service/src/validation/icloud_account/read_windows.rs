@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 const SIZE: usize = 64 * 1024 * 1024 + 17;
 const BUDGET: u64 = 256 * 1024 * 1024;
 
-fn payload() -> Vec<u8> {
+pub(super) fn payload() -> Vec<u8> {
     let mut bytes = vec![0; SIZE];
     for (i, chunk) in bytes.chunks_mut(8).enumerate() {
         let word = (i as u64).wrapping_mul(0x9e3779b97f4a7c15).rotate_left(23) ^ 0x18a344768976ccab;
