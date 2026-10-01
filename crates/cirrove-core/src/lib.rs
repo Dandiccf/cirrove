@@ -297,6 +297,11 @@ pub trait ReadProvider: MetadataProvider {
     /// package shape must remain unchanged; partial pages/cursors are discarded.
     /// This does not request periodic/first-open refreshes or retarget existing
     /// opened artifacts. Ordinary directories and other providers default off.
+    /// Successful generated snapshots also retain this source binding. When a
+    /// later local metadata observation changes its content revision or child
+    /// presentation inputs, the service revalidates the complete snapshot. This
+    /// does not poll the provider on every read. Sources need a content revision;
+    /// metadata-only changes with a stable content tag can reuse staged bytes.
     fn retry_package_source_on_version_change(&self, _parent: &Node) -> bool {
         false
     }

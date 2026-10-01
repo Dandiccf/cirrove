@@ -240,6 +240,10 @@ pub(super) fn write_snapshot(
         "DELETE FROM directory_entries WHERE scope=?1 AND parent=?2",
         params![key, parent],
     )?;
+    tx.execute(
+        "DELETE FROM directory_sources WHERE scope=?1 AND parent=?2",
+        params![key, parent],
+    )?;
     let mut insert = tx.prepare(
         "INSERT INTO directory_entries(scope,parent,id,name,body) VALUES(?1,?2,?3,?4,?5)",
     )?;

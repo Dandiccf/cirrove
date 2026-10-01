@@ -4,6 +4,7 @@ mod cached_status;
 mod changes;
 mod native_import;
 mod native_trash;
+mod package_sources;
 
 /// An item's mount-relative path, by walking parents up to the drive root.
 ///
@@ -241,6 +242,7 @@ pub struct Engine {
     health: RwLock<HashMap<String, FeedHealth>>,
     directories: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     package_rechecks: StdMutex<HashSet<String>>,
+    package_source_failures: StdMutex<HashMap<String, [u8; 32]>>,
     tasks: TaskTracker,
     directory_publications: Arc<tokio::sync::Semaphore>,
     discovery: Notify,
@@ -328,6 +330,7 @@ impl Engine {
             health: RwLock::new(HashMap::new()),
             directories: StdMutex::new(HashMap::new()),
             package_rechecks: StdMutex::new(HashSet::new()),
+            package_source_failures: StdMutex::new(HashMap::new()),
             tasks: TaskTracker::new(),
             directory_publications: Arc::new(tokio::sync::Semaphore::new(2)),
             discovery: Notify::new(),
@@ -1772,6 +1775,7 @@ impl Engine {
         if self.cancel.is_cancelled() {
             return Err(ProviderError::Cancelled);
         }
+        self.recheck_observed_package_source(scope, parent).await?;
         let db = self.db.clone();
         let s = scope.clone();
         let p = parent.to_owned();
@@ -1857,6 +1861,7 @@ impl Engine {
         if scope.account != self.account.id || scope.provider != self.provider.provider_id() {
             return Err(ProviderError::Protocol("provider/account mismatch"));
         }
+        self.recheck_observed_package_source(scope, parent).await?;
         self.recheck_cached_package(scope, parent).await?;
         let (cached, consume) = self.consume_cached(scope, parent, consume).await?;
         if let Some(value) = cached {
@@ -2062,14 +2067,22 @@ impl Engine {
             let s = scope.clone();
             let p = parent.to_owned();
             let token = cancel.clone();
+            let source = parent_node
+                .as_ref()
+                .filter(|node| self.provider.retry_package_source_on_version_change(node))
+                .cloned();
             // The permit travels with blocking work: timing out its async waiter
             // cannot admit another builder before the old one has actually ended.
             let mut staged = self
                 .tasks
                 .spawn_blocking(move || {
-                    Store::open(db)?
-                        .directory_publication(&s, &p, token, deadline)
-                        .map(|stage| (stage, permit))
+                    let stage = Store::open(db)?.directory_publication(&s, &p, token, deadline)?;
+                    let stage = if let Some(source) = source {
+                        stage.bind_source(source)?
+                    } else {
+                        stage
+                    };
+                    Ok::<_, cirrove_store::StoreError>((stage, permit))
                 })
                 .await
                 .map_err(|_| ProviderError::Unavailable)?
@@ -2132,7 +2145,11 @@ impl Engine {
                         engine.changed.metadata();
                     }
                     let mut targets = Vec::new();
-                    if result != (DirectoryPublicationResult::Superseded { known: false }) {
+                    if !matches!(
+                        result,
+                        DirectoryPublicationResult::SourceChanged
+                            | DirectoryPublicationResult::Superseded { known: false }
+                    ) {
                         Store::open(db)?
                             .with_children(&s, &p, |rows| {
                                 for node in rows {
@@ -2164,6 +2181,9 @@ impl Engine {
                 .await
                 .map_err(|_| ProviderError::Unavailable)?
                 .map_err(|_| ProviderError::Unavailable)?;
+            if result == DirectoryPublicationResult::SourceChanged {
+                return Err(ProviderError::VersionChanged);
+            }
             if matches!(
                 result,
                 DirectoryPublicationResult::Superseded { known: false }

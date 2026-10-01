@@ -6,6 +6,7 @@ struct RevisionProvider {
     metadata: AtomicUsize,
     change_again: AtomicBool,
     opt_in: bool,
+    unavailable: AtomicBool,
     partial_before_stale: AtomicBool,
     metadata_gate: tokio::sync::Notify,
     pause_metadata: AtomicBool,
@@ -33,6 +34,7 @@ impl RevisionProvider {
             metadata: AtomicUsize::new(0),
             change_again: AtomicBool::new(false),
             opt_in,
+            unavailable: AtomicBool::new(false),
             partial_before_stale: AtomicBool::new(false),
             metadata_gate: tokio::sync::Notify::new(),
             pause_metadata: AtomicBool::new(false),
@@ -107,6 +109,9 @@ impl ReadProvider for RevisionProvider {
             return Err(ProviderError::Cancelled);
         }
         let call = self.listings.fetch_add(1, Ordering::SeqCst);
+        if self.unavailable.load(Ordering::SeqCst) {
+            return Err(ProviderError::Unavailable);
+        }
         if call == 1 && self.change_again.load(Ordering::SeqCst) {
             *self.source.lock().unwrap() = package(3);
         }
@@ -359,4 +364,309 @@ async fn stale_package_retry_discards_all_old_pages_and_cursor() {
             .is_none()
     );
     engine.stop().await;
+}
+
+#[tokio::test]
+async fn observed_package_source_refreshes_warm_children_for_all_publication_routes() {
+    for route in 0..3 {
+        let (_root, provider, engine, scope) = fixture(true).await;
+        let old = engine.children(&scope, "package").await.unwrap().remove(0);
+        assert_eq!(provider.listings.load(Ordering::SeqCst), 1);
+        *provider.source.lock().unwrap() = package(2);
+        {
+            let mut store = Store::open(&engine.db).unwrap();
+            match route {
+                0 => {
+                    let ticket = store.node_observation(&scope, "package").unwrap();
+                    store.publish_node(&ticket, &package(2)).unwrap();
+                }
+                1 => {
+                    let ticket = store.directory_observation(&scope, "root").unwrap();
+                    store.publish_directory(&ticket, &[package(2)]).unwrap();
+                }
+                _ => {
+                    let cursor = store.begin(&scope, false).unwrap();
+                    store
+                        .stage(
+                            &scope,
+                            cursor.as_ref(),
+                            &ChangePage {
+                                changes: vec![Change::Upsert(package(2))],
+                                checkpoint: Checkpoint::Complete(Cursor("next".into())),
+                            },
+                        )
+                        .unwrap();
+                }
+            }
+        }
+        let new = engine
+            .child(&scope, "package", "Owned.pages")
+            .await
+            .unwrap();
+        assert_eq!(new.id, "archive-v2", "route {route}");
+        assert_eq!(
+            provider.metadata.load(Ordering::SeqCst),
+            0,
+            "local observation should supply the source"
+        );
+        assert_eq!(provider.listings.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            engine.children(&scope, "package").await.unwrap(),
+            vec![new.clone()]
+        );
+        assert_eq!(
+            provider.listings.load(Ordering::SeqCst),
+            2,
+            "warm unchanged read redownloaded"
+        );
+        assert_eq!(
+            engine
+                .cache
+                .read(provider.as_ref(), &scope, &old, 0, 8, &engine.cancel)
+                .await
+                .unwrap(),
+            b"oldbytes"
+        );
+        assert_eq!(
+            engine
+                .cache
+                .read(provider.as_ref(), &scope, &new, 0, 8, &engine.cancel)
+                .await
+                .unwrap(),
+            b"newbytes"
+        );
+    }
+}
+#[tokio::test]
+async fn observed_package_source_unavailable_keeps_complete_old_snapshot_but_not_missing_source() {
+    let (_root, provider, engine, scope) = fixture(true).await;
+    let old = engine.children(&scope, "package").await.unwrap();
+    *provider.source.lock().unwrap() = package(2);
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&scope, &package(2))
+        .unwrap();
+    provider.unavailable.store(true, Ordering::SeqCst);
+    assert_eq!(engine.children(&scope, "package").await.unwrap(), old);
+    let calls = provider.listings.load(Ordering::SeqCst);
+    assert_eq!(engine.children(&scope, "package").await.unwrap(), old);
+    assert_eq!(
+        provider.listings.load(Ordering::SeqCst),
+        calls,
+        "offline repeated read retried conversion"
+    );
+    assert!(
+        Store::open(&engine.db)
+            .unwrap()
+            .directory_source_state(&scope, "package")
+            .unwrap()
+            .unwrap()
+            .changed
+    );
+    // Ordinary activity refresh may recover independently of the foreground
+    // failure memo; it publishes the new complete binding atomically.
+    provider.unavailable.store(false, Ordering::SeqCst);
+    engine.fetch_directory(&scope, "package").await.unwrap();
+    assert_eq!(
+        engine.children(&scope, "package").await.unwrap()[0].id,
+        "archive-v2"
+    );
+    {
+        let mut store = Store::open(&engine.db).unwrap();
+        let ticket = store.node_observation(&scope, "package").unwrap();
+        store.publish_absence(&ticket).unwrap();
+    }
+    assert!(matches!(
+        engine.children(&scope, "package").await,
+        Err(ProviderError::NotFound)
+    ));
+    assert!(matches!(
+        engine.child(&scope, "package", "Owned.pages").await,
+        Err(ProviderError::NotFound)
+    ));
+}
+#[tokio::test]
+async fn observed_package_source_invalid_shape_never_uses_previous_generated_snapshot() {
+    let (_root, provider, engine, scope) = fixture(true).await;
+    engine.children(&scope, "package").await.unwrap();
+    let mut changed = package(2);
+    changed.package = false;
+    changed.kind = NodeKind::File;
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&scope, &changed)
+        .unwrap();
+    assert!(matches!(
+        engine.children(&scope, "package").await,
+        Err(ProviderError::VersionChanged)
+    ));
+    assert_eq!(provider.listings.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn observed_package_source_stable_content_tag_does_not_redownload_metadata_only_changes() {
+    let (_root, provider, engine, scope) = fixture(true).await;
+    let mut original = package(1);
+    original.content_version = Some("stable-content".into());
+    *provider.source.lock().unwrap() = original.clone();
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&scope, &original)
+        .unwrap();
+    let before = engine.children(&scope, "package").await.unwrap();
+    let mut updated = original;
+    updated.etag = Some("new-metadata-tag".into());
+    updated.modified_unix = 22;
+    *provider.source.lock().unwrap() = updated.clone();
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&scope, &updated)
+        .unwrap();
+    assert_eq!(engine.children(&scope, "package").await.unwrap(), before);
+    assert_eq!(provider.listings.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.metadata.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn observed_package_source_legacy_migration_refuses_missing_or_reclassified_source() {
+    for arm in 0..3 {
+        let (root, provider, engine, scope) = fixture(true).await;
+        engine.children(&scope, "package").await.unwrap();
+        let account = engine.account.clone();
+        let db = engine.db.clone();
+        if arm == 2 {
+            let mut store = Store::open(&db).unwrap();
+            let ticket = store.node_observation(&scope, "package").unwrap();
+            store.publish_absence(&ticket).unwrap();
+        }
+        drop(engine);
+        {
+            // A real v7 on-disk snapshot has no source-binding table. Retain
+            // its old metadata, absence marker and completed children exactly.
+            let db = rusqlite::Connection::open(&db).unwrap();
+            db.execute_batch("DROP TABLE directory_sources; PRAGMA user_version=7;")
+                .unwrap();
+        }
+        let engine = Engine::new(account, provider.clone(), root.path().join("state"))
+            .await
+            .unwrap();
+        if arm < 2 {
+            let mut store = Store::open(&db).unwrap();
+            if arm == 0 {
+                let ticket = store.node_observation(&scope, "package").unwrap();
+                store.publish_absence(&ticket).unwrap();
+            } else {
+                let mut ordinary = package(2);
+                ordinary.package = false;
+                ordinary.kind = NodeKind::File;
+                store.observe_node(&scope, &ordinary).unwrap();
+            }
+        }
+        let state = Store::open(&db)
+            .unwrap()
+            .directory_source_state(&scope, "package")
+            .unwrap()
+            .unwrap();
+        assert!(state.bound.is_none());
+        assert!(state.legacy_classification.is_some());
+        let result = engine.children(&scope, "package").await;
+        if arm == 1 {
+            assert!(
+                matches!(result, Err(ProviderError::VersionChanged)),
+                "legacy reclassification returned old archive"
+            );
+        } else {
+            assert!(
+                matches!(result, Err(ProviderError::NotFound)),
+                "legacy disappearance returned old archive"
+            );
+        }
+        assert!(
+            engine
+                .child(&scope, "package", "Owned.pages")
+                .await
+                .is_err()
+        );
+        assert_eq!(provider.listings.load(Ordering::SeqCst), 1);
+        assert_eq!(provider.metadata.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[tokio::test]
+async fn observed_package_source_opted_out_legacy_delta_and_reset_invalidate_positive_child() {
+    for reset in [false, true] {
+        let (root, provider, engine, scope) = fixture(false).await;
+        let original = engine.children(&scope, "package").await.unwrap().remove(0);
+        assert_eq!(original.id, "archive-v1");
+        let account = engine.account.clone();
+        let db = engine.db.clone();
+        drop(engine);
+        {
+            let db = rusqlite::Connection::open(&db).unwrap();
+            db.execute_batch("DROP TABLE directory_sources; PRAGMA user_version=7;")
+                .unwrap();
+        }
+        let engine = Engine::new(account, provider.clone(), root.path().join("state"))
+            .await
+            .unwrap();
+        let state = Store::open(&db)
+            .unwrap()
+            .directory_source_state(&scope, "package")
+            .unwrap()
+            .unwrap();
+        assert!(state.bound.is_none());
+        assert!(state.legacy_classification.is_some());
+        // Exercise a positive cached name lookup, not a forced refresh or
+        // first-open package conversion that could hide incorrect retention.
+        assert_eq!(
+            engine
+                .child(&scope, "package", "Owned.pages")
+                .await
+                .unwrap(),
+            original
+        );
+        assert_eq!(provider.listings.load(Ordering::SeqCst), 1);
+        *provider.source.lock().unwrap() = package(2);
+        {
+            let mut store = Store::open(&db).unwrap();
+            let cursor = store.begin(&scope, reset).unwrap();
+            store
+                .stage(
+                    &scope,
+                    cursor.as_ref(),
+                    &ChangePage {
+                        changes: vec![
+                            Change::Upsert(node("root", None, "Root", NodeKind::Folder, false)),
+                            Change::Upsert(package(2)),
+                        ],
+                        checkpoint: Checkpoint::Complete(Cursor("next".into())),
+                    },
+                )
+                .unwrap();
+        }
+        let current = engine
+            .child(&scope, "package", "Owned.pages")
+            .await
+            .unwrap();
+        assert_eq!(
+            current.id, "archive-v2",
+            "opted-out migrated snapshot survived reset={reset}"
+        );
+        assert_eq!(provider.listings.load(Ordering::SeqCst), 2);
+        assert_eq!(provider.metadata.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            engine.children(&scope, "package").await.unwrap(),
+            vec![current]
+        );
+        assert_eq!(provider.listings.load(Ordering::SeqCst), 2);
+        // No trusted binding may be manufactured for an opted-out converter.
+        let state = Store::open(&db)
+            .unwrap()
+            .directory_source_state(&scope, "package")
+            .unwrap()
+            .unwrap();
+        assert!(state.bound.is_none());
+        assert!(state.legacy_classification.is_none());
+        engine.stop().await;
+    }
 }

@@ -102,6 +102,19 @@ aggregate private staging quota and native editing remain open. See the
 [normal package adapter validation](benchmarks/icloud-native-package-adapter-2026-09-30.md)
 for format/resource limits, failed hypotheses and live evidence.
 
+Generated package snapshots can also retain the exact source metadata that
+produced them. For providers opting into source-change retry, cached listing and
+child lookup compare that binding with locally observed source changes. A changed
+source triggers one coalesced refresh; publication checks the source again in
+its transaction. Unavailable or throttled refresh retains the previous complete
+snapshot for offline reads; disappearance or incompatible reclassification does
+not turn it into current content. This detects observed changes, not unobserved
+remote edits. Unchanged explicit content revisions avoid regeneration on ETag-only
+updates. Metadata schema8 retains legacy package classification separately from
+trusted source bindings; classification alone cannot change another provider's
+delta invalidation policy. See the
+[source-binding regressions](benchmarks/icloud-generated-source-binding-2026-10-01.md).
+
 Discovery follows indexed ancestry and starts one delta worker per linked drive.
 Reachable roots are persisted; obsolete subscriptions are removed only when the
 remaining reachable scopes have complete indexes. Discovery stops at duplicate roots

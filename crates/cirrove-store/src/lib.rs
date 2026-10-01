@@ -2,6 +2,8 @@
 //! in one transaction, only after the last page. This is not an upload journal.
 mod blocks;
 mod directories;
+mod directory_sources;
+pub use directory_sources::DirectorySourceState;
 mod metadata_changes;
 pub mod pins;
 pub use metadata_changes::{MetadataChange, MetadataChangeKind, MetadataChanges, MetadataPosition};
@@ -317,7 +319,7 @@ pub type Result<T> = std::result::Result<T, StoreError>;
 /// Exposed so that a tool sharing a state directory with a running service can
 /// ask whether opening a store would migrate it, rather than finding out by
 /// having migrated it.
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 8;
 /// The schema version a database is currently at, without opening or migrating it.
 pub fn schema_version(path: impl AsRef<Path>) -> Result<u32> {
     let db = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -473,6 +475,7 @@ impl Store {
             }
             observations::migrate(&tx, version)?;
             directories::migrate(&tx, version)?;
+            directory_sources::migrate(&tx, version)?;
             metadata_changes::migrate(&tx, version)?;
             pins::migrate(&tx, version)?;
             // An unusable clock or malformed schema must roll back migration,
@@ -480,6 +483,7 @@ impl Store {
             observations::validate(&tx)?;
             metadata_changes::validate(&tx)?;
             directories::validate(&tx)?;
+            directory_sources::validate(&tx)?;
             pins::validate(&tx)?;
             if version < SCHEMA_VERSION {
                 tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
@@ -488,6 +492,7 @@ impl Store {
         }
         observations::validate(&db)?;
         directories::validate(&db)?;
+        directory_sources::validate(&db)?;
         metadata_changes::validate(&db)?;
         Ok(Self {
             db: Pooled::built(db, key),
@@ -620,12 +625,15 @@ impl Store {
             // A delta with no relevant changes must not discard a fresher
             // foreground directory snapshot. Invalidate only touched identities
             // and their old/new parents, before replacing the indexed rows.
+            // Only a successfully bound, provider-opted-in snapshot is retained.
+            // Migration's legacy classification is not an opt-in capability;
+            // retain ordinary invalidation for those snapshots across providers.
             if reset {
                 tx.execute("DELETE FROM observed_absent WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
                 tx.execute("DELETE FROM observed WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND NOT EXISTS(SELECT 1 FROM directory_sources b WHERE b.scope=directories.scope AND b.parent=directories.parent AND b.source IS NOT NULL) AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
             } else {
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND NOT EXISTS(SELECT 1 FROM directory_sources b WHERE b.scope=directories.scope AND b.parent=directories.parent AND b.source IS NOT NULL) AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
                     SELECT id FROM staged WHERE scope=?1
                     UNION SELECT json_extract(body,'$.parent_id') FROM staged WHERE scope=?1
                     UNION SELECT json_extract((SELECT body FROM nodes WHERE scope=?1 AND id=s.id),'$.parent_id') FROM staged s WHERE scope=?1
@@ -1763,7 +1771,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
-            7
+            SCHEMA_VERSION
         );
         assert_eq!(
             db.db

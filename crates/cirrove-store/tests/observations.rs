@@ -321,7 +321,7 @@ fn migration_preserves_legacy_ordering_and_tickets_survive_connection_reopen() {
     ));
     rusqlite::Connection::open(&path)
         .unwrap()
-        .pragma_update(None, "user_version", 8)
+        .pragma_update(None, "user_version", 9)
         .unwrap();
     assert!(matches!(Store::open(&path), Err(StoreError::SchemaVersion)));
 }
