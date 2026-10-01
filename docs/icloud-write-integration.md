@@ -399,7 +399,7 @@ router**, with explicit acceptance gates:
 | --- | --- | --- |
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps; mounted unlink recovered after confirmed Trash before journal acknowledgement | In-flight uncertainty, concurrent intermediate changes, other deletion boundaries and repeatability |
-| Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
+| Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified; isolated [staging-body interruption](benchmarks/icloud-replace-stream-interruption-2026-10-01.md) recovered with original preserved, local export and fresh retry | Registration acknowledgement loss, other in-flight boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests | Unsealed working-byte export, offline desktop selection, per-operation explanation and safe resolution; installed validation and audit of earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
@@ -712,3 +712,15 @@ This adds an account-router staging-body boundary, not a mounted application or
 blanket transport/release result. A local fixture bug (one oversized working write)
 was reproduced by a failing regression and fixed with bounded writes; the failed
 setup attempt remains recorded. Ordinary write permissions remain unchanged.
+
+## Exact-folder handoff identity
+
+New non-root replacement handoffs use plan version 5: one complete exact-folder
+response must match the captured folder ID, actual parent, name and kind before
+its children enter the existing file identity, revision and name-conflict checks.
+Unrelated same-name sibling folders do not redirect ID-addressed operations and
+are allowed under this explicit contract. Saved versions 2/3 retain their original
+parent-listing and sibling-name uniqueness checks; root version 4 is unchanged.
+The registered [functional validation](benchmarks/icloud-handoff-folder-identity-2026-10-01.md)
+separates this reduced request path from unmeasured latency claims. Ordinary
+installed iCloud writes remain disabled pending the release gates above.

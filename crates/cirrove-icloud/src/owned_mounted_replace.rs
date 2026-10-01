@@ -600,7 +600,7 @@ impl ICloudFileReplace {
             return Err(UploadError::Conflict);
         }
         let plan = HandoffPlan {
-            version: if self.folder.id == ROOT_ID { 4 } else { 3 },
+            version: if self.folder.id == ROOT_ID { 4 } else { 5 },
             folder_parent_id: self.folder.parent_id.clone().unwrap_or_default(),
             folder_id: self.folder.id.clone(),
             folder_name: self.folder.name.clone(),
@@ -1172,6 +1172,45 @@ mod tests {
         assert_eq!(restored.folder, folder);
         assert_eq!(restored.original, original);
         assert_eq!(restored.original_sha256.as_deref(), Some(digest.as_str()));
+        let mut staged = node(
+            "FILE::com.apple.CloudDocs::staged".into(),
+            Some(folder.id.clone()),
+            &restored.stage_name,
+            NodeKind::File,
+        );
+        staged.size = request.size;
+        let current_plan = restored.plan(&request, &staged, &digest).expect("plan");
+        assert_eq!(current_plan.version, 5);
+        for version in [3, 5] {
+            let mut plan = current_plan.clone();
+            plan.version = version;
+            let saved = restored
+                .checkpoint(
+                    &request,
+                    &digest,
+                    Phase::Handoff {
+                        inner: "synthetic-handoff".into(),
+                        plan: Box::new(plan),
+                    },
+                )
+                .expect("handoff checkpoint");
+            let resumed = ICloudFileReplace::from_sealed_checkpoint(
+                &request,
+                operation,
+                &saved,
+                sign_in(),
+                state.path(),
+            )
+            .expect("restore handoff")
+            .expect("captured source");
+            let (_, Phase::Handoff { plan, .. }) = resumed
+                .check_checkpoint(&request, &saved)
+                .expect("retain saved contract")
+            else {
+                panic!("expected handoff");
+            };
+            assert_eq!(plan.version, version);
+        }
         assert!(
             ICloudFileReplace::from_sealed_checkpoint(
                 &request,

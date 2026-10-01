@@ -67,14 +67,35 @@ pub enum HandoffObserved {
 }
 
 impl ICloudReadSession {
-    pub async fn inspect_durable_handoff(&mut self, plan: &HandoffPlan) -> Result<HandoffObserved> {
+    async fn handoff_items(&mut self, plan: &HandoffPlan) -> Result<Option<Vec<DriveEntry>>> {
         plan.validate()?;
+        if plan.version == 5 {
+            // New non-root plans address the captured folder directly. The
+            // complete envelope proves its identity and supplies its children;
+            // unrelated same-name siblings cannot redirect an ID-based handoff.
+            // Persisted v2/v3 plans retain their parent-listing contract below.
+            let folder = self.folder_metadata(&plan.folder_id).await?;
+            if folder.drivewsid != plan.folder_id
+                || folder.parent_id != plan.folder_parent()
+                || folder.display_name() != plan.folder_name
+                || !folder.is_folder()
+            {
+                return Ok(None);
+            }
+            return Ok(Some(folder.items));
+        }
         if plan.folder_id != ROOT_ID
             && !plan.folder_present(&self.list_folder(plan.folder_parent()).await?)
         {
-            return Ok(HandoffObserved::Diverged);
+            return Ok(None);
         }
-        let items = self.list_folder(&plan.folder_id).await?;
+        Ok(Some(self.list_folder(&plan.folder_id).await?))
+    }
+
+    pub async fn inspect_durable_handoff(&mut self, plan: &HandoffPlan) -> Result<HandoffObserved> {
+        let Some(items) = self.handoff_items(plan).await? else {
+            return Ok(HandoffObserved::Diverged);
+        };
         let Some((Some(old), new)) = plan.select_active(&items) else {
             return Ok(HandoffObserved::Diverged);
         };
@@ -313,13 +334,9 @@ impl ICloudReadSession {
         Option<(cirrove_core::Node, cirrove_core::Node)>,
     )> {
         use cirrove_core::{Node, NodeKind};
-        plan.validate()?;
-        if plan.folder_id != ROOT_ID
-            && !plan.folder_present(&self.list_folder(plan.folder_parent()).await?)
-        {
+        let Some(items) = self.handoff_items(plan).await? else {
             return Ok((HandoffObserved::Diverged, None));
-        }
-        let items = self.list_folder(&plan.folder_id).await?;
+        };
         let Some((old, staged)) = plan.select_active(&items) else {
             return Ok((HandoffObserved::Diverged, None));
         };
@@ -510,7 +527,7 @@ impl HandoffPlan {
             && !self.folder_name.contains(['/', '\0', '\r', '\n']);
         let valid_version = match self.version {
             2 => self.folder_parent() == ROOT_ID && uuid_name(&self.folder_name, PROBE_PREFIX, ""),
-            3 => valid_parent && valid_folder_name && self.folder_parent_id != self.folder_id,
+            3 | 5 => valid_parent && valid_folder_name && self.folder_parent_id != self.folder_id,
             4 => self.folder_id == ROOT_ID && self.folder_parent_id.is_empty() && valid_folder_name,
             _ => false,
         };
@@ -803,3 +820,6 @@ mod tests {
         assert!(!plan.revisions_match_prepared("old-revision", "foreign-revision"));
     }
 }
+
+#[cfg(test)]
+mod folder_identity_tests;
