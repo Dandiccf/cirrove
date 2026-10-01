@@ -52,7 +52,7 @@ impl ICloudFileRename {
     ) -> MutationResult<Self> {
         Self::check_identity(&scope, &before, &target_name, &digest)?;
         let session = ICloudReadSession::from_session_snapshot(snapshot, apple_id)
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if session.account_hash.is_none() {
             return Err(MutationError::Invalid);
         }
@@ -172,10 +172,10 @@ impl ICloudFileRename {
             let saved = vault
                 .load(credential_id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
                 .ok_or(MutationError::Uncertain)?;
             let restored = ICloudReadSession::from_session_snapshot(&saved, apple_id)
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             if restored.account_hash.is_none() {
                 return Err(MutationError::Invalid);
             }
@@ -198,7 +198,7 @@ impl ICloudFileRename {
         let children = session
             .list_folder(parent)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let mut matches = children
             .iter()
             .filter(|entry| entry.drivewsid == self.before.id);
@@ -227,7 +227,7 @@ impl ICloudFileRename {
         if session
             .hash_file_in_folder_for_revision(parent, &self.before.id, &etag, self.before.size)
             .await
-            .map_err(|_| MutationError::Uncertain)?
+            .map_err(crate::mutation_error)?
             != self.expected_sha256
         {
             return Ok(Observation::Conflict);
@@ -235,7 +235,7 @@ impl ICloudFileRename {
         let again = session
             .list_folder(parent)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let matching: Vec<_> = again
             .iter()
             .filter(|candidate| candidate.drivewsid == self.before.id)
@@ -330,7 +330,7 @@ impl MutationProvider for ICloudFileRename {
                     &self.target_name,
                 )
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
         };
         if !accepted {
             return Err(MutationError::Uncertain);

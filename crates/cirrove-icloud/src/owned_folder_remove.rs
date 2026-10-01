@@ -114,10 +114,7 @@ impl ICloudOwnedFixtureFolderRemove {
 
     async fn observe(&self) -> MutationResult<Observation> {
         let mut session = self.session.lock().await;
-        let root = session
-            .list_root()
-            .await
-            .map_err(|_| MutationError::Uncertain)?;
+        let root = session.list_root().await.map_err(crate::mutation_error)?;
         if root
             .iter()
             .filter(|entry| {
@@ -133,12 +130,12 @@ impl ICloudOwnedFixtureFolderRemove {
         let siblings = session
             .list_folder(&self.parent.id)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if self.check_at_parent(&siblings)? {
             let children = session
                 .list_folder(&self.before.id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             if !children.is_empty() {
                 return Err(MutationError::Conflict);
             }
@@ -147,7 +144,7 @@ impl ICloudOwnedFixtureFolderRemove {
         let (trash, complete) = session
             .read_trash_items()
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if !complete {
             return Err(MutationError::Uncertain);
         }
@@ -235,13 +232,13 @@ impl MutationProvider for ICloudOwnedFixtureFolderRemove {
                 session
                     .send_trash_without_receipt(&self.before.id, etag)
                     .await
-                    .map_err(|_| MutationError::Uncertain)?;
+                    .map_err(crate::mutation_error)?;
                 return Err(MutationError::Uncertain);
             }
             session
                 .send_trash(&self.before.id, etag)
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
         };
         if !accepted {
             return Err(MutationError::Uncertain);

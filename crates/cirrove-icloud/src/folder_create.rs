@@ -52,7 +52,7 @@ impl ICloudFolderCreate {
     ) -> MutationResult<Self> {
         Self::check_identity(&scope, &parent)?;
         let session = ICloudReadSession::from_session_snapshot(snapshot, apple_id)
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if session.account_hash.is_none() {
             return Err(MutationError::Invalid);
         }
@@ -176,10 +176,10 @@ impl ICloudFolderCreate {
             let saved = vault
                 .load(credential_id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
                 .ok_or(MutationError::Uncertain)?;
             let restored = ICloudReadSession::from_session_snapshot(&saved, apple_id)
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             if restored.account_hash.is_none() {
                 return Err(MutationError::Invalid);
             }
@@ -205,7 +205,7 @@ impl ICloudFolderCreate {
         let entries = session
             .list_folder(ancestor)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if entries
             .iter()
             .filter(|entry| {
@@ -232,7 +232,7 @@ impl ICloudFolderCreate {
         let children = session
             .list_folder(&self.parent.id)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if let Some(id) = expected_id {
             if children
                 .iter()
@@ -289,7 +289,7 @@ impl ICloudFolderCreate {
         self.checkpoint_vault
             .save(&self.key(operation), SecretString::from(value))
             .await
-            .map_err(|_| MutationError::Uncertain)
+            .map_err(crate::mutation_error)
     }
 
     async fn saved_identity(
@@ -301,7 +301,7 @@ impl ICloudFolderCreate {
             .checkpoint_vault
             .load(&self.key(operation))
             .await
-            .map_err(|_| MutationError::Uncertain)?
+            .map_err(crate::mutation_error)?
         else {
             return Ok(None);
         };
@@ -344,7 +344,7 @@ impl MutationProvider for ICloudFolderCreate {
             session
                 .create_folder_request(&self.parent.id, name)
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
         };
         self.save_identity(operation, request, &id).await?;
         let node = self
@@ -393,5 +393,98 @@ impl MutationProvider for ICloudFolderCreate {
         _: &CancellationToken,
     ) -> MutationResult<MutationReconciliation> {
         Ok(MutationReconciliation::Indeterminate)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod session_tests {
+    use super::*;
+    struct EmptyVault;
+    #[async_trait]
+    impl CredentialVault for EmptyVault {
+        async fn load(&self, _: &str) -> anyhow::Result<Option<SecretString>> {
+            Ok(None)
+        }
+        async fn save(&self, _: &str, _: SecretString) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn remove(&self, _: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+    #[test]
+    fn mutation_session_mapping_requires_a_typed_cause() {
+        let rejected = anyhow::Error::new(crate::SessionRejected).context("PRIVATE RESPONSE");
+        assert!(matches!(
+            crate::mutation_error(rejected),
+            MutationError::Provider(cirrove_core::ProviderError::Authentication)
+        ));
+        for error in [
+            anyhow::anyhow!("401 PRIVATE RESPONSE"),
+            anyhow::Error::new(crate::IncompleteFolder),
+        ] {
+            let mapped = crate::mutation_error(error);
+            assert!(matches!(mapped, MutationError::Uncertain));
+            assert!(!mapped.to_string().contains("PRIVATE"));
+        }
+    }
+
+    #[tokio::test]
+    async fn folder_preflight_preserves_session_rejection_without_claiming_a_conflict() {
+        use tokio::{
+            io::{AsyncReadExt, AsyncWriteExt},
+            net::TcpListener,
+        };
+        for status in [401, 403, 503] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let endpoint = format!("http://{}/", listener.local_addr().unwrap());
+            let server = tokio::spawn(async move {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut bytes = [0u8; 8192];
+                assert!(stream.read(&mut bytes).await.unwrap() > 0);
+                stream.write_all(format!("HTTP/1.1 {status} Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await.unwrap();
+            });
+            let mut session = ICloudReadSession::new().unwrap();
+            session.drive_endpoint = Some(url::Url::parse(&endpoint).unwrap());
+            let provider = ICloudFolderCreate {
+                scope: Scope {
+                    account: Uuid::new_v4().to_string(),
+                    provider: "icloud".into(),
+                    collection: "drive".into(),
+                },
+                parent: Node {
+                    id: "FOLDER::com.apple.CloudDocs::owned".into(),
+                    parent_id: Some(ROOT_ID.into()),
+                    name: "Owned".into(),
+                    kind: NodeKind::Folder,
+                    size: 0,
+                    modified_unix: 0,
+                    etag: None,
+                    content_version: None,
+                    target: None,
+                    package: false,
+                },
+                checkpoint_vault: Arc::new(EmptyVault),
+                session: Mutex::new(SessionState::Ready(Box::new(session))),
+                #[cfg(feature = "write-probe")]
+                reconciliation_only: false,
+            };
+            let result = provider.observe_parent().await;
+            server.await.unwrap();
+            if status == 503 {
+                assert!(matches!(result, Err(MutationError::Uncertain)));
+            } else {
+                assert!(
+                    matches!(
+                        result,
+                        Err(MutationError::Provider(
+                            cirrove_core::ProviderError::Authentication
+                        ))
+                    ),
+                    "{status}: {result:?}"
+                );
+            }
+        }
     }
 }

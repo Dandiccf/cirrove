@@ -56,7 +56,7 @@ impl ICloudFileTrash {
     ) -> MutationResult<Self> {
         Self::check_identity(&scope, &before)?;
         let session = ICloudReadSession::from_session_snapshot(snapshot, apple_id)
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if session.account_hash.is_none() {
             return Err(MutationError::Invalid);
         }
@@ -183,10 +183,10 @@ impl ICloudFileTrash {
             let saved = vault
                 .load(credential_id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
                 .ok_or(MutationError::Uncertain)?;
             let restored = ICloudReadSession::from_session_snapshot(&saved, apple_id)
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             if restored.account_hash.is_none() {
                 return Err(MutationError::Invalid);
             }
@@ -209,7 +209,7 @@ impl ICloudFileTrash {
         let children = session
             .list_folder(parent)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let mut matches = children
             .iter()
             .filter(|entry| entry.drivewsid == self.before.id);
@@ -234,7 +234,7 @@ impl ICloudFileTrash {
                         self.before.size,
                     )
                     .await
-                    .map_err(|_| MutationError::Uncertain)?
+                    .map_err(crate::mutation_error)?
                     != *expected
             {
                 return Ok(Observation::Conflict);
@@ -246,7 +246,7 @@ impl ICloudFileTrash {
         let item = session
             .item_details(&self.before.id)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if !trash_binding(&item, &self.before) {
             return Ok(
                 if children
@@ -273,7 +273,7 @@ impl ICloudFileTrash {
             let signed = session
                 .ordinary_download_url(&self.before.id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             let mut received = 0u64;
             let mut hash = Sha256::new();
             if self.before.size > 0 {
@@ -304,7 +304,7 @@ impl ICloudFileTrash {
             let again = session
                 .item_details(&self.before.id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             if !trash_binding(&again, &self.before)
                 || again.get("etag").and_then(|v| v.as_str()) != Some(etag)
                 || again.get("size").and_then(|v| v.as_u64()) != Some(self.before.size)
@@ -402,7 +402,7 @@ impl MutationProvider for ICloudFileTrash {
                         self.before.etag.as_deref().ok_or(MutationError::Invalid)?,
                     )
                     .await
-                    .map_err(|_| MutationError::Uncertain)?;
+                    .map_err(crate::mutation_error)?;
                 return Err(MutationError::Uncertain);
             }
             session
@@ -411,7 +411,7 @@ impl MutationProvider for ICloudFileTrash {
                     self.before.etag.as_deref().ok_or(MutationError::Invalid)?,
                 )
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
         };
         if !accepted {
             return match self.observe().await? {

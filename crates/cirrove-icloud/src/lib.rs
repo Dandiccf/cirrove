@@ -171,6 +171,17 @@ impl std::fmt::Display for SessionRejected {
 
 impl std::error::Error for SessionRejected {}
 
+/// Preserve a typed Apple session rejection at a namespace-write boundary.
+/// All other failures remain uncertain; no remote response text is exposed.
+/// Authentication does not establish whether an earlier mutation committed.
+pub fn mutation_error(error: anyhow::Error) -> cirrove_core::mutation::MutationError {
+    if error.downcast_ref::<SessionRejected>().is_some() {
+        cirrove_core::ProviderError::Authentication.into()
+    } else {
+        cirrove_core::mutation::MutationError::Uncertain
+    }
+}
+
 fn drive_request_failure(status: StatusCode, stage: &'static str) -> anyhow::Error {
     if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
         SessionRejected.into()

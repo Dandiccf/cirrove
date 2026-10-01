@@ -52,7 +52,7 @@ impl ICloudFileMove {
     ) -> MutationResult<Self> {
         Self::check_identity(&scope, &before, &destination, &digest)?;
         let session = ICloudReadSession::from_session_snapshot(snapshot, apple_id)
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if session.account_hash.is_none() {
             return Err(MutationError::Invalid);
         }
@@ -176,10 +176,10 @@ impl ICloudFileMove {
             let saved = vault
                 .load(credential_id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
                 .ok_or(MutationError::Uncertain)?;
             let restored = ICloudReadSession::from_session_snapshot(&saved, apple_id)
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             if restored.account_hash.is_none() {
                 return Err(MutationError::Invalid);
             }
@@ -200,7 +200,7 @@ impl ICloudFileMove {
         Ok(session
             .hash_file_in_folder_for_revision(parent, &self.before.id, etag, self.before.size)
             .await
-            .map_err(|_| MutationError::Uncertain)?
+            .map_err(crate::mutation_error)?
             == self.expected_sha256)
     }
 
@@ -221,7 +221,7 @@ impl ICloudFileMove {
             let candidates = session
                 .list_folder(parent)
                 .await
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             let matches: Vec<_> = candidates
                 .iter()
                 .filter(|entry| entry.drivewsid == self.destination.id)
@@ -237,11 +237,11 @@ impl ICloudFileMove {
         let source = session
             .list_folder(source_id)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let target = session
             .list_folder(&self.destination.id)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let source_file: Vec<_> = source
             .iter()
             .filter(|entry| entry.drivewsid == self.before.id)
@@ -281,11 +281,11 @@ impl ICloudFileMove {
         let source_again = session
             .list_folder(source_id)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let target_again = session
             .list_folder(&self.destination.id)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let here = if at_source {
             &source_again
         } else {
@@ -395,7 +395,7 @@ impl MutationProvider for ICloudFileMove {
                     &self.destination.id,
                 )
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
         };
         if !accepted {
             return Err(MutationError::Uncertain);

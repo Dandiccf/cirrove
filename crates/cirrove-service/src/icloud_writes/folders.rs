@@ -91,7 +91,7 @@ impl ICloudWriteProvider {
                 let vault = SealedSessionVault::new(&self.state, &self.scope.account).map_err(|_| MutationError::Invalid)?;
                 let snapshot = vault.load(&self.credential_id).await.map_err(|_| MutationError::Uncertain)?.ok_or(MutationError::Uncertain)?;
                 let mut session = ICloudReadSession::from_session_snapshot(&snapshot, &self.apple_id).map_err(|_| MutationError::Uncertain)?;
-                session.hash_file_in_folder_for_revision(parent, &before.id, etag, before.size).await.map_err(|_| MutationError::Uncertain)
+                session.hash_file_in_folder_for_revision(parent, &before.id, etag, before.size).await.map_err(cirrove_icloud::mutation_error)
             } => result,
         }
     }

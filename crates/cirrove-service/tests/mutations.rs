@@ -9,7 +9,7 @@ use std::{
     process::{Command, Stdio},
     sync::{
         Arc, Mutex, Weak,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -252,6 +252,7 @@ fn requests_reject_wildcards_recursive_delete_shortcuts_and_foreign_accounts() {
 }
 struct Provider {
     mode: &'static str,
+    reject_session: AtomicBool,
     preparations: AtomicUsize,
     mutations: AtomicUsize,
     checks: AtomicUsize,
@@ -314,6 +315,9 @@ impl MutationProvider for Provider {
         prepared_item: Option<&str>,
         c: &CancellationToken,
     ) -> Result<MutationReconciliation> {
+        if self.reject_session.load(Ordering::SeqCst) {
+            return Err(cirrove_core::ProviderError::Authentication.into());
+        }
         if self.mode == "operation_lost" {
             self.unlocked();
             assert!(prepared_item.is_none());
@@ -413,6 +417,7 @@ impl MutationProvider for Provider {
 fn provider(mode: &'static str, j: &Arc<Mutex<UploadJournal>>) -> Arc<Provider> {
     Arc::new(Provider {
         mode,
+        reject_session: AtomicBool::new(false),
         preparations: AtomicUsize::new(0),
         mutations: AtomicUsize::new(0),
         checks: AtomicUsize::new(0),
@@ -1006,5 +1011,76 @@ fn verified_content_never_authorizes_packages_folders_or_different_size() {
             }
         }
         assert!(VerifiedMutationContent::for_relocation(&r, &modified, "a".repeat(64)).is_err());
+    }
+}
+
+#[tokio::test]
+async fn session_rejection_preserves_namespace_intent_and_prepared_identity_across_restart() {
+    let mut folder = before();
+    folder.kind = NodeKind::Folder;
+    folder.size = 0;
+    for intent in [
+        request().intent,
+        MutationIntent::RemoveFile { before: before() },
+        MutationIntent::RemoveFolder { before: folder },
+        MutationIntent::CreateFolder {
+            parent: "destination".into(),
+            name: "new-folder".into(),
+        },
+    ] {
+        let create = matches!(intent, MutationIntent::CreateFolder { .. });
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("journal");
+        let j = Arc::new(Mutex::new(journal(&root)));
+        let record = j
+            .lock()
+            .unwrap()
+            .enqueue_mutation(MutationRequest {
+                scope: scope(),
+                intent: intent.clone(),
+            })
+            .unwrap();
+        let p = provider(if create { "prepared_lost" } else { "lost" }, &j);
+        let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            MutationState::VerifyRequired
+        );
+        let prepared = j.lock().unwrap().mutation(record.id).unwrap().prepared_item;
+        if create {
+            assert_eq!(prepared.as_deref(), Some("reserved-folder-id"));
+        }
+        j.lock().unwrap().request_mutation_retry(record.id).unwrap();
+        p.reject_session.store(true, Ordering::SeqCst);
+        let result = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(result.state, MutationState::Failed);
+        assert_eq!(
+            result.issue.as_deref(),
+            Some(
+                cirrove_core::ProviderError::Authentication
+                    .to_string()
+                    .as_str()
+            )
+        );
+        assert!(worker.run_once().await.unwrap().is_none());
+        drop(worker);
+        drop(j);
+        let j = Arc::new(Mutex::new(journal(&root)));
+        let retained = j.lock().unwrap().mutation(record.id).unwrap();
+        assert!(retained.request.intent == intent);
+        assert_eq!(retained.prepared_item, prepared);
+        j.lock().unwrap().request_mutation_retry(record.id).unwrap();
+        p.reject_session.store(false, Ordering::SeqCst);
+        let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            MutationState::Applied
+        );
+        assert_eq!(p.mutations.load(Ordering::SeqCst), 1);
+        assert_eq!(p.checks.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            j.lock().unwrap().mutation(record.id).unwrap().prepared_item,
+            prepared
+        );
     }
 }
