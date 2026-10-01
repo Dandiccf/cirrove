@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cirrove\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-01 05:02+0200\n"
+"POT-Creation-Date: 2026-10-01 07:47+0200\n"
 "PO-Revision-Date: 2026-09-14 09:00+0200\n"
 "Last-Translator: Cirrove contributors\n"
 "Language-Team: German\n"
@@ -136,7 +136,7 @@ msgid "{} of {} files · {} of {}"
 msgstr "{} von {} Dateien · {} von {}"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:183
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1807
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1803
 msgid "Stopping…"
 msgstr "Wird gestoppt…"
 
@@ -491,7 +491,7 @@ msgid "A wastebasket folder is in this drive"
 msgstr "In diesem Laufwerk liegt ein Papierkorb-Ordner"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:710
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1547
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1543
 msgid "Delete a file permanently"
 msgstr "Eine Datei endgültig löschen"
 
@@ -532,15 +532,16 @@ msgstr "Beide Fassungen behalten"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:762
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:89
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:93
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:115
 msgid "Save a local copy…"
 msgstr "Lokale Kopie speichern …"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:766
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1097
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:71
-msgid "Recover a saved version"
-msgstr "Gespeicherte Version sichern"
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1094
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:53
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:66
+msgid "Recover local changes"
+msgstr "Lokale Änderungen wiederherstellen"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:768
 msgid "Save a copy outside the cloud without retrying the upload."
@@ -655,12 +656,7 @@ msgstr ""
 "darin liegt, liegt weiterhin in Ihrem Cloud-Laufwerk. Hinzufügen lässt sich "
 "nichts mehr. Ob er verschwindet, entscheiden Sie — Cirrove tut es nicht."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1095
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:53
-msgid "Recover local changes"
-msgstr "Lokale Änderungen wiederherstellen"
-
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1101
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1097
 msgid ""
 "Put your version beside the cloud's, under a new name, instead of losing one "
 "of them"
@@ -668,43 +664,43 @@ msgstr ""
 "Legt Ihre Fassung unter neuem Namen neben die der Cloud, statt eine der "
 "beiden zu verlieren"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1156
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1152
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:168
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:176
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:214
 msgid "Stop"
 msgstr "Stoppen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1158
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1154
 msgid "Dismiss"
 msgstr "Ausblenden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1182
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1178
 msgid "{} · everything inside it"
 msgstr "{} · mit allem darin"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1190
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1186
 msgid "Stop keeping"
 msgstr "Nicht mehr behalten"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1213
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1209
 msgid "Keeping {} offline · {}"
 msgstr "{} wird offline behalten · {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1222
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1218
 msgid "{} items kept offline."
 msgstr "{} Einträge werden offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1275
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1271
 msgid "Saving mount preference…"
 msgstr "Einhänge-Einstellung wird gespeichert …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1323
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1319
 msgid "Cirrove is busy with this drive. Wait a moment and try again."
 msgstr ""
 "Cirrove ist mit diesem Laufwerk beschäftigt. Warten Sie einen Moment und "
 "versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1326
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1322
 msgid ""
 "This connection is no longer configured. It may have been removed in another "
 "window."
@@ -712,7 +708,7 @@ msgstr ""
 "Diese Verbindung ist nicht mehr eingerichtet. Möglicherweise wurde sie in "
 "einem anderen Fenster entfernt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1329
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1325
 msgid ""
 "Your saved connections could not be read, so the change was not made. Check "
 "the settings location, then try again."
@@ -721,7 +717,7 @@ msgstr ""
 "wurde nicht vorgenommen. Prüfen Sie den Speicherort der Einstellungen und "
 "versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1332
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1328
 msgid ""
 "The change could not be saved. Check that the settings location is writable "
 "and has space, then try again."
@@ -729,26 +725,26 @@ msgstr ""
 "Die Änderung konnte nicht gespeichert werden. Prüfen Sie, ob der Speicherort "
 "beschreibbar ist und Platz hat, und versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1339
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1335
 msgid ""
 "The task saving this change stopped unexpectedly. Retry or reopen Cirrove."
 msgstr ""
 "Der Vorgang, der diese Änderung speichert, wurde unerwartet beendet. "
 "Versuchen Sie es erneut oder öffnen Sie Cirrove neu."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1390
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1386
 msgid "read and write"
 msgstr "Lese- und Schreibzugriff"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1392
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1388
 msgid "read-only"
 msgstr "nur Lesezugriff"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1395
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1391
 msgid "Continue to Google sign-in?"
 msgstr "Mit der Google-Anmeldung fortfahren?"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1398
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1394
 msgid ""
 "Google grants {} access to Drive files across your account. Cirrove mounts "
 "only the drive you chose. Your name, email, file names, metadata and opened "
@@ -765,65 +761,65 @@ msgstr ""
 "an einen Cirrove-Server. Wenn Sie diese Verbindung entfernen, bleiben "
 "wiederherstellbare lokale Daten erhalten, bis Sie sie verwerfen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1403
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1600
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1399
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1596
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:85
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:92
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:111
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:818
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1404
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1400
 msgid "Continue to Google"
 msgstr "Weiter zu Google"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1427
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1423
 msgid "Signing in in your browser…"
 msgstr "Anmeldung läuft in Ihrem Browser …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1464
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1460
 msgid "The sign-in did not finish: {}"
 msgstr "Die Anmeldung wurde nicht abgeschlossen: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1465
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1461
 msgid "The sign-in did not finish."
 msgstr "Die Anmeldung wurde nicht abgeschlossen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1483
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1479
 msgid "Releasing…"
 msgstr "Wird freigegeben …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1512
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1508
 msgid "{} is still kept offline: {}"
 msgstr "{} wird weiterhin offline behalten: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1516
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1512
 msgid "{} is no longer kept offline."
 msgstr "{} wird nicht mehr offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1518
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1765
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1514
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1761
 msgid "{} was not kept offline."
 msgstr "{} wurde nicht offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1521
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1517
 msgid "Could not release {}: {}"
 msgstr "{} konnte nicht freigegeben werden: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1524
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1665
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1780
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1846
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1964
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2018
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1520
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1661
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1776
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1842
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1960
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2014
 msgid "The service did not answer."
 msgstr "Der Dienst hat nicht geantwortet."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1548
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1544
 msgid "Choose"
 msgstr "Auswählen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1585
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1581
 msgid ""
 "A folder cannot be deleted permanently: the cloud's delete is recursive and "
 "nothing can tell whether a file arrived in it a moment ago."
@@ -832,18 +828,18 @@ msgstr ""
 "wirkt rekursiv, und niemand kann sagen, ob eben noch eine Datei hineingelegt "
 "wurde."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1590
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1725
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1586
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1721
 msgid "Choose a file inside this drive's folder."
 msgstr "Wählen Sie eine Datei innerhalb des Ordners dieses Laufwerks."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1595
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1591
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:809
 #, python-brace-format
 msgid "Delete {} permanently?"
 msgstr "{} endgültig löschen?"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1597
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1593
 msgid ""
 "It does not go to the drive's recycle bin, and it cannot be recovered from "
 "this computer or from the cloud. Deleting it the ordinary way would be "
@@ -853,58 +849,58 @@ msgstr ""
 "Rechner noch aus der Cloud wiederhergestellt werden. Auf gewöhnlichem Weg "
 "gelöscht wäre sie wiederherstellbar."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1601
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1597
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:818
 msgid "Delete permanently"
 msgstr "Endgültig löschen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1628
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1624
 msgid "Deleting permanently…"
 msgstr "Wird endgültig gelöscht …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1655
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1651
 msgid "{} is gone. It was not put in the recycle bin."
 msgstr "{} ist weg. Die Datei wurde nicht in den Papierkorb gelegt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1659
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1655
 msgid "Nothing was removed."
 msgstr "Es wurde nichts gelöscht."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1662
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1658
 msgid "Could not delete permanently: {}"
 msgstr "Endgültiges Löschen fehlgeschlagen: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1736
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1732
 msgid "Keeping offline…"
 msgstr "Wird offline behalten …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1834
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1830
 msgid "Stopping. {} will not be kept offline."
 msgstr "Wird gestoppt. {} wird nicht offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1843
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1839
 msgid "Could not stop {}: {}"
 msgstr "{} konnte nicht gestoppt werden: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1863
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1859
 msgid "Discarding refused changes…"
 msgstr "Abgelehnte Änderungen werden verworfen …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1894
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1890
 msgid "Could not discard the refused changes."
 msgstr "Die abgelehnten Änderungen konnten nicht verworfen werden."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1924
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1920
 msgid "Keeping both copies…"
 msgstr "Beide Fassungen werden behalten …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1949
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1945
 msgid "Copying {} save(s) to the cloud beside the version already there."
 msgstr ""
 "{} Speicherung(en) werden neben die bereits vorhandene Fassung in die Cloud "
 "kopiert."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1955
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1951
 msgid ""
 "Copying {} save(s) beside the version already there. {} could not be copied, "
 "because the file each was replacing is no longer in the drive."
@@ -913,19 +909,19 @@ msgstr ""
 "konnte(n) nicht kopiert werden, weil die jeweils ersetzte Datei nicht mehr "
 "im Laufwerk ist."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1961
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1957
 msgid "Could not keep both copies: {}"
 msgstr "Beide Fassungen konnten nicht behalten werden: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1979
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1975
 msgid "Trying the refused changes again…"
 msgstr "Abgelehnte Änderungen werden erneut versucht…"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2002
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1998
 msgid "Trying {} change(s) again."
 msgstr "{} Änderung(en) werden erneut versucht."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2010
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2006
 msgid ""
 "Trying {} change(s) again. {} the cloud already decided about; those are not "
 "re-sent, because the file has moved on since. Discard them to let the drive "
@@ -936,23 +932,23 @@ msgstr ""
 "inzwischen weiterbewegt hat. Verwerfen Sie sie, damit das Laufwerk zeigt, "
 "was die Cloud hat."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2015
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2011
 msgid "Could not try again: {}"
 msgstr "Erneuter Versuch nicht möglich: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2054
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2050
 msgid "Could not check this connection."
 msgstr "Diese Verbindung konnte nicht geprüft werden."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2100
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2096
 msgid "Removing…"
 msgstr "Wird entfernt …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2121
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2117
 msgid "Could not remove the connection."
 msgstr "Die Verbindung konnte nicht entfernt werden."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2152
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2148
 msgid ""
 "This drive's folder is not there. It may have been unmounted; refresh and "
 "try again."
@@ -960,7 +956,7 @@ msgstr ""
 "Der Ordner dieses Laufwerks ist nicht da. Möglicherweise wurde es "
 "ausgehängt; aktualisieren Sie und versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2154
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2150
 msgid ""
 "No application is set up to open a folder on this desktop. Install a file "
 "manager, or open the folder path yourself."
@@ -1197,7 +1193,7 @@ msgid "iCloud is signed in again with read-only access."
 msgstr "iCloud wurde erneut mit Lesezugriff angemeldet."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:18
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:20
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:27
 msgid "Loading saved versions…"
 msgstr "Gespeicherte Versionen werden geladen …"
 
@@ -1205,15 +1201,21 @@ msgstr "Gespeicherte Versionen werden geladen …"
 msgid ""
 "Could not read local recovery data. Keep this connection unmounted and try "
 "again."
-msgstr "Lokale Wiederherstellungsdaten konnten nicht gelesen werden. Lassen Sie diese Verbindung ausgehängt und versuchen Sie es erneut."
+msgstr ""
+"Lokale Wiederherstellungsdaten konnten nicht gelesen werden. Lassen Sie "
+"diese Verbindung ausgehängt und versuchen Sie es erneut."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:55
 msgid ""
 "Saved versions are complete local saves. Working files may contain an "
 "interrupted write. Exporting does not upload or discard anything."
-msgstr "Gespeicherte Versionen sind vollständige lokale Speicherstände. Arbeitsdateien können einen unterbrochenen Schreibvorgang enthalten. Beim Export wird nichts hochgeladen oder verworfen."
+msgstr ""
+"Gespeicherte Versionen sind vollständige lokale Speicherstände. "
+"Arbeitsdateien können einen unterbrochenen Schreibvorgang enthalten. Beim "
+"Export wird nichts hochgeladen oder verworfen."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:63
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:76
 msgid "{} — saved version {}, {} bytes"
 msgstr "{} — gespeicherte Version {}, {} Bytes"
 
@@ -1222,26 +1224,28 @@ msgid "{} — working file, {} bytes"
 msgstr "{} — Arbeitsdatei, {} Bytes"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:80
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:105
 msgid "No recoverable versions on this page."
 msgstr "Auf dieser Seite gibt es keine wiederherstellbaren Versionen."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:87
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:113
 msgid "Next page"
 msgstr "Nächste Seite"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:108
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:114
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:143
 msgid "Save a local copy outside your cloud drives"
 msgstr "Lokale Kopie außerhalb Ihrer Cloud-Laufwerke speichern"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:123
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:128
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:157
 msgid "Choose a local folder outside your cloud drives."
 msgstr "Wählen Sie einen lokalen Ordner außerhalb Ihrer Cloud-Laufwerke."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:148
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:152
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:159
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:197
 msgid "Saving a local copy"
 msgstr "Lokale Kopie wird gespeichert"
 
@@ -1249,10 +1253,12 @@ msgstr "Lokale Kopie wird gespeichert"
 msgid ""
 "Local recovery data stays in Cirrove. Existing destination files will not be "
 "replaced."
-msgstr "Die lokalen Wiederherstellungsdaten bleiben in Cirrove. Vorhandene Zieldateien werden nicht ersetzt."
+msgstr ""
+"Die lokalen Wiederherstellungsdaten bleiben in Cirrove. Vorhandene "
+"Zieldateien werden nicht ersetzt."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:215
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:259
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:297
 msgid "{} of {} bytes copied"
 msgstr "{} von {} Bytes kopiert"
 
@@ -1260,16 +1266,18 @@ msgstr "{} von {} Bytes kopiert"
 msgid ""
 "Working-file copy saved to {}. An interrupted write may be incomplete; the "
 "original local data is unchanged."
-msgstr "Die Kopie der Arbeitsdatei wurde unter {} gespeichert. Ein unterbrochener Schreibvorgang kann unvollständig sein; die ursprünglichen lokalen Daten bleiben unverändert."
+msgstr ""
+"Die Kopie der Arbeitsdatei wurde unter {} gespeichert. Ein unterbrochener "
+"Schreibvorgang kann unvollständig sein; die ursprünglichen lokalen Daten "
+"bleiben unverändert."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:235
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:273
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:314
 msgid "Verified copy saved to {}. The cloud operation is unchanged."
 msgstr ""
 "Geprüfte Kopie unter {} gespeichert. Der Cloud-Vorgang bleibt unverändert."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:237
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:277
 msgid ""
 "Export was not confirmed. Inspect the destination before trying again. The "
 "original saved version was not discarded."
@@ -1278,43 +1286,50 @@ msgstr ""
 "Versuch. Die ursprüngliche gespeicherte Version wurde nicht verworfen."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:239
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:279
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:324
 msgid "Close"
 msgstr "Schließen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:53
-msgid "Could not load saved versions. The service may be unavailable."
-msgstr ""
-"Gespeicherte Versionen konnten nicht geladen werden. Der Dienst ist "
-"möglicherweise nicht erreichbar."
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:55
+msgid "Could not load local versions. The service may be unavailable."
+msgstr "Lokale Versionen konnten nicht geladen werden. Der Dienst ist möglicherweise nicht erreichbar."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:59
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:68
 msgid ""
-"No sealed local version is available to export. Unsaved editor changes are "
-"not included."
-msgstr ""
-"Keine abgeschlossene lokale Version zum Exportieren verfügbar. "
-"Ungespeicherte Änderungen im Editor sind nicht enthalten."
+"The first page includes the latest 200 saves. Working files are listed in "
+"pages and may contain unfinished edits. Exporting does not upload or discard "
+"anything."
+msgstr "Die erste Seite enthält die letzten 200 Speicherstände. Arbeitsdateien werden seitenweise angezeigt und können unvollständige Änderungen enthalten. Beim Export wird nichts hochgeladen oder verworfen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:73
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:84
+msgid "{} — working version {}, {} bytes"
+msgstr "{} — Arbeitsversion {}, {} Bytes"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:98
 msgid ""
-"Choose a version from the latest 200 saves. The cloud operation stays "
-"unchanged."
-msgstr ""
-"Wählen Sie eine Version aus den letzten 200 Speicherungen. Der Cloud-Vorgang "
-"bleibt unverändert."
+"Working files could not be loaded. This service may need updating; available "
+"saved versions are shown."
+msgstr "Arbeitsdateien konnten nicht geladen werden. Der Dienst muss möglicherweise aktualisiert werden; verfügbare Speicherstände werden angezeigt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:80
-msgid "{} — version {}, {} bytes"
-msgstr "{} — Version {}, {} Bytes"
-
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:173
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:211
 msgid ""
-"The saved version stays in Cirrove. Existing destination files will not be "
-"replaced."
-msgstr ""
-"Die gespeicherte Version bleibt in Cirrove. Vorhandene Zieldateien werden "
-"nicht ersetzt."
+"The selected local version stays in Cirrove. Existing destination files will "
+"not be replaced."
+msgstr "Die ausgewählte lokale Version bleibt in Cirrove. Vorhandene Zieldateien werden nicht ersetzt."
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:317
+msgid ""
+"Working copy saved to {}. It contains the selected working version, which "
+"may include an unfinished edit. This export did not upload or discard "
+"changes."
+msgstr "Arbeitskopie unter {} gespeichert. Sie enthält die ausgewählte Arbeitsversion, möglicherweise mit einer unvollständigen Änderung. Dieser Export hat keine Änderungen hochgeladen oder verworfen."
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:322
+msgid ""
+"Export was not confirmed. Inspect the destination before trying again. Local "
+"changes were not discarded. If the working file changed, select its new "
+"version and try again."
+msgstr "Der Export wurde nicht bestätigt. Prüfen Sie das Ziel vor einem erneuten Versuch. Lokale Änderungen wurden nicht verworfen. Falls sich die Arbeitsdatei geändert hat, wählen Sie ihre neue Version und versuchen Sie es erneut."
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:193
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:229
@@ -1429,6 +1444,23 @@ msgstr "Cirrove-Dienst nicht erreichbar"
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:102
 msgid "Cirrove could not change offline availability"
 msgstr "Cirrove konnte die Offline-Verfügbarkeit nicht ändern"
+
+#~ msgid "Recover a saved version"
+#~ msgstr "Gespeicherte Version sichern"
+
+#~ msgid ""
+#~ "No sealed local version is available to export. Unsaved editor changes "
+#~ "are not included."
+#~ msgstr ""
+#~ "Keine abgeschlossene lokale Version zum Exportieren verfügbar. "
+#~ "Ungespeicherte Änderungen im Editor sind nicht enthalten."
+
+#~ msgid ""
+#~ "Choose a version from the latest 200 saves. The cloud operation stays "
+#~ "unchanged."
+#~ msgstr ""
+#~ "Wählen Sie eine Version aus den letzten 200 Speicherungen. Der Cloud-"
+#~ "Vorgang bleibt unverändert."
 
 #~ msgid "Files download when opened · changes upload in the background"
 #~ msgstr ""

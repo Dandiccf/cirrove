@@ -149,20 +149,21 @@ cloud operation or queues a new upload.
 
 The [core tests](benchmarks/icloud-active-working-export-core-2026-10-01.md) and
 [service/CLI fixture](benchmarks/icloud-active-working-export-service-2026-10-01.md)
-cover the separate boundaries. Active working-file selection in the desktop
-is still pending.
+cover the separate boundaries. The [desktop picker](benchmarks/icloud-active-working-export-desktop-2026-10-01.md)
+also offers these active working versions alongside saved versions. It labels
+unfinished edits and validates the same exact receipt before reporting success.
 
 ## Current limits
 
 - Desktop recovery supports active writable journals and configured disabled
-  accounts. Removed/retired accounts and active unsealed-byte selection in the
-  desktop are not wired yet; the CLI provides active working-file export.
+  accounts, including active unsealed working bytes. Removed/retired accounts
+  are not wired into the desktop yet.
 - `export-save` selects an unresolved **sealed generation**, not unsealed working
   bytes; `export-working` handles retained working files in offline or explicit
   active mode. `Preparing`, acknowledged, discarded and resolved
   generations are refused. Selecting an older ID exports that older generation.
-- Active-account desktop selection is bounded to the latest 200 saves; the
-  offline picker supports further pages. The CLI can select an
+- Active-account desktop selection is bounded to the latest 200 sealed saves;
+  active working-file metadata and the offline picker support further pages. The CLI can select an
   older known operation ID. The export dialog monitors the current operation;
   after closing/restarting the app, use CLI jobs/status to inspect retained jobs.
   Export jobs are not shown as offline pinning downloads.

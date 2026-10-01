@@ -210,6 +210,7 @@ struct FakeService {
     socket: PathBuf,
     response: Arc<Mutex<Status>>,
     hold_next: Arc<AtomicBool>,
+    working_supported: Arc<AtomicBool>,
     reply_gate: Arc<tokio::sync::Semaphore>,
     requests: Arc<Mutex<Vec<String>>>,
     task: tokio::task::JoinHandle<()>,
@@ -226,6 +227,8 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
     };
     let response = Arc::new(Mutex::new(status));
     let replies = response.clone();
+    let working_supported = Arc::new(AtomicBool::new(true));
+    let working_support = working_supported.clone();
     let hold_next = Arc::new(AtomicBool::new(false));
     let hold = hold_next.clone();
     let reply_gate = Arc::new(tokio::sync::Semaphore::new(0));
@@ -242,6 +245,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                     let held = hold.swap(false, Ordering::SeqCst);
                     let gate = gate.clone();
                     let seen = seen.clone();
+                    let working_support = working_support.clone();
                     clients.spawn(async move {
                         let mut reader = tokio::io::BufReader::new(stream);
                         let mut line = String::new();
@@ -300,6 +304,32 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                 cirrove_service::RecentReply::default()
                             };
                             serde_json::to_vec(&reply).unwrap()
+                        } else if line.starts_with("recovery-working ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            if !working_support.load(Ordering::SeqCst) {
+                                br#"{"error":"unknown request"}"#.to_vec()
+                            } else {
+                                let request: cirrove_service::RecoveryWorkingRequest = serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                                let first = "00000000-0000-4000-8000-000000000001".parse().unwrap();
+                                let second = "00000000-0000-4000-8000-000000000002".parse().unwrap();
+                                let (files,next) = match request.after {
+                                    None => (Vec::new(), Some(first)),
+                                    Some(id) if id == first => (Vec::new(), Some(second)),
+                                    _ => (vec![sample_working_recovery()], None),
+                                };
+                                serde_json::to_vec(&cirrove_service::RecoveryWorkingReply { files, next, refusal:None }).unwrap()
+                            }
+                        } else if line.starts_with("export-working ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request: cirrove_service::ExportWorkingRequest = serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            if request.generation != 9 {
+                                serde_json::to_vec(&cirrove_service::ExportSaveReply { job:None, refusal:Some("working version changed".into()) }).unwrap()
+                            } else {
+                                let job = cirrove_service::jobs::Job { id:"working-recovery-job".into(), kind:cirrove_service::jobs::JobKind::ExportLocal,
+                                    name:request.destination.to_string_lossy().into_owned(), bytes_total:3, ..Default::default() };
+                                replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                                serde_json::to_vec(&cirrove_service::ExportSaveReply { job:Some(job), refusal:None }).unwrap()
+                            }
                         } else if line.starts_with("export-save ") {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             let request: cirrove_service::ExportSaveRequest = serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
@@ -416,6 +446,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
         socket,
         response,
         hold_next,
+        working_supported,
         reply_gate,
         requests,
         task,
@@ -1297,6 +1328,34 @@ fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn sample_working_recovery() -> cirrove_service::journal::WorkingRecovery {
+    serde_json::from_value(
+        serde_json::json!({"file":"00000000-0000-4000-8000-000000000009",
+        "generation":9,"name":"Working notes.txt","size":3,"recorded_size":3,"unlinked":false}),
+    )
+    .unwrap()
+}
+fn recovery_snapshot(window: &adw::ApplicationWindow, variable: &str) {
+    if let Ok(path) = std::env::var(variable) {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(snapshot.to_node().unwrap(), None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+}
+
 fn recovery_progress_requires_the_matching_service_receipt() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let temp = tempfile::tempdir().unwrap();
@@ -1414,7 +1473,7 @@ fn recovery_picker_uses_bounded_local_history_without_cloud_mutation() {
         .unwrap()
         .emit_clicked();
     pump_until("saved generation picker", || {
-        displays_text_containing(window.upcast_ref(), "Notes.txt — version 1, 3 bytes")
+        displays_text_containing(window.upcast_ref(), "Notes.txt — saved version 1, 3 bytes")
     });
     assert!(
         service
@@ -1937,7 +1996,217 @@ fn disabled_account_offers_local_recovery_without_a_daemon() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn active_working_recovery_handles_empty_pages_and_old_services() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("WorkingRecoveryPicker");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    ui.choose_recovery_save(&id);
+    pump_until("first saved page", || {
+        displays_text_containing(window.upcast_ref(), "Notes.txt — saved version 1")
+    });
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("empty working page", || {
+        displays_text(window.upcast_ref(), "No recoverable versions on this page.")
+    });
+    assert!(button(window.upcast_ref(), "Next page").is_some());
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("working version picker", || {
+        displays_text_containing(
+            window.upcast_ref(),
+            "Working notes.txt — working version 9, 3 bytes",
+        )
+    });
+    recovery_snapshot(&window, "CIRROVE_ACTIVE_WORKING_PICKER_SNAPSHOT");
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("recovery-working "))
+            .count()
+            == 3
+    );
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("export-working ") || line.starts_with("keep-both "))
+    );
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    pump_until("picker dismissed", || {
+        button(window.upcast_ref(), "Cancel").is_none()
+    });
+    service.working_supported.store(false, Ordering::SeqCst);
+    ui.choose_recovery_save(&id);
+    pump_until("old daemon fallback", || {
+        displays_text_containing(window.upcast_ref(), "Working files could not be loaded.")
+    });
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "Notes.txt — saved version 1"
+    ));
+    assert!(button(window.upcast_ref(), "Next page").is_none());
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn active_working_recovery_requires_exact_receipts_and_reports_stale_selection() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("WorkingRecoveryProgress");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    let working = sample_working_recovery();
+    let destination = temp.path().join("working-copy.txt");
+    for outcome in [
+        "confirmed",
+        "wrong_generation",
+        "missing_receipt",
+        "missing_job",
+        "stopped",
+        "stale_selection",
+    ] {
+        service.response.lock().unwrap().accounts[0].jobs.clear();
+        let mut selected = working.clone();
+        if outcome == "stale_selection" {
+            selected.generation += 1;
+        }
+        ui.export_active_version(
+            &id,
+            cirrove_desktop::recovery::Selection::Working(selected),
+            destination.clone(),
+        );
+        if outcome != "stale_selection" {
+            pump_until("working export progress", || {
+                displays_text(window.upcast_ref(), "0 of 3 bytes copied")
+            });
+            let mut status = service.response.lock().unwrap();
+            let job = status.accounts[0]
+                .jobs
+                .iter_mut()
+                .find(|job| job.id == "working-recovery-job")
+                .unwrap();
+            job.state = cirrove_service::jobs::JobState::Succeeded;
+            job.bytes_done = 3;
+            if outcome == "confirmed" || outcome == "wrong_generation" {
+                let mut source = working.clone();
+                if outcome == "wrong_generation" {
+                    source.generation += 1;
+                }
+                job.working_export = Some(cirrove_service::journal::WorkingExportReceipt {
+                    source,
+                    sha256: "a".repeat(64),
+                    destination: destination.clone(),
+                });
+            }
+            if outcome == "stopped" {
+                job.state = cirrove_service::jobs::JobState::Stopped;
+            }
+            if outcome == "missing_job" {
+                status.accounts[0].jobs.clear();
+            }
+        }
+        pump_until("working export result", || {
+            displays_text_containing(
+                window.upcast_ref(),
+                if outcome == "confirmed" {
+                    "Working copy saved to"
+                } else {
+                    "Export was not confirmed."
+                },
+            )
+        });
+        if outcome == "confirmed" {
+            recovery_snapshot(&window, "CIRROVE_ACTIVE_WORKING_RESULT_SNAPSHOT");
+        }
+        button(window.upcast_ref(), "Close").unwrap().emit_clicked();
+        pump_until("working export dialog dismissed", || {
+            button(window.upcast_ref(), "Close").is_none()
+        });
+    }
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("export-working "))
+    );
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("export-save ") || line.starts_with("keep-both "))
+    );
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "active_working_recovery_handles_empty_pages_and_old_services",
+        active_working_recovery_handles_empty_pages_and_old_services,
+    ),
+    (
+        "active_working_recovery_requires_exact_receipts_and_reports_stale_selection",
+        active_working_recovery_requires_exact_receipts_and_reports_stale_selection,
+    ),
     (
         "disabled_account_offers_local_recovery_without_a_daemon",
         disabled_account_offers_local_recovery_without_a_daemon,

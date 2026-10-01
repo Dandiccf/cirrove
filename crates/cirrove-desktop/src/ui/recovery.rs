@@ -1,5 +1,9 @@
 //! Local-only recovery. The daemon owns generation selection and integrity checks.
 use super::*;
+use crate::recovery::{
+    Selection,
+    active::{self, Cursor, Page},
+};
 use cirrove_service::{jobs::Job, recent::LocalChange};
 
 impl Window {
@@ -8,6 +12,9 @@ impl Window {
             self.load_offline_recovery(id, crate::recovery::offline::Cursor::default());
             return;
         }
+        self.load_active_recovery(id, Cursor::default());
+    }
+    fn load_active_recovery(self: &Rc<Self>, id: &str, cursor: Cursor) {
         let Some(card) = self.card(id).filter(|c| c.mounted && c.writable) else {
             return;
         };
@@ -24,13 +31,7 @@ impl Window {
         let label = card.label.clone();
         let (send, receive) = tokio::sync::oneshot::channel();
         runtime.spawn(async move {
-            let _ = send.send(
-                cirrove_service::recent(
-                    &socket,
-                    &cirrove_service::RecentRequest { label, limit: 200 },
-                )
-                .await,
-            );
+            let _ = send.send(active::load(&socket, &label, cursor).await);
         });
         let weak = Rc::downgrade(self);
         glib::spawn_future_local(async move {
@@ -42,66 +43,94 @@ impl Window {
             if let Some(view) = ui.current() {
                 ui.render(view);
             }
-            let saves = match result {
-                Ok(Ok(reply)) if reply.refusal.is_none() => reply
-                    .local
-                    .into_iter()
-                    .filter(crate::recovery::eligible)
-                    .collect::<Vec<_>>(),
-                _ => {
-                    ui.notify(&gettext(
-                        "Could not load saved versions. The service may be unavailable.",
-                    ));
-                    return;
-                }
-            };
-            if saves.is_empty() {
-                ui.notify(&gettext("No sealed local version is available to export. Unsaved editor changes are not included."));
+            if !ui
+                .card(&card.id)
+                .is_some_and(|c| c.mounted && c.writable && c.label == card.label)
+            {
                 return;
             }
-            ui.recovery_picker(card, saves);
+            match result {
+                Ok(Ok(page)) => ui.recovery_picker(card, page),
+                _ => ui.notify(&gettext(
+                    "Could not load local versions. The service may be unavailable.",
+                )),
+            }
         });
     }
 
-    fn recovery_picker(self: &Rc<Self>, card: AccountCard, saves: Vec<LocalChange>) {
+    fn recovery_picker(self: &Rc<Self>, card: AccountCard, page: Page) {
         let Some(window) = self.window.upgrade() else {
             return;
         };
         let dialog = adw::AlertDialog::new(
-            Some(&gettext("Recover a saved version")),
+            Some(&gettext("Recover local changes")),
             Some(&gettext(
-                "Choose a version from the latest 200 saves. The cloud operation stays unchanged.",
+                "The first page includes the latest 200 saves. Working files are listed in pages and may contain unfinished edits. Exporting does not upload or discard anything.",
             )),
         );
-        let names: Vec<String> = saves
+        let names: Vec<String> = page
+            .selections
             .iter()
-            .map(|save| {
-                fill(
-                    &gettext("{} — version {}, {} bytes"),
+            .map(|selection| match selection {
+                Selection::Saved(save) => fill(
+                    &gettext("{} — saved version {}, {} bytes"),
                     &[
                         &save.name,
                         &save.sequence.to_string(),
                         &save.size.to_string(),
                     ],
-                )
+                ),
+                Selection::Working(working) => fill(
+                    &gettext("{} — working version {}, {} bytes"),
+                    &[
+                        &working.name,
+                        &working.generation.to_string(),
+                        &working.size.to_string(),
+                    ],
+                ),
             })
             .collect();
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let choice = gtk::DropDown::from_strings(&names);
-        dialog.set_extra_child(Some(&choice));
+        let extra = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        if page.working_unavailable {
+            let notice = gtk::Label::new(Some(&gettext(
+                "Working files could not be loaded. This service may need updating; available saved versions are shown.",
+            )));
+            notice.set_wrap(true);
+            extra.append(&notice);
+        }
+        if names.is_empty() {
+            extra.append(&gtk::Label::new(Some(&gettext(
+                "No recoverable versions on this page.",
+            ))));
+        } else {
+            extra.append(&choice);
+        }
+        dialog.set_extra_child(Some(&extra));
         dialog.add_response("cancel", &gettext("Cancel"));
+        if page.next.is_some() {
+            dialog.add_response("next", &gettext("Next page"));
+        }
         dialog.add_response("save", &gettext("Save a local copy…"));
-        dialog.set_default_response(Some("save"));
+        dialog.set_response_enabled("save", !names.is_empty());
+        dialog.set_default_response(Some(if names.is_empty() { "cancel" } else { "save" }));
         dialog.set_close_response("cancel");
         let weak = Rc::downgrade(self);
         dialog.connect_response(None, move |_, response| {
-            if response != "save" {
-                return;
-            }
             let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
                 return;
             };
-            let Some(save) = saves.get(choice.selected() as usize) else {
+            if response == "next" {
+                if let Some(cursor) = page.next.clone() {
+                    ui.load_active_recovery(&card.id, cursor);
+                }
+                return;
+            }
+            if response != "save" {
+                return;
+            }
+            let Some(save) = page.selections.get(choice.selected() as usize) else {
                 return;
             };
             ui.recovery_destination(card.clone(), save.clone());
@@ -109,7 +138,7 @@ impl Window {
         dialog.present(Some(&window));
     }
 
-    fn recovery_destination(self: &Rc<Self>, card: AccountCard, save: LocalChange) {
+    fn recovery_destination(self: &Rc<Self>, card: AccountCard, save: Selection) {
         let chooser = gtk::FileDialog::builder()
             .title(gettext("Save a local copy outside your cloud drives"))
             .initial_name("Recovered copy")
@@ -128,24 +157,33 @@ impl Window {
                     ui.notify(&gettext("Choose a local folder outside your cloud drives."));
                     return;
                 };
-                ui.export_saved_version(&card.id, save, path);
+                ui.export_active_version(&card.id, save, path);
             },
         );
     }
 
-    /// Start the selected immutable generation after the local destination chooser.
+    /// Start the selected local version after the destination chooser.
     pub fn export_saved_version(
         self: &Rc<Self>,
         id: &str,
         save: LocalChange,
         destination: PathBuf,
     ) {
+        self.export_active_version(id, Selection::Saved(save), destination);
+    }
+    /// Copy the selected local version, without sealing or changing cloud intent.
+    pub fn export_active_version(
+        self: &Rc<Self>,
+        id: &str,
+        selection: Selection,
+        destination: PathBuf,
+    ) {
         let Some(current) = self.card(id).filter(|c| c.mounted && c.writable) else {
             return;
         };
-        let Some(operation) = save.operation else {
+        if matches!(&selection, Selection::Saved(save) if !crate::recovery::eligible(save)) {
             return;
-        };
+        }
         let Backend::Live {
             runtime, socket, ..
         } = &self.backend
@@ -170,7 +208,7 @@ impl Window {
             .margin_start(24)
             .margin_end(24)
             .build();
-        let message = gtk::Label::builder().label(gettext("The saved version stays in Cirrove. Existing destination files will not be replaced."))
+        let message = gtk::Label::builder().label(gettext("The selected local version stays in Cirrove. Existing destination files will not be replaced."))
             .wrap(true).build();
         let progress = gtk::ProgressBar::new();
         let stop = gtk::Button::with_label(&gettext("Stop"));
@@ -202,15 +240,13 @@ impl Window {
             });
         });
         let socket = socket.clone();
-        let request = cirrove_service::ExportSaveRequest {
-            label: current.label,
-            operation,
-            destination: destination.clone(),
-        };
+        let label = current.label;
+        let source = selection.clone();
+        let target = destination.clone();
         let account_id = current.id;
         let (send, mut receive) = tokio::sync::mpsc::channel::<Result<Job, ()>>(2);
         runtime.spawn(async move {
-            let first = match cirrove_service::export_save(&socket, &request).await {
+            let first = match active::start(&socket, &label, &source, &target).await {
                 Ok(reply) if reply.refusal.is_none() => reply.job,
                 _ => None,
             };
@@ -247,8 +283,10 @@ impl Window {
         });
         glib::spawn_future_local(async move {
             let mut success = false;
+            let mut initial = None;
             while let Some(update) = receive.recv().await {
                 let Ok(job) = update else { break };
+                initial.get_or_insert_with(|| job.clone());
                 *job_id.borrow_mut() = Some(job.id.clone());
                 progress.set_fraction(if job.bytes_total == 0 {
                     0.0
@@ -261,7 +299,9 @@ impl Window {
                 ));
                 stop.set_sensitive(job.state == cirrove_service::jobs::JobState::Running);
                 if !job.running() {
-                    success = crate::recovery::confirmed(&job, &save, &destination);
+                    success = initial.as_ref().is_some_and(|first| {
+                        crate::recovery::confirmed_selection(first, &job, &selection, &destination)
+                    });
                     break;
                 }
             }
@@ -269,12 +309,17 @@ impl Window {
             dialog.set_can_close(true);
             if success {
                 progress.set_fraction(1.0);
-                message.set_text(&fill(
-                    &gettext("Verified copy saved to {}. The cloud operation is unchanged."),
-                    &[&destination.to_string_lossy()],
-                ));
+                let text = match selection {
+                    Selection::Saved(_) => {
+                        gettext("Verified copy saved to {}. The cloud operation is unchanged.")
+                    }
+                    Selection::Working(_) => gettext(
+                        "Working copy saved to {}. It contains the selected working version, which may include an unfinished edit. This export did not upload or discard changes.",
+                    ),
+                };
+                message.set_text(&fill(&text, &[&destination.to_string_lossy()]));
             } else {
-                message.set_text(&gettext("Export was not confirmed. Inspect the destination before trying again. The original saved version was not discarded."));
+                message.set_text(&gettext("Export was not confirmed. Inspect the destination before trying again. Local changes were not discarded. If the working file changed, select its new version and try again."));
             }
             let close = gtk::Button::with_label(&gettext("Close"));
             let weak_dialog = dialog.downgrade();

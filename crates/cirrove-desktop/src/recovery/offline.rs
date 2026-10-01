@@ -1,28 +1,10 @@
 //! Bounded local recovery for a disabled account. Call only on blocking workers.
 use anyhow::{Result, ensure};
 use cirrove_core::CancellationToken;
-use cirrove_service::{accounts::OfflineRecovery, journal::WorkingRecovery, recent::LocalChange};
+use cirrove_service::accounts::OfflineRecovery;
 use std::path::Path;
 
-#[derive(Clone)]
-pub enum Selection {
-    Saved(LocalChange),
-    Working(WorkingRecovery),
-}
-impl Selection {
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Saved(s) => &s.name,
-            Self::Working(s) => &s.name,
-        }
-    }
-    pub fn size(&self) -> u64 {
-        match self {
-            Self::Saved(s) => s.size,
-            Self::Working(s) => s.size,
-        }
-    }
-}
+pub use super::Selection;
 #[derive(Clone, Default)]
 pub struct Cursor {
     saved_after: u64,

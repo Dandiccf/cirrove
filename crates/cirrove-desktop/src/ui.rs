@@ -763,7 +763,7 @@ impl Window {
             .valign(gtk::Align::Center)
             .build();
         let recovery = adw::ActionRow::builder()
-            .title(gettext("Recover a saved version"))
+            .title(gettext("Recover local changes"))
             .subtitle(gettext(
                 "Save a copy outside the cloud without retrying the upload.",
             ))
@@ -1091,11 +1091,7 @@ impl Window {
         row.recovery.set_visible(card.writable || offline_recovery);
         row.export
             .set_sensitive(idle && (offline_recovery || (card.mounted && card.writable)));
-        row.recovery.set_title(&if offline_recovery {
-            gettext("Recover local changes")
-        } else {
-            gettext("Recover a saved version")
-        });
+        row.recovery.set_title(&gettext("Recover local changes"));
         row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
         row.keep_both.set_tooltip_text(Some(&gettext(
             "Put your version beside the cloud's, under a new name, instead of losing one of them",
