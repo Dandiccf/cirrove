@@ -110,6 +110,12 @@ impl Inner {
             };
         };
         writer.capture_ancestors(route.ancestors).await?;
+        if let Some(local) = writer
+            .prepare_native_local(&self.engine, view, pathname, truncate, &self.cancel)
+            .await?
+        {
+            return Ok(local);
+        }
         let source = self.node(&route.source).await.map_err(|e| errno(&e))?;
         let record = writer
             .prepare_native(

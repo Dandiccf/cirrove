@@ -15,6 +15,9 @@ pub enum NamespaceNames {
 /// owner. It never owns a provider identity or an upload/mutation operation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NativeArchiveRole {
+    /// Dormant same-UUID slot; no working bytes or provider authority.
+    #[serde(default)]
+    pub retired: bool,
     pub source_owner: Uuid,
     pub working: Uuid,
     pub artifact: String,
@@ -53,7 +56,8 @@ fn owns_remote() -> bool {
 impl NamespaceObject {
     pub(crate) fn valid_native_archive_shape(&self, working: &WorkingFile) -> bool {
         self.native_archive.as_ref().is_some_and(|role| {
-            role.working == working.id
+            !role.retired
+                && role.working == working.id
                 && self.id == working.id
                 && working.native
                 && self.scope == working.scope
@@ -71,8 +75,34 @@ impl NamespaceObject {
                 && self.unlinked == working.unlinked
         })
     }
+    pub(crate) fn valid_retired_native_archive(&self) -> bool {
+        self.native_archive.as_ref().is_some_and(|role| {
+            role.retired
+                && role.working == self.id
+                && self.node.id == format!("local-native-archive-{}", self.id)
+                && self.node.kind == NodeKind::File
+                && !self.node.package
+                && self.node.target.is_none()
+                && self.working_file.is_none()
+                && self.latest.is_none()
+                && self.remote.is_none()
+                && !self.remote_owned
+                && self.remote_sequence == 0
+                && !self.follows_remote
+                && self.unlinked
+        })
+    }
     pub(crate) fn valid_native_archive_owner(&self, owner: &NamespaceObject) -> bool {
         self.native_archive.as_ref().is_some_and(|role| {
+            if role.retired {
+                return self.valid_retired_native_archive()
+                    && role.source_owner == owner.id
+                    && owner.id != self.id
+                    && owner.scope == self.scope
+                    && owner.native_archive.is_none()
+                    && self.names == owner.names
+                    && self.node.parent_id.as_ref() == Some(&owner.node.id);
+            }
             role.source_owner == owner.id
                 && owner.id != self.id
                 && owner.scope == self.scope
@@ -239,7 +269,7 @@ pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()>
     if object.native_archive.is_some() {
         working::native::projection::validate_child(tx, object)?;
     } else if !object.remote_owned && !object.unlinked {
-        return Err(JournalError::Corrupt);
+        working::native::atomic::validate_temporary(tx, object)?;
     }
 
     if object.follows_remote
@@ -496,7 +526,9 @@ pub(super) fn update_working(tx: &Transaction<'_>, working: &WorkingFile) -> Res
     }
     object.node = working.node.clone();
     object.latest = if working.native {
-        if object.native_archive.is_none() {
+        if object.native_archive.is_none()
+            && !working::native::atomic::local_stream(tx, working.id)?
+        {
             return Err(JournalError::Corrupt);
         }
         None

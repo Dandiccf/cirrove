@@ -27,9 +27,17 @@ pub(super) fn attach(
     owner.follows_remote = false;
     owner.revision = owner.revision.checked_add(1).ok_or(JournalError::Quota)?;
     namespace::save(tx, &owner)?;
-    if tx.query_row("SELECT count(*) FROM namespace_objects", [], |r| {
-        r.get::<_, i64>(0)
-    })? >= 10_000
+    let previous = retirement::slot_for_owner(tx, owner.id)?;
+    if previous
+        .as_ref()
+        .is_some_and(|slot| slot.working != record.id)
+    {
+        return Err(JournalError::Stale);
+    }
+    if previous.is_none()
+        && tx.query_row("SELECT count(*) FROM namespace_objects", [], |r| {
+            r.get::<_, i64>(0)
+        })? >= 10_000
     {
         return Err(JournalError::Quota);
     }
@@ -50,6 +58,7 @@ pub(super) fn attach(
     )?;
     let object = NamespaceObject {
         native_archive: Some(NativeArchiveRole {
+            retired: false,
             source_owner: owner.id,
             working: record.id,
             artifact: binding.archive.id.clone(),
@@ -63,7 +72,12 @@ pub(super) fn attach(
         remote_sequence: 0,
         working_file: Some(record.id),
         latest: None,
-        revision: 1,
+        revision: previous.as_ref().map_or(Ok(1), |slot| {
+            namespace::by_id(tx, slot.working)?
+                .revision
+                .checked_add(1)
+                .ok_or(JournalError::Quota)
+        })?,
         follows_remote: false,
         unlinked: false,
     };
@@ -74,6 +88,9 @@ pub(crate) fn validate_child(db: &Connection, object: &NamespaceObject) -> Resul
         .native_archive
         .as_ref()
         .ok_or(JournalError::Corrupt)?;
+    if role.retired {
+        return retirement::validate_retired_child(db, object);
+    }
     let working: String = db.query_row(
         "SELECT body FROM working_files WHERE id=?1",
         [role.working.to_string()],

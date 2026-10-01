@@ -138,7 +138,7 @@ impl Writeback {
             let committed = j
                 .unlink_namespace_file(object.id, object.revision, preserve)
                 .map_err(error)?;
-            p.apply(committed.object, committed.working);
+            p.apply(committed.object, committed.working, None);
             Ok(())
         })
         .await
@@ -209,7 +209,7 @@ impl Writeback {
             let committed = j
                 .remove_namespace_directory(object.id, object.revision)
                 .map_err(error)?;
-            p.apply(committed.object, None);
+            p.apply(committed.object, None, None);
             Ok(())
         })
         .await

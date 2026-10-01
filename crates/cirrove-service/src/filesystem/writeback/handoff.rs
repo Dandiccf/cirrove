@@ -18,7 +18,7 @@ impl Drop for Lease {
     }
 }
 impl Writeback {
-    fn activity_gate(&self, identity: EditKey) -> Result<Arc<RwLock<()>>> {
+    pub(super) fn activity_gate(&self, identity: EditKey) -> Result<Arc<RwLock<()>>> {
         let mut gates = self.activity.lock().map_err(|_| Errno::EIO)?;
         gates.retain(|_, gate| gate.strong_count() > 0);
         if let Some(gate) = gates.get(&identity).and_then(Weak::upgrade) {
@@ -97,6 +97,9 @@ impl Writeback {
         for (object, clean) in batch {
             *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)? = Some(object.id);
             if !clean {
+                if let Some(progress) = self.maintain_native(engine, object.id).await? {
+                    return Ok(progress);
+                }
                 continue;
             }
             if self
@@ -192,7 +195,7 @@ impl Writeback {
                 let committed = journal
                     .handoff_namespace(object.id, object.revision, remote)
                     .map_err(error)?;
-                projection.apply(committed, None);
+                projection.apply(committed, None, None);
                 Ok(())
             })
             .await

@@ -52,7 +52,7 @@ pub use namespace::{
 };
 use owner::JournalOwner;
 pub use preparation::UploadPreparation;
-pub use publication::{NamespacePublication, NamespaceSnapshot};
+pub use publication::{NamespacePublication, NamespaceSnapshot, NativeLocalStream};
 pub use replacements::ReplacementRecord;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -66,9 +66,10 @@ use std::{
 };
 pub use unlinked::UnlinkedFile;
 use uuid::Uuid;
+pub(crate) use working::native::retirement::NativeRetirementCandidate;
 pub use working::{
-    CapturedNativeWorking, NativeWorkingCapture, NativeWorkingHydration, ValidatedNativeWorking,
-    WorkingFile, WorkingSource,
+    CapturedNativeTemporary, CapturedNativeWorking, NativeTemporaryCapture, NativeWorkingCapture,
+    NativeWorkingHydration, ValidatedNativeWorking, WorkingFile, WorkingSource,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -684,6 +685,9 @@ impl UploadJournal {
             Some(GenerationCommit::Native(commit)) => Some(commit.as_ref()),
             _ => None,
         };
+        if let Some(native) = native {
+            working::native::atomic::transfer(&tx, native, &record)?;
+        }
         package_replacement::attach(&tx, &record, native)?;
         if let Some(commit) = &working {
             match commit {

@@ -7,7 +7,7 @@ use cirrove_core::upload::{
     PackageHandoffReceipt, PackageUploadReceipt, RecoveryLocation, UploadRepresentation,
 };
 use std::io::Read;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
 fn archive(body: &[u8]) -> Vec<u8> {
     let name = b"Owned.pages/Document";
@@ -175,6 +175,7 @@ async fn real_native_archive_open_truncate_fsync_retains_old_reader() {
 }
 #[derive(Clone, Copy)]
 enum FirstEdit {
+    Atomic,
     Handle,
     Path,
     Open,
@@ -278,12 +279,72 @@ async fn native_archive_edit(first: FirstEdit) {
     .await
     .unwrap();
     let path = mount.join("Owned.pages/Owned.pages");
-    let (held, mut edit) = tokio::task::spawn_blocking({
+    let (held, mut edit, old_writer) = tokio::task::spawn_blocking({
         let path = path.clone();
         let bytes = newbytes.clone();
+        let journal = journal.clone();
         move || {
             // Hold without reading: content cache must not mask missing snapshot retention.
             let held = std::fs::File::open(&path).unwrap();
+            if matches!(first, FirstEdit::Atomic) {
+                let temp_path = path.parent().unwrap().join(".editor-save");
+                let mut temporary = std::fs::OpenOptions::new()
+                    .create_new(true)
+                    .read(true)
+                    .write(true)
+                    .open(&temp_path)
+                    .expect("native local temp creation");
+                temporary.write_all(b"incomplete archive").unwrap();
+                temporary.sync_all().unwrap();
+                assert!(
+                    std::fs::rename(&temp_path, &path).is_err(),
+                    "invalid native archive was renamed over canonical"
+                );
+                assert!(temp_path.exists());
+                assert!(journal.lock().unwrap().list(0, 10).unwrap().is_empty());
+                assert!(
+                    std::fs::rename(
+                        &temp_path,
+                        path.parent().unwrap().parent().unwrap().join("escape")
+                    )
+                    .is_err(),
+                    "native temp escaped its source owner"
+                );
+                let reopen = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&temp_path)
+                    .expect("reopen exact local temp");
+                reopen.sync_all().unwrap();
+                drop(reopen);
+                temporary.set_len(0).unwrap();
+                temporary.seek(SeekFrom::Start(0)).unwrap();
+                temporary.write_all(&bytes).unwrap();
+                temporary
+                    .sync_all()
+                    .expect("native temp fsync is local only");
+                assert!(
+                    journal.lock().unwrap().list(0, 10).unwrap().is_empty(),
+                    "temporary fsync submitted cloud bytes"
+                );
+                let mut old = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&path)
+                    .unwrap();
+                let old_inode = old.metadata().unwrap().ino();
+                std::fs::rename(&temp_path, &path).expect("native canonical rename-over");
+                assert!(!temp_path.exists());
+                assert_ne!(std::fs::metadata(&path).unwrap().ino(), old_inode);
+                assert_eq!(old.metadata().unwrap().nlink(), 0);
+                old.set_len(0).unwrap();
+                old.write_all(&archive(b"detached late edit")).unwrap();
+                old.sync_all().expect("detached old fd fsync stays local");
+                assert_eq!(std::fs::read(&path).unwrap(), bytes);
+                assert_eq!(journal.lock().unwrap().list(0, 10).unwrap().len(), 1);
+                return (held, temporary, Some(old));
+            }
+
             if matches!(first, FirstEdit::Path) {
                 // Python os.truncate(path,0) calls the pathname syscall. A
                 // coreutils truncate invocation could hide an open/ftruncate.
@@ -315,7 +376,7 @@ async fn native_archive_edit(first: FirstEdit) {
             );
             edit.write_all(&bytes).unwrap();
             edit.sync_all().expect("typed native fsync");
-            (held, edit)
+            (held, edit, None)
         }
     })
     .await
@@ -438,6 +499,16 @@ async fn native_archive_edit(first: FirstEdit) {
         1,
         "clean reopen/fsync replayed save"
     );
+    if let Some(mut old) = old_writer {
+        tokio::task::spawn_blocking(move || {
+            old.seek(std::io::SeekFrom::Start(0)).unwrap();
+            let mut bytes = Vec::new();
+            old.read_to_end(&mut bytes).unwrap();
+            assert_eq!(bytes, archive(b"detached late edit"));
+        })
+        .await
+        .unwrap();
+    }
     session.shutdown().await.unwrap();
     // The same provider data must never confer a write grant on a RO mount.
     {
@@ -488,6 +559,224 @@ async fn native_archive_edit(first: FirstEdit) {
     .unwrap();
     roengine.stop().await;
     tokio::task::spawn_blocking(move || rosession.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse"]
+async fn real_native_archive_atomic_temp_fsync_rename_keeps_old_descriptors_local() {
+    native_archive_edit(FirstEdit::Atomic).await;
+}
+
+/// Kernel namespace/durable queue boundary only: no upload worker is started.
+/// Real worker/transport tests are separate, and no synthetic receipt is needed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse"]
+async fn real_native_atomic_pending_chain_reopens_mount_without_submission() {
+    let temp = tempfile::tempdir().unwrap();
+    std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let mut account = account(&mount);
+    account.registration = AppRegistration::ICloud;
+    account.root_id = "FOLDER::com.apple.CloudDocs::root".into();
+    let scope = Scope {
+        account: account.id.clone(),
+        provider: "icloud".into(),
+        collection: "drive".into(),
+    };
+    let original = Node {
+        id: "FILE::com.apple.CloudDocs::owned-native".into(),
+        parent_id: Some(account.root_id.clone()),
+        name: "Owned.pages".into(),
+        kind: NodeKind::Folder,
+        size: 17,
+        modified_unix: 1,
+        etag: Some("old-v1".into()),
+        content_version: None,
+        target: None,
+        package: true,
+    };
+    let oldbytes = archive(&vec![17u8; 128 * 1024]);
+    let disk = temp.path().join("original.zip");
+    std::fs::write(&disk, &oldbytes).unwrap();
+    let raw = cirrove_icloud::PackageDownload {
+        size: oldbytes.len() as u64,
+        sha256: hex::encode(Sha256::digest(&oldbytes)),
+    };
+    let semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
+        &std::fs::File::open(&disk).unwrap(),
+        &raw,
+        "Owned.pages",
+        2,
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let artifact = Node {
+        id: format!("icloud-artifact:{}", original.id),
+        parent_id: Some(original.id.clone()),
+        name: original.name.clone(),
+        kind: NodeKind::File,
+        size: raw.size,
+        modified_unix: 1,
+        etag: None,
+        content_version: Some(format!(
+            "icloud-artifact-v2:{}",
+            serde_json::json!({"source_etag":"old-v1","source_parent":original.parent_id,"source_size":original.size,"sha256":raw.sha256})
+        )),
+        target: None,
+        package: false,
+    };
+    let cloud = Arc::new(Cloud::default());
+    cloud.icloud_identity.store(true, Ordering::SeqCst);
+    cloud.stall.store(true, Ordering::SeqCst);
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        remote
+            .files
+            .insert(original.id.clone(), (original.clone(), vec![]));
+        remote
+            .files
+            .insert(artifact.id.clone(), (artifact.clone(), oldbytes.clone()));
+    }
+    let provider = Arc::new(NativeCloud {
+        cloud: cloud.clone(),
+        binding: NativeArchiveBinding {
+            scope: scope.clone(),
+            source: original.clone(),
+            archive: artifact.clone(),
+            semantic: semantic.clone(),
+        },
+        snapshot: Arc::new(Snapshot {
+            identity: ReadIdentity::new(&scope, &artifact).unwrap(),
+            bytes: oldbytes.clone(),
+        }),
+        resolutions: AtomicUsize::new(0),
+    });
+    let journalroot = temp.path().join("journal");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&journalroot, &account.id, 8 * 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+
+    engine.start().await.unwrap();
+    let session = cirrove_service::filesystem::CloudFs::new_experimental_writable(
+        engine.clone(),
+        journal.clone(),
+    )
+    .await
+    .unwrap()
+    .mount(&mount)
+    .unwrap();
+    let path = mount.join("Owned.pages/Owned.pages");
+    let final_bytes = archive(b"C retained after restart");
+    tokio::task::spawn_blocking({
+        let path = path.clone();
+        let journal = journal.clone();
+        let final_bytes = final_bytes.clone();
+        let original = oldbytes.clone();
+        move || {
+            let mut held = std::fs::File::open(&path).unwrap();
+            for (index, bytes) in [
+                archive(b"A pending"),
+                archive(b"B pending"),
+                final_bytes.clone(),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let temporary = path.parent().unwrap().join(".save");
+                let mut file = std::fs::OpenOptions::new()
+                    .create_new(true)
+                    .read(true)
+                    .write(true)
+                    .open(&temporary)
+                    .unwrap();
+                file.write_all(&bytes).unwrap();
+                file.sync_all().unwrap();
+                assert_eq!(
+                    journal.lock().unwrap().list(0, 10).unwrap().len(),
+                    index,
+                    "temporary fsync submitted bytes"
+                );
+                std::fs::rename(&temporary, &path).unwrap();
+                assert_eq!(std::fs::read(&path).unwrap(), bytes);
+                assert!(!temporary.exists());
+            }
+            let mut old = Vec::new();
+            held.read_to_end(&mut old).unwrap();
+            assert_eq!(old, original);
+        }
+    })
+    .await
+    .unwrap();
+    let ids: Vec<_> = journal
+        .lock()
+        .unwrap()
+        .list(0, 10)
+        .unwrap()
+        .into_iter()
+        .map(|r| {
+            assert!(r.package_completion.is_none());
+            assert!(r.remote.is_none());
+            r.id
+        })
+        .collect();
+    assert_eq!(ids.len(), 3);
+    assert_eq!(cloud.write_calls.load(Ordering::SeqCst), 0);
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    drop(engine);
+    drop(journal);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&journalroot, &account.id, 8 * 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    let session = cirrove_service::filesystem::CloudFs::new_experimental_writable(
+        engine.clone(),
+        journal.clone(),
+    )
+    .await
+    .unwrap()
+    .mount(&mount)
+    .unwrap();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(std::fs::read(&path).unwrap(), final_bytes);
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        file.sync_all().unwrap();
+    })
+    .await
+    .unwrap();
+    let retained: Vec<_> = journal
+        .lock()
+        .unwrap()
+        .list(0, 10)
+        .unwrap()
+        .into_iter()
+        .map(|r| r.id)
+        .collect();
+    assert_eq!(
+        retained, ids,
+        "reopen/clean fsync enqueued or lost pending lineage"
+    );
+    assert_eq!(cloud.write_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(provider.resolutions.load(Ordering::SeqCst), 1);
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
         .await
         .unwrap()
         .unwrap();

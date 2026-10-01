@@ -81,6 +81,7 @@ pub(super) fn fixture() -> (tempfile::TempDir, Writeback, WorkingFile) {
         hydrating: Default::default(),
         sealing: Default::default(),
         activity: Default::default(),
+        native_retirement: Arc::new(tokio::sync::Semaphore::new(1)),
         maintenance_cursor: Default::default(),
         preserving_cursor: Default::default(),
         maintenance_retries: Default::default(),

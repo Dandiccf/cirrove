@@ -93,10 +93,19 @@ impl UploadJournal {
             };
             let mut comparable = source.clone();
             comparable.parent_id = expected.parent_id.clone();
-            if &comparable != expected {
-                return Err(JournalError::Stale);
+            if retirement::select_dormant_source(self, &owner)? {
+                // The dormant owner is history, not authority for current bytes.
+                // Preserve its exact remote identity while carrying the newly
+                // selected revision to the independent resolver equality fence.
+                remote_source = source.clone();
+                remote_source.id = remote.id.clone();
+                remote_source.parent_id = remote.parent_id.clone();
+            } else {
+                if &comparable != expected {
+                    return Err(JournalError::Stale);
+                }
+                remote_source = remote.clone();
             }
-            remote_source = remote.clone();
             let id: Option<String> = self.db.query_row(
                 "SELECT working FROM native_working_heads WHERE json_extract(body,'$.owner')=?1",
                 [owner.id.to_string()], |r| r.get(0),

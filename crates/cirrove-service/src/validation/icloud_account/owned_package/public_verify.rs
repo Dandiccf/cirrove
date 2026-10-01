@@ -127,6 +127,17 @@ pub(super) struct PublicImportBinding {
     source_receipt: PackageDownload,
     pub(super) semantic: PackageSemanticIdentity,
 }
+impl PublicImportBinding {
+    pub(super) fn semantic_v2(&self) -> Result<PackageSemanticIdentity> {
+        Ok(cirrove_icloud::package_archive_semantic_identity_versioned(
+            &self.source_file,
+            &self.source_receipt,
+            &self.plan.source.display_name(),
+            2,
+            &CancellationToken::new(),
+        )?)
+    }
+}
 fn retained_public_import(run: Uuid) -> Result<PublicImportBinding> {
     retained_public_import_for_replacement(run, None)
 }
@@ -135,6 +146,20 @@ fn retained_public_import(run: Uuid) -> Result<PublicImportBinding> {
 pub(super) fn retained_public_import_for_replacement(
     run: Uuid,
     replacement: Option<Uuid>,
+) -> Result<PublicImportBinding> {
+    retained_public_import_inventory(run, replacement, false)
+}
+/// Separate exact known-abandoned inventory for the preregistered v2 arm.
+/// Existing import/replacement entry points retain their original row limits.
+pub(super) fn retained_public_import_after_abandonment(
+    replacement: Option<Uuid>,
+) -> Result<PublicImportBinding> {
+    retained_public_import_inventory(Uuid::parse_str(RUN)?, replacement, true)
+}
+fn retained_public_import_inventory(
+    run: Uuid,
+    replacement: Option<Uuid>,
+    abandoned: bool,
 ) -> Result<PublicImportBinding> {
     ensure!(
         run.to_string() == RUN,
@@ -186,16 +211,26 @@ pub(super) fn retained_public_import_for_replacement(
         &account.id,
     )
     .context("stop only the isolated public daemon before verification")?;
-    let rows = journal.list(0, 3)?;
+    let rows = journal.list(0, 4)?;
     let original = Uuid::parse_str("b534c269-8b9e-47e0-97a0-a512d0127765")?;
-    ensure!(
-        rows.len() == if replacement.is_some() { 2 } else { 1 }
-            && replacement.is_none_or(|id| id != original && rows.iter().any(|row| row.id == id))
-            && rows
-                .iter()
-                .all(|row| row.id == original || Some(row.id) == replacement),
-        "public import journal inventory changed"
-    );
+    if abandoned {
+        super::replacement_live::v2::exact_inventory(&rows, replacement)?;
+        let old = Uuid::parse_str("82767008-4553-4f8b-99cc-8a521ad9c5ac")?;
+        ensure!(
+            journal.native_stage_abandonment(old)?.is_some(),
+            "old native Stage is not explicitly abandoned"
+        );
+    } else {
+        ensure!(
+            rows.len() == if replacement.is_some() { 2 } else { 1 }
+                && replacement
+                    .is_none_or(|id| id != original && rows.iter().any(|row| row.id == id))
+                && rows
+                    .iter()
+                    .all(|row| row.id == original || Some(row.id) == replacement),
+            "public import journal inventory changed"
+        );
+    }
     let row = rows
         .iter()
         .find(|row| row.id == original)

@@ -3,8 +3,10 @@ use super::*;
 use cirrove_core::{CancellationToken, reads::NativeArchiveBinding};
 use std::os::fd::AsRawFd;
 
+pub(crate) mod atomic;
 mod edit;
 pub(crate) mod projection;
+pub(crate) mod retirement;
 pub(crate) mod successors;
 
 const MAX_ARCHIVE: u64 = 64 * 1024 * 1024;
@@ -86,6 +88,8 @@ pub(crate) fn migrate(db: &mut Connection) -> Result<()> {
     let tx = db.transaction()?;
     tx.execute_batch("CREATE TABLE IF NOT EXISTS native_working_bindings(working TEXT PRIMARY KEY, source TEXT NOT NULL UNIQUE, body TEXT NOT NULL);")?;
     successors::migrate(&tx)?;
+    atomic::migrate(&tx)?;
+    retirement::migrate(&tx)?;
     tx.pragma_update(None, "user_version", JOURNAL_SCHEMA)?;
     tx.commit()?;
     Ok(())
@@ -94,11 +98,13 @@ pub(crate) fn migrate(db: &mut Connection) -> Result<()> {
 pub struct NativeWorkingHydration {
     binding: Binding,
     source: WorkingSource,
+    retired: Option<retirement::Reactivation>,
 }
 /// Validated hydration, produced outside the journal mutex.
 pub struct ValidatedNativeWorking {
     binding: Binding,
     source: WorkingSource,
+    retired: Option<retirement::Reactivation>,
 }
 impl NativeWorkingHydration {
     pub fn write_chunk(&mut self, bytes: &[u8]) -> Result<()> {
@@ -128,6 +134,7 @@ impl NativeWorkingHydration {
         Ok(ValidatedNativeWorking {
             binding: self.binding,
             source: self.source,
+            retired: self.retired,
         })
     }
 }
@@ -254,6 +261,7 @@ impl NativeWorkingCapture {
     }
 }
 pub(crate) struct NativeCommit {
+    transfer: Option<atomic::Transfer>,
     record: WorkingFile,
     binding: Binding,
     intent: UploadIntent,
@@ -273,20 +281,32 @@ impl UploadJournal {
         if binding.scope.account != self.account {
             return Err(JournalError::Account);
         }
+        let retired = retirement::select_slot(self, &binding)?;
         let source = self.reserve_working(binding.archive.size)?;
-        Ok(NativeWorkingHydration { binding, source })
+        Ok(NativeWorkingHydration {
+            binding,
+            source,
+            retired,
+        })
     }
     pub fn publish_native_working(
         &mut self,
         validated: ValidatedNativeWorking,
     ) -> Result<WorkingFile> {
-        let ValidatedNativeWorking { binding, source } = validated;
+        let ValidatedNativeWorking {
+            binding,
+            source,
+            retired,
+        } = validated;
         binding.validate()?;
         if binding.scope.account != self.account {
             return Err(JournalError::Account);
         }
         source.complete_descriptor(&self.working)?;
-        let id = Uuid::new_v4();
+        retirement::recheck_slot(self, &binding, retired.as_ref())?;
+        let id = retired
+            .as_ref()
+            .map_or_else(Uuid::new_v4, |selected| selected.slot.working);
         let mut node = binding.archive.clone();
         node.id = format!("local-native-archive-{id}");
         node.content_version = Some(format!("working-{id}"));
@@ -300,7 +320,12 @@ impl UploadJournal {
             },
             latest: None,
             dirty: false,
-            generation: 0,
+            generation: retired.as_ref().map_or(Ok(0), |slot| {
+                slot.slot
+                    .generation
+                    .checked_add(1)
+                    .ok_or(JournalError::Quota)
+            })?,
             initial_remote: None,
             unlinked: false,
             native: true,
@@ -320,6 +345,9 @@ impl UploadJournal {
             .map_err(|_| JournalError::Storage)?;
         File::open(&self.working)?.sync_all()?;
         let tx = self.db.transaction()?;
+        if let Some(selected) = &retired {
+            retirement::prepare_reactivation(&tx, &binding, selected)?;
+        }
         // Hydration publishes one source owner and its derived byte stream
         // together; the child never acquires an independent cloud operation.
         tx.execute(
@@ -340,6 +368,17 @@ impl UploadJournal {
             ],
         )?;
         projection::attach(&tx, &mut record, &binding)?;
+        if let Some(slot) = retired
+            && tx.execute(
+                "DELETE FROM native_retired_slots WHERE working=?1 AND body=?2",
+                params![
+                    slot.slot.working.to_string(),
+                    serde_json::to_string(&slot.slot)?
+                ],
+            )? != 1
+        {
+            return Err(JournalError::Stale);
+        }
         tx.commit()?;
         Ok(record)
     }
@@ -412,6 +451,7 @@ impl UploadJournal {
             intent.clone(),
             order,
             Some(GenerationCommit::Native(Box::new(NativeCommit {
+                transfer: None,
                 record: current,
                 binding: captured.binding,
                 intent,

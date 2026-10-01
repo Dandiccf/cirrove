@@ -461,7 +461,7 @@ pub async fn icloud_public_native_replacement_verify(run: Uuid, operation: Uuid)
 mod tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
-    fn fixture() -> (Preflight, UploadRecord) {
+    pub(super) fn fixture() -> (Preflight, UploadRecord) {
         let semantic = |value: &str| PackageSemanticIdentity {
             version: 1,
             sha256: value.repeat(64),
@@ -675,3 +675,6 @@ mod tests {
 
 mod diagnostic;
 pub use diagnostic::icloud_public_native_replacement_diagnose;
+
+pub(super) mod v2;
+pub use v2::{icloud_native_v2_baseline, icloud_native_v2_preflight, icloud_native_v2_verify};

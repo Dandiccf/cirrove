@@ -69,6 +69,7 @@ fn pair() -> (NamespaceObject, NamespaceObject, WorkingFile) {
     };
     let child = NamespaceObject {
         native_archive: Some(NativeArchiveRole {
+            retired: false,
             source_owner: owner.id,
             working: file_id,
             artifact: format!("icloud-artifact:{}", remote.id),
@@ -101,10 +102,12 @@ fn batch(
         through,
         objects: vec![
             NamespaceSnapshot {
+                native_local: None,
                 object: child,
                 working: Some(working),
             },
             NamespaceSnapshot {
+                native_local: None,
                 object: owner,
                 working: None,
             },
@@ -145,6 +148,7 @@ fn native_projection_batch_is_atomic_and_stale_callback_cannot_roll_back_archive
         after: 4,
         through: 5,
         objects: vec![NamespaceSnapshot {
+            native_local: None,
             object: next_owner,
             working: None,
         }],
@@ -183,4 +187,146 @@ fn native_projection_refuses_wrong_owner_scope_spoof_and_ordinary_role_downgrade
         assert!(projection.objects.is_empty());
         assert_eq!(projection.frontier, 0);
     }
+}
+
+#[test]
+fn native_projection_retirement_and_reactivation_require_paired_monotonic_publication() {
+    let (mut owner, mut child, mut working) = pair();
+    let mut projection = Projection::default();
+    projection
+        .publish_batch(batch(owner.clone(), child.clone(), working.clone(), 0, 2))
+        .unwrap();
+    let old = batch(owner.clone(), child.clone(), working.clone(), 0, 2);
+    owner.follows_remote = true;
+    owner.revision += 1;
+    child.unlinked = true;
+    child.working_file = None;
+    child.revision += 1;
+    child.native_archive.as_mut().unwrap().retired = true;
+    let incomplete = NamespacePublication {
+        after: 2,
+        through: 4,
+        objects: vec![NamespaceSnapshot {
+            native_local: None,
+            object: child.clone(),
+            working: None,
+        }],
+    };
+    assert!(projection.publish_batch(incomplete).is_err());
+    assert_eq!(projection.frontier, 2);
+    projection
+        .publish_batch(NamespacePublication {
+            after: 2,
+            through: 4,
+            objects: vec![
+                NamespaceSnapshot {
+                    native_local: None,
+                    object: child.clone(),
+                    working: None,
+                },
+                NamespaceSnapshot {
+                    native_local: None,
+                    object: owner.clone(),
+                    working: None,
+                },
+            ],
+        })
+        .unwrap();
+    assert!(!projection.files.contains_key(&working.id));
+    assert!(projection.objects[&child.id].unlinked);
+    owner.follows_remote = false;
+    owner.revision += 1;
+    child.unlinked = false;
+    child.working_file = Some(working.id);
+    child.revision += 1;
+    child.native_archive.as_mut().unwrap().retired = false;
+    working.generation += 1;
+    projection
+        .publish_batch(batch(owner, child.clone(), working.clone(), 4, 6))
+        .unwrap();
+    assert!(!projection.publish_batch(old).unwrap());
+    assert_eq!(projection.files[&working.id].generation, working.generation);
+    assert_eq!(projection.objects[&child.id].revision, child.revision);
+    assert_eq!(projection.native_archives.len(), 1);
+}
+
+#[test]
+fn native_atomic_projection_requires_complete_paired_roles_and_preserves_old_uuid() {
+    let (owner, old, old_file) = pair();
+    let mut p = Projection::default();
+    p.publish_batch(batch(owner.clone(), old.clone(), old_file.clone(), 0, 1))
+        .unwrap();
+    let new_id = Uuid::new_v4();
+    let mut temp_file = old_file.clone();
+    temp_file.id = new_id;
+    temp_file.node.id = format!("local-native-archive-{new_id}");
+    temp_file.node.name = ".save".into();
+    let mut temp = old.clone();
+    temp.id = new_id;
+    temp.node = temp_file.node.clone();
+    temp.working_file = Some(new_id);
+    temp.native_archive = None;
+    let temp_role = crate::journal::NativeLocalStream {
+        source_owner: owner.id,
+        detached: false,
+    };
+    p.publish_batch(NamespacePublication {
+        after: 1,
+        through: 2,
+        objects: vec![NamespaceSnapshot {
+            object: temp.clone(),
+            working: Some(temp_file.clone()),
+            native_local: Some(temp_role),
+        }],
+    })
+    .unwrap();
+    let mut detached = old.clone();
+    detached.unlinked = true;
+    detached.native_archive = None;
+    detached.revision += 1;
+    let mut detached_file = old_file;
+    detached_file.unlinked = true;
+    let detached_role = crate::journal::NativeLocalStream {
+        source_owner: owner.id,
+        detached: true,
+    };
+    let mut current = temp;
+    current.revision += 1;
+    current.node.name = owner.node.name.clone();
+    current.native_archive = old.native_archive.clone();
+    current.native_archive.as_mut().unwrap().working = new_id;
+    temp_file.node = current.node.clone();
+    let missing = NamespacePublication {
+        after: 2,
+        through: 3,
+        objects: vec![NamespaceSnapshot {
+            object: detached.clone(),
+            working: Some(detached_file.clone()),
+            native_local: Some(detached_role.clone()),
+        }],
+    };
+    assert!(p.publish_batch(missing).is_err());
+    assert_eq!(p.frontier, 2);
+    assert_eq!(p.native_archives[&owner.id], old.id);
+    let full = NamespacePublication {
+        after: 2,
+        through: 4,
+        objects: vec![
+            NamespaceSnapshot {
+                object: current.clone(),
+                working: Some(temp_file),
+                native_local: None,
+            },
+            NamespaceSnapshot {
+                object: detached,
+                working: Some(detached_file),
+                native_local: Some(detached_role),
+            },
+        ],
+    };
+    p.publish_batch(full).unwrap();
+    assert_eq!(p.native_archives[&owner.id], new_id);
+    assert!(p.files[&old.id].unlinked);
+    assert!(!p.files[&new_id].unlinked);
+    assert_eq!(p.objects[&new_id].node.name, "Owned.pages");
 }

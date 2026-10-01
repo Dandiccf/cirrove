@@ -512,6 +512,34 @@ async fn main() -> Result<()> {
         .context("public readiness observation timed out")?;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--native-v2-baseline"
+    {
+        return cirrove_service::validation::icloud_native_v2_baseline(Uuid::parse_str(run)?);
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--native-v2-preflight"
+    {
+        return tokio::time::timeout(
+            Duration::from_secs(900),
+            cirrove_service::validation::icloud_native_v2_preflight(Uuid::parse_str(run)?),
+        )
+        .await
+        .context("native v2 preflight timed out")?;
+    }
+    if let [flag, run, operation] = args.as_slice()
+        && flag == "--native-v2-verify"
+    {
+        return tokio::time::timeout(
+            Duration::from_secs(900),
+            cirrove_service::validation::icloud_native_v2_verify(
+                Uuid::parse_str(run)?,
+                Uuid::parse_str(operation)?,
+            ),
+        )
+        .await
+        .context("native v2 verification timed out")?;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--public-native-replacement-preflight"
     {
         return tokio::time::timeout(

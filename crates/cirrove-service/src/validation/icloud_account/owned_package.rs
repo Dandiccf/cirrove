@@ -446,6 +446,7 @@ pub use public_trash::{
 
 mod replacement_live;
 pub use replacement_live::{
+    icloud_native_v2_baseline, icloud_native_v2_preflight, icloud_native_v2_verify,
     icloud_public_native_replacement_diagnose, icloud_public_native_replacement_preflight,
     icloud_public_native_replacement_verify,
 };

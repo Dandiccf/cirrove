@@ -26,7 +26,10 @@ impl Sealing {
             .await
             .map_err(|_| Errno::ENODEV)
     }
-    fn working(&self, id: Uuid) -> Result<Arc<tokio::sync::Mutex<()>>> {
+    pub(super) fn try_working(&self, id: Uuid) -> Result<Option<tokio::sync::OwnedMutexGuard<()>>> {
+        Ok(self.working(id)?.try_lock_owned().ok())
+    }
+    pub(super) fn working(&self, id: Uuid) -> Result<Arc<tokio::sync::Mutex<()>>> {
         let mut gates = self.working.lock().map_err(|_| Errno::EIO)?;
         gates.retain(|_, gate| gate.strong_count() > 0);
         if let Some(gate) = gates.get(&id).and_then(Weak::upgrade) {
@@ -71,7 +74,9 @@ impl Writeback {
                     return Err(JournalError::Stale);
                 }
                 let file = j.working_file(id)?;
-                if file.native && file.dirty {
+                if file.native && j.sync_native_local_stream(id)? {
+                    None
+                } else if file.native && file.dirty {
                     Some(j.capture_native_working(id)?)
                 } else {
                     if !file.native {

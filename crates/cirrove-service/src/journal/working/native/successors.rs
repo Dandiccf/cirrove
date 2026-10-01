@@ -50,8 +50,9 @@ fn check_previous(db: &Connection, working: &WorkingFile) -> Result<(UploadRecor
     let previous = working.latest.ok_or(JournalError::Stale)?;
     let (id, owner) = association(db, previous)?.ok_or(JournalError::Stale)?;
     let row = upload(db, previous)?;
-    let current = head(db, id)?;
-    if id != working.id
+    let (active, current) = atomic::active(db, owner)?;
+    if active != working.id
+        || !atomic::descendant(db, owner, id, working.id)?
         || current.owner != owner
         || row.scope != working.scope
         || package_replacement::original(&row.representation).is_none()
@@ -129,7 +130,26 @@ pub(crate) fn attach(
     });
     for intent in intents {
         for resource in mutations::upload_resources(&row.scope, &intent)? {
-            let unrelated:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM write_resources r JOIN write_queue q ON q.id=r.id LEFT JOIN native_working_operations n ON n.operation=q.id WHERE r.resource=?1 AND q.complete=0 AND q.id!=?2 AND (n.working IS NULL OR n.working!=?3 OR n.owner!=?4))",params![resource,row.id.to_string(),commit.record.id.to_string(),owner_id.to_string()],|r|r.get(0))?;
+            let unrelated: bool = tx.query_row(
+                "WITH RECURSIVE ancestors(id,depth) AS (
+                    SELECT ?1,0 UNION ALL
+                    SELECT t.previous_working,a.depth+1 FROM ancestors a
+                    JOIN native_working_transfers t ON t.next_working=a.id
+                    JOIN uploads u ON u.id=t.successor
+                    JOIN native_working_operations n ON n.operation=t.successor
+                        AND n.working=t.next_working AND n.owner=t.owner
+                    WHERE t.owner=?2 AND a.depth<10000
+                        AND json_extract(u.body,'$.representation.kind')='package_replacement_archive'
+                        AND json_extract(u.body,'$.base.predecessor') IS t.predecessor
+                ) SELECT EXISTS(
+                    SELECT 1 FROM write_resources r JOIN write_queue q ON q.id=r.id
+                    LEFT JOIN native_working_operations n ON n.operation=q.id
+                    WHERE r.resource=?3 AND q.complete=0 AND q.id!=?4
+                        AND (n.owner IS NULL OR n.owner!=?2 OR n.working NOT IN (SELECT id FROM ancestors))
+                )",
+                params![commit.record.id.to_string(),owner_id.to_string(),resource,row.id.to_string()],
+                |r|r.get(0),
+            )?;
             if unrelated {
                 return Err(JournalError::Stale);
             }
@@ -154,7 +174,9 @@ pub(super) fn record(
     )?;
     let owner = Uuid::parse_str(&owner).map_err(|_| JournalError::Corrupt)?;
     if let Some(previous) = working.latest {
-        if association(tx, previous)? != Some((working.id, owner))
+        let (prior, previous_owner) = association(tx, previous)?.ok_or(JournalError::Stale)?;
+        if previous_owner != owner
+            || !atomic::descendant(tx, owner, prior, working.id)?
             || row.base.as_ref().map(|b| b.predecessor) != Some(previous)
         {
             return Err(JournalError::Stale);
@@ -176,8 +198,11 @@ pub(super) fn record(
             return Err(JournalError::Stale);
         }
     }
+    if association(tx, row.id)?.is_some_and(|actual| actual != (working.id, owner)) {
+        return Err(JournalError::Stale);
+    }
     tx.execute(
-        "INSERT INTO native_working_operations VALUES(?1,?2,?3)",
+        "INSERT OR IGNORE INTO native_working_operations VALUES(?1,?2,?3)",
         params![
             row.id.to_string(),
             working.id.to_string(),
@@ -192,14 +217,19 @@ pub(crate) fn resolve(journal: &mut UploadJournal, mut row: UploadRecord) -> Res
         return Err(JournalError::Stale);
     }
     let (working, owner) = association(&journal.db, row.id)?.ok_or(JournalError::Stale)?;
-    if association(&journal.db, base.predecessor)? != Some((working, owner)) {
+    let (prior, prior_owner) =
+        association(&journal.db, base.predecessor)?.ok_or(JournalError::Stale)?;
+    if prior_owner != owner || !atomic::descendant(&journal.db, owner, prior, working)? {
         return Err(JournalError::Stale);
     }
     let previous = journal.get(base.predecessor)?;
     let (_, current, _) = previous
         .native_replacement_receipt()
         .ok_or(JournalError::Stale)?;
-    let h = head(&journal.db, working)?;
+    let (active_working, h) = atomic::active(&journal.db, owner)?;
+    if !atomic::descendant(&journal.db, owner, working, active_working)? {
+        return Err(JournalError::Stale);
+    }
     if previous.scope != row.scope
         || previous.sequence >= row.sequence
         || h.owner != owner
@@ -261,7 +291,11 @@ pub(crate) fn confirmed_base(journal: &UploadJournal, row: &UploadRecord) -> Res
         .filter(|b| b.resolved)
         .ok_or(JournalError::Stale)?;
     let association_current = association(&journal.db, row.id)?.ok_or(JournalError::Stale)?;
-    if association(&journal.db, base.predecessor)? != Some(association_current) {
+    let (prior, prior_owner) =
+        association(&journal.db, base.predecessor)?.ok_or(JournalError::Stale)?;
+    if prior_owner != association_current.1
+        || !atomic::descendant(&journal.db, prior_owner, prior, association_current.0)?
+    {
         return Err(JournalError::Stale);
     }
     let previous = journal.get(base.predecessor)?;
@@ -299,7 +333,10 @@ pub(crate) fn acknowledge(tx: &rusqlite::Transaction<'_>, row: &UploadRecord) ->
         .package_completion
         .as_ref()
         .ok_or(JournalError::Corrupt)?;
-    let mut h = head(tx, working)?;
+    let (active_working, mut h) = atomic::active(tx, owner)?;
+    if !atomic::descendant(tx, owner, working, active_working)? {
+        return Err(JournalError::Stale);
+    }
     let object = namespace::by_id(tx, owner)?;
     if h.owner != owner
         || object.scope != row.scope
@@ -328,7 +365,7 @@ pub(crate) fn acknowledge(tx: &rusqlite::Transaction<'_>, row: &UploadRecord) ->
     if tx.execute(
         "UPDATE native_working_bindings SET source=?2 WHERE working=?1",
         params![
-            working.to_string(),
+            active_working.to_string(),
             serde_json::to_string(&(&row.scope, &current.id))?
         ],
     )? != 1
@@ -337,9 +374,9 @@ pub(crate) fn acknowledge(tx: &rusqlite::Transaction<'_>, row: &UploadRecord) ->
     }
     tx.execute(
         "UPDATE native_working_heads SET body=?2 WHERE working=?1",
-        params![working.to_string(), serde_json::to_string(&h)?],
+        params![active_working.to_string(), serde_json::to_string(&h)?],
     )?;
-    projection::refresh_child(tx, working)?;
+    projection::refresh_child(tx, active_working)?;
     Ok(())
 }
 #[cfg(test)]
@@ -358,9 +395,11 @@ pub(crate) fn permits_reservation(
     let Some((working, owned)) = association(db, row.id)? else {
         return Ok(false);
     };
+    let (latest_working, latest_owner) = association(db, latest)?.ok_or(JournalError::Stale)?;
     if owned != owner.id
         || owner.scope != row.scope
-        || association(db, latest)? != Some((working, owned))
+        || latest_owner != owned
+        || !atomic::descendant(db, owned, working, latest_working)?
     {
         return Ok(false);
     }

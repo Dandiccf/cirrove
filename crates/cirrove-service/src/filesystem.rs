@@ -1355,12 +1355,19 @@ impl Filesystem for CloudFs {
                     content_version: None,
                     target: None,
                 };
-                inner.refuse_within_package(&parent)?;
-                inner.capture_ancestors(&parent).await?;
-                let record = writer
-                    .create(parent.scope.as_ref().clone(), node)
-                    .await
-                    .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
+                let record = if let Some(native) = inner
+                    .create_native_temporary(&parent, &nodes, node.name.clone())
+                    .await?
+                {
+                    native
+                } else {
+                    inner.refuse_within_package(&parent)?;
+                    inner.capture_ancestors(&parent).await?;
+                    writer
+                        .create(parent.scope.as_ref().clone(), node)
+                        .await
+                        .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?
+                };
                 let lease = writer
                     .lease(&parent.scope, &record.node.id, &inner.cancel)
                     .await?;
@@ -1503,6 +1510,24 @@ impl Filesystem for CloudFs {
                     } else {
                         Ok(())
                     };
+                }
+                if parent.package || destination.package {
+                    if parent.inode != destination.inode {
+                        return Err(Errno::EOPNOTSUPP);
+                    }
+                    let victim = nodes
+                        .iter()
+                        .find(|n| {
+                            n.id != source.id && n.name.to_lowercase() == newname.to_lowercase()
+                        })
+                        .cloned()
+                        .ok_or(Errno::EOPNOTSUPP)?;
+                    if flags.contains(RenameFlags::RENAME_NOREPLACE) || victim.name != newname {
+                        return Err(Errno::EEXIST);
+                    }
+                    return inner
+                        .rename_native_temporary(&parent, &destination, source, victim)
+                        .await;
                 }
                 inner.refuse_within_package(&parent)?;
                 inner.capture_ancestors(&parent).await?;

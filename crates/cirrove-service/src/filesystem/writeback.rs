@@ -4,8 +4,10 @@ mod admission;
 mod ancestry;
 mod handoff;
 mod native_abandon;
+mod native_atomic;
 pub(super) mod native_edit;
 mod native_import;
+mod native_retirement;
 mod native_trash;
 mod native_trash_publication;
 mod package_publication;
@@ -34,6 +36,7 @@ pub(super) struct Writeback {
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
     sealing: sealing::Sealing,
     activity: Mutex<HashMap<EditKey, Weak<tokio::sync::RwLock<()>>>>,
+    native_retirement: Arc<tokio::sync::Semaphore>,
     maintenance_cursor: Mutex<Option<Uuid>>,
     preserving_cursor: Mutex<u64>,
     maintenance_retries: Mutex<HashMap<Uuid, (u32, tokio::time::Instant)>>,
@@ -45,6 +48,7 @@ struct Projection {
     ancestry: std::cell::OnceCell<RetainedAncestors>,
     objects: HashMap<Uuid, NamespaceObject>,
     native_archives: HashMap<Uuid, Uuid>,
+    native_local: HashMap<Uuid, crate::journal::NativeLocalStream>,
     native_readers:
         HashMap<cirrove_core::reads::ReadIdentity, Weak<dyn cirrove_core::reads::ReadSession>>,
     local_identities: HashMap<EditKey, Uuid>,
@@ -60,15 +64,42 @@ impl Projection {
         &self,
         object: &NamespaceObject,
         working: Option<&WorkingFile>,
+        local: Option<&crate::journal::NativeLocalStream>,
     ) -> Result<bool> {
-        if working.is_some_and(|file| file.native) != object.native_archive.is_some() {
+        let retired = object
+            .native_archive
+            .as_ref()
+            .is_some_and(|role| role.retired);
+        if retired && (!object.valid_retired_native_archive() || working.is_some()) {
             return Err(Errno::EIO);
         }
-        if object.native_archive.is_some() {
+        if working.is_some_and(|file| file.native)
+            != ((object.native_archive.is_some() && !retired) || local.is_some())
+        {
+            return Err(Errno::EIO);
+        }
+        if object.native_archive.is_some() && !retired {
             if !working.is_some_and(|file| object.valid_native_archive_shape(file)) {
                 return Err(Errno::EIO);
             }
+        } else if let Some(local) = local {
+            if object.remote_owned
+                || object.remote.is_some()
+                || object.latest.is_some()
+                || object.follows_remote
+                || object.unlinked != local.detached
+                || object.node.kind != NodeKind::File
+                || object.node.package
+                || object.node.target.is_some()
+                || object.working_file != Some(object.id)
+                || object.node.id != format!("local-native-archive-{}", object.id)
+            {
+                return Err(Errno::EIO);
+            }
         } else if !object.remote_owned && !object.unlinked {
+            return Err(Errno::EIO);
+        }
+        if local.is_some() && object.native_archive.is_some() {
             return Err(Errno::EIO);
         }
         if object.follows_remote
@@ -85,14 +116,7 @@ impl Projection {
             if old.scope != object.scope
                 || old.node.id != object.node.id
                 || old.names != object.names
-                || old
-                    .native_archive
-                    .as_ref()
-                    .map(|r| (r.source_owner, r.working))
-                    != object
-                        .native_archive
-                        .as_ref()
-                        .map(|r| (r.source_owner, r.working))
+                || !self.valid_native_transition(old, object, local)
             {
                 return Err(Errno::EIO);
             }
@@ -124,7 +148,7 @@ impl Projection {
         object: &NamespaceObject,
         working: Option<&WorkingFile>,
     ) -> Result<bool> {
-        if !self.validate_snapshot(object, working)? {
+        if !self.validate_snapshot(object, working, None)? {
             return Ok(false);
         }
         if let Some(role) = &object.native_archive {
@@ -153,7 +177,43 @@ impl Projection {
         self.ancestry
             .get_or_init(|| RetainedAncestors::new(self.objects.values()))
     }
-    fn apply(&mut self, object: NamespaceObject, working: Option<WorkingFile>) {
+    fn valid_native_transition(
+        &self,
+        old: &NamespaceObject,
+        new: &NamespaceObject,
+        local: Option<&crate::journal::NativeLocalStream>,
+    ) -> bool {
+        let old_role = old
+            .native_archive
+            .as_ref()
+            .map(|r| (r.source_owner, r.working));
+        let new_role = new
+            .native_archive
+            .as_ref()
+            .map(|r| (r.source_owner, r.working));
+        if old_role == new_role {
+            return self.native_local.get(&old.id) == local;
+        }
+        match (old_role, new_role) {
+            (Some((owner, id)), None) => {
+                local.is_some_and(|r| r.detached && r.source_owner == owner && id == new.id)
+            }
+            (None, Some((owner, id))) => {
+                local.is_none()
+                    && self
+                        .native_local
+                        .get(&old.id)
+                        .is_some_and(|r| !r.detached && r.source_owner == owner && id == new.id)
+            }
+            _ => false,
+        }
+    }
+    fn apply(
+        &mut self,
+        object: NamespaceObject,
+        working: Option<WorkingFile>,
+        local: Option<crate::journal::NativeLocalStream>,
+    ) {
         self.ancestry.take();
         let identity = key(&object.scope, &object.node.id);
         if let Some(old) = self.objects.get(&object.id)
@@ -188,12 +248,17 @@ impl Projection {
         if let Some(role) = &object.native_archive {
             self.native_archives.insert(role.source_owner, object.id);
         }
+        if let Some(local) = local {
+            self.native_local.insert(object.id, local);
+        } else {
+            self.native_local.remove(&object.id);
+        }
         self.objects.insert(object.id, object);
     }
     #[cfg(test)]
     fn merge(&mut self, object: NamespaceObject, working: Option<WorkingFile>) -> Result<()> {
         if self.validate_merge(&object, working.as_ref())? {
-            self.apply(object, working);
+            self.apply(object, working, None);
         }
         Ok(())
     }
@@ -272,6 +337,7 @@ impl Writeback {
             hydrating: Mutex::new(HashMap::new()),
             sealing: Default::default(),
             activity: Mutex::new(HashMap::new()),
+            native_retirement: Arc::new(tokio::sync::Semaphore::new(1)),
             maintenance_cursor: Mutex::new(None),
             preserving_cursor: Mutex::new(0),
             maintenance_retries: Mutex::new(HashMap::new()),
@@ -1029,6 +1095,7 @@ mod tests {
             hydrating: Default::default(),
             sealing: Default::default(),
             activity: Default::default(),
+            native_retirement: Arc::new(tokio::sync::Semaphore::new(1)),
             maintenance_cursor: Default::default(),
             preserving_cursor: Default::default(),
             maintenance_retries: Default::default(),

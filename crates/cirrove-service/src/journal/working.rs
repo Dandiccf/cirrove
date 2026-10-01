@@ -3,6 +3,7 @@
 use super::*;
 pub(super) mod native;
 use cirrove_core::mutation::{MutationIntent, MutationRequest};
+pub use native::atomic::{CapturedNativeTemporary, NativeTemporaryCapture};
 pub use native::{
     CapturedNativeWorking, NativeWorkingCapture, NativeWorkingHydration, ValidatedNativeWorking,
 };
