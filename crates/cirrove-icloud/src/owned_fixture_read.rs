@@ -13,9 +13,38 @@ fn kind(value: &ContentRepresentation) -> FixtureRepresentation {
         ContentRepresentation::Package(_) => FixtureRepresentation::Package,
     }
 }
+// Only a compile-time field name can cross the diagnostic boundary.
+#[derive(Debug)]
+struct MetadataDifference(&'static str);
+impl std::fmt::Display for MetadataDifference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} differs", self.0)
+    }
+}
+impl std::error::Error for MetadataDifference {}
 fn exact(expected: &DriveEntry, observed: &DriveEntry) -> Result<()> {
     if expected != observed {
-        bail!("owned fixture metadata changed");
+        let field = [
+            (expected.drivewsid != observed.drivewsid, "drivewsid"),
+            (expected.docwsid != observed.docwsid, "docwsid"),
+            (expected.item_id != observed.item_id, "item_id"),
+            (expected.zone != observed.zone, "zone"),
+            (expected.name != observed.name, "name"),
+            (expected.extension != observed.extension, "extension"),
+            (expected.parent_id != observed.parent_id, "parent_id"),
+            (expected.etag != observed.etag, "etag"),
+            (expected.kind != observed.kind, "kind"),
+            (expected.size != observed.size, "size"),
+            (expected.items != observed.items, "items"),
+            (
+                expected.number_of_items != observed.number_of_items,
+                "number_of_items",
+            ),
+        ]
+        .into_iter()
+        .find_map(|(differs, field)| differs.then_some(field))
+        .unwrap_or("metadata");
+        return Err(MetadataDifference(field).into());
     }
     Ok(())
 }
@@ -41,23 +70,33 @@ impl ICloudReadSession {
         sink: &mut dyn ReadWindowSink,
         cancel: &CancellationToken,
     ) -> Result<PackageDownload> {
+        let mut phase = "fixture identity";
         let result = tokio::time::timeout(std::time::Duration::from_secs(240), async {
             ensure_fixture(parent, source)?;
-            exact_parent(
-                parent,
-                self.active_folder_metadata(&parent.drivewsid).await?,
-            )?;
+            phase = "pre-transfer parent metadata";
+            let mut active_parent = self.active_folder_metadata(&parent.drivewsid).await?;
+            active_parent.items.clear();
+            active_parent.number_of_items = None;
+            // Root-list children and direct folder envelopes expose different
+            // optional item_id values. The canonical drivewsid remains exact.
+            // Bind the envelope value now, then fence it again after transfer.
+            let mut registered_parent = parent.clone();
+            registered_parent.item_id.clone_from(&active_parent.item_id);
+            exact(&registered_parent, &active_parent)?;
+            phase = "pre-transfer item metadata";
             exact(
                 source,
                 &self
                     .item_for_read(&source.drivewsid, Some(&parent.drivewsid))
                     .await?,
             )?;
+            phase = "pre-transfer representation";
             let location = self.download_representation(&source.drivewsid).await?;
             representation(expected, kind(&location))?;
             if cancel.is_cancelled() {
                 bail!("owned fixture read cancelled");
             }
+            phase = "content transfer";
             let response = self
                 .http
                 .get(location.for_exact_read())
@@ -69,20 +108,24 @@ impl ICloudReadSession {
             let receipt =
                 crate::package_download::stage_response(response, sink, 64 * 1024 * 1024, cancel)
                     .await?;
+            phase = "post-transfer representation";
             representation(
                 expected,
                 kind(&self.download_representation(&source.drivewsid).await?),
             )?;
+            phase = "post-transfer item metadata";
             exact(
                 source,
                 &self
                     .item_for_read(&source.drivewsid, Some(&parent.drivewsid))
                     .await?,
             )?;
+            phase = "post-transfer parent metadata";
             exact_parent(
-                parent,
+                &active_parent,
                 self.active_folder_metadata(&parent.drivewsid).await?,
             )?;
+            phase = "content receipt";
             if expected == FixtureRepresentation::Data && receipt.size != source.size {
                 bail!("owned fixture DATA size differs");
             }
@@ -93,7 +136,13 @@ impl ICloudReadSession {
         })
         .await
         .map_err(|_| anyhow!("owned fixture read deadline"))?;
-        result.map_err(|_| anyhow!("owned fixture read refused"))
+        result.map_err(|error: anyhow::Error| {
+            if let Some(field) = error.downcast_ref::<MetadataDifference>() {
+                anyhow!("owned fixture read refused during {phase}: {field}")
+            } else {
+                anyhow!("owned fixture read refused during {phase}")
+            }
+        })
     }
 }
 fn ensure_fixture(parent: &DriveEntry, source: &DriveEntry) -> Result<()> {

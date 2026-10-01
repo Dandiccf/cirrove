@@ -54,6 +54,7 @@ async fn arm(fault: u8, expected: FixtureRepresentation) {
     let source:DriveEntry=serde_json::from_value(json!({"drivewsid":"FILE::com.apple.CloudDocs::doc","docwsid":"doc","parentId":parent.drivewsid,"zone":"com.apple.CloudDocs","type":"FILE","name":"Fixture","etag":"v1","size":3})).unwrap();
     let folder = |item: &DriveEntry| {
         let mut p = parent.clone();
+        p.item_id = "envelope-only-key".into();
         p.items = vec![item.clone()];
         p.number_of_items = Some(1);
         serde_json::to_vec(&vec![p]).unwrap()
@@ -69,8 +70,21 @@ async fn arm(fault: u8, expected: FixtureRepresentation) {
         })
         .unwrap()
     };
+    let mut first_parent: serde_json::Value = serde_json::from_slice(&folder(&source)).unwrap();
+    match fault {
+        4 => first_parent[0]["etag"] = json!("changed-parent-revision"),
+        5 => first_parent[0]["parentId"] = json!("foreign-parent"),
+        6 => first_parent[0]["drivewsid"] = json!("FOLDER::com.apple.CloudDocs::foreign"),
+        7 => first_parent[0]["type"] = json!("FILE"),
+        8 => first_parent[0]["name"] = json!("Changed"),
+        9 => first_parent[0]["restorePath"] = json!(["removed"]),
+        _ => {}
+    }
     let mut replies = vec![
-        ("POST /retrieveItemDetailsInFolders", folder(&source)),
+        (
+            "POST /retrieveItemDetailsInFolders",
+            serde_json::to_vec(&first_parent).unwrap(),
+        ),
         ("POST /retrieveItemDetailsInFolders", folder(&source)),
         (
             "GET /ws/com.apple.CloudDocs/download/by_id",
@@ -92,12 +106,20 @@ async fn arm(fault: u8, expected: FixtureRepresentation) {
         final_source.etag = "v2".into();
     }
     replies.push(("POST /retrieveItemDetailsInFolders", folder(&final_source)));
-    replies.push(("POST /retrieveItemDetailsInFolders", folder(&source)));
+    let mut final_parent: serde_json::Value = serde_json::from_slice(&folder(&source)).unwrap();
+    if fault == 3 {
+        final_parent[0]["item_id"] = json!("changed-envelope-key");
+    }
+    replies.push((
+        "POST /retrieveItemDetailsInFolders",
+        serde_json::to_vec(&final_parent).unwrap(),
+    ));
     let count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let calls = count.clone();
     let expected_calls = match fault {
         1 => 5,
         2 => 6,
+        4..=9 => 1,
         _ => 7,
     };
     let stop = CancellationToken::new();
@@ -174,13 +196,47 @@ async fn arm(fault: u8, expected: FixtureRepresentation) {
         count.load(std::sync::atomic::Ordering::SeqCst),
         expected_calls
     );
+    if fault >= 4 {
+        assert!(sink.0.is_empty(), "refused parent reached content transfer");
+        let detail = match fault {
+            4 => ": etag differs",
+            5 => ": parent_id differs",
+            7 => ": kind differs",
+            8 => ": name differs",
+            _ => "",
+        };
+        assert_eq!(
+            result.err().expect("parent fence bypassed").to_string(),
+            format!("owned fixture read refused during pre-transfer parent metadata{detail}")
+        );
+        return;
+    }
     assert_eq!(sink.0, b"abc");
     if fault == 0 {
         let receipt = result.unwrap();
         assert_eq!(receipt.size, 3);
         assert_eq!(receipt.sha256, hex::encode(Sha256::digest(b"abc")));
     } else {
-        assert!(result.is_err(), "post-body fence was bypassed");
+        let phase = if fault == 1 {
+            "post-transfer representation"
+        } else if fault == 2 {
+            "post-transfer item metadata"
+        } else {
+            "post-transfer parent metadata"
+        };
+        assert_eq!(
+            result
+                .err()
+                .expect("post-body fence was bypassed")
+                .to_string(),
+            if fault == 2 {
+                format!("owned fixture read refused during {phase}: etag differs")
+            } else if fault == 3 {
+                format!("owned fixture read refused during {phase}: item_id differs")
+            } else {
+                format!("owned fixture read refused during {phase}")
+            }
+        );
     }
 }
 #[tokio::test]
@@ -195,4 +251,16 @@ async fn owned_fixture_https_representation_flip_after_body_refused() {
 #[tokio::test]
 async fn owned_fixture_https_revision_race_after_body_refused() {
     arm(2, FixtureRepresentation::Data).await;
+}
+
+#[tokio::test]
+async fn owned_fixture_https_parent_envelope_change_after_body_refused() {
+    arm(3, FixtureRepresentation::Package).await;
+}
+
+#[tokio::test]
+async fn owned_fixture_https_parent_identity_revision_and_recovery_fenced() {
+    for fault in 4..=9 {
+        arm(fault, FixtureRepresentation::Package).await;
+    }
 }

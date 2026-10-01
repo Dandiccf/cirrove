@@ -1,7 +1,7 @@
 {
   "run": "b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
   "registered_at": "2026-10-01T22:42:03.073799+00:00",
-  "status": "registered-not-started",
+  "status": "numbers-public-import-and-apple-formula-open-confirmed",
   "question": "Can newly created Numbers and Keynote documents be exported, classified, imported by Cirrove and reopened with exact synthetic content?",
   "prediction": "Each Apple-created export remains readable after supported Cirrove import; actual DATA/PACKAGE classification determines the route. No suffix-based representation claim.",
   "owned_parent": "Cirrove-Native-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
@@ -20,6 +20,179 @@
   "scope": "Create only these own synthetic source documents in Apple apps; export locally; no other document edits or deletion. Register public import and replacement operations separately before submission.",
   "source_directory": "/home/dandiccf/Storage/cirrove-tmp/iwork-sources-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
   "representation": "unobserved",
-  "mutations_executed": false,
-  "release_gates_closed": false
+  "mutations_executed": true,
+  "release_gates_closed": false,
+  "numbers_source": {
+    "saved_at": "2026-10-01T22:52:11.748561+00:00",
+    "format": "numbers",
+    "source": "/home/dandiccf/Storage/cirrove-tmp/iwork-sources-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f/source-a.numbers",
+    "bytes": 138881,
+    "sha256": "543d4e32c3488f75b63a530d635910b54bc22536e1c97b4d1981e8fc15aaf140",
+    "zip_entries": 42,
+    "expanded_bytes": 133089,
+    "browser_document": "09fOcbmoDQnh5kT_aUppmd6ag",
+    "marker_and_formula_result_observed": true,
+    "remote_representation": "not_observed",
+    "cloud_operation": "Apple Numbers source creation only; no Cirrove import/replacement"
+  },
+  "numbers_import_plan": {
+    "registered_at": "2026-10-01T22:57:40.334722+00:00",
+    "source_commit": "997e47a",
+    "state": "/var/tmp/cirrove-iwork-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f/state",
+    "source_session_copy": "Only the encrypted session and matching account settings copied; source account/credential IDs retained for authenticated decryption; no old journal copied or migrated. No keyring write during preparation.",
+    "question": "Does one public CLI Numbers PACKAGE import complete and publish in its original isolated mount?",
+    "prediction": "Fresh UUID-owned parent is created once; one explicit import receives a typed package receipt and mounted package listing. Independent content and Apple-open verification remain separate endpoints.",
+    "source_root": "Source.numbers",
+    "source_archive_sha256": "add6c6f634ab18e792c3ec15b892da895d323661df29c8cef2f9fc639d9adf18",
+    "no_replay": "Exclusive run manifest; after any ambiguous result inspect the retained journal rather than resubmit.",
+    "mutation_scope": "Only new parent Cirrove-Native-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f and its own Cirrove-Numbers-Import-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f.numbers",
+    "expected_duration_seconds": 1200
+  },
+  "first_import_attempt": {
+    "status": "runner-startup-race-before-mutation",
+    "daemon_exit_code": 0,
+    "uploads": 0,
+    "mutations": 0,
+    "write_queue": 0,
+    "children": [],
+    "original_settings_and_sealed_session_unchanged": true
+  },
+  "second_import_attempt": {
+    "registered_at": "2026-10-01T22:59:46.742691+00:00",
+    "change": "Treat empty initial status as not ready; retain strict one-account identity before any mutation.",
+    "manifest": "numbers-import-attempt2.json",
+    "precondition": "First daemon terminal and uploads/mutations/write_queue all zero; no previous submission."
+  },
+  "numbers_import_result": {
+    "status": "import-and-original-mount-confirmed",
+    "operation": "5ea5e4cc-dfca-40f8-a05b-543b4cb2822f",
+    "remote_id": "FILE::com.apple.CloudDocs::77DD1397-420B-43F1-82FA-28EA58BD546D",
+    "parent_id": "FOLDER::com.apple.CloudDocs::886FB00E-9286-48FC-B466-7372BA9FC953",
+    "daemon_exit_code": 0,
+    "original_settings_unchanged": true,
+    "original_sealed_session_unchanged": true,
+    "started_at": "2026-10-01T22:59:46.794400+00:00",
+    "finished_at": "2026-10-01T23:00:38.377589+00:00"
+  },
+  "numbers_apple_open": {
+    "observed_at": "2026-10-01T23:03:13.770207+00:00",
+    "exact_document_id": "77DD1397-420B-43F1-82FA-28EA58BD546D",
+    "title": "Cirrove-Numbers-Import-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+    "marker_visible": true,
+    "values": [
+      2,
+      3,
+      5
+    ],
+    "formula_visible": "=SUM(A2:B2)",
+    "document_edits_submitted": false,
+    "screenshot": ".local-state/numbers-imported-formula-b5c8041e.png",
+    "screenshot_sha256": "9b2962034417c99d233d01bd12bec8cf9c0c3d6ae30ba12b0965994999e62f15"
+  },
+  "remaining": [
+    "Apple Numbers open of independently verified second PACKAGE copy",
+    "Numbers ordinary and atomic local save/replacement with Apple reopen",
+    "Actual DATA representation acceptance",
+    "Keynote source/import/edit/reopen acceptance",
+    "Installed transitions and remaining full-iCloud release gates"
+  ],
+  "numbers_readback_plan": {
+    "registered_at": "2026-10-01T23:07:31.766888+00:00",
+    "question": "Does bounded independent exact-ID PACKAGE readback retain all42 source file contents and semantic v2 identity?",
+    "prediction": "Current metadata equals public receipt; strict fresh PACKAGE read before/after transfer and semantic v2 proof both pass.",
+    "registration_sha256": "9ddf1df9a099b53b0ea0c0805569959436ffe22098601a4578b0bac77311c41f",
+    "helper_source_sha256": "a30b0c5d78b11a59bf72e2dc4a043d5d4876a72754df9f3f2efa1ac2a590fe04",
+    "helper_binary_sha256": "7fb39b726c338f163eca6668f9ebcd941452dd3793734aff7328e647201ac7ab",
+    "read_only": true,
+    "daemon_stopped": true,
+    "method": "Receipt-bound metadata preparer uses existing public read/session APIs; subsequent existing --owned-fixture-verify applies private-path, representation/revision and full semantic content guards. No altered journal or proof."
+  },
+  "numbers_first_readback": {
+    "status": "refused-metadata-changed",
+    "observed_after_apple_open": true,
+    "receipt_etag": "i189::i188",
+    "current_etag": "i18i::i18g",
+    "receipt_size": 133089,
+    "current_size": 138806,
+    "identity_parent_name_unchanged": true,
+    "content_download_performed": false,
+    "causality": "Observed after Apple open; this does not establish which Apple action rewrote the document."
+  },
+  "numbers_second_copy_plan": {
+    "registered_at": "2026-10-01T23:11:05.055262+00:00",
+    "destination": "Cirrove-Numbers-Readback-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f.numbers",
+    "parent": "FOLDER::com.apple.CloudDocs::886FB00E-9286-48FC-B466-7372BA9FC953",
+    "question": "Does exact-ID full semantic readback pass before any Apple application opens the new import?",
+    "prediction": "All42 source member contents match semantic v2; subsequent Apple open retains marker and formula.",
+    "source_archive_sha256": "add6c6f634ab18e792c3ec15b892da895d323661df29c8cef2f9fc639d9adf18",
+    "scope": "One additional own import only; existing uploaded operation and applied folder mutation retained, no retries/replay or cleanup.",
+    "expected_duration_seconds": 1200
+  },
+  "numbers_second_import_result": {
+    "status": "import-and-original-mount-confirmed",
+    "operation": "fb2b4d16-99a6-4aed-9db9-12979968b3c9",
+    "remote_id": "FILE::com.apple.CloudDocs::E19BAF7A-5449-4A26-8AB9-4DD87BB0ED20",
+    "parent_id": "FOLDER::com.apple.CloudDocs::886FB00E-9286-48FC-B466-7372BA9FC953",
+    "daemon_exit_code": 0,
+    "original_settings_unchanged": true,
+    "original_sealed_session_unchanged": true
+  },
+  "numbers_second_metadata_binding": {
+    "registration_sha256": "366c13e3dece3c848a86361f312421bb9796b6a5976c2ea2999c288abd81d050",
+    "helper_source_sha256": "fb5ffd9639d434760bb70c04663f1db4cabc5817bfb67f274f5dfcfa93fbe6eb",
+    "helper_binary_sha256": "4dff050dd954c9eff650a229f2a13d9800e00d14f83834f169162705a03733e7",
+    "apple_opened": false,
+    "verified_manifest_sha256": "a0d385218c28ba04d3338a2d8c8a5a5b469204dd67354f7311dec2e57ac0430f"
+  },
+  "numbers_second_readback_content": {
+    "status": "refused",
+    "evidence": ".local-state/icloud-access-numbers-second-readback-content-2026-10-01/run.json",
+    "diagnostic": "owned fixture read refused",
+    "stage": "not yet distinguished",
+    "claim": "No completed independent readback established"
+  },
+  "readback_diagnostic_plan": {
+    "question": "Which bounded read fence refuses the exact second Numbers fixture?",
+    "prediction": "Static phase diagnostics identify the failing fence without exposing provider bodies, URLs or credentials. Existing HTTPS negative tests fail before the diagnostic change and pass after it.",
+    "scope": "Read-only observer diagnostics; all identity, revision and representation guards retained."
+  },
+  "numbers_second_readback_resolution": {
+    "status": "passed",
+    "receipt": {
+      "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+      "cloud_mutated": false,
+      "content_identity_verified": true,
+      "etag": "i18m::i18l",
+      "format": "numbers",
+      "gui_fidelity_verified": false,
+      "item": "FILE::com.apple.CloudDocs::E19BAF7A-5449-4A26-8AB9-4DD87BB0ED20",
+      "manifest_sha256": "a0d385218c28ba04d3338a2d8c8a5a5b469204dd67354f7311dec2e57ac0430f",
+      "parent": "FOLDER::com.apple.CloudDocs::886FB00E-9286-48FC-B466-7372BA9FC953",
+      "representation": "package",
+      "run": "b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+      "semantic": {
+        "entries": 46,
+        "expanded_bytes": 133089,
+        "files": 42,
+        "sha256": "67e0f4d4ed8a098959e7a32630dede70bd726b75fc7dd45414e726014658646b",
+        "version": 2
+      },
+      "sha256": "04a1b185d9ebeef790847cb768ff6981bafe8ec81272feeab51be4ac2197888b",
+      "size": 75263
+    },
+    "evidence": ".local-state/icloud-access-numbers-readback-parent-fixed-2026-10-01/run.json",
+    "cause": "Root child and direct parent envelope differed in optional item_id. The previous cross-endpoint full struct comparison refused before download.",
+    "fix": "Only cross-endpoint parent item_id is normalized; direct parent envelope including item_id is bound before transfer and compared exactly afterward. All other parent metadata and all document fences remain exact.",
+    "tests": {
+      "phase_red": ".local-state/icloud-access-fixture-phase-red-corrected-2026-10-01/run.json",
+      "field_red": ".local-state/icloud-access-fixture-field-red-2026-10-01/run.json",
+      "shape_red": ".local-state/icloud-access-fixture-parent-shape-red-2026-10-01/run.json",
+      "shape_green": ".local-state/icloud-access-fixture-parent-shape-green-2026-10-01/run.json",
+      "parent_guards_green": ".local-state/icloud-access-fixture-parent-guards-2026-10-01/run.json",
+      "full_check": ".local-state/icloud-access-fixture-parent-fullcheck-2026-10-01/run.json",
+      "full_check_exit_code": 0
+    },
+    "initial_test_authoring_error": "fixture-phase-red did not compile because unwrap_err requires Debug for the success type; corrected before actual negative control.",
+    "limitations": "Second copy has not yet been opened in Apple Numbers. First copy Apple GUI evidence is separate. No installation changed; full-iCloud release gates remain open."
+  }
 }
