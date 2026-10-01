@@ -39,7 +39,7 @@ struct Checkpoint {
     semantic: PackageSemanticIdentity,
     phase: Phase,
 }
-enum Session {
+pub(super) enum Session {
     Ready(Box<ICloudReadSession>),
     Vault {
         apple_id: String,
@@ -55,7 +55,7 @@ pub struct ICloudNativeTrash {
     apple_id: String,
     staging: PathBuf,
     session: Mutex<Session>,
-    checkpoint: Arc<dyn CredentialVault>,
+    pub(super) checkpoint: Arc<dyn CredentialVault>,
     operation_lock: Mutex<()>,
 }
 impl ICloudNativeTrash {
@@ -89,7 +89,7 @@ impl ICloudNativeTrash {
             operation_lock: Mutex::new(()),
         })
     }
-    fn identity(scope: &Scope, before: &Node) -> Result<()> {
+    pub(super) fn identity(scope: &Scope, before: &Node) -> Result<()> {
         let id = before.id.strip_prefix("FILE::com.apple.CloudDocs::");
         let parent = before
             .parent_id
@@ -162,6 +162,25 @@ impl ICloudNativeTrash {
         }
         Ok(Some(saved))
     }
+    pub(super) async fn restore_semantic(
+        &self,
+        operation: Uuid,
+    ) -> Result<PackageSemanticIdentity> {
+        let request = MutationRequest {
+            scope: self.scope.clone(),
+            intent: MutationIntent::TrashNativeDocument {
+                before: self.before.clone(),
+            },
+        };
+        let saved = self
+            .load(operation, &request)
+            .await?
+            .ok_or(MutationError::Uncertain)?;
+        if saved.phase != Phase::MayHaveSent {
+            return Err(MutationError::Invalid);
+        }
+        Ok(saved.semantic)
+    }
     async fn save(&self, saved: &Checkpoint) -> Result<()> {
         let value = serde_json::to_string(saved).map_err(|_| MutationError::Invalid)?;
         if value.len() > LIMIT {
@@ -175,7 +194,7 @@ impl ICloudNativeTrash {
             .await
             .map_err(|_| MutationError::Uncertain)
     }
-    async fn active(state: &mut Session) -> Result<&mut ICloudReadSession> {
+    pub(super) async fn active(state: &mut Session) -> Result<&mut ICloudReadSession> {
         if let Session::Vault {
             apple_id,
             credential_id,
@@ -196,7 +215,7 @@ impl ICloudNativeTrash {
             _ => Err(MutationError::Uncertain),
         }
     }
-    fn staging(&self) -> Result<File> {
+    pub(super) fn staging(&self) -> Result<File> {
         let meta =
             std::fs::symlink_metadata(&self.staging).map_err(|_| MutationError::Uncertain)?;
         let uid = std::fs::metadata("/proc/self")

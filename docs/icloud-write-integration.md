@@ -865,21 +865,37 @@ confirmation is lost, inspect the retained operation before submitting another
 copy: uncertain allocation is never blindly repeated.
 
 The [public import artifact](benchmarks/icloud-public-native-import-2026-10-01.md)
-records passing synthetic socket/FUSE, account-binding and native-window dialog
-checks. Its second live attempt reached a durable Uploaded package receipt and
-completed metadata publication. Independent exact-identity download, root-bound
-semantic comparison, normal read-only FUSE, offline remount and fresh refetch also
-passed. The public job nevertheless falsely reported a revision mismatch; the
-receipt/projection correction is under validation. The original runner therefore
-did not reach its post-success check on the public mount. Corrected public success,
-that mount check, and Apple Pages UI acceptance remain open for this arm; the
-independent verification is not a substitute for them.
+records the ec7 arm's durable Uploaded receipt and metadata publication, followed
+by independent exact-identity download, semantic comparison, FUSE reads, offline
+remount and fresh refetch. Its initial public job falsely reported a revision
+mismatch and never reached its original post-success mount endpoint. The narrow
+receipt/projection correction passed the project checks; this does not rewrite
+that historical result.
 
-A capability-gated desktop Pages import dialog is implemented and has synthetic
-native-window coverage. Installed click-through remains open. This is create-only:
-editing or replacing existing native documents, Numbers/Keynote imports, and full
-native application compatibility are not supported by this route. Neither the
-old isolated validator nor the new live upload closes those remaining gates.
+The subsequent [retained observation](benchmarks/icloud-native-import-watch-2026-10-01.md)
+passed public watch completion after restart, confirmed the exact package in the
+warm mount, and preserved the upload journal unchanged. Apple Pages then opened
+that exact ec7 allocated document and displayed the synthetic source content,
+without editing. The later [fresh public Trash arm](benchmarks/icloud-public-native-trash-2026-10-01.md)
+also passed a new CLI import, independent semantic readback and mounted access
+before removing its own document. This separate f2dec result is not Apple Pages
+UI acceptance for that document or evidence of desktop import submission.
+
+The capability-gated desktop Pages import dialog has synthetic native-window
+coverage. Live portal selection through verified completion and publication on
+the original GUI connection's mount remains open, as does installed click-through.
+The acceptance-ledger import row remains unchecked. This route creates documents;
+editing/replacing existing native documents, Numbers/Keynote imports and full
+native application compatibility remain separate requirements.
+
+The retained ec7 Apple UI observation file's SHA-256 is
+`d7584efd648f02aa945233367aff27c7b82daba1fdbf3bdc2f0b48931a7e97a8`;
+its watch job receipt is
+`1a17d886dcd3ec7954a49c692352848955563ad97ab77269aeb0cce7766fc7ab`.
+These identify the local artifacts cited by the retained-observation benchmark,
+not a new browser inspection. The f2dec independent Trash receipt hash was also
+rechecked against its benchmark and matched
+`40724f9819fd89c1ba90749d1a3d9de96bae7c963684924acedf84d512d9ca75`.
 
 ### Observe a retained native import without submitting again
 

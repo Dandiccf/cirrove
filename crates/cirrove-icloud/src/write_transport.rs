@@ -39,18 +39,15 @@ struct ProbeTrashItem {
     etag: Option<String>,
 }
 
-#[cfg(feature = "write-probe")]
 pub(crate) struct ProbeRestoreReceipt {
     pub http_status: u16,
     pub etag: String,
 }
 
-#[cfg(feature = "write-probe")]
 #[derive(Deserialize)]
 struct ProbeRestoreReply {
     items: Vec<ProbeRestoreItem>,
 }
-#[cfg(feature = "write-probe")]
 #[derive(Deserialize)]
 struct ProbeRestoreItem {
     status: String,
@@ -457,7 +454,6 @@ impl ICloudReadSession {
     }
 
     /// One request only. No generic Drive retry helper and no revision adoption.
-    #[cfg(feature = "write-probe")]
     pub(crate) async fn send_probe_restore(
         &mut self,
         item_id: &str,

@@ -661,7 +661,7 @@
       "blocker": "needs-live-account",
       "blocks_release": "yes",
       "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
-      "evidence": "docs/benchmarks/icloud-public-native-import-2026-10-01.md: successful durable upload and independent FUSE/offline/refetch verification; false public-job failure correction and original-mount/Apple UI acceptance remain separate.",
+      "evidence": "docs/benchmarks/icloud-native-import-watch-2026-10-01.md: retained ec7 public watch, warm mount and exact Apple Pages open passed; original false-failure and missed original mount endpoint remain recorded. docs/benchmarks/icloud-public-native-trash-2026-10-01.md: later fresh f2dec CLI import/readback/mounted access passed. Live desktop chooser-to-completion/publication remains open.",
       "asserted_by": null
     },
     {

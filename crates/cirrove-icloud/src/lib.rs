@@ -2018,3 +2018,6 @@ mod storage_refusal_tests;
 mod package_create;
 mod package_transport;
 pub use package_create::ICloudPackageCreate;
+
+mod native_restore;
+pub use native_restore::{ICloudNativeRestore, NativeRestoreRequest};

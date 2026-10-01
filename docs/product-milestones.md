@@ -489,6 +489,18 @@ not permission to tick installed or native-editing requirements.
 - [ ] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
 - [ ] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
 
+The Pages import row remains open for the live desktop chooser, verified job
+completion and publication on its original mount. The retained ec7 import has
+since passed observer-only public completion, warm mounted visibility and Apple
+Pages open of its exact allocated document; see the
+[retained observation](benchmarks/icloud-native-import-watch-2026-10-01.md).
+Its original false-failure job and missed original post-success mount endpoint
+remain historical failures. The later fresh f2dec CLI arm passed import,
+independent semantic readback and mounted access before native Trash, as recorded
+in [the public Trash arm](benchmarks/icloud-public-native-trash-2026-10-01.md).
+That separate arm does not establish live desktop import or Apple Pages open of
+the f2dec document. No acceptance box is closed by combining those observations.
+
 Supporting evidence and remaining limits are in
 [the write integration boundary](icloud-write-integration.md),
 [public native import](benchmarks/icloud-public-native-import-2026-10-01.md),

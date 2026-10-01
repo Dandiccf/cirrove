@@ -531,6 +531,26 @@ async fn main() -> Result<()> {
         .await
         .context("public verification timed out; artifacts retained")?;
     }
+    if let [flag, run] = args.as_slice() {
+        if flag == "--public-native-restore" {
+            return tokio::time::timeout(
+                std::time::Duration::from_secs(1200),
+                cirrove_service::validation::icloud_public_native_restore(Uuid::parse_str(run)?),
+            )
+            .await
+            .context("native restore stopped; inspect retained operation, never repeat execute")?;
+        }
+        if flag == "--public-native-restore-inspect" {
+            return tokio::time::timeout(
+                std::time::Duration::from_secs(900),
+                cirrove_service::validation::icloud_public_native_restore_inspect(Uuid::parse_str(
+                    run,
+                )?),
+            )
+            .await
+            .context("native restore observation stopped; no mutation was submitted")?;
+        }
+    }
     if let [flag, run, name] = args.as_slice()
         && flag == "--public-native-trash-bootstrap"
     {

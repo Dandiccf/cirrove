@@ -1,5 +1,6 @@
-//! Read-only verification for a fresh public-service native Trash arm.
-//! Neither command starts workers, changes a receipt, or sends a mutation.
+//! Verification for a fresh public-service native Trash arm.
+//! Verification commands are read-only. The restore child exposes a separate,
+//! single-use feature-only mutation bound to that exact retained fixture.
 use super::super::public_bootstrap::{TRASH_LABEL, source_identity_matches, trash_directory};
 use super::public_verify::{exact_entry, named_receipt_binding};
 use super::*;
@@ -226,21 +227,7 @@ pub async fn icloud_public_native_trash_verify(
     let b = binding(run, name, import)?;
     let selected: Selection = read_json(&b.dir.join("verified-import-selection.json"), 32768)?;
     selection_binding(&selected, &b, run, import)?;
-    let row = b.journal.native_validation_mutation(trash)?;
-    ensure!(
-        trash != import
-            && row.request.scope == scope(&b.account)
-            && row.request.intent
-                == MutationIntent::TrashNativeDocument {
-                    before: selected.node.clone()
-                }
-            && row.state == MutationState::Applied
-            && row.base.is_none()
-            && row.working_file.is_none()
-            && row.receipt.as_ref().is_some_and(|r| row.request.accepts(r))
-            && b.journal.native_validation_absence(trash)?,
-        "public Trash receipt or publication binding mismatch"
-    );
+    require_applied_trash(&b, &selected, import, trash)?;
     let attempt = verification_directory(&b.dir)?;
     manifest(&attempt, run, "public-trash-read")?;
     let mut remote = session(&b.dir, &b.account).await?;
@@ -357,3 +344,29 @@ mod tests {
         assert!(current_node(&[changed], &node).is_err());
     }
 }
+
+fn require_applied_trash(
+    b: &Binding,
+    selected: &Selection,
+    import: Uuid,
+    trash: Uuid,
+) -> Result<()> {
+    let row = b.journal.native_validation_mutation(trash)?;
+    ensure!(
+        trash != import
+            && row.request.scope == scope(&b.account)
+            && row.request.intent
+                == MutationIntent::TrashNativeDocument {
+                    before: selected.node.clone()
+                }
+            && row.state == MutationState::Applied
+            && row.base.is_none()
+            && row.working_file.is_none()
+            && row.receipt.as_ref().is_some_and(|r| row.request.accepts(r))
+            && b.journal.native_validation_absence(trash)?,
+        "public Trash receipt or publication binding mismatch"
+    );
+    Ok(())
+}
+mod restore;
+pub use restore::{icloud_public_native_restore, icloud_public_native_restore_inspect};

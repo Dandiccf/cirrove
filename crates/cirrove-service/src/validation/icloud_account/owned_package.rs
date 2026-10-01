@@ -440,5 +440,6 @@ pub use public_verify::{
 
 mod public_trash;
 pub use public_trash::{
+    icloud_public_native_restore, icloud_public_native_restore_inspect,
     icloud_public_native_trash_import_verify, icloud_public_native_trash_verify,
 };
