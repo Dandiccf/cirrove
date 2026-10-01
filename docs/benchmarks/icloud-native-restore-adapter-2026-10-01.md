@@ -30,7 +30,7 @@ caller tests with write-probe features enabled. Manifests and logs are retained 
 `.local-state/icloud-access-<arm>-2026-10-01/`; each records source hashes,
 command, private disk-backed temporary directories and process completion.
 
-## Proposed controlled live arm (not executed)
+## Preregistered controlled live arm
 
 Use only the freshly imported and trashed Pages fixture above. Require an exclusive
 read-only journal lease, exact import c52350d0-8b9d-4278-8c49-578adcf94c8f and Trash
@@ -49,3 +49,26 @@ installed daemon, unrelated documents or general restore admission changes.
 mount tests, script/integration checks, ledger and docs. Existing rustdoc link
 warning remains; graphical window scenarios are separate. No installed service
 was restarted. This is not live restoration or release acceptance.
+
+## Controlled live result
+
+The owned f2dec restoration passed on 2026-10-01. Its single restore operation
+`2cdd34c3-7c94-4ee7-a481-efabd35b5e4d` returned the exact selected provider
+identity and matching root-normalized package contents. A fresh process then
+reconciled that same operation with read-only inspection and independently
+confirmed the same identity and semantics; it sent no mutation.
+
+Restore confirmation: `/var/tmp/cirrove-public-native-trash-f2dec2e2-b870-4f1f-bfb5-e6d63f008941/verify-7145f813-eaa0-4285-906a-5607ee212c68/restore-confirmed.json`;
+SHA-256 `c2217f319d2a368c63ae7dccbeaab1cfbeee4e54ac2e20971c8293a1fd2d2c9c`.
+
+Fresh-process inspection: `/var/tmp/cirrove-public-native-trash-f2dec2e2-b870-4f1f-bfb5-e6d63f008941/verify-7d9c36bb-07c3-4564-9187-839b508544aa/restore-inspection.json`;
+SHA-256 `fe8ad3462018d63c48b67555f73fc780f678fcb61cd45ea5a8231ff5d56d7e17`.
+
+Arms `native-restore-owned-f2dec-live` and
+`native-restore-owned-f2dec-inspect` both exited0; their manifests retain binary
+SHA-256, source hashes, disk temporary filesystem and timings. One root listing
+took29.405 seconds; this successful arm is not latency or reliability statistics.
+No installed daemon was restarted. Normal-service Restore routing, atomic
+destination collision protection and mounted restore publication remain unproven.
+The fixture is now active again; its earlier Trash receipt records a historical
+removal and must not be presented as proof that it is currently absent.
