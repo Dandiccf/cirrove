@@ -8,9 +8,9 @@ pub struct WorkingExportSource {
     scope: Scope,
     working: PathBuf,
     journal_root: PathBuf,
-    // Keep the same journal owner alive, including after account shutdown.
-    owner: File,
     directory: Option<std::sync::Arc<File>>,
+    // Last: keep ownership through descriptor and private-copy teardown.
+    owner: Arc<JournalOwner>,
 }
 /// Private copied bytes with no authority to publish until journal validation.
 pub struct PreparedWorkingExport {
@@ -18,15 +18,15 @@ pub struct PreparedWorkingExport {
     scope: Scope,
     working: PathBuf,
     copy: PreparedLocalCopy,
-    owner: File,
     directory: Option<std::sync::Arc<File>>,
+    owner: Arc<JournalOwner>,
 }
 /// A coherent selected generation, independent of subsequent working-file edits.
 pub struct VerifiedWorkingExport {
     source: WorkingRecovery,
     copy: PreparedLocalCopy,
-    _owner: File,
     _directory: Option<std::sync::Arc<File>>,
+    _owner: Arc<JournalOwner>,
 }
 impl UploadJournal {
     /// Bounded metadata-only pagination; clean records still advance the cursor.
@@ -81,7 +81,7 @@ impl UploadJournal {
             .map_err(std::io::Error::from)?,
         );
         let metadata = directory.metadata()?;
-        if metadata.uid() != self._owner.metadata()?.uid()
+        if metadata.uid() != self._owner.file().metadata()?.uid()
             || metadata.permissions().mode() & 0o077 != 0
         {
             return Err(JournalError::Storage);
@@ -114,7 +114,7 @@ impl UploadJournal {
                 .parent()
                 .ok_or(JournalError::Storage)?
                 .canonicalize()?,
-            owner: self._owner.try_clone()?,
+            owner: self._owner.clone(),
             directory: None,
         })
     }

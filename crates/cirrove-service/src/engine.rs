@@ -276,7 +276,10 @@ pub struct Engine {
     /// alive, and it holds no transaction, so checkpointing stays normal.
     _keeper: StdMutex<Store>,
     _owner: std::fs::File,
-    pub(crate) recovery_journal: Mutex<Weak<StdMutex<crate::journal::RecoveryJournal>>>,
+    pub(crate) recovery_journal: Arc<Mutex<Weak<StdMutex<crate::journal::RecoveryJournal>>>>,
+    pub(crate) recovery_journal_gate: Arc<StdMutex<()>>,
+    #[cfg(test)]
+    pub(crate) recovery_test_hooks: Arc<crate::recovery::RecoveryTestHooks>,
 }
 impl Engine {
     pub async fn new(
@@ -334,7 +337,10 @@ impl Engine {
             kept_generation: AtomicU64::new(0),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
-            recovery_journal: Mutex::new(Weak::new()),
+            recovery_journal: Arc::new(Mutex::new(Weak::new())),
+            recovery_journal_gate: Arc::new(StdMutex::new(())),
+            #[cfg(test)]
+            recovery_test_hooks: Arc::new(crate::recovery::RecoveryTestHooks::default()),
         }))
     }
     /// Read one indexed display name through the already-owned metadata connection.

@@ -290,6 +290,7 @@ impl RecoveryJournal {
                 JournalError::Storage
             }
         })?;
+        let owner = JournalOwner::acquired(owner);
         let _database = open_existing("uploads.db")?;
         let db = Connection::open_with_flags(
             root.join("uploads.db"),

@@ -8,6 +8,8 @@ mod barriers;
 mod directories;
 mod export;
 mod generations;
+#[cfg(test)]
+mod owner_inheritance_tests;
 pub use export::{
     LocalExportReceipt, LocalExportSource, PreparedWorkingExport, RecoveryJournal,
     VerifiedWorkingExport, WorkingExportReceipt, WorkingExportSource, WorkingRecovery,
@@ -16,6 +18,7 @@ mod handoff;
 mod identity_handoff;
 mod mutations;
 mod namespace;
+mod owner;
 mod preparation;
 mod publication;
 mod replacements;
@@ -31,6 +34,7 @@ pub(crate) use namespace::project_retained_namespace;
 pub use namespace::{
     NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, project_namespace,
 };
+use owner::JournalOwner;
 pub use preparation::UploadPreparation;
 pub use publication::{NamespacePublication, NamespaceSnapshot};
 pub use replacements::ReplacementRecord;
@@ -42,6 +46,7 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
     os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 pub use unlinked::UnlinkedFile;
 use uuid::Uuid;
@@ -270,7 +275,8 @@ pub struct UploadJournal {
     working: PathBuf,
     account: String,
     quota: u64,
-    _owner: File,
+    // Last: close SQLite and other journal resources before releasing ownership.
+    _owner: Arc<JournalOwner>,
 }
 fn owned_private(file: &File) -> Result<()> {
     let meta = file.metadata()?;
@@ -310,6 +316,7 @@ impl UploadJournal {
                 JournalError::Storage
             }
         })?;
+        let owner = JournalOwner::acquired(owner);
         let objects = root.join("objects");
         crate::private_dir(&objects).map_err(|_| JournalError::Storage)?;
         let working = root.join("working");

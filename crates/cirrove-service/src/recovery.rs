@@ -7,13 +7,68 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub(crate) struct RecoveryControl {
     // Blocking copies must retain the account lease as well as the journal lease.
-    engine: Arc<Engine>,
     access: Access,
+    engine: Arc<Engine>,
 }
 #[derive(Clone)]
 enum Access {
     Writer(WriteControl),
-    ReadOnly(Option<Arc<Mutex<RecoveryJournal>>>),
+    ReadOnly(Option<RecoveryLease>),
+}
+/// Every strong journal reference is owned by a lease. Closing its last Arc
+/// and opening a successor use the same gate: Weak expiry alone does not mean
+/// the journal destructor has finished releasing its SQLite/file owners.
+#[derive(Clone)]
+struct RecoveryLease {
+    journal: Option<Arc<Mutex<RecoveryJournal>>>,
+    // Also protect the account if spawn_blocking returns an abandoned lease
+    // after the async caller has been cancelled.
+    engine: Arc<Engine>,
+}
+impl Drop for RecoveryLease {
+    fn drop(&mut self) {
+        let _gate = self
+            .engine
+            .recovery_journal_gate
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(journal) = self.journal.take() {
+            match Arc::try_unwrap(journal) {
+                Ok(journal) => {
+                    // At this point Weak::upgrade fails, but the journal and
+                    // flock still exist. Keep the gate through their full drop.
+                    #[cfg(test)]
+                    if let Some(probe) = self
+                        .engine
+                        .recovery_test_hooks
+                        .closing
+                        .lock()
+                        .expect("recovery test hook is not poisoned")
+                        .take()
+                    {
+                        let _ = probe.entered.send(());
+                        let _ = probe
+                            .release
+                            .recv_timeout(std::time::Duration::from_secs(5));
+                    }
+                    drop(journal);
+                }
+                Err(shared) => drop(shared),
+            }
+        }
+    }
+}
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct RecoveryTestHooks {
+    pub(crate) closing: Mutex<Option<RecoveryCloseProbe>>,
+    pub(crate) opening: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
+    pub(crate) publishing: Mutex<Option<RecoveryCloseProbe>>,
+}
+#[cfg(test)]
+pub(crate) struct RecoveryCloseProbe {
+    pub(crate) entered: tokio::sync::oneshot::Sender<()>,
+    pub(crate) release: std::sync::mpsc::Receiver<()>,
 }
 impl RecoveryControl {
     pub(crate) fn writer(engine: Arc<Engine>, writer: WriteControl) -> Result<Self> {
@@ -32,12 +87,35 @@ impl RecoveryControl {
         {
             bail!("account is not available for read-only recovery");
         }
-        let mut cached = engine.recovery_journal.lock().await;
+        let cached = engine.recovery_journal.clone().lock_owned().await;
         let journal = if let Some(journal) = cached.upgrade() {
-            Some(journal)
+            let lease = RecoveryLease {
+                journal: Some(journal),
+                engine: engine.clone(),
+            };
+            drop(cached);
+            Some(lease)
         } else {
             let owner = engine.clone();
-            let journal = tokio::task::spawn_blocking(move || -> Result<_> {
+            tokio::task::spawn_blocking(move || -> Result<_> {
+                // Transfer the cache guard with the blocking operation. If the
+                // caller is cancelled, another opener still cannot miss the
+                // live lease before this worker publishes its weak reference.
+                let mut cached = cached;
+                #[cfg(test)]
+                if let Some(opening) = owner
+                    .recovery_test_hooks
+                    .opening
+                    .lock()
+                    .expect("recovery test hook is not poisoned")
+                    .take()
+                {
+                    let _ = opening.send(());
+                }
+                let _gate = owner
+                    .recovery_journal_gate
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 let path = owner
                     .db
                     .parent()
@@ -51,15 +129,32 @@ impl RecoveryControl {
                 let journal = RecoveryJournal::open(&path, &owner.account.id).map_err(|_| {
                     anyhow::anyhow!("local recovery journal is busy or unavailable")
                 })?;
-                Ok(Some(Arc::new(Mutex::new(journal))))
+                // Return the lease itself: if the async caller is cancelled,
+                // spawn_blocking's abandoned result still closes under the gate.
+                let lease = RecoveryLease {
+                    journal: Some(Arc::new(Mutex::new(journal))),
+                    engine: owner.clone(),
+                };
+                #[cfg(test)]
+                if let Some(probe) = owner
+                    .recovery_test_hooks
+                    .publishing
+                    .lock()
+                    .expect("recovery test hook is not poisoned")
+                    .take()
+                {
+                    let _ = probe.entered.send(());
+                    let _ = probe
+                        .release
+                        .recv_timeout(std::time::Duration::from_secs(5));
+                }
+                *cached = Arc::downgrade(lease.journal.as_ref().expect("live recovery lease"));
+                // The returned lease outlives these local guards. Its Drop can
+                // therefore acquire the gate even if its receiver was aborted.
+                Ok(Some(lease))
             })
-            .await??;
-            if let Some(journal) = &journal {
-                *cached = Arc::downgrade(journal);
-            }
-            journal
+            .await??
         };
-        drop(cached);
         if engine.cancel.is_cancelled() {
             bail!("account stopped; refresh before exporting");
         }
@@ -79,6 +174,9 @@ impl RecoveryControl {
                 bail!("no retained local journal");
             };
             let journal = journal
+                .journal
+                .as_ref()
+                .context("recovery lease closed")?
                 .lock()
                 .map_err(|_| anyhow::anyhow!("local recovery journal unavailable"))?;
             work(&journal)

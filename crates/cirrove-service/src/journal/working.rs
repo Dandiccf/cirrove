@@ -43,7 +43,7 @@ pub struct WorkingSource {
     size: u64,
     written: u64,
     // Reserved bytes keep journal ownership alive across asynchronous I/O.
-    _owner: File,
+    _owner: Arc<JournalOwner>,
 }
 impl WorkingSource {
     pub(super) fn complete_descriptor(&self, directory: &Path) -> Result<File> {
@@ -135,7 +135,7 @@ impl UploadJournal {
             temporary,
             size,
             written: 0,
-            _owner: self._owner.try_clone()?,
+            _owner: self._owner.clone(),
         })
     }
     pub fn working_files(&self) -> Result<Vec<WorkingFile>> {
