@@ -614,8 +614,8 @@ impl Window {
             .build();
         // Changing an account's consent was the last ordinary flow that needed a
         // terminal (`cirrove reauth --write-access`). It is a re-sign-in either
-        // way, so the provider's own consent screen is what actually grants or
-        // narrows the access; this button only asks for it.
+        // way. OAuth providers receive a consent request; iCloud changes only
+        // Cirrove's local access policy after the same account signs in.
         let consent = gtk::Button::builder()
             .label(gettext("Allow changes"))
             .valign(gtk::Align::Center)
@@ -946,8 +946,10 @@ impl Window {
         } else {
             "Allow changes"
         });
-        row.consent.set_tooltip_text(Some(if card.writable && card.provider_id == "googledrive" {
-            "Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Google Account"
+        row.consent.set_tooltip_text(Some(&if card.provider_id == "icloud" {
+            gettext("Sign in again to change Cirrove's local access policy. Apple session permissions stay unchanged; native document packages remain protected.")
+        } else if card.writable && card.provider_id == "googledrive" {
+            gettext("Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Google Account")
         } else if card.writable {
             // Deliberately about what Cirrove will do, not about what the token
             // can do. Asking for the narrower scope does not take the wider one
@@ -955,9 +957,9 @@ impl Window {
             // may return it again, and only the person can withdraw it in their
             // provider account. Saying the permission is gone would be a
             // stronger promise than this button keeps.
-            "Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Microsoft account"
+            gettext("Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Microsoft account")
         } else {
-            "Sign in again asking to make changes, so files in this drive can be saved"
+            gettext("Sign in again asking to make changes, so files in this drive can be saved")
         }));
         // Asking to write is the direction that grants something, so it is the
         // one marked; asking to read less is ordinary.
@@ -1392,7 +1394,7 @@ impl Window {
             return;
         };
         if card.provider_id == "icloud" {
-            connect::present_icloud_reauth(self, id);
+            connect::present_icloud_reauth(self, id, access);
             return;
         }
         if card.provider_id == "googledrive" {

@@ -157,6 +157,29 @@ use std::{
     sync::Arc,
 };
 
+fn reauth_access(write_access: bool, read_only: bool) -> Option<cirrove_auth::AccessMode> {
+    match (write_access, read_only) {
+        (true, _) => Some(cirrove_auth::AccessMode::ReadWrite),
+        (_, true) => Some(cirrove_auth::AccessMode::ReadOnly),
+        _ => None,
+    }
+}
+
+fn connection_access(write_access: bool) -> cirrove_auth::AccessMode {
+    if write_access {
+        cirrove_auth::AccessMode::ReadWrite
+    } else {
+        cirrove_auth::AccessMode::ReadOnly
+    }
+}
+
+fn access_name(access: cirrove_auth::AccessMode) -> &'static str {
+    match access {
+        cirrove_auth::AccessMode::ReadOnly => "read-only",
+        cirrove_auth::AccessMode::ReadWrite => "read-write",
+    }
+}
+
 async fn icloud_login(apple_id: &str) -> Result<ICloudReadSession> {
     cirrove_auth::DesktopVault::reachable().await?;
     let password =
@@ -386,12 +409,11 @@ enum Command {
         label: String,
         #[arg(long)]
         state_dir: Option<PathBuf>,
-        /// Request write consent for this account instead of keeping its current
-        /// mode. The only way to move an existing account between read-only and
-        /// writable without discarding its index.
+        /// Explicitly allow changes after sign-in, preserving the drive and cache.
+        /// For iCloud this is Cirrove's local policy, not narrower Apple consent.
         #[arg(long, conflicts_with = "read_only")]
         write_access: bool,
-        /// Return this account to read-only consent.
+        /// Explicitly return this account to read-only after sign-in.
         #[arg(long)]
         read_only: bool,
     },
@@ -431,7 +453,7 @@ enum Command {
         #[arg(long)]
         write_access: bool,
     },
-    /// Experimental read-only iCloud Drive connection using native Apple sign-in.
+    /// Experimental iCloud Drive connection; defaults to locally enforced read-only.
     ConnectIcloud {
         #[arg(long)]
         label: String,
@@ -441,6 +463,10 @@ enum Command {
         mount_path: PathBuf,
         #[arg(long)]
         state_dir: Option<PathBuf>,
+        /// Explicitly allow ordinary-file changes after sign-in. Locally enforced
+        /// by Cirrove; does not narrow the native Apple session permission.
+        #[arg(long)]
+        write_access: bool,
     },
     /// List configured account identities and drive selections; no secrets.
     Accounts {
@@ -909,22 +935,18 @@ async fn main() -> Result<()> {
                 .into_iter()
                 .find(|account| account.label == label)
                 .context("unknown account label")?;
+            let access = reauth_access(write_access, read_only);
             if matches!(account.registration, cirrove_auth::AppRegistration::ICloud) {
-                if write_access {
-                    bail!("iCloud writes are not supported; sign in read-only");
-                }
-                let session = icloud_login(&account.identity.username).await?;
-                cirrove_service::accounts::reauthenticate_icloud_with_session(
-                    state, label, session,
-                )
-                .await?;
-                println!("iCloud is signed in again with read-only access.");
+                let pending =
+                    cirrove_service::accounts::begin_reauthenticate_icloud(state, label, access)?;
+                let mode = pending.access();
+                let session = icloud_login(pending.apple_id()).await?;
+                pending.finish(session).await?;
+                println!(
+                    "iCloud is signed in again with {} access (enforced locally by Cirrove).",
+                    access_name(mode)
+                );
             } else {
-                let access = match (write_access, read_only) {
-                    (true, _) => Some(cirrove_auth::AccessMode::ReadWrite),
-                    (_, true) => Some(cirrove_auth::AccessMode::ReadOnly),
-                    _ => None,
-                };
                 cirrove_service::accounts::reauthenticate(state, label, access).await?;
             }
         }
@@ -1028,6 +1050,7 @@ async fn main() -> Result<()> {
             apple_id,
             mount_path,
             state_dir: state,
+            write_access,
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             if !cirrove_service::accounts::valid_label(&label) {
@@ -1043,13 +1066,19 @@ async fn main() -> Result<()> {
                 bail!("this label or mount path is already configured");
             }
             let session = icloud_login(&apple_id).await?;
-            let account = cirrove_service::accounts::connect_icloud_with_session(
-                state, label, mount_path, apple_id, session,
+            let account = cirrove_service::accounts::connect_icloud_with_session_and_access(
+                state,
+                label,
+                mount_path,
+                apple_id,
+                session,
+                connection_access(write_access),
             )
             .await?;
             println!(
-                "Connected {} read-only at {}. This iCloud path remains experimental.",
+                "Connected {} {} at {}. Access is enforced locally by Cirrove; this iCloud path remains experimental.",
                 account.label,
+                access_name(account.access),
                 account.mount_path.display()
             );
         }
@@ -1950,4 +1979,75 @@ async fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod icloud_access_tests {
+    use super::*;
+    use cirrove_auth::AccessMode;
+
+    #[test]
+    fn icloud_connection_defaults_read_only_and_write_choice_is_explicit() {
+        for requested in [false, true] {
+            let mut args = vec![
+                "cirrove",
+                "connect-icloud",
+                "--label",
+                "Cloud",
+                "--apple-id",
+                "synthetic@example.invalid",
+                "--mount-path",
+                "/nonexistent/mount",
+            ];
+            if requested {
+                args.push("--write-access");
+            }
+            let parsed = Args::try_parse_from(args).expect("CLI");
+            let Command::ConnectIcloud { write_access, .. } = parsed.command else {
+                panic!("wrong command")
+            };
+            assert_eq!(
+                connection_access(write_access),
+                if requested {
+                    AccessMode::ReadWrite
+                } else {
+                    AccessMode::ReadOnly
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn reauth_preserves_mode_unless_one_explicit_access_flag_is_given() {
+        for (flag, expected) in [
+            (None, None),
+            (Some("--write-access"), Some(AccessMode::ReadWrite)),
+            (Some("--read-only"), Some(AccessMode::ReadOnly)),
+        ] {
+            let mut args = vec!["cirrove", "reauth", "Cloud"];
+            if let Some(flag) = flag {
+                args.push(flag);
+            }
+            let parsed = Args::try_parse_from(args).expect("CLI");
+            let Command::Reauth {
+                write_access,
+                read_only,
+                ..
+            } = parsed.command
+            else {
+                panic!("wrong command")
+            };
+            assert_eq!(reauth_access(write_access, read_only), expected);
+        }
+        assert!(
+            Args::try_parse_from([
+                "cirrove",
+                "reauth",
+                "Cloud",
+                "--write-access",
+                "--read-only"
+            ])
+            .is_err()
+        );
+    }
 }

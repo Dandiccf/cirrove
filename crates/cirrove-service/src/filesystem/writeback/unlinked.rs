@@ -81,8 +81,12 @@ impl Writeback {
         let writer = self.clone();
         let scope = view.scope.as_ref().clone();
         let source = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
+        let admission = self
+            .admit_write(&inner.engine, &scope, &source, &inner.cancel)
+            .await?;
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
+            admission.recheck(&j).map_err(error)?;
             let mut object = Self::materialize(&mut j, scope, source).map_err(error)?;
             if object.unlinked {
                 return Err(Errno::ENOENT);
@@ -324,7 +328,8 @@ impl Writeback {
             let mut view = users[0].view.clone();
             view.node = Some(std::sync::Arc::new(object.node.clone()));
             drop(users);
-            self.prepare(engine, &view, false, &engine.cancel).await?;
+            self.prepare_inner(engine, &view, None, &engine.cancel, false)
+                .await?;
         }
         let users = {
             let p = self.projection.lock().map_err(|_| Errno::EIO)?;

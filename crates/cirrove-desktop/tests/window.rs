@@ -1267,7 +1267,7 @@ fn a_second_google_account_reuses_the_app_and_receives_a_default_folder() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
-fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
+fn icloud_connect_defaults_read_only_and_requires_explicit_write_selection() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -1290,6 +1290,9 @@ fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
     );
     pump_until("window", || ui.current().is_some());
     let window = ui.window.upgrade().unwrap();
+    if std::env::var_os("CIRROVE_ICLOUD_CONNECT_ACCESS_SNAPSHOT").is_some() {
+        window.set_default_size(800, 1100);
+    }
     button(window.upcast_ref(), "Connect a drive")
         .unwrap()
         .emit_clicked();
@@ -1309,12 +1312,36 @@ fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
     assert!(!sign_in.is_sensitive());
     assert!(entry_row(window.upcast_ref(), "Apple Account email").is_some());
     assert!(entry_row(window.upcast_ref(), "Apple Account password").is_some());
+    let changes = action_row(window.upcast_ref(), "Allow changes")
+        .unwrap()
+        .downcast::<adw::SwitchRow>()
+        .unwrap();
+    assert!(changes.is_visible());
+    assert!(!changes.is_active(), "iCloud starts read-only");
+    changes.set_active(true);
     assert!(
-        !action_row(window.upcast_ref(), "Allow changes")
-            .unwrap()
-            .is_visible(),
-        "iCloud has no write implementation or grant"
+        changes.is_active(),
+        "ordinary writes require an explicit choice"
     );
+    provider_selector(window.upcast_ref())
+        .unwrap()
+        .set_selected(1);
+    changes.set_active(true);
+    provider_selector(window.upcast_ref())
+        .unwrap()
+        .set_selected(2);
+    assert!(
+        !changes.is_active(),
+        "another provider's enabled switch is not an iCloud opt-in"
+    );
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "not by a narrower Apple permission"
+    ));
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "native document packages remain protected"
+    ));
     entry_row(window.upcast_ref(), "Apple Account email")
         .unwrap()
         .set_text("person@example.invalid");
@@ -1328,9 +1355,88 @@ fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
             .subtitle()
             .is_some_and(|subtitle| subtitle.ends_with("/Cloud/Cirrove-iCloudTest"))
     );
+    recovery_snapshot(&window, "CIRROVE_ICLOUD_CONNECT_ACCESS_SNAPSHOT");
     window.close();
     service.task.abort();
     runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn icloud_access_dialog_captures_intent_and_cancel_preserves_account() {
+    for explicit_write in [false, true] {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let state = temp.path().join("state");
+        cirrove_service::private_dir(&state).unwrap();
+        let mut sample = demo::snapshot().unwrap();
+        let account = &mut sample.settings.as_mut().unwrap().accounts[0];
+        account.registration = cirrove_auth::AppRegistration::ICloud;
+        account.identity.tenant_id.clear();
+        account.identity.graph_user_id.clear();
+        account.drive.id = "drive".into();
+        account.drive.drive_type = "icloud_drive".into();
+        account.drive.name = "iCloud Drive".into();
+        account.root_id = cirrove_icloud::ROOT_ID.into();
+        account.access = cirrove_auth::AccessMode::ReadOnly;
+        let id = account.id.clone();
+        sample.status.as_mut().unwrap().accounts[0].provider = "icloud".into();
+        write_settings(&state, sample.settings.as_ref().unwrap());
+        let before = std::fs::read(state.join("accounts.json")).unwrap();
+        let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+        let app = application(if explicit_write {
+            "ICloudExplicitAccess"
+        } else {
+            "ICloudPreserveAccess"
+        });
+        let ui = Window::new(
+            &app,
+            Backend::Live {
+                runtime: runtime.handle().clone(),
+                state: state.clone(),
+                socket: service.socket.clone(),
+            },
+        );
+        pump_until("iCloud account", || ui.current().is_some());
+        let window = ui.window.upgrade().unwrap();
+        if std::env::var_os("CIRROVE_ICLOUD_REAUTH_ACCESS_SNAPSHOT").is_some() {
+            window.set_default_size(800, 800);
+        }
+        window.present();
+        if explicit_write {
+            ui.change_access(&id);
+        } else {
+            ui.sign_in(&id);
+        }
+        pump_until("native access dialog", || {
+            entry_row(window.upcast_ref(), "Apple Account password").is_some()
+        });
+        let expected = if explicit_write {
+            "will allow ordinary-file changes"
+        } else {
+            "will keep this drive read-only"
+        };
+        pump_until("native access policy rendered", || {
+            displays_text_containing(window.upcast_ref(), "This is a local Cirrove policy")
+        });
+        assert!(displays_text_containing(window.upcast_ref(), expected));
+        assert!(displays_text_containing(
+            window.upcast_ref(),
+            "not a narrower Apple permission"
+        ));
+        assert_eq!(std::fs::read(state.join("accounts.json")).unwrap(), before);
+        if explicit_write {
+            recovery_snapshot(&window, "CIRROVE_ICLOUD_REAUTH_ACCESS_SNAPSHOT");
+        }
+        window.visible_dialog().unwrap().close();
+        pump_until("native dialog closed", || window.visible_dialog().is_none());
+        assert_eq!(std::fs::read(state.join("accounts.json")).unwrap(), before);
+        window.close();
+        service.task.abort();
+        runtime.shutdown_timeout(Duration::from_secs(1));
+    }
 }
 
 fn sample_working_recovery() -> cirrove_service::journal::WorkingRecovery {
@@ -2419,8 +2525,12 @@ const SCENARIOS: &[(&str, fn())] = &[
         a_second_google_account_reuses_the_app_and_receives_a_default_folder,
     ),
     (
-        "icloud_connect_shows_local_sign_in_and_never_offers_writes",
-        icloud_connect_shows_local_sign_in_and_never_offers_writes,
+        "icloud_connect_defaults_read_only_and_requires_explicit_write_selection",
+        icloud_connect_defaults_read_only_and_requires_explicit_write_selection,
+    ),
+    (
+        "icloud_access_dialog_captures_intent_and_cancel_preserves_account",
+        icloud_access_dialog_captures_intent_and_cancel_preserves_account,
     ),
     (
         "connected_icloud_account_can_sign_in_again_before_expiry",

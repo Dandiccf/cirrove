@@ -155,9 +155,12 @@ private test `--state-dir` instead of using the installed daemon's state.
 `cirrove reauth LABEL` repeats native Apple sign-in for a configured iCloud
 account without replacing its item index. Both commands request the regular
 Apple account password and trusted-device code in the local terminal; neither
-accepts a password as a command argument. The connection remains read-only.
-Settings validation rejects writable iCloud accounts and roots other than the
-opaque Apple Drive root. The metadata feed requires the keyring session and a
+accepts a password as a command argument. New connections default to read-only.
+The current development branch also exposes explicit experimental ordinary-file
+write access, including `reauth LABEL --write-access` and `--read-only`; ordinary
+reauthentication preserves the saved mode. Installation/release acceptance is
+still held, and the standalone read-only probe does not enable writes. Settings
+validation continues to reject roots other than the opaque Apple Drive root. The metadata feed requires the keyring session and a
 complete live root listing before publishing its synthetic root. One isolated
 service restart has restored a newly saved session; expiry and renewal still
 need validation before this becomes a normal connection choice.

@@ -11,6 +11,7 @@ use cirrove_icloud::{
     ICloudDrive, ICloudReadSession, ROOT_ID, SealedSessionVault, probe_session_key,
 };
 use cirrove_onedrive::{OneDrive, StaticToken};
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{File, OpenOptions},
@@ -129,15 +130,14 @@ impl Settings {
                 bail!("invalid selected Google Drive");
             }
             if matches!(account.registration, AppRegistration::ICloud)
-                && (account.access != AccessMode::ReadOnly
-                    || account.drive.id != "drive"
+                && (account.drive.id != "drive"
                     || account.drive.drive_type != "icloud_drive"
                     || account.root_id != "FOLDER::com.apple.CloudDocs::root"
                     || account.identity.username.is_empty()
                     || !account.identity.tenant_id.is_empty()
                     || !account.identity.graph_user_id.is_empty())
             {
-                bail!("invalid read-only iCloud Drive");
+                bail!("invalid iCloud Drive");
             }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
@@ -606,14 +606,21 @@ pub async fn reauthenticate(
     result
 }
 
-/// Replace only the native Apple session for an existing iCloud account.
-/// The caller signs in locally first; the account stays mounted until the new
-/// session and its Drive root have been validated.
-pub async fn reauthenticate_icloud_with_session(
+/// Native reauthentication intent captured before password/2FA entry.
+/// The exact original settings are revalidated under the account operation lock
+/// after same-account session validation. Dropping this pending intent changes
+/// neither settings nor the mounted account.
+pub struct PendingICloudReauthentication {
+    state: PathBuf,
+    original: Account,
+    requested: Option<AccessMode>,
+}
+
+pub fn begin_reauthenticate_icloud(
     state: PathBuf,
     label: String,
-    mut session: ICloudReadSession,
-) -> Result<()> {
+    requested: Option<AccessMode>,
+) -> Result<PendingICloudReauthentication> {
     let original = Settings::load(&state)?
         .accounts
         .into_iter()
@@ -622,39 +629,95 @@ pub async fn reauthenticate_icloud_with_session(
     if !matches!(original.registration, AppRegistration::ICloud) {
         bail!("this operation requires an iCloud connection");
     }
-    DesktopVault::reachable().await?;
-    session
-        .list_root()
-        .await
-        .context("iCloud Drive root is unavailable")?;
-    let snapshot = session.session_snapshot()?;
-    ICloudReadSession::from_session_snapshot(&snapshot, &original.identity.username)
-        .context("a different Apple account signed in")?;
+    Ok(PendingICloudReauthentication {
+        state,
+        original,
+        requested,
+    })
+}
 
-    let (_operation, desired) = suspend_validated_icloud_account(&state, &original)?;
-    let result = async {
-        let directory = state.join("accounts").join(&original.id);
-        let _owner = tokio::time::timeout(std::time::Duration::from_secs(30), async {
-            loop {
-                if let Ok(owner) = account_lock(&directory) {
-                    break owner;
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-            }
-        })
-        .await
-        .context("account did not stop; close files in this mount and try again")?;
-        SealedSessionVault::new(&state, &original.id)?
-            .save(&original.credential_id, snapshot)
+impl PendingICloudReauthentication {
+    pub fn account_id(&self) -> &str {
+        &self.original.id
+    }
+
+    pub fn apple_id(&self) -> &str {
+        &self.original.identity.username
+    }
+
+    /// Apple grants a native session; this is Cirrove's local access policy,
+    /// not a narrower Apple OAuth permission.
+    pub fn access(&self) -> AccessMode {
+        self.requested.unwrap_or(self.original.access)
+    }
+
+    pub async fn finish(self, mut session: ICloudReadSession) -> Result<()> {
+        DesktopVault::reachable().await?;
+        session
+            .list_root()
             .await
+            .context("iCloud Drive root is unavailable")?;
+        let snapshot = session.session_snapshot()?;
+        self.validate_snapshot(&snapshot)?;
+        let Self {
+            state,
+            original,
+            requested,
+        } = self;
+
+        let (_operation, desired) = suspend_validated_icloud_account(&state, &original)?;
+        let result = async {
+            let directory = state.join("accounts").join(&original.id);
+            let _owner = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+                loop {
+                    if let Ok(owner) = account_lock(&directory) {
+                        break owner;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+            })
+            .await
+            .context("account did not stop; close files in this mount and try again")?;
+            SealedSessionVault::new(&state, &original.id)?
+                .save(&original.credential_id, snapshot)
+                .await
+        }
+        .await;
+        complete_icloud_session_save(desired, requested, result)
     }
-    .await;
-    if result.is_ok() {
-        desired.complete(None)?;
-    } else {
-        drop(desired);
+
+    fn validate_snapshot(&self, snapshot: &SecretString) -> Result<()> {
+        ICloudReadSession::from_session_snapshot(snapshot, &self.original.identity.username)
+            .context("a different Apple account signed in")?;
+        Ok(())
     }
-    result
+}
+
+fn complete_icloud_session_save(
+    desired: DesiredState,
+    requested: Option<AccessMode>,
+    saved: Result<()>,
+) -> Result<()> {
+    match saved {
+        Ok(()) => desired.complete(requested),
+        Err(error) => {
+            drop(desired);
+            Err(error)
+        }
+    }
+}
+
+/// Compatibility wrapper for callers that already hold an authenticated session.
+/// Ordinary reauthentication preserves mode. New interactive callers should
+/// capture `begin_reauthenticate_icloud` before collecting password and 2FA.
+pub async fn reauthenticate_icloud_with_session(
+    state: PathBuf,
+    label: String,
+    session: ICloudReadSession,
+) -> Result<()> {
+    begin_reauthenticate_icloud(state, label, None)?
+        .finish(session)
+        .await
 }
 /// The Apple session was checked against `original` before this local operation.
 /// Refuse a changed account before saving credentials or changing desired state.
@@ -741,11 +804,12 @@ pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::Writ
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
-        AppRegistration::ICloud => bail!("iCloud writes are not supported"),
+        AppRegistration::ICloud => bail!("iCloud writes require the account journal context"),
     }
 }
 /// The iCloud router needs the journal and metadata owned by this mount.
-/// Settings continue to reject writable iCloud until all write gates close.
+/// Ordinary iCloud writes use this context-bound factory; the context-free
+/// factory must never construct a writer without its journal and metadata.
 pub fn write_provider_with_context(
     account: &Account,
     context: &crate::manager::WriteContext,
@@ -1039,7 +1103,29 @@ pub async fn connect_icloud_with_session(
     label: String,
     mount_path: PathBuf,
     apple_id: String,
+    session: ICloudReadSession,
+) -> Result<Account> {
+    connect_icloud_with_session_and_access(
+        state,
+        label,
+        mount_path,
+        apple_id,
+        session,
+        AccessMode::ReadOnly,
+    )
+    .await
+}
+
+/// Explicit native connection policy. Defaults remain in the compatibility
+/// wrapper; password/2FA callers carry their selected mode to this final step.
+/// Writes require explicit selection; the compatibility wrapper stays read-only.
+pub async fn connect_icloud_with_session_and_access(
+    state: PathBuf,
+    label: String,
+    mount_path: PathBuf,
+    apple_id: String,
     mut session: ICloudReadSession,
+    access: AccessMode,
 ) -> Result<Account> {
     if !valid_label(&label) {
         bail!("use a label of 1–48 letters, digits, hyphens or underscores");
@@ -1079,7 +1165,7 @@ pub async fn connect_icloud_with_session(
             display_name: "iCloud Drive".into(),
         },
         credential_id: uuid::Uuid::new_v4().to_string(),
-        access: AccessMode::ReadOnly,
+        access,
         drive: DriveInfo {
             id: "drive".into(),
             name: "iCloud Drive".into(),
@@ -1093,23 +1179,90 @@ pub async fn connect_icloud_with_session(
         cache_bytes: 5 * 1024 * 1024 * 1024,
     };
     let sealed = SealedSessionVault::new(&state, &account.id)?;
-    sealed.save(&account.credential_id, snapshot).await?;
+    save_icloud_connection_owned(state, account.clone(), snapshot, Arc::new(sealed)).await?;
+    Ok(account)
+}
+
+// Persistence owns its inputs independently of the interactive waiter. Dropping
+// that waiter before credential save finishes cancels publication, but does not
+// interrupt credential readback or cleanup. Once the synchronous settings commit
+// starts, it completes and preserves uncertain-publication retention semantics.
+async fn save_icloud_connection_owned(
+    state: PathBuf,
+    account: Account,
+    snapshot: SecretString,
+    vault: Arc<dyn CredentialVault>,
+) -> Result<()> {
+    let (send, receive) = tokio::sync::oneshot::channel();
+    tokio::spawn(async move {
+        let result = save_icloud_connection_with(
+            &state,
+            &account,
+            snapshot,
+            vault.as_ref(),
+            |settings, location| {
+                if send.is_closed() {
+                    bail!("iCloud connection cancelled before settings publication");
+                }
+                settings.save(location)
+            },
+        )
+        .await;
+        let _ = send.send(result);
+    });
+    receive
+        .await
+        .context("iCloud connection persistence task did not finish")?
+}
+
+async fn save_icloud_connection_with(
+    state: &Path,
+    account: &Account,
+    snapshot: SecretString,
+    vault: &dyn CredentialVault,
+    persist: impl FnOnce(&Settings, &Path) -> Result<()>,
+) -> Result<()> {
+    // Validate the candidate identity before any
+    // credential write. The final locked check still detects concurrent edits.
+    Settings {
+        version: 2,
+        accounts: vec![account.clone()],
+    }
+    .validate()?;
+    let credential_saved = vault.save(&account.credential_id, snapshot).await;
+    let mut safe_to_remove = false;
     let saved = (|| -> Result<()> {
-        let _lock = config_lock(&state)?;
-        let mut settings = Settings::load(&state)?;
+        let _lock = config_lock(state)?;
+        let mut settings = Settings::load(state)?;
+        let references_session = |existing: &Account| {
+            existing.id == account.id || existing.credential_id == account.credential_id
+        };
+        safe_to_remove = !settings.accounts.iter().any(references_session);
+        credential_saved?;
         if settings.accounts.iter().any(|existing| {
             existing.label == account.label || existing.mount_path == account.mount_path
         }) {
             bail!("account settings changed during sign-in; try another label or path");
         }
         settings.accounts.push(account.clone());
-        settings.save(&state)
+        let result = persist(&settings, state);
+        if result.is_err() {
+            // An error after atomic rename can leave the enabled account
+            // published. Keep its session; an uncertain readback is not proof
+            // that removing credentials is safe. Check under the same lock.
+            safe_to_remove = Settings::load(state)
+                .map(|published| !published.accounts.iter().any(references_session))
+                .unwrap_or(false);
+        }
+        result
     })();
     if let Err(error) = saved {
-        let _ = sealed.remove(&account.credential_id).await;
+        if safe_to_remove {
+            let _ = vault.remove(&account.credential_id).await;
+        }
         return Err(error);
     }
-    Ok(account)
+    Ok(())
 }
 /// Check the label and mount path, sign in through the browser, and list the
 /// drives. The account is not saved until `PendingConnection::finish`.
@@ -2173,6 +2326,414 @@ mod tests {
         }
     }
 
+    #[test]
+    fn pending_icloud_access_captures_before_login_and_cancellation_keeps_settings() {
+        for requested in [
+            None,
+            Some(AccessMode::ReadOnly),
+            Some(AccessMode::ReadWrite),
+        ] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let original = icloud_reauth_fixture();
+            Settings {
+                version: 2,
+                accounts: vec![original.clone()],
+            }
+            .save(&state)
+            .expect("seed");
+            let before = std::fs::read(state.join("accounts.json")).expect("bytes");
+            let pending = super::begin_reauthenticate_icloud(
+                state.clone(),
+                original.label.clone(),
+                requested,
+            )
+            .expect("pending");
+            assert_eq!(pending.access(), requested.unwrap_or(AccessMode::ReadOnly));
+            assert_eq!(pending.apple_id(), original.identity.username);
+            assert_eq!(pending.account_id(), original.id);
+            drop(pending);
+            assert_eq!(
+                std::fs::read(state.join("accounts.json")).expect("bytes"),
+                before
+            );
+            assert!(!super::restore_marker(&state, &original.id).exists());
+        }
+    }
+
+    #[test]
+    fn pending_icloud_access_refuses_settings_changed_while_password_is_entered() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state");
+        let original = icloud_reauth_fixture();
+        let mut settings = Settings {
+            version: 2,
+            accounts: vec![original.clone()],
+        };
+        settings.save(&state).expect("seed");
+        let pending = super::begin_reauthenticate_icloud(
+            state.clone(),
+            original.label.clone(),
+            Some(AccessMode::ReadWrite),
+        )
+        .expect("pending");
+        settings.accounts[0].cache_bytes += 4096;
+        settings.save(&state).expect("changed during sign-in");
+        let before = std::fs::read(state.join("accounts.json")).expect("bytes");
+        assert!(
+            super::suspend_validated_icloud_account(&pending.state, &pending.original).is_err()
+        );
+        assert_eq!(
+            std::fs::read(state.join("accounts.json")).expect("bytes"),
+            before
+        );
+        assert!(!super::restore_marker(&state, &original.id).exists());
+    }
+
+    #[test]
+    fn pending_icloud_access_rejects_foreign_session_identity_without_settings_changes() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state");
+        let original = icloud_reauth_fixture();
+        Settings {
+            version: 2,
+            accounts: vec![original.clone()],
+        }
+        .save(&state)
+        .expect("seed");
+        let pending = super::begin_reauthenticate_icloud(
+            state.clone(),
+            original.label.clone(),
+            Some(AccessMode::ReadWrite),
+        )
+        .expect("pending");
+        let snapshot = |apple_id: &str| {
+            let key = probe_session_key(apple_id).expect("synthetic account hash");
+            SecretString::from(serde_json::json!({
+                "version": 1, "account_hash": key.strip_prefix("icloud-probe-").expect("hash"),
+                "headers": { "scnt":"", "session_id":"", "session_token":"synthetic-not-a-credential", "trust_token":"", "account_country":"", "auth_attributes":"" },
+                "drive_endpoint":"https://synthetic.icloud.com/", "docs_endpoint":"https://synthetic.icloud.com/", "cookies":[]
+            }).to_string())
+        };
+        assert!(
+            pending
+                .validate_snapshot(&snapshot(&original.identity.username))
+                .is_ok()
+        );
+        assert!(
+            pending
+                .validate_snapshot(&snapshot("foreign@example.invalid"))
+                .is_err()
+        );
+        assert!(Settings::load(&state).expect("settings").accounts[0].enabled);
+        assert!(!super::restore_marker(&state, &original.id).exists());
+    }
+
+    #[test]
+    fn pending_icloud_requested_mode_reaches_durable_completion_preserves_explicit_policy() {
+        for initial_access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            for enabled in [false, true] {
+                for requested in [
+                    None,
+                    Some(AccessMode::ReadOnly),
+                    Some(AccessMode::ReadWrite),
+                ] {
+                    for session_saved in [false, true] {
+                        let temp = tempfile::tempdir().expect("fixture");
+                        let state = temp.path().join("state");
+                        crate::private_dir(&state).expect("state");
+                        let mut original = icloud_reauth_fixture();
+                        original.enabled = enabled;
+                        original.access = initial_access;
+                        Settings {
+                            version: 2,
+                            accounts: vec![original.clone()],
+                        }
+                        .save(&state)
+                        .expect("seed");
+                        // Retained journal bytes must not be touched by mode or session persistence.
+                        let journal = state.join("accounts").join(&original.id).join("journal");
+                        std::fs::create_dir_all(&journal).expect("fixture retained directory");
+                        std::fs::write(journal.join("retained-fixture"), b"retained bytes")
+                            .expect("fixture bytes");
+                        let pending = super::begin_reauthenticate_icloud(
+                            state.clone(),
+                            original.label.clone(),
+                            requested,
+                        )
+                        .expect("pending");
+                        let (_operation, desired) = super::suspend_validated_icloud_account(
+                            &pending.state,
+                            &pending.original,
+                        )
+                        .expect("suspend");
+                        let saved = if session_saved {
+                            Ok(())
+                        } else {
+                            Err(anyhow::anyhow!("synthetic session save failure"))
+                        };
+                        let result =
+                            super::complete_icloud_session_save(desired, pending.requested, saved);
+                        assert_eq!(result.is_ok(), session_saved);
+                        let mut expected = original.clone();
+                        if session_saved {
+                            expected.access = requested.unwrap_or(initial_access);
+                        }
+                        let after = Settings::load(&state).expect("settings");
+                        assert_eq!(
+                            serde_json::to_value(&after.accounts[0]).expect("account"),
+                            serde_json::to_value(&expected).expect("expected policy")
+                        );
+                        assert_eq!(
+                            std::fs::read(journal.join("retained-fixture"))
+                                .expect("retained bytes"),
+                            b"retained bytes"
+                        );
+                        assert!(!super::restore_marker(&state, &original.id).exists());
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn pending_icloud_policy_commit_failure_restores_original_mode_and_enabled_state() {
+        for initial_access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            for enabled in [false, true] {
+                for published_before_error in [false, true] {
+                    let temp = tempfile::tempdir().expect("fixture");
+                    let state = temp.path().join("state");
+                    crate::private_dir(&state).expect("state");
+                    let mut original = icloud_reauth_fixture();
+                    original.access = initial_access;
+                    original.enabled = enabled;
+                    Settings {
+                        version: 2,
+                        accounts: vec![original.clone()],
+                    }
+                    .save(&state)
+                    .expect("seed");
+                    let requested = match initial_access {
+                        AccessMode::ReadOnly => AccessMode::ReadWrite,
+                        AccessMode::ReadWrite => AccessMode::ReadOnly,
+                    };
+                    let pending = super::begin_reauthenticate_icloud(
+                        state.clone(),
+                        original.label.clone(),
+                        Some(requested),
+                    )
+                    .expect("pending");
+                    let (_operation, desired) =
+                        super::suspend_validated_icloud_account(&pending.state, &pending.original)
+                            .expect("suspend");
+                    let result = desired.complete_with(Some(requested), |candidate, location| {
+                        if published_before_error {
+                            candidate.save(location)?;
+                        }
+                        anyhow::bail!("synthetic policy commit failure");
+                    });
+                    assert!(result.is_err());
+                    let after = Settings::load(&state).expect("rollback");
+                    assert_eq!(
+                        serde_json::to_value(&after.accounts[0]).expect("after"),
+                        serde_json::to_value(&original).expect("original")
+                    );
+                    assert!(!super::restore_marker(&state, &original.id).exists());
+                }
+            }
+        }
+    }
+
+    #[derive(Default)]
+    struct ConnectionVault {
+        saves: std::sync::atomic::AtomicUsize,
+        removes: std::sync::atomic::AtomicUsize,
+    }
+    #[async_trait::async_trait]
+    impl CredentialVault for ConnectionVault {
+        async fn load(&self, _: &str) -> Result<Option<SecretString>> {
+            panic!("connection persistence does not read credentials")
+        }
+        async fn save(&self, _: &str, _: SecretString) -> Result<()> {
+            self.saves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+        async fn remove(&self, _: &str) -> Result<()> {
+            self.removes
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_invalid_identity_refuses_before_any_credential_write() {
+        use std::sync::atomic::Ordering;
+        for access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let mut account = icloud_reauth_fixture();
+            account.access = access;
+            account.root_id = "foreign-root".into();
+            let vault = ConnectionVault::default();
+            assert!(
+                super::save_icloud_connection_with(
+                    &state,
+                    &account,
+                    SecretString::from("synthetic-session"),
+                    &vault,
+                    |_, _| panic!("identity must be rejected before settings persistence")
+                )
+                .await
+                .is_err()
+            );
+            assert_eq!(vault.saves.load(Ordering::SeqCst), 0);
+            assert_eq!(vault.removes.load(Ordering::SeqCst), 0);
+            assert!(!state.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_failed_commit_keeps_session_if_settings_were_published() {
+        use std::sync::atomic::Ordering;
+        for published_before_error in [false, true] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let account = icloud_reauth_fixture();
+            let vault = ConnectionVault::default();
+            assert!(
+                super::save_icloud_connection_with(
+                    &state,
+                    &account,
+                    SecretString::from("synthetic-session"),
+                    &vault,
+                    |candidate, location| {
+                        if published_before_error {
+                            candidate.save(location)?;
+                        }
+                        anyhow::bail!("synthetic error at settings commit")
+                    }
+                )
+                .await
+                .is_err()
+            );
+            assert_eq!(vault.saves.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                vault.removes.load(Ordering::SeqCst),
+                usize::from(!published_before_error)
+            );
+            let settings = Settings::load(&state).expect("published settings");
+            assert_eq!(settings.accounts.len(), usize::from(published_before_error));
+            if published_before_error {
+                assert_eq!(settings.accounts[0].credential_id, account.credential_id);
+                assert!(settings.accounts[0].enabled);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_owned_save_reports_published_account() {
+        use std::sync::atomic::Ordering;
+        for access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut account = icloud_reauth_fixture();
+            account.access = access;
+            let vault = Arc::new(ConnectionVault::default());
+            super::save_icloud_connection_owned(
+                state.clone(),
+                account.clone(),
+                SecretString::from("synthetic-session"),
+                vault.clone(),
+            )
+            .await
+            .expect("durable connection");
+            let settings = Settings::load(&state).expect("settings");
+            assert_eq!(settings.accounts.len(), 1);
+            assert_eq!(settings.accounts[0].access, access);
+            assert_eq!(settings.accounts[0].credential_id, account.credential_id);
+            assert_eq!(vault.saves.load(Ordering::SeqCst), 1);
+            assert_eq!(vault.removes.load(Ordering::SeqCst), 0);
+        }
+    }
+
+    struct PausedConnectionVault {
+        stored: std::sync::atomic::AtomicBool,
+        started: tokio::sync::Notify,
+        resume: tokio::sync::Notify,
+        removed: tokio::sync::Notify,
+        fail_readback: bool,
+    }
+    #[async_trait::async_trait]
+    impl CredentialVault for PausedConnectionVault {
+        async fn load(&self, _: &str) -> Result<Option<SecretString>> {
+            unreachable!("not used by connection persistence")
+        }
+        async fn save(&self, _: &str, _: SecretString) -> Result<()> {
+            self.stored.store(true, std::sync::atomic::Ordering::SeqCst);
+            self.started.notify_one();
+            self.resume.notified().await;
+            if self.fail_readback {
+                anyhow::bail!("synthetic credential readback failure");
+            }
+            Ok(())
+        }
+        async fn remove(&self, _: &str) -> Result<()> {
+            self.stored
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+            self.removed.notify_one();
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_cancelled_save_finishes_cleanup_without_publishing() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        for initial_access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            for fail_readback in [false, true] {
+                let temp = tempfile::tempdir().expect("fixture");
+                let state = temp.path().join("state");
+                crate::private_dir(&state).expect("state");
+                let vault = Arc::new(PausedConnectionVault {
+                    stored: AtomicBool::new(false),
+                    started: tokio::sync::Notify::new(),
+                    resume: tokio::sync::Notify::new(),
+                    removed: tokio::sync::Notify::new(),
+                    fail_readback,
+                });
+                let mut account = icloud_reauth_fixture();
+                account.access = initial_access;
+                let task = tokio::spawn(super::save_icloud_connection_owned(
+                    state.clone(),
+                    account,
+                    SecretString::from("synthetic-session"),
+                    vault.clone(),
+                ));
+                tokio::time::timeout(std::time::Duration::from_secs(2), vault.started.notified())
+                    .await
+                    .expect("credential save reached deterministic boundary");
+                assert!(vault.stored.load(Ordering::SeqCst));
+                task.abort();
+                assert!(task.await.expect_err("caller cancelled").is_cancelled());
+                vault.resume.notify_one();
+                tokio::time::timeout(std::time::Duration::from_secs(2), vault.removed.notified())
+                    .await
+                    .expect("owned persistence must finish cancelled cleanup");
+                assert!(!vault.stored.load(Ordering::SeqCst));
+                assert!(
+                    Settings::load(&state)
+                        .expect("settings")
+                        .accounts
+                        .is_empty()
+                );
+            }
+        }
+    }
+
     fn icloud_reauth_fixture() -> Account {
         let mut account = fixture_account(AccessMode::ReadOnly);
         account.registration = AppRegistration::ICloud;
@@ -2417,29 +2978,47 @@ mod tests {
     }
 
     #[test]
-    fn icloud_settings_accept_only_its_read_only_drive_identity() {
-        let mut account = fixture_account(AccessMode::ReadOnly);
-        account.registration = AppRegistration::ICloud;
-        account.identity.tenant_id.clear();
-        account.identity.graph_user_id.clear();
-        account.drive.drive_type = "icloud_drive".into();
-        account.root_id = "FOLDER::com.apple.CloudDocs::root".into();
-        let mut settings = Settings {
-            version: 2,
-            accounts: vec![account],
-        };
-        settings.validate().expect("read-only iCloud drive");
-        settings.accounts[0].access = AccessMode::ReadWrite;
-        assert!(
-            settings.validate().is_err(),
-            "iCloud writes are not implemented"
-        );
-        settings.accounts[0].access = AccessMode::ReadOnly;
-        settings.accounts[0].root_id = "different-root".into();
-        assert!(
-            settings.validate().is_err(),
-            "root must keep provider identity"
-        );
+    fn icloud_settings_preserve_identity_checks_for_explicit_read_and_write_modes() {
+        for access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            let mut account = icloud_reauth_fixture();
+            account.access = access;
+            let settings = Settings {
+                version: 2,
+                accounts: vec![account.clone()],
+            };
+            settings.validate().expect("explicit local access policy");
+            assert!(
+                write_provider(&account).is_err(),
+                "context-free factory must still refuse"
+            );
+            for field in 0..6 {
+                let mut invalid = settings.clone();
+                let account = &mut invalid.accounts[0];
+                match field {
+                    0 => account.drive.id = "foreign-drive".into(),
+                    1 => account.drive.drive_type = "foreign-type".into(),
+                    2 => account.root_id = "foreign-root".into(),
+                    3 => account.identity.username.clear(),
+                    4 => account.identity.tenant_id = "foreign-tenant".into(),
+                    5 => account.identity.graph_user_id = "foreign-subject".into(),
+                    _ => unreachable!(),
+                }
+                assert!(
+                    invalid.validate().is_err(),
+                    "identity field {field} must remain checked"
+                );
+            }
+            let mut encoded = serde_json::to_value(&settings).expect("settings");
+            encoded["accounts"][0]
+                .as_object_mut()
+                .expect("account")
+                .remove("access");
+            let defaulted: Settings = serde_json::from_value(encoded).expect("older settings");
+            assert_eq!(defaulted.accounts[0].access, AccessMode::ReadOnly);
+            defaulted
+                .validate()
+                .expect("missing access retains safe default");
+        }
     }
 
     fn fixture_account(access: AccessMode) -> Account {

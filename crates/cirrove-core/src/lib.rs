@@ -245,6 +245,19 @@ impl std::fmt::Display for NameProblem {
 /// Read-only filesystem operations, deliberately separate from change feeds.
 #[async_trait]
 pub trait ReadProvider: MetadataProvider {
+    /// Metadata-only admission before changing an existing remote item's local
+    /// bytes or namespace. Providers may refuse representations that ordinary
+    /// filesystem writes cannot preserve. This must not download file content or
+    /// mutate the provider. The caller binds the result to this exact revision
+    /// and rechecks its local identity binding before committing any local edit.
+    async fn validate_write_target(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        Ok(())
+    }
     /// A completed change feed may cover only the root, while other folders
     /// become known through their own complete directory pages. In that case
     /// an absent directory snapshot must trigger a foreground fetch, even if

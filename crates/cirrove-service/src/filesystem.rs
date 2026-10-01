@@ -1543,10 +1543,10 @@ impl Filesystem for CloudFs {
                 }
                 let moved = writer
                     .relocate(
+                        &inner.engine,
                         parent.scope.as_ref().clone(),
                         source,
-                        parent.id.to_string(),
-                        name,
+                        (parent.id.to_string(), name),
                         destination.id.to_string(),
                         newname,
                     )
@@ -1855,10 +1855,9 @@ impl Filesystem for CloudFs {
                 view.node = Some(Arc::new(inner.node(&view).await.map_err(|e| errno(&e))?));
                 inner.refuse_within_package(&view)?;
                 inner.capture_ancestors(&view).await?;
-                let working = writer
-                    .prepare(&inner.engine, &view, size == 0, &inner.cancel)
+                let record = writer
+                    .truncate_path(&inner.engine, &view, size, &inner.cancel)
                     .await?;
-                let record = writer.truncate(working.id, size).await?;
                 Ok::<_, Errno>(inner.attr(&view, &record.node))
             }
             .await;

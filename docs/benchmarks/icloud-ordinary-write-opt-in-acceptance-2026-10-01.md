@@ -1,6 +1,6 @@
 # Registered next milestone: installed ordinary iCloud write opt-in
 
-Status: plan, no acceptance arm started. This milestone is an intermediate step
+Status: implementation and acceptance in progress; installed acceptance not started. This milestone is an intermediate step
 toward full iCloud support. Native Pages/Numbers/Keynote editing and complete
 provider/release reliability remain separate open requirements. Existing accounts
 must remain read-only unless the user explicitly changes their access mode.
@@ -69,3 +69,22 @@ The current 1 GiB live result is a tested size, not an arbitrary-size guarantee.
 
 No gate closes by this plan's existence. Record each actual result and failed arm
 here or in linked registered artifacts before announcing this milestone achieved.
+
+## Progress recorded 2026-10-01
+
+- Access persistence/cancellation and native window scenarios have passed isolated
+  checks: [explicit access evidence](icloud-explicit-access-workflow-2026-10-01.md).
+- Two fresh owned-folder runs passed actual Neovim/Gio operations and independent
+  provider readback: [application acceptance](icloud-real-applications-acceptance-2026-10-01.md).
+  They preceded the new selected-file admission hook; a new run must cover that
+  combined path before installed acceptance.
+- The selected-file hook refuses unknown-extension package representations before
+  local acceptance in a synthetic FUSE scenario. Review found further existing-
+  working-file and pathname-truncation races; both now have targeted passing
+  kernel tests and meaningful removed-guard failures. The full project check
+  and combined live acceptance remain required.
+  [Admission evidence](icloud-selected-write-admission-2026-10-01.md) records both
+  failed attempts and successful targeted checks.
+- The source now exposes the explicit ordinary-file opt-in. This does not close
+  the above safety checks, native editing, or the installed GUI gate. The regular
+  installed daemon remains unchanged.

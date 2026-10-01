@@ -1,9 +1,13 @@
 # iCloud Drive write integration boundary
 
-Cirrove's normal iCloud connection is read-only. The write experiments in
-PR #86 operate in fresh, explicitly owned validation folders. This note
-records the concrete adapter boundary needed to turn those experiments into
-an ordinary account implementation; it is not a claim that writes are ready.
+The development branch now exposes explicit, experimental ordinary-file write
+access for iCloud accounts; new connections still default to read-only. This has
+not been installed into the user's regular daemon or accepted for release.
+Two owned-folder application runs passed create, save, replacement, relocation
+and recoverable Trash checks. Selected-file admission and native document-package
+writing remain under active validation; full iCloud support is not yet achieved.
+See [application evidence](benchmarks/icloud-real-applications-acceptance-2026-10-01.md)
+and [selected-file admission](benchmarks/icloud-selected-write-admission-2026-10-01.md).
 
 ## Document packages remain a release gate
 
@@ -20,12 +24,13 @@ cover raw metadata projection and continued nested read traversal. Its on-demand
 path also checks Pages/Numbers/Keynote FILE candidates with Apple's representation
 lookup and marks only confirmed packages as read-only package folders. A matching
 extension alone does not mark a package. Unknown FILE bundle types remain
-unclassified, so the router's package/ancestor guards are not yet a complete
-native-document policy. Before a
-normal writable iCloud connection is enabled, provider metadata must identify
-bundles and app-owned containers explicitly, with tests proving that operations
-on their internals are refused unless supported. A filename extension alone is
-not sufficient evidence. The Google folder presentation reported by the user
+unclassified in listings. A selected-file admission hook now checks the actual
+Data-versus-Package representation before accepting an ordinary-file mutation,
+regardless of extension. Metadata and local identity are rechecked around that
+lookup. This avoids content downloads or a lookup for every listed file; it does
+not yet provide full native-document editing. Its synthetic race tests and the
+combined live/installed acceptance remain separate evidence requirements. A
+filename extension alone is not sufficient evidence. The Google folder presentation reported by the user
 is a separate desktop usability issue, not evidence of broken MIME detection.
 
 A [read-only account investigation](benchmarks/icloud-document-metadata-shapes-2026-09-30.md)
@@ -65,19 +70,21 @@ logical size zero no longer skips the package/ambiguity guard. A
 [real empty-file compatibility arm](benchmarks/icloud-empty-representation-2026-09-30.md)
 passed create confirmation, a fresh-process revision/digest check and mounted EOF.
 Native zero-byte package metadata, shared-item identity and native write semantics
-remain open; ordinary account write access is still disabled.
+remain open; the experimental ordinary-file opt-in does not enable package writes.
 
 ## Current code boundary
 
-- `Settings::validate` rejects writable iCloud accounts, and
-  `accounts::write_provider` refuses iCloud. The desktop hides its write
-  control. The manager's write factory now receives `Account` and an owned
+- `Settings::validate` now accepts an explicit writable iCloud account while
+  retaining the exact account/root identity checks. The desktop defaults to
+  read-only and offers an explicit access change through reauthentication.
+  Context-free `accounts::write_provider` still refuses iCloud; its journal
+  context is mandatory. The manager's write factory receives `Account` and an owned
   `WriteContext`: private state root, account metadata index, shared journal
   and checkpoint vault. Engine has acquired the account lock before this
   context is opened. The upload workers use the same journal and vault;
   iCloud selects sealed operation checkpoints and other providers keep
   `DesktopVault`. The production factory now selects the context-aware iCloud
-  router, but settings still reject writable iCloud before this path is reached.
+  router. Existing saved account access is preserved unless explicitly changed.
   The router implements new-file uploads, staged replacement, simple folder
   operations and rename/move/Trash of regular files with bounded streaming checks;
   combined move/rename now has a durable three-step implementation and a bounded

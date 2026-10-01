@@ -49,6 +49,25 @@ impl MetadataProvider for View {
 }
 #[async_trait::async_trait]
 impl ReadProvider for View {
+    async fn validate_write_target(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> std::result::Result<(), ProviderError> {
+        let nodes = self.nodes(scope)?;
+        let known = nodes.get(&node.id).ok_or(ProviderError::Permission)?;
+        if known.kind != node.kind
+            || known.parent_id != node.parent_id
+            || known.package
+            || known.target.is_some()
+        {
+            return Err(ProviderError::Permission);
+        }
+        // The owned view narrows identity authorization; it must not replace
+        // the account adapter's selected-file representation admission.
+        self.read.validate_write_target(scope, node, cancel).await
+    }
     fn unknown_directories_require_fetch(&self) -> bool {
         true
     }
@@ -469,3 +488,6 @@ mod deletion;
 pub use deletion::{
     icloud_account_mounted_delete_interrupt, icloud_account_mounted_delete_recover,
 };
+
+mod applications;
+pub use applications::icloud_account_mounted_applications;

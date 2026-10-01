@@ -7,11 +7,12 @@
 //! a list. Nothing is saved until a drive is chosen; closing the dialog before
 //! that forgets the grant.
 use super::{Backend, Window};
-use crate::i18n::gettext;
+use crate::i18n::{fill, gettext};
 use adw::prelude::*;
 use cirrove_auth::{AccessMode, AppRegistration};
+use cirrove_core::CancellationToken;
 use cirrove_icloud::{ICloudReadSession, SignInStep};
-use cirrove_service::accounts::{self, PendingConnection};
+use cirrove_service::accounts::{self, PendingConnection, PendingICloudReauthentication};
 use gtk::{gio, glib};
 use secrecy::SecretString;
 use std::{
@@ -36,7 +37,8 @@ struct Form {
     apple_id: adw::EntryRow,
     apple_password: adw::PasswordEntryRow,
     apple_code: adw::PasswordEntryRow,
-    icloud_session: RefCell<Option<ICloudReadSession>>,
+    icloud_session: RefCell<Option<ICloudConnectionAttempt>>,
+    cancel: CancellationToken,
     writable: adw::SwitchRow,
     google_disclosure: gtk::Label,
     icloud_disclosure: gtk::Label,
@@ -99,7 +101,9 @@ impl Form {
         } else {
             self.problem.add_css_class("error");
         }
-        for row in [&self.name, &self.client, &self.tenant] {
+        let choosing = !busy && self.icloud_session.borrow().is_none();
+        self.name.set_sensitive(choosing);
+        for row in [&self.client, &self.tenant] {
             row.set_sensitive(!busy);
         }
         self.provider.set_sensitive(!busy);
@@ -108,8 +112,8 @@ impl Form {
             .set_sensitive(!busy && self.icloud_session.borrow().is_none());
         self.apple_password.set_sensitive(!busy);
         self.apple_code.set_sensitive(!busy);
-        self.folder.set_sensitive(!busy);
-        self.writable.set_sensitive(!busy);
+        self.folder.set_sensitive(choosing);
+        self.writable.set_sensitive(choosing);
         self.check();
     }
 }
@@ -244,7 +248,7 @@ pub(super) fn present(ui: &Rc<Window>) {
         .build();
     let icloud_disclosure = gtk::Label::builder()
         .label(gettext(
-            "Experimental read-only iCloud Drive. Cirrove signs in with your Apple Account password and trusted-device code here, keeps a short key in your desktop keyring and the resulting web session encrypted in its private local account data, and downloads file content when opened. Apple's Drive web protocol is undocumented; this connection is still under validation.",
+            "Experimental iCloud Drive. Read-only is the default. Allow changes enables ordinary-file edits; native document packages remain protected. Access is enforced locally by Cirrove, not by a narrower Apple permission. Cirrove keeps a short key in your desktop keyring and the Apple web session encrypted in private local account data. Apple's Drive web protocol is undocumented; this connection is still under validation.",
         ))
         .wrap(true)
         .xalign(0.0)
@@ -306,6 +310,7 @@ pub(super) fn present(ui: &Rc<Window>) {
         apple_password,
         apple_code,
         icloud_session: RefCell::new(None),
+        cancel: CancellationToken::new(),
         writable,
         google_disclosure,
         icloud_disclosure,
@@ -317,6 +322,18 @@ pub(super) fn present(ui: &Rc<Window>) {
         pending: RefCell::new(None),
         busy: RefCell::new(false),
     });
+    {
+        let cancel = form.cancel.clone();
+        let weak = Rc::downgrade(&form);
+        form.dialog.connect_closed(move |_| {
+            cancel.cancel();
+            if let Some(form) = weak.upgrade() {
+                form.apple_password.set_text("");
+                form.apple_code.set_text("");
+                form.icloud_session.borrow_mut().take();
+            }
+        });
+    }
     {
         let form = form.clone();
         form.provider.clone().connect_selected_notify(move |_| {
@@ -332,7 +349,12 @@ pub(super) fn present(ui: &Rc<Window>) {
             form.apple_id.set_visible(icloud);
             form.apple_password.set_visible(icloud);
             form.apple_code.set_visible(false);
-            form.writable.set_visible(!icloud);
+            form.writable.set_visible(true);
+            // A previous provider's consent choice is not an iCloud opt-in.
+            if icloud { form.writable.set_active(false); }
+            form.name.set_sensitive(true);
+            form.folder.set_sensitive(true);
+            form.writable.set_sensitive(true);
             form.google_client.set_visible(google);
             form.google_disclosure.set_visible(google);
             form.icloud_disclosure.set_visible(icloud);
@@ -351,7 +373,7 @@ pub(super) fn present(ui: &Rc<Window>) {
                 gettext("Microsoft sign-in")
             });
             sign.set_description(Some(&if icloud {
-                gettext("Use your regular Apple Account password. A trusted-device code may be required. This drive is read-only.")
+                gettext("Use your regular Apple Account password. A trusted-device code may be required. Allow changes applies only to ordinary files.")
             } else if google {
                 gettext("My Drive and Shared Drives can be connected. Allow changes enables edits to ordinary files. Google Docs and Sheets appear as read-only export packages.")
             } else { gettext("The application (client) ID of your app registration; the OneDrive setup guide explains where it comes from.") }));
@@ -542,9 +564,17 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
     });
 }
 
+struct ICloudConnectionAttempt {
+    session: ICloudReadSession,
+    label: String,
+    folder: PathBuf,
+    apple_id: String,
+    access: AccessMode,
+}
+
 enum ICloudOutcome {
-    NeedsCode(Box<ICloudReadSession>),
-    Connected(String, PathBuf),
+    NeedsCode(Box<ICloudConnectionAttempt>),
+    Connected(String, PathBuf, AccessMode),
 }
 
 fn begin_icloud(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, state: &Path) {
@@ -553,6 +583,11 @@ fn begin_icloud(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Hand
         return;
     };
     let apple_id = form.apple_id.text().trim().to_owned();
+    let access = if form.writable.is_active() {
+        AccessMode::ReadWrite
+    } else {
+        AccessMode::ReadOnly
+    };
     let waiting = form.icloud_session.borrow_mut().take();
     let secret = if waiting.is_some() {
         let code = SecretString::new(form.apple_code.text().to_string().into());
@@ -565,53 +600,61 @@ fn begin_icloud(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Hand
     };
     form.set_busy(true, &gettext("Signing in to iCloud…"));
     let state = state.to_path_buf();
+    let cancel = form.cancel.clone();
     let (send, receive) = tokio::sync::oneshot::channel();
     runtime.spawn_blocking(move || {
-        let result = tokio::runtime::Handle::current()
-            .block_on(async move {
-                let session = if let Some(mut session) = waiting {
-                    session.verify_trusted_device_code(&secret).await?;
-                    session
-                } else {
-                    cirrove_auth::DesktopVault::reachable().await?;
-                    let mut session = ICloudReadSession::new()?;
-                    match session.sign_in(&apple_id, &secret).await? {
-                        SignInStep::Ready => {}
-                        SignInStep::NeedsTrustedDeviceCode => {
-                            session.request_trusted_device_code().await?;
-                            return Ok::<_, anyhow::Error>(ICloudOutcome::NeedsCode(Box::new(
-                                session,
-                            )));
+        let result = tokio::runtime::Handle::current().block_on(async move {
+            tokio::select! { biased;
+                _ = cancel.cancelled() => Err(anyhow::anyhow!("iCloud sign-in cancelled")),
+                result = async move {
+                    let attempt = if let Some(mut attempt) = waiting {
+                        attempt.session.verify_trusted_device_code(&secret).await?;
+                        attempt
+                    } else {
+                        cirrove_auth::DesktopVault::reachable().await?;
+                        let mut attempt = ICloudConnectionAttempt { session: ICloudReadSession::new()?, label, folder, apple_id, access };
+                        if matches!(attempt.session.sign_in(&attempt.apple_id, &secret).await?, SignInStep::NeedsTrustedDeviceCode) {
+                            attempt.session.request_trusted_device_code().await?;
+                            return Ok(ICloudOutcome::NeedsCode(Box::new(attempt)));
                         }
-                    }
-                    session
-                };
-                let account =
-                    accounts::connect_icloud_with_session(state, label, folder, apple_id, session)
-                        .await?;
-                Ok::<_, anyhow::Error>(ICloudOutcome::Connected(account.label, account.mount_path))
-            })
-            .map_err(|error| format!("{error:#}"));
+                        attempt
+                    };
+                    let account = accounts::connect_icloud_with_session_and_access(state, attempt.label, attempt.folder, attempt.apple_id, attempt.session, attempt.access).await?;
+                    Ok::<_, anyhow::Error>(ICloudOutcome::Connected(account.label, account.mount_path, account.access))
+                } => result,
+            }
+        }).map_err(|error| format!("{error:#}"));
         let _ = send.send(result);
     });
     let form = form.clone();
     let ui = ui.clone();
     glib::spawn_future_local(async move {
-        match receive.await {
-            Ok(Ok(ICloudOutcome::NeedsCode(session))) => {
-                *form.icloud_session.borrow_mut() = Some(*session);
+        if form.cancel.is_cancelled() {
+            return;
+        }
+        let result = receive.await;
+        if form.cancel.is_cancelled() {
+            return;
+        }
+        match result {
+            Ok(Ok(ICloudOutcome::NeedsCode(attempt))) => {
+                *form.icloud_session.borrow_mut() = Some(*attempt);
                 form.apple_password.set_visible(false);
                 form.apple_code.set_visible(true);
                 form.sign_in.set_label(&gettext("Verify code and connect"));
                 form.set_busy(false, "");
                 form.apple_code.grab_focus();
             }
-            Ok(Ok(ICloudOutcome::Connected(label, path))) => {
+            Ok(Ok(ICloudOutcome::Connected(label, path, access))) => {
                 form.dialog.close();
-                ui.notify(&format!(
-                    "Connected {label} read-only. Its files appear in {}.",
-                    path.display()
-                ));
+                let text = if access == AccessMode::ReadWrite {
+                    gettext(
+                        "Connected {0} with changes allowed for ordinary files. Its files appear in {1}.",
+                    )
+                } else {
+                    gettext("Connected {0} read-only. Its files appear in {1}.")
+                };
+                ui.notify(&fill(&text, &[&label, &path.to_string_lossy()]));
                 ui.refresh();
             }
             other => {
@@ -696,12 +739,16 @@ fn finish(
 
 struct ICloudReauthForm {
     dialog: adw::Dialog,
+    account: adw::PreferencesGroup,
+    note: gtk::Label,
     password: adw::PasswordEntryRow,
     code: adw::PasswordEntryRow,
     button: gtk::Button,
     spinner: gtk::Spinner,
     problem: gtk::Label,
-    session: RefCell<Option<ICloudReadSession>>,
+    session: RefCell<Option<ICloudReauthAttempt>>,
+    pending: RefCell<Option<PendingICloudReauthentication>>,
+    cancel: CancellationToken,
     busy: Cell<bool>,
 }
 
@@ -712,7 +759,11 @@ impl ICloudReauthForm {
         } else {
             !self.password.text().is_empty()
         };
-        self.button.set_sensitive(ready && !self.busy.get());
+        self.button.set_sensitive(
+            ready
+                && !self.busy.get()
+                && (self.pending.borrow().is_some() || self.session.borrow().is_some()),
+        );
     }
 
     fn set_busy(&self, busy: bool, issue: &str) {
@@ -732,7 +783,7 @@ impl ICloudReauthForm {
     }
 }
 
-pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
+pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str, requested: Option<AccessMode>) {
     let Some(window) = ui.window.upgrade() else {
         return;
     };
@@ -742,6 +793,22 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
     let Some(card) = ui.card(id) else {
         return;
     };
+    let pending =
+        match accounts::begin_reauthenticate_icloud(state.clone(), card.label.clone(), requested) {
+            Ok(pending) => pending,
+            Err(error) => {
+                ui.notify(&format!("{error:#}"));
+                return;
+            }
+        };
+    if pending.account_id() != id {
+        ui.notify(&gettext(
+            "This connection changed. Close this dialog and try again.",
+        ));
+        return;
+    }
+    let apple_id = pending.apple_id().to_owned();
+    let selected_access = pending.access();
     let dialog = adw::Dialog::builder()
         .title(gettext("Sign in to iCloud again"))
         .content_width(480)
@@ -752,7 +819,7 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
     let page = adw::PreferencesPage::new();
     let group = adw::PreferencesGroup::builder()
         .title(gettext("Apple Account"))
-        .description(&card.username)
+        .description(&apple_id)
         .build();
     let password = adw::PasswordEntryRow::builder()
         .title(gettext("Apple Account password"))
@@ -765,7 +832,7 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
     group.add(&code);
     page.add(&group);
     let note = gtk::Label::builder()
-        .label(gettext("Cirrove keeps a short key in your desktop keyring and the Apple web session encrypted in its private local account data. This iCloud drive stays read-only."))
+        .label(icloud_access_notice(selected_access))
         .wrap(true)
         .xalign(0.0)
         .build();
@@ -792,14 +859,31 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
     dialog.set_child(Some(&toolbar));
     let form = Rc::new(ICloudReauthForm {
         dialog: dialog.clone(),
+        account: group,
+        note,
         password,
         code,
         button,
         spinner,
         problem,
         session: RefCell::new(None),
+        pending: RefCell::new(Some(pending)),
+        cancel: CancellationToken::new(),
         busy: Cell::new(false),
     });
+    {
+        let cancel = form.cancel.clone();
+        let weak = Rc::downgrade(&form);
+        form.dialog.connect_closed(move |_| {
+            cancel.cancel();
+            if let Some(form) = weak.upgrade() {
+                form.password.set_text("");
+                form.code.set_text("");
+                form.pending.borrow_mut().take();
+                form.session.borrow_mut().take();
+            }
+        });
+    }
     {
         let form = form.clone();
         form.password.clone().connect_changed(move |_| form.check());
@@ -813,10 +897,10 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
         let ui = ui.clone();
         let runtime = runtime.clone();
         let state = state.clone();
-        let apple_id = card.username.clone();
         let label = card.label.clone();
+        let id = card.id.clone();
         form.button.clone().connect_clicked(move |_| {
-            start_icloud_reauth(&form, &ui, &runtime, &state, &label, &apple_id);
+            start_icloud_reauth(&form, &ui, &runtime, &state, &id, &label, requested);
         });
     }
     for row in [&form.password, &form.code] {
@@ -830,9 +914,24 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
     dialog.present(Some(&window));
 }
 
+fn icloud_access_notice(access: AccessMode) -> String {
+    match access {
+        AccessMode::ReadOnly => gettext(
+            "After sign-in, Cirrove will keep this drive read-only. Pending local changes are retained. This is a local Cirrove policy, not a narrower Apple permission.",
+        ),
+        AccessMode::ReadWrite => gettext(
+            "After sign-in, Cirrove will allow ordinary-file changes and resume pending changes. Native document packages remain protected. This is a local Cirrove policy, not a narrower Apple permission.",
+        ),
+    }
+}
+
+struct ICloudReauthAttempt {
+    session: ICloudReadSession,
+    pending: PendingICloudReauthentication,
+}
 enum ICloudReauthOutcome {
-    NeedsCode(Box<ICloudReadSession>),
-    Done,
+    NeedsCode(Box<ICloudReauthAttempt>),
+    Done(AccessMode),
 }
 
 fn start_icloud_reauth(
@@ -840,10 +939,15 @@ fn start_icloud_reauth(
     ui: &Rc<Window>,
     runtime: &tokio::runtime::Handle,
     state: &Path,
+    id: &str,
     label: &str,
-    apple_id: &str,
+    requested: Option<AccessMode>,
 ) {
     let waiting = form.session.borrow_mut().take();
+    let pending = form.pending.borrow_mut().take();
+    if waiting.is_none() && pending.is_none() {
+        return;
+    }
     let secret = if waiting.is_some() {
         let code = SecretString::new(form.code.text().to_string().into());
         form.code.set_text("");
@@ -854,59 +958,88 @@ fn start_icloud_reauth(
         password
     };
     form.set_busy(true, &gettext("Signing in to iCloud…"));
-    let state = state.to_path_buf();
-    let label = label.to_owned();
-    let apple_id = apple_id.to_owned();
+    let cancel = form.cancel.clone();
     let (send, receive) = tokio::sync::oneshot::channel();
     runtime.spawn_blocking(move || {
-        let result = tokio::runtime::Handle::current()
-            .block_on(async move {
-                let session = if let Some(mut session) = waiting {
-                    session.verify_trusted_device_code(&secret).await?;
-                    session
-                } else {
-                    cirrove_auth::DesktopVault::reachable().await?;
-                    let mut session = ICloudReadSession::new()?;
-                    match session.sign_in(&apple_id, &secret).await? {
-                        SignInStep::Ready => {}
-                        SignInStep::NeedsTrustedDeviceCode => {
-                            session.request_trusted_device_code().await?;
-                            return Ok::<_, anyhow::Error>(ICloudReauthOutcome::NeedsCode(
-                                Box::new(session),
-                            ));
+        let result = tokio::runtime::Handle::current().block_on(async move {
+            tokio::select! { biased;
+                _ = cancel.cancelled() => Err(anyhow::anyhow!("iCloud sign-in cancelled")),
+                result = async move {
+                    let attempt = if let Some(mut attempt) = waiting {
+                        attempt.session.verify_trusted_device_code(&secret).await?; attempt
+                    } else {
+                        let pending = pending.ok_or_else(|| anyhow::anyhow!("iCloud sign-in intent is unavailable"))?;
+                        cirrove_auth::DesktopVault::reachable().await?;
+                        let mut attempt = ICloudReauthAttempt { session: ICloudReadSession::new()?, pending };
+                        if matches!(attempt.session.sign_in(attempt.pending.apple_id(), &secret).await?, SignInStep::NeedsTrustedDeviceCode) {
+                            attempt.session.request_trusted_device_code().await?;
+                            return Ok(ICloudReauthOutcome::NeedsCode(Box::new(attempt)));
                         }
-                    }
-                    session
-                };
-                accounts::reauthenticate_icloud_with_session(state, label, session).await?;
-                Ok::<_, anyhow::Error>(ICloudReauthOutcome::Done)
-            })
-            .map_err(|error| format!("{error:#}"));
+                        attempt
+                    };
+                    let access = attempt.pending.access();
+                    attempt.pending.finish(attempt.session).await?;
+                    Ok::<_, anyhow::Error>(ICloudReauthOutcome::Done(access))
+                } => result,
+            }
+        }).map_err(|error| format!("{error:#}"));
         let _ = send.send(result);
     });
     let form = form.clone();
     let ui = ui.clone();
+    let state = state.to_path_buf();
+    let label = label.to_owned();
+    let id = id.to_owned();
     glib::spawn_future_local(async move {
-        match receive.await {
-            Ok(Ok(ICloudReauthOutcome::NeedsCode(session))) => {
-                *form.session.borrow_mut() = Some(*session);
+        let result = receive.await;
+        if form.cancel.is_cancelled() {
+            return;
+        }
+        match result {
+            Ok(Ok(ICloudReauthOutcome::NeedsCode(attempt))) => {
+                *form.session.borrow_mut() = Some(*attempt);
                 form.password.set_visible(false);
                 form.code.set_visible(true);
                 form.button.set_label(&gettext("Verify code"));
                 form.set_busy(false, "");
                 form.code.grab_focus();
             }
-            Ok(Ok(ICloudReauthOutcome::Done)) => {
+            Ok(Ok(ICloudReauthOutcome::Done(access))) => {
                 form.dialog.close();
-                ui.notify(&gettext("iCloud is signed in again with read-only access."));
+                ui.notify(&if access == AccessMode::ReadWrite {
+                    gettext("iCloud is signed in again with changes allowed for ordinary files.")
+                } else {
+                    gettext("iCloud is signed in again with read-only access.")
+                });
                 ui.refresh();
             }
             other => {
                 *form.session.borrow_mut() = None;
+                // Capture a fresh exact account before another password can be
+                // entered, never after the next native sign-in has finished.
+                let refreshed = accounts::begin_reauthenticate_icloud(state, label, requested)
+                    .and_then(|pending| {
+                        if pending.account_id() != id {
+                            anyhow::bail!(gettext(
+                                "This connection changed. Close this dialog and try again."
+                            ));
+                        }
+                        Ok(pending)
+                    });
+                let refresh_error = refreshed.as_ref().err().map(|error| format!("{error:#}"));
+                if let Ok(pending) = &refreshed {
+                    form.account.set_description(Some(pending.apple_id()));
+                    form.note.set_label(&icloud_access_notice(pending.access()));
+                }
+                *form.pending.borrow_mut() = refreshed.ok();
                 form.code.set_text("");
                 form.code.set_visible(false);
                 form.password.set_visible(true);
                 form.button.set_label(&gettext("Sign in again"));
+                if let Some(error) = refresh_error {
+                    form.set_busy(false, &error);
+                    return;
+                }
                 match other {
                     Ok(Err(error)) => form.set_busy(false, &error),
                     Err(_) => form.set_busy(false, &gettext("The iCloud sign-in did not finish.")),

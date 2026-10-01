@@ -569,7 +569,7 @@ impl Overview {
                         s.local_recovery
                             || (s.mounted && account.access == cirrove_auth::AccessMode::ReadWrite)
                     }),
-                    supports_writes: account.registration.provider_id() != "icloud",
+                    supports_writes: true,
                     provider_id: account.registration.provider_id(),
                     supports_permanent_delete: matches!(
                         account.registration,

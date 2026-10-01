@@ -448,6 +448,14 @@ async fn main() -> Result<()> {
         return cirrove_service::validation::icloud_account_namespace(Uuid::parse_str(run)?).await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-applications"
+    {
+        return cirrove_service::validation::icloud_account_mounted_applications(Uuid::parse_str(
+            run,
+        )?)
+        .await;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--account-mounted"
     {
         return cirrove_service::validation::icloud_account_mounted(Uuid::parse_str(run)?).await;

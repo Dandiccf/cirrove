@@ -1825,6 +1825,23 @@ impl MetadataProvider for Fixture {
 
 #[async_trait::async_trait]
 impl ReadProvider for Fixture {
+    async fn validate_write_target(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        if !self.owns(scope, &node.id)
+            || (node.id != self.root.id
+                && node
+                    .parent_id
+                    .as_deref()
+                    .is_none_or(|parent| !self.owns(scope, parent)))
+        {
+            return Err(ProviderError::Permission);
+        }
+        self.read.validate_write_target(scope, node, cancel).await
+    }
     fn unknown_directories_require_fetch(&self) -> bool {
         true
     }

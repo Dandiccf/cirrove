@@ -26,6 +26,7 @@ mod cold_tests;
 mod container_tests;
 mod ordinary;
 mod packages;
+mod write_target;
 
 const PROVIDER_ID: &str = "icloud";
 const COLLECTION: &str = "drive";
@@ -44,6 +45,7 @@ pub struct ICloudDrive {
     keyring_validated: OnceCell<()>,
     reads: Arc<Semaphore>,
     packages: Option<packages::Packages>,
+    write_targets: std::sync::Mutex<write_target::Cache>,
 }
 
 enum SessionState {
@@ -103,6 +105,7 @@ impl ICloudDrive {
             keyring_validated: OnceCell::new(),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
+            write_targets: std::sync::Mutex::new(write_target::Cache::default()),
         })
     }
 
@@ -155,6 +158,7 @@ impl ICloudDrive {
             keyring_validated: OnceCell::new(),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
+            write_targets: std::sync::Mutex::new(write_target::Cache::default()),
         })
     }
 
@@ -180,6 +184,7 @@ impl ICloudDrive {
             keyring_validated: OnceCell::new(),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
+            write_targets: std::sync::Mutex::new(write_target::Cache::default()),
         })
     }
 
@@ -499,6 +504,16 @@ impl MetadataProvider for ICloudDrive {
 
 #[async_trait]
 impl ReadProvider for ICloudDrive {
+    async fn validate_write_target(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        self.validate_ordinary_write_target(scope, node, cancel)
+            .await
+    }
+
     fn content_read_timeout(&self, node: &Node) -> Duration {
         if packages::artifact(node) {
             Duration::from_secs(360)

@@ -1,5 +1,6 @@
 //! Experimental local edit projection. Network hydration never holds the journal
 //! or namespace mutex. Ordinary daemon mounts do not construct this layer yet.
+mod admission;
 mod ancestry;
 mod handoff;
 mod publication;
@@ -679,15 +680,20 @@ impl Writeback {
     }
     pub async fn relocate(
         &self,
+        engine: &Engine,
         scope: Scope,
         node: Node,
-        source_parent: String,
-        source_name: String,
+        source: (String, String),
         parent: String,
         name: String,
     ) -> Result<Node> {
+        let (source_parent, source_name) = source;
+        let admission = self
+            .admit_write(engine, &scope, &node, &engine.cancel)
+            .await?;
         let object = self
             .local(move |j| {
+                admission.recheck(j)?;
                 let object = Self::materialize(j, scope, node)?;
                 // Recheck the source at the journal's serialization point. Another
                 // rename may have completed after the cached directory was read.
@@ -719,6 +725,29 @@ impl Writeback {
         truncate: bool,
         cancel: &CancellationToken,
     ) -> Result<WorkingFile> {
+        self.prepare_inner(engine, view, truncate.then_some(0), cancel, true)
+            .await
+    }
+    /// Pathname truncation keeps admission and the final size mutation bound to
+    /// one journal serialization point. Existing descriptors use `truncate`.
+    pub async fn truncate_path(
+        &self,
+        engine: &Engine,
+        view: &View,
+        size: u64,
+        cancel: &CancellationToken,
+    ) -> Result<WorkingFile> {
+        self.prepare_inner(engine, view, Some(size), cancel, true)
+            .await
+    }
+    async fn prepare_inner(
+        &self,
+        engine: &Engine,
+        view: &View,
+        truncate: Option<u64>,
+        cancel: &CancellationToken,
+        write_admission: bool,
+    ) -> Result<WorkingFile> {
         let identity = key(&view.scope, &view.id);
         let gate = {
             let mut gates = self.hydrating.lock().map_err(|_| Errno::EIO)?;
@@ -737,8 +766,27 @@ impl Writeback {
             _ = cancel.cancelled() => return Err(Errno::ENODEV),
             guard = gate.lock() => guard,
         };
+        let admission = if write_admission {
+            let node = view.node.as_ref().ok_or(Errno::EINVAL)?;
+            Some(self.admit_write(engine, &view.scope, node, cancel).await?)
+        } else {
+            None // Retaining bytes for existing read handles is not a new edit.
+        };
         let working = match self.working(&view.scope, &view.id)? {
-            Some(working) => working,
+            Some(working) => {
+                let record = self
+                    .local(move |j| {
+                        if let Some(admission) = &admission {
+                            admission.recheck(j)?;
+                        }
+                        match truncate {
+                            Some(size) => j.truncate_working(working.id, size),
+                            None => j.working_file(working.id),
+                        }
+                    })
+                    .await?;
+                return self.publish(record).await;
+            }
             None => {
                 // A link is resolved at lookup to its target scope and local
                 // owner. Only target file metadata may become a working copy;
@@ -750,24 +798,41 @@ impl Writeback {
                 }
                 let scope = view.scope.as_ref().clone();
                 let node = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
+                let preparation_admission = admission.clone();
                 let object = self
-                    .local(move |j| Self::materialize(j, scope, node))
+                    .local(move |j| {
+                        if let Some(admission) = &preparation_admission {
+                            admission.recheck(j)?;
+                        }
+                        Self::materialize(j, scope, node)
+                    })
                     .await?;
                 let expected = object.id;
+                let materialized_admission = admission
+                    .as_ref()
+                    .map(|_| admission::WriteAdmission::materialized(&object));
                 if let Some(id) = object.working_file {
-                    let record = self.local(move |j| j.working_file(id)).await?;
-                    let record = self.publish(record).await?;
-                    return if truncate {
-                        self.truncate(record.id, 0).await
-                    } else {
-                        Ok(record)
-                    };
+                    let record = self
+                        .local(move |j| {
+                            if let Some(admission) = &materialized_admission {
+                                admission.recheck(j)?;
+                            }
+                            match truncate {
+                                Some(size) => j.truncate_working(id, size),
+                                None => j.working_file(id),
+                            }
+                        })
+                        .await?;
+                    return self.publish(record).await;
                 }
                 let node = object.remote.ok_or(Errno::ESTALE)?;
-                if truncate {
+                if truncate == Some(0) {
                     let scope = view.scope.as_ref().clone();
                     let record = self
                         .local(move |j| {
+                            if let Some(admission) = &materialized_admission {
+                                admission.recheck(j)?;
+                            }
                             let current = j.namespace_object(expected)?;
                             if let Some(id) = current.working_file {
                                 return j.truncate_working(id, 0);
@@ -793,21 +858,24 @@ impl Writeback {
                     .local(move |j| {
                         // A background replacement preparation may have materialized
                         // this same stream while its read was in flight.
-                        let current = j.namespace_object(expected)?;
-                        if let Some(id) = current.working_file {
-                            return j.working_file(id);
+                        if let Some(admission) = &materialized_admission {
+                            admission.recheck(j)?;
                         }
-                        j.publish_working_for(expected, scope, node, source)
+                        let current = j.namespace_object(expected)?;
+                        let record = match current.working_file {
+                            Some(id) => j.working_file(id)?,
+                            None => j.publish_working_for(expected, scope, node, source)?,
+                        };
+                        match truncate {
+                            Some(size) => j.truncate_working(record.id, size),
+                            None => Ok(record),
+                        }
                     })
                     .await?;
                 self.publish(record).await?
             }
         };
-        if truncate {
-            self.truncate(working.id, 0).await
-        } else {
-            Ok(working)
-        }
+        Ok(working)
     }
     pub async fn create(&self, scope: Scope, node: Node) -> Result<WorkingFile> {
         let record = self

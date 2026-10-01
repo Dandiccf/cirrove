@@ -66,6 +66,11 @@ struct Remote {
 }
 #[derive(Default)]
 struct Cloud {
+    refused_write_target: Mutex<Option<String>>,
+    admission_targets: Mutex<Vec<String>>,
+    hold_admission: AtomicBool,
+    admission_entered: Notify,
+    admission_release: Notify,
     remote: Mutex<Remote>,
     pause_once: AtomicBool,
     reads: AtomicUsize,
@@ -89,6 +94,7 @@ struct Cloud {
     /// asserted. Nothing else in this fixture can make the provider unreachable.
     offline: AtomicBool,
     google_names: AtomicBool,
+    icloud_identity: AtomicBool,
     cross_parent_folder_move: AtomicBool,
     write_calls: AtomicUsize,
 }
@@ -109,7 +115,11 @@ fn root() -> Node {
 #[async_trait]
 impl MetadataProvider for Cloud {
     fn provider_id(&self) -> &'static str {
-        "fixture"
+        if self.icloud_identity.load(Ordering::SeqCst) {
+            "icloud"
+        } else {
+            "fixture"
+        }
     }
     async fn changes(
         &self,
@@ -117,7 +127,7 @@ impl MetadataProvider for Cloud {
         _: Option<&Cursor>,
         _: &CancellationToken,
     ) -> Result<ChangePage, ProviderError> {
-        let mut nodes = vec![Change::Upsert(root())];
+        let mut nodes = vec![Change::Upsert(self.root())];
         nodes.extend(
             self.remote
                 .lock()
@@ -134,6 +144,22 @@ impl MetadataProvider for Cloud {
 }
 #[async_trait]
 impl ReadProvider for Cloud {
+    async fn validate_write_target(
+        &self,
+        _: &Scope,
+        node: &Node,
+        _: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        self.admission_targets.lock().unwrap().push(node.id.clone());
+        if self.hold_admission.swap(false, Ordering::SeqCst) {
+            self.admission_entered.notify_one();
+            self.admission_release.notified().await;
+        }
+        if self.refused_write_target.lock().unwrap().as_deref() == Some(node.id.as_str()) {
+            return Err(ProviderError::Permission);
+        }
+        Ok(())
+    }
     fn supports_cross_parent_folder_move(&self) -> bool {
         self.cross_parent_folder_move.load(Ordering::SeqCst)
     }
@@ -148,8 +174,8 @@ impl ReadProvider for Cloud {
         id: &str,
         _: &CancellationToken,
     ) -> Result<Node, ProviderError> {
-        if id == "root" {
-            return Ok(root());
+        if id == self.root().id {
+            return Ok(self.root());
         }
         self.remote
             .lock()
@@ -167,7 +193,7 @@ impl ReadProvider for Cloud {
         _: &CancellationToken,
     ) -> Result<DirectoryPage, ProviderError> {
         let remote = self.remote.lock().unwrap();
-        if !Self::has_parent(&remote, parent) {
+        if !self.has_parent(&remote, parent) {
             return Err(ProviderError::NotFound);
         }
         Ok(DirectoryPage {
@@ -207,6 +233,14 @@ impl ReadProvider for Cloud {
     }
 }
 impl Cloud {
+    fn root(&self) -> Node {
+        let mut node = root();
+        if self.icloud_identity.load(Ordering::SeqCst) {
+            node.id = "FOLDER::com.apple.CloudDocs::root".into();
+        }
+        node
+    }
+
     fn read_node(&self, node: &Node) -> Node {
         let mut node = node.clone();
         if self.google_names.load(Ordering::SeqCst) && node.id != "root" {
@@ -222,8 +256,8 @@ impl Cloud {
         node
     }
 
-    fn has_parent(remote: &Remote, parent: &str) -> bool {
-        parent == "root"
+    fn has_parent(&self, remote: &Remote, parent: &str) -> bool {
+        parent == self.root().id
             || remote
                 .files
                 .get(parent)
@@ -339,7 +373,7 @@ impl UploadProvider for Cloud {
             }
             _ => return Err(UploadError::Conflict),
         };
-        if !Self::has_parent(&remote, &parent) {
+        if !self.has_parent(&remote, &parent) {
             return Err(ProviderError::NotFound.into());
         }
         let bytes = remote
@@ -419,7 +453,7 @@ impl MutationProvider for Cloud {
                 self.folder_release.notified().await;
             }
             let mut remote = self.remote.lock().unwrap();
-            if !Self::has_parent(&remote, parent) {
+            if !self.has_parent(&remote, parent) {
                 return Err(ProviderError::NotFound.into());
             }
             if remote.files.values().any(|(n, _)| {
@@ -502,7 +536,7 @@ impl MutationProvider for Cloud {
             return Err(MutationError::Unsupported("fixture only relocates files"));
         };
         let mut remote = self.remote.lock().unwrap();
-        if !Self::has_parent(&remote, parent) {
+        if !self.has_parent(&remote, parent) {
             return Err(ProviderError::NotFound.into());
         }
         if remote.files.values().any(|(n, _)| {
@@ -5296,6 +5330,18 @@ with p.open('wb',buffering=0) as f:
 #[ignore = "requires /dev/fuse; synthetic RW-to-RO manager/socket lifecycle only"]
 async fn real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes()
 -> anyhow::Result<()> {
+    manager_readonly_downgrade_exports_retained_bytes(false).await
+}
+
+/// Exercise actual settings reload and manager ownership with iCloud identity.
+/// Providers remain synthetic: this does not exercise Apple transport or login.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse and the ordinary iCloud write settings gate"]
+async fn real_manager_icloud_readonly_write_readonly_retains_recovery() -> anyhow::Result<()> {
+    manager_readonly_downgrade_exports_retained_bytes(true).await
+}
+
+async fn manager_readonly_downgrade_exports_retained_bytes(icloud: bool) -> anyhow::Result<()> {
     use cirrove_service::{
         accounts::Settings,
         manager::{Manager, ProviderFactory, WriteFactory},
@@ -5309,24 +5355,35 @@ async fn real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes(
     cirrove_service::private_dir(&state)?;
     let mut config = account(&mount);
     config.enabled = true;
-    config.access = AccessMode::ReadWrite;
+    config.access = if icloud {
+        AccessMode::ReadOnly
+    } else {
+        AccessMode::ReadWrite
+    };
+    if icloud {
+        config.registration = AppRegistration::ICloud;
+        config.identity.tenant_id.clear();
+        config.identity.graph_user_id.clear();
+        config.drive.drive_type = "icloud_drive".into();
+        config.root_id = "FOLDER::com.apple.CloudDocs::root".into();
+    }
     config.label = "downgrade-fixture".into();
     config.cache_bytes = 64 * 1024 * 1024;
     let save_settings = |config: &Account| -> anyhow::Result<()> {
         let next = state.join("accounts.next.json");
-        std::fs::write(
-            &next,
-            serde_json::to_vec(&Settings {
-                version: 2,
-                accounts: vec![config.clone()],
-            })?,
-        )?;
+        let settings = Settings {
+            version: 2,
+            accounts: vec![config.clone()],
+        };
+        settings.validate()?;
+        std::fs::write(&next, serde_json::to_vec(&settings)?)?;
         std::fs::rename(next, state.join("accounts.json"))?;
         Ok(())
     };
     save_settings(&config)?;
     let cloud = Arc::new(Cloud::default());
     cloud.stall.store(true, Ordering::SeqCst);
+    cloud.icloud_identity.store(icloud, Ordering::SeqCst);
     let reads = cloud.clone();
     let writes = cloud.clone();
     let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
@@ -5335,17 +5392,22 @@ async fn real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes(
     let captured = Arc::new(Mutex::new(None));
     let capture = captured.clone();
     let write_factory: WriteFactory = Arc::new(move |account, context| {
+        anyhow::ensure!(
+            account.access == AccessMode::ReadWrite,
+            "RO invoked write factory"
+        );
+        anyhow::ensure!(matches!(account.registration, AppRegistration::ICloud) == icloud);
         calls.fetch_add(1, Ordering::SeqCst);
         let journal = context.journal();
         let mut journal = journal.lock().unwrap();
         let record = journal.enqueue(
             Scope {
                 account: account.id.clone(),
-                provider: "fixture".into(),
-                collection: "home".into(),
+                provider: writes.provider_id().into(),
+                collection: account.drive.id.clone(),
             },
             UploadIntent::Create {
-                parent: "root".into(),
+                parent: account.root_id.clone(),
                 name: "Saved.txt".into(),
             },
             &b"sealed before downgrade"[..],
@@ -5380,6 +5442,36 @@ async fn real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes(
             }
         })
         .await?;
+        if icloud {
+            let initial = manager.engine(&config.label).await?;
+            anyhow::ensure!(initial.account.access == AccessMode::ReadOnly);
+            anyhow::ensure!(initial.provider.provider_id() == "icloud");
+            let initial_engine = Arc::downgrade(&initial);
+            drop(initial);
+            anyhow::ensure!(factory_calls.load(Ordering::SeqCst) == 0);
+            anyhow::ensure!(cloud.write_calls.load(Ordering::SeqCst) == 0);
+            let path = mount.join("initial-ro-must-not-write.txt");
+            let error = tokio::task::spawn_blocking(move || std::fs::write(path, b"forbidden"))
+                .await?
+                .expect_err("initial RO mount accepted a write");
+            anyhow::ensure!(error.raw_os_error() == Some(libc::EROFS));
+            config.access = AccessMode::ReadWrite;
+            save_settings(&config)?;
+            tokio::time::timeout(Duration::from_secs(30), async {
+                loop {
+                    if let Ok(engine) = manager.engine(&config.label).await
+                        && engine.account.access == AccessMode::ReadWrite
+                        && manager.status.read().await.iter().any(|row| row.mounted)
+                        && initial_engine.upgrade().is_none()
+                        && factory_calls.load(Ordering::SeqCst) == 1
+                    {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await?;
+        }
         let old_engine = Arc::downgrade(&manager.engine(&config.label).await?);
         // No fsync before unlink: no sealed copy can replace the dirty generation.
         let path = mount.join("Open then removed.txt");
@@ -5546,4 +5638,303 @@ async fn real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes(
     stopped??;
     served???;
     outcome
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; selected representation admission precedes local edits"]
+async fn real_unknown_package_admission_refuses_namespace_and_content_before_journalling() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    replacement_fixture(&cloud);
+    // Metadata deliberately says ordinary file, with an unrecognized extension.
+    cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .get_mut("target")
+        .unwrap()
+        .0
+        .name = "bundle.unknown-native".into();
+    let mut folder = root();
+    folder.id = "folder".into();
+    folder.parent_id = Some("root".into());
+    folder.name = "folder".into();
+    cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .insert("folder".into(), (folder, vec![]));
+    *cloud.refused_write_target.lock().unwrap() = Some("target".into());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine,
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys,errno
+os.chdir(sys.argv[1])
+p='bundle.unknown-native'
+def refused(action):
+    try:
+        result=action()
+    except OSError as e:
+        assert e.errno == errno.EACCES, e
+    else:
+        if isinstance(result,int): os.close(result)
+        raise AssertionError('unclassified package edit accepted')
+for action in [
+    lambda: os.open(p,os.O_WRONLY),
+    lambda: os.open(p,os.O_WRONLY|os.O_TRUNC),
+    lambda: os.truncate(p,0),
+    lambda: os.unlink(p),
+    lambda: os.rename(p,'renamed'),
+    lambda: os.rename(p,'folder/moved'),
+    lambda: os.replace('source.txt',p),
+    lambda: os.replace(p,'source.txt'),
+]:
+    refused(action)
+    assert sorted(os.listdir('.')) == ['bundle.unknown-native','folder','source.txt']
+    assert os.stat(p).st_size == 3
+    assert os.stat('source.txt').st_size == 3
+"#,
+    )
+    .await;
+    {
+        let j = journal.lock().unwrap();
+        assert!(j.list(0, 64).unwrap().is_empty());
+        assert!(j.list_mutations(0, 64).unwrap().is_empty());
+        assert!(j.working_files().unwrap().is_empty());
+    }
+    assert_eq!(
+        cloud.reads.load(Ordering::SeqCst),
+        0,
+        "admission must not download content"
+    );
+    assert!(cloud.remote.lock().unwrap().moves.is_empty());
+    assert!(cloud.remote.lock().unwrap().deletes.is_empty());
+    // Ordinary metadata remains editable; then its local alias must not bypass
+    // a subsequent representation refusal for the canonical provider identity.
+    application(&mount, "import os,sys; os.rename(os.path.join(sys.argv[1],'source.txt'),os.path.join(sys.argv[1],'alias.txt'))").await;
+    mutations_applied(&session, 1).await;
+    *cloud.refused_write_target.lock().unwrap() = Some("source".into());
+    cloud.admission_targets.lock().unwrap().clear();
+    application(
+        &mount,
+        r#"
+import os,sys,errno
+p=os.path.join(sys.argv[1],'alias.txt')
+try: os.unlink(p)
+except OSError as e: assert e.errno==errno.EACCES
+else: raise AssertionError('local alias bypassed remote admission')
+assert os.stat(p).st_size==3
+"#,
+    )
+    .await;
+    assert!(
+        cloud
+            .admission_targets
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|id| id == "source")
+    );
+    assert_eq!(
+        journal.lock().unwrap().list_mutations(0, 64).unwrap().len(),
+        1
+    );
+    *cloud.refused_write_target.lock().unwrap() = None;
+    cloud.hold_admission.store(true, Ordering::SeqCst);
+    let raced_path = mount.join("alias.txt");
+    let pending = tokio::task::spawn_blocking(move || {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(raced_path)
+    });
+    tokio::time::timeout(Duration::from_secs(5), cloud.admission_entered.notified())
+        .await
+        .unwrap();
+    {
+        let mut j = journal.lock().unwrap();
+        let row = j.list_mutations(0, 64).unwrap().remove(0);
+        let object = j
+            .namespace_by_remote(&row.request.scope, "source")
+            .unwrap()
+            .unwrap();
+        // Reactivate an idle follows-remote alias through the same journal API
+        // used by foreground materialization before constructing its successor.
+        let object = j
+            .observe_namespace_file(row.request.scope.clone(), object.remote.clone().unwrap())
+            .unwrap();
+        j.relocate_namespace_item(
+            object.id,
+            object.revision,
+            "root".into(),
+            "raced.txt".into(),
+        )
+        .unwrap();
+    }
+    cloud.admission_release.notify_one();
+    let failure = tokio::time::timeout(Duration::from_secs(5), pending)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(
+        failure.raw_os_error(),
+        Some(libc::ESTALE),
+        "binding changed while metadata validation awaited"
+    );
+    assert!(journal.lock().unwrap().working_files().unwrap().is_empty());
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; admission races with an existing working stream"]
+async fn real_existing_working_admission_rechecks_open_and_path_truncate_atomically() {
+    for truncate_path in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let mount = temp.path().join("mount");
+        std::fs::create_dir(&mount).unwrap();
+        let account = account(&mount);
+        let cloud = Arc::new(Cloud::default());
+        replacement_fixture(&cloud);
+        let journal = Arc::new(Mutex::new(
+            UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+        ));
+        let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+            .await
+            .unwrap();
+        let session = WritableSession::mount(
+            engine,
+            journal.clone(),
+            cloud.clone(),
+            Arc::new(Vault::default()),
+        )
+        .await
+        .unwrap();
+        let source = mount.join("source.txt");
+        let old = tokio::task::spawn_blocking(move || {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(source)
+                .unwrap()
+        })
+        .await
+        .unwrap();
+        let working = journal.lock().unwrap().working_files().unwrap();
+        assert_eq!(working.len(), 1);
+        assert_eq!(working[0].node.size, 3);
+        let working_id = working[0].id;
+        cloud.hold_admission.store(true, Ordering::SeqCst);
+        let path = mount.clone();
+        let pending = tokio::spawn(async move {
+            application(
+                &path,
+                if truncate_path {
+                    r#"
+import os,sys,errno
+try: os.truncate(os.path.join(sys.argv[1],'source.txt'),1)
+# Linux may retry ESTALE by resolving the old pathname, which the deliberate
+# concurrent rename removed. Both outcomes refuse the stale operation.
+except OSError as e: assert e.errno in (errno.ESTALE,errno.ENOENT), e
+else: raise AssertionError('stale pathname truncate accepted')
+"#
+                } else {
+                    r#"
+import os,sys,errno
+try: fd=os.open(os.path.join(sys.argv[1],'source.txt'),os.O_WRONLY)
+# Linux may retry ESTALE by resolving the old pathname, which the deliberate
+# concurrent rename removed. Both outcomes refuse the stale operation.
+except OSError as e: assert e.errno in (errno.ESTALE,errno.ENOENT), e
+else:
+    os.close(fd)
+    raise AssertionError('stale existing-working open accepted')
+"#
+                },
+            )
+            .await;
+        });
+        tokio::time::timeout(Duration::from_secs(5), cloud.admission_entered.notified())
+            .await
+            .unwrap();
+        {
+            let mut j = journal.lock().unwrap();
+            let object = j
+                .namespace_objects()
+                .unwrap()
+                .into_iter()
+                .find(|o| o.remote.as_ref().is_some_and(|n| n.id == "source"))
+                .unwrap();
+            j.relocate_namespace_item(
+                object.id,
+                object.revision,
+                "root".into(),
+                "raced.txt".into(),
+            )
+            .unwrap();
+        }
+        cloud.admission_release.notify_one();
+        tokio::time::timeout(Duration::from_secs(5), pending)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            journal
+                .lock()
+                .unwrap()
+                .working_file(working_id)
+                .unwrap()
+                .node
+                .size,
+            3,
+            "refused pathname action must preserve the existing stream length"
+        );
+        // Previously admitted descriptors retain their stream semantics even if
+        // another namespace operation renamed that stream while a new open waited.
+        tokio::task::spawn_blocking(move || old.set_len(2).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            journal
+                .lock()
+                .unwrap()
+                .working_file(working_id)
+                .unwrap()
+                .node
+                .size,
+            2
+        );
+        // The unified pathname path must still hydrate, shrink and extend an
+        // ordinary file without changing the already-open-descriptor contract.
+        application(
+            &mount,
+            r#"
+import os,sys
+p=os.path.join(sys.argv[1],'document.txt')
+os.truncate(p,2)
+assert open(p,'rb').read()==b'ol'
+os.truncate(p,6)
+assert open(p,'rb').read()==b'ol\0\0\0\0'
+"#,
+        )
+        .await;
+        session.shutdown().await.unwrap();
+    }
 }
