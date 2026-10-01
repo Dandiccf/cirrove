@@ -3,6 +3,7 @@ use super::*;
 use cirrove_core::{CancellationToken, reads::NativeArchiveBinding};
 use std::os::fd::AsRawFd;
 
+mod edit;
 pub(crate) mod projection;
 pub(crate) mod successors;
 

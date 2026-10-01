@@ -16,6 +16,7 @@
 //! everything -- the same reason [`mod@crate::recent`] refuses files a user merely
 //! opened -- and the application doing the reading draws its own progress bar.
 //! This register holds work a person asked for by name.
+mod native_abandon;
 mod native_trash;
 use cirrove_core::CancellationToken;
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,8 @@ pub enum JobKind {
     ReplaceNativePackage,
     /// Observe an explicitly requested, recoverable native-document removal.
     TrashNativeDocument,
+    /// Resolve only a proven pre-handoff replacement; retain all recovery data.
+    AbandonNativeStage,
     #[serde(other)]
     Unknown,
 }
@@ -113,6 +116,15 @@ pub struct Job {
     pub native_replace: Option<NativeReplaceProgress>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_trash: Option<NativeTrashProgress>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_abandon: Option<NativeAbandonProgress>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeAbandonProgress {
+    pub account_id: String,
+    pub operation: uuid::Uuid,
+    pub receipt: Option<crate::native_abandon::NativeAbandonReceipt>,
 }
 
 /// Exact durable operation retained after an observer stops or fails.
@@ -231,6 +243,7 @@ impl Jobs {
             native_import: None,
             native_replace: None,
             native_trash: None,
+            native_abandon: None,
         };
         self.inner().running.push(Running {
             job,

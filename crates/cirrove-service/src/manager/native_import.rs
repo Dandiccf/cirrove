@@ -295,6 +295,7 @@ impl Manager {
 #[cfg(test)]
 mod tests;
 
+pub(super) mod native_abandon;
 mod native_replace;
 
 mod native_replace_observer;

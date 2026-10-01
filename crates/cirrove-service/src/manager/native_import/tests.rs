@@ -111,6 +111,9 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
+        Self::with_journal("uploads").await
+    }
+    async fn with_journal(journal_name: &str) -> Self {
         let tmp = std::env::var_os("TMPDIR")
             .map(PathBuf::from)
             .unwrap_or_else(|| "/var/tmp".into());
@@ -155,7 +158,7 @@ impl Fixture {
             .unwrap();
         let journal = Arc::new(Mutex::new(
             crate::journal::UploadJournal::open(
-                &engine.db.parent().unwrap().join("uploads"),
+                &engine.db.parent().unwrap().join(journal_name),
                 &account.id,
                 16 * 1024 * 1024,
             )
@@ -451,5 +454,6 @@ mod native_replace_tests;
 #[path = "native_replace_observer_tests.rs"]
 mod native_replace_observer_tests;
 
+mod native_abandon_socket;
 #[path = "tests/replacement_socket.rs"]
 mod replacement_socket;

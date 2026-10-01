@@ -308,3 +308,19 @@ impl RecoveryControl {
         }
     }
 }
+
+impl RecoveryControl {
+    pub(crate) async fn native_abandon_record(
+        &self,
+        id: uuid::Uuid,
+    ) -> Result<Option<cirrove_icloud::NativeReplacementAbandonRecord>> {
+        match &self.access {
+            Access::Writer(writer) => Ok(writer.native_abandon_record(id).await?),
+            Access::ReadOnly(None) => Ok(None),
+            _ => {
+                self.local(move |journal| journal.native_stage_abandonment(id))
+                    .await
+            }
+        }
+    }
+}

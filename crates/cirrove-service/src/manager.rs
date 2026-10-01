@@ -242,6 +242,9 @@ pub struct Manager {
     export_slots: Arc<tokio::sync::Semaphore>,
     native_import_slots: Arc<tokio::sync::Semaphore>,
     #[cfg(test)]
+    native_abandon_inspector:
+        std::sync::Mutex<Option<Arc<native_import::native_abandon::TestInspector>>>,
+    #[cfg(test)]
     native_replace_capture_fixture: std::sync::Mutex<Option<Arc<NativeReplaceCaptureFixture>>>,
     #[cfg(test)]
     native_replace_after_enqueue: std::sync::Mutex<Option<NativeReplaceEnqueuePause>>,
@@ -254,6 +257,8 @@ impl Default for Manager {
             writers: RwLock::default(),
             export_slots: Arc::new(tokio::sync::Semaphore::new(1)),
             native_import_slots: Arc::new(tokio::sync::Semaphore::new(1)),
+            #[cfg(test)]
+            native_abandon_inspector: std::sync::Mutex::new(None),
             #[cfg(test)]
             native_replace_capture_fixture: std::sync::Mutex::new(None),
             #[cfg(test)]

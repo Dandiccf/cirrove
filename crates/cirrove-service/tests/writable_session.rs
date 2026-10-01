@@ -6159,3 +6159,6 @@ async fn real_native_trash_publication_preserves_held_generated_archive_reader()
 
 #[path = "writable_session/native_replacement_publication.rs"]
 mod native_replacement_publication;
+
+#[path = "writable_session/native_archive_edit.rs"]
+mod native_archive_edit;

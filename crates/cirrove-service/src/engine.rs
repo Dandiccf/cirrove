@@ -2322,4 +2322,5 @@ mod tests {
     }
 }
 
+mod native_abandon;
 mod native_replace;

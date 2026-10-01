@@ -4,6 +4,7 @@ use tokio_util::task::task_tracker::TaskTrackerToken;
 
 pub(crate) enum ReadSource {
     Working(Uuid),
+    Native(Arc<dyn cirrove_core::reads::ReadSession>),
     Remote(Node, TaskTrackerToken),
 }
 impl Writeback {
@@ -19,6 +20,13 @@ impl Writeback {
     /// this stream even if OPEN has not returned its file handle yet.
     pub fn register_open(&self, file: OpenFile) -> Result<Arc<OpenFile>> {
         let mut p = self.projection.lock().map_err(|_| Errno::EIO)?;
+        if let Ok(identity) = cirrove_core::reads::ReadIdentity::new(&file.view.scope, &file.node)
+            && let Some(session) = p.native_readers.get(&identity).and_then(Weak::upgrade)
+        {
+            let _ = file.native_snapshot.set(session);
+        }
+        p.native_readers
+            .retain(|_, session| session.strong_count() > 0);
         let object = p.local_object(&file.view.scope, &file.view.id);
         if object.is_some_and(|o| o.unlinked) {
             return Err(Errno::ENOENT);
@@ -49,6 +57,9 @@ impl Writeback {
     }
     pub fn read_source(&self, file: &OpenFile) -> Result<ReadSource> {
         let p = self.projection.lock().map_err(|_| Errno::EIO)?;
+        if let Some(session) = file.native_snapshot.get() {
+            return Ok(ReadSource::Native(session.clone()));
+        }
         let object = p.local_object(&file.view.scope, &file.view.id);
         if let Some(working) = object.and_then(|o| o.working_file) {
             return Ok(ReadSource::Working(working));

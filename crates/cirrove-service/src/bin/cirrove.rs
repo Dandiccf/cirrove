@@ -1,5 +1,36 @@
 use anyhow::{Context, Result, bail};
 
+async fn require_abandon_capability(socket: &std::path::Path, verb: &str) -> Result<()> {
+    if cirrove_service::capabilities(socket)
+        .await?
+        .capabilities
+        .get(verb)
+        != Some(&1)
+    {
+        bail!("this service does not support the requested native Stage recovery action");
+    }
+    Ok(())
+}
+fn show_native_abandonment(
+    input: &cirrove_service::native_abandon::NativeAbandonRequest,
+    receipt: &cirrove_service::native_abandon::NativeAbandonReceipt,
+) -> Result<()> {
+    if receipt.operation != input.operation
+        || receipt.account_id != input.expected_account_id
+        || receipt.original.id == receipt.retained_stage.id
+    {
+        bail!("abandonment receipt binding changed");
+    }
+    println!(
+        "Local abandonment recorded [{}]. Original {:?} and staged document {:?} were active when checked. No document was deleted or moved; current cloud state may differ.",
+        receipt.operation, receipt.original.id, receipt.retained_stage.id
+    );
+    println!(
+        "Saved archive and encrypted checkpoint remain retained. Export the saved archive with export-save using this operation UUID. The retained stage is not a confirmed Trash backup."
+    );
+    Ok(())
+}
+
 async fn follow_native_replacement(
     socket: &std::path::Path,
     label: &str,
@@ -938,6 +969,30 @@ enum Command {
         archive: PathBuf,
         #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
         source_root: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Resolve one proven pre-handoff conflict locally. Retains cloud stage,
+    /// encrypted checkpoint and saved archive; never retries or deletes anything.
+    AbandonNativeStage {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Read a recorded Stage-abandonment outcome, including after restart.
+    /// Historical evidence only; does not inspect current cloud state.
+    NativeStageAbandonment {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
         #[arg(long)]
         socket: Option<PathBuf>,
     },
@@ -2132,6 +2187,112 @@ async fn main() -> Result<()> {
             follow_native_replacement(&socket, &label, &account, &initial, None, Some(selected))
                 .await?;
         }
+        Command::AbandonNativeStage {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let input = cirrove_service::native_abandon::NativeAbandonRequest {
+                label,
+                expected_account_id: account_id.to_string(),
+                operation,
+            };
+            require_abandon_capability(&socket, "abandon-native-stage").await?;
+            let reply = cirrove_service::native_abandon::abandon_native_stage(&socket, &input)
+                .await
+                .context(
+                    "abandonment reply lost; inspect native-stage-abandonment before resubmitting",
+                )?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("abandonment job unavailable")?;
+            eprintln!(
+                "Checking retained operation {operation}; no cloud retry or cleanup will be performed."
+            );
+            let following = async {
+                loop {
+                    let status = cirrove_service::status(&socket).await?;
+                    let job = status
+                        .accounts
+                        .iter()
+                        .filter(|a| {
+                            a.label == input.label && a.account_id == input.expected_account_id
+                        })
+                        .flat_map(|a| &a.jobs)
+                        .find(|j| j.id == initial.id)
+                        .context("abandonment job unavailable; inspect native-stage-abandonment")?;
+                    let progress = job
+                        .native_abandon
+                        .as_ref()
+                        .context("abandonment progress missing")?;
+                    if job.kind != cirrove_service::jobs::JobKind::AbandonNativeStage
+                        || progress.operation != operation
+                        || progress.account_id != input.expected_account_id
+                    {
+                        bail!("abandonment job binding changed");
+                    }
+                    if job.state == cirrove_service::jobs::JobState::Succeeded {
+                        let receipt = progress
+                            .receipt
+                            .as_ref()
+                            .context("abandonment receipt missing")?;
+                        show_native_abandonment(&input, receipt)?;
+                        return Ok::<_, anyhow::Error>(());
+                    }
+                    if !job.running() {
+                        bail!(
+                            "{}",
+                            job.issue.as_deref().unwrap_or(
+                                "abandonment not confirmed; inspect native-stage-abandonment"
+                            )
+                        );
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+            };
+            tokio::select! {
+                result=following=>result?,
+                _=tokio::signal::ctrl_c()=>{
+                    let _=cirrove_service::stop_job(&socket,&cirrove_service::StopJobRequest{label:input.label.clone(),id:initial.id.clone()}).await;
+                    bail!("Stop requested. A local commit may already have completed; inspect native-stage-abandonment. No cloud cleanup requested.");
+                }
+            }
+        }
+        Command::NativeStageAbandonment {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            require_abandon_capability(&socket, "native-stage-abandonment").await?;
+            let input = cirrove_service::native_abandon::NativeAbandonRequest {
+                label,
+                expected_account_id: account_id.to_string(),
+                operation,
+            };
+            let reply =
+                cirrove_service::native_abandon::native_stage_abandonment(&socket, &input).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            if let Some(receipt) = reply.receipt {
+                show_native_abandonment(&input, &receipt)?;
+            } else {
+                println!(
+                    "No recorded local abandonment for {operation}. No cloud action performed."
+                );
+            }
+        }
         Command::WatchNativeReplacement {
             label,
             account_id,
@@ -2925,6 +3086,26 @@ mod icloud_access_tests {
             ])
             .is_err()
         );
+    }
+    #[test]
+    fn native_stage_abandonment_cli_requires_exact_identity_and_accepts_no_mutation_payload() {
+        for verb in ["abandon-native-stage", "native-stage-abandonment"] {
+            let base = [
+                "cirrove",
+                verb,
+                "--label",
+                "Owned",
+                "--account-id",
+                "00000000-0000-4000-8000-000000000001",
+                "--operation",
+                "00000000-0000-4000-8000-000000000002",
+            ];
+            assert!(Args::try_parse_from(base).is_ok());
+            assert!(Args::try_parse_from(&base[..6]).is_err());
+            let mut forged = base.to_vec();
+            forged.extend(["--archive", "/var/tmp/other.pages"]);
+            assert!(Args::try_parse_from(forged).is_err());
+        }
     }
     #[test]
     fn native_replacement_cli_requires_bound_original_and_keeps_observers_read_only() {

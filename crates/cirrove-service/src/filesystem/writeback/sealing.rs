@@ -19,6 +19,13 @@ impl Default for Sealing {
     }
 }
 impl Sealing {
+    pub(super) async fn permit(&self) -> Result<tokio::sync::OwnedSemaphorePermit> {
+        self.slots
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| Errno::ENODEV)
+    }
     fn working(&self, id: Uuid) -> Result<Arc<tokio::sync::Mutex<()>>> {
         let mut gates = self.working.lock().map_err(|_| Errno::EIO)?;
         gates.retain(|_, gate| gate.strong_count() > 0);

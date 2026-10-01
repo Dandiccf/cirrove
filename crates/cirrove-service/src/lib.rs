@@ -12,6 +12,7 @@ pub mod jobs;
 pub mod journal;
 pub mod manager;
 pub mod mutations;
+pub mod native_abandon;
 pub mod native_import;
 pub mod native_trash;
 pub mod recent;
@@ -1194,6 +1195,8 @@ impl Capabilities {
                 ("replace-native-package".to_string(), 1),
                 ("watch-native-replacement".to_string(), 1),
                 ("list-native-replacements".to_string(), 1),
+                ("abandon-native-stage".to_string(), 1),
+                ("native-stage-abandonment".to_string(), 1),
                 ("import-native-package-account-binding".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
@@ -1418,6 +1421,9 @@ pub async fn serve_managed(
                                 _=>ExportSaveReply{refusal:Some("working export request or account service is unavailable".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
+                        }
+                        if matches!(verb, "abandon-native-stage" | "native-stage-abandonment") {
+                            return write_reply(&mut stream, &native_abandon::handle(verb, body, manager.as_ref()).await).await;
                         }
                         if verb=="replace-native-package" {
                             let reply=match (serde_json::from_str::<ReplaceNativePackageRequest>(body),&manager){

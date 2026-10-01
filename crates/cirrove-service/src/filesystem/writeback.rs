@@ -3,6 +3,8 @@
 mod admission;
 mod ancestry;
 mod handoff;
+mod native_abandon;
+pub(super) mod native_edit;
 mod native_import;
 mod native_trash;
 mod native_trash_publication;
@@ -43,6 +45,8 @@ struct Projection {
     ancestry: std::cell::OnceCell<RetainedAncestors>,
     objects: HashMap<Uuid, NamespaceObject>,
     native_archives: HashMap<Uuid, Uuid>,
+    native_readers:
+        HashMap<cirrove_core::reads::ReadIdentity, Weak<dyn cirrove_core::reads::ReadSession>>,
     local_identities: HashMap<EditKey, Uuid>,
     remote_bindings: HashMap<EditKey, Uuid>,
     files: HashMap<Uuid, WorkingFile>,

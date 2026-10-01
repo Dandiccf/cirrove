@@ -171,6 +171,7 @@ struct OpenFile {
     flags: i32,
     _lease: Option<writeback::FileLease>,
     remote_reads: tokio_util::task::TaskTracker,
+    native_snapshot: std::sync::OnceLock<Arc<dyn cirrove_core::reads::ReadSession>>,
 }
 pub struct CloudFs {
     inner: Arc<Inner>,
@@ -1378,6 +1379,7 @@ impl Filesystem for CloudFs {
                         flags,
                         _lease: Some(lease),
                         remote_reads: tokio_util::task::TaskTracker::new(),
+                        native_snapshot: std::sync::OnceLock::new(),
                     },
                 )?;
                 Ok::<_, Errno>((attr, handle))
@@ -1856,10 +1858,8 @@ impl Filesystem for CloudFs {
                     .then(|| view.node.as_deref().cloned())
                     .flatten();
                 view.node = Some(Arc::new(inner.node(&view).await.map_err(|e| errno(&e))?));
-                inner.refuse_within_package(&view)?;
-                inner.capture_ancestors(&view).await?;
-                let record = writer
-                    .truncate_path(&inner.engine, &view, pathname.as_ref(), size, &inner.cancel)
+                let record = inner
+                    .prepare_path_edit(&view, pathname.as_ref(), Some(size))
                     .await?;
                 Ok::<_, Errno>(inner.attr(&view, &record.node))
             }
@@ -1974,8 +1974,9 @@ impl Filesystem for CloudFs {
                     flags: flags.0,
                     _lease: lease,
                     remote_reads: tokio_util::task::TaskTracker::new(),
+                    native_snapshot: std::sync::OnceLock::new(),
                 };
-                let file = if let Some(writer) = &inner.writeback {
+                let mut file = if let Some(writer) = &inner.writeback {
                     writer.register_open(file)?
                 } else {
                     Arc::new(file)
@@ -1986,17 +1987,20 @@ impl Filesystem for CloudFs {
                         .then(|| view.node.as_deref().cloned())
                         .flatten();
                     view.node = Some(Arc::new(node.clone()));
-                    inner.refuse_within_package(&view)?;
-                    inner.capture_ancestors(&view).await?;
-                    writer
-                        .prepare(
-                            &inner.engine,
+                    let record = inner
+                        .prepare_path_edit(
                             &view,
                             pathname.as_ref(),
-                            flags.0 & libc::O_TRUNC != 0,
-                            &inner.cancel,
+                            (flags.0 & libc::O_TRUNC != 0).then_some(0),
                         )
                         .await?;
+                    if record.native {
+                        // Preserve old preparation/read handles until the new
+                        // local working handle is registered with its own lease.
+                        file = writer
+                            .native_open_file(&file, record, &inner.cancel)
+                            .await?;
+                    }
                 }
                 let handle = inner.handle();
                 inner
@@ -2068,6 +2072,15 @@ impl Filesystem for CloudFs {
                                 .read(id, offset, size)
                                 .await
                                 .map_err(|_| ProviderError::Unavailable);
+                        }
+                        writeback::ReadSource::Native(session) => {
+                            return writeback::native_edit::read_snapshot(
+                                session,
+                                offset,
+                                size,
+                                &inner.cancel,
+                            )
+                            .await;
                         }
                         writeback::ReadSource::Remote(node, token) => (node, Some(token)),
                     }

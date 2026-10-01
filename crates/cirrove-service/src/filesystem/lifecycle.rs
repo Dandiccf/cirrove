@@ -1,4 +1,5 @@
 //! Close edit admission atomically before awaiting the admitted callbacks.
+mod native_abandon;
 mod native_import;
 mod native_trash;
 use super::*;

@@ -1099,3 +1099,20 @@ recovery and application acceptance. See the
 Pre-upgrade exports preserve selected local bytes, not provider rollback, sharing
 or revision history. Missing/corrupt bindings must refuse upload while compatible
 read-only recovery still exports exact retained bytes without network or parsing.
+
+
+### Canonical archive in-place writes: synthetic kernel boundary
+
+The development path now routes the exact canonical native archive through a
+validated local working stream. New writable handles use that stream; already
+opened original readers retain an immutable staged session. Five admission tests
+and three actual-kernel synthetic cases cover first write, pathname truncate,
+O_TRUNC, typed fsync, held-original reads after a simulated handoff, and RO refusal.
+Counterfactual controls fail without the reader drain, snapshot selection or
+truncate forwarding. See [the registered evidence](benchmarks/icloud-native-path-writing-2026-10-01.md).
+
+This does not enable arbitrary edits inside package folders. Atomic temporary
+file replacement, clean working retirement, Apple-backed mounted save acceptance
+and installed lifecycle acceptance remain separate unfinished requirements.
+The kernel fixture injects a typed handoff receipt and is not an Apple protocol
+verification. No regular account or installed service was upgraded for it.

@@ -390,7 +390,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         state: cirrove_service::jobs::JobState::Running,
                                         issue: None,
                                         export: None,
-                                        native_import: None, native_replace: None, native_trash: None, working_export: None,
+                                        native_import: None, native_replace: None, native_trash: None, native_abandon: None, working_export: None,
                                     });
                                     accepted = true;
                                 }
@@ -1912,6 +1912,7 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
                 native_import: None,
                 native_replace: None,
                 native_trash: None,
+                native_abandon: None,
                 working_export: None,
             },
             // One that gave up. Its row stays until somebody has seen it: a
@@ -1931,6 +1932,7 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
                 native_import: None,
                 native_replace: None,
                 native_trash: None,
+                native_abandon: None,
                 working_export: None,
             },
         ];
