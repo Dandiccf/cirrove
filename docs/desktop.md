@@ -517,3 +517,10 @@ German labels, keyboard submission, invalid fields, cancellation and a write-acc
 change while the dialog is open. A successful synthetic dialog or socket test does
 not establish Apple document-editing compatibility. Installed desktop click-through
 and a new owned live Pages import remain separate acceptance steps.
+
+## Strata preview
+
+An opt-in [Strata integration](strata.md) adds asynchronous conditional pin menus,
+availability details and Cirrove's branded badges through a companion generic
+file-provider API. Stock Strata 0.20.1 does not yet expose that API. The isolated
+preview does not replace a working file manager or install global custom actions.

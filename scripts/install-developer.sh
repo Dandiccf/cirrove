@@ -16,6 +16,11 @@
 set -euo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# Opt-in file-manager integration can be staged without replacing the daemon.
+if [[ ${1:-} == --strata-only ]]; then
+  shift
+  exec /usr/bin/python3 "$repo/scripts/install-strata.py" "$@"
+fi
 target_dir=${CARGO_TARGET_DIR:-$repo/target}
 if [[ $target_dir != /* ]]; then
   target_dir="$repo/$target_dir"

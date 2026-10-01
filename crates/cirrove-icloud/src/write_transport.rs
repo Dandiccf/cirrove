@@ -9,6 +9,17 @@ use uuid::Uuid;
 
 pub(crate) const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
 
+/// Probe-only sanitized classification. Generic conflict/rejection does not
+/// establish that a stale revision was the reason for refusal.
+#[cfg(feature = "write-probe")]
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum ProbeTrashResult {
+    Accepted,
+    PreconditionFailed,
+    Conflict,
+    Rejected,
+}
+
 #[derive(Deserialize)]
 struct TrashReply {
     items: Vec<TrashResult>,
@@ -346,6 +357,36 @@ impl ICloudReadSession {
         // status or item body is consumed by this process.
         drop(self.trash_response(item_id, etag).await?);
         Ok(())
+    }
+
+    #[cfg(feature = "write-probe")]
+    pub(crate) async fn send_probe_trash(
+        &mut self,
+        item_id: &str,
+        etag: &str,
+    ) -> Result<ProbeTrashResult> {
+        let response = self.trash_response(item_id, etag).await?;
+        let status = response.status();
+        if !status.is_success() {
+            // Preserve production authentication/storage/uncertainty mapping.
+            classify_trash(status, None)?;
+            return Ok(match status {
+                StatusCode::PRECONDITION_FAILED => ProbeTrashResult::PreconditionFailed,
+                StatusCode::CONFLICT => ProbeTrashResult::Conflict,
+                _ => ProbeTrashResult::Rejected,
+            });
+        }
+        let reply: TrashReply = read_json(response, "iCloud conditional Trash").await?;
+        if reply.items.len() != 1 {
+            bail!("iCloud conditional Trash receipt is incomplete");
+        }
+        Ok(if classify_trash(status, Some(&reply.items[0].status))? {
+            ProbeTrashResult::Accepted
+        } else if reply.items[0].status == "CONFLICT" {
+            ProbeTrashResult::Conflict
+        } else {
+            ProbeTrashResult::Rejected
+        })
     }
 
     pub(crate) async fn send_trash(&mut self, item_id: &str, etag: &str) -> Result<bool> {

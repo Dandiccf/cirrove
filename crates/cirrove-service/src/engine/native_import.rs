@@ -32,64 +32,191 @@ impl Engine {
                     return;
                 }
             };
-            handle.native_import_queued(queued.id, queued.size);
-            let deadline = tokio::time::Instant::now() + Duration::from_secs(20 * 60);
-            loop {
-                let observed = match observe(&handle.cancel, deadline, manager.native_import_record(&engine, queued.id)).await {
-                    Ok(result) => result,
-                    Err(state) => { stop_observing(handle, state); return; }
-                };
-                match observed {
-                    Ok(row) if confirmed_import(&queued, &row) => {
-                        let publication = match observe(&handle.cancel, deadline, manager.native_import_publication(&engine, queued.id)).await {
-                            Ok(result) => result,
-                            Err(state) => { stop_observing(handle, state); return; }
-                        };
-                        match publication {
-                            Ok(crate::journal::PackagePublicationStatus::Pending) => {}
-                            Ok(crate::journal::PackagePublicationStatus::Present(remote))
-                                if row.remote.as_ref().is_some_and(|receipt| same_publication(receipt, &remote)) => {
-                                handle.advance(1, queued.size);
-                                handle.native_imported(queued.id, remote);
-                                return;
-                            }
-                            Ok(_) => {
-                                handle.failed(JobState::Failed, Some("iCloud verified the upload, but the document is no longer present at the expected name and revision; it will not be uploaded again".into()));
-                                return;
-                            }
-                            Err(_) => {
-                                handle.failed(JobState::Failed, Some("iCloud verified the upload; local visibility is not confirmed. The saved operation is retained; do not create another copy to retry".into()));
-                                return;
-                            }
-                        }
-                    }
-                    Ok(row) if matches!(row.state, UploadState::Failed | UploadState::Conflict | UploadState::VerifyRequired | UploadState::Resolved) => {
-                        handle.failed(JobState::Failed, Some("native import is not confirmed; its saved operation is retained. Inspect it before retrying".into()));
-                        return;
-                    }
-                    Err(_) => {
-                        handle.failed(JobState::Failed, Some("native import observation ended; the queued operation is retained. Do not submit another copy to retry it".into()));
-                        return;
-                    }
-                    _ => {}
-                }
-                tokio::select! {
-                    biased;
-                    _ = handle.cancel.cancelled() => {
-                        handle.failed(JobState::Stopped, Some("stopped watching; the queued import remains retained and may finish uploading".into()));
-                        return;
-                    }
-                    _ = tokio::time::sleep_until(deadline) => {
-                        handle.failed(JobState::Failed, Some("native import has not been confirmed in time; its queued operation remains retained".into()));
-                        return;
-                    }
-                    _ = tokio::time::sleep(Duration::from_millis(500)) => {}
-                }
-            }
+            engine.observe_native_import(manager, handle, queued, false).await;
         });
         Ok(initial)
     }
+    /// Attach only to an existing validated journal row. No upload admission.
+    pub(crate) fn start_native_import_watch(
+        self: &Arc<Self>,
+        manager: Arc<crate::manager::Manager>,
+        queued: UploadRecord,
+    ) -> Result<Job> {
+        let cirrove_core::upload::UploadIntent::Create { name, .. } = &queued.intent else {
+            anyhow::bail!("native import watch requires a saved create operation");
+        };
+        let handle = self.jobs.start(
+            JobKind::ImportNativePackage,
+            name.clone(),
+            1,
+            queued.size,
+            &self.cancel,
+        );
+        handle.native_import_queued(queued.id, queued.size);
+        let initial = self
+            .jobs
+            .find(handle.id())
+            .context("native import watch unavailable")?;
+        let engine = self.clone();
+        self.tasks.spawn(async move {
+            engine
+                .observe_native_import(manager, handle, queued, true)
+                .await;
+        });
+        Ok(initial)
+    }
+
+    async fn observe_native_import(
+        self: Arc<Self>,
+        manager: Arc<crate::manager::Manager>,
+        handle: crate::jobs::JobHandle,
+        queued: UploadRecord,
+        fresh_visibility: bool,
+    ) {
+        let engine = self;
+        handle.native_import_queued(queued.id, queued.size);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(20 * 60);
+        loop {
+            let observed = match observe(
+                &handle.cancel,
+                deadline,
+                manager.native_import_record(&engine, queued.id),
+            )
+            .await
+            {
+                Ok(result) => result,
+                Err(state) => {
+                    stop_observing(handle, state);
+                    return;
+                }
+            };
+            match observed {
+                Ok(row) if confirmed_import(&queued, &row) => {
+                    let publication = if fresh_visibility {
+                        // A durable publication receipt predates this observer.
+                        // Refresh only this exact ID, not its content or upload.
+                        match observe(&handle.cancel, deadline, fresh_publication(&engine, &row))
+                            .await
+                        {
+                            Ok(result) => result,
+                            Err(state) => {
+                                stop_observing(handle, state);
+                                return;
+                            }
+                        }
+                    } else {
+                        match observe(
+                            &handle.cancel,
+                            deadline,
+                            manager.native_import_publication(&engine, queued.id),
+                        )
+                        .await
+                        {
+                            Ok(result) => result,
+                            Err(state) => {
+                                stop_observing(handle, state);
+                                return;
+                            }
+                        }
+                    };
+                    match publication {
+                        Ok(crate::journal::PackagePublicationStatus::Pending) => {}
+                        Ok(crate::journal::PackagePublicationStatus::Present(remote))
+                            if row
+                                .remote
+                                .as_ref()
+                                .is_some_and(|receipt| same_publication(receipt, &remote)) =>
+                        {
+                            // Account/mount ownership may have changed during
+                            // the metadata await. Recheck before reporting success.
+                            match observe(
+                                &handle.cancel,
+                                deadline,
+                                manager.native_import_record(&engine, queued.id),
+                            )
+                            .await
+                            {
+                                Ok(Ok(latest))
+                                    if confirmed_import(&queued, &latest)
+                                        && latest.remote == row.remote => {}
+                                Err(state) => {
+                                    stop_observing(handle, state);
+                                    return;
+                                }
+                                _ => {
+                                    handle.failed(JobState::Failed,Some("native import account or receipt changed during observation; the saved operation remains retained".into()));
+                                    return;
+                                }
+                            };
+                            handle.advance(1, queued.size);
+                            handle.native_imported(queued.id, remote);
+                            return;
+                        }
+                        Ok(_) => {
+                            handle.failed(JobState::Failed, Some("iCloud verified the upload, but the document is no longer present at the expected name and revision; it will not be uploaded again".into()));
+                            return;
+                        }
+                        Err(_) => {
+                            handle.failed(JobState::Failed, Some("iCloud verified the upload; local visibility is not confirmed. The saved operation is retained; do not create another copy to retry".into()));
+                            return;
+                        }
+                    }
+                }
+                Ok(row)
+                    if matches!(
+                        row.state,
+                        UploadState::Failed
+                            | UploadState::Conflict
+                            | UploadState::VerifyRequired
+                            | UploadState::Resolved
+                    ) =>
+                {
+                    handle.failed(JobState::Failed, Some("native import is not confirmed; its saved operation is retained. Inspect it before retrying".into()));
+                    return;
+                }
+                Err(_) => {
+                    handle.failed(JobState::Failed, Some("native import observation ended; the queued operation is retained. Do not submit another copy to retry it".into()));
+                    return;
+                }
+                _ => {}
+            }
+            tokio::select! {
+                biased;
+                _ = handle.cancel.cancelled() => {
+                    handle.failed(JobState::Stopped, Some("stopped watching; the queued import remains retained and may finish uploading".into()));
+                    return;
+                }
+                _ = tokio::time::sleep_until(deadline) => {
+                    handle.failed(JobState::Failed, Some("native import has not been confirmed in time; its queued operation remains retained".into()));
+                    return;
+                }
+                _ = tokio::time::sleep(Duration::from_millis(500)) => {}
+            }
+        }
+    }
 }
+async fn fresh_publication(
+    engine: &Engine,
+    row: &UploadRecord,
+) -> Result<crate::journal::PackagePublicationStatus> {
+    let remote = row
+        .remote
+        .as_ref()
+        .context("native import receipt missing")?;
+    match tokio::time::timeout(
+        Duration::from_secs(30),
+        engine.refresh_node(&row.scope, &remote.id),
+    )
+    .await
+    {
+        Ok(Ok(node)) => Ok(crate::journal::PackagePublicationStatus::Present(node)),
+        Ok(Err(cirrove_core::ProviderError::NotFound)) => {
+            Ok(crate::journal::PackagePublicationStatus::Absent)
+        }
+        _ => anyhow::bail!("native import current visibility unavailable"),
+    }
+}
+
 async fn observe<T>(
     cancel: &cirrove_core::CancellationToken,
     deadline: tokio::time::Instant,

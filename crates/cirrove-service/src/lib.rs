@@ -445,6 +445,9 @@ pub const PATHS_PER_REQUEST: usize = 200;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PathState {
     pub path: String,
+    /// Whether indexed metadata supports a pin; false when unknown.
+    #[serde(default)]
+    pub can_pin: bool,
     #[serde(default)]
     pub item: String,
     /// "file" or "folder".
@@ -587,6 +590,27 @@ pub struct KeepBothReply {
     pub considered: u64,
     #[serde(default)]
     pub refusal: Option<String>,
+}
+
+/// Attach an observer to an existing durable native import, never enqueue again.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchNativeImportRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub operation: uuid::Uuid,
+}
+pub async fn watch_native_import(
+    socket: &Path,
+    body: &WatchNativeImportRequest,
+) -> Result<ImportNativePackageReply> {
+    request(
+        socket,
+        "watch-native-import",
+        Some(body),
+        "Cirrove native import observation",
+    )
+    .await
 }
 
 /// Explicit native archive import; representation is verified by the daemon.
@@ -989,11 +1013,13 @@ impl Capabilities {
                 // the key and its refusal of the verb is the same answer.
                 ("discard-stuck".to_string(), 1),
                 ("paths".to_string(), 1),
+                ("paths-cached".to_string(), 1),
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
                 ("keep-both".to_string(), 1),
                 ("export-save".to_string(), 1),
                 ("import-native-package".to_string(), 1),
+                ("watch-native-import".to_string(), 1),
                 ("import-native-package-account-binding".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
@@ -1219,6 +1245,16 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
+                        if verb=="watch-native-import" {
+                            let reply=match (serde_json::from_str::<WatchNativeImportRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.watch_native_import(&r).await {
+                                    Ok(job)=>ImportNativePackageReply {job:Some(job),refusal:None},
+                                    Err(_)=>ImportNativePackageReply {job:None,refusal:Some("saved native import or selected writable connection is unavailable".into())},
+                                },
+                                _=>ImportNativePackageReply {job:None,refusal:Some("native import watch request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
                         if verb=="import-native-package" {
                             let reply = match (serde_json::from_str::<ImportNativePackageRequest>(body), &manager) {
                                 (Ok(r), Some(m)) => match m.engine(&r.label).await {
@@ -1267,10 +1303,10 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
-                        if verb=="paths" {
+                        if verb=="paths" || verb=="paths-cached" {
                             let reply=match (serde_json::from_str::<PathsRequest>(body),&manager) {
                                 (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PathsReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
-                                (Ok(r),Some(m))=>match m.path_states(&r.label,&r.paths).await {
+                                (Ok(r),Some(m))=>match m.path_states_mode(&r.label,&r.paths,verb=="paths-cached").await {
                                     Ok(states)=>PathsReply{states,refusal:None},
                                     Err(error)=>PathsReply{refusal:Some(error.to_string()),..Default::default()},
                                 },

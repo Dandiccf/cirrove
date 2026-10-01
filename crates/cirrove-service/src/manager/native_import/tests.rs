@@ -387,3 +387,54 @@ fn initial_profile_is_pages_only_and_rejects_unsafe_name_or_path() {
 }
 
 mod socket;
+mod watch;
+
+#[tokio::test]
+async fn retained_import_receipt_refuses_same_engine_remount_during_journal_wait() {
+    let f = Fixture::new().await;
+    let row = f
+        .manager
+        .enqueue_native_package(f.engine.clone(), f.input(), CancellationToken::new())
+        .await
+        .unwrap();
+    let replacement_fs = CloudFs::new_experimental_writable(f.engine.clone(), f.journal.clone())
+        .await
+        .unwrap();
+    let replacement = replacement_fs.write_control().unwrap();
+    assert!(!replacement.same_mount(&f.control));
+    let (locked_tx, locked_rx) = tokio::sync::oneshot::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let journal = f.journal.clone();
+    let holder = tokio::task::spawn_blocking(move || {
+        let _held = journal.lock().unwrap();
+        locked_tx.send(()).unwrap();
+        release_rx.recv().unwrap();
+    });
+    locked_rx.await.unwrap();
+    let mut read = Box::pin(f.manager.native_import_record(&f.engine, row.id));
+    // All async registry locks are free. The read has captured the old control
+    // and submitted its local journal lookup before yielding here.
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(read.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    f.manager
+        .writers
+        .write()
+        .await
+        .insert(f.engine.account.id.clone(), replacement);
+    // Leave the original control open: Engine identity alone must not suffice.
+    f.control.native_import_open().unwrap();
+    release_tx.send(()).unwrap();
+    assert!(
+        read.await.is_err(),
+        "receipt from withdrawn mount was accepted"
+    );
+    holder.await.unwrap();
+    assert_eq!(
+        f.journal.lock().unwrap().get(row.id).unwrap().state,
+        crate::journal::UploadState::Pending
+    );
+    f.engine.stop().await;
+}

@@ -729,22 +729,35 @@ impl Manager {
         label: &str,
         paths: &[String],
     ) -> Result<Vec<crate::PathState>> {
+        self.path_states_mode(label, paths, false).await
+    }
+
+    pub async fn path_states_mode(
+        &self,
+        label: &str,
+        paths: &[String],
+        cached: bool,
+    ) -> Result<Vec<crate::PathState>> {
         let engine = self.engine(label).await?;
         let control = { self.writers.read().await.get(&engine.account.id).cloned() };
         let Some(control) = control else {
-            return engine.path_states(paths).await;
+            return if cached {
+                engine.cached_path_states(paths).await
+            } else {
+                engine.path_states(paths).await
+            };
         };
         let mut resolved = Vec::with_capacity(paths.len());
         for path in paths {
             resolved.push((
                 path.clone(),
                 control
-                    .resolve_visible_path(&engine, path)
+                    .resolve_visible_path_mode(&engine, path, cached)
                     .await
                     .map_err(|error| error.to_string()),
             ));
         }
-        engine.path_states_resolved(resolved).await
+        engine.path_states_resolved_mode(resolved, cached).await
     }
 }
 struct Running {

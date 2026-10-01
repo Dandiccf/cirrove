@@ -80,6 +80,33 @@ async fn destination(
     }
 }
 impl Manager {
+    /// Observer-only: never capture an archive, enqueue, wake or retry workers.
+    pub async fn watch_native_import(
+        self: &Arc<Self>,
+        request: &crate::WatchNativeImportRequest,
+    ) -> Result<crate::jobs::Job> {
+        if request.label.is_empty() || uuid::Uuid::parse_str(&request.expected_account_id).is_err()
+        {
+            bail!("native import watch requires an exact selected account");
+        }
+        let engine = self.engine(&request.label).await?;
+        if engine.account.id != request.expected_account_id {
+            bail!("native import watch account changed");
+        }
+        let row = self
+            .native_import_record(&engine, request.operation)
+            .await?;
+        if !matches!(row.intent, UploadIntent::Create { .. })
+            || row.representation.validate().is_err()
+            || row.base.is_some()
+            || row.identity_handoff.is_some()
+            || row.working_file.is_some()
+        {
+            bail!("saved operation is not an explicit native import");
+        }
+        engine.start_native_import_watch(self.clone(), row)
+    }
+
     pub(crate) async fn native_import_publication(
         &self,
         engine: &Arc<Engine>,
@@ -95,7 +122,35 @@ impl Manager {
         {
             bail!("native import publication does not belong to this account");
         }
-        Ok(control.native_import_publication(operation).await?)
+        let publication = control.native_import_publication(operation).await?;
+        self.native_import_same_control(engine, &control).await?;
+        Ok(publication)
+    }
+
+    async fn native_import_same_control(
+        &self,
+        engine: &Arc<Engine>,
+        previous: &WriteControl,
+    ) -> Result<()> {
+        // Revalidate together after the journal await; a same-Engine remount
+        // still replaces WriteControl. No await follows these guarded checks.
+        let status = self.status.read().await;
+        let engines = self.engines.read().await;
+        let writers = self.writers.read().await;
+        if !eligible(engine)
+            || !status_allows(&status, engine)
+            || engines
+                .get(&engine.account.id)
+                .is_none_or(|e| !Arc::ptr_eq(e, engine))
+            || writers
+                .get(&engine.account.id)
+                .is_none_or(|w| !w.same_mount(previous))
+            || !previous.belongs_to(engine)
+        {
+            bail!("native import mount changed");
+        }
+        previous.native_import_open()?;
+        Ok(())
     }
 
     async fn native_import_control(&self, engine: &Arc<Engine>) -> Result<WriteControl> {
@@ -232,6 +287,7 @@ impl Manager {
         {
             bail!("native import receipt does not belong to this account");
         }
+        self.native_import_same_control(engine, &control).await?;
         Ok(record)
     }
 }

@@ -55,6 +55,12 @@ mod probe_timing;
 #[cfg(feature = "write-probe")]
 pub use package_archive::canonical_export;
 #[cfg(feature = "write-probe")]
+mod package_trash_probe;
+#[cfg(feature = "write-probe")]
+pub use package_trash_probe::{
+    OwnedPackageTrashProbe, PackageTrashInspection, PackageTrashLocation, PackageTrashPhase,
+};
+#[cfg(feature = "write-probe")]
 mod package_trash;
 #[cfg(feature = "write-probe")]
 pub use package_trash::{OwnedPackageTrashRequest, VerifiedPackageTrash};

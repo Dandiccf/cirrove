@@ -724,11 +724,19 @@ impl Writeback {
         &self,
         engine: &Engine,
         view: &View,
+        pathname: Option<&Node>,
         truncate: bool,
         cancel: &CancellationToken,
     ) -> Result<WorkingFile> {
-        self.prepare_inner(engine, view, truncate.then_some(0), cancel, true)
-            .await
+        self.prepare_inner(
+            engine,
+            view,
+            truncate.then_some(0),
+            cancel,
+            true,
+            pathname.cloned(),
+        )
+        .await
     }
     /// Pathname truncation keeps admission and the final size mutation bound to
     /// one journal serialization point. Existing descriptors use `truncate`.
@@ -736,10 +744,11 @@ impl Writeback {
         &self,
         engine: &Engine,
         view: &View,
+        pathname: Option<&Node>,
         size: u64,
         cancel: &CancellationToken,
     ) -> Result<WorkingFile> {
-        self.prepare_inner(engine, view, Some(size), cancel, true)
+        self.prepare_inner(engine, view, Some(size), cancel, true, pathname.cloned())
             .await
     }
     async fn prepare_inner(
@@ -749,6 +758,7 @@ impl Writeback {
         truncate: Option<u64>,
         cancel: &CancellationToken,
         write_admission: bool,
+        pathname: Option<Node>,
     ) -> Result<WorkingFile> {
         let identity = key(&view.scope, &view.id);
         let gate = {
@@ -770,7 +780,10 @@ impl Writeback {
         };
         let admission = if write_admission {
             let node = view.node.as_ref().ok_or(Errno::EINVAL)?;
-            Some(self.admit_write(engine, &view.scope, node, cancel).await?)
+            Some(
+                self.admit_write_path(engine, &view.scope, node, pathname, cancel)
+                    .await?,
+            )
         } else {
             None // Retaining bytes for existing read handles is not a new edit.
         };

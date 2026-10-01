@@ -218,3 +218,13 @@ feature-gated iCloud probes, kernel mounts, script/translation/ledger checks and
 documentation. Native GTK window evidence remains the separate 21-scenario run
 recorded above; the check script does not run those windows. This checkpoint is
 not installed and does not close native editing or release acceptance.
+
+## Subsequent observation and Apple Pages acceptance
+
+The exact retained upload was successfully re-observed through the new public
+observer-only command after restart; its warm mounted view was confirmed and
+its journal rows stayed unchanged. Apple Pages opened the exact allocated
+document and displayed its synthetic source text. See
+[retained import observation](icloud-native-import-watch-2026-10-01.md).
+The historical false-failure job and missed original post-success mount check
+remain recorded; neither was replaced by a new upload or rewritten evidence.

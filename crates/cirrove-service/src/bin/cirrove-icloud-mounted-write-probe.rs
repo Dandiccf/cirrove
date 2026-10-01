@@ -511,6 +511,8 @@ async fn main() -> Result<()> {
             "--owned-package-import" => Some(1),
             "--owned-package-verify" => Some(2),
             "--owned-package-mounted" => Some(3),
+            "--owned-package-trash" => Some(4),
+            "--owned-package-trash-inspect" => Some(5),
             _ => None,
         };
         if let Some(action) = action {
@@ -520,7 +522,9 @@ async fn main() -> Result<()> {
                     0 => cirrove_service::validation::icloud_owned_package_source(run).await,
                     1 => cirrove_service::validation::icloud_owned_package_import(run).await,
                     2 => cirrove_service::validation::icloud_owned_package_verify(run).await,
-                    _ => cirrove_service::validation::icloud_owned_package_mounted(run).await,
+                    3 => cirrove_service::validation::icloud_owned_package_mounted(run).await,
+                    4 => cirrove_service::validation::icloud_owned_package_trash(run).await,
+                    _ => cirrove_service::validation::icloud_owned_package_trash_inspect(run).await,
                 }
             })
             .await

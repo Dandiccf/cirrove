@@ -328,7 +328,7 @@ impl Writeback {
             let mut view = users[0].view.clone();
             view.node = Some(std::sync::Arc::new(object.node.clone()));
             drop(users);
-            self.prepare_inner(engine, &view, None, &engine.cancel, false)
+            self.prepare_inner(engine, &view, None, &engine.cancel, false, None)
                 .await?;
         }
         let users = {

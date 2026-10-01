@@ -1852,11 +1852,14 @@ impl Filesystem for CloudFs {
                 }
                 let _lease = writer.lease(&view.scope, &view.id, &inner.cancel).await?;
                 let mut view = view;
+                let pathname = (!view.reference)
+                    .then(|| view.node.as_deref().cloned())
+                    .flatten();
                 view.node = Some(Arc::new(inner.node(&view).await.map_err(|e| errno(&e))?));
                 inner.refuse_within_package(&view)?;
                 inner.capture_ancestors(&view).await?;
                 let record = writer
-                    .truncate_path(&inner.engine, &view, size, &inner.cancel)
+                    .truncate_path(&inner.engine, &view, pathname.as_ref(), size, &inner.cancel)
                     .await?;
                 Ok::<_, Errno>(inner.attr(&view, &record.node))
             }
@@ -1979,6 +1982,9 @@ impl Filesystem for CloudFs {
                 };
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
+                    let pathname = (!view.reference)
+                        .then(|| view.node.as_deref().cloned())
+                        .flatten();
                     view.node = Some(Arc::new(node.clone()));
                     inner.refuse_within_package(&view)?;
                     inner.capture_ancestors(&view).await?;
@@ -1986,6 +1992,7 @@ impl Filesystem for CloudFs {
                         .prepare(
                             &inner.engine,
                             &view,
+                            pathname.as_ref(),
                             flags.0 & libc::O_TRUNC != 0,
                             &inner.cancel,
                         )

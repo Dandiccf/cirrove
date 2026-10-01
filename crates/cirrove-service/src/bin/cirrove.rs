@@ -1,5 +1,77 @@
 use anyhow::{Context, Result, bail};
 
+async fn follow_native_import(
+    socket: &std::path::Path,
+    label: &str,
+    initial: &cirrove_service::jobs::Job,
+    expected_name: &str,
+    expected_operation: Option<uuid::Uuid>,
+    expected_account_id: Option<&str>,
+) -> Result<()> {
+    let following = async {
+        let mut operation = expected_operation;
+        loop {
+            let state = cirrove_service::status(socket).await.context("import observation lost; inspect Cirrove jobs and retained operations before retrying")?;
+            let current = state
+                .accounts
+                .iter()
+                .filter(|a| {
+                    a.label == label && expected_account_id.is_none_or(|id| a.account_id == id)
+                })
+                .flat_map(|a| &a.jobs)
+                .find(|job| job.id == initial.id)
+                .context(
+                    "import result unavailable; inspect retained operations before retrying",
+                )?;
+            if current.kind != cirrove_service::jobs::JobKind::ImportNativePackage {
+                bail!("unexpected import job");
+            }
+            if let Some(progress) = &current.native_import {
+                if operation.is_some_and(|id| id != progress.operation) {
+                    bail!("import operation changed");
+                }
+                if operation.is_none() {
+                    eprintln!("Queued operation {}", progress.operation);
+                    operation = Some(progress.operation);
+                }
+            }
+            if current.state == cirrove_service::jobs::JobState::Succeeded {
+                let receipt = current
+                    .native_import
+                    .as_ref()
+                    .context("import receipt missing")?;
+                let remote = receipt
+                    .remote
+                    .as_ref()
+                    .context("verified document receipt missing")?;
+                if remote.name != expected_name
+                    || !remote.package
+                    || remote.kind != cirrove_core::NodeKind::Folder
+                {
+                    bail!("unexpected imported document receipt");
+                }
+                println!(
+                    "Verified native document import [{}]: {}",
+                    receipt.operation, remote.name
+                );
+                break;
+            }
+            if !current.running() {
+                bail!("{}", current.issue.as_deref().unwrap_or("native import is not confirmed; inspect the retained operation before retrying"));
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+        Ok(())
+    };
+    tokio::select! { biased;
+        _=tokio::signal::ctrl_c()=>{
+            let _=cirrove_service::stop_job(socket,&cirrove_service::StopJobRequest{label:label.into(),id:initial.id.clone()}).await;
+            bail!("stopped watching; the retained import may still finish and was not discarded");
+        }
+        result=following=>result,
+    }
+}
+
 /// Recover one selected working generation through the daemon, with an exact receipt.
 async fn active_working_export(
     socket: &std::path::Path,
@@ -697,6 +769,18 @@ enum Command {
         parent: String,
         #[arg(long)]
         name: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Observe an existing native import; never submit its archive again.
+    WatchNativeImport {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        /// Exact account UUID shown by status, preventing label reassignment.
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
         #[arg(long)]
         socket: Option<PathBuf>,
     },
@@ -1795,56 +1879,60 @@ async fn main() -> Result<()> {
                 "Native import started [{}]. Closing this command does not discard a queued upload.",
                 initial.id
             );
-            let mut operation = None;
-            loop {
-                let state = cirrove_service::status(&socket).await.context("import observation lost; inspect Cirrove jobs and retained operations before retrying")?;
-                let current = state
-                    .accounts
-                    .iter()
-                    .filter(|a| a.label == label)
-                    .flat_map(|a| &a.jobs)
-                    .find(|job| job.id == initial.id)
-                    .context(
-                        "import result unavailable; inspect retained operations before retrying",
-                    )?;
-                if current.kind != cirrove_service::jobs::JobKind::ImportNativePackage {
-                    bail!("unexpected import job");
-                }
-                if let Some(progress) = &current.native_import {
-                    if operation.is_some_and(|id| id != progress.operation) {
-                        bail!("import operation changed");
-                    }
-                    if operation.is_none() {
-                        eprintln!("Queued operation {}", progress.operation);
-                        operation = Some(progress.operation);
-                    }
-                }
-                if current.state == cirrove_service::jobs::JobState::Succeeded {
-                    let receipt = current
-                        .native_import
-                        .as_ref()
-                        .context("import receipt missing")?;
-                    let remote = receipt
-                        .remote
-                        .as_ref()
-                        .context("verified document receipt missing")?;
-                    if remote.name != name
-                        || !remote.package
-                        || remote.kind != cirrove_core::NodeKind::Folder
-                    {
-                        bail!("unexpected imported document receipt");
-                    }
-                    println!(
-                        "Verified native document import [{}]: {}",
-                        receipt.operation, remote.name
-                    );
-                    break;
-                }
-                if !current.running() {
-                    bail!("{}", current.issue.as_deref().unwrap_or("native import is not confirmed; inspect the retained operation before retrying"));
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            follow_native_import(&socket, &label, &initial, &name, None, None).await?;
+        }
+        Command::WatchNativeImport {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("watch-native-import")
+                != Some(&1)
+            {
+                bail!("this service does not support observing retained native imports");
             }
+            let account_id = account_id.to_string();
+            let reply = cirrove_service::watch_native_import(
+                &socket,
+                &cirrove_service::WatchNativeImportRequest {
+                    label: label.clone(),
+                    expected_account_id: account_id.clone(),
+                    operation,
+                },
+            )
+            .await
+            .context("could not attach import observer; no archive was submitted")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply
+                .job
+                .context("native import observation was not accepted")?;
+            if initial
+                .native_import
+                .as_ref()
+                .is_none_or(|p| p.operation != operation)
+            {
+                bail!("native import observer bound a different saved operation");
+            }
+            eprintln!("Watching retained native import [{operation}]. No archive was submitted.");
+            follow_native_import(
+                &socket,
+                &label,
+                &initial,
+                &initial.name,
+                Some(operation),
+                Some(&account_id),
+            )
+            .await?;
         }
         Command::ExportSave {
             label,
@@ -2098,6 +2186,35 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod icloud_access_tests {
     use super::*;
+    #[test]
+    fn native_import_watch_requires_exact_account_and_operation_without_source_arguments() {
+        let args = [
+            "cirrove",
+            "watch-native-import",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--operation",
+            "22222222-2222-4222-8222-222222222222",
+        ];
+        assert!(Args::try_parse_from(args).is_ok());
+        assert!(Args::try_parse_from(&args[..6]).is_err());
+        let mut wrong = args.to_vec();
+        wrong.extend(["--archive", "/must/not/read.pages"]);
+        assert!(Args::try_parse_from(wrong).is_err());
+        assert!(
+            Args::try_parse_from([
+                "cirrove",
+                "watch-native-import",
+                "--label",
+                "Cloud",
+                "--operation",
+                "22222222-2222-4222-8222-222222222222"
+            ])
+            .is_err()
+        );
+    }
     #[test]
     fn native_import_requires_explicit_source_root_and_destination_name() {
         let valid = [

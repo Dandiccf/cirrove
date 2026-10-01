@@ -2,6 +2,7 @@
 //! read-only; only the separately invoked import command can create one document.
 use super::*;
 mod mounted;
+mod trash;
 use cirrove_core::{ProviderError, reads::ReadWindowSink};
 use cirrove_icloud::{
     DriveEntry, OwnedPackageCreate, OwnedPackagePlan, PackageAllocationRefusal, PackageDownload,
@@ -10,6 +11,7 @@ use cirrove_icloud::{
 pub use mounted::icloud_owned_package_mounted;
 use std::{fs::File, io::Read, os::unix::fs::PermissionsExt, path::PathBuf};
 use tokio::io::AsyncWriteExt;
+pub use trash::{icloud_owned_package_trash, icloud_owned_package_trash_inspect};
 const LIMIT: u64 = 64 * 1024 * 1024;
 fn base() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local-state")

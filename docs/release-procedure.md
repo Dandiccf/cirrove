@@ -7,9 +7,15 @@ and the places where it could be are marked.
 
 ## Before tagging
 
+The historical procedure below targets OneDrive 1.0. The ledger also reports the
+separate `full-icloud` scope from milestone 7. A release claiming full iCloud
+support must close that scope's blockers with evidence too; zero historical
+OneDrive blockers does not authorize that claim. Release notes must name the
+scope being accepted rather than silently inheriting every provider promise.
+
 1. The release blockers are closed, **except the two that are the release
    itself**: `scripts/acceptance-ledger.py --blockers` lists nothing under
-   "What stands between this and a 1.0 release" other than the packages-from-a-
+   "What stands between this and OneDrive 1.0" other than the packages-from-a-
    release row and the tagged-release row. Each closed row is closed with
    evidence in the [ledger](acceptance-ledger.json), not with intent, and each
    carries the test that would fail if it stopped holding. The criterion for

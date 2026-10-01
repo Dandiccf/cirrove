@@ -880,3 +880,99 @@ native-window coverage. Installed click-through remains open. This is create-onl
 editing or replacing existing native documents, Numbers/Keynote imports, and full
 native application compatibility are not supported by this route. Neither the
 old isolated validator nor the new live upload closes those remaining gates.
+
+### Observe a retained native import without submitting again
+
+`watch-native-import` is a separate versioned capability and observer-only verb:
+
+```text
+cirrove watch-native-import --label <connection> --account-id <account-uuid> --operation <operation-uuid> --socket <socket>
+```
+
+It accepts only an existing scoped native Create operation on the selected active
+writable iCloud account. It does not accept an archive, source folder, destination
+or new name. It never captures, enqueues, retries, allocates, uploads or rewrites
+that operation. An in-flight operation may continue through its already-running
+workers independently of this observer.
+
+The public request requires `label`, `expected_account_id` and `operation`; unknown
+fields are refused. It returns the existing native-import job/receipt shape, with
+the operation already bound in the initial job. This allows observation after a
+daemon restart, an observer stop or loss of the original CLI connection. Jobs
+remain ephemeral; the operation UUID identifies the durable saved import.
+
+For an Uploaded package, the observer requires the saved semantic completion and
+fresh exact-ID metadata matching its identity, name, parent, ETag and logical
+size. It updates the normal metadata view through the existing revision fence;
+it neither downloads package content again nor trusts an old publication record
+as evidence of current visibility. A moved, changed or absent item fails the
+observation without any upload retry. Legacy receipts with an exact ETag alias
+remain unchanged. Account/mount ownership is checked again after the read.
+
+The observer uses the existing twenty-minute overall deadline and cancellation,
+with thirty seconds for the fresh metadata read. `cirrove stop` or Ctrl+C stops
+only observation. An unavailable result is never an invitation to submit the
+archive again: inspect or watch the same retained operation.
+
+### Native document update evidence remains incomplete
+
+The 2026-10-01 public Pages follow-up still found the Drive-backed loader, not
+the editor content-update bundle. The public shell separately routes document
+opens through `redirectChildApplicationForDocument`; this is routing evidence
+only. Neither a same-ID package update body nor its predecessor-revision guard
+has been established. Generic CloudKit record change tags do not establish the
+Pages/CloudDocs schema or authorization contract. Retained public-source hashes
+and findings: `/var/tmp/cirrove-public-pages-followup-vjy10iue/`. A two-ID package
+handoff must not be described as identity-preserving native editing.
+
+Likewise, existing Trash readers require non-null, unchanged `restorePath` but
+do not establish its schema or destination. Synthetic fixtures disagree on its
+shape. The owned checkpoint binds the pre-Trash parent; that is not proof of
+restoration to that parent. A bounded structural observation on the exact owned
+Trash item is required before adding a destination parser or claiming that gate.
+
+A subsequent supported browser asset inventory of the already opened owned ec7
+Pages test document established the actual editor scripts:
+
+- `https://www.icloud.com/applications/ix/15D120/editor/15D120/en-us/main.js`
+- `https://www.icloud.com/applications/ix/15D120/editor/15D120/en-us/0.main.js`
+
+Only script URLs were collected, without reading private network responses,
+credentials or application state. These concrete public assets permit further
+protocol research; their discovery alone proves no update or conflict semantics.
+
+The grounded editor review found SCMP command batches carrying `commandId` and
+`basedOnRevision`, with acknowledgements and revision diffs. Older commands cause
+catch-up and model reconciliation: this is not evidence of whole-archive CAS.
+The editor's `forceUpload` persists its existing server model and takes no
+replacement ZIP. Session authorization, model serialization, replay behavior and
+verified Drive persistence remain open. Public-only research, without executing
+JavaScript or contacting account endpoints, is retained at
+`/var/tmp/cirrove-public-pages-editor-g8h19rk8/`.
+
+Source integrity for editor build 15D120 (SHA-256):
+`main.js`: `59ad7e5a4b8115b34c2b1d623d2c0f4cb21bee7e1fcfdf3f7890dd9793fb01a0`;
+`0.main.js`: `954f9b76293da7f88b3e6e560ec1e9a2c23043e1471fe6a3903d8bf14ee3ae68`.
+The next bounded investigation is session initialization and one text-model
+command schema, not a guessed package mutation against an account.
+
+An offline standard-library prototype now recognizes a bounded subset of GSSP
+mailbox headers and revisions at `/var/tmp/cirrove-gssp-offline-20261001/`. All
+five synthetic tests passed. Incorrect negative-reference resolution and a
+one-byte relaxation of the input limit each caused test failures; restored code
+passed again. It refuses unsupported document slices/variants and has no network
+or edit transport. This is parser groundwork only, not live editor compatibility.
+Further source analysis also establishes that owned CloudDocs returns no optional
+document-access token; cookie/service session bootstrap remains unresolved.
+
+Independent parser review found that a structurally present revision could still
+contain null fields. The scratch summary now requires an int32 sequence and a
+nonempty bounded identifier without changing low-level null decoding. All six
+tests passed; removing this guard made the new test fail, and restored code
+passed again (`usable-revision-negative.log` in the scratch directory).
+
+The subsequent public-source request plan corrects fetch URL construction:
+the concrete editor uses the manifest's `iwres.url` directly. Editor-address
+binding and the actual build-number value remain prerequisites for a grounded
+owned manifest request. No editor account requests or SCMP sessions have been
+started by this research.
