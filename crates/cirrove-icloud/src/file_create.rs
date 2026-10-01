@@ -24,6 +24,16 @@ use std::{
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+// Preserve typed session rejection without exposing any provider response or URL.
+// Other failures stay uncertain: authentication is not proof of non-commitment.
+pub(crate) fn map_session_error(error: anyhow::Error) -> UploadError {
+    if error.downcast_ref::<crate::SessionRejected>().is_some() {
+        cirrove_core::ProviderError::Authentication.into()
+    } else {
+        UploadError::Uncertain
+    }
+}
+
 const MAX_CHECKPOINT: usize = 8192;
 
 fn verify_upload_payload(
@@ -97,7 +107,7 @@ impl ICloudFileCreate {
     ) -> UploadResult<Self> {
         Self::check_identity(&scope, &parent)?;
         let session = ICloudReadSession::from_session_snapshot(snapshot, apple_id)
-            .map_err(|_| UploadError::Uncertain)?;
+            .map_err(map_session_error)?;
         if session.account_hash.is_none() {
             return Err(UploadError::Invalid);
         }
@@ -273,10 +283,10 @@ impl ICloudFileCreate {
             let saved = vault
                 .load(credential_id)
                 .await
-                .map_err(|_| UploadError::Uncertain)?
+                .map_err(map_session_error)?
                 .ok_or(UploadError::Uncertain)?;
             let restored = ICloudReadSession::from_session_snapshot(&saved, apple_id)
-                .map_err(|_| UploadError::Uncertain)?;
+                .map_err(map_session_error)?;
             if restored.account_hash.is_none() {
                 return Err(UploadError::Invalid);
             }
@@ -300,7 +310,7 @@ impl ICloudFileCreate {
         let folder = session
             .folder_metadata(&self.parent.id)
             .await
-            .map_err(|_| UploadError::Uncertain)?;
+            .map_err(map_session_error)?;
         if folder.drivewsid != self.parent.id
             || folder.display_name() != self.parent.name
             || !folder.is_folder()
@@ -359,7 +369,7 @@ impl ICloudFileCreate {
         let entries = session
             .list_folder(&self.parent.id)
             .await
-            .map_err(|_| UploadError::Uncertain)?;
+            .map_err(map_session_error)?;
         let mut matches = entries.iter().filter(|entry| entry.docwsid == document_id);
         let candidate = matches.next();
         if matches.next().is_some()
@@ -381,7 +391,7 @@ impl ICloudFileCreate {
                 request.size,
             )
             .await
-            .map_err(|_| UploadError::Uncertain)?
+            .map_err(map_session_error)?
             != request.sha256
         {
             return Err(UploadError::Conflict);
@@ -428,14 +438,14 @@ impl UploadProvider for ICloudFileCreate {
             let entries = session
                 .list_folder(&self.parent.id)
                 .await
-                .map_err(|_| UploadError::Uncertain)?;
+                .map_err(map_session_error)?;
             if entries.iter().any(|entry| entry.display_name() == *name) {
                 return Err(UploadError::Conflict);
             }
             let slot = session
                 .allocate_upload_slot(name, request.size)
                 .await
-                .map_err(|_| UploadError::Uncertain)?;
+                .map_err(map_session_error)?;
             return Ok(UploadStep::Stream(self.checkpoint(
                 request,
                 Some(slot),
@@ -506,13 +516,15 @@ impl UploadProvider for ICloudFileCreate {
             let entries = session
                 .list_folder(&self.parent.id)
                 .await
-                .map_err(|_| UploadError::Uncertain)?;
+                .map_err(map_session_error)?;
             if entries.iter().any(|entry| entry.display_name() == *name) {
                 return Err(UploadError::Conflict);
             }
             session
                 .upload_stream_to_slot(&slot, name, file, request.size)
                 .await
+                // A signed content URL can expire independently of the account
+                // session. Retain uncertainty rather than requesting sign-in.
                 .map_err(|_| UploadError::Uncertain)?
         };
         Ok(UploadStep::Commit(self.checkpoint(
@@ -551,7 +563,7 @@ impl UploadProvider for ICloudFileCreate {
             let entries = session
                 .list_folder(&self.parent.id)
                 .await
-                .map_err(|_| UploadError::Uncertain)?;
+                .map_err(map_session_error)?;
             if entries.iter().any(|entry| entry.display_name() == *name) {
                 return Err(UploadError::Conflict);
             }
@@ -566,18 +578,18 @@ impl UploadProvider for ICloudFileCreate {
                         request.size,
                     )
                     .await
-                    .map_err(|_| UploadError::Uncertain)?;
+                    .map_err(map_session_error)?;
             } else {
                 session
                     .register_uploaded_file(&self.parent.id, name, &slot, &receipt, request.size)
                     .await
-                    .map_err(|_| UploadError::Uncertain)?;
+                    .map_err(map_session_error)?;
             }
             #[cfg(not(feature = "write-probe"))]
             session
                 .register_uploaded_file(&self.parent.id, name, &slot, &receipt, request.size)
                 .await
-                .map_err(|_| UploadError::Uncertain)?;
+                .map_err(map_session_error)?;
         }
         self.observed(request, &slot.document_id)
             .await?
@@ -611,6 +623,24 @@ impl UploadProvider for ICloudFileCreate {
 mod tests {
     use super::*;
 
+    #[test]
+    fn session_error_mapping_uses_typed_causes_and_never_provider_text() {
+        let rejected = anyhow::Error::new(crate::SessionRejected).context("PRIVATE RESPONSE");
+        assert!(matches!(
+            map_session_error(rejected),
+            UploadError::Provider(cirrove_core::ProviderError::Authentication)
+        ));
+        for error in [
+            anyhow::anyhow!("401 PRIVATE SIGNED URL"),
+            anyhow::anyhow!("Apple rejected the saved iCloud session; sign in again"),
+            anyhow::Error::new(crate::IncompleteFolder),
+        ] {
+            let mapped = map_session_error(error);
+            assert!(matches!(mapped, UploadError::Uncertain));
+            assert!(!mapped.to_string().contains("PRIVATE"));
+        }
+    }
+
     #[tokio::test]
     async fn parent_validation_queries_the_exact_folder_and_rejects_changed_identity() {
         use tokio::{
@@ -625,6 +655,9 @@ mod tests {
             "kind",
             "incomplete",
             "duplicate",
+            "unauthorized",
+            "forbidden",
+            "server_error",
         ] {
             let parent = Node {
                 id: "FOLDER::com.apple.CloudDocs::owned".into(),
@@ -684,8 +717,14 @@ mod tests {
                     serde_json::json!([item])
                 }
                 .to_string();
+                let status = match change {
+                    "unauthorized" => "401 Unauthorized",
+                    "forbidden" => "403 Forbidden",
+                    "server_error" => "503 Unavailable",
+                    _ => "200 OK",
+                };
                 let reply = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                     body.len()
                 );
                 stream.write_all(reply.as_bytes()).await.unwrap();
@@ -716,6 +755,19 @@ mod tests {
             );
             assert_eq!(payload[0]["partialData"], false);
             assert_eq!(result.is_ok(), change == "none", "{change}");
+            if matches!(change, "unauthorized" | "forbidden") {
+                assert!(
+                    matches!(
+                        result,
+                        Err(UploadError::Provider(
+                            cirrove_core::ProviderError::Authentication
+                        ))
+                    ),
+                    "{change}: {result:?}"
+                );
+            } else if change == "server_error" {
+                assert!(matches!(result, Err(UploadError::Uncertain)));
+            }
         }
     }
 

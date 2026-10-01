@@ -472,12 +472,12 @@ impl ICloudFileReplace {
                 vault
                     .load(credential_id)
                     .await
-                    .map_err(|_| UploadError::Uncertain)?
+                    .map_err(crate::file_create::map_session_error)?
                     .ok_or(UploadError::Uncertain)?,
             ),
         };
         let session = ICloudReadSession::from_session_snapshot(&saved, apple_id)
-            .map_err(|_| UploadError::Uncertain)?;
+            .map_err(crate::file_create::map_session_error)?;
         if session.account_hash.is_none() {
             return Err(UploadError::Invalid);
         }
@@ -510,7 +510,7 @@ impl ICloudFileReplace {
             let parent_items = session
                 .list_folder(parent)
                 .await
-                .map_err(|_| UploadError::Uncertain)?;
+                .map_err(crate::file_create::map_session_error)?;
             if parent_items
                 .iter()
                 .filter(|entry| entry.drivewsid == self.folder.id)
@@ -558,7 +558,7 @@ impl ICloudFileReplace {
         let first = session
             .list_folder(&self.folder.id)
             .await
-            .map_err(|_| UploadError::Uncertain)?;
+            .map_err(crate::file_create::map_session_error)?;
         let Some(etag) = observe(&first) else {
             return Ok(None);
         };
@@ -570,7 +570,7 @@ impl ICloudFileReplace {
                 self.original.size,
             )
             .await
-            .map_err(|_| UploadError::Uncertain)?;
+            .map_err(crate::file_create::map_session_error)?;
         if self
             .original_sha256
             .as_deref()
@@ -581,7 +581,7 @@ impl ICloudFileReplace {
         let second = session
             .list_folder(&self.folder.id)
             .await
-            .map_err(|_| UploadError::Uncertain)?;
+            .map_err(crate::file_create::map_session_error)?;
         if observe(&second).as_deref() != Some(etag.as_str()) {
             return Ok(None);
         }

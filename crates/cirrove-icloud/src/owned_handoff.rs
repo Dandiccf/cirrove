@@ -388,7 +388,7 @@ impl ICloudHandoff {
             RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
             RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
         }
-        .map_err(|_| UploadError::Uncertain)
+        .map_err(crate::file_create::map_session_error)
     }
 
     async fn receipt(&self) -> UploadResult<UploadStep> {
@@ -397,7 +397,7 @@ impl ICloudHandoff {
             RecoveryMode::Rename => session.verified_handoff_nodes(&self.plan).await,
             RecoveryMode::Trash => session.verified_trash_handoff_nodes(&self.plan).await,
         }
-        .map_err(|_| UploadError::Uncertain)?;
+        .map_err(crate::file_create::map_session_error)?;
         if current.size != self.staged_size {
             return Err(UploadError::Conflict);
         }
@@ -414,7 +414,7 @@ impl ICloudHandoff {
                 .inspect_trash_handoff_with_receipt(&self.plan)
                 .await;
             timing.finish(observation.is_ok());
-            let (state, nodes) = observation.map_err(|_| UploadError::Uncertain)?;
+            let (state, nodes) = observation.map_err(crate::file_create::map_session_error)?;
             let receipt = nodes
                 .map(|(current, backup)| {
                     if current.size != self.staged_size {
@@ -521,7 +521,7 @@ impl UploadProvider for ICloudHandoff {
                     RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
                 };
                 timing.finish(before.is_ok());
-                let before = before.map_err(|_| UploadError::Uncertain)?;
+                let before = before.map_err(crate::file_create::map_session_error)?;
                 if before != HandoffObserved::Prepared {
                     return Err(UploadError::Conflict);
                 }
@@ -532,7 +532,7 @@ impl UploadProvider for ICloudHandoff {
                     session
                         .probe_intervening_edit_rejects_trash(&self.plan)
                         .await
-                        .map_err(|_| UploadError::Uncertain)?;
+                        .map_err(crate::file_create::map_session_error)?;
                     self.stale_trash_refusal_verified
                         .store(true, Ordering::Release);
                     return Err(UploadError::Conflict);
@@ -547,7 +547,7 @@ impl UploadProvider for ICloudHandoff {
                     }
                 };
                 timing.finish(accepted.is_ok());
-                let accepted = accepted.map_err(|_| UploadError::Uncertain)?;
+                let accepted = accepted.map_err(crate::file_create::map_session_error)?;
                 if accepted
                     && self.recovery_mode == RecoveryMode::Trash
                     && self
@@ -567,7 +567,7 @@ impl UploadProvider for ICloudHandoff {
                     RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
                 };
                 timing.finish(after.is_ok());
-                let after = after.map_err(|_| UploadError::Uncertain)?;
+                let after = after.map_err(crate::file_create::map_session_error)?;
                 if !accepted || after != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Uncertain);
                 }
@@ -579,7 +579,7 @@ impl UploadProvider for ICloudHandoff {
                 let timing = HandoffTiming::start("install read-only preflight");
                 let before = session.inspect_durable_trash_handoff(&self.plan).await;
                 timing.finish(before.is_ok());
-                let before = before.map_err(|_| UploadError::Uncertain)?;
+                let before = before.map_err(crate::file_create::map_session_error)?;
                 if before != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Conflict);
                 }
@@ -599,7 +599,7 @@ impl UploadProvider for ICloudHandoff {
                         }
                     };
                     timing.finish(before.is_ok());
-                    let before = before.map_err(|_| UploadError::Uncertain)?;
+                    let before = before.map_err(crate::file_create::map_session_error)?;
                     if before != HandoffObserved::OldAtRecovery {
                         return Err(UploadError::Conflict);
                     }
@@ -618,7 +618,7 @@ impl UploadProvider for ICloudHandoff {
                     }
                 };
                 timing.finish(accepted.is_ok());
-                let accepted = accepted.map_err(|_| UploadError::Uncertain)?;
+                let accepted = accepted.map_err(crate::file_create::map_session_error)?;
                 if self.discard_new_receipt.swap(false, Ordering::AcqRel) {
                     return Err(UploadError::Uncertain);
                 }

@@ -106,6 +106,7 @@ struct Provider {
     fail_begin_once: AtomicBool,
     prepare_once: AtomicBool,
     fail_inspect_once: AtomicBool,
+    reject_inspection_session: AtomicBool,
     uncertain_inspect_when_committed: AtomicBool,
     restart_prepare_once: AtomicBool,
     complete_on_inspect_once: AtomicBool,
@@ -142,6 +143,7 @@ impl Provider {
             fail_begin_once: AtomicBool::new(false),
             prepare_once: AtomicBool::new(false),
             fail_inspect_once: AtomicBool::new(false),
+            reject_inspection_session: AtomicBool::new(false),
             uncertain_inspect_when_committed: AtomicBool::new(false),
             restart_prepare_once: AtomicBool::new(false),
             complete_on_inspect_once: AtomicBool::new(false),
@@ -313,6 +315,9 @@ impl UploadProvider for Provider {
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        if self.reject_inspection_session.load(Ordering::SeqCst) {
+            return Err(ProviderError::Authentication.into());
+        }
         if self.inspection_pending.load(Ordering::SeqCst) {
             std::future::pending::<()>().await;
         }
@@ -1481,4 +1486,68 @@ async fn saving_again_during_a_transfer_preserves_both_generations_through_recov
     let j = j.lock().unwrap();
     assert_eq!(j.get(second.id).unwrap().state, UploadState::Uploaded);
     assert_eq!(j.read_working(working.id, 0, 100).unwrap(), b"newer-edit");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn rejected_session_keeps_uncertain_commit_and_local_bytes_until_verified_after_sign_in() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    let j = journal(&root, &probe);
+    let id = enqueue(&j, "Saved.txt");
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        j.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    let checkpoint = j.lock().unwrap().get(id).unwrap().session_key;
+    assert!(checkpoint.is_some());
+    j.lock().unwrap().request_retry(id).unwrap();
+    provider
+        .reject_inspection_session
+        .store(true, Ordering::SeqCst);
+    let result = worker.run_once().await.unwrap().unwrap();
+    assert_eq!(result.state, UploadState::Failed);
+    assert_eq!(
+        result.issue.as_deref(),
+        Some(ProviderError::Authentication.to_string().as_str())
+    );
+    assert_local(&j, id);
+    assert_eq!(j.lock().unwrap().get(id).unwrap().session_key, checkpoint);
+    assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_some());
+    assert!(
+        worker.run_once().await.unwrap().is_none(),
+        "rejected sessions must not spin"
+    );
+    drop(worker);
+    drop(j);
+    let j = journal(&root, &probe);
+    assert_local(&j, id);
+    j.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(j.lock().unwrap().get(id).unwrap().session_key, checkpoint);
+    provider
+        .reject_inspection_session
+        .store(false, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        j.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_local(&j, id);
+    assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_none());
+    let state = provider.state.lock().unwrap();
+    assert_eq!(state.begins, 1);
+    assert_eq!(state.offsets, [0, 4, 8]);
+    assert_eq!(state.reconciliations, 1);
 }
