@@ -74,13 +74,46 @@ symlinked journal/database/object locations and destinations inside the state or
 configured mount paths. Older/newer journal schemas are refused explicitly.
 The regular active-account command continues to use the daemon.
 
+## Recover unsealed working files
+
+The experimental offline CLI also recovers bytes written into Cirrove's working
+files before a save was sealed, including retained writes to unlinked files:
+
+```sh
+cirrove recovery-working --label NAME
+cirrove export-working --label NAME --file FILE_UUID --generation GENERATION \
+  --destination "$HOME/Documents/Recovered working copy.txt"
+```
+
+Both commands require the account to be disabled and its journal unused. Both
+accept `--state PATH`. The list returns JSON `files` and `next`; pass a non-null
+`next` as `--after UUID` and repeat until `next` is null. Up to 200 records are
+scanned per page. A page can have no files but a non-null cursor because clean
+working records are skipped. Metadata includes actual byte size, last recorded
+size, generation, and whether the pathname was removed. No file contents are
+read to populate this list.
+
+Copy the file ID and generation from that listing. Export refuses a changed
+generation, keeps the exclusive owner lease through publication, and never seals
+or queues an upload. The JSON receipt identifies the recovered working version
+and its SHA-256. This digest describes the bytes recovered from disk; unlike
+`export-save`, it is **not** checked against a previously sealed save. Following
+an interrupted write the bytes can be partial and their size can differ from the
+journal metadata. Recovery preserves those actual bytes instead of silently
+truncating, padding, or uploading them. Editor buffers never written to Cirrove
+cannot be recovered this way.
+
+The same private, cancellable, no-overwrite local destination rules apply.
+Unexpected source size/timestamp changes during copying abort publication;
+`Ctrl+C` requests cancellation. The source and journal remain unchanged.
+
 ## Current limits
 
 - The desktop picker requires an active writable journal. Offline recovery is
   currently a CLI flow for configured disabled accounts; removed/retired accounts
   and offline desktop selection are not wired yet.
-- It selects an unresolved **sealed generation**, not unsaved editor buffers or
-  unsealed working bytes. `Preparing`, acknowledged, discarded and resolved
+- `export-save` selects an unresolved **sealed generation**, not unsealed working
+  bytes; the offline `export-working` command handles retained working files. `Preparing`, acknowledged, discarded and resolved
   generations are refused. Selecting an older ID exports that older generation.
 - Desktop selection is bounded to the latest 200 saves. The CLI can select an
   older known operation ID. The export dialog monitors the current operation;

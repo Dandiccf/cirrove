@@ -8,7 +8,9 @@ mod barriers;
 mod directories;
 mod export;
 mod generations;
-pub use export::{LocalExportReceipt, LocalExportSource, RecoveryJournal};
+pub use export::{
+    LocalExportReceipt, LocalExportSource, RecoveryJournal, WorkingExportReceipt, WorkingRecovery,
+};
 mod handoff;
 mod identity_handoff;
 mod mutations;

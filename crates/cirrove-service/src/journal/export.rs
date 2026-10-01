@@ -1,7 +1,9 @@
-//! A pinned immutable save, copied without holding the journal lock or replaying it.
+//! Local recovery without replay: pinned immutable saves and offline working bytes.
 use super::*;
+mod working;
 use cirrove_core::CancellationToken;
 use std::os::fd::AsRawFd;
+pub use working::{WorkingExportReceipt, WorkingRecovery};
 
 /// Exact saved generation selected while the journal owner holds its lock.
 /// The open descriptor survives collection; no payload path is reopened later.
@@ -97,75 +99,114 @@ impl LocalExportSource {
     /// Blocking, bounded-memory copy. Progress is bytes verified/copied, not a
     /// promise of publication. Cancellation never changes the source operation.
     pub fn copy_to(
-        mut self,
+        self,
         destination: &Path,
         cancel: &CancellationToken,
-        mut progress: impl FnMut(u64),
+        progress: impl FnMut(u64),
     ) -> Result<LocalExportReceipt> {
-        if cancel.is_cancelled() {
-            return Err(JournalError::Stale);
-        }
-        let parent = destination.parent().ok_or(JournalError::Intent)?;
-        let name = destination.file_name().ok_or(JournalError::Intent)?;
-        let dir = directory(parent)?;
-        let anchored = PathBuf::from(format!("/proc/self/fd/{}", dir.as_raw_fd()));
-        let resolved = std::fs::read_link(&anchored)?;
-        if resolved.starts_with(&self.journal_root) {
-            return Err(JournalError::Intent);
-        }
-        let target = anchored.join(name);
-        // Refuse even a dangling symlink. persist_noclobber below also closes
-        // the race where a destination appears during the copy.
-        match std::fs::symlink_metadata(&target) {
-            Ok(_) => return Err(JournalError::Intent),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-            Err(e) => return Err(e.into()),
-        }
-        let mut temporary = tempfile::Builder::new()
-            .prefix(".cirrove-export-")
-            .tempfile_in(&anchored)?;
-        let mut hash = Sha256::new();
-        let mut copied = 0u64;
-        let mut buffer = [0u8; 128 * 1024];
-        loop {
-            if cancel.is_cancelled() {
-                return Err(JournalError::Stale);
-            }
-            let count = self.file.read(&mut buffer)?;
-            if count == 0 {
-                break;
-            }
-            copied = copied
-                .checked_add(count as u64)
-                .ok_or(JournalError::Corrupt)?;
-            if copied > self.size {
-                return Err(JournalError::Corrupt);
-            }
-            hash.update(&buffer[..count]);
-            temporary.write_all(&buffer[..count])?;
-            progress(copied);
-        }
-        if copied != self.size || hex::encode(hash.finalize()) != self.sha256 {
-            return Err(JournalError::Corrupt);
-        }
-        temporary.as_file().sync_all()?;
-        if cancel.is_cancelled() {
-            return Err(JournalError::Stale);
-        }
-        if std::fs::read_link(&anchored)? != resolved {
-            return Err(JournalError::Stale);
-        }
-        temporary
-            .persist_noclobber(&target)
-            .map_err(|error| JournalError::from(error.error))?;
-        dir.sync_all()?;
+        let (size, sha256) = copy_local_file(
+            self.file,
+            &self.journal_root,
+            self.size,
+            Some(&self.sha256),
+            destination,
+            cancel,
+            progress,
+        )?;
+
         Ok(LocalExportReceipt {
             operation: self.operation,
-            size: self.size,
-            sha256: self.sha256,
+            size,
+            sha256,
             destination: destination.into(),
         })
     }
+}
+
+fn copy_local_file(
+    mut file: File,
+    journal_root: &Path,
+    size: u64,
+    expected_hash: Option<&str>,
+    destination: &Path,
+    cancel: &CancellationToken,
+    mut progress: impl FnMut(u64),
+) -> Result<(u64, String)> {
+    let stamp = |file: &File| -> std::io::Result<_> {
+        let meta = file.metadata()?;
+        Ok((
+            meta.len(),
+            meta.mtime(),
+            meta.mtime_nsec(),
+            meta.ctime(),
+            meta.ctime_nsec(),
+        ))
+    };
+    let before = expected_hash.is_none().then(|| stamp(&file)).transpose()?;
+    if cancel.is_cancelled() {
+        return Err(JournalError::Stale);
+    }
+    let parent = destination.parent().ok_or(JournalError::Intent)?;
+    let name = destination.file_name().ok_or(JournalError::Intent)?;
+    let dir = directory(parent)?;
+    let anchored = PathBuf::from(format!("/proc/self/fd/{}", dir.as_raw_fd()));
+    let resolved = std::fs::read_link(&anchored)?;
+    if resolved.starts_with(journal_root) {
+        return Err(JournalError::Intent);
+    }
+    let target = anchored.join(name);
+    // Refuse even a dangling symlink. persist_noclobber below also closes
+    // the race where a destination appears during the copy.
+    match std::fs::symlink_metadata(&target) {
+        Ok(_) => return Err(JournalError::Intent),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+        Err(e) => return Err(e.into()),
+    }
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".cirrove-export-")
+        .tempfile_in(&anchored)?;
+    let mut hash = Sha256::new();
+    let mut copied = 0u64;
+    let mut buffer = [0u8; 128 * 1024];
+    loop {
+        if cancel.is_cancelled() {
+            return Err(JournalError::Stale);
+        }
+        let count = file.read(&mut buffer)?;
+        if count == 0 {
+            break;
+        }
+        copied = copied
+            .checked_add(count as u64)
+            .ok_or(JournalError::Corrupt)?;
+        if copied > size {
+            return Err(JournalError::Corrupt);
+        }
+        hash.update(&buffer[..count]);
+        temporary.write_all(&buffer[..count])?;
+        progress(copied);
+    }
+    let sha256 = hex::encode(hash.finalize());
+    if copied != size || expected_hash.is_some_and(|expected| expected != sha256) {
+        return Err(JournalError::Corrupt);
+    }
+    temporary.as_file().sync_all()?;
+    if let Some(before) = before
+        && stamp(&file)? != before
+    {
+        return Err(JournalError::Stale);
+    }
+    if cancel.is_cancelled() {
+        return Err(JournalError::Stale);
+    }
+    if std::fs::read_link(&anchored)? != resolved {
+        return Err(JournalError::Stale);
+    }
+    temporary
+        .persist_noclobber(&target)
+        .map_err(|error| JournalError::from(error.error))?;
+    dir.sync_all()?;
+    Ok((copied, sha256))
 }
 
 /// Exclusive, read-only access to retained saves from a stopped account.

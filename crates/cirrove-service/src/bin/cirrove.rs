@@ -566,6 +566,30 @@ enum Command {
         #[arg(long, default_value_t = 200)]
         limit: u32,
     },
+    /// List unsealed or unlinked working files from a disabled account.
+    RecoveryWorking {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state: Option<PathBuf>,
+        #[arg(long)]
+        after: Option<uuid::Uuid>,
+        #[arg(long, default_value_t = 200)]
+        limit: u32,
+    },
+    /// Recover actual working bytes offline; does not seal or upload them.
+    ExportWorking {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state: Option<PathBuf>,
+        #[arg(long)]
+        file: uuid::Uuid,
+        #[arg(long)]
+        generation: u64,
+        #[arg(long)]
+        destination: PathBuf,
+    },
     /// Export an immutable local save without changing its cloud operation.
     ExportSave {
         #[arg(long, default_value = "")]
@@ -1518,6 +1542,55 @@ async fn main() -> Result<()> {
             })
             .await??;
             println!("{}", serde_json::to_string_pretty(&rows)?);
+        }
+        Command::RecoveryWorking {
+            label,
+            state,
+            after,
+            limit,
+        } => {
+            let state = match state {
+                Some(state) => state,
+                None => state_dir()?,
+            };
+            let (files, next) = tokio::task::spawn_blocking(move || {
+                cirrove_service::accounts::OfflineRecovery::open(&state, &label)?
+                    .working_list(after, limit)
+            })
+            .await??;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({"files":files,"next":next}))?
+            );
+        }
+        Command::ExportWorking {
+            label,
+            state,
+            file,
+            generation,
+            destination,
+        } => {
+            let state = match state {
+                Some(state) => state,
+                None => state_dir()?,
+            };
+            let destination = if destination.is_absolute() {
+                destination
+            } else {
+                std::env::current_dir()?.join(destination)
+            };
+            let cancel = CancellationToken::new();
+            let copy_cancel = cancel.clone();
+            let mut task =
+                tokio::task::spawn_blocking(move || {
+                    cirrove_service::accounts::OfflineRecovery::open(&state, &label)?
+                        .export_working(file, generation, &destination, &copy_cancel, |_| {})
+                });
+            let receipt = tokio::select! {
+                result = &mut task => result??,
+                _ = tokio::signal::ctrl_c() => { cancel.cancel(); task.await?? }
+            };
+            println!("{}", serde_json::to_string_pretty(&receipt)?);
         }
         Command::ExportSave {
             label,

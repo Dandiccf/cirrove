@@ -1706,13 +1706,7 @@ impl OfflineRecovery {
             })
             .collect()
     }
-    pub fn export(
-        &self,
-        id: uuid::Uuid,
-        destination: &Path,
-        cancel: &CancellationToken,
-        progress: impl FnMut(u64),
-    ) -> Result<crate::journal::LocalExportReceipt> {
+    fn check_export_destination(&self, destination: &Path) -> Result<()> {
         if !destination.is_absolute()
             || destination.starts_with(&self.state)
             || self
@@ -1722,6 +1716,36 @@ impl OfflineRecovery {
         {
             bail!("choose a destination outside Cirrove mounts and local state");
         }
+        Ok(())
+    }
+    pub fn working_list(
+        &self,
+        after: Option<uuid::Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        Ok(self.journal.working_list(after, limit)?)
+    }
+    pub fn export_working(
+        &self,
+        id: uuid::Uuid,
+        generation: u64,
+        destination: &Path,
+        cancel: &CancellationToken,
+        progress: impl FnMut(u64),
+    ) -> Result<crate::journal::WorkingExportReceipt> {
+        self.check_export_destination(destination)?;
+        Ok(self
+            .journal
+            .export_working(id, generation, destination, cancel, progress)?)
+    }
+    pub fn export(
+        &self,
+        id: uuid::Uuid,
+        destination: &Path,
+        cancel: &CancellationToken,
+        progress: impl FnMut(u64),
+    ) -> Result<crate::journal::LocalExportReceipt> {
+        self.check_export_destination(destination)?;
         Ok(self
             .journal
             .local_export_source(id)?
