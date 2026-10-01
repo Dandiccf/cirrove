@@ -539,6 +539,10 @@ impl ReadProvider for ICloudDrive {
         self.index_mode == IndexMode::OnDemand
     }
 
+    fn retry_package_source_on_version_change(&self, parent: &Node) -> bool {
+        self.packages.is_some() && packages::package(parent)
+    }
+
     fn directory_fetch_timeout(&self, parent: Option<&Node>) -> Duration {
         if parent.is_some_and(packages::package) {
             return Duration::from_secs(360);
@@ -787,6 +791,47 @@ mod tests {
     use super::*;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
+
+    #[test]
+    fn icloud_package_revision_retry_is_explicit_and_keeps_existing_fetch_deadline() {
+        let scope = Scope {
+            account: uuid::Uuid::new_v4().to_string(),
+            provider: PROVIDER_ID.into(),
+            collection: COLLECTION.into(),
+        };
+        let drive =
+            ICloudDrive::on_demand_from_live_session(scope, ICloudReadSession::new().unwrap())
+                .unwrap();
+        let package = Node {
+            id: "FILE::com.apple.CloudDocs::owned".into(),
+            parent_id: Some(ROOT_ID.into()),
+            name: "Owned.pages".into(),
+            kind: NodeKind::Folder,
+            size: 12,
+            modified_unix: 0,
+            etag: Some("v1".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        };
+        assert!(!drive.retry_package_source_on_version_change(&package));
+        let state = tempfile::tempdir().unwrap();
+        let drive = drive
+            .with_package_artifacts(state.path(), 64 * 1024 * 1024)
+            .unwrap();
+        assert!(drive.retry_package_source_on_version_change(&package));
+        assert!(!drive.refresh_cached_packages_on_first_open());
+        assert_eq!(
+            drive.directory_fetch_timeout(Some(&package)),
+            Duration::from_secs(360)
+        );
+        let mut plain = package.clone();
+        plain.package = false;
+        assert!(!drive.retry_package_source_on_version_change(&plain));
+        let mut folder = package.clone();
+        folder.id = ROOT_ID.into();
+        assert!(!drive.retry_package_source_on_version_change(&folder));
+    }
 
     #[tokio::test]
     async fn independent_folder_requests_reach_apple_without_serial_network_waits() {

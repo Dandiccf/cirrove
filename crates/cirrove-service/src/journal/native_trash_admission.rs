@@ -12,11 +12,27 @@ impl UploadJournal {
         cancel: &CancellationToken,
     ) -> Result<Uuid> {
         self.validate_native_selection(&selection, cancel)?;
-        if self
-            .namespace_by_remote(&selection.parent.scope, &selection.target.id)?
-            .is_some()
+        if let Some(owner) =
+            self.namespace_by_remote(&selection.parent.scope, &selection.target.id)?
         {
-            return Err(JournalError::Intent);
+            // A completed handoff leaves only a stable local alias following
+            // provider metadata. Do not detach or rewrite it: existing views
+            // retain that identity, and verified provider absence removes its
+            // listing naturally. Locally authoritative owners remain refused.
+            let mut expected = selection.target.clone();
+            expected.id = owner.node.id.clone();
+            directories::localize_parent(&self.db, &selection.parent.scope, &mut expected)?;
+            if !owner.follows_remote
+                || owner.latest.is_some()
+                || owner.working_file.is_some()
+                || owner.unlinked
+                || !owner.remote_owned
+                || owner.scope != selection.parent.scope
+                || owner.remote.as_ref() != Some(&selection.target)
+                || owner.node != expected
+            {
+                return Err(JournalError::Intent);
+            }
         }
         let request = MutationRequest {
             scope: selection.parent.scope,

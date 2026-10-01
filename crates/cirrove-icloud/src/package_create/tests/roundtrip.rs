@@ -263,6 +263,37 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
         );
         assert_eq!(receipt.semantic, semantic);
     }
+    #[cfg(feature = "write-probe")]
+    {
+        let mut source_file = tempfile::tempfile().unwrap();
+        source_file.write_all(&source).unwrap();
+        let (diagnostic, verified) = provider
+            .diagnostic_inspect(
+                &saved.operation,
+                &request,
+                &registration,
+                source_file,
+                "Source.pages".into(),
+                &cancel,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            diagnostic["fence"],
+            if changed_remote {
+                "archive-semantic-equality"
+            } else {
+                "verified"
+            }
+        );
+        assert_eq!(
+            diagnostic["archive_comparison"]["exact_file_paths_sizes_hashes_equal"],
+            !changed_remote
+        );
+        assert_eq!(verified.is_some(), !changed_remote);
+        // The assertions below still require exactly one mutation of each kind;
+        // this extra diagnostic can only add metadata/content read requests.
+    }
     let calls = server.finish().await;
     for suffix in [
         "/ws/com.apple.CloudDocs/upload/web",
@@ -276,7 +307,7 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
             .iter()
             .filter(|(_, path)| path == "/signed-download")
             .count(),
-        1
+        if cfg!(feature = "write-probe") { 2 } else { 1 }
     );
 }
 #[tokio::test]

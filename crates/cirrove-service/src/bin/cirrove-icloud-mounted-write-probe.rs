@@ -512,6 +512,44 @@ async fn main() -> Result<()> {
         .context("public readiness observation timed out")?;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--public-native-replacement-preflight"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(900),
+            cirrove_service::validation::icloud_public_native_replacement_preflight(
+                Uuid::parse_str(run)?,
+            ),
+        )
+        .await
+        .context("replacement preflight timed out")?;
+    }
+    if let [flag, run, operation] = args.as_slice()
+        && flag == "--public-native-replacement-diagnose"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(600),
+            cirrove_service::validation::icloud_public_native_replacement_diagnose(
+                Uuid::parse_str(run)?,
+                Uuid::parse_str(operation)?,
+            ),
+        )
+        .await
+        .context("replacement read-only diagnosis timed out")?;
+    }
+    if let [flag, run, operation] = args.as_slice()
+        && flag == "--public-native-replacement-verify"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(900),
+            cirrove_service::validation::icloud_public_native_replacement_verify(
+                Uuid::parse_str(run)?,
+                Uuid::parse_str(operation)?,
+            ),
+        )
+        .await
+        .context("replacement verification timed out")?;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--public-native-manifest"
     {
         return tokio::time::timeout(

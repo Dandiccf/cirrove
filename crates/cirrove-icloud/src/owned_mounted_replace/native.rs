@@ -789,3 +789,262 @@ impl ICloudFileReplace {
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "write-probe")]
+impl ICloudFileReplace {
+    /// Sanitized local evidence only. Does not resume or advance any checkpoint.
+    pub fn native_checkpoint_diagnostic(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+    ) -> UploadResult<serde_json::Value> {
+        let phase = self.native_decode(operation, request, checkpoint)?;
+        let (phase, staged) = match phase {
+            NativePhase::Stage { inner } => self.native_stage_diagnostic(operation, &inner)?,
+            NativePhase::Handoff { plan, phase } => {
+                let category = match phase {
+                    HandoffPhase::MoveOld => "handoff-move-old-armed",
+                    HandoffPhase::InspectInstall => "handoff-inspect-install",
+                    HandoffPhase::InstallInspected => "handoff-install-armed",
+                    HandoffPhase::InstallNew => return Err(UploadError::CheckpointInvalid),
+                };
+                (category, Some(plan.staged_id))
+            }
+        };
+        Ok(
+            serde_json::json!({"phase":phase,"original_id":self.original.id,"staged_id":staged,"parent_id":self.folder.id,"stage_semantically_verified_before_handoff":phase.starts_with("handoff-"),"captured_original_etag_has_wildcard":self.original.etag.as_ref().is_some_and(|v|v.contains('*'))}),
+        )
+    }
+    fn native_stage_diagnostic(
+        &self,
+        operation: &str,
+        inner: &Value,
+    ) -> UploadResult<(&'static str, Option<String>)> {
+        if inner.is_null() {
+            return Ok(("stage-unallocated", None));
+        }
+        let context = self.native.as_ref().ok_or(UploadError::Invalid)?;
+        let summary = context.provider.diagnostic_checkpoint(
+            operation,
+            &self.native_stage_request()?,
+            &unpack(inner.clone())?,
+            &context.account_hash,
+        )?;
+        if summary.1.as_ref() == Some(&self.original.id) {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        Ok(summary)
+    }
+    /// Two exact owned-ID metadata reads; a mismatch/absence makes no claim of
+    /// successful removal. Returned fields contain no remote names or values.
+    pub async fn native_checkpoint_locations_read_only(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> UploadResult<serde_json::Value> {
+        let phase = self.native_decode(operation, request, checkpoint)?;
+        let mut targets = vec![(
+            "original",
+            self.original.id.clone(),
+            self.original.etag.clone(),
+            self.original.name.clone(),
+            Some(self.original.size),
+        )];
+        match phase {
+            NativePhase::Stage { inner } => {
+                if let Some(id) = self.native_stage_diagnostic(operation, &inner)?.1 {
+                    targets.push(("staged", id, None, self.stage_name.clone(), None));
+                }
+            }
+            NativePhase::Handoff { plan, .. } => {
+                let size = plan.package.as_ref().map(|p| p.staged_size);
+                targets.push((
+                    "staged",
+                    plan.staged_id,
+                    Some(plan.staged_etag),
+                    self.stage_name.clone(),
+                    size,
+                ));
+            }
+        }
+        let mut session = self.native_session(cancel).await?;
+        let mut rows = Vec::new();
+        for (role, id, etag, name, size) in targets {
+            if cancel.is_cancelled() {
+                return Err(UploadError::Uncertain);
+            }
+            let observed = tokio::time::timeout(
+                std::time::Duration::from_secs(30),
+                session.item_details(&id),
+            )
+            .await;
+            let summary = match observed {
+                Ok(Ok(value)) => {
+                    diagnostic_location(value, &id, etag.as_deref(), &self.folder.id, &name, size)
+                }
+                _ => serde_json::json!({"category":"unavailable-no-location-conclusion"}),
+            };
+            rows.push(serde_json::json!({"role":role,"observation":summary}));
+        }
+        Ok(serde_json::json!({"items":rows,"metadata_only":true}))
+    }
+    /// Inspect an armed stage without advancing any phase. Source bytes must be
+    /// the exact request-bound archive; this method never saves a continuation.
+    pub async fn inspect_native_stage_read_only(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        source: std::fs::File,
+        cancel: &CancellationToken,
+    ) -> UploadResult<Value> {
+        let phase = self.native_decode(operation, request, checkpoint)?;
+        let NativePhase::Stage { inner } = phase else {
+            return Ok(serde_json::json!({"category":"not-stage"}));
+        };
+        // Validates inner account/request/operation before loading credentials.
+        self.native_stage_diagnostic(operation, &inner)?;
+        let context = self.native.as_ref().ok_or(UploadError::Invalid)?;
+        let UploadRepresentation::PackageReplacementArchive {
+            expected_root,
+            semantic,
+            ..
+        } = &request.representation
+        else {
+            return Err(UploadError::Invalid);
+        };
+        let source_check = source.try_clone().map_err(|_| UploadError::Invalid)?;
+        let root = expected_root.clone();
+        let source_receipt = crate::PackageDownload {
+            size: request.size,
+            sha256: request.sha256.clone(),
+        };
+        let token = cancel.clone();
+        let actual = tokio::task::spawn_blocking(move || {
+            crate::package_archive_semantic_identity(&source_check, &source_receipt, &root, &token)
+        })
+        .await
+        .map_err(|_| UploadError::Uncertain)??;
+        if &actual != semantic {
+            return Err(UploadError::Invalid);
+        }
+        let (verification, receipt) = context
+            .provider
+            .diagnostic_inspect(
+                operation,
+                &self.native_stage_request()?,
+                &unpack(inner)?,
+                source,
+                expected_root.clone(),
+                cancel,
+            )
+            .await?;
+        let Some(receipt) = receipt else {
+            return Ok(
+                serde_json::json!({"stage_verification":verification,"handoff":"not-inspected-stage-unverified"}),
+            );
+        };
+        let plan = match self.native_plan(receipt) {
+            Ok(plan) => plan,
+            Err(_) => {
+                return Ok(
+                    serde_json::json!({"stage_verification":verification,"handoff":"plan-binding-refused"}),
+                );
+            }
+        };
+        let handoff = match self.native_observe(&plan, cancel).await {
+            Ok((HandoffObserved::Prepared, _)) => "original-active-stage-verified",
+            Ok((HandoffObserved::OldAtRecovery, _)) => "original-recoverable-stage-verified",
+            Ok((HandoffObserved::Complete, _)) => "replacement-and-recovery-verified",
+            Ok((HandoffObserved::Diverged, _)) => "diverged",
+            Err(_) => "observation-unavailable",
+        };
+        Ok(serde_json::json!({"stage_verification":verification,"handoff":handoff}))
+    }
+    /// Handoff inspection uses metadata/download/semantic verification ONLY.
+    /// Deliberately does not invoke commit, resume, save, retry or returned steps.
+    pub async fn inspect_native_checkpoint_read_only(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> UploadResult<&'static str> {
+        match self.native_decode(operation, request, checkpoint)? {
+            NativePhase::Stage { .. } => Ok("stage-not-inspected"),
+            NativePhase::Handoff { plan, .. } => {
+                let (state, _) = self.native_observe(&plan, cancel).await?;
+                Ok(match state {
+                    HandoffObserved::Prepared => "original-active-stage-verified",
+                    HandoffObserved::OldAtRecovery => "original-recoverable-stage-verified",
+                    HandoffObserved::Complete => "replacement-and-recovery-verified",
+                    HandoffObserved::Diverged => "diverged-no-location-conclusion",
+                })
+            }
+        }
+    }
+}
+
+#[cfg(feature = "write-probe")]
+fn diagnostic_location(
+    value: serde_json::Value,
+    id: &str,
+    etag: Option<&str>,
+    parent: &str,
+    name: &str,
+    logical_size: Option<u64>,
+) -> serde_json::Value {
+    let restore = value.get("restorePath").is_some_and(|v| !v.is_null());
+    let Ok(entry) = serde_json::from_value::<crate::DriveEntry>(value) else {
+        return serde_json::json!({"category":"invalid-no-location-conclusion"});
+    };
+    if entry.drivewsid != id
+        || entry.docwsid != id.rsplit("::").next().unwrap_or_default()
+        || entry.zone != "com.apple.CloudDocs"
+        || entry.kind != "FILE"
+    {
+        return serde_json::json!({"category":"identity-refused-no-location-conclusion","expected_doc_id_matches":entry.docwsid==id.rsplit("::").next().unwrap_or_default()});
+    }
+    let location = if entry.parent_id == TRASH_ROOT {
+        "trash-parent"
+    } else if entry.parent_id == parent {
+        "owned-active-parent"
+    } else {
+        "other-parent"
+    };
+    serde_json::json!({"category":location,"captured_revision_matches":etag.map(|v|entry.etag==v),"captured_etag_has_wildcard":etag.map(|v|v.contains('*')),"observed_etag_has_wildcard":entry.etag.contains('*'),"restore_marker_present":restore,"expected_name_matches":entry.display_name()==name,"expected_logical_size_matches":logical_size.map(|n|entry.size==n),"expected_doc_id_matches":true})
+}
+#[cfg(all(test, feature = "write-probe"))]
+mod diagnostic_tests {
+    use super::*;
+    #[test]
+    fn diagnostic_metadata_is_exact_and_never_serializes_untrusted_values() {
+        let id = "FILE::com.apple.CloudDocs::owned";
+        let value = serde_json::json!({"drivewsid":id,"docwsid":"owned","zone":"com.apple.CloudDocs","type":"FILE","parentId":TRASH_ROOT,"etag":"PRIVATE-REVISION","name":"PRIVATE-NAME","url":"PRIVATE-URL","restorePath":"PRIVATE-PATH"});
+        let summary = diagnostic_location(
+            value.clone(),
+            id,
+            Some("captured"),
+            "FOLDER::com.apple.CloudDocs::owned",
+            "expected-name",
+            Some(0),
+        );
+        assert_eq!(summary["category"], "trash-parent");
+        assert_eq!(summary["captured_revision_matches"], false);
+        assert!(!summary.to_string().contains("PRIVATE"));
+        assert_eq!(
+            diagnostic_location(
+                value,
+                "FILE::com.apple.CloudDocs::different",
+                Some("captured"),
+                "parent",
+                "expected-name",
+                None
+            )["category"],
+            "identity-refused-no-location-conclusion"
+        );
+    }
+}

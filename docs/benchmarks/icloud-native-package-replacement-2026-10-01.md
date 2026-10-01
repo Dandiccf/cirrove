@@ -233,3 +233,44 @@ reported a broken intra-doc link to `filesystem::writeback::Writeback::retry_stu
 the documentation build completed. Display-dependent window scenarios are not
 part of this check. This validates the development checkpoint, not installed
 acceptance or real-provider replacement reliability.
+
+## Follow-up native Trash admission
+
+The retained-owner restriction is narrowed only for an exact already-following
+owner with no latest/working operation, unchanged full scoped node/remote identity
+and no unlink. Nonfollowing owners remain refused. The stable owner is retained;
+verified absence controls listing. This does not claim a new held-FD kernel run.
+
+The first red/green fixture attempts both failed early because the synthetic
+publisher omitted Engine::refresh_node before recording publication. Those are
+not proof of the guard change. After matching production publication ordering,
+`native-trash-following-corrected-red` failed with the original blanket-owner
+refusal; `native-trash-following-corrected-fixed` passed. The test binds the NEW
+replacement ID (not original recovery ID), rejects wrong revision/account,
+retains owner identity, checks absence projection and refuses overlapping Trash.
+Full project validation of this subsequent change is still pending.
+
+The subsequent full check `native-package-retry-and-trash-fullcheck` stopped at
+the old public-socket fixture's blanket Trash-refusal assertion. That assertion
+encoded the now-corrected limitation, not a security invariant. The fixture now
+continues with its second replacement without first queuing Trash; the dedicated
+following-owner regression covers successful Trash and overlapping-work refusal.
+The full check must be rerun; no success is claimed for this attempt.
+
+`native-package-canonical-fullcheck` also stopped, this time in two desktop
+accounts tests: its long disk-backed TMPDIR exceeded Linux Unix-socket path
+length. Formatting/clippy passed, but the complete check did not. The temporary
+base was shortened on the same ext4 storage device; no production socket path or
+desktop behavior was changed. The next full check includes the added read-only
+stage diagnostic and must complete before committing this checkpoint.
+
+`native-package-stage-fullcheck` completed the full `scripts/check.sh` with exit 0
+from 18:07:46 to 18:17:21 UTC on 2026-10-01. Its private temporary storage is ext4,
+with a worktree-specific target on the Storage disk. Formatting, all clippy
+variants, workspace/feature tests, real kernel mounts, scripts, desktop integration
+checks, ledger and docs passed. The existing broken rustdoc link to
+`filesystem::writeback::Writeback::retry_stuck` remains a warning. Display-dependent
+window scenarios are outside this command. This checkpoint includes stale
+first-open recovery, following-owner Trash admission and read-only diagnosis; it
+does not yet correct the confirmed directory-normalization conflict or close
+full-iCloud release acceptance.

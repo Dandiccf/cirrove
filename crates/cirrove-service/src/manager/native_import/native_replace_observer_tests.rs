@@ -249,3 +249,129 @@ async fn native_replace_recorded_receipt_rejects_semantic_and_identity_tampering
         assert!(changed.native_replacement_receipt().is_none(), "{field}");
     }
 }
+
+#[tokio::test]
+async fn native_trash_after_replacement_requires_following_exact_new_owner() {
+    let (f, row) = queued().await;
+    let confirmed = acknowledge(&f, row.id);
+    let remote = confirmed.remote.clone().unwrap();
+    // Match the real publication worker: persist its fresh exact-ID observation
+    // in Engine metadata before marking the journal publication complete. Merely
+    // changing the provider fixture leaves the following overlay on stale cache.
+    assert_eq!(
+        f.engine
+            .refresh_node(&confirmed.scope, &remote.id)
+            .await
+            .unwrap(),
+        remote
+    );
+    let input = crate::native_trash::NativeTrashInput {
+        expected_account_id: f.engine.account.id.clone(),
+        path: "Owned.pages".into(),
+        item_id: remote.id.clone(),
+        etag: remote.etag.clone().unwrap(),
+    };
+    {
+        let j = f.journal.lock().unwrap();
+        j.finish_package_publication(
+            &confirmed,
+            crate::journal::PackagePublicationStatus::Present(remote.clone()),
+            0,
+        )
+        .unwrap();
+        assert!(j.list_mutations(0, 100).unwrap().is_empty());
+    }
+    // A clean but still authoritative owner must not be treated as an alias.
+    assert!(
+        f.manager
+            .enqueue_native_trash(f.engine.clone(), input.clone(), CancellationToken::new())
+            .await
+            .is_err()
+    );
+    assert!(
+        f.journal
+            .lock()
+            .unwrap()
+            .list_mutations(0, 100)
+            .unwrap()
+            .is_empty()
+    );
+    let retained = {
+        let mut j = f.journal.lock().unwrap();
+        let owner = j
+            .namespace_by_remote(&confirmed.scope, &remote.id)
+            .unwrap()
+            .unwrap();
+        assert!(!owner.follows_remote);
+        j.handoff_namespace(owner.id, owner.revision, remote.clone())
+            .unwrap()
+    };
+    assert!(retained.follows_remote);
+    assert!(retained.latest.is_none() && retained.working_file.is_none());
+    let saved_owner = serde_json::to_vec(&retained).unwrap();
+    // Old identity is the recovery copy, never the currently selected target.
+    for bad in ["old_id", "old_etag", "account"] {
+        let mut changed = input.clone();
+        match bad {
+            "old_id" => changed.item_id = "FILE::com.apple.CloudDocs::old".into(),
+            "old_etag" => changed.etag = "v1".into(),
+            _ => changed.expected_account_id = uuid::Uuid::new_v4().to_string(),
+        }
+        assert!(
+            f.manager
+                .enqueue_native_trash(f.engine.clone(), changed, CancellationToken::new())
+                .await
+                .is_err(),
+            "{bad}"
+        );
+        assert!(
+            f.journal
+                .lock()
+                .unwrap()
+                .list_mutations(0, 100)
+                .unwrap()
+                .is_empty()
+        );
+    }
+    let operation = f
+        .manager
+        .enqueue_native_trash(f.engine.clone(), input.clone(), CancellationToken::new())
+        .await
+        .unwrap();
+    {
+        let j = f.journal.lock().unwrap();
+        let removal = j.mutation(operation).unwrap();
+        assert!(
+            matches!(&removal.request.intent, cirrove_core::mutation::MutationIntent::TrashNativeDocument { before } if before == &remote)
+        );
+        assert_ne!(remote.id, "FILE::com.apple.CloudDocs::old");
+        assert!(removal.base.is_none() && removal.working_file.is_none());
+        // Do not retire the stable identity potentially held by existing views.
+        assert_eq!(
+            serde_json::to_vec(&j.namespace_object(retained.id).unwrap()).unwrap(),
+            saved_owner
+        );
+        let present = j
+            .namespace_overlay(&confirmed.scope, ROOT, vec![remote.clone()])
+            .unwrap();
+        assert!(present.nodes.iter().any(|n| n.id == retained.node.id));
+        let absent = j.namespace_overlay(&confirmed.scope, ROOT, vec![]).unwrap();
+        assert!(absent.nodes.is_empty());
+    }
+    // Pending standalone work still reserves the same provider resource.
+    assert!(
+        f.manager
+            .enqueue_native_trash(f.engine.clone(), input, CancellationToken::new())
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        f.journal
+            .lock()
+            .unwrap()
+            .list_mutations(0, 100)
+            .unwrap()
+            .len(),
+        1
+    );
+}

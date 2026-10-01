@@ -390,6 +390,12 @@ impl RecoveryJournal {
     pub(crate) fn native_validation_upload(&self, id: Uuid) -> Result<UploadRecord> {
         self.journal.get(id)
     }
+    pub(crate) fn native_validation_package_publication(
+        &self,
+        id: Uuid,
+    ) -> Result<PackagePublicationStatus> {
+        self.journal.package_publication_status(id)
+    }
     pub(crate) fn native_validation_absence(&self, id: Uuid) -> Result<bool> {
         Ok(self.journal.native_trash_publication_status(id)? == PackagePublicationStatus::Absent)
     }

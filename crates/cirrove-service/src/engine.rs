@@ -2003,8 +2003,45 @@ impl Engine {
         .map_err(|_| ProviderError::Unavailable)?;
         let deadline =
             std::time::Instant::now() + self.provider.directory_fetch_timeout(parent_node.as_ref());
-        tokio::select! {biased; _=cancel.cancelled()=>Err(ProviderError::Cancelled),
-            result=tokio::time::timeout_at(deadline.into(),self.fetch_directory_inner(scope,parent,parent_node,cancel.clone(),deadline))=>result.map_err(|_|ProviderError::Unavailable)?,
+        let fetch = async {
+            let result = self
+                .fetch_directory_inner(scope, parent, parent_node.clone(), cancel.clone(), deadline)
+                .await;
+            if !matches!(result, Err(ProviderError::VersionChanged)) {
+                return result;
+            }
+            let Some(previous) = parent_node.as_ref().filter(|node| {
+                node.id == parent
+                    && node.package
+                    && node.kind == cirrove_core::NodeKind::Folder
+                    && node.target.is_none()
+                    && self.provider.retry_package_source_on_version_change(node)
+            }) else {
+                return result;
+            };
+            // A generated listing is bound to its source revision. Refresh only
+            // this selected parent after the adapter rejects stale metadata;
+            // old opened artifacts remain bound to their own content revision.
+            let current = self.refresh_node(scope, parent).await?;
+            if current.id != previous.id
+                || current.parent_id != previous.parent_id
+                || current.name != previous.name
+                || current.kind != previous.kind
+                || !current.package
+                || current.target.is_some()
+            {
+                return Err(ProviderError::VersionChanged);
+            }
+            // Exactly one retry, inside the original timeout and cancellation
+            // scope. The first failed stage has already dropped without publish.
+            self.fetch_directory_inner(scope, parent, Some(current), cancel.clone(), deadline)
+                .await
+        };
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => Err(ProviderError::Cancelled),
+            result = tokio::time::timeout_at(deadline.into(), fetch) =>
+                result.map_err(|_| ProviderError::Unavailable)?,
         }
     }
     async fn fetch_directory_inner(

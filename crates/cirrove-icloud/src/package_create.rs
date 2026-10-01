@@ -47,6 +47,14 @@ struct Checkpoint {
     slot: Option<wire::Slot>,
     registration: Option<String>,
 }
+#[derive(Default)]
+struct VerificationProgress {
+    fence: &'static str,
+    #[cfg(feature = "write-probe")]
+    retain_download: bool,
+    #[cfg(feature = "write-probe")]
+    download: Option<(File, crate::PackageDownload)>,
+}
 enum Session {
     Ready(Box<ICloudReadSession>),
     Sealed {
@@ -414,10 +422,22 @@ impl ICloudPackageCreate {
         saved: &Checkpoint,
         cancel: &CancellationToken,
     ) -> Result<PackageUploadReceipt> {
+        self.verify_with_progress(session, saved, cancel, &mut VerificationProgress::default())
+            .await
+    }
+    async fn verify_with_progress(
+        &self,
+        session: &mut ICloudReadSession,
+        saved: &Checkpoint,
+        cancel: &CancellationToken,
+        progress: &mut VerificationProgress,
+    ) -> Result<PackageUploadReceipt> {
+        progress.fence = "account-and-parent";
         Self::binding(session, saved)?;
         let slot = saved.slot.as_ref().ok_or(UploadError::Uncertain)?;
         self.parent(session).await?;
         let name = self.request(&saved.request)?;
+        progress.fence = "stage-metadata";
         let entries = session
             .list_folder(&self.parent.id)
             .await
@@ -440,7 +460,10 @@ impl ICloudPackageCreate {
         {
             return Err(UploadError::Conflict);
         }
+        progress.fence = "package-download";
         let file = tempfile::tempfile_in(&self.staging).map_err(|_| UploadError::Uncertain)?;
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))
+            .map_err(|_| UploadError::Uncertain)?;
         let clone = file.try_clone().map_err(|_| UploadError::Uncertain)?;
         let mut sink = DiskSink(tokio::fs::File::from_std(clone));
         let receipt = session
@@ -449,6 +472,17 @@ impl ICloudPackageCreate {
             .map_err(map_session_error)?;
         sink.0.flush().await.map_err(|_| UploadError::Uncertain)?;
         drop(sink);
+        #[cfg(feature = "write-probe")]
+        if progress.retain_download {
+            progress.download = Some((
+                file.try_clone().map_err(|_| UploadError::Uncertain)?,
+                crate::PackageDownload {
+                    size: receipt.size,
+                    sha256: receipt.sha256.clone(),
+                },
+            ));
+        }
+        progress.fence = "archive-semantic-parse";
         let token = cancel.clone();
         let root = name.to_owned();
         let semantic = tokio::task::spawn_blocking(move || {
@@ -462,9 +496,11 @@ impl ICloudPackageCreate {
         else {
             return Err(UploadError::Invalid);
         };
+        progress.fence = "archive-semantic-equality";
         if &semantic != expected {
             return Err(UploadError::Conflict);
         }
+        progress.fence = "final-metadata-fence";
         // A final independent listing also binds name, uniqueness and parent.
         let after = session
             .list_folder(&self.parent.id)
@@ -480,6 +516,7 @@ impl ICloudPackageCreate {
         {
             return Err(UploadError::Conflict);
         }
+        progress.fence = "verified";
         Ok(PackageUploadReceipt {
             remote: Node {
                 id: entry.drivewsid.clone(),
@@ -686,3 +723,95 @@ impl UploadProvider for ICloudPackageCreate {
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "write-probe")]
+impl ICloudPackageCreate {
+    /// Decode/validate locally; do not interpret an armed checkpoint as success.
+    pub(crate) fn diagnostic_checkpoint(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        account_hash: &str,
+    ) -> Result<(&'static str, Option<String>)> {
+        let saved = self.decode(operation, request, checkpoint)?;
+        if saved.account_hash != account_hash {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let phase = match saved.phase {
+            Phase::AllocationArmed => "stage-allocation-armed",
+            Phase::BodyArmed => "stage-body-armed",
+            Phase::RegistrationArmed => "stage-registration-armed",
+        };
+        Ok((
+            phase,
+            saved
+                .slot
+                .map(|slot| format!("FILE::com.apple.CloudDocs::{}", slot.document_id)),
+        ))
+    }
+}
+
+#[cfg(feature = "write-probe")]
+impl ICloudPackageCreate {
+    /// The same verification-only path as inspect_upload_for_operation. No
+    /// allocation, upload, registration, checkpoint save or returned-step execution.
+    pub(crate) async fn diagnostic_inspect(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        source: File,
+        source_root: String,
+        cancel: &CancellationToken,
+    ) -> Result<(serde_json::Value, Option<PackageUploadReceipt>)> {
+        let saved = self.decode(operation, request, checkpoint)?;
+        if saved.slot.is_none() {
+            return Err(UploadError::Uncertain);
+        }
+        let mut progress = VerificationProgress {
+            retain_download: true,
+            ..Default::default()
+        };
+        let outcome = tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let mut state = self.session.lock().await;
+            let session = Self::active(&mut state).await?;
+            self.verify_with_progress(session, &saved, cancel, &mut progress).await
+        } => result};
+        let category = match &outcome {
+            Ok(_) => "verified",
+            Err(UploadError::Conflict) => "conflict",
+            Err(_) => "unavailable",
+        };
+        let comparison = if let Some((download, receipt)) = progress.download {
+            let token = cancel.clone();
+            let source_receipt = crate::PackageDownload {
+                size: request.size,
+                sha256: request.sha256.clone(),
+            };
+            let stage_root = self.request(request)?.to_owned();
+            match tokio::task::spawn_blocking(move || {
+                crate::package_semantic::diagnostic_archive_comparison(
+                    &source,
+                    &source_receipt,
+                    &source_root,
+                    &download,
+                    &receipt,
+                    &stage_root,
+                    &token,
+                )
+            })
+            .await
+            {
+                Ok(Ok(value)) => value,
+                _ => serde_json::json!({"comparison_available":false}),
+            }
+        } else {
+            serde_json::json!({"comparison_available":false})
+        };
+        Ok((
+            serde_json::json!({"fence":progress.fence,"category":category,"archive_comparison":comparison}),
+            outcome.ok(),
+        ))
+    }
+}

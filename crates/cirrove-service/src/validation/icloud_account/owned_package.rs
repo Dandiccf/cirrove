@@ -443,3 +443,9 @@ pub use public_trash::{
     icloud_public_native_restore, icloud_public_native_restore_inspect,
     icloud_public_native_trash_import_verify, icloud_public_native_trash_verify,
 };
+
+mod replacement_live;
+pub use replacement_live::{
+    icloud_public_native_replacement_diagnose, icloud_public_native_replacement_preflight,
+    icloud_public_native_replacement_verify,
+};

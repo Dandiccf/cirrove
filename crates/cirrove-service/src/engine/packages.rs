@@ -585,3 +585,6 @@ async fn generated_content_miss_obeys_provider_deadline_even_if_transport_ignore
         "cache miss must obey the provider deadline"
     );
 }
+
+#[path = "packages/revision_retry.rs"]
+mod revision_retry;

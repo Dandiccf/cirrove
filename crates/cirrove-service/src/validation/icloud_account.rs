@@ -658,9 +658,11 @@ pub use owned_package::{
     icloud_owned_package_restore_inspect, icloud_owned_package_restore_shape,
     icloud_owned_package_source, icloud_owned_package_trash, icloud_owned_package_trash_inspect,
     icloud_owned_package_verify, icloud_public_native_manifest, icloud_public_native_readiness,
-    icloud_public_native_renewal_readiness, icloud_public_native_restore,
-    icloud_public_native_restore_inspect, icloud_public_native_trash_import_verify,
-    icloud_public_native_trash_verify, icloud_public_native_verify,
+    icloud_public_native_renewal_readiness, icloud_public_native_replacement_diagnose,
+    icloud_public_native_replacement_preflight, icloud_public_native_replacement_verify,
+    icloud_public_native_restore, icloud_public_native_restore_inspect,
+    icloud_public_native_trash_import_verify, icloud_public_native_trash_verify,
+    icloud_public_native_verify,
 };
 
 mod public_bootstrap;

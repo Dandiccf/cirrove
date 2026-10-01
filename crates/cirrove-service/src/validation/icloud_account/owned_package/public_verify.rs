@@ -118,16 +118,24 @@ pub(super) fn exact_entry(entries: &[DriveEntry], node: &Node) -> Result<DriveEn
 
 /// The public daemon must be stopped first: RecoveryJournal retains its exclusive
 /// owner lease throughout the read-only verification and refuses an active writer.
-struct PublicImportBinding {
-    account: Account,
-    plan: OwnedPackagePlan,
-    node: Node,
-    journal: RecoveryJournal,
+pub(super) struct PublicImportBinding {
+    pub(super) account: Account,
+    pub(super) plan: OwnedPackagePlan,
+    pub(super) node: Node,
+    pub(super) journal: RecoveryJournal,
     source_file: File,
     source_receipt: PackageDownload,
-    semantic: PackageSemanticIdentity,
+    pub(super) semantic: PackageSemanticIdentity,
 }
 fn retained_public_import(run: Uuid) -> Result<PublicImportBinding> {
+    retained_public_import_for_replacement(run, None)
+}
+/// Only the explicitly supplied replacement row may accompany the historical
+/// import. Existing historical callers still demand exactly one import row.
+pub(super) fn retained_public_import_for_replacement(
+    run: Uuid,
+    replacement: Option<Uuid>,
+) -> Result<PublicImportBinding> {
     ensure!(
         run.to_string() == RUN,
         "run is not the preregistered public native import"
@@ -184,12 +192,20 @@ fn retained_public_import(run: Uuid) -> Result<PublicImportBinding> {
         &account.id,
     )
     .context("stop only the isolated public daemon before verification")?;
-    let rows = journal.list(0, 2)?;
+    let rows = journal.list(0, 3)?;
+    let original = Uuid::parse_str("b534c269-8b9e-47e0-97a0-a512d0127765")?;
     ensure!(
-        rows.len() == 1,
-        "expected exactly one public import journal row"
+        rows.len() == if replacement.is_some() { 2 } else { 1 }
+            && replacement.is_none_or(|id| id != original && rows.iter().any(|row| row.id == id))
+            && rows
+                .iter()
+                .all(|row| row.id == original || Some(row.id) == replacement),
+        "public import journal inventory changed"
     );
-    let row = &rows[0];
+    let row = rows
+        .iter()
+        .find(|row| row.id == original)
+        .context("historical public import missing")?;
     let node = receipt_binding(row, &account, &plan, &semantic)?.clone();
     Ok(PublicImportBinding {
         account,

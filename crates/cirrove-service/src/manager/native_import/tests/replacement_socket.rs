@@ -562,15 +562,11 @@ async fn native_replacement_public_socket_worker_discovery_watch_and_stop() -> a
             .await?;
         ensure!(selection.target == current);
         {
-            let mut journal = journal.lock().unwrap();
+            let journal = journal.lock().unwrap();
             journal.validate_native_selection(&selection, &CancellationToken::new()).context("follow-up journal selection")?;
-            // Standalone Trash still deliberately refuses a retained namespace
-            // owner. Selection success is not a claim that this guard is gone.
-            ensure!(
-                journal
-                    .enqueue_native_trash_selection(selection, &CancellationToken::new(),)
-                    .is_err()
-            );
+            // Continue this scenario with a second replacement. The separate
+            // native_trash_after_replacement_requires_following_exact_new_owner
+            // regression covers Trash admission and its resource reservation.
         }
         let semantic = match &retained.representation {
             UploadRepresentation::PackageReplacementArchive { semantic, .. } => semantic.clone(),

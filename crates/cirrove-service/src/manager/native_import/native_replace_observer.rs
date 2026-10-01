@@ -1,4 +1,4 @@
-//! Internal bound job/watch API; no socket verb or GUI submission.
+//! Account-bound job/watch implementation used by the public replacement API.
 use super::*;
 impl Manager {
     pub async fn start_native_replacement(

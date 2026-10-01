@@ -602,3 +602,89 @@ fn package_identity_rejects_unknown_versions_malformed_receipts_wrong_root_and_c
         Err(ProviderError::Cancelled)
     ));
 }
+
+#[cfg(feature = "write-probe")]
+#[test]
+fn diagnostic_directory_delta_never_weakens_strict_semantic_identity() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = rooted_archive(
+        "Source.pages",
+        false,
+        &[("Metadata/private", b"fixed synthetic content")],
+        None,
+        false,
+    );
+    let (a, ar) = staged(&source, dir.path());
+    for (root_entry, changed, expected_delta, expected_files) in [
+        (true, false, true, true),
+        (false, false, false, true),
+        (true, true, false, false),
+    ] {
+        let bytes = rooted_archive(
+            "Stage.pages",
+            true,
+            &[(
+                "Metadata/private",
+                if changed {
+                    b"changed"
+                } else {
+                    b"fixed synthetic content"
+                },
+            )],
+            None,
+            root_entry,
+        );
+        let (b, br) = staged(&bytes, dir.path());
+        let token = CancellationToken::new();
+        let observation =
+            diagnostic_archive_comparison(&a, &ar, "Source.pages", &b, &br, "Stage.pages", &token)
+                .unwrap();
+        assert_eq!(observation["directory_only_delta"], expected_delta);
+        assert_eq!(
+            observation["exact_file_paths_sizes_hashes_equal"],
+            expected_files
+        );
+        assert_eq!(observation["source_directories"], 0);
+        assert_eq!(
+            observation["downloaded_directories"],
+            usize::from(root_entry)
+        );
+        assert_eq!(
+            compare_package_archives_with_roots(
+                &a,
+                &ar,
+                "Source.pages",
+                &b,
+                &br,
+                "Stage.pages",
+                &token
+            )
+            .is_ok(),
+            !root_entry && !changed
+        );
+        let printed = observation.to_string();
+        assert!(
+            !printed.contains("Metadata")
+                && !printed.contains("synthetic")
+                && !printed.contains("private")
+        );
+        assert!(
+            diagnostic_archive_comparison(&a, &ar, "Wrong.pages", &b, &br, "Stage.pages", &token)
+                .is_err()
+        );
+        let cancelled = CancellationToken::new();
+        cancelled.cancel();
+        assert!(
+            diagnostic_archive_comparison(
+                &a,
+                &ar,
+                "Source.pages",
+                &b,
+                &br,
+                "Stage.pages",
+                &cancelled
+            )
+            .is_err()
+        );
+    }
+}

@@ -496,3 +496,44 @@ fn fingerprint(
 }
 #[cfg(test)]
 mod tests;
+
+/// Diagnostic only: exact file entries remain significant; directory-only delta
+/// is an observation, never a semantic identity or an admission decision.
+#[cfg(feature = "write-probe")]
+pub(crate) fn diagnostic_archive_comparison(
+    source: &File,
+    source_receipt: &PackageDownload,
+    source_root: &str,
+    downloaded: &File,
+    downloaded_receipt: &PackageDownload,
+    downloaded_root: &str,
+    cancel: &CancellationToken,
+) -> Result<serde_json::Value> {
+    validate_root(source_root)?;
+    validate_root(downloaded_root)?;
+    let a = bind_root(
+        fingerprint(source, source_receipt, cancel, MAX_EXPANDED)?,
+        source_root,
+    )?;
+    let b = bind_root(
+        fingerprint(downloaded, downloaded_receipt, cancel, MAX_EXPANDED)?,
+        downloaded_root,
+    )?;
+    check(cancel)?;
+    let files_equal = a
+        .entries
+        .iter()
+        .filter(|(_, entry)| !entry.directory)
+        .eq(b.entries.iter().filter(|(_, entry)| !entry.directory));
+    let all_equal = a.entries == b.entries;
+    Ok(serde_json::json!({
+        "comparison_available":true,
+        "source_entries":a.entries.len(), "downloaded_entries":b.entries.len(),
+        "source_files":a.files,"downloaded_files":b.files,
+        "source_directories":a.entries.len()-a.files,"downloaded_directories":b.entries.len()-b.files,
+        "source_expanded_bytes":a.expanded,"downloaded_expanded_bytes":b.expanded,
+        "exact_file_paths_sizes_hashes_equal":files_equal,
+        "all_entries_equal":all_equal,
+        "directory_only_delta":files_equal && !all_equal
+    }))
+}

@@ -290,6 +290,16 @@ pub trait ReadProvider: MetadataProvider {
     fn refresh_cached_packages_on_first_open(&self) -> bool {
         false
     }
+    /// Whether a selected generated-package directory binds enumeration to the
+    /// supplied source metadata and can reject a stale cached source revision.
+    /// On VersionChanged the service may refresh that exact node and retry the
+    /// whole listing once, within the original deadline. Identity, location and
+    /// package shape must remain unchanged; partial pages/cursors are discarded.
+    /// This does not request periodic/first-open refreshes or retarget existing
+    /// opened artifacts. Ordinary directories and other providers default off.
+    fn retry_package_source_on_version_change(&self, _parent: &Node) -> bool {
+        false
+    }
     /// Why this provider would refuse a file or folder name, or `None`. The
     /// mount asks before creating or renaming, so a name the cloud will not
     /// take fails at the application that chose it and not an hour later as a
