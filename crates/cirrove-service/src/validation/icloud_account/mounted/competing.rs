@@ -425,6 +425,7 @@ mod tests {
     }
     fn request(b: &Boundary) -> UploadRequest {
         UploadRequest {
+            representation: Default::default(),
             scope: b.scope.clone(),
             intent: UploadIntent::Replace {
                 item: "old".into(),

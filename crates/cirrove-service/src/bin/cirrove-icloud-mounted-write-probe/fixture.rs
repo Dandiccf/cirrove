@@ -126,7 +126,7 @@ impl Fixture {
         if request.scope != self.scope {
             return Err(UploadError::Invalid);
         }
-        request.validate()?;
+        request.require_file_bytes()?;
         let UploadIntent::Create { parent, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
@@ -309,7 +309,7 @@ impl Fixture {
         request: &UploadRequest,
         operation: &str,
     ) -> cirrove_core::upload::Result<Uuid> {
-        request.validate()?;
+        request.require_file_bytes()?;
         let UploadIntent::Replace { item, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
@@ -840,6 +840,7 @@ impl Fixture {
                 "only a pre-checkpoint failed replacement may be inspected"
             );
             UploadRequest {
+                representation: Default::default(),
                 scope: row.scope.clone(),
                 intent: row.intent.clone(),
                 size: row.size,

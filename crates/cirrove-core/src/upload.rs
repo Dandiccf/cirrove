@@ -1,6 +1,11 @@
 //! Provider upload contract consumed by the durable local journal and its worker.
+mod representation;
 use crate::{CancellationToken, Node, ProviderError, Scope};
 use async_trait::async_trait;
+pub use representation::{
+    PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageSemanticIdentity, PackageUploadReceipt,
+    UploadRepresentation,
+};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -70,14 +75,29 @@ impl UploadIntent {
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UploadRequest {
+    #[serde(default, skip_serializing_if = "UploadRepresentation::is_file_bytes")]
+    pub representation: UploadRepresentation,
     pub scope: Scope,
     pub intent: UploadIntent,
     pub size: u64,
     pub sha256: String,
 }
 impl UploadRequest {
+    /// Ordinary adapters must call this before every remote operation.
+    pub fn require_file_bytes(&self) -> Result<()> {
+        self.validate()?;
+        if self.representation.is_file_bytes() {
+            Ok(())
+        } else {
+            Err(UploadError::Unsupported("package archive upload"))
+        }
+    }
     pub fn validate(&self) -> Result<()> {
         self.intent.validate()?;
+        self.representation.validate()?;
+        if !self.representation.is_file_bytes() && self.size > 64 * 1024 * 1024 {
+            return Err(UploadError::Invalid);
+        }
         if self.scope.account.is_empty()
             || self.scope.provider.is_empty()
             || self.scope.collection.is_empty()
@@ -102,6 +122,12 @@ pub struct UploadProgress {
     pub length: u32,
 }
 pub enum UploadStep {
+    /// Arm a non-idempotent remote allocation. Only a fresh `begin_upload` may
+    /// return this step. The worker persists it before invoking the allocation
+    /// callback once; after interruption it is inspected/reconciled, never
+    /// automatically allocated again. The checkpoint must describe uncertainty
+    /// even if the allocation succeeds but its returned identity is lost.
+    Allocate(SecretString),
     /// Provider-specific preparation that must be persisted before the caller
     /// asks the provider to start or recover a mutating upload session.
     Prepared(SecretString),
@@ -114,6 +140,7 @@ pub enum UploadStep {
     /// final commit makes them visible as the replacement file.
     Commit(SecretString),
     Complete(Node),
+    PackageComplete(PackageUploadReceipt),
     /// A staged replacement has installed a new item ID and retained the old
     /// exact ID at its reserved recovery name. The provider must verify both
     /// identities and exact content before returning this receipt.
@@ -125,10 +152,12 @@ pub enum UploadStep {
 impl std::fmt::Debug for UploadStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::Allocate(_) => "UploadStep::Allocate([redacted])",
             Self::Prepared(_) => "UploadStep::Prepared([redacted])",
             Self::Continue(_) => "UploadStep::Continue([redacted])",
             Self::Stream(_) => "UploadStep::Stream([redacted])",
             Self::Commit(_) => "UploadStep::Commit([redacted])",
+            Self::PackageComplete(_) => "UploadStep::PackageComplete([redacted])",
             Self::Complete(_) => "UploadStep::Complete([redacted])",
             Self::HandoffComplete { .. } => "UploadStep::HandoffComplete([redacted])",
         })
@@ -136,6 +165,7 @@ impl std::fmt::Debug for UploadStep {
 }
 pub enum Reconciliation {
     Committed(Node),
+    PackageCommitted(PackageUploadReceipt),
     HandoffCommitted { current: Node, backup: Node },
     Uncommitted,
     Conflict,
@@ -201,6 +231,22 @@ pub trait UploadProvider: Send + Sync {
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
         self.begin_upload(request, cancel).await
+    }
+    /// Execute a fresh, durably armed allocation exactly once in this attempt.
+    /// This is distinct from `inspect_upload`: inspecting a saved allocation
+    /// checkpoint must be read-only. Lost responses remain uncertain unless
+    /// provider-specific readback establishes the exact allocated identity or
+    /// proves no allocation occurred. Never infer absence from a missing receipt.
+    /// Return a content/commit continuation or an independently verified receipt,
+    /// not another Allocate or Prepared step. Existing providers need no change.
+    async fn allocate_upload_for_operation(
+        &self,
+        _operation: &str,
+        _request: &UploadRequest,
+        _checkpoint: &SecretString,
+        _cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        Err(UploadError::Unsupported("remote upload allocation"))
     }
     async fn inspect_upload(
         &self,

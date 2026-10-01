@@ -90,6 +90,7 @@ impl UploadProvider for CompetingEdit {
         r: &UploadRequest,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         self.inner.begin_upload(r, c).await
     }
     async fn inspect_upload(
@@ -98,6 +99,7 @@ impl UploadProvider for CompetingEdit {
         s: &SecretString,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         self.inner.inspect_upload(r, s, c).await
     }
     async fn upload_part(
@@ -108,6 +110,7 @@ impl UploadProvider for CompetingEdit {
         b: Vec<u8>,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         self.inner.upload_part(r, s, o, b, c).await
     }
     async fn commit_upload(
@@ -116,6 +119,7 @@ impl UploadProvider for CompetingEdit {
         s: &SecretString,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         let UploadIntent::Replace {
             item,
             expected_etag,
@@ -129,6 +133,7 @@ impl UploadProvider for CompetingEdit {
         if !self.fired.swap(true, Ordering::SeqCst) {
             println!("  creating a competing edit after all replacement bytes were staged");
             let competing = UploadRequest {
+                representation: Default::default(),
                 scope: r.scope.clone(),
                 intent: r.intent.clone(),
                 size: 0,
@@ -162,6 +167,7 @@ impl UploadProvider for CompetingEdit {
         s: Option<&SecretString>,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<Reconciliation> {
+        r.require_file_bytes()?;
         self.inner.reconcile_upload(r, s, c).await
     }
 }
@@ -224,6 +230,7 @@ async fn verify(
         bail!("upload was not acknowledged; local bytes are retained");
     }
     let request = UploadRequest {
+        representation: Default::default(),
         scope: record.scope.clone(),
         intent: record.intent.clone(),
         size: record.size,

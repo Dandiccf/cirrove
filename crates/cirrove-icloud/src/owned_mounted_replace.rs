@@ -208,7 +208,7 @@ impl ICloudFileReplace {
         }
         let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
             .map_err(|_| UploadError::CheckpointInvalid)?;
-        request.validate()?;
+        request.require_file_bytes()?;
         if saved.scope != request.scope
             || saved.operation != operation
             || saved.size != request.size
@@ -339,7 +339,7 @@ impl ICloudFileReplace {
     }
 
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
-        request.validate()?;
+        request.require_file_bytes()?;
         if request.scope != self.scope
             || !matches!(&request.intent, UploadIntent::Replace { item, expected_etag }
                 if item == &self.original.id && self.original.etag.as_deref() == Some(expected_etag))
@@ -352,6 +352,7 @@ impl ICloudFileReplace {
 
     fn stage_request(&self, request: &UploadRequest) -> UploadRequest {
         UploadRequest {
+            representation: Default::default(),
             scope: request.scope.clone(),
             intent: UploadIntent::Create {
                 parent: self.folder.id.clone(),
@@ -687,7 +688,9 @@ impl ICloudFileReplace {
                     },
                 )?)
             }
-            UploadStep::HandoffComplete { .. } => return Err(UploadError::Invalid),
+            UploadStep::Allocate(_)
+            | UploadStep::PackageComplete(_)
+            | UploadStep::HandoffComplete { .. } => return Err(UploadError::Invalid),
         })
     }
 
@@ -891,7 +894,9 @@ impl UploadProvider for ICloudFileReplace {
                 // A staged Create is not completion of the Replace. The next
                 // verification must observe its exact ID and enter handoff.
                 Reconciliation::Committed(_) => Err(UploadError::Uncertain),
-                Reconciliation::HandoffCommitted { .. } => Err(UploadError::Invalid),
+                Reconciliation::PackageCommitted(_) | Reconciliation::HandoffCommitted { .. } => {
+                    Err(UploadError::Invalid)
+                }
             },
             (_, Phase::Handoff { inner, plan }) => {
                 self.handoff(*plan, r.size)
@@ -957,6 +962,7 @@ mod tests {
             )
             .expect("zero-sized source");
             let request = UploadRequest {
+                representation: Default::default(),
                 scope,
                 intent: UploadIntent::Replace {
                     item: original.id.clone(),
@@ -966,6 +972,22 @@ mod tests {
                 sha256: hex::encode(Sha256::digest(new_bytes)),
             };
             provider.check_request(&request).expect("zero-sized target");
+            let mut package = request.clone();
+            package.representation = cirrove_core::upload::UploadRepresentation::PackageArchive {
+                expected_root: "Source.pages".into(),
+                semantic: cirrove_core::upload::PackageSemanticIdentity {
+                    version: 1,
+                    sha256: "a".repeat(64),
+                    entries: 1,
+                    files: 1,
+                    expanded_bytes: 1,
+                },
+            };
+            assert!(matches!(
+                provider.check_request(&package),
+                Err(UploadError::Unsupported(_))
+            ));
+
             let mut staged = node(
                 "FILE::com.apple.CloudDocs::staged".into(),
                 Some(ROOT_ID.into()),
@@ -1033,6 +1055,7 @@ mod tests {
         )
         .expect("root fixture");
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope.clone(),
             intent: UploadIntent::Replace {
                 item: original.id.clone(),
@@ -1139,6 +1162,7 @@ mod tests {
             .expect("synthetic fixture")
         };
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope.clone(),
             intent: UploadIntent::Replace {
                 item: original.id.clone(),

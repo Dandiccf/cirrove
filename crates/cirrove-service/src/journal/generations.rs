@@ -138,7 +138,8 @@ impl UploadJournal {
     }
     pub(super) fn upload_intent_after(&self, predecessor: Uuid) -> Result<(Scope, UploadIntent)> {
         match self.operation(predecessor)? {
-            Operation::Upload(r) => Ok((r.scope, r.intent)),
+            Operation::Upload(r) if r.representation.is_file_bytes() => Ok((r.scope, r.intent)),
+            Operation::Upload(_) => Err(JournalError::Intent),
             Operation::Mutation(r) => match r.request.intent {
                 MutationIntent::Relocate { before, .. } if before.kind == NodeKind::File => Ok((
                     r.request.scope,
@@ -192,6 +193,9 @@ impl UploadJournal {
         request: &MutationRequest,
     ) -> Result<()> {
         let previous = self.operation(predecessor)?;
+        if matches!(&previous, Operation::Upload(row) if !row.representation.is_file_bytes()) {
+            return Err(JournalError::Intent);
+        }
         if previous.scope() != &request.scope || request.scope.account != self.account {
             return Err(JournalError::Account);
         }

@@ -153,6 +153,7 @@ mod tests {
                 claimed
             };
             let request = UploadRequest {
+                representation: Default::default(),
                 scope: row.scope.clone(),
                 intent: row.intent.clone(),
                 size: row.size,
@@ -231,6 +232,7 @@ mod tests {
                 )
                 .unwrap();
             let request = UploadRequest {
+                representation: Default::default(),
                 scope: row.scope.clone(),
                 intent: row.intent.clone(),
                 size: row.size,

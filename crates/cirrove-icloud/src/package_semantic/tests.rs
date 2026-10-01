@@ -410,3 +410,195 @@ fn package_semantic_bound_root_must_be_a_directory_not_a_file() {
         .is_err()
     );
 }
+#[test]
+fn package_identity_is_stable_across_order_compression_timestamps_and_bound_root_rename() {
+    let dir = tempfile::tempdir().unwrap();
+    let entries = [
+        ("Index/Document.iwa", b"document".as_slice()),
+        ("Metadata/info", b"metadata".as_slice()),
+    ];
+    let (a, ar) = staged(
+        &rooted_archive("Source.pages", false, &entries, None, true),
+        dir.path(),
+    );
+    let (b, br) = staged(
+        &rooted_archive("Imported.pages", true, &entries, None, true),
+        dir.path(),
+    );
+    let first =
+        package_archive_semantic_identity(&a, &ar, "Source.pages", &CancellationToken::new())
+            .unwrap();
+    let second =
+        package_archive_semantic_identity(&b, &br, "Imported.pages", &CancellationToken::new())
+            .unwrap();
+    assert_eq!(first, second);
+    assert_eq!(first.version, 1);
+    assert_eq!(first.entries, 3);
+    assert_eq!(first.files, 2);
+    assert_eq!(first.expanded_bytes, 16);
+    assert_ne!(ar.sha256, br.sha256);
+    let encoded = serde_json::to_string(&first).unwrap();
+    assert!(!encoded.contains("Source"));
+    assert!(!encoded.contains("Document.iwa"));
+    assert!(!encoded.contains("metadata"));
+    assert_eq!(
+        serde_json::from_str::<PackageSemanticIdentity>(&encoded).unwrap(),
+        first
+    );
+}
+#[test]
+fn package_identity_changes_with_inner_path_or_content() {
+    let dir = tempfile::tempdir().unwrap();
+    let (source, receipt) = staged(
+        &rooted_archive(
+            "Source.pages",
+            false,
+            &[("Index/Document.iwa", b"document")],
+            None,
+            true,
+        ),
+        dir.path(),
+    );
+    let expected = package_archive_semantic_identity(
+        &source,
+        &receipt,
+        "Source.pages",
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    for (path, data) in [
+        ("Index/Document.iwa", b"changed!".as_slice()),
+        ("Index/Document2.iwa", b"document"),
+    ] {
+        let (file, receipt) = staged(
+            &rooted_archive("Source.pages", false, &[(path, data)], None, true),
+            dir.path(),
+        );
+        assert_ne!(
+            package_archive_semantic_identity(
+                &file,
+                &receipt,
+                "Source.pages",
+                &CancellationToken::new()
+            )
+            .unwrap()
+            .sha256,
+            expected.sha256
+        );
+    }
+}
+fn kind_swap_archive(swap: bool) -> Vec<u8> {
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    zip.add_directory("Root.pages/", options).unwrap();
+    zip.start_file("Root.pages/keep", options).unwrap();
+    zip.write_all(b"data").unwrap();
+    zip.add_directory(
+        if swap {
+            "Root.pages/a/"
+        } else {
+            "Root.pages/b/"
+        },
+        options,
+    )
+    .unwrap();
+    zip.start_file(if swap { "Root.pages/b" } else { "Root.pages/a" }, options)
+        .unwrap();
+    zip.finish().unwrap().into_inner()
+}
+#[test]
+fn package_identity_commits_entry_kind_even_when_paths_counts_sizes_and_hashes_match() {
+    let dir = tempfile::tempdir().unwrap();
+    let (a, ar) = staged(&kind_swap_archive(false), dir.path());
+    let (b, br) = staged(&kind_swap_archive(true), dir.path());
+    let first = package_archive_semantic_identity(&a, &ar, "Root.pages", &CancellationToken::new())
+        .unwrap();
+    let second =
+        package_archive_semantic_identity(&b, &br, "Root.pages", &CancellationToken::new())
+            .unwrap();
+    assert_eq!(first.entries, second.entries);
+    assert_eq!(first.files, second.files);
+    assert_eq!(first.expanded_bytes, second.expanded_bytes);
+    assert_ne!(first.sha256, second.sha256);
+}
+#[test]
+fn package_identity_v1_framing_has_fixed_domain_version_lengths_and_binary_digests() {
+    let empty = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    let test = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+    let mut entries = BTreeMap::new();
+    entries.insert(
+        String::new(),
+        Entry {
+            directory: true,
+            size: 0,
+            sha256: empty.into(),
+        },
+    );
+    entries.insert(
+        "abc".into(),
+        Entry {
+            directory: false,
+            size: 4,
+            sha256: test.into(),
+        },
+    );
+    let content = Fingerprint {
+        entries,
+        expanded: 4,
+        files: 1,
+    };
+    // Independent literal v1 frame: version=1, entries=2, files=1, bytes=4;
+    // empty root directory, then abc (four bytes). No encoder helper is used.
+    let mut frame = b"cirrove.package.semantic.identity\0".to_vec();
+    frame.extend_from_slice(&[0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 4]);
+    frame.extend_from_slice(&[b'D', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    frame.extend_from_slice(&hex::decode(empty).unwrap());
+    frame.extend_from_slice(&[b'F', 0, 0, 0, 3, b'a', b'b', b'c', 0, 0, 0, 0, 0, 0, 0, 4]);
+    frame.extend_from_slice(&hex::decode(test).unwrap());
+    let cancel = CancellationToken::new();
+    let digest = identity_digest(&content, IDENTITY_DOMAIN, 1, &cancel).unwrap();
+    assert_eq!(digest, hex::encode(Sha256::digest(&frame)));
+    assert_ne!(
+        digest,
+        identity_digest(&content, b"different-domain\0", 1, &cancel).unwrap()
+    );
+    assert_ne!(
+        digest,
+        identity_digest(&content, IDENTITY_DOMAIN, 2, &cancel).unwrap()
+    );
+}
+#[test]
+fn package_identity_rejects_unknown_versions_malformed_receipts_wrong_root_and_cancellation() {
+    let dir = tempfile::tempdir().unwrap();
+    let (file, mut receipt) = staged(
+        &rooted_archive("Source.pages", false, &[("file", b"content")], None, true),
+        dir.path(),
+    );
+    let cancel = CancellationToken::new();
+    let identity =
+        package_archive_semantic_identity(&file, &receipt, "Source.pages", &cancel).unwrap();
+    let base = serde_json::to_value(&identity).unwrap();
+    for (field, value) in [
+        ("version", serde_json::json!(2)),
+        ("sha256", serde_json::json!("not-a-digest")),
+        ("entries", serde_json::json!(10001)),
+        ("files", serde_json::json!(0)),
+        ("expanded_bytes", serde_json::json!(MAX_EXPANDED + 1)),
+    ] {
+        let mut invalid = base.clone();
+        invalid[field] = value;
+        assert!(serde_json::from_value::<PackageSemanticIdentity>(invalid).is_err());
+    }
+    assert!(package_archive_semantic_identity(&file, &receipt, "Other.pages", &cancel).is_err());
+    receipt.sha256 = "00".repeat(32);
+    assert!(matches!(
+        package_archive_semantic_identity(&file, &receipt, "Source.pages", &cancel),
+        Err(ProviderError::VersionChanged)
+    ));
+    cancel.cancel();
+    assert!(matches!(
+        package_archive_semantic_identity(&file, &receipt, "Source.pages", &cancel),
+        Err(ProviderError::Cancelled)
+    ));
+}

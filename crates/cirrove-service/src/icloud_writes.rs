@@ -104,7 +104,7 @@ impl ICloudWriteProvider {
     }
 
     fn validate_operation(&self, operation: &str, request: &UploadRequest) -> Result<Uuid> {
-        request.validate()?;
+        request.require_file_bytes()?;
         if request.scope != self.scope {
             return Err(UploadError::Invalid);
         }
@@ -113,6 +113,7 @@ impl ICloudWriteProvider {
         let row = journal.get(id).map_err(|_| UploadError::Invalid)?;
         if row.scope != request.scope
             || row.intent != request.intent
+            || row.representation != request.representation
             || row.size != request.size
             || row.sha256 != request.sha256
             || !matches!(
@@ -507,6 +508,7 @@ mod tests {
         (
             row.id.to_string(),
             UploadRequest {
+                representation: Default::default(),
                 scope: row.scope,
                 intent: row.intent,
                 size: row.size,
@@ -601,5 +603,26 @@ mod tests {
             UploadStep::Prepared(_)
         ));
         assert!(p.begin_upload(&root_request, &cancel).await.is_err());
+    }
+    #[tokio::test]
+    async fn package_archive_cannot_enter_the_normal_icloud_router() {
+        let (_temp, provider) = fixture();
+        let (operation, mut request) = enqueue(&provider, ROOT_ID);
+        request.representation = cirrove_core::upload::UploadRepresentation::PackageArchive {
+            expected_root: "Source.pages".into(),
+            semantic: cirrove_core::upload::PackageSemanticIdentity {
+                version: 1,
+                sha256: "a".repeat(64),
+                entries: 1,
+                files: 1,
+                expanded_bytes: 1,
+            },
+        };
+        assert!(matches!(
+            provider
+                .begin_upload_for_operation(&operation, &request, &CancellationToken::new())
+                .await,
+            Err(UploadError::Unsupported(_))
+        ));
     }
 }

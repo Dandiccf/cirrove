@@ -53,6 +53,79 @@ pub struct PackageSemanticComparison {
     pub imported_archive_sha256: String,
     pub raw_archives_equal: bool,
 }
+pub use cirrove_core::upload::{PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageSemanticIdentity};
+const IDENTITY_DOMAIN: &[u8] = b"cirrove.package.semantic.identity\0";
+/// Compute a stable, explicitly root-bound content identity from a bounded ZIP.
+/// Verifies the independent raw receipt before parsing. Call from spawn_blocking.
+/// Archive order, compression, timestamps and the expected wrapper name do not
+/// affect the identity. Every inner path, kind, size and content digest does.
+pub fn package_archive_semantic_identity(
+    archive: &File,
+    receipt: &PackageDownload,
+    expected_root: &str,
+    cancel: &CancellationToken,
+) -> Result<PackageSemanticIdentity> {
+    validate_root(expected_root)?;
+    let content = bind_root(
+        fingerprint(archive, receipt, cancel, MAX_EXPANDED)?,
+        expected_root,
+    )?;
+    let sha256 = identity_digest(
+        &content,
+        IDENTITY_DOMAIN,
+        PACKAGE_SEMANTIC_IDENTITY_VERSION,
+        cancel,
+    )?;
+    Ok(PackageSemanticIdentity {
+        version: PACKAGE_SEMANTIC_IDENTITY_VERSION,
+        sha256,
+        entries: u32::try_from(content.entries.len()).map_err(|_| invalid())?,
+        files: u32::try_from(content.files).map_err(|_| invalid())?,
+        expanded_bytes: content.expanded,
+    })
+}
+fn identity_digest(
+    content: &Fingerprint,
+    domain: &[u8],
+    version: u32,
+    cancel: &CancellationToken,
+) -> Result<String> {
+    check(cancel)?;
+    let mut hash = Sha256::new();
+    hash.update(domain);
+    hash.update(version.to_be_bytes());
+    hash.update(
+        u32::try_from(content.entries.len())
+            .map_err(|_| invalid())?
+            .to_be_bytes(),
+    );
+    hash.update(
+        u32::try_from(content.files)
+            .map_err(|_| invalid())?
+            .to_be_bytes(),
+    );
+    hash.update(content.expanded.to_be_bytes());
+    // BTreeMap<String, _> provides exact UTF-8 lexical ordering, with no Unicode
+    // normalization or case folding. Lengths frame all variable-sized fields.
+    for (path, entry) in &content.entries {
+        check(cancel)?;
+        hash.update([if entry.directory { b'D' } else { b'F' }]);
+        hash.update(
+            u32::try_from(path.len())
+                .map_err(|_| invalid())?
+                .to_be_bytes(),
+        );
+        hash.update(path.as_bytes());
+        hash.update(entry.size.to_be_bytes());
+        let digest = hex::decode(&entry.sha256).map_err(|_| invalid())?;
+        if digest.len() != 32 {
+            return Err(invalid());
+        }
+        hash.update(digest);
+    }
+    Ok(hex::encode(hash.finalize()))
+}
+
 /// Compare exact entry paths, types, lengths and decompressed SHA-256. ZIP order,
 /// compression choice and timestamps may differ. Call from a blocking task.
 /// Private input bytes are snapshotted (at most 64 MiB at a time), removing file

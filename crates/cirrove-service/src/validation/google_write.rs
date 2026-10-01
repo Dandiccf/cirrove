@@ -1332,6 +1332,8 @@ mod tests {
             reads: AtomicUsize::new(0),
         };
         let record = UploadRecord {
+            representation: Default::default(),
+            package_completion: None,
             id: uuid::Uuid::new_v4(),
             sequence: 1,
             scope,

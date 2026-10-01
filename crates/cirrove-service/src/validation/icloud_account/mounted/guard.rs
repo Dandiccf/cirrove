@@ -81,6 +81,7 @@ impl Owned {
         Ok(nodes)
     }
     fn upload(&self, r: &UploadRequest) -> cirrove_core::upload::Result<()> {
+        r.require_file_bytes()?;
         if r.scope != self.scope {
             return Err(UploadError::Invalid);
         }
@@ -348,6 +349,7 @@ mod tests {
             journal,
         };
         let create = UploadRequest {
+            representation: Default::default(),
             scope: scope.clone(),
             intent: UploadIntent::Create {
                 parent: root.id.clone(),
@@ -367,6 +369,7 @@ mod tests {
             ..root.clone()
         };
         let replacement = UploadRequest {
+            representation: Default::default(),
             intent: UploadIntent::Replace {
                 item: file.id.clone(),
                 expected_etag: "revision".into(),
@@ -414,6 +417,7 @@ mod tests {
         assert!(
             owned
                 .upload(&UploadRequest {
+                    representation: Default::default(),
                     scope: Scope {
                         account: "other-account".into(),
                         ..scope.clone()
@@ -425,6 +429,7 @@ mod tests {
         assert!(
             owned
                 .upload(&UploadRequest {
+                    representation: Default::default(),
                     intent: UploadIntent::Create {
                         parent: "foreign-root".into(),
                         name: NAME.into()

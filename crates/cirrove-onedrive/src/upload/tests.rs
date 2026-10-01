@@ -313,6 +313,7 @@ async fn missing_item_and_unidentified_folder_creation_do_not_confirm_success() 
 }
 fn spec(data: &[u8], replace: bool) -> UploadRequest {
     UploadRequest {
+        representation: Default::default(),
         scope: Scope {
             account: "fixture".into(),
             provider: "onedrive".into(),
@@ -880,4 +881,47 @@ async fn graph_notification_endpoint_uses_scoped_auth_and_releases_background_ca
             .to_lowercase()
             .contains("authorization: bearer fake-graph-bearer")
     );
+}
+
+#[tokio::test]
+async fn package_archive_is_refused_before_any_ordinary_upload_request() {
+    let (provider, server) = fixture(vec![]).await;
+    let mut request = spec(b"x", false);
+    request.representation = cirrove_core::upload::UploadRepresentation::PackageArchive {
+        expected_root: "Source.pages".into(),
+        semantic: cirrove_core::upload::PackageSemanticIdentity {
+            version: 1,
+            sha256: "a".repeat(64),
+            entries: 1,
+            files: 1,
+            expanded_bytes: 1,
+        },
+    };
+    let cancel = CancellationToken::new();
+    let checkpoint = SecretString::from("not-a-provider-session");
+    assert!(matches!(
+        provider.begin_upload(&request, &cancel).await,
+        Err(UploadError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider
+            .inspect_upload(&request, &checkpoint, &cancel)
+            .await,
+        Err(UploadError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider
+            .upload_part(&request, &checkpoint, 0, b"x".to_vec(), &cancel)
+            .await,
+        Err(UploadError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider.commit_upload(&request, &checkpoint, &cancel).await,
+        Err(UploadError::Unsupported(_))
+    ));
+    assert!(matches!(
+        provider.reconcile_upload(&request, None, &cancel).await,
+        Err(UploadError::Unsupported(_))
+    ));
+    assert!(server.await.unwrap().is_empty());
 }

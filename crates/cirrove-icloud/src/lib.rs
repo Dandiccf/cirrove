@@ -48,7 +48,9 @@ pub use owned_package_create::{
 mod package_semantic;
 #[cfg(feature = "write-probe")]
 pub use package_semantic::{
-    PackageSemanticComparison, compare_package_archives, compare_package_archives_with_roots,
+    PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageSemanticComparison, PackageSemanticIdentity,
+    compare_package_archives, compare_package_archives_with_roots,
+    package_archive_semantic_identity,
 };
 mod package_archive;
 mod probe_timing;

@@ -21,6 +21,7 @@ impl FixtureGraph {
             && (id == self.root.id || self.owned.lock().is_ok_and(|owned| owned.contains(id)))
     }
     fn request_allowed(&self, request: &UploadRequest) -> cirrove_core::upload::Result<()> {
+        request.require_file_bytes()?;
         let allowed = request.scope == self.scope
             && match &request.intent {
                 UploadIntent::Create { parent, .. } => parent == &self.root.id,
@@ -492,6 +493,7 @@ mod tests {
     async fn mounted_validator_cannot_address_an_existing_account_file_or_other_scope() {
         let fixture = fixture();
         let request = UploadRequest {
+            representation: Default::default(),
             scope: fixture.scope.clone(),
             intent: UploadIntent::Create {
                 parent: fixture.root.id.clone(),
@@ -591,6 +593,7 @@ mod tests {
             target: None,
         };
         let upload = UploadRequest {
+            representation: Default::default(),
             scope: fixture.scope.clone(),
             intent: UploadIntent::Create {
                 parent: fixture.root.id.clone(),

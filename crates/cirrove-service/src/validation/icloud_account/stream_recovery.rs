@@ -231,6 +231,7 @@ async fn recover(run: Uuid, replace: bool) -> Result<()> {
     let provider = Arc::new(guard::Guard {
         inner: ICloudWriteProvider::new(&account, &context)?,
         request: UploadRequest {
+            representation: Default::default(),
             scope: scope.clone(),
             intent: pending.intent.clone(),
             size,

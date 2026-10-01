@@ -389,6 +389,7 @@ mod tests {
     }
     fn request() -> UploadRequest {
         UploadRequest {
+            representation: Default::default(),
             scope: Scope {
                 account: "owned".into(),
                 provider: "icloud".into(),

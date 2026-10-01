@@ -208,7 +208,7 @@ impl ICloudFileCreate {
     }
 
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
-        request.validate()?;
+        request.require_file_bytes()?;
         let UploadIntent::Create { parent, name } = &request.intent else {
             return Err(UploadError::Unsupported("iCloud file replacement"));
         };
@@ -860,6 +860,7 @@ mod tests {
         )
         .unwrap();
         let request = UploadRequest {
+            representation: Default::default(),
             scope,
             intent: UploadIntent::Create {
                 parent: parent.id,
@@ -875,6 +876,25 @@ mod tests {
             Ok(UploadStep::Prepared(_))
         ));
         assert!(provider.begin_is_mutation_free_until_checkpoint(&request));
+        let mut package = request.clone();
+        package.representation = cirrove_core::upload::UploadRepresentation::PackageArchive {
+            expected_root: "Source.pages".into(),
+            semantic: cirrove_core::upload::PackageSemanticIdentity {
+                version: 1,
+                sha256: "a".repeat(64),
+                entries: 1,
+                files: 1,
+                expanded_bytes: 1,
+            },
+        };
+        assert!(matches!(
+            provider
+                .begin_upload(&package, &CancellationToken::new())
+                .await,
+            Err(UploadError::Unsupported(_))
+        ));
+        assert!(!provider.begin_is_mutation_free_until_checkpoint(&package));
+
         for size in [65 * 1024 * 1024, i64::MAX as u64] {
             let mut large = request.clone();
             large.size = size;

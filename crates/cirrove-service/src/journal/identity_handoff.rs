@@ -91,6 +91,9 @@ impl UploadJournal {
             RecoveryLocation::Trash { local_name, parent } => (local_name, Some(parent)),
         };
         let mut record = self.active_attempt(id, attempt)?;
+        if !record.representation.is_file_bytes() {
+            return Err(JournalError::Intent);
+        }
         let UploadIntent::Replace {
             item,
             expected_etag,
@@ -218,6 +221,9 @@ impl UploadJournal {
         backup: Node,
     ) -> Result<()> {
         let mut record = self.active_attempt(id, attempt)?;
+        if !record.representation.is_file_bytes() {
+            return Err(JournalError::Intent);
+        }
         let reservation = record
             .identity_handoff
             .as_mut()
@@ -226,12 +232,14 @@ impl UploadJournal {
             || current.id.is_empty()
             || current.id == reservation.old_item
             || current.kind != NodeKind::File
+            || current.package
             || current.target.is_some()
             || current.size != record.size
             || current.content_revision().is_none()
             || backup.id != reservation.old_item
             || !backup_location_matches(reservation, &backup, current.parent_id.as_ref())
             || backup.kind != NodeKind::File
+            || backup.package
             || backup.target.is_some()
             || backup.content_revision().is_none()
         {

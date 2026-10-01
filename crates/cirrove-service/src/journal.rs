@@ -22,12 +22,15 @@ mod owner;
 mod preparation;
 mod publication;
 mod replacements;
+mod representation;
 mod rescue;
 mod unlinked;
 mod working;
 pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
+use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use cirrove_core::{Node, NodeKind, Scope};
+const JOURNAL_SCHEMA: u32 = 15;
 pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;
@@ -207,6 +210,10 @@ pub enum UploadState {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UploadRecord {
+    #[serde(default, skip_serializing_if = "UploadRepresentation::is_file_bytes")]
+    pub representation: UploadRepresentation,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_completion: Option<PackageSemanticIdentity>,
     pub id: Uuid,
     pub sequence: u64,
     pub scope: Scope,
@@ -326,7 +333,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 14 {
+        if version > JOURNAL_SCHEMA {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -354,6 +361,7 @@ impl UploadJournal {
         publication::migrate(&mut db, version)?;
         preparation::migrate(&mut db, version)?;
         directories::migrate(&mut db, version)?;
+        representation::migrate(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -435,8 +443,37 @@ impl UploadJournal {
         intent: UploadIntent,
         order: WriteOrder,
         working: Option<GenerationCommit>,
+        bytes: impl Read,
+    ) -> Result<UploadRecord> {
+        self.enqueue_represented(
+            scope,
+            intent,
+            order,
+            working,
+            UploadRepresentation::FileBytes,
+            bytes,
+        )
+    }
+    fn enqueue_represented(
+        &mut self,
+        scope: Scope,
+        intent: UploadIntent,
+        order: WriteOrder,
+        working: Option<GenerationCommit>,
+        representation: UploadRepresentation,
         mut bytes: impl Read,
     ) -> Result<UploadRecord> {
+        representation
+            .validate()
+            .map_err(|_| JournalError::Intent)?;
+        if !representation.is_file_bytes()
+            && (!matches!(intent, UploadIntent::Create { .. })
+                || working.is_some()
+                || order.base.is_some()
+                || !order.prerequisites.is_empty())
+        {
+            return Err(JournalError::Intent);
+        }
         if scope.account != self.account {
             return Err(JournalError::Account);
         }
@@ -463,7 +500,7 @@ impl UploadJournal {
                 break;
             }
             size = size.checked_add(count as u64).ok_or(JournalError::Quota)?;
-            if size > available {
+            if size > available || (!representation.is_file_bytes() && size > 64 * 1024 * 1024) {
                 return Err(JournalError::Quota);
             }
             temporary.write_all(&buffer[..count])?;
@@ -476,6 +513,8 @@ impl UploadJournal {
         #[cfg(feature = "test-support")]
         crate::journal::durable::record("journal::enqueue_generation::1");
         let mut record = UploadRecord {
+            representation,
+            package_completion: None,
             id: Uuid::new_v4(),
             sequence: 0,
             scope,
@@ -705,6 +744,7 @@ impl UploadJournal {
         }
         mutations::queue_complete(&tx, record.id, record.state == UploadState::Uploaded)?;
         if record.state == UploadState::Uploaded
+            && record.representation.is_file_bytes()
             && let Some(remote) = &record.remote
         {
             if record.identity_handoff.is_some() {
@@ -859,7 +899,7 @@ impl UploadJournal {
     /// An uncertain receipt after restart needs a new fenced verification attempt.
     pub fn acknowledge(&mut self, id: Uuid, attempt: Uuid, mut remote: Node) -> Result<()> {
         let mut record = self.active_attempt(id, attempt)?;
-        if record.identity_handoff.is_some() {
+        if !record.representation.is_file_bytes() || record.identity_handoff.is_some() {
             return Err(JournalError::Intent);
         }
         let identity_matches = match &record.intent {
@@ -871,6 +911,7 @@ impl UploadJournal {
         if !identity_matches
             || remote.id.is_empty()
             || remote.kind != NodeKind::File
+            || remote.package
             || remote.target.is_some()
             || remote.size != record.size
             || remote.content_revision().is_none()
@@ -906,6 +947,9 @@ impl UploadJournal {
     /// A never-attempted editor cleanup is moved behind the rescue receipt.
     /// Other cross-object dependencies and uncertain successors require review.
     pub fn keep_both(&mut self, id: Uuid, parent: String, name: String) -> Result<UploadRecord> {
+        if !self.get(id)?.representation.is_file_bytes() {
+            return Err(JournalError::Intent);
+        }
         let commit = rescue::prepare(self, id, &parent, &name)?;
         let scope = commit.scope();
         let bytes = self.payload(commit.payload_id())?;

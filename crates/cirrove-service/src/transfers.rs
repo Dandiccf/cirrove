@@ -181,6 +181,7 @@ impl TransferWorker {
         let operation = id.to_string();
         let attempt = record.attempt.ok_or(TransferError::Worker)?;
         let request = UploadRequest {
+            representation: record.representation.clone(),
             scope: record.scope.clone(),
             intent: record.intent.clone(),
             size: record.size,
@@ -193,6 +194,9 @@ impl TransferWorker {
                 .await?;
         }
         let mut saved_checkpoint = None;
+        // Track provenance, not journal state: only a direct fresh begin may
+        // authorize the one-shot allocation callback in this execution.
+        let mut allocation_allowed = false;
         let mut step = if record.state == UploadState::Verifying {
             let checkpoint = self
                 .load_checkpoint(record.session_key.unwrap_or(id))
@@ -247,14 +251,15 @@ impl TransferWorker {
                 None => None,
             }
         } else {
-            Some(
-                self.remote(
+            let next = self
+                .remote(
                     Duration::from_secs(125),
                     self.provider
                         .begin_upload_for_operation(&operation, &request, &self.cancel),
                 )
-                .await?,
-            )
+                .await?;
+            allocation_allowed = matches!(next, UploadStep::Allocate(_));
+            Some(next)
         };
         if step.is_none() {
             match self
@@ -269,6 +274,9 @@ impl TransferWorker {
                 )
                 .await?
             {
+                Reconciliation::PackageCommitted(receipt) => {
+                    step = Some(UploadStep::PackageComplete(receipt))
+                }
                 Reconciliation::Committed(node) => step = Some(UploadStep::Complete(node)),
                 Reconciliation::HandoffCommitted { current, backup } => {
                     step = Some(UploadStep::HandoffComplete { current, backup });
@@ -304,6 +312,30 @@ impl TransferWorker {
                 return Err(UploadError::Uncertain.into());
             }
             step = match step {
+                UploadStep::Allocate(checkpoint) if allocation_allowed => {
+                    allocation_allowed = false;
+                    prepared_allowed = false;
+                    self.checkpoint(record, checkpoint.clone(), 0).await?;
+                    if self.cancel.is_cancelled() {
+                        return Err(UploadError::Uncertain.into());
+                    }
+                    let next = self
+                        .remote(
+                            Duration::from_secs(125),
+                            self.provider.allocate_upload_for_operation(
+                                &operation,
+                                &request,
+                                &checkpoint,
+                                &self.cancel,
+                            ),
+                        )
+                        .await?;
+                    if matches!(next, UploadStep::Allocate(_) | UploadStep::Prepared(_)) {
+                        return Err(UploadError::Uncertain.into());
+                    }
+                    next
+                }
+                UploadStep::Allocate(_) => return Err(UploadError::Uncertain.into()),
                 UploadStep::Prepared(checkpoint) if prepared_allowed => {
                     prepared_allowed = false;
                     self.checkpoint(record, checkpoint.clone(), 0).await?;
@@ -319,6 +351,12 @@ impl TransferWorker {
                     .await?
                 }
                 UploadStep::Prepared(_) => return Err(UploadError::Invalid.into()),
+                UploadStep::PackageComplete(receipt) => {
+                    self.local(move |j| j.acknowledge_package(id, attempt, receipt))
+                        .await?;
+                    self.clean_checkpoint(id).await;
+                    return Ok(UploadState::Uploaded);
+                }
                 UploadStep::Complete(node) => {
                     self.local(move |j| j.acknowledge(id, attempt, node))
                         .await?;
@@ -358,6 +396,7 @@ impl TransferWorker {
                         next,
                         UploadStep::Commit(_)
                             | UploadStep::Complete(_)
+                            | UploadStep::PackageComplete(_)
                             | UploadStep::HandoffComplete { .. }
                     ) {
                         return Err(UploadError::Uncertain.into());
@@ -424,7 +463,12 @@ impl TransferWorker {
                             ),
                         )
                         .await?;
-                    if !matches!(next, UploadStep::Commit(_) | UploadStep::Complete(_)) {
+                    if !matches!(
+                        next,
+                        UploadStep::Commit(_)
+                            | UploadStep::Complete(_)
+                            | UploadStep::PackageComplete(_)
+                    ) {
                         return Err(UploadError::Uncertain.into());
                     }
                     next

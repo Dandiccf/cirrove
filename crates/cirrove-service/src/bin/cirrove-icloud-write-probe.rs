@@ -351,6 +351,7 @@ async fn main() -> Result<()> {
                 .context("missing create operation")?
         };
         let request = UploadRequest {
+            representation: Default::default(),
             scope: record.scope.clone(),
             intent: record.intent.clone(),
             size: record.size,
@@ -1546,6 +1547,7 @@ async fn main() -> Result<()> {
         }
         let record = &records[0];
         let request = UploadRequest {
+            representation: Default::default(),
             scope: record.scope.clone(),
             intent: record.intent.clone(),
             size: record.size,
@@ -1642,6 +1644,7 @@ async fn main() -> Result<()> {
                 .context("handoff upload is absent")?
         };
         let request = UploadRequest {
+            representation: Default::default(),
             scope: record.scope.clone(),
             intent: record.intent.clone(),
             size: record.size,
@@ -1824,6 +1827,7 @@ async fn main() -> Result<()> {
             folder,
         )?);
         let request = UploadRequest {
+            representation: Default::default(),
             scope: record.scope.clone(),
             intent: record.intent.clone(),
             size: record.size,
@@ -1922,6 +1926,7 @@ async fn main() -> Result<()> {
             .reconciliation_only();
         let reserved_id = if matches!(mode, 49 | 55) {
             let request = UploadRequest {
+                representation: Default::default(),
                 scope: record.scope.clone(),
                 intent: record.intent.clone(),
                 size: record.size,
@@ -2146,6 +2151,7 @@ async fn main() -> Result<()> {
             bail!("occupied filename was incorrectly acknowledged");
         }
         let request = UploadRequest {
+            representation: Default::default(),
             scope: record.scope.clone(),
             intent: record.intent.clone(),
             size: record.size,
@@ -2251,6 +2257,7 @@ async fn main() -> Result<()> {
             .await?
             .context("general create worker did not claim its operation")?;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: queued.scope.clone(),
             intent: queued.intent.clone(),
             size: queued.size,
@@ -2948,6 +2955,7 @@ async fn main() -> Result<()> {
             }
             if matches!(mode, 48 | 54 | 56) {
                 let request = UploadRequest {
+                    representation: Default::default(),
                     scope: record.scope.clone(),
                     intent: record.intent.clone(),
                     size: record.size,

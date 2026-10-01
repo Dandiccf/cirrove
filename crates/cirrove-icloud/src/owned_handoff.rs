@@ -274,7 +274,7 @@ impl ICloudHandoff {
     }
 
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
-        request.validate()?;
+        request.require_file_bytes()?;
         let UploadIntent::Replace {
             item,
             expected_etag,
@@ -688,6 +688,7 @@ mod tests {
             staged_sha256: hex::encode(Sha256::digest(b"new")),
         };
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope.clone(),
             intent: UploadIntent::Replace {
                 item: plan.original_id.clone(),
@@ -954,5 +955,25 @@ mod tests {
                 .unwrap();
             assert!(matches!(error, UploadError::Unsupported(_)));
         }
+    }
+    #[tokio::test]
+    async fn package_archive_cannot_enter_the_ordinary_handoff_adapter() {
+        let (provider, mut request) = fixture();
+        request.representation = cirrove_core::upload::UploadRepresentation::PackageArchive {
+            expected_root: "Source.pages".into(),
+            semantic: cirrove_core::upload::PackageSemanticIdentity {
+                version: 1,
+                sha256: "a".repeat(64),
+                entries: 1,
+                files: 1,
+                expanded_bytes: 1,
+            },
+        };
+        assert!(matches!(
+            provider
+                .begin_upload(&request, &CancellationToken::new())
+                .await,
+            Err(UploadError::Unsupported(_))
+        ));
     }
 }

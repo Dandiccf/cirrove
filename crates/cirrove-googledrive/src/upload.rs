@@ -1335,7 +1335,7 @@ impl GoogleDrive {
     }
 
     fn check_upload(&self, request: &UploadRequest) -> Result<()> {
-        request.validate()?;
+        request.require_file_bytes()?;
         self.check_scope(&request.scope)
             .map_err(|_| UploadError::Invalid)?;
         match &request.intent {
@@ -3536,6 +3536,7 @@ mod tests {
     }
     fn request(bytes: &[u8]) -> UploadRequest {
         UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Create {
                 parent: "root-id".into(),
@@ -3847,6 +3848,7 @@ mod tests {
         .await;
         provider.settle_write_receipts = true;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -5880,6 +5882,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -5929,6 +5932,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -6027,6 +6031,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -6081,6 +6086,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -6114,6 +6120,7 @@ mod tests {
         ] {
             let payload: &[u8] = b"abcdef";
             let request = UploadRequest {
+                representation: Default::default(),
                 scope: scope(),
                 intent: UploadIntent::Replace {
                     item: "generated-id".into(),
@@ -6155,6 +6162,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -6210,6 +6218,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -6274,6 +6283,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
@@ -6451,6 +6461,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Create {
                 parent: "root-id".into(),
@@ -6498,6 +6509,7 @@ mod tests {
         })
         .await;
         let request = UploadRequest {
+            representation: Default::default(),
             scope: scope(),
             intent: UploadIntent::Create {
                 parent: "root-id".into(),
@@ -6612,6 +6624,48 @@ mod tests {
         assert!(matches!(
             provider.inspect_upload(&request, &prepared, &cancel).await,
             Err(UploadError::Provider(ProviderError::Protocol(_)))
+        ));
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn package_archive_is_refused_before_any_ordinary_upload_request() {
+        let (provider, server) = fixture(|_| vec![]).await;
+        let mut request = request(b"x");
+        request.representation = cirrove_core::upload::UploadRepresentation::PackageArchive {
+            expected_root: "Source.pages".into(),
+            semantic: cirrove_core::upload::PackageSemanticIdentity {
+                version: 1,
+                sha256: "a".repeat(64),
+                entries: 1,
+                files: 1,
+                expanded_bytes: 1,
+            },
+        };
+        let cancel = CancellationToken::new();
+        let checkpoint = SecretString::from("not-a-provider-session");
+        assert!(matches!(
+            provider.begin_upload(&request, &cancel).await,
+            Err(UploadError::Unsupported(_))
+        ));
+        assert!(matches!(
+            provider
+                .inspect_upload(&request, &checkpoint, &cancel)
+                .await,
+            Err(UploadError::Unsupported(_))
+        ));
+        assert!(matches!(
+            provider
+                .upload_part(&request, &checkpoint, 0, b"x".to_vec(), &cancel)
+                .await,
+            Err(UploadError::Unsupported(_))
+        ));
+        assert!(matches!(
+            provider.commit_upload(&request, &checkpoint, &cancel).await,
+            Err(UploadError::Unsupported(_))
+        ));
+        assert!(matches!(
+            provider.reconcile_upload(&request, None, &cancel).await,
+            Err(UploadError::Unsupported(_))
         ));
         server.await.unwrap();
     }

@@ -27,6 +27,7 @@ impl Guard {
         request: &UploadRequest,
         checkpoint: &SecretString,
     ) -> cirrove_core::upload::Result<()> {
+        request.require_file_bytes()?;
         if operation != self.operation
             || request != &self.request
             || if let Some(expected) = &self.handoff_document {
