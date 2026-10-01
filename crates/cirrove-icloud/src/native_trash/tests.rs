@@ -445,7 +445,7 @@ fn native_trash_eligibility_never_reuses_ordinary_folder_or_file_capability() {
     changed.id = "FOLDER::com.apple.CloudDocs::native".into();
     assert!(ICloudNativeTrash::identity(&request.scope, &changed).is_err());
     changed = before.clone();
-    changed.name = "Other.numbers".into();
+    changed.name = "Other.unsupported".into();
     assert!(ICloudNativeTrash::identity(&request.scope, &changed).is_err());
     changed = before.clone();
     changed.parent_id = Some(crate::write_transport::TRASH_ROOT.into());
@@ -609,4 +609,29 @@ async fn native_fresh_original_capture_uses_v2_without_reinterpreting_legacy_pro
     assert_eq!(legacy.files, fresh.files);
     assert_eq!(legacy.expanded_bytes, fresh.expanded_bytes);
     assert_eq!(server.state.lock().unwrap().trash_calls, 0);
+}
+
+#[test]
+fn native_trash_internal_formats_still_require_package_and_clouddocs() {
+    let request = request();
+    for suffix in [".pages", ".numbers", ".key"] {
+        let mut before = request.intent.before().unwrap().clone();
+        before.name = format!("Owned{suffix}");
+        ICloudNativeTrash::identity(&request.scope, &before).unwrap();
+        for bad in ["data", "app", "alias"] {
+            let mut changed = before.clone();
+            match bad {
+                "data" => {
+                    changed.kind = NodeKind::File;
+                    changed.package = false;
+                }
+                "app" => changed.parent_id = Some("FOLDER::com.apple.Numbers::documents".into()),
+                _ => changed.id = "FOLDER::com.apple.CloudDocs::folder".into(),
+            }
+            assert!(
+                ICloudNativeTrash::identity(&request.scope, &changed).is_err(),
+                "{suffix} {bad}"
+            );
+        }
+    }
 }

@@ -1,4 +1,4 @@
-//! Journal-bound recoverable removal of an exact Pages PACKAGE revision.
+//! Journal-bound recoverable removal of an exact native PACKAGE revision.
 //! This adapter is not a filesystem/public admission API. Possibly dispatched
 //! operations are inspect-only forever; absence never proves removal.
 use crate::{ICloudReadSession, PackageSemanticIdentity, SealedSessionVault};
@@ -106,7 +106,7 @@ impl ICloudNativeTrash {
                 v.is_empty() || v == "TRASH_ROOT" || v.len() > 4096 || v.contains(['/', '\0', ':'])
             })
             || before.name.len() > 255
-            || !before.name.ends_with(".pages")
+            || cirrove_core::upload::native_package_suffix(&before.name).is_none()
             || before.name.contains(['/', '\0'])
             || before.etag.as_deref().is_none_or(|v| {
                 v.is_empty() || v.len() > 4096 || v.contains(['\0', '\r', '\n', '*'])

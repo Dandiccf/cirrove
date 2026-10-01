@@ -9,6 +9,7 @@ use uuid::Uuid;
 const SOURCE: &str = "FILE::com.apple.CloudDocs::native";
 #[derive(Default)]
 struct State {
+    extension: String,
     requests: usize,
     lookups: usize,
     details: usize,
@@ -34,10 +35,10 @@ impl Drop for Fixture {
         self.server.abort();
     }
 }
-fn bytes() -> Vec<u8> {
+fn bytes_for(extension: &str) -> Vec<u8> {
     let mut z = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     z.start_file(
-        "Owned.pages/Document",
+        format!("Owned.{extension}/Document"),
         zip::write::SimpleFileOptions::default(),
     )
     .unwrap();
@@ -45,17 +46,23 @@ fn bytes() -> Vec<u8> {
     z.finish().unwrap().into_inner()
 }
 fn item(s: &State) -> serde_json::Value {
-    serde_json::json!({"drivewsid":SOURCE,"docwsid":"native","zone":if s.foreign_zone{"other.zone"}else{"com.apple.CloudDocs"},"type":"FILE","name":"Owned","extension":"pages","parentId":ROOT_ID,"size":19,"etag":if s.stale||(s.change_after_lookup&&s.lookups>0){"v2"}else{"v1"}})
+    serde_json::json!({"drivewsid":SOURCE,"docwsid":"native","zone":if s.foreign_zone{"other.zone"}else{"com.apple.CloudDocs"},"type":"FILE","name":"Owned","extension":s.extension,"parentId":ROOT_ID,"size":19,"etag":if s.stale||(s.change_after_lookup&&s.lookups>0){"v2"}else{"v1"}})
 }
 impl Fixture {
     async fn new() -> Self {
+        Self::with_extension("pages").await
+    }
+    async fn with_extension(extension: &str) -> Self {
         let dir = tempfile::Builder::new()
             .permissions(std::fs::Permissions::from_mode(0o700))
             .tempdir_in("/var/tmp")
             .unwrap();
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
-        let state = Arc::new(StdMutex::new(State::default()));
+        let state = Arc::new(StdMutex::new(State {
+            extension: extension.into(),
+            ..State::default()
+        }));
         let observed = state.clone();
         let server = tokio::spawn(async move {
             let mut peers = tokio::task::JoinSet::new();
@@ -110,7 +117,7 @@ impl Fixture {
             .unwrap()
             .with_package_artifacts(dir.path(), 64 * 1024 * 1024)
             .unwrap();
-        let bytes = bytes();
+        let bytes = bytes_for(extension);
         let raw_hash = hex::encode(Sha256::digest(&bytes));
         let revision = Revision {
             source_etag: "v1".into(),
@@ -121,7 +128,7 @@ impl Fixture {
         let archive = Node {
             id: format!("{ITEM}{SOURCE}"),
             parent_id: Some(SOURCE.into()),
-            name: "Owned.pages".into(),
+            name: format!("Owned.{extension}"),
             kind: NodeKind::File,
             size: bytes.len() as u64,
             modified_unix: 0,
@@ -238,20 +245,22 @@ async fn ordinary_files_native_roots_and_app_containers_are_not_archive_capabili
 }
 #[tokio::test]
 async fn data_representation_app_parent_and_foreign_source_never_return_a_binding() {
-    for mode in ["data", "app", "library", "zone", "missing", "stale"] {
-        let f = Fixture::new().await;
-        {
-            let mut s = f.state.lock().unwrap();
-            match mode {
-                "data" => s.data = true,
-                "app" => s.app_parent = true,
-                "library" => s.app_library = true,
-                "zone" => s.foreign_zone = true,
-                "missing" => s.missing = true,
-                _ => s.stale = true,
+    for extension in ["pages", "numbers", "key"] {
+        for mode in ["data", "app", "library", "zone", "missing", "stale"] {
+            let f = Fixture::with_extension(extension).await;
+            {
+                let mut s = f.state.lock().unwrap();
+                match mode {
+                    "data" => s.data = true,
+                    "app" => s.app_parent = true,
+                    "library" => s.app_library = true,
+                    "zone" => s.foreign_zone = true,
+                    "missing" => s.missing = true,
+                    _ => s.stale = true,
+                }
             }
+            assert!(f.resolve().await.is_err(), "accepted {extension} {mode}");
         }
-        assert!(f.resolve().await.is_err(), "accepted {mode}");
     }
 }
 #[tokio::test]
@@ -404,4 +413,41 @@ async fn cached_resolution_capacity_outlives_cancelled_parser_waiters() {
     .unwrap();
     drop(drained);
     assert_eq!(packages.resolutions.available_permits(), 2);
+}
+
+#[tokio::test]
+async fn supported_package_formats_require_fresh_representation_and_exact_root() {
+    for extension in ["pages", "numbers", "key"] {
+        let f = Fixture::with_extension(extension).await;
+        let binding = f.resolve().await.unwrap().unwrap();
+        assert_eq!(binding.source.name, format!("Owned.{extension}"));
+        assert_eq!(binding.archive, f.archive);
+        assert_eq!(binding.semantic, f.semantic);
+        assert!(binding.source.package);
+        assert_eq!(binding.source.kind, NodeKind::Folder);
+        // A previously successful PACKAGE lookup cannot authorize a DATA flip.
+        f.state.lock().unwrap().data = true;
+        assert!(f.resolve().await.is_err());
+        f.state.lock().unwrap().data = false;
+        f.state.lock().unwrap().extension = "zip".into();
+        assert!(
+            f.resolve().await.is_err(),
+            "name/root changed after cached proof"
+        );
+    }
+}
+
+#[tokio::test]
+async fn mixed_case_package_format_keeps_exact_remote_name_and_root() {
+    for extension in ["PAGES", "NuMbErS", "KEY"] {
+        let f = Fixture::with_extension(extension).await;
+        let binding = f.resolve().await.unwrap().unwrap();
+        assert_eq!(binding.source.name, format!("Owned.{extension}"));
+        assert_eq!(binding.archive.name, format!("Owned.{extension}"));
+        assert_eq!(binding.semantic, f.semantic);
+        // Same recognized format is not permission to substitute differently
+        // cased source metadata behind a previously captured archive.
+        f.state.lock().unwrap().extension = extension.to_ascii_lowercase();
+        assert!(f.resolve().await.is_err());
+    }
 }

@@ -176,7 +176,11 @@ async fn native_trash_admission_syntax_matches_adapter_before_resolution() {
     let f = Fixture::new().await;
     let mut input = selection(&f);
     assert!(crate::native_trash::validate(&input));
-    input.path = "Owned.PAGES".into();
+    for path in ["Owned.PAGES", "Owned.NuMbErS", "Owned.KEY"] {
+        input.path = path.into();
+        assert!(crate::native_trash::validate(&input));
+    }
+    input.path = "Owned.pdf".into();
     assert!(!crate::native_trash::validate(&input));
     input.path = "Owned.pages".into();
     input.etag = "*".into();

@@ -952,7 +952,7 @@ enum Command {
         #[arg(long)]
         destination: PathBuf,
     },
-    /// Replace one exact selected Pages PACKAGE with a validated local archive.
+    /// Replace one exact selected Pages/Numbers/Keynote PACKAGE with a validated local archive.
     /// Creates a new identity; original Trash receipt is retained. Not a normal editor save.
     ReplaceNativePackage {
         #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
@@ -1039,7 +1039,7 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
-    /// Move one exact original native Pages revision to iCloud recovery; never permanent delete.
+    /// Move one exact original native Pages/Numbers/Keynote PACKAGE revision to iCloud recovery; never permanent delete.
     TrashNativeDocument {
         #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
         label: String,
@@ -1067,7 +1067,7 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
-    /// Import a validated native Pages archive as a new iCloud document; never overwrites.
+    /// Import a validated native Pages/Numbers/Keynote archive as a new iCloud document; never overwrites.
     ImportNativePackage {
         #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
         label: String,

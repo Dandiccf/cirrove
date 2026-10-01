@@ -710,8 +710,8 @@ impl Window {
         // and destroying next to each other invites the wrong click. It sits
         // with the other destructive thing instead, and asks twice.
         let import = adw::ActionRow::builder()
-            .title(gettext("Import a Pages document"))
-            .subtitle(gettext("Create a new iCloud document from a local Pages ZIP archive. Existing documents are never replaced."))
+            .title(gettext("Import an iWork document"))
+            .subtitle(gettext("Create a new iCloud document from a local Pages, Numbers or Keynote ZIP archive. Existing documents are never replaced."))
             .use_markup(false).subtitle_lines(0).build();
         let import_choose = gtk::Button::builder()
             .label(gettext("Import document…"))

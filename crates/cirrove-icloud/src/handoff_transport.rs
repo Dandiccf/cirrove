@@ -551,13 +551,18 @@ impl HandoffPlan {
             _ => false,
         };
         let native = matches!(self.version, 6 | 7);
-        let suffix = if native { ".pages" } else { ".txt" };
+        let suffix = if native {
+            cirrove_core::upload::native_package_suffix(&self.target_name)
+                .context("invalid native package format")?
+        } else {
+            ".txt"
+        };
         let content_valid = match &self.package {
             Some(proof) if native => {
                 proof.validate().is_ok()
                     && self.original_sha256.is_empty()
                     && self.staged_sha256.is_empty()
-                    && self.target_name.ends_with(".pages")
+                    && cirrove_core::upload::native_package_suffix(&self.target_name).is_some()
                     && !self.original_etag.contains('*')
                     && !self.staged_etag.contains('*')
             }

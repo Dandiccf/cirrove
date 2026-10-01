@@ -1,0 +1,25 @@
+{
+  "run": "b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+  "registered_at": "2026-10-01T22:42:03.073799+00:00",
+  "status": "registered-not-started",
+  "question": "Can newly created Numbers and Keynote documents be exported, classified, imported by Cirrove and reopened with exact synthetic content?",
+  "prediction": "Each Apple-created export remains readable after supported Cirrove import; actual DATA/PACKAGE classification determines the route. No suffix-based representation claim.",
+  "owned_parent": "Cirrove-Native-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+  "sources": [
+    {
+      "format": "numbers",
+      "name": "Cirrove-Numbers-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+      "expected_content": "A1: Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f; A2: 2; B2: 3; C2: =SUM(A2:B2), displayed 5"
+    },
+    {
+      "format": "keynote",
+      "name": "Cirrove-Keynote-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+      "expected_content": "Title: Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f; subtitle: Native iCloud validation version A"
+    }
+  ],
+  "scope": "Create only these own synthetic source documents in Apple apps; export locally; no other document edits or deletion. Register public import and replacement operations separately before submission.",
+  "source_directory": "/home/dandiccf/Storage/cirrove-tmp/iwork-sources-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+  "representation": "unobserved",
+  "mutations_executed": false,
+  "release_gates_closed": false
+}

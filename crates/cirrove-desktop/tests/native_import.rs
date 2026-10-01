@@ -82,7 +82,17 @@ fn native_import_form_preserves_unusual_names_but_refuses_escape_or_other_format
         "Reports/2026",
         "A new 'name'.pages"
     ));
-    assert!(native_import_fields_valid(path, "A.pages", "", "A.pages"));
+    for suffix in ["pages", "numbers", "key"] {
+        let name = format!("A.{suffix}");
+        assert!(native_import_fields_valid(path, &name, "", &name));
+        for other in ["pages", "numbers", "key"] {
+            let target = format!("B.{other}");
+            assert_eq!(
+                native_import_fields_valid(path, &name, "", &target),
+                suffix == other
+            );
+        }
+    }
     for parent in [
         "/absolute",
         "..",

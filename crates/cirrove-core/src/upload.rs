@@ -4,7 +4,7 @@ use crate::{CancellationToken, Node, ProviderError, Scope};
 use async_trait::async_trait;
 pub use representation::{
     PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageHandoffReceipt, PackageSemanticIdentity,
-    PackageUploadReceipt, UploadRepresentation,
+    PackageUploadReceipt, UploadRepresentation, native_package_suffix,
 };
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};

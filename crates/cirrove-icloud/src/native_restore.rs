@@ -418,7 +418,9 @@ impl ICloudNativeRestore {
                 .receipt_etag
                 .as_ref()
                 .is_some_and(|v| v != &before.etag)
-            || !before.display_name().ends_with(".pages")
+            || cirrove_core::upload::native_package_suffix(&before.display_name()).is_none()
+            || cirrove_core::upload::native_package_suffix(&before.display_name())
+                != cirrove_core::upload::native_package_suffix(&self.request.before.name)
         {
             return Err(MutationError::Conflict);
         }

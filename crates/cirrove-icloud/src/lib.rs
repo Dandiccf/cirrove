@@ -78,7 +78,11 @@ pub use package_trash_probe::{
 mod package_trash;
 #[cfg(feature = "write-probe")]
 pub use package_trash::{OwnedPackageTrashRequest, VerifiedPackageTrash};
+#[cfg(feature = "write-probe")]
+mod owned_fixture_read;
 mod package_download;
+#[cfg(feature = "write-probe")]
+pub use owned_fixture_read::FixtureRepresentation;
 mod package_upload;
 pub use package_download::PackageDownload;
 pub use package_upload::{PackageReceiptError, PackageUploadReceipt, parse_package_upload_receipt};

@@ -14,6 +14,10 @@ pub(super) fn validate(
     representation: &UploadRepresentation,
 ) -> Result<()> {
     let before = original(representation).ok_or(JournalError::Intent)?;
+    let UploadRepresentation::PackageReplacementArchive { expected_root, .. } = representation
+    else {
+        return Err(JournalError::Intent);
+    };
     representation
         .validate()
         .map_err(|_| JournalError::Intent)?;
@@ -26,7 +30,9 @@ pub(super) fn validate(
             .as_ref()
             .is_some_and(|p| p.starts_with("FOLDER::com.apple.CloudDocs::") && !p.ends_with("::"))
         || before.parent_id.as_deref() == Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
-        || !before.name.ends_with(".pages")
+        || cirrove_core::upload::native_package_suffix(&before.name).is_none()
+        || cirrove_core::upload::native_package_suffix(expected_root)
+            != cirrove_core::upload::native_package_suffix(&before.name)
         || !matches!(intent, UploadIntent::Replace { item, expected_etag } if item == &before.id && before.etag.as_ref() == Some(expected_etag))
     {
         return Err(JournalError::Intent);
@@ -200,4 +206,72 @@ pub(crate) fn prepare_owner(
         return Err(JournalError::Stale);
     }
     Ok(owner)
+}
+
+#[cfg(test)]
+mod format_policy_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    #[test]
+    fn icloud_package_policy_pairs_formats_without_narrowing_generic_representation() {
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let proof = PackageSemanticIdentity {
+            version: 1,
+            sha256: "a".repeat(64),
+            entries: 1,
+            files: 1,
+            expanded_bytes: 1,
+        };
+        for suffix in [".pages", ".numbers", ".key"] {
+            let node = Node {
+                id: "FILE::com.apple.CloudDocs::fixture".into(),
+                parent_id: Some("FOLDER::com.apple.CloudDocs::root".into()),
+                name: format!("Target{suffix}"),
+                kind: NodeKind::Folder,
+                size: 1,
+                modified_unix: 0,
+                etag: Some("v1".into()),
+                content_version: None,
+                target: None,
+                package: true,
+            };
+            let intent = UploadIntent::Replace {
+                item: node.id.clone(),
+                expected_etag: "v1".into(),
+            };
+            let mut representation = UploadRepresentation::PackageReplacementArchive {
+                expected_root: format!("Source{suffix}"),
+                semantic: proof.clone(),
+                original: Box::new(node),
+                original_semantic: proof.clone(),
+            };
+            validate(&scope, &intent, &representation).unwrap();
+            if let UploadRepresentation::PackageReplacementArchive { expected_root, .. } =
+                &mut representation
+            {
+                *expected_root = if suffix == ".key" {
+                    "Other.pages"
+                } else {
+                    "Other.key"
+                }
+                .into();
+            }
+            representation.validate().unwrap();
+            assert!(
+                validate(&scope, &intent, &representation).is_err(),
+                "iCloud policy, not generic DTO, rejects cross-format root"
+            );
+            if let UploadRepresentation::PackageReplacementArchive { original, .. } =
+                &mut representation
+            {
+                original.kind = NodeKind::File;
+                original.package = false;
+            }
+            assert!(validate(&scope, &intent, &representation).is_err());
+        }
+    }
 }

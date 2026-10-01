@@ -23,8 +23,10 @@ fn validate_input(input: &NativeImportInput) -> Result<()> {
             .source
             .components()
             .any(|p| matches!(p, std::path::Component::ParentDir))
-        || !input.expected_root.to_ascii_lowercase().ends_with(".pages")
-        || !input.name.to_ascii_lowercase().ends_with(".pages")
+        || cirrove_core::upload::native_package_suffix(&input.expected_root.to_ascii_lowercase())
+            .is_none()
+        || cirrove_core::upload::native_package_suffix(&input.expected_root.to_ascii_lowercase())
+            != cirrove_core::upload::native_package_suffix(&input.name.to_ascii_lowercase())
         || input
             .expected_root
             .chars()

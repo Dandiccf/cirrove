@@ -1,9 +1,12 @@
 # Explicit native-document Trash
 
-This experimental service workflow removes an original Pages document into
+This experimental service workflow removes an original Pages, Numbers or Keynote PACKAGE document into
 provider recovery. It is separate from file-manager `unlink` and `rmdir`:
 generated package children and ordinary folders do not acquire this capability.
 It does not add native editing, replacement, permanent deletion or a restore UI.
+The Numbers/Keynote format expansion is under development validation; live Apple
+application acceptance remains open. A matching suffix alone does not establish
+PACKAGE representation or authorize removal.
 
 A daemon advertising `trash-native-document: 1` accepts an exact account,
 mount-relative original document path, provider item ID and original ETag:

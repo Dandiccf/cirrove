@@ -11,15 +11,18 @@ impl Window {
             return;
         }
         let chooser = gtk::FileDialog::builder()
-            .title(gettext("Choose a local Pages archive"))
+            .title(gettext("Choose a local iWork archive"))
             .modal(true)
             .build();
         let filter = gtk::FileFilter::new();
-        filter.set_name(Some(&gettext("Pages and ZIP archives")));
+        filter.set_name(Some(&gettext("Pages, Numbers, Keynote and ZIP archives")));
         filter.add_pattern("*.zip");
         filter.add_pattern("*.ZIP");
         filter.add_pattern("*.pages");
         filter.add_pattern("*.PAGES");
+        for pattern in ["*.numbers", "*.NUMBERS", "*.key", "*.KEY"] {
+            filter.add_pattern(pattern);
+        }
         chooser.set_default_filter(Some(&filter));
         let window = self.window.upgrade();
         let weak = Rc::downgrade(self);
@@ -50,9 +53,9 @@ impl Window {
             return;
         };
         let dialog = adw::AlertDialog::new(
-            Some(&gettext("Import a Pages document")),
+            Some(&gettext("Import an iWork document")),
             Some(&gettext(
-                "Choose a ZIP archive containing one Pages document folder. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document.",
+                "Choose a ZIP archive containing one Pages, Numbers or Keynote document folder. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document.",
             )),
         );
         dialog.set_content_width(520);
@@ -83,7 +86,9 @@ impl Window {
                     s
                 }
             })
-            .filter(|s| s.to_ascii_lowercase().ends_with(".pages"))
+            .filter(|s| {
+                cirrove_core::upload::native_package_suffix(&s.to_ascii_lowercase()).is_some()
+            })
         {
             root.set_text(guess);
             name.set_text(guess);
@@ -93,7 +98,7 @@ impl Window {
         group.add(&parent);
         group.add(&name);
         let help = gtk::Label::builder()
-            .label(gettext("Use the exact .pages folder name inside the archive, and include .pages in the new name. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."))
+            .label(gettext("Use the exact document folder name inside the archive. The folder and new name must have the same .pages, .numbers or .key extension. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."))
             .wrap(true)
             .xalign(0.0)
             .build();

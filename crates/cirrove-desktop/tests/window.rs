@@ -2743,7 +2743,7 @@ fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() 
     expand_all(window.upcast_ref());
     let selected = ui.current().unwrap().accounts[0].clone();
     assert!(
-        action_row(window.upcast_ref(), "Import a Pages document")
+        action_row(window.upcast_ref(), "Import an iWork document")
             .unwrap()
             .is_visible()
     );

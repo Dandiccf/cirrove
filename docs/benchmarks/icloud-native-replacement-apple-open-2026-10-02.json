@@ -1,0 +1,24 @@
+{
+  "observed_at": "2026-10-01T22:40:29.858977+00:00",
+  "item": "FILE::com.apple.CloudDocs::6DC0CBC7-9CF2-4246-A926-9F72817E1D6B",
+  "title": "Cirrove Public Import ec7f82e1-3c33-4a1f-bf01-d6e3f2ca80cc",
+  "visible_marker": "Cirrove replacement version B \u2014 42a313de-1e94-488f-aed8-e7c704944fed",
+  "exact_ui_document_id_observed": true,
+  "apple_pages_opened": true,
+  "document_edit_submitted": false,
+  "original_text_marker": "0c5c1be4-563d-4a1c-8a47-3958c0c88553",
+  "screenshots": [
+    {
+      "path": ".local-state/native-replacement-apple-open-20261002.png",
+      "sha256": "732dc58ab14b5235bf27c46bc6cd3c6ee10a4a93986fc8f8e11be38b24cc30ee"
+    },
+    {
+      "path": ".local-state/native-replacement-apple-open-right-20261002.png",
+      "sha256": "d865c77db23849687e226c2650a0efb6137fb48faa117b2e13a46f0f975d20ee"
+    },
+    {
+      "path": ".local-state/native-iwork-import-window-20261002.png",
+      "sha256": "ce95baaa2282d1600d99263e22b0a4756473b41089b95901d919f8f52bd0a007"
+    }
+  ]
+}

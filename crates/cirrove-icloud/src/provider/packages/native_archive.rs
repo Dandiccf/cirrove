@@ -16,7 +16,7 @@ fn check_archive(node: &Node) -> Outcome<(&str, Revision)> {
         || node.parent_id.as_deref() != Some(id)
         || node.name.is_empty()
         || node.name.len() > 255
-        || !node.name.ends_with(".pages")
+        || cirrove_core::upload::native_package_suffix(&node.name).is_none()
         || node
             .name
             .chars()

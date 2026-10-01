@@ -252,12 +252,14 @@ impl UploadProvider for ICloudWriteProvider {
             return None;
         }
         let operation = self.validate_operation(operation, request).ok()?;
-        if matches!(
-            request.representation,
-            cirrove_core::upload::UploadRepresentation::PackageReplacementArchive { .. }
-        ) {
+        if let cirrove_core::upload::UploadRepresentation::PackageReplacementArchive {
+            original,
+            ..
+        } = &request.representation
+        {
+            let suffix = cirrove_core::upload::native_package_suffix(&original.name)?;
             return Some(cirrove_core::upload::RecoveryLocation::Trash {
-                local_name: format!("recovery-by-cirrove-{operation}.pages"),
+                local_name: format!("recovery-by-cirrove-{operation}{suffix}"),
                 parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
             });
         }

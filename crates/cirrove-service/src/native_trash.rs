@@ -35,7 +35,11 @@ pub(crate) fn validate(input: &NativeTrashInput) -> bool {
                 && p.len() <= 255
                 && !p.chars().any(char::is_control)
         })
-        && input.path.ends_with(".pages")
+        && input
+            .path
+            .rsplit('/')
+            .next()
+            .is_some_and(|name| cirrove_core::upload::native_package_suffix(name).is_some())
         && input.item_id.starts_with("FILE::com.apple.CloudDocs::")
         && input.item_id.len() > "FILE::com.apple.CloudDocs::".len()
         && input.item_id.len() <= 4096
@@ -76,4 +80,50 @@ pub struct NativeTrashListing {
     pub operations: Vec<NativeTrashSelection>,
     /// Continue even when this page is empty. Older journals bound scanned rows.
     pub next: Option<u64>,
+}
+
+#[cfg(test)]
+mod format_tests {
+    use super::*;
+    #[test]
+    fn selected_formats_never_substitute_for_package_identity() {
+        for suffix in ["pages", "numbers", "key"] {
+            let input = NativeTrashInput {
+                expected_account_id: Uuid::new_v4().to_string(),
+                path: format!("Owned/Document.{suffix}"),
+                item_id: "FILE::com.apple.CloudDocs::owned".into(),
+                etag: "revision".into(),
+            };
+            assert!(validate(&input));
+            let node = Node {
+                id: input.item_id.clone(),
+                parent_id: Some("parent".into()),
+                name: format!("Document.{suffix}"),
+                kind: cirrove_core::NodeKind::Folder,
+                size: 1,
+                modified_unix: 0,
+                etag: Some(input.etag.clone()),
+                content_version: None,
+                target: None,
+                package: true,
+            };
+            assert!(matches(&input, &node, "parent"));
+            let mut data = node.clone();
+            data.package = false;
+            data.kind = cirrove_core::NodeKind::File;
+            assert!(!matches(&input, &data, "parent"));
+            let mut ambiguous = node.clone();
+            ambiguous.package = false;
+            assert!(!matches(&input, &ambiguous, "parent"));
+            let mut stale = node.clone();
+            stale.etag = Some("next".into());
+            assert!(!matches(&input, &stale, "parent"));
+            let mut other = node.clone();
+            other.id = "FILE::com.apple.CloudDocs::other".into();
+            assert!(!matches(&input, &other, "parent"));
+            let mut renamed = node.clone();
+            renamed.name = "Document.zip".into();
+            assert!(!matches(&input, &renamed, "parent"));
+        }
+    }
 }

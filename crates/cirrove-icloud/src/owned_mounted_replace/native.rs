@@ -246,14 +246,16 @@ impl ICloudFileReplace {
         else {
             return Err(UploadError::Invalid);
         };
+        let suffix = cirrove_core::upload::native_package_suffix(&original.name)
+            .ok_or(UploadError::Invalid)?;
         let this = Self {
             scope: request.scope.clone(),
             folder,
             original: *original.clone(),
             original_sha256: None,
             operation,
-            stage_name: format!("staged-by-cirrove-{operation}.pages"),
-            recovery_name: format!("recovery-by-cirrove-{operation}.pages"),
+            stage_name: format!("staged-by-cirrove-{operation}{suffix}"),
+            recovery_name: format!("recovery-by-cirrove-{operation}{suffix}"),
             session,
             stage: None,
             native: Some(Context {
@@ -291,7 +293,9 @@ impl ICloudFileReplace {
         if request.scope.provider != "icloud"
             || request.scope.collection != "drive"
             || Uuid::parse_str(&request.scope.account).is_err()
-            || !expected_root.ends_with(".pages")
+            || cirrove_core::upload::native_package_suffix(expected_root).is_none()
+            || cirrove_core::upload::native_package_suffix(expected_root)
+                != cirrove_core::upload::native_package_suffix(&original.name)
             || parent.name.is_empty()
             || parent.name.len() > 255
             || parent.name.contains(['/', '\0', '\r', '\n'])
@@ -310,7 +314,7 @@ impl ICloudFileReplace {
             || original.parent_id.as_deref() != Some(parent.id.as_str())
             || !original.id.starts_with("FILE::com.apple.CloudDocs::")
             || original.name.len() > 255
-            || !original.name.ends_with(".pages")
+            || cirrove_core::upload::native_package_suffix(&original.name).is_none()
             || original
                 .name
                 .chars()

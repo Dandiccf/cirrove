@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cirrove\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-01 18:34+0200\n"
+"POT-Creation-Date: 2026-10-02 00:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -473,14 +473,14 @@ msgid "A wastebasket folder is in this drive"
 msgstr ""
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:713
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:53
-msgid "Import a Pages document"
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:56
+msgid "Import an iWork document"
 msgstr ""
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:714
 msgid ""
-"Create a new iCloud document from a local Pages ZIP archive. Existing "
-"documents are never replaced."
+"Create a new iCloud document from a local Pages, Numbers or Keynote ZIP "
+"archive. Existing documents are never replaced."
 msgstr ""
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:717
@@ -763,7 +763,7 @@ msgstr ""
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1463
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1660
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:105
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:110
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:85
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:113
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:818
@@ -1170,63 +1170,65 @@ msgid "iCloud is signed in again with read-only access."
 msgstr ""
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:14
-msgid "Choose a local Pages archive"
+msgid "Choose a local iWork archive"
 msgstr ""
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:18
-msgid "Pages and ZIP archives"
+msgid "Pages, Numbers, Keynote and ZIP archives"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:36
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:39
 msgid "Choose an archive stored on this computer."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:55
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:58
 msgid ""
-"Choose a ZIP archive containing one Pages document folder. Import creates a "
-"new document, up to 64 MiB. It does not replace or edit an existing document."
+"Choose a ZIP archive containing one Pages, Numbers or Keynote document "
+"folder. Import creates a new document, up to 64 MiB. It does not replace or "
+"edit an existing document."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:61
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:64
 msgid "Local archive"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:67
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:70
 msgid "Document folder"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:70
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:73
 msgid "Destination folder"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:73
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:76
 msgid "New document name"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:96
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:101
 msgid ""
-"Use the exact .pages folder name inside the archive, and include .pages in "
-"the new name. Leave the destination blank for the top level, or enter a "
-"folder such as Documents/Reports."
+"Use the exact document folder name inside the archive. The folder and new "
+"name must have the same .pages, .numbers or .key extension. Leave the "
+"destination blank for the top level, or enter a folder such as Documents/"
+"Reports."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:106
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:111
 msgid "Import"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:191
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:196
 msgid "Starting document import…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:219
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:224
 msgid "Import started. Progress appears with this connection's transfers."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:220
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:225
 msgid "The service did not start the import."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:221
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:226
 msgid ""
 "Could not confirm the import. Check this connection's transfers before "
 "trying again."

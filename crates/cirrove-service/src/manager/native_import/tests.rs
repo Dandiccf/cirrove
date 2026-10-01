@@ -367,7 +367,7 @@ async fn package_parent_and_mount_or_state_sources_are_refused() {
     f.empty();
 }
 #[test]
-fn initial_profile_is_pages_only_and_rejects_unsafe_name_or_path() {
+fn native_profile_pairs_supported_formats_and_rejects_unsafe_name_or_path() {
     let mut input = NativeImportInput {
         source: "/owned/file".into(),
         expected_root: "Source.pages".into(),
@@ -383,6 +383,11 @@ fn initial_profile_is_pages_only_and_rejects_unsafe_name_or_path() {
     ] {
         input.name = name.into();
         assert!(validate_input(&input).is_err());
+    }
+    for suffix in ["pages", "numbers", "key"] {
+        input.name = format!("Import.{suffix}");
+        input.expected_root = format!("Source.{suffix}");
+        assert!(validate_input(&input).is_ok());
     }
     input.name = "Import.pages".into();
     input.expected_root = "Source.key".into();
@@ -457,3 +462,107 @@ mod native_replace_observer_tests;
 mod native_abandon_socket;
 #[path = "tests/replacement_socket.rs"]
 mod replacement_socket;
+
+#[tokio::test]
+async fn supported_import_formats_require_validated_archive_before_durable_enqueue() {
+    for suffix in ["pages", "numbers", "key"] {
+        let f = Fixture::new().await;
+        let mut input = f.input();
+        input.expected_root = format!("Source.{suffix}");
+        input.name = format!("Imported.{suffix}");
+        for body in [
+            b"ordinary DATA bytes with a native-looking filename".to_vec(),
+            crate::native_import::synthetic_package_archive("Wrong.zip/Metadata/data", b"owned"),
+        ] {
+            std::fs::write(&f.source, body).unwrap();
+            assert!(
+                f.manager
+                    .enqueue_native_package(
+                        f.engine.clone(),
+                        NativeImportInput {
+                            source: input.source.clone(),
+                            expected_root: input.expected_root.clone(),
+                            parent: input.parent.clone(),
+                            name: input.name.clone()
+                        },
+                        CancellationToken::new()
+                    )
+                    .await
+                    .is_err()
+            );
+            f.empty();
+        }
+        std::fs::write(
+            &f.source,
+            crate::native_import::synthetic_package_archive(
+                &format!("Source.{suffix}/Metadata/data"),
+                b"owned synthetic format fixture",
+            ),
+        )
+        .unwrap();
+        let row = f
+            .manager
+            .enqueue_native_package(f.engine.clone(), input, CancellationToken::new())
+            .await
+            .unwrap();
+        let UploadRepresentation::PackageArchive {
+            expected_root,
+            semantic,
+        } = row.representation
+        else {
+            panic!("explicit package proof missing")
+        };
+        assert_eq!(expected_root, format!("Source.{suffix}"));
+        assert_eq!(semantic.version, 2);
+        assert_eq!(semantic.files, 1);
+        assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn mixed_case_import_format_preserves_case_sensitive_archive_root() {
+    for extension in ["PAGES", "NuMbErS", "KEY"] {
+        let f = Fixture::new().await;
+        let root = format!("Source.{extension}");
+        let name = format!("Imported.{}", extension.to_ascii_lowercase());
+        let input = || NativeImportInput {
+            source: f.source.clone(),
+            expected_root: root.clone(),
+            parent: String::new(),
+            name: name.clone(),
+        };
+        std::fs::write(
+            &f.source,
+            crate::native_import::synthetic_package_archive(
+                &format!("{}/Metadata/data", root.to_ascii_lowercase()),
+                b"owned synthetic content",
+            ),
+        )
+        .unwrap();
+        assert!(
+            f.manager
+                .enqueue_native_package(f.engine.clone(), input(), CancellationToken::new())
+                .await
+                .is_err()
+        );
+        f.empty();
+        std::fs::write(
+            &f.source,
+            crate::native_import::synthetic_package_archive(
+                &format!("{root}/Metadata/data"),
+                b"owned synthetic content",
+            ),
+        )
+        .unwrap();
+        let row = f
+            .manager
+            .enqueue_native_package(f.engine.clone(), input(), CancellationToken::new())
+            .await
+            .unwrap();
+        let UploadRepresentation::PackageArchive { expected_root, .. } = row.representation else {
+            panic!("package proof missing")
+        };
+        assert_eq!(expected_root, root);
+        assert!(matches!(row.intent, UploadIntent::Create { name: saved, .. } if saved == name));
+    }
+}

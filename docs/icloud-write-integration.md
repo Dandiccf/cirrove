@@ -1056,21 +1056,26 @@ isolated successful arm, not installed release acceptance or reliability proof.
 
 Numbers/Keynote acceptance remains separate. Retained read probes observed DATA
 representations, whereas the owned Pages fixture used PACKAGE. Public import
-therefore remains Pages-only: broadening extensions would not establish native
-compatibility. Each format needs a fresh UUID-owned synthetic document, actual
+was Pages-only at that validation point. The isolated development implementation
+now admits matching Pages/Numbers/Keynote PACKAGE formats through the same
+bounded checks; this has not been installed or released. Broadening extensions
+does not establish native compatibility. Each format still needs a fresh UUID-owned synthetic document, actual
 representation classification, independent content verification, mounted/offline
-reads and reopening in the corresponding Apple application before admission is
-widened. No existing user document should be repurposed as a write fixture.
+reads and reopening in the corresponding Apple application before release
+acceptance. See the [format acceptance boundary](benchmarks/icloud-native-formats-acceptance-2026-10-01.md).
+No existing user document should be repurposed as a write fixture.
 
 
-## Explicit native Pages replacement: current public contract
+## Explicit native archive replacement: current public contract
 
 The current service exposes `replace-native-package`,
 `watch-native-replacement` and `list-native-replacements` capability version 1.
 The [explicit replacement guide](native-document-replacement.md) documents exact
 CLI arguments, account/revision binding and recovery after a lost reply. This is
 a separately submitted, validated local archive; ordinary writes to generated
-package children remain refused. Public admission remains Pages-only.
+package children remain refused outside the exact canonical working archive.
+Development admission now includes matching `.pages`, `.numbers` and `.key`
+PACKAGE formats; live Numbers/Keynote application acceptance remains open.
 
 A confirmed replacement creates a new provider identity and records the old
 identity in Trash. It does not promise same-ID updates, preservation of revision

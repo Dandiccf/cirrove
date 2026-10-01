@@ -522,3 +522,22 @@ fn native_restore_route_rejects_malformed_opaque_ancestors() {
         assert!(request.validate().is_err());
     }
 }
+
+#[test]
+fn native_restore_internal_formats_require_original_package_and_plain_route() {
+    for suffix in [".pages", ".numbers", ".key"] {
+        let mut selected = request();
+        selected.before.name = format!("Owned{suffix}");
+        selected.validate().unwrap();
+        let mut data = selected.clone();
+        data.before.package = false;
+        data.before.kind = NodeKind::File;
+        assert!(data.validate().is_err());
+        let mut app = selected.clone();
+        app.parent_route[0].id = "FOLDER::com.apple.Keynote::documents".into();
+        app.before.parent_id = Some(app.parent_route[0].id.clone());
+        assert!(app.validate().is_err());
+        selected.parent_route[0].package = true;
+        assert!(selected.validate().is_err());
+    }
+}

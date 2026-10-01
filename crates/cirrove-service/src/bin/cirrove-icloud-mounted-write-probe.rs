@@ -429,6 +429,15 @@ async fn verify_large_bytes(
 async fn main() -> Result<()> {
     let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if let [flag, manifest, digest] = args.as_slice()
+        && flag == "--owned-fixture-verify"
+    {
+        let receipt =
+            cirrove_service::validation::icloud_owned_fixture_verify(Path::new(manifest), digest)
+                .await?;
+        println!("{}", serde_json::to_string(&receipt)?);
+        return Ok(());
+    }
     if let [flag, run] = args.as_slice()
         && flag == "--account-parent-listing-timing"
     {

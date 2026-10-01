@@ -450,3 +450,6 @@ pub use replacement_live::{
     icloud_public_native_replacement_diagnose, icloud_public_native_replacement_preflight,
     icloud_public_native_replacement_verify,
 };
+
+mod fixture_verify;
+pub use fixture_verify::icloud_owned_fixture_verify;

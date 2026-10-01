@@ -758,9 +758,10 @@ pub fn native_import_fields_valid(
             .components()
             .any(|p| matches!(p, std::path::Component::ParentDir))
         && component(root)
-        && root.to_ascii_lowercase().ends_with(".pages")
+        && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase()).is_some()
         && component(name)
-        && name.to_ascii_lowercase().ends_with(".pages")
+        && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase())
+            == cirrove_core::upload::native_package_suffix(&name.to_ascii_lowercase())
         && parent.len() <= 4096
         && (parent.is_empty() || parent.split('/').all(component))
 }

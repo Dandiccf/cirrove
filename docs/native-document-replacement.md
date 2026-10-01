@@ -1,10 +1,15 @@
-# Explicit native Pages archive replacement
+# Explicit native iWork archive replacement
 
-This experimental workflow replaces one selected iCloud Pages PACKAGE using a
+This experimental workflow replaces one selected iCloud Pages, Numbers or Keynote PACKAGE using a
 validated local ZIP archive. An active writable iCloud connection is required.
-It is not a normal application save through the mounted package folder: generated
-package children remain protected. A `.pages` filename alone is not evidence of
-PACKAGE representation. Numbers/Keynote public admission remains unavailable.
+This command is an explicit replacement surface. The separate experimental
+mounted-save path accepts edits to the exact canonical native archive; it does
+not enable arbitrary edits to generated package children. A `.pages` filename alone is not evidence of
+PACKAGE representation. The source archive root and selected destination must
+identify the same application format (`.pages`, `.numbers` or `.key`). Extension
+classification ignores ASCII case; exact archive roots and remote names do not.
+Numbers and Keynote admission has synthetic coverage; their live application
+acceptance remains open.
 
 Replacement creates a **new provider item ID** and retains a verified receipt
 for the original in Trash. It does not preserve the original ID, promise revision

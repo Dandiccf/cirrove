@@ -176,3 +176,111 @@ mod semantic_version_tests {
         assert_eq!(PACKAGE_SEMANTIC_IDENTITY_VERSION, 1);
     }
 }
+
+/// Filename pairing for an already proven native PACKAGE. A suffix is never
+/// representation evidence or authority to write an ordinary DATA document.
+pub fn native_package_suffix(name: &str) -> Option<&'static str> {
+    if name.len() > 1024 || name.chars().any(|c| c.is_control() || c == '/') {
+        return None;
+    }
+    [".pages", ".numbers", ".key"].into_iter().find(|suffix| {
+        name.as_bytes()
+            .get(name.len().saturating_sub(suffix.len())..)
+            .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix.as_bytes()))
+    })
+}
+
+#[cfg(test)]
+mod format_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    #[test]
+    fn native_format_names_are_bounded_single_components_not_representation_proofs() {
+        for suffix in [".pages", ".numbers", ".key"] {
+            assert_eq!(
+                native_package_suffix(&format!("Owned{suffix}")),
+                Some(suffix)
+            );
+            for bad in [
+                format!("../Owned{suffix}"),
+                format!("Root/Owned{suffix}"),
+                format!("bad\0{suffix}"),
+                format!("{}{suffix}", "x".repeat(1025)),
+            ] {
+                assert!(native_package_suffix(&bad).is_none());
+            }
+        }
+        assert_eq!(
+            native_package_suffix(".pages"),
+            Some(".pages"),
+            "legacy Pages name remains valid"
+        );
+        assert_eq!(native_package_suffix("Legacy:name.pages"), Some(".pages"));
+        assert_eq!(native_package_suffix("Legacy\\name.pages"), Some(".pages"));
+        assert!(native_package_suffix("Owned.zip").is_none());
+        assert!(native_package_suffix("Owned.numbers.pages/Document").is_none());
+        assert!(UploadRepresentation::FileBytes.validate().is_ok());
+    }
+    #[test]
+    fn generic_package_replacement_keeps_provider_independent_names_and_roots() {
+        let proof = PackageSemanticIdentity {
+            version: 1,
+            sha256: "a".repeat(64),
+            entries: 1,
+            files: 1,
+            expanded_bytes: 1,
+        };
+        for (name, root) in [
+            ("Native.bundle", "Source.bundle"),
+            ("OpaqueContainer", "BoundRoot"),
+            (".pages", ".pages"),
+        ] {
+            let original = crate::Node {
+                id: "provider-item".into(),
+                parent_id: Some("provider-parent".into()),
+                name: name.into(),
+                kind: crate::NodeKind::Folder,
+                size: 1,
+                modified_unix: 0,
+                etag: Some("v1".into()),
+                content_version: None,
+                target: None,
+                package: true,
+            };
+            let value = UploadRepresentation::PackageReplacementArchive {
+                expected_root: root.into(),
+                semantic: proof.clone(),
+                original: Box::new(original),
+                original_semantic: proof.clone(),
+            };
+            value.validate().unwrap();
+            let mut data = value.clone();
+            if let UploadRepresentation::PackageReplacementArchive { original, .. } = &mut data {
+                original.package = false;
+                original.kind = crate::NodeKind::File;
+            }
+            assert!(
+                data.validate().is_err(),
+                "generic DTO still requires explicit package representation"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod case_policy_tests {
+    use super::*;
+    #[test]
+    fn native_format_case_is_classification_only_not_root_normalization() {
+        for (name, suffix) in [
+            ("Owned.PAGES", ".pages"),
+            ("Owned.NuMbErS", ".numbers"),
+            ("Owned.KEY", ".key"),
+            (".PaGeS", ".pages"),
+        ] {
+            assert_eq!(native_package_suffix(name), Some(suffix));
+        }
+        assert_eq!(native_package_suffix("Owned.éKEY"), None);
+        assert_eq!(native_package_suffix("Owned.KEY/child"), None);
+    }
+}

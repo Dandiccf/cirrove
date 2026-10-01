@@ -893,3 +893,265 @@ impl cirrove_auth::CredentialVault for AbandonKeys {
         Ok(())
     }
 }
+
+#[tokio::test]
+async fn native_internal_formats_bind_root_target_and_recovery_without_data_authority() {
+    let scope = Scope {
+        account: Uuid::new_v4().to_string(),
+        provider: "icloud".into(),
+        collection: "drive".into(),
+    };
+    for suffix in [".pages", ".numbers", ".key"] {
+        let root = format!("Source{suffix}");
+        let bytes = archive(&root, false, false);
+        let mut request = request(scope.clone(), &bytes);
+        if let UploadRepresentation::PackageReplacementArchive {
+            expected_root,
+            original,
+            semantic: proof,
+            original_semantic,
+            ..
+        } = &mut request.representation
+        {
+            *expected_root = root.clone();
+            original.name = format!("Target{suffix}");
+            *proof = semantic(&root, false);
+            *original_semantic = semantic(&original.name, true);
+        }
+        ICloudFileReplace::native_identity(&request, &parent()).unwrap();
+        let dir = directory();
+        let operation = Uuid::new_v4();
+        let owner = ICloudFileReplace::native_package_from_sealed_session(
+            request.clone(),
+            parent(),
+            operation,
+            ICloudSealedSignIn {
+                apple_id: "fixture@example.com".into(),
+                credential_id: Uuid::new_v4().to_string(),
+            },
+            dir.path(),
+            dir.path(),
+        )
+        .unwrap();
+        assert_eq!(
+            owner.stage_name,
+            format!("staged-by-cirrove-{operation}{suffix}")
+        );
+        assert_eq!(
+            owner.recovery_name,
+            format!("recovery-by-cirrove-{operation}{suffix}")
+        );
+
+        for bad in ["root", "data", "app"] {
+            let mut changed = request.clone();
+            if let UploadRepresentation::PackageReplacementArchive {
+                expected_root,
+                original,
+                ..
+            } = &mut changed.representation
+            {
+                match bad {
+                    "root" => {
+                        *expected_root = if suffix == ".key" {
+                            "Source.numbers"
+                        } else {
+                            "Source.key"
+                        }
+                        .into()
+                    }
+                    "data" => {
+                        original.package = false;
+                        original.kind = NodeKind::File;
+                    }
+                    _ => original.parent_id = Some("FOLDER::com.apple.Numbers::documents".into()),
+                }
+            }
+            assert!(
+                ICloudFileReplace::native_identity(&changed, &parent()).is_err(),
+                "{suffix} {bad}"
+            );
+        }
+        let mut handoff = plan();
+        handoff.target_name = format!("Target{suffix}");
+        handoff.staged_name = format!("staged-by-cirrove-{}{suffix}", Uuid::new_v4());
+        handoff.recovery_name = format!("recovery-by-cirrove-{}{suffix}", Uuid::new_v4());
+        handoff.validate().unwrap();
+        let good = handoff.clone();
+        for bad in ["staged", "recovery", "proof"] {
+            let mut changed = good.clone();
+            let other = if suffix == ".key" { ".numbers" } else { ".key" };
+            match bad {
+                "staged" => {
+                    changed.staged_name = format!("staged-by-cirrove-{}{other}", Uuid::new_v4())
+                }
+                "recovery" => {
+                    changed.recovery_name = format!("recovery-by-cirrove-{}{other}", Uuid::new_v4())
+                }
+                _ => changed.package = None,
+            }
+            assert!(changed.validate().is_err(), "{suffix} {bad}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn native_legacy_suffix_only_pages_request_and_handoff_remain_valid() {
+    let scope = Scope {
+        account: Uuid::new_v4().to_string(),
+        provider: "icloud".into(),
+        collection: "drive".into(),
+    };
+    let body = archive(".pages", false, false);
+    let mut r = request(scope, &body);
+    if let UploadRepresentation::PackageReplacementArchive {
+        expected_root,
+        original,
+        semantic: proof,
+        original_semantic,
+    } = &mut r.representation
+    {
+        *expected_root = ".pages".into();
+        original.name = ".pages".into();
+        *proof = semantic(".pages", false);
+        *original_semantic = semantic(".pages", true);
+    }
+    ICloudFileReplace::native_identity(&r, &parent()).unwrap();
+    let mut retained = plan();
+    retained.target_name = ".pages".into();
+    retained.validate().unwrap();
+    let encoded = serde_json::to_string(&retained).unwrap();
+    let restored: HandoffPlan = serde_json::from_str(&encoded).unwrap();
+    restored.validate().unwrap();
+    let dir = directory();
+    let operation = Uuid::new_v4();
+    let sign_in = || ICloudSealedSignIn {
+        apple_id: "fixture@example.com".into(),
+        credential_id: "00000000-0000-4000-8000-000000000001".into(),
+    };
+    let owner = ICloudFileReplace::native_package_from_sealed_session(
+        r.clone(),
+        parent(),
+        operation,
+        sign_in(),
+        dir.path(),
+        dir.path(),
+    )
+    .unwrap();
+    retained.staged_name = owner.stage_name.clone();
+    retained.recovery_name = owner.recovery_name.clone();
+    if let UploadRepresentation::PackageReplacementArchive {
+        semantic,
+        original_semantic,
+        ..
+    } = &r.representation
+    {
+        let proof = retained.package.as_mut().unwrap();
+        proof.original = original_semantic.clone();
+        proof.staged = semantic.clone();
+    }
+    let checkpoint = owner
+        .native_encode(NativePhase::Handoff {
+            plan: Box::new(retained),
+            phase: HandoffPhase::MoveOld,
+        })
+        .unwrap();
+    let restored = ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
+        r.clone(),
+        operation,
+        sign_in(),
+        dir.path(),
+        dir.path(),
+        &checkpoint,
+    )
+    .unwrap();
+    assert!(matches!(
+        restored
+            .native_decode(&operation.to_string(), &r, &checkpoint)
+            .unwrap(),
+        NativePhase::Handoff {
+            phase: HandoffPhase::MoveOld,
+            ..
+        }
+    ));
+}
+
+#[tokio::test]
+async fn native_mixed_case_pages_checkpoint_keeps_exact_names_and_phase() {
+    let scope = Scope {
+        account: Uuid::new_v4().to_string(),
+        provider: "icloud".into(),
+        collection: "drive".into(),
+    };
+    let body = archive(".PaGeS", false, false);
+    let mut r = request(scope, &body);
+    if let UploadRepresentation::PackageReplacementArchive {
+        expected_root,
+        original,
+        semantic: proof,
+        original_semantic,
+    } = &mut r.representation
+    {
+        *expected_root = ".PaGeS".into();
+        original.name = ".PaGeS".into();
+        *proof = semantic(".PaGeS", false);
+        *original_semantic = semantic(".PaGeS", true);
+    }
+    ICloudFileReplace::native_identity(&r, &parent()).unwrap();
+    let mut retained = plan();
+    retained.target_name = ".PaGeS".into();
+    retained.validate().unwrap();
+    let encoded = serde_json::to_string(&retained).unwrap();
+    let restored: HandoffPlan = serde_json::from_str(&encoded).unwrap();
+    restored.validate().unwrap();
+    let dir = directory();
+    let operation = Uuid::new_v4();
+    let sign_in = || ICloudSealedSignIn {
+        apple_id: "fixture@example.com".into(),
+        credential_id: "00000000-0000-4000-8000-000000000001".into(),
+    };
+    let owner = ICloudFileReplace::native_package_from_sealed_session(
+        r.clone(),
+        parent(),
+        operation,
+        sign_in(),
+        dir.path(),
+        dir.path(),
+    )
+    .unwrap();
+    retained.staged_name = owner.stage_name.clone();
+    retained.recovery_name = owner.recovery_name.clone();
+    if let UploadRepresentation::PackageReplacementArchive {
+        semantic,
+        original_semantic,
+        ..
+    } = &r.representation
+    {
+        let proof = retained.package.as_mut().unwrap();
+        proof.original = original_semantic.clone();
+        proof.staged = semantic.clone();
+    }
+    let checkpoint = owner
+        .native_encode(NativePhase::Handoff {
+            plan: Box::new(retained),
+            phase: HandoffPhase::MoveOld,
+        })
+        .unwrap();
+    let restored = ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
+        r.clone(),
+        operation,
+        sign_in(),
+        dir.path(),
+        dir.path(),
+        &checkpoint,
+    )
+    .unwrap();
+    assert!(matches!(
+        restored
+            .native_decode(&operation.to_string(), &r, &checkpoint)
+            .unwrap(),
+        NativePhase::Handoff {
+            phase: HandoffPhase::MoveOld,
+            ..
+        }
+    ));
+}
