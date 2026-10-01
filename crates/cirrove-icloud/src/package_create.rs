@@ -399,10 +399,11 @@ impl ICloudPackageCreate {
                 size,
                 sha256: digest,
             };
-            let actual = crate::package_archive_semantic_identity(
+            let actual = crate::package_archive_semantic_identity_versioned(
                 &target,
                 &receipt,
                 expected_root,
+                semantic.version,
                 &cancel,
             )?;
             if &actual != semantic {
@@ -485,8 +486,17 @@ impl ICloudPackageCreate {
         progress.fence = "archive-semantic-parse";
         let token = cancel.clone();
         let root = name.to_owned();
+        let UploadRepresentation::PackageArchive {
+            semantic: expected, ..
+        } = &saved.request.representation
+        else {
+            return Err(UploadError::Invalid);
+        };
+        let version = expected.version;
         let semantic = tokio::task::spawn_blocking(move || {
-            crate::package_archive_semantic_identity(&file, &receipt, &root, &token)
+            crate::package_archive_semantic_identity_versioned(
+                &file, &receipt, &root, version, &token,
+            )
         })
         .await
         .map_err(|_| UploadError::Uncertain)??;
@@ -813,5 +823,22 @@ impl ICloudPackageCreate {
             serde_json::json!({"fence":progress.fence,"category":category,"archive_comparison":comparison}),
             outcome.ok(),
         ))
+    }
+}
+
+impl ICloudPackageCreate {
+    pub(crate) fn registered_stage_for_abandonment(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        account_hash: &str,
+    ) -> Result<String> {
+        let saved = self.decode(operation, request, checkpoint)?;
+        if saved.phase != Phase::RegistrationArmed || saved.account_hash != account_hash {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let slot = saved.slot.ok_or(UploadError::CheckpointInvalid)?;
+        Ok(format!("FILE::com.apple.CloudDocs::{}", slot.document_id))
     }
 }

@@ -138,6 +138,7 @@ impl UploadJournal {
         }
         let id = Uuid::new_v4();
         let object = NamespaceObject {
+            native_archive: None,
             id,
             names: namespace::policy(&self.db, &scope)?,
             scope,

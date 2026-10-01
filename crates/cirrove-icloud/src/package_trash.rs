@@ -78,8 +78,13 @@ fn verify_archive(
     request: &OwnedPackageTrashRequest,
     cancel: &CancellationToken,
 ) -> std::result::Result<PackageSemanticIdentity, ProviderError> {
-    let semantic =
-        package_archive_semantic_identity(file, archive, &request.expected_root, cancel)?;
+    let semantic = crate::package_archive_semantic_identity_versioned(
+        file,
+        archive,
+        &request.expected_root,
+        request.semantic.version,
+        cancel,
+    )?;
     if semantic != request.semantic {
         return Err(ProviderError::Protocol("package recovery content mismatch"));
     }
@@ -354,12 +359,19 @@ mod tests {
         };
         let cancel = CancellationToken::new();
         let mut expected = request();
-        expected.semantic =
-            package_archive_semantic_identity(&file, &receipt, &expected.expected_root, &cancel)?;
-        assert_eq!(
-            verify_archive(&file, &receipt, &expected, &cancel)?,
-            expected.semantic
-        );
+        for version in [1, 2] {
+            expected.semantic = crate::package_archive_semantic_identity_versioned(
+                &file,
+                &receipt,
+                &expected.expected_root,
+                version,
+                &cancel,
+            )?;
+            assert_eq!(
+                verify_archive(&file, &receipt, &expected, &cancel)?,
+                expected.semantic
+            );
+        }
         expected.expected_root = "Other.pages".into();
         assert!(verify_archive(&file, &receipt, &expected, &cancel).is_err());
         expected.expected_root = "Owned.pages".into();

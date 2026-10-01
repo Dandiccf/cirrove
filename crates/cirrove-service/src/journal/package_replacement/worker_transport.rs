@@ -8,7 +8,7 @@ use secrecy::ExposeSecret;
 const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
 use base64::Engine as _;
 use cirrove_core::upload::PackageSemanticIdentity;
-use cirrove_icloud::{PackageDownload, package_archive_semantic_identity};
+use cirrove_icloud::{PackageDownload, package_archive_semantic_identity_versioned};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -44,17 +44,18 @@ fn archive(root: &str, old: bool, corrupt: bool) -> Vec<u8> {
         },
     )
 }
-fn semantic(root: &str, old: bool) -> PackageSemanticIdentity {
+fn semantic(root: &str, old: bool, version: u32) -> PackageSemanticIdentity {
     let bytes = archive(root, old, false);
     let mut file = tempfile::tempfile().unwrap();
     file.write_all(&bytes).unwrap();
-    package_archive_semantic_identity(
+    package_archive_semantic_identity_versioned(
         &file,
         &PackageDownload {
             size: bytes.len() as u64,
             sha256: hex::encode(Sha256::digest(&bytes)),
         },
         root,
+        version,
         &CancellationToken::new(),
     )
     .unwrap()
@@ -309,7 +310,7 @@ impl Arm {
             .enqueue_validated_package_replacement(
                 scope,
                 original(),
-                semantic("Target.pages", true),
+                semantic("Target.pages", true, 1),
                 validated,
                 &CancellationToken::new(),
             )
@@ -407,7 +408,7 @@ impl Arm {
         assert!(remote.package);
         assert_eq!(
             row.package_completion,
-            Some(semantic("Source.pages", false))
+            Some(semantic("Source.pages", false, 2))
         );
         let backup = row
             .identity_handoff

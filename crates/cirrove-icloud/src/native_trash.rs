@@ -268,13 +268,14 @@ impl ICloudNativeTrash {
             result = tokio::time::timeout(crate::VERIFICATION_TRANSFER_TIMEOUT, async {
                 let mut state = self.session.lock().await;
                 let session = Self::active(&mut state).await?;
-                self.capture(session, cancel).await
+                self.capture(session, crate::PACKAGE_SEMANTIC_IDENTITY_VERSION, cancel).await
             }) => result.map_err(|_| MutationError::Uncertain)?,
         }
     }
     async fn capture(
         &self,
         session: &mut ICloudReadSession,
+        version: u32,
         cancel: &CancellationToken,
     ) -> Result<PackageSemanticIdentity> {
         if session.account_hash.as_deref()
@@ -327,7 +328,9 @@ impl ICloudNativeTrash {
         let root = self.before.name.clone();
         let token = cancel.clone();
         let semantic = tokio::task::spawn_blocking(move || {
-            crate::package_archive_semantic_identity(&file, &archive, &root, &token)
+            crate::package_archive_semantic_identity_versioned(
+                &file, &archive, &root, version, &token,
+            )
         })
         .await
         .map_err(|_| MutationError::Uncertain)??;
@@ -406,7 +409,7 @@ impl MutationProvider for ICloudNativeTrash {
             }
             let mut state=self.session.lock().await; let session=Self::active(&mut state).await?;
             check(cancel)?;
-            let semantic=self.capture(session,cancel).await?;
+            let semantic=self.capture(session,crate::PACKAGE_SEMANTIC_IDENTITY_VERSION,cancel).await?;
             self.save(&Checkpoint {version:1,operation,request:request.clone(),account_hash:crate::account_hash(&self.apple_id).map_err(crate::mutation_error)?,semantic,phase:Phase::Prepared}).await?;
             check(cancel)?;
             Ok(Some(self.before.id.clone()))
@@ -434,7 +437,7 @@ impl MutationProvider for ICloudNativeTrash {
             if saved.phase!=Phase::Prepared {return Err(MutationError::Uncertain);}
             let mut state=self.session.lock().await; let session=Self::active(&mut state).await?;
             check(cancel)?;
-            if self.capture(session,cancel).await?!=saved.semantic {return Err(MutationError::Conflict);}
+            if self.capture(session,saved.semantic.version,cancel).await?!=saved.semantic {return Err(MutationError::Conflict);}
             saved.phase=Phase::MayHaveSent;
             self.save(&saved).await?;
             check(cancel)?;

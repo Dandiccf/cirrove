@@ -4,7 +4,7 @@
 use crate::sealed_session::SealedPackageTrashCheckpointVault;
 use crate::{
     DriveEntry, ICloudReadSession, OwnedPackageCreate, OwnedPackagePlan, OwnedPackageTrashRequest,
-    PackageDownload, PackageSemanticIdentity, ROOT_ID, package_archive_semantic_identity,
+    PackageDownload, PackageSemanticIdentity, ROOT_ID,
 };
 use anyhow::{Context, Result, ensure};
 use cirrove_auth::CredentialVault;
@@ -198,8 +198,9 @@ async fn verify_archive(
     cancel: &CancellationToken,
 ) -> Result<()> {
     let token = cancel.clone();
+    let version = expected.version;
     let actual = tokio::task::spawn_blocking(move || {
-        package_archive_semantic_identity(&file, &receipt, &root, &token)
+        crate::package_archive_semantic_identity_versioned(&file, &receipt, &root, version, &token)
     })
     .await
     .context("package Trash verification interrupted")??;
@@ -599,3 +600,6 @@ mod restore_shape;
 pub use restore_shape::{OwnedPackageRestoreShape, RestorePathShape};
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+use crate::package_archive_semantic_identity;

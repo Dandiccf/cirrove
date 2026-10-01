@@ -11,8 +11,19 @@ pub enum NamespaceNames {
     Insensitive,
 }
 
+/// A local generated archive is a byte stream derived from one native Folder
+/// owner. It never owns a provider identity or an upload/mutation operation.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NativeArchiveRole {
+    pub source_owner: Uuid,
+    pub working: Uuid,
+    pub artifact: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NamespaceObject {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_archive: Option<NativeArchiveRole>,
     pub id: Uuid,
     pub scope: Scope,
     pub names: NamespaceNames,
@@ -40,8 +51,54 @@ fn owns_remote() -> bool {
     true
 }
 impl NamespaceObject {
+    pub(crate) fn valid_native_archive_shape(&self, working: &WorkingFile) -> bool {
+        self.native_archive.as_ref().is_some_and(|role| {
+            role.working == working.id
+                && self.id == working.id
+                && working.native
+                && self.scope == working.scope
+                && self.node == working.node
+                && self.node.id == format!("local-native-archive-{}", working.id)
+                && self.node.kind == NodeKind::File
+                && !self.node.package
+                && self.node.target.is_none()
+                && self.working_file == Some(working.id)
+                && self.latest.is_none()
+                && !self.remote_owned
+                && self.remote.is_none()
+                && self.remote_sequence == 0
+                && !self.follows_remote
+                && self.unlinked == working.unlinked
+        })
+    }
+    pub(crate) fn valid_native_archive_owner(&self, owner: &NamespaceObject) -> bool {
+        self.native_archive.as_ref().is_some_and(|role| {
+            role.source_owner == owner.id
+                && owner.id != self.id
+                && owner.scope == self.scope
+                && owner.native_archive.is_none()
+                && owner.remote_owned
+                && !owner.unlinked
+                && !owner.follows_remote
+                && owner.working_file.is_none()
+                && owner.node.kind == NodeKind::Folder
+                && owner.node.package
+                && owner.node.target.is_none()
+                && self.names == owner.names
+                && self.node.parent_id.as_ref() == Some(&owner.node.id)
+                && self.node.name == owner.node.name
+                && owner.remote.as_ref().is_some_and(|remote| {
+                    remote.kind == NodeKind::Folder
+                        && remote.package
+                        && remote.target.is_none()
+                        && role.artifact == format!("icloud-artifact:{}", remote.id)
+                })
+        })
+    }
+
     pub(crate) fn followed(&self, remote: Node) -> Result<Self> {
-        if self.unlinked
+        if self.native_archive.is_some()
+            || self.unlinked
             || !self.remote_owned
             || self.remote.as_ref().is_none_or(|r| r.id != remote.id)
             || remote.kind != self.node.kind
@@ -179,7 +236,9 @@ pub(super) fn entry_slot(
 }
 pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
     ancestry::check_new_slot(tx, object)?;
-    if !object.remote_owned && !object.unlinked {
+    if object.native_archive.is_some() {
+        working::native::projection::validate_child(tx, object)?;
+    } else if !object.remote_owned && !object.unlinked {
         return Err(JournalError::Corrupt);
     }
 
@@ -397,6 +456,7 @@ pub(super) fn prepare_attachment(
                 return Err(JournalError::Quota);
             }
             NamespaceObject {
+                native_archive: None,
                 id: working.id,
                 scope: working.scope.clone(),
                 names: policy(db, &working.scope)?,
@@ -435,7 +495,17 @@ pub(super) fn update_working(tx: &Transaction<'_>, working: &WorkingFile) -> Res
         return Err(JournalError::Stale);
     }
     object.node = working.node.clone();
-    object.latest = working.latest;
+    object.latest = if working.native {
+        if object.native_archive.is_none() {
+            return Err(JournalError::Corrupt);
+        }
+        None
+    } else {
+        if object.native_archive.is_some() {
+            return Err(JournalError::Corrupt);
+        }
+        working.latest
+    };
     object.revision = object.revision.checked_add(1).ok_or(JournalError::Quota)?;
     save(tx, &object)
 }
@@ -585,6 +655,7 @@ impl UploadJournal {
             return Err(JournalError::Quota);
         }
         let mut object = NamespaceObject {
+            native_archive: None,
             id: Uuid::new_v4(),
             names: policy(&self.db, &scope)?,
             scope,
@@ -620,6 +691,9 @@ impl UploadJournal {
         name: String,
     ) -> Result<MutationRecord> {
         let mut object = self.namespace_object(id)?;
+        if object.native_archive.is_some() {
+            return Err(JournalError::Intent);
+        }
         if object.revision != revision || object.follows_remote || object.unlinked {
             return Err(JournalError::Stale);
         }
@@ -788,6 +862,8 @@ pub(crate) fn project_retained_namespace<'a>(
         NamespaceNames::Insensitive => name.to_lowercase(),
     };
     let mut hidden = HashSet::new();
+    let owners: HashMap<_, _> = objects.iter().map(|object| (object.id, *object)).collect();
+    let mut derived = HashMap::new();
     let mut local = HashMap::new();
     let mut aliases = HashMap::new();
     for object in &objects {
@@ -804,6 +880,20 @@ pub(crate) fn project_retained_namespace<'a>(
         {
             hidden.insert(remote.id.as_str());
         }
+        if let Some(role) = &object.native_archive {
+            let owner = owners
+                .get(&role.source_owner)
+                .copied()
+                .ok_or(JournalError::Corrupt)?;
+            if !object.valid_native_archive_owner(owner) {
+                return Err(JournalError::Corrupt);
+            }
+            // Never hide an arbitrary same-name preview or spoof. The only
+            // substituted provider child is this exact derived artifact ID.
+            if !object.unlinked {
+                derived.insert(role.artifact.as_str(), (*object, owner));
+            }
+        }
         if !object.unlinked && object.node.parent_id.as_deref() == Some(parent) {
             local.insert(key(&object.node.name), *object);
         }
@@ -811,6 +901,17 @@ pub(crate) fn project_retained_namespace<'a>(
     let mut nodes = vec![];
     let mut conflicts = vec![];
     for mut node in remote {
+        if let Some((archive, owner)) = derived.get(node.id.as_str()) {
+            if node.kind != NodeKind::File
+                || node.package
+                || node.target.is_some()
+                || node.name != archive.node.name
+                || node.parent_id.as_ref() != owner.remote.as_ref().map(|n| &n.id)
+            {
+                return Err(JournalError::Corrupt);
+            }
+            continue;
+        }
         if hidden.contains(node.id.as_str()) {
             continue;
         }

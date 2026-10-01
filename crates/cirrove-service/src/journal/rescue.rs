@@ -285,6 +285,7 @@ pub(super) fn commit(
             namespace::save(
                 tx,
                 &NamespaceObject {
+                    native_archive: None,
                     id,
                     scope: object.scope.clone(),
                     names: object.names,

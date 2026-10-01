@@ -19,6 +19,7 @@ use std::{fs::File, path::Path, sync::Arc};
 use uuid::Uuid;
 
 mod native;
+pub use native::abandon::{NativeReplacementAbandonEvidence, NativeReplacementAbandonRecord};
 
 const MAX_CHECKPOINT: usize = 32 * 1024;
 

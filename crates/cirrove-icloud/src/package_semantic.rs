@@ -65,25 +65,90 @@ pub fn package_archive_semantic_identity(
     expected_root: &str,
     cancel: &CancellationToken,
 ) -> Result<PackageSemanticIdentity> {
+    package_archive_semantic_identity_versioned(
+        archive,
+        receipt,
+        expected_root,
+        PACKAGE_SEMANTIC_IDENTITY_VERSION,
+        cancel,
+    )
+}
+/// Verify using an explicitly selected semantic version. Retained requests and
+/// receipts must supply their recorded version; there is no fallback on mismatch.
+/// Version 2 includes the root and all implied ancestor directories, while
+/// preserving explicit empty directories and every exact file path and byte.
+/// This API does not authorize uploads or migrate existing durable operations.
+pub fn package_archive_semantic_identity_versioned(
+    archive: &File,
+    receipt: &PackageDownload,
+    expected_root: &str,
+    version: u32,
+    cancel: &CancellationToken,
+) -> Result<PackageSemanticIdentity> {
+    if !matches!(version, 1 | 2) {
+        return Err(ProviderError::Protocol(
+            "unsupported package semantic version",
+        ));
+    }
+    check(cancel)?;
     validate_root(expected_root)?;
     let content = bind_root(
         fingerprint(archive, receipt, cancel, MAX_EXPANDED)?,
         expected_root,
     )?;
-    let sha256 = identity_digest(
-        &content,
-        IDENTITY_DOMAIN,
-        PACKAGE_SEMANTIC_IDENTITY_VERSION,
-        cancel,
-    )?;
+    let content = if version == 2 {
+        directory_closure(content, cancel)?
+    } else {
+        content
+    };
+    let sha256 = identity_digest(&content, IDENTITY_DOMAIN, version, cancel)?;
     Ok(PackageSemanticIdentity {
-        version: PACKAGE_SEMANTIC_IDENTITY_VERSION,
+        version,
         sha256,
         entries: u32::try_from(content.entries.len()).map_err(|_| invalid())?,
         files: u32::try_from(content.files).map_err(|_| invalid())?,
         expanded_bytes: content.expanded,
     })
 }
+fn directory_closure(mut content: Fingerprint, cancel: &CancellationToken) -> Result<Fingerprint> {
+    fn include(content: &mut Fingerprint, path: &str, empty_hash: &str) -> Result<()> {
+        if let Some(entry) = content.entries.get(path) {
+            if !entry.directory || entry.size != 0 || entry.sha256 != empty_hash {
+                return Err(invalid());
+            }
+        } else {
+            if content.entries.len() >= MAX_ENTRIES {
+                return Err(ProviderError::Protocol(
+                    "package canonical entry limit exceeded",
+                ));
+            }
+            content.entries.insert(
+                path.to_owned(),
+                Entry {
+                    directory: true,
+                    size: 0,
+                    sha256: empty_hash.to_owned(),
+                },
+            );
+        }
+        Ok(())
+    }
+    check(cancel)?;
+    let empty_hash = hex::encode(Sha256::digest([]));
+    // Original paths are already bounded by ZIP entry/name limits. Snapshot only
+    // their names; insertion never recursively visits newly inferred entries.
+    let paths: Vec<_> = content.entries.keys().cloned().collect();
+    include(&mut content, "", &empty_hash)?;
+    for path in paths {
+        check(cancel)?;
+        for (at, _) in path.match_indices('/') {
+            check(cancel)?;
+            include(&mut content, &path[..at], &empty_hash)?;
+        }
+    }
+    Ok(content)
+}
+
 fn identity_digest(
     content: &Fingerprint,
     domain: &[u8],

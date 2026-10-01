@@ -227,7 +227,13 @@ impl ICloudReadSession {
         let token = cancel.clone();
         let expected = expected.clone();
         tokio::task::spawn_blocking(move || {
-            let actual = package_archive_semantic_identity(&file, &archive, &root, &token)?;
+            let actual = crate::package_archive_semantic_identity_versioned(
+                &file,
+                &archive,
+                &root,
+                expected.version,
+                &token,
+            )?;
             if actual != expected {
                 return Err(ProviderError::Protocol(
                     "native handoff package content mismatch",

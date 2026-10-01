@@ -178,12 +178,6 @@ pub(super) fn retained_public_import_for_replacement(
         size: plan.archive_size,
         sha256: plan.archive_sha256.clone(),
     };
-    let semantic = cirrove_icloud::package_archive_semantic_identity(
-        &source_file,
-        &source_receipt,
-        &plan.source.display_name(),
-        &CancellationToken::new(),
-    )?;
     let journal = RecoveryJournal::open(
         &directory
             .join("state/accounts")
@@ -206,6 +200,20 @@ pub(super) fn retained_public_import_for_replacement(
         .iter()
         .find(|row| row.id == original)
         .context("historical public import missing")?;
+    let UploadRepresentation::PackageArchive {
+        semantic: retained_semantic,
+        ..
+    } = &row.representation
+    else {
+        anyhow::bail!("historical public import representation changed");
+    };
+    let semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
+        &source_file,
+        &source_receipt,
+        &plan.source.display_name(),
+        retained_semantic.version,
+        &CancellationToken::new(),
+    )?;
     let node = receipt_binding(row, &account, &plan, &semantic)?.clone();
     Ok(PublicImportBinding {
         account,

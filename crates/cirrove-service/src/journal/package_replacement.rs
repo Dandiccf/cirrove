@@ -83,19 +83,59 @@ impl UploadJournal {
 // Runs in the same enqueue transaction, after resource/sequence allocation and
 // before commit. Any refusal rolls back the row/owner; sealed bytes remain an
 // orphan retained by the journal's existing publication-failure policy.
-pub(super) fn attach(tx: &Transaction<'_>, record: &UploadRecord) -> Result<()> {
+pub(super) fn attach(
+    tx: &Transaction<'_>,
+    record: &UploadRecord,
+    native: Option<&working::native::NativeCommit>,
+) -> Result<()> {
     let Some(before) = original(&record.representation) else {
         return Ok(());
     };
     validate(&record.scope, &record.intent, &record.representation)?;
-    for resource in mutations::upload_resources(&record.scope, &record.intent)? {
-        let busy: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM write_resources r JOIN write_queue q ON q.id=r.id WHERE r.resource=?1 AND q.complete=0 AND q.id!=?2)", params![resource,record.id.to_string()], |r| r.get(0))?;
+    if let Some(native) = native
+        && working::native::successors::attach(tx, record, native)?
+    {
+        return Ok(());
+    }
+    let mut owner = prepare_owner(
+        tx,
+        &record.scope,
+        before,
+        Some(record.id),
+        native.map(|commit| commit.working_id()),
+    )?;
+    owner.latest = Some(record.id);
+    owner.follows_remote = false;
+    owner.revision = owner.revision.checked_add(1).ok_or(JournalError::Quota)?;
+    namespace::save(tx, &owner)
+}
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod worker_transport;
+
+/// Shared only with validated native hydration. `native` names the exact local
+/// stream; an unrelated explicit replacement cannot steal its source owner.
+pub(crate) fn prepare_owner(
+    tx: &Transaction<'_>,
+    scope: &Scope,
+    before: &Node,
+    except: Option<Uuid>,
+    native: Option<Uuid>,
+) -> Result<NamespaceObject> {
+    let intent = UploadIntent::Replace {
+        item: before.id.clone(),
+        expected_etag: before.etag.clone().ok_or(JournalError::Intent)?,
+    };
+    for resource in mutations::upload_resources(scope, &intent)? {
+        let busy: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM write_resources r JOIN write_queue q ON q.id=r.id WHERE r.resource=?1 AND q.complete=0 AND (?2 IS NULL OR q.id!=?2))", params![resource,except.map(|id| id.to_string())], |r| r.get(0))?;
         if busy {
             return Err(JournalError::Stale);
         }
     }
-    namespace::ensure_legacy_policy(tx, &record.scope)?;
-    let mut owner = match namespace::by_remote(tx, &record.scope, &before.id)? {
+    namespace::ensure_legacy_policy(tx, scope)?;
+    let owner = match namespace::by_remote(tx, scope, &before.id)? {
         Some(owner) => {
             if owner.unlinked
                 || !owner.remote_owned
@@ -131,11 +171,12 @@ pub(super) fn attach(tx: &Transaction<'_>, record: &UploadRecord) -> Result<()> 
             let id = Uuid::new_v4();
             let mut local = before.clone();
             local.id = format!("local-native-{id}");
-            directories::localize_parent(tx, &record.scope, &mut local)?;
+            directories::localize_parent(tx, scope, &mut local)?;
             NamespaceObject {
+                native_archive: None,
                 id,
-                scope: record.scope.clone(),
-                names: namespace::policy(tx, &record.scope)?,
+                scope: scope.clone(),
+                names: namespace::policy(tx, scope)?,
                 node: local,
                 remote: Some(before.clone()),
                 remote_owned: true,
@@ -148,13 +189,15 @@ pub(super) fn attach(tx: &Transaction<'_>, record: &UploadRecord) -> Result<()> 
             }
         }
     };
-    owner.latest = Some(record.id);
-    owner.follows_remote = false;
-    owner.revision = owner.revision.checked_add(1).ok_or(JournalError::Quota)?;
-    namespace::save(tx, &owner)
+    let attached: Option<String> = tx
+        .query_row(
+            "SELECT working FROM native_working_heads WHERE json_extract(body,'$.owner')=?1",
+            [owner.id.to_string()],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if attached.is_some_and(|id| native.map(|n| n.to_string()).as_ref() != Some(&id)) {
+        return Err(JournalError::Stale);
+    }
+    Ok(owner)
 }
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-mod worker_transport;

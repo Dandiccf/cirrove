@@ -272,6 +272,9 @@ impl UploadJournal {
         if !base.resolved {
             return Err(JournalError::Stale);
         }
+        if package_replacement::original(&record.representation).is_some() {
+            return working::native::successors::confirmed_base(self, &record).map(Some);
+        }
         let node = self
             .base_node(base, &record.scope, record.sequence)?
             .ok_or(JournalError::Stale)?;
@@ -295,6 +298,9 @@ impl UploadJournal {
     }
     fn resolve_upload(&mut self, id: Uuid) -> Result<()> {
         let mut record = self.get(id)?;
+        if package_replacement::original(&record.representation).is_some() {
+            return working::native::successors::resolve(self, record);
+        }
         let base = record.base.as_ref().ok_or(JournalError::Corrupt)?;
         let intent = self
             .base_node(base, &record.scope, record.sequence)?

@@ -226,6 +226,10 @@ pub struct SealedUploadCheckpointVault {
 }
 
 impl SealedUploadCheckpointVault {
+    pub(crate) fn is_for_account(&self, account: &str) -> bool {
+        self.account_id == account
+    }
+
     pub fn new(state: &Path, account_id: &str) -> Result<Self> {
         Uuid::parse_str(account_id).context("invalid iCloud account identifier")?;
         if !state.is_absolute() {

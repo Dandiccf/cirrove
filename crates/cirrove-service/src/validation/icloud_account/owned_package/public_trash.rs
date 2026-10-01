@@ -70,21 +70,29 @@ fn binding(run: Uuid, name: &str, import: Uuid) -> Result<Binding> {
         "validation must use independent credentials"
     );
     let file = private_file(&source_dir.join("source.zip"), LIMIT)?;
-    let semantic = cirrove_icloud::package_archive_semantic_identity(
-        &file,
-        &PackageDownload {
-            size: plan.archive_size,
-            sha256: plan.archive_sha256.clone(),
-        },
-        &plan.source.display_name(),
-        &CancellationToken::new(),
-    )?;
     let journal = RecoveryJournal::open(
         &dir.join("state/accounts").join(&account.id).join("journal"),
         &account.id,
     )
     .context("stop only the isolated validation daemon before read-only verification")?;
     let row = journal.native_validation_upload(import)?;
+    let cirrove_core::upload::UploadRepresentation::PackageArchive {
+        semantic: retained_semantic,
+        ..
+    } = &row.representation
+    else {
+        anyhow::bail!("public import representation changed");
+    };
+    let semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
+        &file,
+        &PackageDownload {
+            size: plan.archive_size,
+            sha256: plan.archive_sha256.clone(),
+        },
+        &plan.source.display_name(),
+        retained_semantic.version,
+        &CancellationToken::new(),
+    )?;
     let node = named_receipt_binding(&row, &account, &plan, &semantic, name)?.clone();
     Ok(Binding {
         dir,
@@ -190,10 +198,11 @@ pub async fn icloud_public_native_trash_import_verify(
     let root = name.to_owned();
     tokio::task::spawn_blocking(move || -> Result<()> {
         ensure!(
-            cirrove_icloud::package_archive_semantic_identity(
+            cirrove_icloud::package_archive_semantic_identity_versioned(
                 &file,
                 &receipt,
                 &root,
+                expected.version,
                 &CancellationToken::new()
             )? == expected,
             "import semantic contents differ"

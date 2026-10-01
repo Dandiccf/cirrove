@@ -140,20 +140,35 @@ fn preflight_binding(
     canonical.original = original;
     Ok(canonical)
 }
+#[cfg(test)]
 fn semantic_file(
     path: &Path,
     receipt: &PackageDownload,
     root: &str,
+) -> Result<PackageSemanticIdentity> {
+    semantic_file_versioned(
+        path,
+        receipt,
+        root,
+        cirrove_icloud::PACKAGE_SEMANTIC_IDENTITY_VERSION,
+    )
+}
+fn semantic_file_versioned(
+    path: &Path,
+    receipt: &PackageDownload,
+    root: &str,
+    version: u32,
 ) -> Result<PackageSemanticIdentity> {
     let file = private_file(path, LIMIT)?;
     ensure!(
         file.metadata()?.uid() == std::fs::metadata("/proc/self")?.uid(),
         "replacement evidence file is not owned"
     );
-    Ok(cirrove_icloud::package_archive_semantic_identity(
+    Ok(cirrove_icloud::package_archive_semantic_identity_versioned(
         &file,
         receipt,
         root,
+        version,
         &CancellationToken::new(),
     )?)
 }
@@ -308,7 +323,12 @@ pub async fn icloud_public_native_replacement_preflight(run: Uuid) -> Result<()>
         &attempt.join("original.zip"),
     )
     .await?;
-    let old_semantic = semantic_file(&attempt.join("original.zip"), &receipt, &original.name)?;
+    let old_semantic = semantic_file_versioned(
+        &attempt.join("original.zip"),
+        &receipt,
+        &original.name,
+        binding.semantic.version,
+    )?;
     ensure!(
         old_semantic == binding.semantic,
         "owned original semantic content changed"
@@ -347,13 +367,14 @@ pub async fn icloud_public_native_replacement_verify(run: Uuid, operation: Uuid)
     let proof = preflight_binding(&proof, &binding, dir)?;
     owned_directory(proof.archive.parent().context("snapshot parent missing")?)?;
     ensure!(
-        semantic_file(
+        semantic_file_versioned(
             &proof.archive,
             &PackageDownload {
                 size: proof.archive_size,
                 sha256: proof.archive_sha256.clone(),
             },
-            &proof.expected_root
+            &proof.expected_root,
+            proof.new_semantic.version
         )? == proof.new_semantic,
         "edited snapshot semantic content changed"
     );
@@ -376,7 +397,12 @@ pub async fn icloud_public_native_replacement_verify(run: Uuid, operation: Uuid)
     )
     .await?;
     ensure!(
-        semantic_file(&attempt.join("current.zip"), &receipt, &current.name)? == proof.new_semantic,
+        semantic_file_versioned(
+            &attempt.join("current.zip"),
+            &receipt,
+            &current.name,
+            proof.new_semantic.version
+        )? == proof.new_semantic,
         "active replacement semantic content differs"
     );
     ensure!(

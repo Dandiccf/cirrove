@@ -136,7 +136,7 @@ fn native_replacement_list_is_scoped_typed_and_readonly_across_states() {
     let version: u32 =
         j.db.pragma_query_value(None, "user_version", |r| r.get(0))
             .unwrap();
-    assert_eq!(version, 17);
+    assert_eq!(version, JOURNAL_SCHEMA);
     drop(j);
     let db = std::fs::read(t.path().join("uploads.db")).unwrap();
     let recovery = RecoveryJournal::open(t.path(), "owned").unwrap();

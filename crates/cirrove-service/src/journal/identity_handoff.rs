@@ -147,7 +147,11 @@ impl UploadJournal {
             || (owner.unlinked && victim.is_none())
             || owner.follows_remote
             || !owner.remote_owned
-            || owner.latest != Some(id)
+            || (owner.latest != Some(id)
+                && !(native.is_some()
+                    && working::native::successors::permits_reservation(
+                        &self.db, &owner, &record,
+                    )?))
             || old.id != *item
             || old.etag.as_deref() != Some(expected_etag)
             || if native.is_some() {
@@ -190,6 +194,7 @@ impl UploadJournal {
         recovery_node.id = format!("local-recovery-{recovery_object}");
         recovery_node.name = recovery_name.clone();
         let recovery = NamespaceObject {
+            native_archive: None,
             id: recovery_object,
             scope: owner.scope.clone(),
             names: owner.names,
@@ -473,5 +478,14 @@ impl Reservation {
             && self.backup.as_ref().is_some_and(|backup| {
                 backup.id == original.id && backup.parent_id == self.trash_parent
             })
+    }
+}
+
+impl Reservation {
+    pub(super) fn unconfirmed_native(&self, before: &Node) -> Option<(Uuid, &str)> {
+        (self.old_item == before.id
+            && self.trash_parent.as_deref() == Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
+            && self.backup.is_none())
+        .then_some((self.recovery_object, self.recovery_name.as_str()))
     }
 }

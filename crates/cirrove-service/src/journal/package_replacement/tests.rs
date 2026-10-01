@@ -163,7 +163,7 @@ fn package_handoff_two_id_ack_is_atomic_and_retains_recovery_across_restart() {
     let version: u32 =
         j.db.pragma_query_value(None, "user_version", |r| r.get(0))
             .unwrap();
-    assert_eq!(version, 17);
+    assert_eq!(version, JOURNAL_SCHEMA);
 }
 #[test]
 fn package_handoff_forged_receipts_do_not_transfer_either_identity() {
@@ -512,7 +512,7 @@ fn package_handoff_schema17_fences_older_writers_and_preserves_schema16_payloads
     let version: u32 =
         j.db.pragma_query_value(None, "user_version", |r| r.get(0))
             .unwrap();
-    assert_eq!(version, 17);
+    assert_eq!(version, JOURNAL_SCHEMA);
     assert!(version > 16);
     assert_eq!(
         std::fs::read(j.objects.join(old.id.to_string())).unwrap(),
@@ -609,4 +609,306 @@ fn native_selection_after_completed_namespace_handoff_refuses_pending_successor(
             .is_err()
     );
     assert_eq!(j.list(0, 100).unwrap().len(), 2);
+}
+
+fn abandon_conflict(j: &mut UploadJournal, t: &tempfile::TempDir) -> UploadRecord {
+    let row = enqueue(j, t);
+    let attempt = j.claim_next().unwrap().unwrap().attempt.unwrap();
+    j.reserve_identity_handoff(row.id, attempt, location())
+        .unwrap();
+    j.record_session(row.id, attempt, row.id, row.size).unwrap();
+    j.stop_attempt(row.id, attempt, UploadState::Conflict)
+        .unwrap();
+    j.get(row.id).unwrap()
+}
+fn abandon_evidence(row: &UploadRecord) -> cirrove_icloud::NativeReplacementAbandonEvidence {
+    let mut staged = before();
+    staged.id = "FILE::com.apple.CloudDocs::staged".into();
+    staged.name = format!("staged-by-cirrove-{}.pages", row.id);
+    staged.etag = Some("stage-v1".into());
+    cirrove_icloud::NativeReplacementAbandonEvidence::synthetic_for_test(
+        cirrove_icloud::NativeReplacementAbandonRecord {
+            version: 1,
+            operation: row.id,
+            request: cirrove_core::upload::UploadRequest {
+                scope: row.scope.clone(),
+                intent: row.intent.clone(),
+                representation: row.representation.clone(),
+                size: row.size,
+                sha256: row.sha256.clone(),
+            },
+            original: before(),
+            staged,
+            checkpoint_sha256: "a".repeat(64),
+            observed_unix: 1,
+        },
+    )
+    .unwrap()
+}
+#[test]
+fn native_stage_abandonment_retains_export_and_identity_history_then_allows_fresh_operation() {
+    let root = temp();
+    let staging = temp();
+    let mut j = UploadJournal::open(root.path(), &scope().account, 1024 * 1024).unwrap();
+    let row = abandon_conflict(&mut j, &staging);
+    let before_bytes = std::fs::read(j.objects.join(row.id.to_string())).unwrap();
+    let recovery_id = row
+        .identity_handoff
+        .as_ref()
+        .unwrap()
+        .unconfirmed_native(&before())
+        .unwrap()
+        .0;
+    let recovery_before = serde_json::to_value(j.namespace_object(recovery_id).unwrap()).unwrap();
+    let prep = j.prepare_native_stage_abandonment(row.id).unwrap();
+    let receipt = j
+        .abandon_native_stage(prep, abandon_evidence(&row), &CancellationToken::new())
+        .unwrap();
+    assert_eq!(receipt.operation, row.id);
+    let after = j.get(row.id).unwrap();
+    assert_eq!(after.state, UploadState::Resolved);
+    assert_eq!(after.session_key, row.session_key);
+    assert!(after.remote.is_none() && after.package_completion.is_none());
+    assert_eq!(
+        serde_json::to_value(&after.identity_handoff).unwrap(),
+        serde_json::to_value(&row.identity_handoff).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(j.namespace_object(recovery_id).unwrap()).unwrap(),
+        recovery_before
+    );
+    assert_eq!(
+        std::fs::read(j.objects.join(row.id.to_string())).unwrap(),
+        before_bytes
+    );
+    assert!(j.request_retry(row.id).is_err());
+    assert!(j.claim_next().unwrap().is_none());
+    assert!(j.claim_next_verification().unwrap().is_none());
+    assert!(j.prepare_native_stage_abandonment(row.id).is_err());
+    let owner = j.namespace_for_operation(row.id).unwrap().unwrap();
+    assert!(owner.follows_remote && owner.remote_owned && owner.latest.is_none());
+    assert_eq!(owner.remote, Some(before()));
+    drop(j);
+    let ro = RecoveryJournal::open(root.path(), &scope().account).unwrap();
+    let retained = ro.native_stage_abandonment(row.id).unwrap().unwrap();
+    assert_eq!(retained.staged, receipt.staged);
+    let destination = staging.path().join("abandoned-save.zip");
+    let exported = ro
+        .local_export_source(row.id)
+        .unwrap()
+        .copy_to(&destination, &CancellationToken::new(), |_| {})
+        .unwrap();
+    assert_eq!(exported.sha256, row.sha256);
+    assert_eq!(std::fs::read(destination).unwrap(), before_bytes);
+    drop(ro);
+    let mut j = UploadJournal::open(root.path(), &scope().account, 1024 * 1024).unwrap();
+    let fresh = enqueue(&mut j, &staging);
+    assert_ne!(fresh.id, row.id);
+    assert_eq!(j.claim_next().unwrap().unwrap().id, fresh.id);
+    assert_eq!(j.get(row.id).unwrap().state, UploadState::Resolved);
+}
+#[test]
+fn native_stage_abandonment_rechecks_local_snapshot_and_all_dependency_frontiers() {
+    for fault in [
+        "row",
+        "owner",
+        "recovery",
+        "successor",
+        "prerequisite",
+        "destination",
+        "working",
+        "native-working",
+        "resource",
+        "native-binding",
+        "replacement",
+        "publication",
+    ] {
+        let root = temp();
+        let staging = temp();
+        let mut j = UploadJournal::open(root.path(), &scope().account, 1024 * 1024).unwrap();
+        let row = abandon_conflict(&mut j, &staging);
+        let prep = j.prepare_native_stage_abandonment(row.id).unwrap();
+        let owner = j.namespace_for_operation(row.id).unwrap().unwrap();
+        let recovery = row
+            .identity_handoff
+            .as_ref()
+            .unwrap()
+            .unconfirmed_native(&before())
+            .unwrap()
+            .0;
+        let other = Uuid::new_v4().to_string();
+        match fault {
+            "row" => {
+                j.db.execute(
+                    "UPDATE uploads SET body=json_set(body,'$.failed_attempts',99) WHERE id=?1",
+                    [row.id.to_string()],
+                )
+                .unwrap();
+            }
+            "owner" => {
+                j.db.execute(
+                    "UPDATE namespace_objects SET body=json_set(body,'$.revision',99) WHERE id=?1",
+                    [owner.id.to_string()],
+                )
+                .unwrap();
+            }
+            "recovery" => {
+                j.db.execute(
+                    "UPDATE namespace_objects SET body=json_set(body,'$.revision',99) WHERE id=?1",
+                    [recovery.to_string()],
+                )
+                .unwrap();
+            }
+            "successor" => {
+                j.db.execute(
+                    "INSERT INTO write_successors VALUES(?1,?2)",
+                    params![row.id.to_string(), other],
+                )
+                .unwrap();
+            }
+            "prerequisite" => {
+                j.db.execute(
+                    "INSERT INTO write_prerequisites VALUES(?1,?2)",
+                    params![other, row.id.to_string()],
+                )
+                .unwrap();
+            }
+            "destination" => {
+                j.db.execute("INSERT INTO write_destinations(operation,parent,predecessor,resolved) VALUES(?1,'owned',?2,0)",params![other,row.id.to_string()]).unwrap();
+            }
+            "working" => {
+                j.db.execute(
+                    "INSERT INTO working_files VALUES(?1,?1,?1,?2)",
+                    params![other, serde_json::json!({"latest":row.id}).to_string()],
+                )
+                .unwrap();
+            }
+            "native-binding" => {
+                j.db.execute(
+                    "INSERT INTO native_working_bindings VALUES(?1,?2,'{}')",
+                    params![
+                        other,
+                        serde_json::to_string(&(&row.scope, &before().id)).unwrap()
+                    ],
+                )
+                .unwrap();
+            }
+            "replacement" => {
+                j.db.execute(
+                    "INSERT INTO file_replacements VALUES(?1,?2,?3,?4,'{}')",
+                    params![
+                        Uuid::new_v4().to_string(),
+                        owner.id.to_string(),
+                        recovery.to_string(),
+                        other
+                    ],
+                )
+                .unwrap();
+            }
+            "publication" => {
+                j.db.execute(
+                    "INSERT INTO package_metadata_publication(operation) VALUES(?1)",
+                    [row.id.to_string()],
+                )
+                .unwrap();
+            }
+            "native-working" => {
+                j.db.execute(
+                    "INSERT INTO native_working_operations VALUES(?1,?2,?3)",
+                    params![row.id.to_string(), other, owner.id.to_string()],
+                )
+                .unwrap();
+            }
+            _ => {
+                j.db.execute(
+                    "INSERT INTO write_queue(id,complete) VALUES(?1,0)",
+                    [&other],
+                )
+                .unwrap();
+                j.db.execute("INSERT INTO write_resources SELECT ?1,resource FROM write_resources WHERE id=?2",params![other,row.id.to_string()]).unwrap();
+            }
+        }
+        assert!(
+            j.abandon_native_stage(prep, abandon_evidence(&row), &CancellationToken::new())
+                .is_err(),
+            "{fault}"
+        );
+        assert_eq!(j.get(row.id).unwrap().state, UploadState::Conflict);
+        assert_eq!(
+            j.db.query_row(
+                "SELECT count(*) FROM native_replacement_abandonments",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert!(j.local_export_source(row.id).is_ok());
+    }
+}
+#[test]
+fn native_stage_abandonment_wrong_evidence_and_commit_failure_leave_reservation_intact() {
+    let root = temp();
+    let staging = temp();
+    let mut j = UploadJournal::open(root.path(), &scope().account, 1024 * 1024).unwrap();
+    let row = abandon_conflict(&mut j, &staging);
+    for fault in ["account", "operation", "payload", "revision"] {
+        let prep = j.prepare_native_stage_abandonment(row.id).unwrap();
+        let mut record = abandon_evidence(&row).record().clone();
+        match fault {
+            "account" => record.request.scope.account = "different".into(),
+            "operation" => {
+                record.operation = Uuid::new_v4();
+                record.staged.name = format!("staged-by-cirrove-{}.pages", record.operation);
+            }
+            "payload" => record.request.sha256 = "b".repeat(64),
+            _ => {
+                record.original.etag = Some("changed".into());
+                if let UploadIntent::Replace { expected_etag, .. } = &mut record.request.intent {
+                    *expected_etag = "changed".into()
+                };
+                if let UploadRepresentation::PackageReplacementArchive { original, .. } =
+                    &mut record.request.representation
+                {
+                    original.etag = Some("changed".into())
+                };
+            }
+        }
+        let evidence =
+            cirrove_icloud::NativeReplacementAbandonEvidence::synthetic_for_test(record).unwrap();
+        assert!(
+            j.abandon_native_stage(prep, evidence, &CancellationToken::new())
+                .is_err(),
+            "{fault}"
+        );
+    }
+    let cancel = CancellationToken::new();
+    cancel.cancel();
+    let prep = j.prepare_native_stage_abandonment(row.id).unwrap();
+    assert!(
+        j.abandon_native_stage(prep, abandon_evidence(&row), &cancel)
+            .is_err()
+    );
+    let owner_before = serde_json::to_value(j.namespace_for_operation(row.id).unwrap()).unwrap();
+    j.db.execute_batch("CREATE TEMP TRIGGER fail_native_abandon BEFORE UPDATE ON write_queue BEGIN SELECT RAISE(ABORT,'injected'); END;").unwrap();
+    let prep = j.prepare_native_stage_abandonment(row.id).unwrap();
+    assert!(
+        j.abandon_native_stage(prep, abandon_evidence(&row), &CancellationToken::new())
+            .is_err()
+    );
+    assert_eq!(j.get(row.id).unwrap().state, UploadState::Conflict);
+    assert_eq!(
+        serde_json::to_value(j.namespace_for_operation(row.id).unwrap()).unwrap(),
+        owner_before
+    );
+    assert!(j.native_stage_abandonment(row.id).unwrap().is_none());
+    // A bare resolved flag must not grant the narrow abandoned-native export.
+    j.db.execute_batch("DROP TRIGGER fail_native_abandon;")
+        .unwrap();
+    j.db.execute(
+        "UPDATE uploads SET state='resolved',body=json_set(body,'$.state','resolved') WHERE id=?1",
+        [row.id.to_string()],
+    )
+    .unwrap();
+    assert!(j.local_export_source(row.id).is_err());
 }

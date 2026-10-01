@@ -136,13 +136,14 @@ impl Fixture {
         let packages = drive.packages.as_ref().unwrap();
         let file = packages.stage_file().await.unwrap();
         file.write_all_at(&bytes, 0).unwrap();
-        let semantic = crate::package_archive_semantic_identity(
+        let semantic = crate::package_archive_semantic_identity_versioned(
             &file,
             &crate::PackageDownload {
                 size: archive.size,
                 sha256: raw_hash.clone(),
             },
             &archive.name,
+            2,
             &CancellationToken::new(),
         )
         .unwrap();
@@ -181,6 +182,7 @@ async fn exact_cached_archive_resolves_source_and_semantics_without_duplicate_do
         assert_eq!(binding.scope, f.scope);
         assert_eq!(binding.archive, f.archive);
         assert_eq!(binding.semantic, f.semantic);
+        assert_eq!(binding.semantic.version, 2);
         assert_eq!(binding.source.id, SOURCE);
         assert_eq!(binding.source.parent_id.as_deref(), Some(ROOT_ID));
         assert_eq!(binding.source.etag.as_deref(), Some("v1"));

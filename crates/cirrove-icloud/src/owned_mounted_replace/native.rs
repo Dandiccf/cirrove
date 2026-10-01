@@ -918,13 +918,20 @@ impl ICloudFileReplace {
         };
         let source_check = source.try_clone().map_err(|_| UploadError::Invalid)?;
         let root = expected_root.clone();
+        let version = semantic.version;
         let source_receipt = crate::PackageDownload {
             size: request.size,
             sha256: request.sha256.clone(),
         };
         let token = cancel.clone();
         let actual = tokio::task::spawn_blocking(move || {
-            crate::package_archive_semantic_identity(&source_check, &source_receipt, &root, &token)
+            crate::package_archive_semantic_identity_versioned(
+                &source_check,
+                &source_receipt,
+                &root,
+                version,
+                &token,
+            )
         })
         .await
         .map_err(|_| UploadError::Uncertain)??;
@@ -1048,3 +1055,5 @@ mod diagnostic_tests {
         );
     }
 }
+
+pub(super) mod abandon;

@@ -617,9 +617,49 @@ while `cirroved` holds the state.
 This is written down because it happened: a `pin` invocation aimed at
 demonstrating an error message was run without `--state-dir`, migrated a live
 account's index on the way to failing, and left the installed daemon unable to
-read it. Recovery is `PRAGMA user_version=<previous>` on that database — the
-migration only adds empty tables, and `CREATE TABLE IF NOT EXISTS` makes the real
-migration idempotent afterwards — followed by a service restart.
+read it. That historical metadata-index incident involved only added empty tables;
+it is not a general downgrade procedure. In particular, never lower a journal's
+`user_version` to make an older writer accept new persisted semantics. The native
+working schema policy below requires a compatible recovery reader instead.
 
 Upgrading properly is: install the new binaries first, then restart the service,
 then use the new commands.
+
+
+### Native working journal schema18: held prerelease policy
+
+Schema18 is a prepared native-working prerequisite, not permission to upgrade
+installed accounts. Until its recovery, successor and application acceptance is
+complete, validation must use explicitly isolated state, sockets, mounts and
+binaries. Do not open the user's current journal with a schema18 writer, restart
+the installed service or change package/developer installation state for these tests.
+
+Every writable journal opened by that build migrates, including ordinary-only
+accounts with no native documents. The fence protects native working bytes from
+older code that could interpret them as ordinary uploads. Schema17 binaries must
+refuse schema18 rather than ignore the marker or lower the version. A table being
+additive does not make the writer downgrade safe.
+
+Before any later authorized deployment, identify the actual installed version,
+state ownership and any active measurement; inventory retained uploads and dirty
+working generations using compatible read-only recovery. Export needed sealed
+and working bytes to an explicitly chosen independent local filesystem, checking
+operation/generation, length and digest. Keep the export receipts. A coherent
+backup of state requires coordinated ownership and consistent database/WAL and
+spool files; copying a live database file alone is not a validated backup.
+
+Exports and backups preserve selected local data, not cloud history or mutation
+rollback. They cannot reverse a completed two-ID replacement, recreate sharing
+links, undo deletion, or establish that an uncertain request never reached Apple.
+Do not restore an old pending queue and let an older daemon replay it. If an
+upgrade must be rolled back, retain the newer state and use a compatible
+read-only recovery reader first; decide any account reconnection or state
+restoration from its actual provider and journal outcomes. There is no blanket
+version-reset or database-copy downgrade recipe.
+
+Native recovery must remain byte-based when the binding is missing/corrupt or the
+latest archive is incomplete. Read-only export must not parse ZIP, reconstruct
+upload authority, migrate, auto-seal, retry or contact Apple. Validate saved and
+dirty generations independently, including uncertain predecessor and queued
+successor states, without changing the journal. Ordinary schema17 records must
+remain readable after the migration. Keep these gates explicit before deployment.

@@ -102,6 +102,9 @@ struct State {
     trash_calls: usize,
     rename_calls: usize,
     requests: usize,
+    archive_calls: usize,
+    change_after_stage_lookup: bool,
+    wrong_stage_identity: bool,
 }
 struct Server {
     state: Arc<Mutex<State>>,
@@ -175,9 +178,10 @@ impl Server {
                     "/ws/com.apple.CloudDocs/upload/web"=>{let r:Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],source.len());s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":"new","owner_id":""}]).to_string().into_bytes())},
                     "/signed-upload"=>{assert_eq!(body,source);s.body_calls+=1;assert_eq!(s.body_calls,1);Some(json!({"hexBrSyntheticChecksum":"aa","ckSectionAssets":[{"hexFileChecksum":"bb","hexReferenceChecksum":"cc","hexWrappingKey":"dd","receiptToken":"YQ==","size":source.len()}]}).to_string().into_bytes())},
                     "/ws/com.apple.CloudDocs/update/documents"=>{let r:Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["command"],"add_package");assert_eq!(r["document_id"],"new");assert_eq!(r["path"]["path"],plan.staged_name);assert_eq!(r["path"]["starting_document_id"],"owned");assert_eq!(r["allow_conflict"],false);assert_eq!(s.body_calls,1);s.registrations+=1;assert_eq!(s.registrations,1);s.registered=true;if lost_registration{None}else{Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":"new","item_id":"new-item","etag":"new-v1","size":17,"name":plan.staged_name}}]}).to_string().into_bytes())}},
-                    "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==OLD;assert!(old||request["items"][0]["drivewsid"]==NEW);Some(json!({"items":if old&&s.deleted{vec![]}else{vec![entry(&plan,&s,old)]}}).to_string().into_bytes())},
+                    "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==OLD;assert!(old||request["items"][0]["drivewsid"]==NEW);let mut observed_entry=entry(&plan,&s,old);if !old&&s.wrong_stage_identity {observed_entry["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");}
+                    if !old&&s.change_after_stage_lookup{s.changed=true;}Some(json!({"items":if old&&s.deleted{vec![]}else{vec![observed_entry]}}).to_string().into_bytes())},
                     "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id=="old"||id=="new");Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},
-                    "/archive/old"|"/archive/new"=>{let old=url.path().ends_with("old");let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};Some(archive(name,old,s.corrupt))},
+                    "/archive/old"|"/archive/new"=>{s.archive_calls+=1;let old=url.path().ends_with("old");let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};Some(archive(name,old,s.corrupt))},
                     "/moveItemsToTrash"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],OLD);assert_eq!(request["items"][0]["etag"],"old-v1");s.trash_calls+=1;assert_eq!(s.trash_calls,1);assert!(!s.changed&&!s.moved&&!s.deleted);s.trashed=true;if lost_trash{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
                     "/renameItems"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],NEW);assert_eq!(request["items"][0]["etag"],"new-v1");assert_eq!(request["items"][0]["name"],"Target.pages");s.rename_calls+=1;assert_eq!(s.rename_calls,1);assert!(s.trashed);s.installed=true;if lost_rename{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
                     _=>panic!("unexpected synthetic native handoff route"),
@@ -635,4 +639,257 @@ async fn complete_envelope_and_header_limits_fail_without_dispatch() {
         Err(UploadError::CheckpointInvalid)
     ));
     assert_eq!(server.state.lock().unwrap().requests, 0);
+}
+
+#[tokio::test]
+async fn native_stage_abandonment_proof_is_exact_and_only_reads_metadata() {
+    tokio::time::timeout(Duration::from_secs(30), async {
+        let operation = Uuid::new_v4();
+        let mut p = plan();
+        p.staged_name = format!("staged-by-cirrove-{operation}.pages");
+        p.recovery_name = format!("recovery-by-cirrove-{operation}.pages");
+        let source = archive("Source.pages", false, false);
+        let dir = directory();
+        let r = request(
+            Scope {
+                account: Uuid::new_v4().to_string(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            },
+            &source,
+        );
+        let server = Server::start(p, source.clone(), false, false, false).await;
+        let owner = coordinator(&server, dir.path(), r.clone(), operation);
+        let op = operation.to_string();
+        let cancel = CancellationToken::new();
+        let UploadStep::Allocate(armed) = owner
+            .begin_upload_for_operation(&op, &r, &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("allocate")
+        };
+        let UploadStep::Stream(body) = owner
+            .allocate_upload_for_operation(&op, &r, &armed, &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("stream")
+        };
+        let mut file = tempfile::tempfile().unwrap();
+        file.write_all(&source).unwrap();
+        let registration = take_commit(
+            owner
+                .upload_stream_for_operation(&op, &r, &body, file, &cancel)
+                .await
+                .unwrap(),
+        );
+        let handoff = take_commit(
+            owner
+                .commit_upload_for_operation(&op, &r, &registration, &cancel)
+                .await
+                .unwrap(),
+        );
+        #[cfg(feature = "test-support")]
+        {
+            let keys = Arc::new(AbandonKeys::default());
+            let vault = crate::SealedUploadCheckpointVault::with_test_key_vault(
+                dir.path(),
+                &r.scope.account,
+                keys.clone(),
+            )
+            .unwrap();
+            let key = format!("upload/{operation}");
+            vault.save(&key, registration.clone()).await.unwrap();
+            let proof = owner
+                .inspect_native_stage_abandonment(&op, &r, &vault, &cancel)
+                .await
+                .unwrap();
+            assert_eq!(proof.record().operation, operation);
+            vault.save(&key, handoff.clone()).await.unwrap();
+            let checkpoint_path = dir
+                .path()
+                .join("accounts")
+                .join(&r.scope.account)
+                .join("upload-checkpoints")
+                .join(&op)
+                .join("checkpoint.sealed");
+            let later = std::fs::read(&checkpoint_path).unwrap();
+            let requests_before = server.state.lock().unwrap().requests;
+            assert!(
+                owner
+                    .inspect_native_stage_abandonment(&op, &r, &vault, &cancel)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                server.state.lock().unwrap().requests,
+                requests_before,
+                "current Handoff must refuse before provider access"
+            );
+            vault.save(&key, registration.clone()).await.unwrap();
+            *keys.replace_on_load.lock().unwrap() = Some((2, checkpoint_path, later));
+            assert!(
+                owner
+                    .inspect_native_stage_abandonment(&op, &r, &vault, &cancel)
+                    .await
+                    .is_err(),
+                "checkpoint changed after observation"
+            );
+            assert!(keys.replace_on_load.lock().unwrap().is_none());
+            let foreign = crate::SealedUploadCheckpointVault::with_test_key_vault(
+                dir.path(),
+                &Uuid::new_v4().to_string(),
+                keys,
+            )
+            .unwrap();
+            assert!(
+                owner
+                    .inspect_native_stage_abandonment(&op, &r, &foreign, &cancel)
+                    .await
+                    .is_err()
+            );
+        }
+        let counts_before = counts(&server);
+        let archives_before = server.state.lock().unwrap().archive_calls;
+        let proof = owner
+            .inspect_native_stage_abandonment_checkpoint(&op, &r, &registration, &cancel)
+            .await
+            .unwrap();
+        assert_eq!(proof.record().operation, operation);
+        assert!(proof.record().request == r);
+        assert_eq!(proof.record().original.id, OLD);
+        assert_eq!(proof.record().staged.id, NEW);
+        assert!(proof.is_fresh());
+        assert_eq!(
+            proof.record().checkpoint_sha256,
+            hex::encode(Sha256::digest(registration.expose_secret().as_bytes()))
+        );
+        let requests_before = server.state.lock().unwrap().requests;
+        for checkpoint in [&armed, &body, &handoff] {
+            assert!(
+                owner
+                    .inspect_native_stage_abandonment_checkpoint(&op, &r, checkpoint, &cancel)
+                    .await
+                    .is_err()
+            );
+        }
+        let mut wrong_request = r.clone();
+        wrong_request.scope.account = Uuid::new_v4().to_string();
+        assert!(
+            owner
+                .inspect_native_stage_abandonment_checkpoint(
+                    &op,
+                    &wrong_request,
+                    &registration,
+                    &cancel
+                )
+                .await
+                .is_err()
+        );
+        assert!(
+            owner
+                .inspect_native_stage_abandonment_checkpoint(
+                    &Uuid::new_v4().to_string(),
+                    &r,
+                    &registration,
+                    &cancel
+                )
+                .await
+                .is_err()
+        );
+        let cancelled = CancellationToken::new();
+        cancelled.cancel();
+        assert!(
+            owner
+                .inspect_native_stage_abandonment_checkpoint(&op, &r, &registration, &cancelled)
+                .await
+                .is_err()
+        );
+        assert_eq!(server.state.lock().unwrap().requests, requests_before);
+        for fault in [
+            "revision",
+            "moved",
+            "deleted",
+            "trashed",
+            "stage-identity",
+            "during-read",
+        ] {
+            {
+                let mut s = server.state.lock().unwrap();
+                match fault {
+                    "revision" => s.changed = true,
+                    "moved" => s.moved = true,
+                    "deleted" => s.deleted = true,
+                    "trashed" => s.trashed = true,
+                    "stage-identity" => s.wrong_stage_identity = true,
+                    _ => s.change_after_stage_lookup = true,
+                }
+            }
+            assert!(
+                owner
+                    .inspect_native_stage_abandonment_checkpoint(&op, &r, &registration, &cancel)
+                    .await
+                    .is_err(),
+                "{fault}"
+            );
+            {
+                let mut s = server.state.lock().unwrap();
+                s.changed = false;
+                s.moved = false;
+                s.deleted = false;
+                s.trashed = false;
+                s.wrong_stage_identity = false;
+                s.change_after_stage_lookup = false;
+            }
+        }
+        assert_eq!(
+            counts(&server),
+            counts_before,
+            "inspection cannot mutate provider state"
+        );
+        assert_eq!(
+            server.state.lock().unwrap().archive_calls,
+            archives_before,
+            "inspection never downloads content"
+        );
+    })
+    .await
+    .unwrap();
+}
+
+#[cfg(feature = "test-support")]
+#[derive(Default)]
+struct AbandonKeys {
+    keys: Mutex<std::collections::HashMap<String, SecretString>>,
+    replace_on_load: Mutex<Option<(usize, std::path::PathBuf, Vec<u8>)>>,
+}
+#[cfg(feature = "test-support")]
+#[async_trait::async_trait]
+impl cirrove_auth::CredentialVault for AbandonKeys {
+    async fn load(&self, key: &str) -> anyhow::Result<Option<SecretString>> {
+        let replacement = {
+            let mut hook = self.replace_on_load.lock().unwrap();
+            if let Some((remaining, ..)) = hook.as_mut() {
+                *remaining -= 1;
+            }
+            if hook.as_ref().is_some_and(|(remaining, ..)| *remaining == 0) {
+                hook.take()
+            } else {
+                None
+            }
+        };
+        if let Some((_, path, bytes)) = replacement {
+            std::fs::write(path, bytes)?;
+        }
+        Ok(self.keys.lock().unwrap().get(key).cloned())
+    }
+    async fn save(&self, key: &str, value: SecretString) -> anyhow::Result<()> {
+        self.keys.lock().unwrap().insert(key.to_owned(), value);
+        Ok(())
+    }
+    async fn remove(&self, key: &str) -> anyhow::Result<()> {
+        self.keys.lock().unwrap().remove(key);
+        Ok(())
+    }
 }

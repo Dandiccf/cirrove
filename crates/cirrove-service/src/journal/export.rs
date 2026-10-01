@@ -26,7 +26,7 @@ pub struct LocalExportReceipt {
 impl UploadJournal {
     pub fn local_export_source(&self, id: Uuid) -> Result<LocalExportSource> {
         let record = self.get(id)?;
-        if !matches!(
+        if !(matches!(
             record.state,
             UploadState::Pending
                 | UploadState::Uploading
@@ -34,7 +34,8 @@ impl UploadJournal {
                 | UploadState::Verifying
                 | UploadState::Conflict
                 | UploadState::Failed
-        ) || record.scope.account != self.account
+        ) || super::native_abandon::exportable(&self.db, &record)?)
+            || record.scope.account != self.account
             || record.sha256.len() != 64
             || !record.sha256.bytes().all(|b| b.is_ascii_hexdigit())
         {
@@ -413,5 +414,14 @@ impl RecoveryJournal {
         limit: u32,
     ) -> Result<NativeReplacementListing> {
         self.journal.native_replacement_list(scope, after, limit)
+    }
+}
+
+impl RecoveryJournal {
+    pub fn native_stage_abandonment(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<cirrove_icloud::NativeReplacementAbandonRecord>> {
+        self.journal.native_stage_abandonment(id)
     }
 }

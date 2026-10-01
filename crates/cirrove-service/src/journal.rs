@@ -18,11 +18,13 @@ mod handoff;
 mod identity_handoff;
 mod mutations;
 mod namespace;
+mod native_abandon;
 mod native_replacement_list;
 mod native_trash_publication;
 mod owner;
 mod package_publication;
 mod package_replacement;
+pub use native_abandon::NativeAbandonPreparation;
 pub use native_replacement_list::{
     NativeReplacementIdentity, NativeReplacementListing, NativeReplacementSelection,
 };
@@ -40,12 +42,13 @@ pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
 use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use cirrove_core::{Node, NodeKind, Scope};
-const JOURNAL_SCHEMA: u32 = 17;
+pub(crate) const JOURNAL_SCHEMA: u32 = 18;
 pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;
 pub use namespace::{
-    NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, project_namespace,
+    NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, NativeArchiveRole,
+    project_namespace,
 };
 use owner::JournalOwner;
 pub use preparation::UploadPreparation;
@@ -63,7 +66,10 @@ use std::{
 };
 pub use unlinked::UnlinkedFile;
 use uuid::Uuid;
-pub use working::{WorkingFile, WorkingSource};
+pub use working::{
+    CapturedNativeWorking, NativeWorkingCapture, NativeWorkingHydration, ValidatedNativeWorking,
+    WorkingFile, WorkingSource,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum JournalError {
@@ -273,6 +279,7 @@ impl std::fmt::Debug for UploadRecord {
 
 enum GenerationCommit {
     Working(working::WorkingCommit),
+    Native(Box<working::native::NativeCommit>),
     Replacement(Box<replacements::ReplacementCommit>),
     Rescue(Box<rescue::RescueCommit>),
 }
@@ -280,6 +287,7 @@ impl GenerationCommit {
     fn working_id(&self) -> Option<Uuid> {
         match self {
             Self::Working(w) => Some(w.id),
+            Self::Native(_) => None,
             Self::Replacement(r) => r.working_id(),
             Self::Rescue(r) => r.working_id(),
         }
@@ -375,6 +383,8 @@ impl UploadJournal {
         package_publication::migrate(&mut db)?;
         native_trash_publication::migrate(&mut db)?;
         native_replacement_list::migrate(&db)?;
+        working::native::migrate(&mut db)?;
+        native_abandon::migrate(&db)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -495,7 +505,20 @@ impl UploadJournal {
         order: WriteOrder,
         working: Option<GenerationCommit>,
         admission: representation::Admission,
+        bytes: impl Read,
+    ) -> Result<UploadRecord> {
+        self.enqueue_admitted_source(scope, intent, order, working, admission, bytes, None)
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn enqueue_admitted_source(
+        &mut self,
+        scope: Scope,
+        intent: UploadIntent,
+        order: WriteOrder,
+        working: Option<GenerationCommit>,
+        admission: representation::Admission,
         mut bytes: impl Read,
+        prepared: Option<working::native::PreparedNativeObject>,
     ) -> Result<UploadRecord> {
         let representation::Admission {
             representation,
@@ -505,7 +528,12 @@ impl UploadJournal {
             .validate()
             .map_err(|_| JournalError::Intent)?;
         if !representation.is_file_bytes() {
-            if working.is_some() || order.base.is_some() || !order.prerequisites.is_empty() {
+            let native_generation = matches!(&working, Some(GenerationCommit::Native(_)))
+                && package_replacement::original(&representation).is_some();
+            if (working.is_some() && !native_generation)
+                || (order.base.is_some() && !native_generation)
+                || !order.prerequisites.is_empty()
+            {
                 return Err(JournalError::Intent);
             }
             if package_replacement::original(&representation).is_some() {
@@ -530,42 +558,57 @@ impl UploadJournal {
         }
         barriers::validate(&self.db, &scope, &order.prerequisites)?;
         let (retained, files) = self.retained_usage()?;
-        if files >= 10_000 {
-            return Err(JournalError::Quota);
-        }
-        let available = self.quota.saturating_sub(retained);
-        let mut temporary = tempfile::NamedTempFile::new_in(&self.objects)?;
-        let mut size = 0u64;
-        let mut hash = Sha256::new();
-        let mut buffer = [0u8; 128 * 1024];
-        loop {
-            if receipt.as_ref().is_some_and(|r| r.cancel.is_cancelled()) {
-                return Err(JournalError::Stale);
-            }
-            let count = bytes.read(&mut buffer)?;
-            if count == 0 {
-                break;
-            }
-            size = size.checked_add(count as u64).ok_or(JournalError::Quota)?;
-            if size > available || (!representation.is_file_bytes() && size > 64 * 1024 * 1024) {
+        let (temporary, size, sha256) = if let Some(prepared) = prepared {
+            if !matches!(&working, Some(GenerationCommit::Native(_)))
+                || package_replacement::original(&representation).is_none()
+                || retained > self.quota
+                || files > 10_000
+            {
                 return Err(JournalError::Quota);
             }
-            temporary.write_all(&buffer[..count])?;
-            hash.update(&buffer[..count]);
-        }
-        let sha256 = hex::encode(hash.finalize());
-        if let Some(expected) = &receipt {
-            if expected.cancel.is_cancelled() {
-                return Err(JournalError::Stale);
+            let expected = receipt.as_ref().ok_or(JournalError::Intent)?;
+            let temporary = prepared.adopt(self, expected)?;
+            (temporary, expected.size, expected.sha256.clone())
+        } else {
+            if files >= 10_000 {
+                return Err(JournalError::Quota);
             }
-            if size != expected.size || sha256 != expected.sha256 {
-                return Err(JournalError::Corrupt);
+            let available = self.quota.saturating_sub(retained);
+            let mut temporary = tempfile::NamedTempFile::new_in(&self.objects)?;
+            let mut size = 0u64;
+            let mut hash = Sha256::new();
+            let mut buffer = [0u8; 128 * 1024];
+            loop {
+                if receipt.as_ref().is_some_and(|r| r.cancel.is_cancelled()) {
+                    return Err(JournalError::Stale);
+                }
+                let count = bytes.read(&mut buffer)?;
+                if count == 0 {
+                    break;
+                }
+                size = size.checked_add(count as u64).ok_or(JournalError::Quota)?;
+                if size > available || (!representation.is_file_bytes() && size > 64 * 1024 * 1024)
+                {
+                    return Err(JournalError::Quota);
+                }
+                temporary.write_all(&buffer[..count])?;
+                hash.update(&buffer[..count]);
             }
-        }
-        temporary
-            .as_file()
-            .set_permissions(std::fs::Permissions::from_mode(0o400))?;
-        temporary.as_file().sync_all()?;
+            let sha256 = hex::encode(hash.finalize());
+            if let Some(expected) = &receipt {
+                if expected.cancel.is_cancelled() {
+                    return Err(JournalError::Stale);
+                }
+                if size != expected.size || sha256 != expected.sha256 {
+                    return Err(JournalError::Corrupt);
+                }
+            }
+            temporary
+                .as_file()
+                .set_permissions(std::fs::Permissions::from_mode(0o400))?;
+            temporary.as_file().sync_all()?;
+            (temporary, size, sha256)
+        };
         #[cfg(feature = "test-support")]
         crate::journal::durable::record("journal::enqueue_generation::1");
         let mut record = UploadRecord {
@@ -598,6 +641,9 @@ impl UploadJournal {
             .persist_noclobber(self.objects.join(record.id.to_string()))
             .map_err(|_| JournalError::Storage)?;
         File::open(&self.objects)?.sync_all()?;
+        if matches!(&working, Some(GenerationCommit::Native(_))) {
+            File::open(&self.working)?.sync_all()?;
+        }
         #[cfg(feature = "test-support")]
         crate::journal::durable::record("journal::enqueue_generation::2");
         // Failures after publication retain an orphan; never delete possibly
@@ -634,9 +680,14 @@ impl UploadJournal {
             "UPDATE uploads SET body=?2 WHERE id=?1",
             params![record.id.to_string(), serde_json::to_string(&record)?],
         )?;
-        package_replacement::attach(&tx, &record)?;
+        let native = match &working {
+            Some(GenerationCommit::Native(commit)) => Some(commit.as_ref()),
+            _ => None,
+        };
+        package_replacement::attach(&tx, &record, native)?;
         if let Some(commit) = &working {
             match commit {
+                GenerationCommit::Native(commit) => working::native::commit(&tx, commit, &record)?,
                 GenerationCommit::Working(commit) => {
                     working::commit_generation(&tx, commit, &record)?
                 }
@@ -811,6 +862,7 @@ impl UploadJournal {
         {
             if record.identity_handoff.is_some() {
                 identity_handoff::confirm(&tx, record, remote)?;
+                working::native::successors::acknowledge(&tx, record)?;
             } else if !replacements::confirm(&tx, record.id, record.sequence, remote)? {
                 namespace::confirm(&tx, record.id, record.sequence, remote)?;
             }

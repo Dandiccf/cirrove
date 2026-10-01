@@ -9,6 +9,7 @@ mod native_trash_publication;
 mod package_publication;
 mod publication;
 mod replacement;
+mod sealing;
 mod unlinked;
 use super::*;
 use crate::journal::{
@@ -29,6 +30,7 @@ pub(super) struct Writeback {
     pub wake: Arc<tokio::sync::Notify>,
     projection: Arc<Mutex<Projection>>,
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
+    sealing: sealing::Sealing,
     activity: Mutex<HashMap<EditKey, Weak<tokio::sync::RwLock<()>>>>,
     maintenance_cursor: Mutex<Option<Uuid>>,
     preserving_cursor: Mutex<u64>,
@@ -40,6 +42,7 @@ struct Projection {
     frontier: u64,
     ancestry: std::cell::OnceCell<RetainedAncestors>,
     objects: HashMap<Uuid, NamespaceObject>,
+    native_archives: HashMap<Uuid, Uuid>,
     local_identities: HashMap<EditKey, Uuid>,
     remote_bindings: HashMap<EditKey, Uuid>,
     files: HashMap<Uuid, WorkingFile>,
@@ -54,7 +57,14 @@ impl Projection {
         object: &NamespaceObject,
         working: Option<&WorkingFile>,
     ) -> Result<bool> {
-        if !object.remote_owned && !object.unlinked {
+        if working.is_some_and(|file| file.native) != object.native_archive.is_some() {
+            return Err(Errno::EIO);
+        }
+        if object.native_archive.is_some() {
+            if !working.is_some_and(|file| object.valid_native_archive_shape(file)) {
+                return Err(Errno::EIO);
+            }
+        } else if !object.remote_owned && !object.unlinked {
             return Err(Errno::EIO);
         }
         if object.follows_remote
@@ -71,6 +81,14 @@ impl Projection {
             if old.scope != object.scope
                 || old.node.id != object.node.id
                 || old.names != object.names
+                || old
+                    .native_archive
+                    .as_ref()
+                    .map(|r| (r.source_owner, r.working))
+                    != object
+                        .native_archive
+                        .as_ref()
+                        .map(|r| (r.source_owner, r.working))
             {
                 return Err(Errno::EIO);
             }
@@ -104,6 +122,17 @@ impl Projection {
     ) -> Result<bool> {
         if !self.validate_snapshot(object, working)? {
             return Ok(false);
+        }
+        if let Some(role) = &object.native_archive {
+            let owner = self.objects.get(&role.source_owner).ok_or(Errno::EIO)?;
+            if !object.valid_native_archive_owner(owner)
+                || self
+                    .native_archives
+                    .get(&role.source_owner)
+                    .is_some_and(|id| *id != object.id)
+            {
+                return Err(Errno::EIO);
+            }
         }
         if object.remote_owned
             && object.remote.as_ref().is_some_and(|remote| {
@@ -151,6 +180,9 @@ impl Projection {
         }
         if let Some(file) = working {
             self.files.insert(file.id, file);
+        }
+        if let Some(role) = &object.native_archive {
+            self.native_archives.insert(role.source_owner, object.id);
         }
         self.objects.insert(object.id, object);
     }
@@ -234,6 +266,7 @@ impl Writeback {
             wake: Arc::new(tokio::sync::Notify::new()),
             projection: Arc::new(Mutex::new(projection)),
             hydrating: Mutex::new(HashMap::new()),
+            sealing: Default::default(),
             activity: Mutex::new(HashMap::new()),
             maintenance_cursor: Mutex::new(None),
             preserving_cursor: Mutex::new(0),
@@ -927,34 +960,18 @@ impl Writeback {
         self.publish(record).await
     }
     pub async fn seal(&self, id: Uuid) -> Result<()> {
-        let record = self
-            .local(move |j| {
-                j.seal_working(id)?;
-                j.working_file(id)
-            })
-            .await?;
-        self.publish(record).await?;
-        self.wake.notify_waiters();
-        Ok(())
+        self.seal_bounded(id).await
     }
     pub async fn seal_all(&self) -> Result<()> {
-        // Continue across per-file failures so every dirty working descriptor
-        // receives fsync, even if one snapshot cannot fit in the remaining quota.
-        let failed = self
-            .local(|j| {
-                let files = j.working_files()?;
-                let mut failed = false;
-                for file in files.iter().filter(|f| f.dirty) {
-                    if j.seal_working(file.id).is_err() {
-                        failed = true;
-                    }
-                }
-                Ok(failed)
-            })
-            .await?;
-        // A clean uploaded working file may be retired after releasing the
-        // journal lock. Shutdown needs the current namespace snapshot, not a
-        // working descriptor for every file that existed before that handoff.
+        // Each native copy must release the journal lock before any large IO.
+        // Continue after one invalid archive so other dirty files remain savable.
+        let files = self.local(|j| j.working_files()).await?;
+        let mut failed = false;
+        for file in files.into_iter().filter(|f| f.dirty) {
+            if self.seal(file.id).await.is_err() {
+                failed = true;
+            }
+        }
         self.refresh_projection().await?;
         self.wake.notify_waiters();
         if failed { Err(Errno::EIO) } else { Ok(()) }
@@ -1006,6 +1023,7 @@ mod tests {
             wake: Default::default(),
             projection: Default::default(),
             hydrating: Default::default(),
+            sealing: Default::default(),
             activity: Default::default(),
             maintenance_cursor: Default::default(),
             preserving_cursor: Default::default(),
@@ -1218,3 +1236,6 @@ mod tests {
 }
 
 mod native_replace;
+
+#[cfg(test)]
+mod native_seal_tests;

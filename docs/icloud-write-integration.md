@@ -1086,3 +1086,16 @@ Apple application fidelity or installed reliability. The
 [owned live replacement arm](benchmarks/icloud-native-replacement-live-2026-10-01.md)
 is separately registered; its current source-preparation evidence is not a
 completed replacement. Full-iCloud acceptance row 486 remains unchecked.
+
+
+### Prepared native working schema18 is not a deployment milestone
+
+The journal-local native working proposal and successor design remain separate
+from the validated schema17 explicit archive workflow. No ordinary package-save
+capability follows from preparing that migration. All writable journals would
+advance, including ordinary-only accounts; validation remains isolated until
+recovery and application acceptance. See the
+[deployment and recovery policy](development.md#native-working-journal-schema18-held-prerelease-policy).
+Pre-upgrade exports preserve selected local bytes, not provider rollback, sharing
+or revision history. Missing/corrupt bindings must refuse upload while compatible
+read-only recovery still exports exact retained bytes without network or parsing.

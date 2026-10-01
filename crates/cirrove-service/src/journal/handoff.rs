@@ -48,6 +48,10 @@ impl UploadJournal {
     /// Sealed is not uploaded. Every operation attached to this object must be
     /// confirmed, and a newer dirty generation must never be discarded.
     pub fn namespace_is_clean(&self, object: &NamespaceObject) -> Result<bool> {
+        if object.native_archive.is_some() || self.db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM native_working_heads WHERE json_extract(body,'$.owner')=?1)",
+            [object.id.to_string()], |r|r.get::<_,bool>(0),
+        )? { return Ok(false); }
         if object.scope.account != self.account
             || object.follows_remote
             || object.unlinked

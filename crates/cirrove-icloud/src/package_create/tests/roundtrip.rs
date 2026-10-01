@@ -11,8 +11,13 @@ use tokio_rustls::{
 };
 const ORIGIN: &str = "https://fixture.icloud-content.com";
 const LOGICAL_SIZE: u64 = 17;
-fn archive(root: &str, changed: bool) -> Vec<u8> {
+fn archive(root: &str, changed: bool, explicit_root: bool) -> Vec<u8> {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    if explicit_root {
+        writer
+            .add_directory(format!("{root}/"), zip::write::SimpleFileOptions::default())
+            .unwrap();
+    }
     writer
         .start_file(
             format!("{root}/Document"),
@@ -139,10 +144,16 @@ impl Server {
         self.state.lock().unwrap().calls.clone()
     }
 }
-async fn arm(lose_registration: bool, changed_remote: bool) {
+async fn arm(
+    lose_registration: bool,
+    changed_remote: bool,
+    version: u32,
+    remote_directories: bool,
+) {
+    let expected_conflict = changed_remote || (version == 1 && remote_directories);
     let (_dir, provider, mut request, saved) = fixture();
-    let source = archive("Source.pages", false);
-    let remote = archive("Target.pages", changed_remote);
+    let source = archive("Source.pages", false, false);
+    let remote = archive("Target.pages", changed_remote, remote_directories);
     assert_ne!(source, remote);
     assert_ne!(source.len() as u64, LOGICAL_SIZE);
     let server = Server::start(source.clone(), remote, lose_registration).await;
@@ -160,13 +171,14 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
     request.size = source.len() as u64;
     request.sha256 = hex::encode(Sha256::digest(&source));
     let cancel = CancellationToken::new();
-    let semantic = crate::package_archive_semantic_identity(
+    let semantic = crate::package_archive_semantic_identity_versioned(
         &file,
         &crate::PackageDownload {
             size: request.size,
             sha256: request.sha256.clone(),
         },
         "Source.pages",
+        version,
         &cancel,
     )
     .unwrap();
@@ -201,7 +213,7 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
     let result = provider
         .commit_upload_for_operation(&saved.operation, &request, &registration, &cancel)
         .await;
-    let receipt = if changed_remote {
+    let receipt = if expected_conflict {
         assert!(matches!(result, Err(UploadError::Conflict)));
         None
     } else if lose_registration {
@@ -280,7 +292,7 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
             .unwrap();
         assert_eq!(
             diagnostic["fence"],
-            if changed_remote {
+            if expected_conflict {
                 "archive-semantic-equality"
             } else {
                 "verified"
@@ -290,7 +302,7 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
             diagnostic["archive_comparison"]["exact_file_paths_sizes_hashes_equal"],
             !changed_remote
         );
-        assert_eq!(verified.is_some(), !changed_remote);
+        assert_eq!(verified.is_some(), !expected_conflict);
         // The assertions below still require exactly one mutation of each kind;
         // this extra diagnostic can only add metadata/content read requests.
     }
@@ -312,19 +324,41 @@ async fn arm(lose_registration: bool, changed_remote: bool) {
 }
 #[tokio::test]
 async fn package_create_real_https_roundtrip_verifies_repacked_archive_and_logical_size() {
-    tokio::time::timeout(Duration::from_secs(15), arm(false, false))
+    tokio::time::timeout(Duration::from_secs(15), arm(false, false, 1, false))
         .await
         .unwrap();
 }
 #[tokio::test]
 async fn package_create_lost_registration_reply_recovers_by_readback_without_replay() {
-    tokio::time::timeout(Duration::from_secs(15), arm(true, false))
+    tokio::time::timeout(Duration::from_secs(15), arm(true, false, 1, false))
         .await
         .unwrap();
 }
 #[tokio::test]
 async fn package_create_successful_registration_with_wrong_remote_content_is_not_a_receipt() {
-    tokio::time::timeout(Duration::from_secs(15), arm(false, true))
+    tokio::time::timeout(Duration::from_secs(15), arm(false, true, 1, false))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn package_create_v2_stored_proof_survives_added_directory_entries_and_lost_reply() {
+    for lost in [false, true] {
+        tokio::time::timeout(Duration::from_secs(15), arm(lost, false, 2, true))
+            .await
+            .unwrap();
+    }
+}
+#[tokio::test]
+async fn package_create_v2_still_refuses_changed_file_bytes() {
+    tokio::time::timeout(Duration::from_secs(15), arm(false, true, 2, true))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn package_create_retained_v1_directory_conflict_is_not_reinterpreted_as_v2() {
+    tokio::time::timeout(Duration::from_secs(15), arm(false, false, 1, true))
         .await
         .unwrap();
 }

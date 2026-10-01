@@ -194,10 +194,11 @@ impl ICloudDrive {
                 if let Some(probe) = probe {
                     probe.pause()?;
                 }
-                let semantic = crate::package_archive_semantic_identity(
+                let semantic = crate::package_archive_semantic_identity_versioned(
                     &file,
                     &receipt,
                     &expected_root,
+                    2, // Explicit policy for fresh resolution, never a stored proof upgrade.
                     &token,
                 )?;
                 Ok::<_, ProviderError>((semantic, resolution))

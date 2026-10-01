@@ -443,10 +443,13 @@ impl ICloudNativeRestore {
             .await
             .map_err(|_| MutationError::Uncertain)?;
         drop(sink);
+        let version = saved.semantic.version;
         let root = before.display_name();
         let token = cancel.clone();
         let semantic = tokio::task::spawn_blocking(move || {
-            crate::package_archive_semantic_identity(&file, &receipt, &root, &token)
+            crate::package_archive_semantic_identity_versioned(
+                &file, &receipt, &root, version, &token,
+            )
         })
         .await
         .map_err(|_| MutationError::Uncertain)??;

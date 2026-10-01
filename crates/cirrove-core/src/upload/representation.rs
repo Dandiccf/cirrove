@@ -1,5 +1,6 @@
 //! Explicit upload representation: archive bytes are not remote logical bytes.
 use serde::{Deserialize, Serialize};
+/// The default remains strict version 1. Version 2 adds canonical directory closure.
 /// Version 1 commits to the canonical framing documented in the benchmark
 /// contract. Unknown versions must be rejected, not silently reinterpreted.
 pub const PACKAGE_SEMANTIC_IDENTITY_VERSION: u32 = 1;
@@ -42,7 +43,7 @@ impl TryFrom<IdentityWire> for PackageSemanticIdentity {
 }
 impl PackageSemanticIdentity {
     pub fn validate(&self) -> super::Result<()> {
-        if self.version != PACKAGE_SEMANTIC_IDENTITY_VERSION
+        if !matches!(self.version, 1 | 2)
             || self.sha256.len() != 64
             || !self
                 .sha256
@@ -52,6 +53,7 @@ impl PackageSemanticIdentity {
             || self.entries > 10_000
             || self.files == 0
             || self.files > self.entries
+            || (self.version == 2 && self.files == self.entries)
             || self.expanded_bytes > 64 * 1024 * 1024
         {
             return Err(super::UploadError::Invalid);
@@ -148,4 +150,29 @@ pub struct PackageHandoffReceipt {
     pub original: crate::Node,
     pub current: PackageUploadReceipt,
     pub backup: PackageUploadReceipt,
+}
+
+#[cfg(test)]
+mod semantic_version_tests {
+    use super::*;
+    #[test]
+    fn semantic_versions_are_explicit_and_v2_requires_a_directory_root() {
+        let mut proof = PackageSemanticIdentity {
+            version: 1,
+            sha256: "a".repeat(64),
+            entries: 1,
+            files: 1,
+            expanded_bytes: 1,
+        };
+        assert!(proof.validate().is_ok());
+        proof.version = 2;
+        assert!(proof.validate().is_err());
+        proof.entries = 2;
+        assert!(proof.validate().is_ok());
+        for version in [0, 3, u32::MAX] {
+            proof.version = version;
+            assert!(proof.validate().is_err());
+        }
+        assert_eq!(PACKAGE_SEMANTIC_IDENTITY_VERSION, 1);
+    }
 }

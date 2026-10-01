@@ -48,6 +48,47 @@ impl Projection {
                 return Err(Errno::EIO);
             }
         }
+        // Validate derived children against the effective whole committed batch,
+        // not object iteration order or a half-updated source owner.
+        let changed_objects: HashMap<_, _> =
+            updates.iter().map(|s| (s.object.id, &s.object)).collect();
+        let mut affected_archives = HashSet::new();
+        let mut new_owners = HashMap::new();
+        for snapshot in &updates {
+            let object = &snapshot.object;
+            if let Some(role) = &object.native_archive {
+                if self
+                    .native_archives
+                    .get(&role.source_owner)
+                    .is_some_and(|id| *id != object.id)
+                    || new_owners
+                        .insert(role.source_owner, object.id)
+                        .is_some_and(|id| id != object.id)
+                {
+                    return Err(Errno::EIO);
+                }
+                affected_archives.insert(object.id);
+            }
+            if let Some(child) = self.native_archives.get(&object.id) {
+                affected_archives.insert(*child);
+            }
+        }
+        for id in affected_archives {
+            let object = changed_objects
+                .get(&id)
+                .copied()
+                .or_else(|| self.objects.get(&id))
+                .ok_or(Errno::EIO)?;
+            let role = object.native_archive.as_ref().ok_or(Errno::EIO)?;
+            let owner = changed_objects
+                .get(&role.source_owner)
+                .copied()
+                .or_else(|| self.objects.get(&role.source_owner))
+                .ok_or(Errno::EIO)?;
+            if !object.valid_native_archive_owner(owner) {
+                return Err(Errno::EIO);
+            }
+        }
         // Validation above changes nothing. Remove all old bindings before
         // assigning any new one, so UUID/order of the pair cannot affect it.
         for snapshot in &updates {
@@ -342,3 +383,6 @@ mod tests {
         assert!(!p.catch_up(&j).unwrap());
     }
 }
+
+#[cfg(test)]
+mod native_projection_tests;

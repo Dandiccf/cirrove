@@ -110,7 +110,15 @@ fn validated_snapshot_is_private_read_only_and_independent_of_original() {
     let record = journal
         .enqueue_validated_package_archive(scope(), intent(), snapshot, &CancellationToken::new())
         .unwrap();
-    assert!(!record.representation.is_file_bytes());
+    let UploadRepresentation::PackageArchive { semantic, .. } = &record.representation else {
+        panic!("package representation")
+    };
+    assert_eq!(semantic.version, 2);
+    assert_eq!(semantic.files, 1);
+    assert_eq!(
+        semantic.entries, 3,
+        "root + implied Metadata directory + file"
+    );
     assert_eq!(record.sha256, hex::encode(Sha256::digest(&original)));
     let mut actual = Vec::new();
     journal

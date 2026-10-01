@@ -1,5 +1,5 @@
 use cirrove_core::{CancellationToken, upload::UploadRepresentation};
-use cirrove_icloud::{PackageDownload, package_archive_semantic_identity};
+use cirrove_icloud::{PackageDownload, package_archive_semantic_identity_versioned};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{File, Metadata, OpenOptions, Permissions},
@@ -11,6 +11,10 @@ use std::{
     path::{Component, Path},
 };
 
+// This explicit fresh-proof policy must not be usable with a pre-v2 journal.
+// Stored v1 proofs continue to be verified with v1, never rewritten.
+const _: () = assert!(crate::journal::JOURNAL_SCHEMA >= 18);
+const FRESH_NATIVE_SEMANTIC_VERSION: u32 = 2;
 const MAX_ARCHIVE: u64 = 64 * 1024 * 1024;
 
 /// Deliberately contains no source path, archive names, or parser/provider body.
@@ -188,14 +192,20 @@ impl ValidatedPackageArchive {
         let file =
             File::open(format!("/proc/self/fd/{}", snapshot.as_raw_fd())).map_err(storage)?;
         drop(snapshot);
-        let semantic = package_archive_semantic_identity(&file, &receipt, expected_root, cancel)
-            .map_err(|_| {
-                if cancel.is_cancelled() {
-                    ImportAdmissionError::Cancelled
-                } else {
-                    ImportAdmissionError::Archive
-                }
-            })?;
+        let semantic = package_archive_semantic_identity_versioned(
+            &file,
+            &receipt,
+            expected_root,
+            FRESH_NATIVE_SEMANTIC_VERSION,
+            cancel,
+        )
+        .map_err(|_| {
+            if cancel.is_cancelled() {
+                ImportAdmissionError::Cancelled
+            } else {
+                ImportAdmissionError::Archive
+            }
+        })?;
         check(cancel)?;
         Ok(Self {
             file,

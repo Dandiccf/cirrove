@@ -580,7 +580,7 @@ fn package_identity_rejects_unknown_versions_malformed_receipts_wrong_root_and_c
         package_archive_semantic_identity(&file, &receipt, "Source.pages", &cancel).unwrap();
     let base = serde_json::to_value(&identity).unwrap();
     for (field, value) in [
-        ("version", serde_json::json!(2)),
+        ("version", serde_json::json!(3)),
         ("sha256", serde_json::json!("not-a-digest")),
         ("entries", serde_json::json!(10001)),
         ("files", serde_json::json!(0)),
@@ -688,3 +688,6 @@ fn diagnostic_directory_delta_never_weakens_strict_semantic_identity() {
         );
     }
 }
+
+#[path = "v2_tests.rs"]
+mod v2_tests;

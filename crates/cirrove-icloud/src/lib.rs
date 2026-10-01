@@ -61,7 +61,7 @@ mod package_semantic;
 pub use package_semantic::{
     PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageSemanticComparison, PackageSemanticIdentity,
     compare_package_archives, compare_package_archives_with_roots,
-    package_archive_semantic_identity,
+    package_archive_semantic_identity, package_archive_semantic_identity_versioned,
 };
 mod package_archive;
 mod probe_timing;
@@ -120,7 +120,10 @@ pub use owned_handoff::ICloudHandoff;
 pub use owned_mounted_file_move::ICloudOwnedMountedFileMove;
 #[cfg(feature = "write-probe")]
 pub use owned_mounted_replace::ICloudFileReplace as ICloudOwnedMountedReplace;
-pub use owned_mounted_replace::{ICloudFileReplace, ICloudSealedSignIn};
+pub use owned_mounted_replace::{
+    ICloudFileReplace, ICloudSealedSignIn, NativeReplacementAbandonEvidence,
+    NativeReplacementAbandonRecord,
+};
 #[cfg(feature = "write-probe")]
 pub use owned_move::{ICloudOwnedFixtureMove, ICloudOwnedMovePause};
 #[cfg(feature = "write-probe")]

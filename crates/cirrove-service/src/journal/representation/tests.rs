@@ -91,7 +91,7 @@ fn package_representation_legacy_json_defaults_and_unknown_formats_fail_closed()
     json["representation"] = serde_json::json!({"kind":"unknown_archive"});
     assert!(serde_json::from_value::<UploadRecord>(json.clone()).is_err());
     json["representation"] = serde_json::json!({"kind":"package_archive","expected_root":"Source.pages","semantic":semantic()});
-    json["representation"]["semantic"]["version"] = 2.into();
+    json["representation"]["semantic"]["version"] = 3.into();
     assert!(serde_json::from_value::<UploadRecord>(json).is_err());
 }
 
@@ -288,7 +288,7 @@ fn package_enqueue_rejects_replace_and_invalid_root_or_identity_without_creating
     let temp = private_tempdir();
     let mut j = UploadJournal::open(temp.path(), "owned", 1024 * 1024).unwrap();
     let mut invalid_identity = semantic();
-    invalid_identity.version = 2;
+    invalid_identity.version = 3;
     for (intent, root, identity) in [
         (
             UploadIntent::Replace {

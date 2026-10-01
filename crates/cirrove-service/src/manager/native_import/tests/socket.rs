@@ -130,13 +130,14 @@ impl UploadProvider for PackageWriter {
         else {
             return Err(UploadError::Invalid);
         };
-        let identity = cirrove_icloud::package_archive_semantic_identity(
+        let identity = cirrove_icloud::package_archive_semantic_identity_versioned(
             &payload,
             &cirrove_icloud::PackageDownload {
                 size: r.size,
                 sha256: r.sha256.clone(),
             },
             expected_root,
+            semantic.version,
             cancel,
         )
         .map_err(|_| UploadError::Invalid)?;
