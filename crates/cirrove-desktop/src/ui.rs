@@ -1102,9 +1102,9 @@ impl Window {
             ));
         }
         row.destruction
-            .set_visible(card.supports_writes && card.writable);
+            .set_visible(card.supports_permanent_delete && card.writable);
         row.destroy
-            .set_sensitive(idle && card.mounted && card.writable);
+            .set_sensitive(idle && card.can_delete_permanently());
         let offline_recovery = !card.enabled && !card.mounted;
         row.recovery
             .set_visible(card.local_recovery || offline_recovery);
@@ -1555,7 +1555,7 @@ impl Window {
     /// Files only. The daemon refuses a folder, and offering a folder chooser
     /// here would be an invitation to be told no.
     pub fn choose_file_to_destroy(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.mounted && c.writable) else {
+        let Some(card) = self.card(id).filter(AccountCard::can_delete_permanently) else {
             return;
         };
         let Backend::Live { .. } = &self.backend else {
@@ -1592,7 +1592,7 @@ impl Window {
     /// The second question. Choosing a file in a chooser is not consent to
     /// destroy it, and the daemon will not act until a client says it asked.
     fn confirm_destruction(self: &Rc<Self>, id: &str, path: &std::path::Path) {
-        let Some(card) = self.card(id) else {
+        let Some(card) = self.card(id).filter(AccountCard::can_delete_permanently) else {
             return;
         };
         let Some(window) = self.window.upgrade() else {
@@ -1634,7 +1634,7 @@ impl Window {
 
     /// The half that needs no dialogue, so a test can reach it.
     pub fn destroy_path(self: &Rc<Self>, id: &str, relative: &str) {
-        let Some(card) = self.card(id) else {
+        let Some(card) = self.card(id).filter(AccountCard::can_delete_permanently) else {
             return;
         };
         let Backend::Live {

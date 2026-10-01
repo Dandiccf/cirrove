@@ -2363,6 +2363,10 @@ const SCENARIOS: &[(&str, fn())] = &[
         readonly_recovery_requires_exact_saved_and_working_receipts,
     ),
     (
+        "permanent_delete_rechecks_capability_before_sending_a_request",
+        permanent_delete_rechecks_capability_before_sending_a_request,
+    ),
+    (
         "readonly_recovery_requires_live_capability_and_never_enables_mutations",
         readonly_recovery_requires_live_capability_and_never_enables_mutations,
     ),
@@ -2431,6 +2435,91 @@ const SCENARIOS: &[(&str, fn())] = &[
         the_window_shows_what_is_kept_offline_and_can_release_it,
     ),
 ];
+
+fn permanent_delete_rechecks_capability_before_sending_a_request() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("PermanentDeleteCapability");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("writable account", || {
+        ui.current()
+            .is_some_and(|v| v.accounts[0].can_delete_permanently())
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    let mut changed = cirrove_desktop::model::Overview::from_snapshot(demo::snapshot().unwrap());
+    changed.accounts[0].writable = true;
+    changed.accounts[0].supports_writes = true;
+    changed.accounts[0].supports_permanent_delete = false;
+    changed.accounts[0].provider_id = "icloud";
+    changed.accounts[0].title = "iCloud Drive (synthetic)".into();
+    ui.render(changed);
+    expand_all(window.upcast_ref());
+    assert!(
+        !action_row(window.upcast_ref(), "Delete a file permanently")
+            .unwrap()
+            .is_visible()
+    );
+    recovery_snapshot(&window, "CIRROVE_DELETE_CAPABILITY_SNAPSHOT");
+    // Simulate activation retained from a previously writable provider/card.
+    ui.destroy_path(&id, "blocked.txt");
+    ui.choose_file_to_destroy(&id);
+    let observe_until = Instant::now() + Duration::from_millis(500);
+    while Instant::now() < observe_until {
+        while glib::MainContext::default().pending() {
+            glib::MainContext::default().iteration(false);
+        }
+        assert!(
+            !service
+                .requests
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|line| line.contains("blocked.txt")),
+            "stale iCloud action dispatched a permanent deletion"
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let mut supported = cirrove_desktop::model::Overview::from_snapshot(demo::snapshot().unwrap());
+    supported.accounts[0].writable = true;
+    ui.render(supported);
+    ui.destroy_path(&id, "allowed.txt");
+    pump_until("supported provider request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.contains("allowed.txt"))
+    });
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.contains("blocked.txt"))
+    );
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const NEEDS: &str = "requires a graphical display; synthetic local socket/accounts only";
 
 fn main() {

@@ -131,6 +131,8 @@ pub struct AccountCard {
     pub local_recovery: bool,
     pub supports_writes: bool,
     pub provider_id: &'static str,
+    /// Ordinary writes do not imply an irreversible provider deletion API.
+    pub supports_permanent_delete: bool,
     /// The app registration this account signed in through, so connecting a
     /// second drive can start from it rather than from an empty field.
     pub client_id: String,
@@ -261,6 +263,16 @@ impl KeptOffline {
     }
 }
 impl AccountCard {
+    /// Recheck at each chooser/confirmation boundary, not only when rendering.
+    pub fn can_delete_permanently(&self) -> bool {
+        self.supports_permanent_delete
+            && matches!(self.provider_id, "onedrive" | "googledrive")
+            && self.enabled
+            && self.mounted
+            && self.writable
+            && self.controls_available
+    }
+
     pub fn action_label(&self) -> &'static str {
         if !self.enabled {
             n("Mount")
@@ -559,6 +571,11 @@ impl Overview {
                     }),
                     supports_writes: account.registration.provider_id() != "icloud",
                     provider_id: account.registration.provider_id(),
+                    supports_permanent_delete: matches!(
+                        account.registration,
+                        cirrove_auth::AppRegistration::Microsoft { .. }
+                            | cirrove_auth::AppRegistration::Google { .. }
+                    ),
                     client_id: account.registration.client_id().to_owned(),
                     authority: account.registration.authority().to_owned(),
                     kept_offline: status
