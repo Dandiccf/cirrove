@@ -646,6 +646,7 @@ pub use read_windows::icloud_account_read_windows;
 mod stream_recovery;
 pub use stream_recovery::{
     icloud_account_registration_interrupt, icloud_account_registration_recover,
+    icloud_account_replace_registration_interrupt, icloud_account_replace_registration_recover,
     icloud_account_replace_stream_interrupt, icloud_account_replace_stream_recover,
     icloud_account_stream_interrupt, icloud_account_stream_recover,
 };

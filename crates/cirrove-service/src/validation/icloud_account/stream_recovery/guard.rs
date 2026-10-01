@@ -1,4 +1,4 @@
-//! Permit only inspection/reconciliation at the captured body/registration boundary.
+//! Restrict recovery to inspection and, optionally, the exact registered-stage handoff.
 use super::*;
 use cirrove_core::upload::{
     Reconciliation, UploadError, UploadProvider, UploadRequest, UploadStep,
@@ -10,6 +10,8 @@ pub(super) struct Guard {
     pub request: UploadRequest,
     pub operation: String,
     pub complete_body: bool,
+    pub handoff_document: Option<String>,
+    pub handoff_commits: AtomicU64,
     pub inspections: AtomicU64,
     pub reconciliations: AtomicU64,
     pub refused: AtomicU64,
@@ -27,12 +29,48 @@ impl Guard {
     ) -> cirrove_core::upload::Result<()> {
         if operation != self.operation
             || request != &self.request
-            || document(checkpoint, self.complete_body).is_none()
+            || if let Some(expected) = &self.handoff_document {
+                document(checkpoint, self.complete_body)
+                    .or_else(|| handoff_document(checkpoint))
+                    .as_ref()
+                    != Some(expected)
+            } else {
+                document(checkpoint, self.complete_body).is_none()
+            }
         {
             return Err(UploadError::CheckpointInvalid);
         }
         Ok(())
     }
+}
+fn allowed_handoff(expected: Option<&str>, checkpoint: &SecretString) -> bool {
+    expected.is_some() && handoff_document(checkpoint).as_deref() == expected
+}
+// Only the exact already registered staged identity may enter handoff. The
+// production adapter validates all remaining plan/request/receipt fields.
+fn handoff_document(checkpoint: &SecretString) -> Option<String> {
+    if checkpoint.expose_secret().len() > 32768 {
+        return None;
+    }
+    let value: serde_json::Value = serde_json::from_str(checkpoint.expose_secret()).ok()?;
+    if value.get("inner").is_some() {
+        return None;
+    }
+    let phase = value.get("phase")?.as_object()?;
+    if phase.len() != 1 {
+        return None;
+    }
+    let handoff = phase.get("Handoff")?;
+    if handoff.get("inner")?.as_str()?.is_empty() {
+        return None;
+    }
+    let plan = handoff.get("plan")?;
+    let id = plan
+        .get("staged_id")?
+        .as_str()?
+        .strip_prefix("FILE::com.apple.CloudDocs::")?;
+    (id.len() <= 256 && !id.is_empty() && plan.get("staged_doc_id")?.as_str()? == id)
+        .then(|| id.into())
 }
 // Local encrypted checkpoint envelope only; never expose its token fields.
 pub(super) fn allocated_document(checkpoint: &SecretString) -> Option<String> {
@@ -132,8 +170,32 @@ impl UploadProvider for Guard {
             .await?
         {
             UploadStep::Complete(node) => Ok(UploadStep::Complete(node)),
+            UploadStep::Commit(next)
+                if allowed_handoff(self.handoff_document.as_deref(), &next) =>
+            {
+                Ok(UploadStep::Commit(next))
+            }
+            complete @ UploadStep::HandoffComplete { .. } if self.handoff_document.is_some() => {
+                Ok(complete)
+            }
             _ => self.refuse(),
         }
+    }
+    async fn commit_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        self.check(operation, request, checkpoint)?;
+        if !allowed_handoff(self.handoff_document.as_deref(), checkpoint) {
+            return self.refuse();
+        }
+        self.handoff_commits.fetch_add(1, Ordering::Relaxed);
+        self.inner
+            .commit_upload_for_operation(operation, request, checkpoint, cancel)
+            .await
     }
     async fn reconcile_upload_for_operation(
         &self,
@@ -221,5 +283,58 @@ mod registration_tests {
             assert!(completed_body_document(&checkpoint(receipt)).is_none());
         }
         assert!(completed_body_document(&SecretString::from("{}")).is_none());
+    }
+}
+
+#[cfg(test)]
+mod handoff_tests {
+    use super::*;
+    fn checkpoint() -> serde_json::Value {
+        serde_json::json!({"phase":{"Handoff":{"inner":"fixture", "plan":{
+            "staged_id":"FILE::com.apple.CloudDocs::owned", "staged_doc_id":"owned"
+        }}}})
+    }
+    #[test]
+    fn only_the_captured_registered_identity_may_commit_a_handoff() {
+        let value = SecretString::from(checkpoint().to_string());
+        assert!(allowed_handoff(Some("owned"), &value));
+        assert!(!allowed_handoff(Some("foreign"), &value));
+        assert!(!allowed_handoff(None, &value));
+    }
+    #[test]
+    fn registration_replay_and_ambiguous_or_incomplete_plans_are_refused() {
+        let stage = serde_json::json!({"phase":{"Stage":{"inner":
+            serde_json::json!({"slot":{"document_id":"owned"},"receipt":{}}).to_string()}}});
+        assert_eq!(
+            completed_body_document(&SecretString::from(stage.to_string())).as_deref(),
+            Some("owned")
+        );
+        let mut cases = vec![stage, serde_json::json!({})];
+        let mut value = checkpoint();
+        value["inner"] = serde_json::json!("fixture");
+        cases.push(value);
+        let mut value = checkpoint();
+        value["phase"]["Stage"] = serde_json::json!({});
+        cases.push(value);
+        let mut value = checkpoint();
+        value["phase"]["Handoff"]["inner"] = serde_json::json!("");
+        cases.push(value);
+        let mut value = checkpoint();
+        value["phase"]["Handoff"]["plan"]["staged_doc_id"] = serde_json::json!("foreign");
+        cases.push(value);
+        let mut value = checkpoint();
+        value["phase"]["Handoff"]["plan"]["staged_id"] =
+            serde_json::json!("FOLDER::com.apple.CloudDocs::owned");
+        cases.push(value);
+        for value in cases {
+            assert!(!allowed_handoff(
+                Some("owned"),
+                &SecretString::from(value.to_string())
+            ));
+        }
+        assert!(!allowed_handoff(
+            Some("owned"),
+            &SecretString::from("x".repeat(32769))
+        ));
     }
 }

@@ -79,6 +79,12 @@ pub struct ICloudSealedSignIn {
 }
 
 impl ICloudFileReplace {
+    #[cfg(feature = "write-probe")]
+    pub fn with_discarded_stage_registration_response(mut self) -> Self {
+        self.stage = self.stage.with_discarded_registration_response();
+        self
+    }
+
     pub fn parent_id(&self) -> &str {
         &self.folder.id
     }

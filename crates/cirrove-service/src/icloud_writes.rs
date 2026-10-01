@@ -38,7 +38,7 @@ pub struct ICloudWriteProvider {
     journal: Arc<Mutex<UploadJournal>>,
     folder_vault: Arc<dyn CredentialVault>,
     #[cfg(feature = "icloud-write-probe")]
-    discard_create_registration: Option<Uuid>,
+    discard_registration: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,7 +69,7 @@ impl ICloudWriteProvider {
         );
         Ok(Self {
             #[cfg(feature = "icloud-write-probe")]
-            discard_create_registration: None,
+            discard_registration: None,
             scope: Scope {
                 account: account.id.clone(),
                 provider: "icloud".into(),
@@ -94,8 +94,8 @@ impl ICloudWriteProvider {
     }
 
     #[cfg(feature = "icloud-write-probe")]
-    pub(crate) fn validation_discard_create_registration(mut self, operation: Uuid) -> Self {
-        self.discard_create_registration = Some(operation);
+    pub(crate) fn validation_discard_registration(mut self, operation: Uuid) -> Self {
+        self.discard_registration = Some(operation);
         self
     }
 
@@ -381,15 +381,23 @@ impl UploadProvider for ICloudWriteProvider {
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
         if matches!(request.intent, UploadIntent::Replace { .. }) {
-            return self
+            let adapter = self
                 .replacement(operation, request, Some(checkpoint))
-                .await?
-                .commit_upload(request, checkpoint, cancel)
-                .await;
+                .await?;
+            #[cfg(feature = "icloud-write-probe")]
+            let adapter = if self
+                .discard_registration
+                .is_some_and(|id| operation == id.to_string())
+            {
+                adapter.with_discarded_stage_registration_response()
+            } else {
+                adapter
+            };
+            return adapter.commit_upload(request, checkpoint, cancel).await;
         }
         let (saved, adapter) = self.restore(operation, request, checkpoint)?;
         #[cfg(feature = "icloud-write-probe")]
-        let adapter = if self.discard_create_registration == Some(saved.operation) {
+        let adapter = if self.discard_registration == Some(saved.operation) {
             adapter.with_discarded_registration_response()
         } else {
             adapter
@@ -446,7 +454,7 @@ mod tests {
         Store::open(&metadata).unwrap();
         let provider = ICloudWriteProvider {
             #[cfg(feature = "icloud-write-probe")]
-            discard_create_registration: None,
+            discard_registration: None,
             scope: Scope {
                 account,
                 provider: "icloud".into(),

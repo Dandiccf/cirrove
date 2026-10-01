@@ -7,6 +7,7 @@ mod guard;
 mod registration;
 pub use registration::{
     icloud_account_registration_interrupt, icloud_account_registration_recover,
+    icloud_account_replace_registration_interrupt, icloud_account_replace_registration_recover,
 };
 const AFTER: u64 = 8 * 1024 * 1024;
 const BUDGET: u64 = 256 * 1024 * 1024;
@@ -237,6 +238,8 @@ async fn recover(run: Uuid, replace: bool) -> Result<()> {
         },
         operation: pending.id.to_string(),
         complete_body: false,
+        handoff_document: None,
+        handoff_commits: Default::default(),
         inspections: Default::default(),
         reconciliations: Default::default(),
         refused: Default::default(),

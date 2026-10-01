@@ -634,6 +634,18 @@ async fn main() -> Result<()> {
     }
     if let [flag, run] = args.as_slice() {
         match flag.as_str() {
+            "--account-replace-registration-interrupt" => {
+                return cirrove_service::validation::icloud_account_replace_registration_interrupt(
+                    Uuid::parse_str(run)?,
+                )
+                .await;
+            }
+            "--account-replace-registration-recover" => {
+                return cirrove_service::validation::icloud_account_replace_registration_recover(
+                    Uuid::parse_str(run)?,
+                )
+                .await;
+            }
             "--account-registration-interrupt" => {
                 return cirrove_service::validation::icloud_account_registration_interrupt(
                     Uuid::parse_str(run)?,
