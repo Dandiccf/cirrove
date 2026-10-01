@@ -404,11 +404,15 @@ fn queue(
         // Exercise the same working-file snapshot and namespace reservation used
         // by FUSE; a bare enqueue has no identity owner for a two-ID handoff.
         let working = journal.create_truncated_working(scope.clone(), node.clone())?;
-        let (written, _) = journal.write_working(working.id, 0, bytes)?;
-        ensure!(
-            written as usize == bytes.len(),
-            "short local validation write"
-        );
+        let mut offset = 0u64;
+        for chunk in bytes.chunks(1024 * 1024) {
+            let (written, _) = journal.write_working(working.id, offset, chunk)?;
+            ensure!(
+                written as usize == chunk.len(),
+                "short local validation write"
+            );
+            offset += u64::from(written);
+        }
         journal
             .seal_working(working.id)?
             .context("replacement snapshot was not queued")
@@ -458,6 +462,57 @@ async fn verify(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn replacement_queue_splits_payloads_larger_than_one_working_write() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let mut journal = crate::journal::UploadJournal::open(
+            &temp.path().join("journal"),
+            &scope.account,
+            32 * 1024 * 1024,
+        )
+        .expect("journal");
+        let parent = Node {
+            id: "owned-folder".into(),
+            parent_id: Some(ROOT_ID.into()),
+            name: "owned".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: None,
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let original = Node {
+            id: "owned-file".into(),
+            parent_id: Some(parent.id.clone()),
+            name: NAME.into(),
+            kind: NodeKind::File,
+            size: 32,
+            etag: Some("revision".into()),
+            ..parent.clone()
+        };
+        let bytes: Vec<u8> = (0..8 * 1024 * 1024 + 17)
+            .map(|i| ((i * 17 + i / 251) % 256) as u8)
+            .collect();
+        let row = queue(&mut journal, &scope, &parent, Some(&original), &bytes)
+            .expect("large queued replacement");
+        assert_eq!(row.size, bytes.len() as u64);
+        assert_eq!(row.sha256, hex::encode(Sha256::digest(&bytes)));
+        let mut actual = Vec::new();
+        std::io::Read::read_to_end(
+            &mut journal.payload(row.id).expect("sealed bytes"),
+            &mut actual,
+        )
+        .expect("read sealed bytes");
+        assert_eq!(actual, bytes);
+    }
 
     #[test]
     fn replacement_queue_owns_the_exact_original_and_refuses_foreign_sources() {
@@ -589,4 +644,7 @@ mod read_windows;
 pub use read_windows::icloud_account_read_windows;
 
 mod stream_recovery;
-pub use stream_recovery::{icloud_account_stream_interrupt, icloud_account_stream_recover};
+pub use stream_recovery::{
+    icloud_account_replace_stream_interrupt, icloud_account_replace_stream_recover,
+    icloud_account_stream_interrupt, icloud_account_stream_recover,
+};

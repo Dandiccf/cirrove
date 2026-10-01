@@ -699,3 +699,16 @@ a new document identity and independently verified remote digest. This is a
 successful create boundary, not a blanket transport/replacement or release gate.
 The fault observer is feature-gated out of ordinary binaries; installed behavior
 and ordinary write permissions were not changed.
+
+
+The subsequent [replacement-body interruption](benchmarks/icloud-replace-stream-interruption-2026-10-01.md)
+also passed in a fresh process. After yielding 8 MiB of the new 64 MiB + 17-byte
+body, the probe exited. The original remained the sole visible file with verified
+old bytes before and after read-only reconciliation. The new local generation
+was preserved/exported; only after the interrupted Stage was proved uncommitted
+did a fresh attempt finish the replacement. Independent new-content hashing,
+exactly one visible result and the original exact ID in recoverable Trash passed.
+This adds an account-router staging-body boundary, not a mounted application or
+blanket transport/release result. A local fixture bug (one oversized working write)
+was reproduced by a failing regression and fixed with bounded writes; the failed
+setup attempt remains recorded. Ordinary write permissions remain unchanged.

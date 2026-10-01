@@ -1,4 +1,4 @@
-//! Permit only inspection/reconciliation of the captured create and checkpoint.
+//! Permit only inspection/reconciliation of the captured upload and pre-registration checkpoint.
 use super::*;
 use cirrove_core::upload::{
     Reconciliation, UploadError, UploadProvider, UploadRequest, UploadStep,
@@ -39,7 +39,17 @@ pub(super) fn allocated_document(checkpoint: &SecretString) -> Option<String> {
         return None;
     }
     let value = serde_json::from_str::<serde_json::Value>(checkpoint.expose_secret()).ok()?;
-    let inner = value.get("inner")?.as_str()?;
+    let inner = match (value.get("inner"), value.get("phase")) {
+        (Some(inner), None) => inner.as_str()?,
+        (None, Some(phase)) => {
+            let phase = phase.as_object()?;
+            if phase.len() != 1 {
+                return None;
+            }
+            phase.get("Stage")?.get("inner")?.as_str()?
+        }
+        _ => return None,
+    };
     let inner = serde_json::from_str::<serde_json::Value>(inner).ok()?;
     if !inner.get("receipt")?.is_null() {
         return None;
@@ -152,5 +162,29 @@ mod tests {
         }
         let value=SecretString::from(serde_json::json!({"inner":serde_json::json!({"slot":{"document_id":"owned"},"receipt":null}).to_string()}).to_string());
         assert_eq!(allocated_document(&value).as_deref(), Some("owned"));
+    }
+}
+
+#[cfg(test)]
+mod replacement_tests {
+    use super::*;
+    #[test]
+    fn replacement_guard_accepts_only_the_allocated_stage_not_handoff_or_receipt() {
+        let inner = serde_json::json!({"slot":{"document_id":"owned"},"receipt":null}).to_string();
+        let checkpoint = |value: serde_json::Value| SecretString::from(value.to_string());
+        assert_eq!(
+            allocated_document(&checkpoint(
+                serde_json::json!({"phase":{"Stage":{"inner":inner}}})
+            ))
+            .as_deref(),
+            Some("owned")
+        );
+        for value in [
+            serde_json::json!({"phase":{"Handoff":{"inner":inner}}}),
+            serde_json::json!({"inner":inner,"phase":{"Stage":{"inner":inner}}}),
+            serde_json::json!({"phase":{"Stage":{"inner":inner},"Handoff":{}}}),
+        ] {
+            assert!(allocated_document(&checkpoint(value)).is_none());
+        }
     }
 }

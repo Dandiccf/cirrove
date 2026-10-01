@@ -8,23 +8,71 @@ const AFTER: u64 = 8 * 1024 * 1024;
 const BUDGET: u64 = 256 * 1024 * 1024;
 
 pub async fn icloud_account_stream_interrupt(run: Uuid) -> Result<()> {
-    let f = prepare_with_budget(run, "stream-recovery", BUDGET).await?;
+    interrupt(run, false).await
+}
+pub async fn icloud_account_replace_stream_interrupt(run: Uuid) -> Result<()> {
+    interrupt(run, true).await
+}
+fn kind(replace: bool) -> &'static str {
+    if replace {
+        "replace-stream-recovery"
+    } else {
+        "stream-recovery"
+    }
+}
+async fn interrupt(run: Uuid, replace: bool) -> Result<()> {
+    let f = prepare_with_budget(run, kind(replace), BUDGET).await?;
+    let original = if replace {
+        let node = transfer(
+            &f.state,
+            &f.account,
+            &f.scope,
+            &f.snapshot,
+            &f.parent,
+            None,
+            FIRST,
+        )
+        .await?;
+        verify(&f.snapshot, &f.account, &f.parent, &node, FIRST).await?;
+        record(&f.run_dir.join("original.json"), &node)?;
+        Some(node)
+    } else {
+        None
+    };
     let bytes = super::read_windows::payload();
-    let boundary =
-        cirrove_icloud::install_upload_stream_boundary(NAME.into(), bytes.len() as u64, AFTER)?;
+    let engine = engine(&f.state, &f.account, &f.scope, &f.snapshot).await?;
+    let context = WriteContext::open(&engine, &f.state).await?;
+    {
+        let mut store = Store::open(context.metadata_db())?;
+        store.observe_node(&f.scope, &f.parent)?;
+        if let Some(node) = &original {
+            store.observe_node(&f.scope, node)?;
+        }
+    }
+    let row = {
+        let journal = context.journal();
+        let mut journal = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock failed"))?;
+        queue(&mut journal, &f.scope, &f.parent, original.as_ref(), &bytes)?
+    };
+    let name = if replace {
+        format!("staged-by-cirrove-{}.txt", row.id)
+    } else {
+        NAME.into()
+    };
+    let boundary = cirrove_icloud::install_upload_stream_boundary(name, bytes.len() as u64, AFTER)?;
     record(
         &f.run_dir.join("prepared.json"),
-        &serde_json::json!({"size":bytes.len(),"sha256":hex::encode(Sha256::digest(&bytes)),"after":AFTER}),
+        &serde_json::json!({"operation":row.id,"replacement":replace,"size":bytes.len(),"sha256":hex::encode(Sha256::digest(&bytes)),"after":AFTER}),
     )?;
-    let transfer = transfer(
-        &f.state,
-        &f.account,
-        &f.scope,
-        &f.snapshot,
-        &f.parent,
-        None,
-        &bytes,
+    let worker = TransferWorker::new(
+        context.journal(),
+        Arc::new(ICloudWriteProvider::new(&f.account, &context)?),
+        context.checkpoints(),
+        CancellationToken::new(),
     );
+    let transfer = worker.run_once();
     tokio::pin!(transfer);
     let yielded = tokio::select! {
         result = &mut transfer => { result?; anyhow::bail!("upload completed without the stream interruption"); },
@@ -39,8 +87,7 @@ pub async fn icloud_account_stream_interrupt(run: Uuid) -> Result<()> {
         &serde_json::json!({"pid":std::process::id(),"body_bytes_yielded":yielded,"complete_body":false,"remote_acceptance_unknown":true,"size":bytes.len()}),
     )?;
     std::fs::File::open(&f.run_dir)?.sync_all()?;
-    // The pinned transfer remains live. No worker return, cancellation cleanup
-    // or journal acknowledgement runs after the boundary.
+    // No worker return or orderly journal shutdown after this body boundary.
     std::process::exit(86);
 }
 fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
@@ -49,9 +96,15 @@ fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     serde_json::from_slice(&bytes).map_err(|_| anyhow::anyhow!("invalid validation record"))
 }
 pub async fn icloud_account_stream_recover(run: Uuid) -> Result<()> {
+    recover(run, false).await
+}
+pub async fn icloud_account_replace_stream_recover(run: Uuid) -> Result<()> {
+    recover(run, true).await
+}
+async fn recover(run: Uuid, replace: bool) -> Result<()> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state")
-        .join(format!("icloud-account-stream-recovery-{run}"))
+        .join(format!("icloud-account-{}-{run}", kind(replace)))
         .canonicalize()?;
     let account: Account = read(&dir.join("account.json"))?;
     let parent: Node = read(&dir.join("owned-folder.json"))?;
@@ -66,6 +119,20 @@ pub async fn icloud_account_stream_recover(run: Uuid) -> Result<()> {
             && parent.target.is_none(),
         "not the owned isolated source"
     );
+    ensure!(
+        prepared["replacement"] == replace,
+        "wrong interruption kind"
+    );
+    let operation = Uuid::parse_str(
+        prepared["operation"]
+            .as_str()
+            .context("missing operation")?,
+    )?;
+    let original: Option<Node> = if replace {
+        Some(read(&dir.join("original.json"))?)
+    } else {
+        None
+    };
     let size = prepared["size"].as_u64().context("missing size")?;
     let sha = prepared["sha256"].as_str().context("missing digest")?;
     let yielded = interrupted["body_bytes_yielded"]
@@ -96,20 +163,36 @@ pub async fn icloud_account_stream_recover(run: Uuid) -> Result<()> {
         let journal = journal
             .lock()
             .map_err(|_| anyhow::anyhow!("journal lock failed"))?;
-        let rows = journal.list(0, 2)?;
-        ensure!(rows.len() == 1, "expected exactly one interrupted create");
-        let row = rows[0].clone();
+        let rows = journal.list(0, 3)?;
+        ensure!(
+            rows.len() == 1 + usize::from(replace),
+            "unexpected interruption history"
+        );
+        if let Some(original) = &original {
+            ensure!(
+                rows[0].state == UploadState::Uploaded && rows[0].remote.as_ref() == Some(original),
+                "original receipt changed"
+            );
+        }
+        let row = journal.get(operation)?;
+        let intent = if let Some(original) = &original {
+            UploadIntent::Replace {
+                item: original.id.clone(),
+                expected_etag: original.etag.clone().context("original revision missing")?,
+            }
+        } else {
+            UploadIntent::Create {
+                parent: parent.id.clone(),
+                name: NAME.into(),
+            }
+        };
         ensure!(
             row.state == UploadState::VerifyRequired
                 && row.scope == scope
                 && row.size == size
                 && row.sha256 == sha
                 && row.remote.is_none()
-                && row.intent
-                    == UploadIntent::Create {
-                        parent: parent.id.clone(),
-                        name: NAME.into()
-                    },
+                && row.intent == intent,
             "interrupted create changed"
         );
         let mut source = journal.payload(row.id)?;
@@ -139,10 +222,7 @@ pub async fn icloud_account_stream_recover(run: Uuid) -> Result<()> {
         .context("stream checkpoint is not allocated without a receipt")?;
     let mut remote =
         ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
-    ensure!(
-        remote.list_folder(&parent.id).await?.is_empty(),
-        "unexpected visible item before reconciliation"
-    );
+    unchanged_before_retry(&snapshot, &account, &parent, original.as_ref()).await?;
     let provider = Arc::new(guard::Guard {
         inner: ICloudWriteProvider::new(&account, &context)?,
         request: UploadRequest {
@@ -176,10 +256,7 @@ pub async fn icloud_account_stream_recover(run: Uuid) -> Result<()> {
             && provider.reconciliations.load(Ordering::Relaxed) > 0,
         "recovery attempted a replay or skipped reconciliation"
     );
-    ensure!(
-        remote.list_folder(&parent.id).await?.is_empty(),
-        "recovery unexpectedly published an item"
-    );
+    unchanged_before_retry(&snapshot, &account, &parent, original.as_ref()).await?;
     let source = context
         .journal()
         .lock()
@@ -216,7 +293,7 @@ pub async fn icloud_account_stream_recover(run: Uuid) -> Result<()> {
     );
     record(
         &dir.join("reconciled.json"),
-        &serde_json::json!({"state":"pending","local_export_verified":true,"refused_replays":0,"visible_folder_empty":true}),
+        &serde_json::json!({"state":"pending","local_export_verified":true,"refused_replays":0,"visible_folder_empty":!replace,"original_unchanged":replace}),
     )?;
     let retry = TransferWorker::new(
         context.journal(),
@@ -249,13 +326,40 @@ pub async fn icloud_account_stream_recover(run: Uuid) -> Result<()> {
         entries.len() == 1 && entries[0].drivewsid == current.id,
         "retry left duplicates or an unexpected item"
     );
+    if let Some(original) = &original {
+        ensure!(
+            current.id != original.id && remote.exact_item_in_trash(&original.id).await?,
+            "original recovery identity missing after replacement"
+        );
+    }
     record(&dir.join("completed.json"), &current)?;
     record(
         &dir.join("passed.json"),
-        &serde_json::json!({"run":run,"size":size,"body_bytes_yielded":yielded,"remote_acceptance_unknown":true,"local_payload_verified":true,"allocated_checkpoint_retained":true,"inspection_calls":provider.inspections.load(Ordering::Relaxed),"reconciliation_calls":provider.reconciliations.load(Ordering::Relaxed),"refused_replays":0,"visible_folder_empty_before_retry":true,"state":"uploaded","uncommitted_before_retry":true,"fresh_document_identity":true,"exactly_one_remote_file":true,"independent_remote_digest":true,"local_export_verified":true,"installed_service_changed":false}),
+        &serde_json::json!({"run":run,"size":size,"body_bytes_yielded":yielded,"remote_acceptance_unknown":true,"local_payload_verified":true,"allocated_checkpoint_retained":true,"inspection_calls":provider.inspections.load(Ordering::Relaxed),"reconciliation_calls":provider.reconciliations.load(Ordering::Relaxed),"refused_replays":0,"visible_folder_empty_before_retry":!replace,"original_unchanged_before_retry":replace,"original_in_trash_after_retry":replace,"replacement":replace,"state":"uploaded","uncommitted_before_retry":true,"fresh_document_identity":true,"exactly_one_remote_file":true,"independent_remote_digest":true,"local_export_verified":true,"installed_service_changed":false}),
     )?;
     println!(
         "Interrupted body: preserved bytes, read-only reconciliation, local export and fresh retry verified"
     );
+    Ok(())
+}
+
+async fn unchanged_before_retry(
+    snapshot: &SecretString,
+    account: &Account,
+    parent: &Node,
+    original: Option<&Node>,
+) -> Result<()> {
+    let mut remote =
+        ICloudReadSession::from_session_snapshot(snapshot, &account.identity.username)?;
+    let entries = remote.list_folder(&parent.id).await?;
+    if let Some(original) = original {
+        ensure!(
+            entries.len() == 1 && entries[0].drivewsid == original.id,
+            "original not alone in the owned folder"
+        );
+        verify(snapshot, account, parent, original, FIRST).await?;
+    } else {
+        ensure!(entries.is_empty(), "unexpected visible item before retry");
+    }
     Ok(())
 }
