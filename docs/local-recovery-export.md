@@ -48,6 +48,20 @@ Only a matching completed service receipt produces a success message. Missing
 jobs, disconnected services and incomplete receipts report an unconfirmed result
 and ask you to inspect the destination. These outcomes do not discard the save.
 
+For a configured **disabled and unmounted** account, expand its row and choose
+**Save a local copy…** under **Recover local changes**. This works without the
+daemon or an Apple sign-in. The picker distinguishes saved versions from working
+files and offers **Next page** when more local records remain. Pages scan up to
+200 saves and 200 working files; clean or completed records can leave a page
+without an exportable entry. Select a version and a new local destination.
+
+The offline copy runs in a blocking worker with a cancellable progress dialog.
+The account identity and exclusive owner locks are checked again after selection.
+Working files get a separate completion message: a process may have stopped in
+the middle of writing them. Neither success nor cancellation seals, uploads or
+discards these bytes. A changed account, changed generation or mismatching receipt
+cannot produce a confirmed-success message.
+
 ## Recovery while the account is unmounted
 
 For an existing **disabled** account, the CLI can recover sealed versions without
@@ -109,13 +123,14 @@ Unexpected source size/timestamp changes during copying abort publication;
 
 ## Current limits
 
-- The desktop picker requires an active writable journal. Offline recovery is
-  currently a CLI flow for configured disabled accounts; removed/retired accounts
-  and offline desktop selection are not wired yet.
+- Desktop recovery supports active writable journals and configured disabled
+  accounts. Removed/retired accounts and unsealed-byte export while a writable
+  mount is still active are not wired yet.
 - `export-save` selects an unresolved **sealed generation**, not unsealed working
   bytes; the offline `export-working` command handles retained working files. `Preparing`, acknowledged, discarded and resolved
   generations are refused. Selecting an older ID exports that older generation.
-- Desktop selection is bounded to the latest 200 saves. The CLI can select an
+- Active-account desktop selection is bounded to the latest 200 saves; the
+  offline picker supports further pages. The CLI can select an
   older known operation ID. The export dialog monitors the current operation;
   after closing/restarting the app, use CLI jobs/status to inspect retained jobs.
   Export jobs are not shown as offline pinning downloads.

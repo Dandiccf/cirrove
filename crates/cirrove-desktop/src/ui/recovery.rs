@@ -4,6 +4,10 @@ use cirrove_service::{jobs::Job, recent::LocalChange};
 
 impl Window {
     pub fn choose_recovery_save(self: &Rc<Self>, id: &str) {
+        if self.card(id).is_some_and(|c| !c.enabled && !c.mounted) {
+            self.load_offline_recovery(id, crate::recovery::offline::Cursor::default());
+            return;
+        }
         let Some(card) = self.card(id).filter(|c| c.mounted && c.writable) else {
             return;
         };

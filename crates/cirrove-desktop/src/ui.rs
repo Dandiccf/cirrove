@@ -13,6 +13,7 @@ use std::{
 };
 
 mod connect;
+mod offline_recovery;
 mod recovery;
 
 #[derive(Clone)]
@@ -1086,9 +1087,15 @@ impl Window {
             .set_visible(card.supports_writes && card.writable);
         row.destroy
             .set_sensitive(idle && card.mounted && card.writable);
-        row.recovery.set_visible(card.writable);
+        let offline_recovery = !card.enabled && !card.mounted;
+        row.recovery.set_visible(card.writable || offline_recovery);
         row.export
-            .set_sensitive(idle && card.mounted && card.writable);
+            .set_sensitive(idle && (offline_recovery || (card.mounted && card.writable)));
+        row.recovery.set_title(&if offline_recovery {
+            gettext("Recover local changes")
+        } else {
+            gettext("Recover a saved version")
+        });
         row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
         row.keep_both.set_tooltip_text(Some(&gettext(
             "Put your version beside the cloud's, under a new name, instead of losing one of them",

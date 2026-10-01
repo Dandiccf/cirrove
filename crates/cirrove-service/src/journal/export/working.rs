@@ -81,14 +81,15 @@ impl RecoveryJournal {
             .query_map(
                 params![
                     after.map(|id| id.to_string()).unwrap_or_default(),
-                    limit.clamp(1, 200)
+                    limit.clamp(1, 200) + 1
                 ],
                 |row| row.get::<_, String>(0),
             )?
             .collect::<std::result::Result<Vec<_>, _>>()?;
+        let more = ids.len() > limit.clamp(1, 200) as usize;
         let mut rows = Vec::new();
         let mut next = None;
-        for id in ids {
+        for id in ids.into_iter().take(limit.clamp(1, 200) as usize) {
             let id = Uuid::parse_str(&id).map_err(|_| JournalError::Corrupt)?;
             next = Some(id);
             let record = self.journal.working_file(id)?;
@@ -96,7 +97,7 @@ impl RecoveryJournal {
                 rows.push(self.working_source(id)?.0);
             }
         }
-        Ok((rows, next))
+        Ok((rows, if more { next } else { None }))
     }
     /// Does not seal, migrate, resume an upload or modify journal records.
     pub fn export_working(

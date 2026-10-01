@@ -1813,7 +1813,132 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn disabled_account_offers_local_recovery_without_a_daemon() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut settings = demo::snapshot().unwrap().settings.unwrap();
+    settings.accounts.truncate(1);
+    settings.accounts[0].enabled = false;
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadOnly;
+    settings.accounts[0].registration = cirrove_auth::AppRegistration::ICloud;
+    settings.accounts[0].drive.name = "iCloud Drive".into();
+    settings.accounts[0].drive.id = "drive".into();
+    settings.accounts[0].drive.drive_type = "icloud_drive".into();
+    settings.accounts[0].root_id = "FOLDER::com.apple.CloudDocs::root".into();
+    settings.accounts[0].identity.tenant_id.clear();
+    settings.accounts[0].identity.graph_user_id.clear();
+    let id = settings.accounts[0].id.clone();
+    let root = state.join("accounts").join(&id).join("journal");
+    let mut journal = cirrove_service::journal::UploadJournal::open(&root, &id, 1048576).unwrap();
+    let node=serde_json::from_value(serde_json::json!({"id":"local", "parent_id":"root", "name":"Draft notes.txt", "kind":"file", "size":0,"etag":null,"target":null})).unwrap();
+    let scope = serde_json::from_value(
+        serde_json::json!({"account":id,"provider":"icloud","collection":"drive"}),
+    )
+    .unwrap();
+    let working = journal.create_working(scope, node, true, &b""[..]).unwrap();
+    journal
+        .write_working(working.id, 0, b"retained working bytes")
+        .unwrap();
+    drop(journal);
+    let before = std::fs::read(root.join("uploads.db")).unwrap();
+    write_settings(&state, &settings);
+    let mut page = cirrove_desktop::recovery::offline::load(
+        &state,
+        &settings.accounts[0].label,
+        &id,
+        Default::default(),
+    )
+    .unwrap();
+    let selection = page.selections.remove(0);
+    let app = application("OfflineRecovery");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state: state.clone(),
+            socket: temp.path().join("absent.sock"),
+        },
+    );
+    pump_until("disabled account", || {
+        ui.current().is_some_and(|view| {
+            !view.accounts.is_empty() && !view.accounts[0].enabled && !view.accounts[0].mounted
+        })
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("offline recovery action", || {
+        expand_all(window.upcast_ref());
+        button(window.upcast_ref(), "Save a local copy…").is_some()
+    });
+    let export = button(window.upcast_ref(), "Save a local copy…").unwrap();
+    assert!(
+        export.is_sensitive(),
+        "disabled accounts must offer local recovery"
+    );
+    export.emit_clicked();
+    pump_until("offline working picker", || {
+        displays_text_containing(window.upcast_ref(), "Draft notes.txt — working file")
+    });
+    if let Ok(path) = std::env::var("CIRROVE_OFFLINE_RECOVERY_SNAPSHOT") {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(&window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(snapshot.to_node().unwrap(), None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    pump_until("picker dismissed", || {
+        button(window.upcast_ref(), "Cancel").is_none()
+    });
+    let destination = temp.path().join("rescued.txt");
+    ui.export_offline_version(&id, selection.clone(), destination.clone());
+    pump_until("offline export confirmed", || {
+        displays_text_containing(window.upcast_ref(), "Working-file copy saved to")
+    });
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        b"retained working bytes"
+    );
+    assert_eq!(std::fs::read(root.join("uploads.db")).unwrap(), before);
+    button(window.upcast_ref(), "Close").unwrap().emit_clicked();
+    pump_until("export dismissed", || {
+        button(window.upcast_ref(), "Close").is_none()
+    });
+    let mut stale = selection;
+    if let cirrove_desktop::recovery::offline::Selection::Working(ref mut working) = stale {
+        working.generation += 1;
+    }
+    let rejected = temp.path().join("stale.txt");
+    ui.export_offline_version(&id, stale, rejected.clone());
+    pump_until("stale export refused", || {
+        displays_text_containing(window.upcast_ref(), "Export was not confirmed.")
+    });
+    assert!(!rejected.exists());
+    window.close();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "disabled_account_offers_local_recovery_without_a_daemon",
+        disabled_account_offers_local_recovery_without_a_daemon,
+    ),
     (
         "recovery_progress_requires_the_matching_service_receipt",
         recovery_progress_requires_the_matching_service_receipt,

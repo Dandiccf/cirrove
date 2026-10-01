@@ -7,6 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+cirrove-core.workspace = true
 cirrove-service.workspace = true
 cirrove-auth.workspace = true
 cirrove-icloud = { path = "../cirrove-icloud" }

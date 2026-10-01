@@ -407,6 +407,7 @@ version = "0.2.0-dev"
 dependencies = [
  "anyhow",
  "cirrove-auth",
+ "cirrove-core",
  "cirrove-icloud",
  "cirrove-service",
  "clap",

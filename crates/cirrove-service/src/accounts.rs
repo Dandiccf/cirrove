@@ -1633,6 +1633,7 @@ fn drive_choice(read: usize, line: &str, listing: &str) -> Result<usize> {
 /// An offline account held against mount, settings changes and journal workers.
 /// No credentials, provider, migration or recovery worker is constructed.
 pub struct OfflineRecovery {
+    account_id: String,
     journal: crate::journal::RecoveryJournal,
     state: PathBuf,
     mounts: Vec<PathBuf>,
@@ -1665,6 +1666,7 @@ impl OfflineRecovery {
             crate::journal::RecoveryJournal::open(&directory.join("journal"), &account.id)
                 .context("could not open the retained journal for read-only recovery")?;
         Ok(Self {
+            account_id: account.id.clone(),
             journal,
             state: state.canonicalize()?,
             mounts: settings
@@ -1675,6 +1677,9 @@ impl OfflineRecovery {
             _operation: operation,
             _owner: owner,
         })
+    }
+    pub fn account_id(&self) -> &str {
+        &self.account_id
     }
     pub fn list(&self, after: u64, limit: u32) -> Result<Vec<crate::recent::LocalChange>> {
         self.journal

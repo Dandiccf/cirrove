@@ -146,13 +146,13 @@ fn working_recovery_retains_lock_uses_actual_size_and_refuses_stale_or_unsafe_ex
     assert!(UploadJournal::open(&root, &account, 1048576).is_err());
     let (rows, next) = recovery.working_list(None, 1).unwrap();
     assert_eq!(rows.len(), 1);
-    assert_eq!(next, Some(id));
+    assert_eq!(next, None);
     assert_eq!(rows[0].size, 7);
     assert_eq!(
         rows[0].recorded_size,
         b"unsealed working bytes".len() as u64
     );
-    assert!(recovery.working_list(next, 1).unwrap().0.is_empty());
+    assert!(recovery.working_list(Some(id), 1).unwrap().0.is_empty());
     let destination = temp.path().join("restored");
     let token = CancellationToken::new();
     assert!(
@@ -253,7 +253,7 @@ fn clean_working_rows_advance_pagination_and_unlinked_empty_bytes_can_be_recover
     let recovery = OfflineRecovery::open(&state, "work").unwrap();
     let (rows, next) = recovery.working_list(None, 1).unwrap();
     assert!(rows.is_empty());
-    assert_eq!(next, Some(id));
+    assert_eq!(next, None);
     assert!(
         recovery
             .export_working(
@@ -282,4 +282,50 @@ fn clean_working_rows_advance_pagination_and_unlinked_empty_bytes_can_be_recover
     assert!(result.source.unlinked);
     assert_eq!(result.source.size, 0);
     assert_eq!(fs::read(target).unwrap(), b"");
+}
+
+#[test]
+fn working_pagination_looks_ahead_without_skipping_the_next_file() {
+    use cirrove_service::journal::RecoveryJournal;
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = UploadJournal::open(&root, "owned", 1048576).unwrap();
+    for index in 0..201 {
+        let node = Node {
+            id: format!("local-{index}"),
+            parent_id: Some("root".into()),
+            name: format!("draft-{index}"),
+            kind: NodeKind::File,
+            size: 0,
+            modified_unix: 0,
+            etag: None,
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let working = journal
+            .create_working(
+                Scope {
+                    account: "owned".into(),
+                    provider: "icloud".into(),
+                    collection: "drive".into(),
+                },
+                node,
+                true,
+                &b""[..],
+            )
+            .unwrap();
+        journal.write_working(working.id, 0, b"x").unwrap();
+    }
+    drop(journal);
+    let recovery = RecoveryJournal::open(&root, "owned").unwrap();
+    let (first, cursor) = recovery.working_list(None, 200).unwrap();
+    assert_eq!(first.len(), 200);
+    assert!(cursor.is_some());
+    let (last, end) = recovery.working_list(cursor, 200).unwrap();
+    assert_eq!(last.len(), 1);
+    assert!(end.is_none());
+    let ids: std::collections::HashSet<_> =
+        first.into_iter().chain(last).map(|row| row.file).collect();
+    assert_eq!(ids.len(), 201);
 }

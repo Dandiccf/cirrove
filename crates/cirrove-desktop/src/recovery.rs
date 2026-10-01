@@ -1,4 +1,6 @@
 //! Presentation rules for non-mutating recovery of sealed local saves.
+pub mod offline;
+
 use cirrove_service::{
     jobs::{Job, JobKind, JobState},
     recent::LocalChange,
