@@ -19,6 +19,16 @@ pub(super) fn prepare(
     upload: &UploadRecord,
     object: Option<&NamespaceObject>,
 ) -> Result<Option<AtomicRescue>> {
+    prepare_bound(journal, upload, object, &[upload.id], None)
+}
+
+pub(super) fn prepare_bound(
+    journal: &UploadJournal,
+    upload: &UploadRecord,
+    object: Option<&NamespaceObject>,
+    allowed: &[Uuid],
+    predecessor: Option<&NamespaceObject>,
+) -> Result<Option<AtomicRescue>> {
     let Some(object) = object else {
         return Ok(None);
     };
@@ -33,8 +43,9 @@ pub(super) fn prepare(
         let record: ReplacementRecord = serde_json::from_str(&row?)?;
         if record.id == upload.id {
             active = Some(record);
-        } else if !(record.remote_applied || record.rescued_as.is_some())
-            || journal.mutation(record.cleanup)?.state != MutationState::Applied
+        } else if !allowed.contains(&record.id)
+            && (!(record.remote_applied || record.rescued_as.is_some())
+                || journal.mutation(record.cleanup)?.state != MutationState::Applied)
         {
             // Another takeover still owns one of these bindings.
             return Err(JournalError::Stale);
@@ -43,11 +54,29 @@ pub(super) fn prepare(
     let Some(record) = active else {
         return Ok(None);
     };
-    if record.rescued_as.is_some() {
+    if record.rescued_as.is_some() || !record.local_ready || record.remote_applied {
         return Err(JournalError::Stale);
     }
-    let victim =
-        replacements::handoff_victim(&journal.db, upload, object)?.ok_or(JournalError::Stale)?;
+    let victim = if let Some(previous) = predecessor {
+        if record.source != object.id
+            || record.victim != previous.id
+            || previous.scope != upload.scope
+            || !previous.unlinked
+            || !previous.remote_owned
+            || previous.node.package
+            || previous.node.target.is_some()
+            || previous.node.kind != NodeKind::File
+            || previous
+                .remote
+                .as_ref()
+                .is_none_or(|r| object.remote.as_ref().is_none_or(|n| n.id == r.id))
+        {
+            return Err(JournalError::Stale);
+        }
+        previous.clone()
+    } else {
+        replacements::handoff_victim(&journal.db, upload, object)?.ok_or(JournalError::Stale)?
+    };
     let cleanup_object = journal.namespace_object(record.cleanup_object)?;
     let cleanup = journal.mutation(record.cleanup)?;
     let remote = object.remote.as_ref().ok_or(JournalError::Stale)?;

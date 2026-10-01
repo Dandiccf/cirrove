@@ -634,6 +634,12 @@ async fn main() -> Result<()> {
     }
     if let [flag, run] = args.as_slice() {
         match flag.as_str() {
+            "--account-mounted-competing-chain" => {
+                return cirrove_service::validation::icloud_account_mounted_competing_chain(
+                    Uuid::parse_str(run)?,
+                )
+                .await;
+            }
             "--account-replace-registration-interrupt" => {
                 return cirrove_service::validation::icloud_account_replace_registration_interrupt(
                     Uuid::parse_str(run)?,

@@ -78,33 +78,56 @@ finally: os.close(old)
     Ok(())
 }
 
-pub(super) async fn cleanup(f: &Fixture, session: &WritableSession, refused: Uuid) -> Result<()> {
+pub(super) async fn cleanup(
+    f: &Fixture,
+    session: &WritableSession,
+    refused: Uuid,
+    chain: bool,
+) -> Result<()> {
     let temporary: Node =
         serde_json::from_slice(&std::fs::read(f.run_dir.join("atomic-source.json"))?)?;
+    let mut temporaries = vec![temporary];
+    if chain {
+        temporaries.push(serde_json::from_slice(&std::fs::read(
+            f.run_dir.join("atomic-source-2.json"),
+        )?)?);
+    }
     tokio::time::timeout(Duration::from_secs(600), async {
         loop {
             let rows = session.mutations(0, 16).await?;
-            ensure!(rows.len() == 2, "unexpected atomic rescue cleanup count");
             ensure!(
-                rows[0].state == MutationState::Resolved && rows[0].receipt.is_none(),
-                "old cleanup was not superseded"
+                rows.len() == temporaries.len() * 2,
+                "unexpected atomic rescue cleanup count"
             );
-            ensure!(
-                rows.iter().all(|r| r
-                    .request
-                    .intent
-                    .before()
-                    .is_some_and(|n| n.id == temporary.id)),
-                "cleanup targeted another identity"
-            );
-            ensure!(
-                !matches!(
-                    rows[1].state,
-                    MutationState::Failed | MutationState::Conflict | MutationState::NeedsReview
-                ),
-                "atomic rescue cleanup requires review"
-            );
-            if rows[1].state == MutationState::Applied {
+            let mut done = true;
+            for temporary in &temporaries {
+                let pair: Vec<_> = rows
+                    .iter()
+                    .filter(|r| {
+                        r.request
+                            .intent
+                            .before()
+                            .is_some_and(|n| n.id == temporary.id)
+                    })
+                    .collect();
+                ensure!(
+                    pair.len() == 2
+                        && pair[0].state == MutationState::Resolved
+                        && pair[0].receipt.is_none(),
+                    "old cleanup was not superseded for exact source"
+                );
+                ensure!(
+                    !matches!(
+                        pair[1].state,
+                        MutationState::Failed
+                            | MutationState::Conflict
+                            | MutationState::NeedsReview
+                    ),
+                    "atomic rescue cleanup requires review"
+                );
+                done &= pair[1].state == MutationState::Applied;
+            }
+            if done {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(250)).await;
@@ -115,13 +138,15 @@ pub(super) async fn cleanup(f: &Fixture, session: &WritableSession, refused: Uui
     .context("atomic rescue cleanup deadline")??;
     let mut remote =
         ICloudReadSession::from_session_snapshot(&f.snapshot, &f.account.identity.username)?;
-    ensure!(
-        remote.exact_item_in_trash(&temporary.id).await?,
-        "temporary identity was not recoverable in Trash"
-    );
+    for temporary in &temporaries {
+        ensure!(
+            remote.exact_item_in_trash(&temporary.id).await?,
+            "temporary identity was not recoverable in Trash"
+        );
+    }
     record(
         &f.run_dir.join("atomic-cleanup-verified.json"),
-        &serde_json::json!({"refused":refused,"temporary_recoverable":true,"old_cleanup_resolved_without_receipt":true,"new_cleanup_applied":true}),
+        &serde_json::json!({"refused":refused,"temporary_count":temporaries.len(),"temporary_recoverable":true,"old_cleanup_resolved_without_receipt":true,"new_cleanup_applied":true}),
     )?;
     println!("Only the confirmed editor temporary identity was cleaned up, recoverably in Trash");
     Ok(())

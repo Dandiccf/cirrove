@@ -106,13 +106,13 @@ mod mounted;
 pub use mounted::{
     icloud_account_empty_read, icloud_account_mounted, icloud_account_mounted_atomic,
     icloud_account_mounted_competing, icloud_account_mounted_competing_atomic,
-    icloud_account_mounted_competing_autosaves, icloud_account_mounted_delete_interrupt,
-    icloud_account_mounted_delete_recover, icloud_account_mounted_empty_replace,
-    icloud_account_mounted_final_interrupt, icloud_account_mounted_final_recover,
-    icloud_account_mounted_interrupt, icloud_account_mounted_large,
-    icloud_account_mounted_large_sized, icloud_account_mounted_recover,
-    icloud_account_mounted_relocation_interrupt, icloud_account_mounted_relocation_recover,
-    icloud_account_mounted_relocation_step_interrupt,
+    icloud_account_mounted_competing_autosaves, icloud_account_mounted_competing_chain,
+    icloud_account_mounted_delete_interrupt, icloud_account_mounted_delete_recover,
+    icloud_account_mounted_empty_replace, icloud_account_mounted_final_interrupt,
+    icloud_account_mounted_final_recover, icloud_account_mounted_interrupt,
+    icloud_account_mounted_large, icloud_account_mounted_large_sized,
+    icloud_account_mounted_recover, icloud_account_mounted_relocation_interrupt,
+    icloud_account_mounted_relocation_recover, icloud_account_mounted_relocation_step_interrupt,
 };
 mod namespace;
 pub use namespace::{icloud_account_combined, icloud_account_namespace};

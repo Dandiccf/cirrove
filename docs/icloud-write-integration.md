@@ -400,7 +400,7 @@ router**, with explicit acceptance gates:
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves and [create registration-confirmation loss](benchmarks/icloud-registration-recovery-2026-10-01.md) | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps; mounted unlink recovered after confirmed Trash before journal acknowledgement | In-flight uncertainty, concurrent intermediate changes, other deletion boundaries and repeatability |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified; isolated [staging-body interruption](benchmarks/icloud-replace-stream-interruption-2026-10-01.md) recovered with original preserved, local export and fresh retry; [replacement-stage registration confirmation loss](benchmarks/icloud-replace-registration-recovery-2026-10-01.md) recovered the same staged ID without reupload/registration | Other in-flight boundaries and repeatability; preserve both versions |
-| Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
+| Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement and [two consecutive atomic saves](benchmarks/icloud-mounted-atomic-chain-2026-10-01.md); separate versions, receipt-gated editor cleanup and remount verified | More complex chains, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account working-byte export, per-operation explanation and safe resolution; installed validation and audit of earlier retained fixtures |
 | Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
 | Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
@@ -740,3 +740,25 @@ mutating replay, duplicate or document/revision change. The
 retain the binary/process evidence. This is a create confirmation-loss boundary,
 not all replacement-stage, in-flight network or power-loss outcomes, and it does
 not enable ordinary iCloud writes.
+
+
+## Consecutive atomic saves through a conflict
+
+The shared rescue transaction now handles untouched chains beginning with a
+refused atomic editor replacement, including ordinary successor saves on those
+streams and newer dirty bytes on the final stream. It resolves the superseded
+saves together, restores only the oldest cloud victim's alias, and queues each
+confirmed editor temporary's conditional cleanup behind the new rescue receipt.
+Older detached working streams and immutable save payloads remain retained.
+Existing confirmed temporary-upload receipts are locally rebound through the
+worker's bounded readiness pass before validation; no operation is claimed there.
+
+The [registered mounted iCloud arm](benchmarks/icloud-mounted-atomic-chain-2026-10-01.md)
+passed with two consecutive atomic saves and a real competing edit. Rescue after
+restart, independent full hashes, both exact temporary IDs in Trash, a second
+remount and a read-only journal audit all passed. Three-link/dirty-tail,
+transaction-failure, attempted-cleanup and external-dependency behavior has
+synthetic coverage. This does not cover arbitrary interleaved namespace operations,
+unconfirmed temporary sources, uncertain successors, or provider-internal staging
+cleanup. Normal writable-account grants and installed release acceptance remain
+unchanged and open.

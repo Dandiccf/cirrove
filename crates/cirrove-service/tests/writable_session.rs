@@ -4635,22 +4635,28 @@ async fn real_a_package_is_readable_and_refuses_every_change_inside_it() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; keep both exposes cloud and local copies independently"]
 async fn real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upload() {
-    keep_both_mount(false, false).await;
+    keep_both_mount(false, false, false).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; autosave conflict rescue retains newest content"]
 async fn real_keep_both_rescues_multiple_autosaves_without_replaying_them() {
-    keep_both_mount(true, false).await;
+    keep_both_mount(true, false, false).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; atomic-save conflict rescue preserves both identities"]
 async fn real_keep_both_rescues_atomic_save_and_delays_temporary_cleanup() {
-    keep_both_mount(false, true).await;
+    keep_both_mount(false, true, false).await;
 }
 
-async fn keep_both_mount(autosave: bool, atomic: bool) {
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; chained atomic conflict rescue preserves each stream"]
+async fn real_keep_both_rescues_chained_atomic_saves_without_early_cleanup() {
+    keep_both_mount(false, true, true).await;
+}
+
+async fn keep_both_mount(autosave: bool, atomic: bool, chain: bool) {
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
@@ -4723,7 +4729,45 @@ async fn keep_both_mount(autosave: bool, atomic: bool) {
     })
     .await
     .unwrap();
-    let expected: &[u8] = if autosave { b"local-3" } else { b"local" };
+    let mut second_temporary = None;
+    let intermediate = if chain {
+        let held = tokio::task::spawn_blocking({
+            let path = mount.join("document.txt");
+            move || std::fs::File::open(path).unwrap()
+        })
+        .await
+        .unwrap();
+        application(
+            &mount,
+            "import pathlib,sys; pathlib.Path(sys.argv[1], 'second.txt').write_bytes(b'latest')",
+        )
+        .await;
+        second_temporary = Some(tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let rows = session.uploads(0,10).await.unwrap();
+                if let Some(row) = rows.into_iter().find(|r|matches!(&r.intent, UploadIntent::Create{name,..} if name=="second.txt")) {
+                    assert!(!matches!(row.state,UploadState::Failed | UploadState::Conflict));
+                    if row.state == UploadState::Uploaded { break row.remote.unwrap().id; }
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }).await.unwrap());
+        application(
+            &mount,
+            "import os,sys; os.chdir(sys.argv[1]); os.replace('second.txt','document.txt')",
+        )
+        .await;
+        Some(held)
+    } else {
+        None
+    };
+    let expected: &[u8] = if chain {
+        b"latest"
+    } else if autosave {
+        b"local-3"
+    } else {
+        b"local"
+    };
     if autosave {
         application(&mount, "import pathlib,sys; p=pathlib.Path(sys.argv[1], 'document.txt'); p.write_bytes(b'local-2'); p.write_bytes(b'local-3')").await;
     }
@@ -4776,6 +4820,16 @@ while True:
     })
     .await
     .unwrap();
+    if let Some(mut intermediate) = intermediate {
+        tokio::task::spawn_blocking(move || {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            intermediate.read_to_end(&mut bytes).unwrap();
+            assert_eq!(bytes, b"local");
+        })
+        .await
+        .unwrap();
+    }
     if let Some(mut old) = old_descriptor {
         tokio::task::spawn_blocking(move || {
             use std::io::Read;
@@ -4817,11 +4871,22 @@ while True:
         b"remote"
     );
     if atomic {
-        mutations_applied(&session, 1).await;
+        mutations_applied(&session, if chain { 2 } else { 1 }).await;
         let remote = cloud.remote.lock().unwrap();
         assert!(!remote.files.contains_key("source"));
-        assert_eq!(remote.deletes.len(), 1);
-        assert_eq!(remote.deletes[0].intent.before().unwrap().id, "source");
+        let mut expected = vec!["source".to_owned()];
+        if let Some(second) = second_temporary {
+            assert!(!remote.files.contains_key(&second));
+            expected.push(second);
+        }
+        expected.sort();
+        let mut actual: Vec<_> = remote
+            .deletes
+            .iter()
+            .map(|r| r.intent.before().unwrap().id.clone())
+            .collect();
+        actual.sort();
+        assert_eq!(actual, expected);
     }
     session.shutdown().await.unwrap();
     drop(engine);

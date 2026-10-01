@@ -1,6 +1,7 @@
 //! Real competing content edit, limited to a newly owned tiny fixture.
 use super::*;
 mod atomic_save;
+mod chain;
 use cirrove_core::upload::{UploadError, UploadRequest};
 use std::{
     path::PathBuf,
@@ -227,19 +228,24 @@ async fn autosave_while_prepared(f: &Fixture, session: &WritableSession) -> Resu
 }
 
 pub async fn icloud_account_mounted_competing_autosaves(run: Uuid) -> Result<()> {
-    run_competing(run, true, false).await
+    run_competing(run, true, false, false).await
 }
 pub async fn icloud_account_mounted_competing(run: Uuid) -> Result<()> {
-    run_competing(run, false, false).await
+    run_competing(run, false, false, false).await
 }
 
 pub async fn icloud_account_mounted_competing_atomic(run: Uuid) -> Result<()> {
-    run_competing(run, false, true).await
+    run_competing(run, false, true, false).await
 }
-async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
+pub async fn icloud_account_mounted_competing_chain(run: Uuid) -> Result<()> {
+    run_competing(run, false, true, true).await
+}
+async fn run_competing(run: Uuid, autosaves: bool, atomic: bool, chain: bool) -> Result<()> {
     let f = prepare(
         run,
-        if atomic {
+        if chain {
+            "mounted-competing-chain"
+        } else if atomic {
             "mounted-competing-atomic"
         } else if autosaves {
             "mounted-competing-autosaves"
@@ -248,7 +254,9 @@ async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
         },
     )
     .await?;
-    let count = if atomic {
+    let count = if chain {
+        5
+    } else if atomic {
         3
     } else if autosaves {
         4
@@ -256,7 +264,11 @@ async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
         2
     };
     let conflict_index = if atomic { 2 } else { 1 };
-    let local_bytes = if autosaves { AUTOSAVE_LAST } else { SECOND };
+    let local_bytes = if autosaves || chain {
+        AUTOSAVE_LAST
+    } else {
+        SECOND
+    };
     let boundary = Boundary::new(&f, atomic);
     let session = mount_with_hooks(&f, None, Some(boundary)).await?;
     let result: Result<(Uuid, Node)> = async {
@@ -266,8 +278,9 @@ async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
         record(&f.run_dir.join("original.json"), &original)?;
         if atomic { atomic_save::replace(&f, &session).await?; } else { app(&f, "replace").await?; }
         if autosaves { autosave_while_prepared(&f,&session).await?; }
-        let refused = conflicted(&session,count,conflict_index).await?;
+        let refused = conflicted(&session,if chain {3} else {count},conflict_index).await?;
         ensure!(refused.sha256 == hex::encode(Sha256::digest(SECOND)) && refused.size == SECOND.len() as u64, "conflicted payload differs");
+        if chain { chain::replace_again(&f, &session).await?; }
         local_content(&f,local_bytes,false).await?;
         let bytes = std::fs::read(f.run_dir.join("competing-confirmed.json")).context("competing edit was not independently confirmed; fixture retained")?;
         ensure!(bytes.len() <= 8192, "revised receipt too large");
@@ -305,9 +318,15 @@ async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
                     rows.len() == count + 1
                         && rows
                             .iter()
+                            .enumerate()
                             .skip(conflict_index)
                             .take(count - conflict_index)
-                            .all(|r| r.state == UploadState::Resolved)
+                            .all(|(index, r)| r.state
+                                == if chain && index == 3 {
+                                    UploadState::Uploaded
+                                } else {
+                                    UploadState::Resolved
+                                })
                         && rows
                             .iter()
                             .any(|r| r.id == refused && r.state == UploadState::Resolved),
@@ -351,7 +370,7 @@ async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
         verify(&f.snapshot, &f.account, &f.parent, &revised, &expected).await?;
         record(&f.run_dir.join("rescue-verified.json"), &copy)?;
         if atomic {
-            atomic_save::cleanup(&f, &session, refused).await?;
+            atomic_save::cleanup(&f, &session, refused, chain).await?;
         }
         Ok(())
     }
@@ -366,7 +385,7 @@ async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
     shutdown?;
     record(
         &f.run_dir.join("passed.json"),
-        &serde_json::json!({"run":run,"pending_autosaves":if autosaves {2} else {0},"atomic_save":atomic,"real_competing_content_edit":true,"normal_adapter_conflict":true,"local_payload_preserved":true,"cloud_content_preserved":true,"keep_both_after_restart":true,"rescue_uploaded_and_hashed":true,"both_read_after_remount":true,"staging_cleanup":"retained_pending_separate_validation"}),
+        &serde_json::json!({"run":run,"pending_autosaves":if autosaves {2} else {0},"atomic_save":atomic,"atomic_chain":chain,"real_competing_content_edit":true,"normal_adapter_conflict":true,"local_payload_preserved":true,"cloud_content_preserved":true,"keep_both_after_restart":true,"rescue_uploaded_and_hashed":true,"both_read_after_remount":true,"staging_cleanup":"retained_pending_separate_validation"}),
     )?;
     println!(
         "Mounted competing-edit test passed; both versions independently verified after remount"

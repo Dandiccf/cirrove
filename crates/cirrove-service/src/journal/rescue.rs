@@ -2,9 +2,11 @@
 //! move and resolution of the refused operation publish in one transaction.
 use super::*;
 mod atomic;
+mod chain;
 
 pub(super) struct RescueCommit {
     atomic: Option<atomic::AtomicRescue>,
+    chain: Option<chain::Chain>,
     original: UploadRecord,
     successors: Vec<UploadRecord>,
     object: Option<NamespaceObject>,
@@ -34,6 +36,10 @@ pub(super) fn prepare(
     parent: &str,
     name: &str,
 ) -> Result<RescueCommit> {
+    // Confirmed temporary-upload receipts may not yet have been bound into
+    // younger cleanup requests. Use the worker's bounded local rebinding pass;
+    // no provider operation is claimed or replayed here.
+    journal.resolve_ready_generations()?;
     let saved = prepare_saved(journal, id, parent, name)?;
     if let Some(working) = &saved.working
         && working.dirty
@@ -120,9 +126,22 @@ fn prepare_saved(
     }
     .validate()
     .map_err(|_| JournalError::Intent)?;
-    let object = journal.namespace_for_operation(id)?;
-    let atomic = atomic::prepare(journal, &original, object.as_ref())?;
-    let successors = successors(journal, &original, atomic.as_ref().map(|a| a.cleanup_id()))?;
+    let chain = chain::prepare(journal, &original)?;
+    let object = if let Some(chain) = &chain {
+        Some(chain.object.clone())
+    } else {
+        journal.namespace_for_operation(id)?
+    };
+    let atomic = if chain.is_none() {
+        atomic::prepare(journal, &original, object.as_ref())?
+    } else {
+        None
+    };
+    let successors = if let Some(chain) = &chain {
+        chain.successors.clone()
+    } else {
+        successors(journal, &original, atomic.as_ref().map(|a| a.cleanup_id()))?
+    };
     let latest = successors.last().unwrap_or(&original);
     let working = if let Some(object) = &object {
         if object.unlinked
@@ -140,11 +159,11 @@ fn prepare_saved(
             || working.latest != Some(latest.id)
             || working.node != object.node
             || working.scope != original.scope
-            || original.working_file != Some(working.id)
+            || latest.working_file != Some(working.id)
         {
             return Err(JournalError::Stale);
         }
-        for save in &successors {
+        for save in successors.iter().filter(|_| chain.is_none()) {
             if journal
                 .namespace_for_operation(save.id)?
                 .as_ref()
@@ -187,6 +206,7 @@ fn prepare_saved(
     };
     Ok(RescueCommit {
         atomic,
+        chain,
         original,
         successors,
         object,
@@ -242,7 +262,9 @@ pub(super) fn commit(
             )?;
         }
         namespace::save(tx, &object)?;
-        let restored = if let Some(atomic) = &saved.atomic {
+        let restored = if let Some(chain) = &saved.chain {
+            Some(chain.commit(tx, copy)?)
+        } else if let Some(atomic) = &saved.atomic {
             Some(atomic::commit(tx, atomic, previous, copy)?)
         } else {
             previous.remote.clone()
