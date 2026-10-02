@@ -4,206 +4,246 @@
 
 **Your clouds. One filesystem.**
 
-Cirrove is an Apache-2.0 Linux cloud-filesystem project, starting with OneDrive and
-linked SharePoint libraries through Microsoft Graph. It keeps metadata locally and
-fetches file content on demand into a bounded disk cache.
+Cirrove makes your cloud drives available as ordinary folders on Linux. Browse
+from a local metadata index, download file contents when you open them, keep
+selected files or folders offline, and use your existing editors and file
+managers. A native settings window, tray and file-manager integration make the
+connection and file state visible. Cirrove is an independent Apache-2.0 project
+with a shared filesystem, cache and recovery journal for its cloud adapters.
 
-**Status: pre-release, in daily use on one machine, under validation.** A
-OneDrive is mounted on demand -- files appear at once, their contents download
-when opened into a bounded cache, and saves upload in the background through a
-journal that has survived the machine losing power mid-write. Offline pinning
-works from Files, Dolphin and the command line. The settings window connects, re-signs,
-removes and repairs accounts without a terminal; the tray and the Files
-extension show what the daemon knows. Arch, Ubuntu 24.04 and Fedora packages
-are built and installed on clean systems by CI on every push; there is no
-tagged release yet, and [what blocks one](docs/distribution.md#what-blocks-the-first-release-and-what-does-not)
-is written down, as is [what has been checked against a real account and
-what has not](docs/compatibility.md). Do not yet replace a trusted cloud
-client with it for data you have nowhere else. The
-[user guide](docs/user-guide.md) is where to start.
-`cirrove pins` shows what each pin has kept against what it reserved, and how much
-of the cache budget pinning has claimed. All of it has been measured against a real
-business drive: a pinned file reads through a mount without touching the provider
-while an unpinned control needs it. Files and Dolphin expose the same pin state
-and controls; Dolphin's live desktop acceptance remains open.
+**Status: early preview, actively developed and under validation.**
+[Version 0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0), released
+on 18 September 2026, is the first OneDrive-focused release.
+[0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
+packages the newer OneDrive and Google Drive previews for testing. iCloud is
+being developed separately and is not included in `main` or the released
+packages. The table below describes implementation and validation status; it is not a general reliability guarantee.
+See the [user guide](docs/user-guide.md) to get started and the
+[compatibility matrix](docs/compatibility.md) for the tested boundaries. Keep a
+separate copy of data you cannot replace while the preview is under validation.
 
-## Current implementation
+## What you can do
 
-- Browser Microsoft OAuth with PKCE, signed identity verification, account/tenant
-  display and explicit drive selection. Use your own app registration.
-- Secret Service credential storage, serialized refresh, stale-token protection
-  and account-specific reauthentication.
-- Persistent delta workers, transactional SQLite staging, resumable pagination,
-  backoff and an account-wide provider cooldown. Graph Socket.IO notifications
-  now wake the incremental metadata feed; periodic checks remain a fallback.
-  Provider delivery latency is separate from Cirrove's reaction time; see
-  [change notifications](docs/adr/0003-change-notifications.md).
-- Bounded revalidation of recently used directories while cached listings remain
-  readable. A single account worker checks up to 32 active directories, respects
-  provider cooldowns and avoids reloading unchanged listings. This complements
-  notifications; it does not guarantee a fixed remote-update latency.
-- First-time directory listings stage provider pages in bounded temporary SQLite
-  storage before atomic publication. Cached readers retain the previous view during
-  the fetch; cancellation and failed pages discard unpublished work.
-- Ordered publication of foreground metadata: a delayed response cannot overwrite
-  a newer committed view. Item observations update cached directory entries too;
-  observed absence is kept separately from the completed delta baseline.
-- Metadata invalidation follows indexed revision marks and live file/link identities.
-  Kernel notifications use bounded batches; local namespace changes retain a
-  coalesced full sweep. Experimental writable projections also retain full sweeps.
-  Large-library and long-session acceptance remains open.
-- Linked-drive discovery and shortcut projection with separate target identities.
-  Folder-only SharePoint sharing and revoked targets still need live validation.
-- FUSE projection with persistent directory and content-version inodes,
-  including shared read-only and private memory mappings. Directory requests have
-  capacity reserved separately from a bounded queue of content reads.
-- Cached read-only directory listings stream into immutable anonymous disk
-  snapshots with bounded read buffers and a separate per-mount storage budget.
-  Resolved file and directory views retire after kernel references and
-  open/operation/child leases end; retained children protect their ancestor routes.
-  Immutable scope, alias/ancestry routes and node payloads are shared across resolved
-  view clones; sibling files reuse their unchanged routes.
-  View byte budgets, remaining full-list consumers and long-session capacity retain an open
-  [namespace memory gate](docs/adr/0005-namespace-memory.md).
-- Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
-  bounded eviction and interrupted-publication recovery. Reads hold a shared
-  [read session](docs/adr/0004-read-session-efficiency.md) by default, so Graph
-  metadata checks no longer repeat per cache block; bounded streamed windows
-  amortize conservative checks and combine conditional transfers during
-  sequential reads. Setting `CIRROVE_CONSERVATIVE_READS=1` returns an account to
-  per-block revalidation.
-- Private status socket, desired mount state, accidental-ejection remount and
-  graceful worker/session shutdown. Settings and metadata persist across runs.
-- Native GTK4/libadwaita window: connect a drive through the browser, mount and
-  unmount, sign in again, discard changes the cloud refused, remove a connection
-  -- each offered only where it applies -- plus a StatusNotifierItem tray and a
-  nautilus-python extension with offline badges and Keep offline; see
-  [Desktop](docs/desktop.md).
-- Durable upload snapshots, keyring-backed session checkpoints and bounded
-  provider transfers. Conditional rename, move, folder creation and deletion
-  share durable ordering with uploads. Writable OneDrive and explicitly
-  granted Google My Drive and Shared Drive connections use these workers;
-  isolated validators remain available for
-  controlled live checks.
-- Local working files and immutable save generations, with actual
-  synthetic FUSE create/write/truncate/fsync and offline-restart checks. A new save
-  waits for its predecessor's confirmed remote identity and ETag. A writable
-  account starts bounded upload workers automatically and drains accepted local
-  writes before unmounting. An isolated business-drive check passed two actual
-  mounted saves, automatic uploads and independent content verification. Regular-file
-  atomic replacement has synthetic application checks and bounded OneDrive and
-  Google live evidence. Folder creation, rename, removal and nested saves are
-  implemented; broader real-application acceptance remains incomplete.
-- Offline pinning with storage reservations. A pin is recorded in the metadata
-  index and survives restart; it reserves bytes against the cache budget when it is
-  made, so a request the budget cannot hold is refused rather than accepted and
-  later evicted. Reservations may not claim the whole budget, because a cache with
-  no unreserved room would evict each block an unpinned read had just fetched.
-  Eviction skips pinned blocks both at runtime and in the reconcile pass a mount
-  runs before anything else can. Folder pins walk cached directory views and report
-  whether the walk saw the whole subtree. Status separates what a pin reserved from
-  what it actually holds, counted from files present rather than from the block
-  index. Files and Dolphin expose these controls, and pin jobs fetch the content in
-  the background.
-- Durable local object identities and directory entries separate from optional
-  working bytes. Local stream lookups are separate from provider-binding lookups,
-  so provider aliases cannot redirect existing local views. Writable mounts
-  can rename and move regular files within one collection without downloading
-  content. Uploads and namespace changes share
-  receipt-based ordering; a lost rename response containing another actor's edit
-  blocks later saves and retains both versions. Broader application/provider
-  acceptance remains incomplete.
-- Experimental sessions retire fully acknowledged working copies after the last
-  file user closes, then follow remote edits, moves and deletions while retaining
-  the file's local identity. Cleanup is restartable and preserves pending or
-  conflicted bytes. Acknowledged upload payloads are collected separately from
-  their receipts; alias/history retention still needs large-library validation.
-- Experimental regular-file unlink releases the name locally and queues a
-  conditional cloud deletion. Open handles keep their old stream, including after
-  the name is reused. Reader preservation runs in the background, so a download
-  cannot hold the unlink call's kernel directory lock. Later writes to an unlinked
-  handle stay as local recovery data; their retention and recovery UI remain open.
-- Experimental regular-file replacement supports local and online-only sources.
-  Local names change durably before any source download, while background capture
-  fetches the original cloud version and protects old descriptors. Target upload
-  and source cleanup use their own conditional identities and receipt barriers.
-  Joint publication preserves local streams across chained replacements. Tests
-  exercise actual mounted atomic saves, held reads and interrupted preparation;
-  ordinary desktop editors and broader provider scenarios still need acceptance.
+- **Open cloud files in existing Linux applications.** Browse the cached
+  directory index and fetch only the contents you open, rather than download
+  the whole drive first.
+- **Keep files or folders offline.** Pin jobs download the selected content,
+  show progress, and retain it within the configured cache budget.
+- **Save ordinary files through a writable connection.** With **Allow changes**
+  enabled, saves enter a durable local journal and upload in the background.
+  Local-save completion and cloud acknowledgement remain distinct.
+- **Create, rename, move and trash ordinary files and folders.** Operations use
+  provider identities and conditional revisions; unsupported package changes
+  are refused. Deletion uses the provider's recycle bin where supported.
+- **Keep work when a transfer is interrupted or refused.** Pending edits survive
+  service restart; conflicts retain recovery data instead of treating an
+  unconfirmed upload as success. The window and CLI expose progress and recovery
+  actions.
+- **Manage multiple connections from one desktop.** Connect, mount, unmount,
+  sign in again and inspect account state through the GTK window and tray.
+  English and German interfaces follow the desktop locale.
+- **See file state in your file manager.** Files (Nautilus) and Dolphin expose
+  availability badges and offline actions, backed by the daemon's state.
+- **Control local storage.** Disk caches have budgets, pins reserve space, and
+  local-data reporting shows the cache, index and retained changes.
 
-- Folder creation commits its local entry before cloud confirmation.
-  Nested folders, file creation and file-move destinations wait for the parent's
-  confirmed provider identity independently of each file's save sequence. Actual
-  synthetic mounts exercise pending-parent navigation and recovery after restart;
-  bounded live directory workflows have passed on OneDrive and Google My Drive.
+These describe the current preview implementation. The
+[compatibility matrix](docs/compatibility.md) and
+[validation record](docs/validation.md) distinguish synthetic coverage from
+real-account and application evidence. Native cloud documents and unsupported
+filesystem operations have their own limits.
 
-- Experimental edits capture their traversed folder/link paths. Those local routes
-  remain visible when a provider removes an ancestor, and survive remount without
-  recreating cloud folders. Resolved file-link targets can use the same local write
-  path; shortcut rename/removal remains unsupported. These cases have synthetic
-  mount coverage and still require live provider/application acceptance.
+## Cloud services and current support
 
-These are implementation capabilities, not a production-readiness claim. See the
-[validation record](docs/validation.md) for what has actually been tested.
+| Cloud service | Current status | What works and what remains open |
+| --- | --- | --- |
+| **Microsoft OneDrive** | Read/write preview in `main`; the focus of 0.1.0 | Browser sign-in, on-demand files, background saves, conflict recovery and offline pinning. Daily use and real-account recovery evidence are primarily from OneDrive for Business; Personal-account acceptance remains open. |
+| **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
+| **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
+| **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
+| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. Ordinary-file writes and native iWork documents are being validated separately; this integration is not yet part of `main` or a release. |
 
-## Build and try
+Google Docs and Sheets are presented as **read-only export folders**, with selected
+DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
+Google's native documents. OneNote and other provider packages also retain their
+package-specific write restrictions. See [Google Drive](docs/google-drive.md)
+for the precise preview scope.
 
-Using it, rather than building it, is in the [user guide](docs/user-guide.md).
+Dolphin's broader live desktop acceptance remains open. Distribution and upgrade
+boundaries are recorded in the [validation record](docs/validation.md).
 
-Requires Linux, Rust 1.98.1 (pinned), a C/C++ build toolchain, CMake and pkg-config.
-Rustup installs the toolchain if necessary. SQLite is bundled; HTTPS uses Rustls.
-Mounting additionally needs `/dev/fuse`, `fusermount3` (`fuse3` on Arch), and a kernel
-advertising `FUSE_DIRECT_IO_ALLOW_MMAP`. The mount rejects missing support explicitly.
-The FUSE control filesystem must be mounted at `/sys/fs/fuse/connections` and
-allow its mount owner to open the connection's `abort` control. Cirrove retains
-that descriptor so shutdown can finish even while applications hold files open.
-Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
-Building the desktop also requires GTK 4.14+ and libadwaita 1.5+ development files
-(`gtk4 libadwaita` on Arch; `libgtk-4-dev libadwaita-1-dev` on Ubuntu 24.04).
-The optional Dolphin plugins require Qt 6, KIO 6 and KI18n 6 development files
-and build separately with `cmake -S packaging/dolphin -B target/dolphin`.
-The default `cargo build --locked` builds the service/CLI and core libraries without
-GTK dependencies. Add the desktop explicitly with `cargo build -p cirrove-desktop --locked`,
-or use `cargo build --workspace --locked` to build everything.
+## Try Cirrove
+
+### Install a release
+
+The [0.1.0 release](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0)
+contains Linux x86_64 packages for **Arch, Ubuntu 24.04 and Fedora**, installation
+commands, checksums and package-attestation instructions. Install the core and
+desktop packages for your distribution, then open **Cirrove** from the application
+menu. This release is OneDrive-focused. To test Google Drive without compiling,
+use [0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1),
+a prerelease snapshot with the same three package families. `du` can overreport
+virtual files' disk allocation in this snapshot; use `cirrove local-data` for
+cache/index accounting. Its Google app is limited to approved testers; your own
+OAuth app is an alternative. Canary packages retain their development version and commit suffix, and do not imply that the
+[stable Google release gates](docs/google-release-gate.json) have closed.
+The [user guide](docs/user-guide.md) explains connections, offline pins,
+file-manager extras and recovery.
+
+### Build and try without a cloud account
+
+Requirements: Linux, the pinned Rust toolchain (currently **1.98.1**), a C/C++
+build toolchain, CMake and pkg-config. The desktop also needs **GTK 4.14+** and
+**libadwaita 1.5+** development packages. SQLite is bundled and HTTPS uses Rustls.
 
 ```sh
-cargo build --locked
-cargo run --locked --bin cirrove -- demo --state-dir "$(mktemp -d)"
+git clone https://github.com/Dandiccf/cirrove.git
+cd cirrove
+cargo build --workspace --locked
+
+# Synthetic metadata demo: no sign-in or cloud requests.
+./target/debug/cirrove demo --state-dir "$(mktemp -d)"
 ```
 
-The demo uses synthetic metadata and no cloud account. To create a personally owned
-Microsoft development environment, follow [Personal Microsoft/Azure/Entra setup](docs/microsoft-developer-setup.md).
-If you already have an Entra directory, use the shorter [OneDrive setup](docs/onedrive-setup.md).
-Once an account is connected, start its mount with:
+For the service and CLI without GTK, use `cargo build --locked`. Mounting requires
+`/dev/fuse`, `fusermount3` and a kernel supporting `FUSE_DIRECT_IO_ALLOW_MMAP`;
+the FUSE control filesystem must allow the mount owner to open its `abort`
+control. Browser sign-in requires `xdg-open` and a desktop Secret Service keyring.
+The optional Dolphin plugins additionally need Qt 6, KIO 6 and KI18n 6.
+See [Development](docs/development.md) and [Desktop](docs/desktop.md) for setup.
+
+### Install a developer build and connect
+
+For a machine following `main`, use the supported developer installer:
 
 ```sh
-./target/debug/cirroved
+scripts/install-developer.sh
+cirrove keyring-check
+cirrove-desktop
 ```
 
-From another terminal:
+The installer builds and installs into your home, then starts or restarts the
+user service and tray. Use either release packages or a developer install;
+[do not mix the two](docs/development.md#the-two-ways-to-have-cirrove-installed).
+Follow [Connecting your own accounts](#connecting-your-own-accounts) below for
+the required registration and browser sign-in. `cirrove status` and
+`cirrove accounts` inspect the local service and configured connections.
+
+Account metadata defaults to `~/.local/state/cirrove`; sign-in credentials stay
+in your desktop keyring. Separate state and socket options support isolated
+experiments. Existing cloud clients and their configuration are not imported.
+
+### Test and help validate
 
 ```sh
-./target/debug/cirrove status
-./target/debug/cirrove accounts
-./target/debug/cirrove-desktop
+scripts/check.sh
 ```
 
-Cirrove uses `$XDG_STATE_HOME/cirrove` (fallback `~/.local/state/cirrove`) and
-`$XDG_RUNTIME_DIR/cirrove/control.sock`. Explicit `--state-dir` and `--socket` paths
-support isolated development. State directories must be private (`0700`).
-The daemon holds an ownership lock and recovers a disconnected control socket
-after a crash. Disconnected FUSE mounts are recovered only when their account
-identity matches; live mounts and unrelated paths are preserved.
+This runs formatting, Clippy, workspace and script tests, the acceptance ledger,
+and synthetic FUSE scenarios when `/dev/fuse` and `fusermount3` are available.
+The tests use fake providers and local HTTP fixtures; they do not sign in to your
+cloud account. Desktop-window scenarios need a display and are run separately,
+as described in [Development](docs/development.md#local-checks).
 
-Existing cloud clients, mounts and credentials are not imported or modified.
-The systemd template is supplied separately and is not installed by a build.
-On Arch, `scripts/build-arch-package.sh` builds installable packages from the
-committed tree -- see [Distribution](docs/distribution.md#arch).
-Enabled on a real account, it has been through a reboot: the daemon stopped
-cleanly, unmounting itself, and started again at the next login with its mount,
-index, feeds and schema unchanged. Tests hold the unit to that wiring; only a
-login can exercise it. See
-[the lifecycle measurements](docs/benchmarks/service-lifecycle-and-suspend.json).
+Real-provider testing is a separate step. Start with a read-only connection and
+a folder of disposable, personally owned test files. Write validation should
+have an explicit scope and verify contents independently; do not run mutation
+fixtures against irreplaceable data. For a useful report, follow
+[Contributing](CONTRIBUTING.md): include the version, distribution, desktop,
+expected behavior and reproducible steps, with credentials and private file or
+account details removed.
+
+## Connecting your own accounts
+
+You can try Cirrove with your own accounts before wider onboarding is available.
+Use the [0.2.0 Canary 1 packages](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
+for the newer OneDrive and Google Drive previews, or build `main` following
+[the development installation guide](docs/development.md). Canary is an opt-in
+testing snapshot, with no automatic nightly/update channel. The 0.1.0 release
+remains OneDrive-focused. See [the user guide](docs/user-guide.md#connecting-a-drive)
+for the connection window.
+
+- **OneDrive:** create your own Microsoft Entra desktop app registration and
+  enter its application ID when connecting. Cirrove does not yet bundle a shared
+  Microsoft registration. The [OneDrive setup guide](docs/onedrive-setup.md)
+  covers registration and browser sign-in; the
+  [personal Microsoft account guide](docs/microsoft-developer-setup.md) covers
+  creating a development directory when you do not already have one.
+- **Google Drive:** builds with Cirrove's Google app can sign in accounts on its
+  approved tester list. For independent private testing, create your own Google
+  Cloud project, enable the Drive API, add your account as a test user, and
+  download a **Desktop app** OAuth client JSON. Choose **Use another Google OAuth
+  app** in the window, or pass `--client-json` to the CLI. Keep that JSON private
+  with mode `0600`. The [Google sign-in guide](docs/google-drive.md#google-sign-in-and-optional-custom-app)
+  gives the complete steps and explains Testing-mode grant expiry.
+
+For a first read-only connection, choose a separate empty mount folder and use
+the window with **Allow changes** off, or the CLI:
+
+```sh
+cirrove connect --label my-onedrive \
+  --client-id YOUR_MICROSOFT_APPLICATION_ID \
+  --mount-path "$HOME/Cloud/Cirrove-MyOneDrive"
+
+cirrove connect-google --label my-google \
+  --client-json /absolute/path/to/your-desktop-client.json \
+  --mount-path "$HOME/Cloud/Cirrove-MyGoogle"
+```
+
+Each account signs in through its provider's browser flow. These commands use
+your own registration; they do not import credentials from another cloud client.
+For writable preview setup and Shared Drive selection, follow the provider guide.
+iCloud remains a development integration rather than a general onboarding route.
+
+## iCloud integration progress
+
+**Development update, 2 October 2026:** iCloud has moved beyond a feasibility
+study. Cirrove has its own native adapter using Apple's undocumented web
+transport, with no rclone or Stratosync runtime, configuration or credential
+import. Live checks have covered sign-in, directory browsing, on-demand and
+ranged reads, saved-session restart, and detection of a remote content change.
+New iCloud connections default to read-only.
+
+The latest development work extends Cirrove's shared journal and filesystem to
+explicit ordinary-file writes, conditional changes, recoverable Trash and
+interrupted-save recovery. Scoped application checks and large-file create and
+replacement checks have passed on development-owned fixtures. Native
+Pages/Numbers/Keynote support is also in progress: package reading, import,
+replacement and local-save recovery paths are implemented in the development
+tree. Selected Pages checks include independent content verification and Apple
+reopen; a Numbers import has opened in Apple Numbers with its formula intact,
+and a separate copy has passed full-content verification.
+
+These are bounded development results. **Full iCloud support is still open:**
+a Numbers replacement-admission defect has been reproduced and fixed in
+synthetic tests; live replacement confirmation remains open. Broader Numbers
+and Keynote editing/reopen fidelity, DATA representations, session retention
+and renewal, installed read/write transitions, and sustained account-scale use
+still require acceptance. Test the iCloud branch with isolated state and mounts;
+[its deployment policy](docs/development.md#native-working-journal-schema19-held-prerelease-policy)
+requires keeping it separate from the installed release. Read the
+[iCloud development record](https://github.com/Dandiccf/cirrove/blob/research/icloud-feasibility/docs/icloud-write-integration.md)
+and follow [PR 86](https://github.com/Dandiccf/cirrove/pull/86) for published
+implementation and evidence. A passing fixture does not make this a released
+or generally reliable iCloud client.
+
+## Upcoming cloud services and community contributions
+
+After completing the current integrations, providers we want to tackle next
+include **Dropbox, Nextcloud and Box**. These are future targets; there is no
+adapter or release date promised for them. We also welcome proposals for other
+cloud services and feedback on which providers matter most to Linux users.
+
+**Help us bring more clouds to Linux.** Contributions to new provider adapters,
+authentication flows, synthetic protocol fixtures and scoped real-account
+validation are welcome. An adapter can reuse Cirrove's filesystem, metadata
+store, cache, offline pins and durable recovery machinery. Start with
+[the architecture](docs/architecture.md), [contributor instructions](CONTRIBUTING.md)
+and [the roadmap](docs/roadmap.md), then
+[open an issue](https://github.com/Dandiccf/cirrove/issues) to discuss the provider
+and its identity, change-detection and write-safety requirements. Help with
+existing providers, documentation, translations and desktop testing is welcome
+too.
 
 ## Architecture and contributing
 
@@ -211,58 +251,24 @@ login can exercise it. See
 | --- | --- |
 | `cirrove-core` | Provider-neutral identity, metadata/read/upload contracts, cancellation and request budgets |
 | `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
-| `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
+| `cirrove-onedrive` | Microsoft Graph metadata, version-checked reads and conditional/resumable uploads |
 | `cirrove-googledrive` | Google Drive v3 reads plus v2 conditional writes for writable My Drive and Shared Drive preview mounts |
 | `cirrove-auth` | Microsoft/Google browser authentication, shared keyring and refresh broker |
+| `cirrove-icloud` | Experimental native Apple transport, document representations and scoped recovery adapters; development only |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 | `cirrove-desktop` | Native account overview and asynchronous service controls |
 
 Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
 [OneDrive 1.0 milestones](docs/product-milestones.md),
 [Development](docs/development.md) and [Contributing](CONTRIBUTING.md).
-The [distribution plan](docs/distribution.md) targets native Arch, Debian/Ubuntu
-and Fedora packages; these release/installability gates are not completed yet.
+Packaging and update-channel work is tracked in the
+[distribution plan](docs/distribution.md). The [compatibility matrix](docs/compatibility.md)
+records which desktop and installation combinations have actually been tested.
 
-Google Drive has a [writable My Drive and Shared Drive preview](docs/google-drive.md),
-including browser sign-in, the shared engine, journal, cache, pinning and kernel
-mount. Bounded My Drive runs covered ordinary file changes, stale-write conflicts,
-daemon restart, application saves and file-manager pinning. One Workspace Shared
-Drive run covered scoped discovery, change-feed recovery, binary reads and small
-native exports; isolated writable mounts then covered run-owned create, interrupted
-upload recovery, rename, move, replacement and trash. These are functional checks
-on one Workspace administrator and one owned drive, not a general reliability
-claim. Native Docs and Sheets remain read-only packages with bounded, selected
-DOCX/PDF/ODT or XLSX/PDF/ODS exports. A direct native Doc import conflict probe found that HTTP 412
-could still change its contents, so native write-back remains outside the preview.
-iCloud Drive has a [direct Linux feasibility plan](docs/adr/0016-icloud-drive-needs-a-supported-transport.md).
-Existing Linux clients demonstrate access through Apple's undocumented web
-transport; a Fedora 44/GNOME installation was confirmed to mount iCloud Drive
-read/write through rclone FUSE. Cirrove now has an experimental native read-only
-mount. Feature-gated, isolated FUSE validation has also exercised Cirrove-owned
-ordinary file and folder creation, recoverable deletion, conditional rename,
-cross-folder moves and replacement through the shared journals and workers.
-The [write integration record](docs/icloud-write-integration.md) separates these
-bounded live results from the remaining release gates. Mounted ordinary-file arms
-include [1 GiB create/replacement and remount reads](docs/benchmarks/icloud-mounted-gib-account-2026-10-01.md),
-[interrupted replacement staging](docs/benchmarks/icloud-replace-stream-interruption-2026-10-01.md),
-and [consecutive editor-save conflict recovery](docs/benchmarks/icloud-mounted-atomic-chain-2026-10-01.md).
-A [zero-byte compatibility arm](docs/benchmarks/icloud-empty-representation-2026-09-30.md)
-passed ordinary empty-file creation, independent verification and mounted EOF;
-earlier failed attempts remain recorded. These results do not establish arbitrary
-file-size support, stable latency or general real-application reliability.
-
-Normal iCloud connections remain read-only. Native document packages have a
-[verified read-only artifact path](docs/benchmarks/icloud-native-package-adapter-2026-09-30.md);
-native editing, unknown bundle classification, low-disk/session acceptance and
-installed writable-account validation remain open. The experimental changes are
-not automatically installed into an existing daemon. Cirrove does
-not copy or depend on Stratosync or rclone at runtime, build time or in tests;
-lessons from those integrations inform the recovery tests. A
-[native read-only protocol probe](docs/icloud-native-probe.md) is available for
-interactive validation. One real account has passed sign-in, root listing, a
-small file download, a nonzero byte-range comparison and keyring-backed session
-resumption through Cirrove's native transport. Complete refresh and long-session
-provider reliability remain open.
+Provider scope and ongoing iCloud work are summarized in
+[Cloud services and current support](#cloud-services-and-current-support)
+and [iCloud integration progress](#icloud-integration-progress) above. Detailed
+acceptance evidence remains in the linked provider and validation documents.
 
 ## License
 

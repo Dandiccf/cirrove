@@ -10,13 +10,16 @@ validation steps as of 2 October 2026.
 
 At recovery, local `main` was 127 commits behind `origin/main` and was
 fast-forwarded to `d345767`. The recovered iCloud branch contained that mainline
-and 232 additional commits, including 70 beyond its remote branch. Draft
-[PR 86](https://github.com/Dandiccf/cirrove/pull/86) still points to `7e2d257`.
-Its green CI result does not validate the newer local commits. The recovered
-iCloud head is `bca480c`; later public changes described below have advanced
-local `main` and `origin/main` to `f3e76ae` without changing that iCloud head.
+and 232 additional commits, including 70 beyond its remote branch. At the start, draft
+[PR 86](https://github.com/Dandiccf/cirrove/pull/86) pointed to `7e2d257`.
+Its green CI result did not validate the newer local commits. Recovery produced
+`bca480c`; the parent-selection correction is committed at `cc1470f`. Later
+public changes described below advanced local `main` and `origin/main` to
+`f3e76ae`. The iCloud branch now reconciles those changes. The complete contributor
+check passed after reconciliation and observer integration; publication
+targets the existing draft branch.
 
-The recovered checkout includes the uncommitted static replacement-admission
+Recovery preserved the previously uncommitted static replacement-admission
 diagnostics, their regression tests, the allocated-space correction and its
 documentation, and the latest Numbers validation record. The known Clippy
 failure in the diagnostic test used `result.err().expect(...)`; recovery changes
@@ -129,16 +132,30 @@ retained its local namespace identity. A scoped parent-identity correction
 passed the native replacement tests, including changed-parent and dirty-ancestor
 refusals. This fixes the matching defect synthetically; the original generic
 diagnostic does not establish the historical failure phase, and no live Numbers
-replacement was replayed. The complete `scripts/check.sh` for this correction passed, including the
-three new regressions and actual kernel fixtures. Desktop window scenarios
-were not run.
+replacement was replayed. The correction is committed at `cc1470f`; its complete
+`scripts/check.sh` passed, including the three new regressions and actual kernel
+fixtures. Desktop window scenarios were not run.
 
-After the full check, the next step is a fresh registered isolated live
-confirmation, which requires explicit task authorization for its cloud mutation.
+A new feature-gated [owned receipt observer](benchmarks/icloud-owned-receipt-observer-2026-10-02.json)
+prepares independent read-only confirmation for a fresh Numbers fixture. It
+binds the registration digest, fresh run UUID, exact account, created folder,
+import/replacement receipts and distinct A/B source proofs. An exclusive
+read-only journal lease remains held through current-document and original
+Trash verification; it starts no writer or replay and performs no migration.
+Four focused contract tests passed after correcting an invalid synthetic proof
+fixture. Removing the source archive checksum guard made the expected tampered
+arm fail. Source was restored to its recorded digest and all four restored tests
+passed. The full final check after observer integration and main reconciliation
+also passed, including the new observer tests, kernel mounts, scripts and ledger. No live confirmation or Apple Numbers replacement fidelity follows
+from these synthetic results.
+
+The next step is a fresh registered isolated live
+confirmation; explicit authorization for its scoped cloud mutation is pending.
 Verify current selection and retained operations before submission, then exact
 new content and the recoverable original before Apple reopen. Do not replay the
 earlier request merely because it lacked confirmation, migrate installed state
-or restart the installed daemon for this isolated validation.
+or restart the installed daemon for this isolated validation. Installed
+schema14 journals remain untouched; schema19 validation stays isolated.
 
 Independent replacement-content verification, retained-original proof, Apple
 Numbers reopen, DATA representation acceptance, Keynote fidelity and installed

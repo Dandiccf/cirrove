@@ -15,8 +15,12 @@ and what has been checked against a real account, and what has not, in
 
 **Arch:** `cirrove` contains the service and command line,
 `cirrove-desktop` the settings window, tray and Files extension, and the
-optional `cirrove-dolphin` package the KF6 plugins. Until there is a release
-they are built from the tree:
+optional `cirrove-dolphin` package the KF6 plugins. The
+[0.1.0 release](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0) includes
+OneDrive-focused packages and installation commands.
+[0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
+adds packaged Google testing previews; its release page gives installation and
+verification commands. To build a newer committed tree instead:
 
 ```sh
 scripts/build-arch-package.sh
@@ -317,9 +321,11 @@ deletes it in the cloud.
 
 ## Supported versions
 
-There is no release yet; what is supported is the current build of the main
-branch on Arch, on the machine it is developed on. When releases start,
-the policy is: the latest release, and the one before it for the length of
-one release cycle; the distribution floor is Ubuntu 24.04 (GTK 4.14,
+0.1.0 is the published OneDrive-focused release. 0.2.0 Canary 1 is an opt-in
+testing snapshot with additional Google previews, not a stable 0.2.0 release.
+The supported-release policy is the latest regular release and the one before
+it for one release cycle; Canary does not replace the regular release. See
+[the compatibility matrix](compatibility.md) for recorded desktop and provider
+acceptance; the distribution floor is Ubuntu 24.04 (GTK 4.14,
 libadwaita 1.5), current Fedora, and current Arch; x86_64. Anything older or
 elsewhere may work and is not claimed.

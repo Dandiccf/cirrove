@@ -43,7 +43,8 @@ if [[ -f $extension ]]; then
   # Files loads both copies otherwise, and every menu item and badge appears twice.
   echo "removing $extension (the package provides the one under /usr/share)"
   rm -f "$extension"
-  nautilus -q 2>/dev/null || true
+  # nautilus-python must find the distribution's Python, not a version manager.
+  env PATH=/usr/bin:/bin nautilus -q 2>/dev/null || true
 fi
 dolphin_action="$HOME/.local/lib/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so"
 dolphin_overlay="$HOME/.local/lib/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so"
@@ -77,7 +78,12 @@ shopt -u nullglob
 if (( ${#stale_icons[@]} )); then
   echo "removing ${#stale_icons[@]} icon(s) under $icons (the package provides them)"
   rm -f "${stale_icons[@]}"
-  gtk-update-icon-cache -f "$icons" >/dev/null 2>&1 || true
+fi
+# Refresh even on a repeated switch after the icon files were already removed.
+# User hicolor overlays usually lack index.theme, so -t is required; otherwise
+# stale cache entries still win over /usr/share and render missing-image badges.
+if [[ -d $icons ]]; then
+  gtk-update-icon-cache -f -t "$icons" >/dev/null 2>&1 || true
 fi
 # Translations, the same reasoning as the icons: a home copy would shadow the
 # packaged one and could be from a different build.

@@ -266,6 +266,9 @@ pub async fn icloud_owned_fixture_verify(
     Ok(result)
 }
 
+mod receipt_bound;
+pub use receipt_bound::icloud_owned_receipt_verify;
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

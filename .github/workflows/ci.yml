@@ -23,8 +23,7 @@ concurrency:
 jobs:
   linux:
     runs-on: ubuntu-24.04
-    # Workspace, desktop and kernel FUSE checks have finished near the old
-    # 20-minute limit on hosted runners; keep the complete gate running.
+    # Cold builds and slow package mirrors must leave time for every test group.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,7 +84,8 @@ jobs:
         run: |
           desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.desktop
           desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop
-          appstreamcli validate packaging/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
+          # Validate metadata independently of GitHub URL availability.
+          appstreamcli validate --no-net packaging/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
       # The autostart entry and the tray unit have to agree with each other and
       # stay free of any desktop they would have to guess at packaging time.
       - name: Tray autostart entry and unit
@@ -345,7 +345,7 @@ jobs:
           grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
           desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop
           desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
-          appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
+          appstreamcli validate --no-net /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
           test -f /usr/share/icons/hicolor/scalable/apps/io.github.Dandiccf.Cirrove-attention.svg
           test -f /usr/share/nautilus-python/extensions/cirrove.py
           test -f /usr/lib/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so
@@ -408,7 +408,7 @@ jobs:
           grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
           desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop
           desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
-          appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
+          appstreamcli validate --no-net /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
           test -f /usr/share/nautilus-python/extensions/cirrove.py
           # purge, not remove: the tray's autostart entry lives under /etc and
           # dpkg treats it as a conffile, which `remove` keeps by policy. A
@@ -473,7 +473,7 @@ jobs:
           grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
           desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop
           desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
-          appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
+          appstreamcli validate --no-net /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
           test -f /usr/share/nautilus-python/extensions/cirrove.py
           test -f /usr/lib64/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so
           test -f /usr/lib64/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so

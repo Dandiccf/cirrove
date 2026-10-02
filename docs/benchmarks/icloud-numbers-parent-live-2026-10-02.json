@@ -1,0 +1,101 @@
+{
+  "registered_at": "2026-10-02T21:46:05.468660+00:00",
+  "status": "registered-not-authorized-not-executed",
+  "question": "Does one Numbers PACKAGE replacement inside a newly created own folder with a completed stable local-to-provider handoff pass public admission, publish version B and retain A recoverably?",
+  "prediction": "After the parent handoff, mounted child parent_id is local while independent provider parent_id is remote. The mapping fix accepts that exact binding without weakening identity/revision fences. One import A and one replacement B complete; independent v2 content proof matches B and recoverable Trash matches A; Apple Numbers subsequently displays 7,3,10 with SUM(A2:B2).",
+  "run": "91a58b61-a31a-4348-811a-e11c9904d709",
+  "arms": [
+    "One new UUID-owned Numbers document inside one folder created through the isolated FUSE mount; import A, verify A independently, replace once with B, verify current B and retained original A in Trash, then inspect Apple Numbers."
+  ],
+  "endpoint": [
+    "Completed parent identity handoff preserves stable local directory alias.",
+    "One import and one replacement complete with exact typed journal/publication receipts.",
+    "Independent bounded PACKAGE readback matches B semantic v2 and recoverable Trash matches A at the recorded revision.",
+    "Subsequent exact-document Apple Numbers open displays 7,3,10 and SUM(A2:B2), recorded separately from pre-open proofs."
+  ],
+  "inputs": [
+    {
+      "version": "A-archive",
+      "path": "/var/tmp/cirrove-iwork-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f/staging/numbers-source.zip",
+      "sha256": "add6c6f634ab18e792c3ec15b892da895d323661df29c8cef2f9fc639d9adf18",
+      "bytes": 140101,
+      "root": "Source.numbers",
+      "local_integrity_verified": true
+    },
+    {
+      "version": "B-archive",
+      "path": "/var/tmp/cirrove-iwork-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f/staging/numbers-source-b.zip",
+      "sha256": "d0a1b35bd5b7c32c5c1831a59729bbfff8ab7445e0dd74c8821f09578f9bda66",
+      "bytes": 68997,
+      "root": "Source.numbers",
+      "local_integrity_verified": true
+    }
+  ],
+  "source_semantics": {
+    "A": {
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133089,
+      "version": 2,
+      "sha256": "67e0f4d4ed8a098959e7a32630dede70bd726b75fc7dd45414e726014658646b"
+    },
+    "B": {
+      "entries": 46,
+      "expanded_bytes": 133151,
+      "files": 42,
+      "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+      "version": 2
+    },
+    "Apple_B_values": [
+      7,
+      3,
+      10
+    ],
+    "Apple_B_formula": "SUM(A2:B2)",
+    "provenance": "docs/benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json"
+  },
+  "isolation": {
+    "state_directory": "/var/tmp/cirrove-numbers-parent-91a58b61-a31a-4348-811a-e11c9904d709/state",
+    "mount": "/var/tmp/cirrove-numbers-parent-91a58b61-a31a-4348-811a-e11c9904d709/mount",
+    "socket": "/var/tmp/cirrove-numbers-parent-91a58b61-a31a-4348-811a-e11c9904d709/control.sock",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-91a58b61",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-91a58b61",
+    "temp_filesystem": "ext4, reassert before execution",
+    "session_directory_filesystem": "btrfs, required by existing evidence helper",
+    "installed_daemon_restarted": false,
+    "installed_state_opened_or_migrated": false
+  },
+  "discipline": [
+    "Explicit scoped cloud-task authorization before any cloud request.",
+    "Pin daemon, CLI, observer and source archive hashes before execution.",
+    "Record exact command, binary SHA-256, private disk TMPDIR, duration and process ID before each phase.",
+    "One phase at a time, no concurrent compile or measurement.",
+    "Record each mutation attempted before dispatch; ambiguous reply permits read-only inspection only, never automatic retry.",
+    "Stop only the recorded isolated daemon before receipt observers; keep its state and every result.",
+    "Do not replay earlier Numbers attempts, restore originals, permanently delete or perform cleanup cloud mutations."
+  ],
+  "cloud_requests": 0,
+  "cloud_mutations": 0,
+  "results": null,
+  "full_iCloud_gates_closed": false,
+  "limits": [
+    "One controlled owned fixture cannot establish broad provider reliability.",
+    "Apple opening can rewrite package metadata or content; pre-open proofs must be retained independently.",
+    "Session rejection stops the arm without background login or renewal.",
+    "Schema19 validation remains isolated from installed schema14 Canary journals."
+  ],
+  "local_source_preparation": {
+    "status": "complete-local-archive-proofs-only",
+    "manifest": ".local-state/icloud-native-parent-admission-20261002/source-proof-run.json",
+    "binary_sha256": "ac15d4870744d055ba667daf7a2f655ce727e8d95348f9dd8175a378745bdcca",
+    "expected_root": "Source.numbers",
+    "A_reproduces_retained_proof": true,
+    "B_has_distinct_semantic_v2": true,
+    "cloud_requests": 0,
+    "cloud_mutations": 0,
+    "private_initial_build_issue": "Initial no-deps metadata did not resolve standalone lock; locked build correctly refused. Full offline metadata resolved only the private lock, and subsequent offline locked build and pure local proof passed. No tracked dependency or lock changes.",
+    "fresh_isolated_state": "Private dormant settings, encrypted session and immutable A/B archive copies prepared under the exact new root; no daemon started or provider request. Old source state owner lease held; source bytes unchanged before/after.",
+    "snapshot_manifest": ".local-state/icloud-native-parent-admission-20261002/fresh-local-snapshot.json",
+    "initial_preparation_issue": "A private preparation assertion used icloud instead of the existing typed serialization i_cloud. It refused before creating any path; exact serialization was corrected and local preparation completed. No product change or cloud action."
+  }
+}

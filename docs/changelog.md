@@ -5,6 +5,20 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- Developer installs and switches to packages rebuild user icon caches without
+  requiring `index.theme`, including stale caches whose icon files are already
+  gone. This prevents missing Cirrove badges after switching installations.
+  The Files refresh also uses the system Python rather than a version manager.
+
+## 0.2.0 Canary 1 — 2026-10-02
+
+Testing snapshot `v0.2.0-canary.1` from main commit `a9e2429`. Packages retain
+the development version and commit suffix; this is not the stable 0.2.0 release.
+Google remains limited to approved testers or an own Desktop OAuth app. Native
+Docs/Sheets are read-only exports, restricted Shared Drive roles remain unclaimed,
+and iCloud is not included. Exact-package clean-desktop sign-in, production OAuth
+verification and broader provider acceptance remain open.
+
 - **A fresh desktop no longer needs manual keyring setup.** On the first
   connection Cirrove creates the normal Login keyring through the desktop and
   lets the desktop ask for its password before browser sign-in. The empty

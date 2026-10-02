@@ -438,6 +438,17 @@ async fn main() -> Result<()> {
         println!("{}", serde_json::to_string(&receipt)?);
         return Ok(());
     }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-receipt-verify"
+    {
+        let receipt = cirrove_service::validation::icloud_owned_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&receipt)?);
+        return Ok(());
+    }
     if let [flag, run] = args.as_slice()
         && flag == "--account-parent-listing-timing"
     {

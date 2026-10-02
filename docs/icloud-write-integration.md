@@ -1103,12 +1103,41 @@ failed admission without a recorded durable replacement operation; it has not
 been replayed. A matching local-parent selection defect was reproduced and
 [fixed synthetically](benchmarks/icloud-native-parent-admission-2026-10-02.json),
 with replacement and safety regressions passing. That result does not confirm
-the original failure phase or a live Numbers replacement. The complete
-`scripts/check.sh` for the correction passed, including the new regressions and
-actual kernel fixtures; desktop window scenarios were not run. Ordinary application saves, broader
-recovery and installed acceptance remain open. Full-iCloud acceptance row 486
-remains unchecked.
+the original failure phase or a live Numbers replacement. The correction is
+committed at `cc1470f`; its complete `scripts/check.sh` passed, including the new
+regressions and actual kernel fixtures. Desktop window scenarios were not run.
+Main reconciliation and the new observer below still require a final full check.
+Ordinary application saves, broader recovery and installed acceptance remain
+open. Full-iCloud acceptance row 486 remains unchecked.
 
+### Read only observer for owned Numbers receipts
+
+The feature-gated validation binary adds this observer-only command:
+
+```sh
+cirrove-icloud-mounted-write-probe --owned-receipt-verify REGISTRATION SHA256
+```
+
+Its bounded registration binds a fresh UUID-owned Numbers run to the exact
+account, created folder, completed import, optional replacement, distinct A/B
+archive digests and semantic proofs. It holds an exclusive read-only journal
+lease while independently checking the current PACKAGE and, after replacement,
+the original in recoverable Trash. Fresh provider metadata, representation and
+revision checks remain enforced, followed by unchanged registration, sources
+and journal receipts. It constructs no write workers, submits no mutation,
+replays no operation and migrates no journal; local proof artifacts are retained.
+
+The [observer registration](benchmarks/icloud-owned-receipt-observer-2026-10-02.json)
+records four focused contract tests passing after correction of an invalid
+synthetic semantic fixture. A checksum-guard removal control failed at the
+expected tampered-source arm. Source was restored to its recorded digest;
+all four restored tests passed. The complete contributor check subsequently
+passed after main reconciliation and observer integration, including these tests,
+kernel mounts, scripts and the ledger.
+This is not live Numbers confirmation or Apple application fidelity. The [fresh isolated live arm](benchmarks/icloud-numbers-parent-live-2026-10-02.json)
+is preregistered and its local source proofs and dormant state are prepared.
+It requires explicit scoped cloud-task authorization, which remains pending;
+installed schema14 state is unchanged and schema19 stays isolated.
 
 ### Native working schema19 remains isolated
 

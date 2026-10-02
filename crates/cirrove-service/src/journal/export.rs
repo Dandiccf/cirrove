@@ -388,6 +388,28 @@ impl RecoveryJournal {
 
 #[cfg(feature = "icloud-write-probe")]
 impl RecoveryJournal {
+    /// Feature-only bounded inventories under the existing read-only owner lease.
+    pub(crate) fn native_validation_mutations(
+        &self,
+        after: u64,
+        limit: u32,
+    ) -> Result<Vec<MutationRecord>> {
+        self.journal.list_mutations(after, limit.clamp(1, 200))
+    }
+    pub(crate) fn native_validation_namespace_by_remote(
+        &self,
+        scope: &Scope,
+        item: &str,
+    ) -> Result<Option<NamespaceObject>> {
+        self.journal.namespace_by_remote(scope, item)
+    }
+    pub(crate) fn native_validation_incomplete_queue(&self) -> Result<i64> {
+        Ok(self.journal.db.query_row(
+            "SELECT count(*) FROM write_queue WHERE complete=0",
+            [],
+            |row| row.get(0),
+        )?)
+    }
     pub(crate) fn native_validation_upload(&self, id: Uuid) -> Result<UploadRecord> {
         self.journal.get(id)
     }

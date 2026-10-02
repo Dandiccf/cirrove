@@ -210,9 +210,11 @@ async fn native_replace_parent_mapping_does_not_bypass_clean_ancestor_admission(
             |_, _, _| async { Ok(semantic()) },
         )
         .await;
-    assert!(
-        result.is_err(),
-        "locally authoritative ancestor was accepted"
+    let error = result.expect_err("locally authoritative ancestor was accepted");
+    assert_eq!(
+        error.downcast_ref::<crate::native_import::ReplacementAdmissionError>(),
+        Some(&crate::native_import::ReplacementAdmissionError::Enqueue),
+        "unfinished ancestor must be refused by durable enqueue admission",
     );
     empty(&f);
     assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);

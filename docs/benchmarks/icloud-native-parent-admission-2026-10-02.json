@@ -13,7 +13,7 @@
   "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
   "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
   "filesystem": "ext4",
-  "status": "full-check-passed-main-reconciliation-pending",
+  "status": "full-contributor-check-passed-live-confirmation-open",
   "historical_causality": "Retained state and code support this failure path; original generic diagnostics do not identify the historical phase directly.",
   "live_provider_gates_closed": false,
   "evidence_directory": ".local-state/icloud-native-parent-admission-20261002",
@@ -61,6 +61,32 @@
         "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
         "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "4bf78232937d9e01f344748e60cc78c7f0839830fb88f190640cd88413e42b18"
       }
+    },
+    "unfinished_ancestor_phase": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/final-guard.json",
+      "passed": 1,
+      "ignored": 0,
+      "exact_refusal_phase": "Enqueue"
+    },
+    "post_reconciliation_full_check": {
+      "status": "passed",
+      "exit_code": 0,
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/final-full-check-corrected.json",
+      "started_at": "2026-10-02T21:44:24.516736+00:00",
+      "finished_at": "2026-10-02T21:51:35.762572+00:00",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "new_parent_regressions_executed": 3,
+      "new_observer_tests_executed": 4,
+      "kernel_fixtures_executed": true,
+      "desktop_window_scenarios_run": false,
+      "final_validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76"
+      }
     }
   },
   "retained_state_audit": {
@@ -76,9 +102,13 @@
     "No live replacement was submitted or replayed; no installed state was opened or migrated."
   ],
   "main_reconciliation": {
-    "status": "planned-after-first-full-check",
+    "status": "reconciled-full-check-passed",
     "main_head": "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
     "scope": "Bring public README, Canary documentation and icon-cache installation corrections into recovered iCloud branch. Preserve native schema19 policy and feature-gated CI.",
-    "validation": "Run complete scripts/check.sh again after merge before committing reconciliation."
+    "validation": "Complete scripts/check.sh exited 0 after reconciliation and observer integration.",
+    "conflict_resolution": {
+      "README.md": "Current main README retained; provider support and release instructions are preserved.",
+      ".github/workflows/ci.yml": "Resolve comment-only conflict; retain all iCloud feature gates and main package-validation updates."
+    }
   }
 }
