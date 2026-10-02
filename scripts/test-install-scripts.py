@@ -15,9 +15,13 @@ so a new file added to one is a failure here rather than a duplicate on
 someone's desktop.
 """
 
+import os
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -112,6 +116,67 @@ class Inverses(unittest.TestCase):
                     self.assertNotIn(
                         "rm ", stripped, f"{name} removes something under the state directory: {stripped!r}"
                     )
+
+
+@unittest.skipUnless(shutil.which("gtk-update-icon-cache"), "GTK icon cache tool is not installed")
+class IconCache(unittest.TestCase):
+    def setUp(self):
+        self.fixture = pathlib.Path(tempfile.mkdtemp(prefix="cirrove-icon-cache-"))
+        self.icons = self.fixture / ".local/share/icons/hicolor"
+        self.apps = self.icons / "scalable/apps"
+        self.apps.mkdir(parents=True)
+        self.cirrove = self.apps / "io.github.Dandiccf.Cirrove-kept.svg"
+        self.other = self.apps / "unrelated-fixture.svg"
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16"/></svg>'
+        self.cirrove.write_text(svg)
+        self.other.write_text(svg)
+        self.cache = self.icons / "icon-theme.cache"
+
+    def tearDown(self):
+        # Only these fixture files can be removed; never walk a mount or home.
+        for path in (self.cirrove, self.other, self.cache):
+            path.unlink(missing_ok=True)
+        for path in (self.apps, self.apps.parent, self.icons, self.icons.parent,
+                     self.icons.parent.parent, self.fixture / ".local", self.fixture):
+            path.rmdir()
+
+    def seed_cache(self):
+        subprocess.run(["gtk-update-icon-cache", "-f", "-t", str(self.icons)],
+                       check=True, capture_output=True)
+        self.assertIn(self.cirrove.stem.encode(), self.cache.read_bytes())
+
+    def switch_icons(self):
+        # Execute the actual cleanup block, isolated from binaries, units,
+        # extensions, mounts and the user's HOME. No fake cache implementation.
+        body = SWITCH.read_text().split('icons="$HOME/.local/share/icons/hicolor"', 1)[1]
+        body = 'icons="$CIRROVE_TEST_HOME/.local/share/icons/hicolor"' + body.split("# Translations", 1)[0]
+        env = dict(os.environ, CIRROVE_TEST_HOME=str(self.fixture))
+        subprocess.run(["bash", "-eu", "-c", 'id=io.github.Dandiccf.Cirrove\n' + body],
+                       env=env, check=True, capture_output=True)
+
+    def test_developer_install_creates_cache_without_a_theme_index(self):
+        command = next(line for line in INSTALL.read_text().splitlines()
+                       if line.startswith("gtk-update-icon-cache "))
+        env = dict(os.environ, CIRROVE_TEST_ICONS=str(self.icons))
+        subprocess.run(["bash", "-eu", "-c", 'icons="$CIRROVE_TEST_ICONS"\n' + command],
+                       env=env, check=True, capture_output=True)
+        self.assertTrue(self.cache.exists(), "user hicolor has no index.theme; the installer must still build its cache")
+        self.assertIn(self.cirrove.stem.encode(), self.cache.read_bytes())
+
+    def test_switch_removes_cached_developer_icons_and_preserves_other_icons(self):
+        self.seed_cache()
+        self.switch_icons()
+        self.assertFalse(self.cirrove.exists())
+        self.assertNotIn(self.cirrove.stem.encode(), self.cache.read_bytes())
+        self.assertTrue(self.other.exists())
+        self.assertIn(self.other.stem.encode(), self.cache.read_bytes())
+
+    def test_switch_repairs_a_stale_cache_even_when_icon_files_are_already_gone(self):
+        self.seed_cache()
+        self.cirrove.unlink()
+        self.switch_icons()
+        self.assertNotIn(self.cirrove.stem.encode(), self.cache.read_bytes())
+        self.assertIn(self.other.stem.encode(), self.cache.read_bytes())
 
 
 if __name__ == "__main__":
