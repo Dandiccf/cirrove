@@ -1,8 +1,12 @@
 # Distribution and installation plan
 
-Status: no tagged release. The Arch packages build from the committed tree
-(see [Arch](#arch) below) and CI installs and removes them on a clean Arch
-container on every push; Debian and Fedora packages do not exist yet.
+Status: [0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0) is published
+with Arch, Ubuntu 24.04 and Fedora packages. Current CI builds and checks those
+package families from the committed tree. The release is OneDrive-focused; Google
+Drive is a newer `main` preview and iCloud remains a separate development branch.
+This document also retains plans for broader distribution and update channels;
+consult [the compatibility matrix](compatibility.md) for recorded installation
+evidence.
 
 Cirrove is a Linux application, not an Omarchy-specific service. The current
 development machine uses Arch and CI uses Ubuntu 24.04. Building on Ubuntu is not
@@ -61,7 +65,7 @@ headless host should be able to install the daemon without a desktop library:
 | `cirrove-dolphin` | KF6 context-menu and overlay-icon plugins under Qt's plugin directory, licence | `cirrove-desktop` for the shared icons and translations, plus Qt 6, KIO and KI18n; optional unless Dolphin integration is wanted |
 
 The PKGBUILD is written for a tagged release and downloads the tarball by
-version. There is no tag yet, so `scripts/build-arch-package.sh` builds HEAD: it
+version. For development, `scripts/build-arch-package.sh` builds HEAD: it
 archives the commit under the name the source line expects, sets `pkgver` to
 `0.1.0dev.r<commits>.g<hash>` (which sorts before `0.1.0` for pacman and
 upgrades from one dev build to the next), and points makepkg at the archive.
