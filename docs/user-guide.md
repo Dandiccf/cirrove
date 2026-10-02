@@ -15,8 +15,10 @@ and what has been checked against a real account, and what has not, in
 
 **Arch:** `cirrove` contains the service and command line,
 `cirrove-desktop` the settings window, tray and Files extension, and the
-optional `cirrove-dolphin` package the KF6 plugins. Until there is a release
-they are built from the tree:
+optional `cirrove-dolphin` package the KF6 plugins. The
+[0.1.0 release](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0) includes
+OneDrive-focused packages and installation commands. To build a newer committed
+tree instead:
 
 ```sh
 scripts/build-arch-package.sh

@@ -2,7 +2,9 @@
 
 Cirrove currently requires your own Microsoft app registration. No project-wide
 registration is bundled, and Cirrove does not reuse another cloud client's identity
-or credentials. The preview requests **read-only** access.
+or credentials. The first connection described here requests **read-only** access.
+The current preview also has explicit writable connections; see the
+[user guide](user-guide.md#connecting-a-drive) for the **Allow changes** setting.
 
 Starting with a personal Microsoft account and no development directory? Follow
 [Personal Microsoft development setup](microsoft-developer-setup.md) first. It covers
@@ -99,9 +101,11 @@ The unit template in `packaging/systemd/cirroved.service` supports login startup
 it is not installed by building the project. Enabled on a real account it has been
 verified across a reboot -- clean unmount on stop, and back by itself at the next
 login with its index and mount intact -- and across a short suspend/resume, which
-left the daemon the same process. A longer and deeper suspend has not been run; see
-[the measurements and their limits](benchmarks/service-lifecycle-and-suspend.json).
-Keep service installation for an explicitly configured preview. Its daemon and
-FUSE sessions must remain in the same user's desktop session. Pins, uploads, tray
-UI and Nautilus badges are still planned; a read-only mount does not claim those
-capabilities.
+left the daemon the same process. A separate [deep-suspend record](benchmarks/deep-suspend-beyond-token-lifetime.json)
+now covers one 90-minute suspend beyond token expiry; broader acceptance remains
+separate from this setup guide.
+Its daemon and FUSE sessions must remain in the same user's desktop session.
+Offline pins, the tray and Files integration are implemented; see the
+[user guide](user-guide.md) for their installation and use. Uploads require a
+connection explicitly configured to allow changes; this read-only bootstrap does
+not grant write access.
