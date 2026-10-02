@@ -421,7 +421,7 @@ router**, with explicit acceptance gates:
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement and [two consecutive atomic saves](benchmarks/icloud-mounted-atomic-chain-2026-10-01.md); separate versions, receipt-gated editor cleanup and remount verified | More complex chains, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account and [read-only downgrade recovery](benchmarks/icloud-readonly-recovery-2026-10-01.md) have core/socket/CLI/FUSE and native-window evidence; installed validation, per-operation explanation and audit of earlier retained fixtures remain open |
 | Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | [Synthetic storage refusal](benchmarks/icloud-storage-refusal-2026-10-01.md) and [actual local ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md) passed their bounded arms; [provably unsent folder-create retry](benchmarks/icloud-folder-create-recovery-2026-10-01.md) also passed its bounded synthetic arms; real quota/slow-link/expired-session and larger-file acceptance remain open |
-| Native document packages | Verified read-only exports; owned Pages creation and independent public-import content/FUSE verification, with corrected public completion still under validation | Keep mounted editing/replacement refused; finish public Pages acceptance, then separately implement and validate native replacement and Numbers/Keynote compatibility |
+| Native document packages | Owned Pages import, explicit replacement, independent current/Trash content verification and Apple open; Numbers import/formula-open and separate exact-content readback; canonical archive saves, atomic replacement, retirement and backup-first handling have synthetic kernel coverage | Finish desktop import submission/publication, Numbers replacement, Keynote and actual DATA acceptance; validate Apple-backed mounted saves, restart/recovery and installed transitions; arbitrary generated-child editing remains refused |
 | Installed release | Experimental isolated mounts | Explicit opt-in, existing read-only accounts preserved, packaged installation and file-manager validation |
 
 The first new recovery test must use a fresh Cirrove-owned fixture, register its
@@ -881,12 +881,17 @@ also passed a new CLI import, independent semantic readback and mounted access
 before removing its own document. This separate f2dec result is not Apple Pages
 UI acceptance for that document or evidence of desktop import submission.
 
-The capability-gated desktop Pages import dialog has synthetic native-window
+The capability-gated desktop native import dialog has synthetic native-window
 coverage. Live portal selection through verified completion and publication on
 the original GUI connection's mount remains open, as does installed click-through.
 The acceptance-ledger import row remains unchecked. This route creates documents;
-editing/replacing existing native documents, Numbers/Keynote imports and full
-native application compatibility remain separate requirements.
+existing-document replacement uses a separate explicit operation. Development
+admission also accepts matching Numbers/Keynote PACKAGE archives. The
+[owned Numbers record](benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json)
+contains one imported copy opened in Apple Numbers with the expected cells and
+formula, plus independent exact-content readback of a second copy. It does not
+establish replacement, second-copy Apple reopen or broad application fidelity.
+Keynote live application acceptance remains open.
 
 The retained ec7 Apple UI observation file's SHA-256 is
 `d7584efd648f02aa945233367aff27c7b82daba1fdbf3bdc2f0b48931a7e97a8`;
@@ -1086,21 +1091,33 @@ and may finish. Lost replies require retained-operation discovery, not resubmiss
 The [replacement validation record](benchmarks/icloud-native-package-replacement-2026-10-01.md)
 records actual-worker synthetic HTTPS fault tests, encrypted checkpoint recovery,
 router/admission checks, observer/publication checks and bounded read-only
-discovery, including their failed negative controls. These results do not prove
-Apple application fidelity or installed reliability. The
-[owned live replacement arm](benchmarks/icloud-native-replacement-live-2026-10-01.md)
-is separately registered; its current source-preparation evidence is not a
-completed replacement. Full-iCloud acceptance row 486 remains unchecked.
+discovery, including their failed negative controls. These synthetic results do
+not prove Apple application fidelity or installed reliability. A subsequent
+[owned Pages replacement](benchmarks/icloud-native-owned-v2-live-2026-10-01.md)
+completed with a typed receipt and mounted publication; independent readback
+verified both the edited current document and the original retained in Trash.
+[Apple Pages opened the exact replacement](benchmarks/icloud-native-replacement-apple-open-2026-10-02.md)
+and rendered its version-B marker. The
+[Numbers replacement attempt](benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json)
+failed admission without a recorded durable replacement operation; it has not
+been replayed. A matching local-parent selection defect was reproduced and
+[fixed synthetically](benchmarks/icloud-native-parent-admission-2026-10-02.json),
+with replacement and safety regressions passing. That result does not confirm
+the original failure phase or a live Numbers replacement. The complete
+`scripts/check.sh` for the correction passed, including the new regressions and
+actual kernel fixtures; desktop window scenarios were not run. Ordinary application saves, broader
+recovery and installed acceptance remain open. Full-iCloud acceptance row 486
+remains unchecked.
 
 
-### Prepared native working schema18 is not a deployment milestone
+### Native working schema19 remains isolated
 
-The journal-local native working proposal and successor design remain separate
-from the validated schema17 explicit archive workflow. No ordinary package-save
-capability follows from preparing that migration. All writable journals would
-advance, including ordinary-only accounts; validation remains isolated until
-recovery and application acceptance. See the
-[deployment and recovery policy](development.md#native-working-journal-schema18-held-prerelease-policy).
+Schema19 implements native working, successor and backup-first state beyond the
+earlier schema17 explicit archive workflow. Synthetic journal and kernel tests
+do not establish Apple-backed save or deployment acceptance. Every writable
+journal opened by this writer advances, including ordinary-only accounts;
+validation remains isolated until recovery and application acceptance. See the
+[deployment and recovery policy](development.md#native-working-journal-schema19-held-prerelease-policy).
 Pre-upgrade exports preserve selected local bytes, not provider rollback, sharing
 or revision history. Missing/corrupt bindings must refuse upload while compatible
 read-only recovery still exports exact retained bytes without network or parsing.
@@ -1116,8 +1133,11 @@ O_TRUNC, typed fsync, held-original reads after a simulated handoff, and RO refu
 Counterfactual controls fail without the reader drain, snapshot selection or
 truncate forwarding. See [the registered evidence](benchmarks/icloud-native-path-writing-2026-10-01.md).
 
-This does not enable arbitrary edits inside package folders. Atomic temporary
-file replacement, clean working retirement, Apple-backed mounted save acceptance
-and installed lifecycle acceptance remain separate unfinished requirements.
-The kernel fixture injects a typed handoff receipt and is not an Apple protocol
-verification. No regular account or installed service was upgraded for it.
+This does not enable arbitrary edits inside package folders. Subsequent
+[atomic replacement and working-copy retirement tests](benchmarks/icloud-native-atomic-retirement-2026-10-01.md)
+and [backup-first save tests](benchmarks/icloud-native-backup-gap-2026-10-01.md)
+passed synthetic journal and actual-kernel checks, including meaningful failing
+controls, held descriptors and pending-save reconstruction after remount.
+These fixtures use synthetic receipts and do not verify Apple transport.
+Apple-backed mounted saves and installed lifecycle acceptance remain open.
+No regular account or installed service was upgraded for these tests.

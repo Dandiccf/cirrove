@@ -29,13 +29,26 @@ impl WriteControl {
         // Select through the mounted overlay, then map its stable local identity
         // back to the exact provider node. Raw cached membership may still carry
         // the old identity after a completed native handoff.
-        let (scope, selected) = self
+        let (scope, mut selected) = self
             .resolve_visible_path_mode(engine, &input.path, false)
             .await?;
-        if scope != parent.scope
-            || selected.name != name
-            || !crate::native_trash::matches(input, &selected, &parent.parent.id)
-        {
+        if scope != parent.scope || selected.name != name {
+            return Err(unavailable());
+        }
+        // Directory overlays retain their stable local parent identity after
+        // creation. Resolve that exact binding before comparing provider nodes;
+        // never replace a genuinely different parent with the requested one.
+        let selected_parent = selected.parent_id.as_deref().ok_or_else(unavailable)?;
+        let provider_parent = self
+            .writer
+            .directory_identity(&scope, selected_parent)
+            .map_err(|_| unavailable())?
+            .ok_or_else(unavailable)?;
+        if provider_parent != parent.parent.id {
+            return Err(unavailable());
+        }
+        selected.parent_id = Some(provider_parent);
+        if !crate::native_trash::matches(input, &selected, &parent.parent.id) {
             return Err(unavailable());
         }
         let target = engine

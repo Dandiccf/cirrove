@@ -32,6 +32,191 @@ fn semantic() -> PackageSemanticIdentity {
 fn empty(f: &Fixture) {
     assert!(f.journal.lock().unwrap().list(0, 100).unwrap().is_empty());
 }
+
+async fn nested_numbers(f: &mut Fixture) -> (NativeReplaceInput, Node, String) {
+    nested_numbers_with_parent_handoff(f, true).await
+}
+
+async fn nested_numbers_with_parent_handoff(
+    f: &mut Fixture,
+    handoff: bool,
+) -> (NativeReplaceInput, Node, String) {
+    use cirrove_core::mutation::MutationReceipt;
+    let scope = f.engine.scope("drive");
+    let parent = node(
+        "FOLDER::com.apple.CloudDocs::owned-parent",
+        Some(ROOT),
+        "Owned",
+    );
+    let local_parent = {
+        let mut journal = f.journal.lock().unwrap();
+        let created = journal
+            .create_namespace_directory(scope, ROOT.into(), parent.name.clone())
+            .unwrap();
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        assert_eq!(Some(claimed.id), created.latest);
+        journal
+            .acknowledge_mutation(
+                claimed.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Upsert(parent.clone()),
+            )
+            .unwrap();
+        let acknowledged = journal.namespace_object(created.id).unwrap();
+        if handoff {
+            let following = journal
+                .handoff_namespace(acknowledged.id, acknowledged.revision, parent.clone())
+                .unwrap();
+            assert!(following.follows_remote && following.latest.is_none());
+            following.node.id
+        } else {
+            assert!(!acknowledged.follows_remote && acknowledged.latest.is_some());
+            acknowledged.node.id
+        }
+    };
+    let mut target = node(
+        "FILE::com.apple.CloudDocs::owned-numbers",
+        Some(&parent.id),
+        "Owned.numbers",
+    );
+    target.package = true;
+    f.provider
+        .nodes
+        .lock()
+        .unwrap()
+        .extend([parent, target.clone()]);
+    // Reload the completed parent binding, as the retained live arm did on restart.
+    let fs = CloudFs::new_experimental_writable(f.engine.clone(), f.journal.clone())
+        .await
+        .unwrap();
+    f.control = fs.write_control().unwrap();
+    f.manager
+        .writers
+        .write()
+        .await
+        .insert(f.engine.account.id.clone(), f.control.clone());
+    std::fs::write(
+        &f.source,
+        crate::native_import::synthetic_package_archive(
+            "Source.numbers/Metadata/data",
+            b"new synthetic Numbers contents",
+        ),
+    )
+    .unwrap();
+    (
+        NativeReplaceInput {
+            selected: crate::native_trash::NativeTrashInput {
+                expected_account_id: f.engine.account.id.clone(),
+                path: "Owned/Owned.numbers".into(),
+                item_id: target.id.clone(),
+                etag: target.etag.clone().unwrap(),
+            },
+            source: f.source.clone(),
+            expected_root: "Source.numbers".into(),
+        },
+        target,
+        local_parent,
+    )
+}
+
+#[tokio::test]
+async fn native_replace_admission_resolves_completed_local_parent_to_provider_identity() {
+    let mut f = Fixture::new().await;
+    let (request, target, local_parent) = nested_numbers(&mut f).await;
+    let (scope, visible) = f
+        .control
+        .resolve_visible_path_mode(&f.engine, &request.selected.path, false)
+        .await
+        .unwrap();
+    assert_eq!(scope, f.engine.scope("drive"));
+    assert_eq!(visible.id, target.id);
+    assert_eq!(visible.parent_id.as_ref(), Some(&local_parent));
+    assert_ne!(visible.parent_id, target.parent_id);
+    assert!(visible.content_version.is_none() && target.content_version.is_none());
+    let expected = target.clone();
+    let row = f
+        .manager
+        .enqueue_native_replacement_with(
+            f.engine.clone(),
+            request,
+            CancellationToken::new(),
+            move |captured, _, _| async move {
+                assert_eq!(captured, expected, "capture must use provider identity");
+                Ok(semantic())
+            },
+        )
+        .await
+        .expect("unchanged Numbers selection inside a completed own folder was refused");
+    assert!(
+        matches!(&row.representation, UploadRepresentation::PackageReplacementArchive { original, .. } if original.as_ref() == &target)
+    );
+    assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
+    assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn native_replace_nested_parent_mapping_preserves_exact_selection_guards() {
+    for arm in 0..7 {
+        let mut f = Fixture::new().await;
+        let (mut request, target, _) = nested_numbers(&mut f).await;
+        // Cache the original mounted view before changing fresh provider evidence.
+        f.control
+            .resolve_visible_path_mode(&f.engine, &request.selected.path, false)
+            .await
+            .unwrap();
+        if arm == 0 {
+            request.selected.item_id = "FILE::com.apple.CloudDocs::other".into();
+        } else if arm == 1 {
+            request.selected.etag = "old".into();
+        } else if arm == 2 {
+            request.selected.path = "Owned/owned.numbers".into();
+        } else {
+            let mut nodes = f.provider.nodes.lock().unwrap();
+            let fresh = nodes.iter_mut().find(|n| n.id == target.id).unwrap();
+            match arm {
+                3 => fresh.etag = Some("v2".into()),
+                4 => fresh.parent_id = Some(ROOT.into()),
+                5 => fresh.package = false,
+                _ => fresh.content_version = Some("foreign-content-version".into()),
+            }
+        }
+        assert!(
+            f.manager
+                .enqueue_native_replacement_with(
+                    f.engine.clone(),
+                    request,
+                    CancellationToken::new(),
+                    |_, _, _| async { panic!("changed selection must not capture content") },
+                )
+                .await
+                .is_err(),
+            "changed nested selection accepted in arm {arm}"
+        );
+        empty(&f);
+        assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+    }
+}
+
+#[tokio::test]
+async fn native_replace_parent_mapping_does_not_bypass_clean_ancestor_admission() {
+    let mut f = Fixture::new().await;
+    let (request, _, _) = nested_numbers_with_parent_handoff(&mut f, false).await;
+    let result = f
+        .manager
+        .enqueue_native_replacement_with(
+            f.engine.clone(),
+            request,
+            CancellationToken::new(),
+            |_, _, _| async { Ok(semantic()) },
+        )
+        .await;
+    assert!(
+        result.is_err(),
+        "locally authoritative ancestor was accepted"
+    );
+    empty(&f);
+    assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+}
 #[tokio::test]
 async fn native_replace_admission_qualifies_once_and_retains_after_cancel() {
     let f = Fixture::new().await;

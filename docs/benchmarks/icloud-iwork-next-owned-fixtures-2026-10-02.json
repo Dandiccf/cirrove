@@ -342,5 +342,17 @@
     },
     "conclusion": "The retained imports completed and no replacement row is recorded. Cached metadata matches the selected receipt, but it cannot establish fresh mounted admission or the original failure phase. No replay performed.",
     "evidence": ".local-state/session-recovery-20261002/numbers-retained-journal-summary.json"
+  },
+  "parent_identity_admission_correction": {
+    "artifact": "docs/benchmarks/icloud-native-parent-admission-2026-10-02.json",
+    "status": "synthetic-reproduction-fixed-live-confirmation-open",
+    "tests_failed_without_fix": 1,
+    "targeted_tests_passed_with_fix": 15,
+    "cause": "Mounted child retains completed local-folder parent identity; selected-document admission previously compared it directly to provider parent.",
+    "replacement_submissions": 0,
+    "cloud_mutations": 0,
+    "historical_phase_directly_observed": false,
+    "next": "Fresh preregistered isolated Numbers replacement only after explicit task authorization, with independent current/original proof before Apple reopen. No automatic replay.",
+    "full_check_exit_code": 0
   }
 }

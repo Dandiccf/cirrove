@@ -1,0 +1,84 @@
+{
+  "registered_at": "2026-10-02T21:17:31.400229+00:00",
+  "question": "Does a completed Cirrove-created folder retaining a local namespace identity prevent explicit Numbers package replacement selection?",
+  "prediction": "The existing selector rejects a provider Numbers child whose mounted parent ID is localized to its acknowledged folder. A scoped parent-identity correction admits the unchanged package while preserving revision, representation, namespace and cancellation refusals.",
+  "arms": [
+    "tests-only existing production code (must fail at unchanged nested Numbers positive assertion)",
+    "same tests with scoped parent identity correction (must pass)",
+    "existing native replacement and Trash safety regressions"
+  ],
+  "endpoint": "Actual Manager/WriteControl selection admits only the exact unchanged PACKAGE under a mapped provider parent; no real cloud mutation or installed-state change.",
+  "source_head": "bca480c8365616ac5ea89182cc5bb9f260cc93dd",
+  "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
+  "filesystem": "ext4",
+  "status": "full-check-passed-main-reconciliation-pending",
+  "historical_causality": "Retained state and code support this failure path; original generic diagnostics do not identify the historical phase directly.",
+  "live_provider_gates_closed": false,
+  "evidence_directory": ".local-state/icloud-native-parent-admission-20261002",
+  "results": {
+    "initial_red": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/red.json",
+      "exit_code": 101,
+      "classification": "Test authoring compile error: compare Box<Node> via as_ref. Not negative-control evidence."
+    },
+    "red": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/red-corrected.json",
+      "exit_code": 101,
+      "executed": 1,
+      "failed": 1,
+      "ignored": 0,
+      "failure": "Expected unchanged nested Numbers positive assertion refused with selected-document resolution."
+    },
+    "green": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/green.json",
+      "exit_code": 0,
+      "passed": 15,
+      "ignored": 0,
+      "new_tests": 3,
+      "changed_selection_refusal_arms": 7,
+      "unfinished_ancestor_refused": true,
+      "test_binary_sha256": "cc24312b2aca0a2b2913a14c4d8f28348d10d9407698b412a2ec435766a1d4fd",
+      "validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "94232842e518f047208a766cf885f23f097ffaaf91471ebccfe48a1555058868"
+      }
+    },
+    "full_check": {
+      "status": "passed",
+      "exit_code": 0,
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/full-check.json",
+      "started_at": "2026-10-02T21:20:28.518365+00:00",
+      "finished_at": "2026-10-02T21:28:14.474717+00:00",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "new_regressions_executed": 3,
+      "kernel_fixtures_executed": true,
+      "desktop_window_scenarios_run": false,
+      "validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "4bf78232937d9e01f344748e60cc78c7f0839830fb88f190640cd88413e42b18"
+      }
+    }
+  },
+  "retained_state_audit": {
+    "evidence": ".local-state/icloud-native-parent-admission-20261002/retained-parent-mapping-audit.json",
+    "sha256": "88f3fbc088d683286b008ecc936e47d33901cdf33c1017106cbc1e8e48ed1ea3",
+    "observed_target_content_version": null,
+    "conclusion": "The exact completed local folder maps to the recorded provider parent. Mounted children carry the local parent, causing the old provider-parent selection check to refuse."
+  },
+  "fix": "Resolve only the selected mounted parent through its exact scoped directory binding, require equality with the independently admitted provider parent, then retain exact Node and revision comparisons. Generic mounted path projection is unchanged.",
+  "limitations": [
+    "Synthetic original-content capture and journal enqueue do not verify Apple transport or Numbers application fidelity.",
+    "The historical generic refusal phase is inferred from retained state and matching reproduction, not directly logged.",
+    "No live replacement was submitted or replayed; no installed state was opened or migrated."
+  ],
+  "main_reconciliation": {
+    "status": "planned-after-first-full-check",
+    "main_head": "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+    "scope": "Bring public README, Canary documentation and icon-cache installation corrections into recovered iCloud branch. Preserve native schema19 policy and feature-gated CI.",
+    "validation": "Run complete scripts/check.sh again after merge before committing reconciliation."
+  }
+}
