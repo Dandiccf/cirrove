@@ -1030,7 +1030,12 @@ impl Inner {
         FileAttr {
             ino: INodeNo(view.inode),
             size,
-            blocks: size.div_ceil(512),
+            // This inode is a virtual projection. Cache blocks and edit spools
+            // are allocated in the private state directory, where disk-usage
+            // tools already count them (including pinned content). Reporting
+            // logical size here invents allocation for online-only files and
+            // double-counts cached bytes, also across shared-file aliases.
+            blocks: 0,
             atime: time,
             mtime: time,
             ctime: time,

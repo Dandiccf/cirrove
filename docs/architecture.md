@@ -37,6 +37,21 @@ flowchart LR
     Manager --> Engine
 ```
 
+## Allocated space in the mounted view
+
+Mounted inodes preserve their logical file size (`st_size`) but report zero
+allocated blocks (`st_blocks`). They project data stored elsewhere; they do not
+own a second allocation. The private state directory accounts for downloaded
+blocks (pinned and ordinary cache), metadata, pending edits and recovery payloads.
+Counting those bytes again at the mount would duplicate local usage, potentially
+once per alias. Pinning changes retention, not this allocation contract.
+
+Thus `du` and file-manager allocated-space totals exclude remote content while
+logical-size totals still include it. `du --apparent-size` intentionally measures
+logical sizes. Zero allocated space on a mounted file does **not** mean the file
+is online-only; use Cirrove availability/pin status for that. Attribute reporting
+requires no content download, per-file cache scan or extra database query.
+
 ## Identity and linked libraries
 
 A scope is `(account, provider, collection)`; Graph collections are drive IDs.

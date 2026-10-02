@@ -4221,6 +4221,15 @@ async fn real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount
             .unwrap()
             .expect("editing a pinned file offline must be accepted locally");
     }
+    let metadata = tokio::task::spawn_blocking(move || std::fs::metadata(path).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(metadata.len(), edited.len() as u64);
+    assert_eq!(
+        std::os::unix::fs::MetadataExt::blocks(&metadata),
+        0,
+        "pending edits are allocated in the backing spool, not again in the mount"
+    );
     session.shutdown().await.unwrap();
 
     // Rebuilt from disk: the cache's registry and the journal's files are

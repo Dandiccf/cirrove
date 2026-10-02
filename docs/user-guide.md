@@ -74,6 +74,18 @@ the top bar shows nothing and `gnome-extensions` will say the extension does
 not exist. Log out and back in, and the icon is there. Nothing is broken in
 between, and the window works the whole time.
 
+## File size and local disk usage
+
+A cloud file's **Size** is its full content size, even before it is downloaded.
+The mounted view reports **Size on disk** as zero: downloaded content is stored
+in Cirrove's private state directory, where disk-usage tools count it once.
+This includes pinned files, recently opened files, metadata and pending edits.
+Use Cirrove's availability indicators to tell whether a file is kept offline;
+zero allocated space in the mounted view does not tell you that.
+
+Tools that total logical sizes (including `du --apparent-size`) still show the
+full cloud size. Tools that total allocated blocks exclude that remote content.
+
 ## Connecting a drive
 
 Open **Cirrove** from your application menu and press **+** (or **Connect a

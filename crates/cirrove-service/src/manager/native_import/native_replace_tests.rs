@@ -196,3 +196,112 @@ async fn native_replace_cancel_after_durable_enqueue_returns_exact_operation() {
     assert_eq!(result.id, operation);
     assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn native_replace_admission_phases_are_static_and_enqueue_failure_can_retain_work() {
+    use crate::native_import::ReplacementAdmissionError as Phase;
+    for (arm, expected) in [
+        (0, Phase::Selection),
+        (1, Phase::Archive),
+        (2, Phase::Original),
+        (3, Phase::Recheck),
+        (4, Phase::Enqueue),
+    ] {
+        let f = Fixture::new().await;
+        let mut request = input(&f);
+        if arm == 0 {
+            request.selected.expected_account_id = uuid::Uuid::new_v4().to_string();
+        }
+        if arm == 1 {
+            request.source = f.source.with_file_name("private-path-must-not-leak");
+        }
+        let (ready, observed) = tokio::sync::oneshot::channel();
+        let (release, wait) = std::sync::mpsc::channel();
+        if arm == 4 {
+            *f.manager.native_replace_after_enqueue.lock().unwrap() =
+                Some(crate::manager::NativeReplaceEnqueuePause {
+                    ready,
+                    release: wait,
+                });
+        }
+        // Deliberate post-commit hook error, without a timeout or queue rollback.
+        drop(release);
+        let provider = f.provider.clone();
+        let result = f
+            .manager
+            .enqueue_native_replacement_with(
+                f.engine.clone(),
+                request,
+                CancellationToken::new(),
+                move |_, _, _| async move {
+                    if arm == 2 {
+                        anyhow::bail!("signed-url-and-provider-body-must-not-leak");
+                    }
+                    if arm == 3 {
+                        provider
+                            .nodes
+                            .lock()
+                            .unwrap()
+                            .iter_mut()
+                            .find(|n| n.package)
+                            .unwrap()
+                            .etag = Some("v2".into());
+                    }
+                    Ok(semantic())
+                },
+            )
+            .await;
+        let error = result.expect_err("injected boundary must refuse");
+        assert_eq!(error.downcast_ref::<Phase>(), Some(&expected));
+        let message = Phase::message(&error);
+        assert!(message.contains(&format!("during {expected};")));
+        assert!(message.ends_with("inspect retained operations before retrying."));
+        assert!(!message.contains("must-not-leak"));
+        assert!(!format!("{error:?}").contains("must-not-leak"));
+        if arm == 4 {
+            let operation = observed.await.unwrap();
+            assert_eq!(
+                f.journal.lock().unwrap().get(operation).unwrap().id,
+                operation
+            );
+            assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
+        } else {
+            empty(&f);
+        }
+    }
+    let unknown = anyhow::anyhow!("private-provider-body-must-not-leak");
+    assert_eq!(
+        Phase::message(&unknown),
+        "Replacement admission was not confirmed; inspect retained operations before retrying."
+    );
+}
+
+#[tokio::test]
+async fn native_replace_job_reports_static_archive_phase_without_private_path() {
+    let f = Fixture::new().await;
+    let mut request = input(&f);
+    request.source = f.source.with_file_name("private-local-path-must-not-leak");
+    let job = f
+        .engine
+        .start_native_replacement_job(f.manager.clone(), f.control.clone(), request)
+        .unwrap();
+    let terminal = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            let current = f.engine.jobs.find(&job.id).unwrap();
+            if !current.running() {
+                break current;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(terminal.state, crate::jobs::JobState::Failed);
+    assert_eq!(
+        terminal.issue.as_deref(),
+        Some(
+            "Replacement admission was not confirmed during local archive capture; inspect retained operations before retrying."
+        )
+    );
+    empty(&f);
+}

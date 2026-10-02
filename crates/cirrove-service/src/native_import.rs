@@ -26,3 +26,31 @@ pub struct NativeReplaceInput {
     pub source: std::path::PathBuf,
     pub expected_root: String,
 }
+
+/// Static admission context only; never includes a provider/parser error or path.
+/// Even a failed return can follow durable enqueue: callers must inspect retained work.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+pub(crate) enum ReplacementAdmissionError {
+    #[error("selected-document resolution")]
+    Selection,
+    #[error("local archive capture")]
+    Archive,
+    #[error("original remote-content verification")]
+    Original,
+    #[error("final selection recheck")]
+    Recheck,
+    #[error("durable enqueue")]
+    Enqueue,
+}
+impl ReplacementAdmissionError {
+    pub(crate) fn message(error: &anyhow::Error) -> String {
+        if let Some(phase) = error.downcast_ref::<Self>() {
+            format!(
+                "Replacement admission was not confirmed during {phase}; inspect retained operations before retrying."
+            )
+        } else {
+            "Replacement admission was not confirmed; inspect retained operations before retrying."
+                .into()
+        }
+    }
+}

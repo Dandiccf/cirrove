@@ -68,6 +68,9 @@ impl Manager {
         F: FnOnce(cirrove_core::Node, PathBuf, CancellationToken) -> Fut,
         Fut: std::future::Future<Output = Result<PackageSemanticIdentity>>,
     {
+        use crate::native_import::ReplacementAdmissionError as Phase;
+        let mut phase = Phase::Selection;
+        let result = async {
         if !crate::native_trash::validate(&input.selected)
             || input.selected.expected_account_id != engine.account.id
         {
@@ -98,6 +101,7 @@ impl Manager {
         )
         .await
         .context("native replacement selection timed out")??;
+        phase = Phase::Archive;
         let state = state_root(&engine)?;
         let mut excluded = vec![
             state
@@ -132,6 +136,7 @@ impl Manager {
         })
         .await
         .context("native replacement capture stopped")??;
+        phase = Phase::Original;
         let semantic = tokio::select! {biased;
             _=cancel.cancelled()=>bail!("native replacement cancelled before enqueue"),
             _=engine.cancel.cancelled()=>bail!("native replacement account stopped"),
@@ -140,6 +145,7 @@ impl Manager {
         semantic
             .validate()
             .map_err(|_| anyhow::anyhow!("native original semantic proof invalid"))?;
+        phase = Phase::Recheck;
         let current = self.native_import_control(&engine).await?;
         if !current.same_mount(&control) {
             bail!("native replacement mount changed");
@@ -157,6 +163,7 @@ impl Manager {
         {
             bail!("native replacement selection changed during capture");
         }
+        phase = Phase::Enqueue;
         let manager = self.clone();
         tokio::task::spawn_blocking(move || -> Result<_> {
             let _permit = permit;
@@ -196,5 +203,9 @@ impl Manager {
         })
         .await
         .context("native replacement enqueue stopped")?
+        }.await;
+        // Drop dynamic causes at this boundary. A late error is not proof that
+        // nothing was queued, and the public message never claims otherwise.
+        result.map_err(|_: anyhow::Error| anyhow::Error::new(phase))
     }
 }

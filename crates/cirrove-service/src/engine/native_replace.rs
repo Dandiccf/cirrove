@@ -43,11 +43,27 @@ impl Engine {
             .context("replacement job unavailable")?;
         let engine = self.clone();
         self.tasks.spawn(async move {
-            match manager.enqueue_native_replacement(engine.clone(), input, handle.cancel.clone()).await {
-                Ok(row) => engine.observe_replacement(manager, control, handle, row, false).await,
-                Err(_) => {
-                    let state = if handle.stopping() { JobState::Stopped } else { JobState::Failed };
-                    handle.failed(state, Some("Replacement admission was not confirmed; inspect retained operations before retrying.".into()));
+            match manager
+                .enqueue_native_replacement(engine.clone(), input, handle.cancel.clone())
+                .await
+            {
+                Ok(row) => {
+                    engine
+                        .observe_replacement(manager, control, handle, row, false)
+                        .await
+                }
+                Err(error) => {
+                    let state = if handle.stopping() {
+                        JobState::Stopped
+                    } else {
+                        JobState::Failed
+                    };
+                    handle.failed(
+                        state,
+                        Some(crate::native_import::ReplacementAdmissionError::message(
+                            &error,
+                        )),
+                    );
                 }
             }
         });
