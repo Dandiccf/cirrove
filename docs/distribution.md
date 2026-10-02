@@ -3,7 +3,9 @@
 Status: [0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0) is published
 with Arch, Ubuntu 24.04 and Fedora packages. Current CI builds and checks those
 package families from the committed tree. The release is OneDrive-focused; Google
-Drive is a newer `main` preview and iCloud remains a separate development branch.
+Drive is available in the
+[0.2.0 Canary 1 testing snapshot](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
+and `main`; iCloud remains a separate development branch.
 This document also retains plans for broader distribution and update channels;
 consult [the compatibility matrix](compatibility.md) for recorded installation
 evidence.
@@ -258,10 +260,11 @@ milestone 6, ending with the tag itself.
 
 ## Supported versions
 
-There is no release yet. Until there is, what is supported is the current
-build of the main branch on Arch, on the machine it is developed on. From the
-first release on: the latest release and the one before it, for the length of
-one release cycle; the distribution floor is Ubuntu 24.04 (GTK 4.14,
+0.1.0 is the published OneDrive-focused release. 0.2.0 Canary 1 is an opt-in
+testing snapshot and does not replace the regular release or close the stable
+Google release gates. The supported-release policy is the latest regular release
+and the one before it for one release cycle; the distribution floor is
+Ubuntu 24.04 (GTK 4.14,
 libadwaita 1.5), current Fedora and current Arch, x86_64 only. Anything older
 or elsewhere may work and is not claimed. The same policy, for users, is in
 the [user guide](user-guide.md#supported-versions).

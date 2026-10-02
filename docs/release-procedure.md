@@ -5,6 +5,42 @@ that the first one is a rehearsal of this and not an improvisation. Every
 step is something a person types or checks; nothing here is automatic yet,
 and the places where it could be are marked.
 
+## Canary testing snapshots
+
+A Canary is an explicitly marked GitHub prerelease from a green, immutable `main`
+commit. It provides installable testing packages before the stable provider gates
+close; it must not be described as a stable 0.2.0 release or general Google OAuth
+onboarding. iCloud development is not included until it reaches `main`.
+
+For a Canary such as `v0.2.0-canary.1`:
+
+1. Freeze the source commit and its successful **main-branch** CI run. Every job
+   must pass, including package installation/removal and dependency auditing.
+2. Download the exact Arch, Ubuntu 24.04 and Fedora package artifacts. Keep their
+   development versions and commit suffixes, rather than relabel binaries as a
+   stable release. The CLI continues to report the workspace development version.
+3. Verify every artifact with `gh attestation verify`, binding the repository,
+   `refs/heads/main`, exact source digest and `.github/workflows/ci.yml`; reject
+   self-hosted-runner attestations. Record package hashes and the CI run.
+   GitHub normalizes `~` to `.` in uploaded asset filenames; use the actual
+   download names in checksums and install commands while retaining package bytes
+   and metadata versions.
+4. Add an annotated Canary tag at that same source commit without moving it.
+   Create a draft prerelease containing the unchanged packages, an unsigned
+   `SHA256SUMS`, and notes naming the source commit, development versions, scope
+   and remaining acceptance gates. Do not update the stable AUR recipe to point
+   at this snapshot.
+5. Download the draft's assets again into an independent directory and verify
+   their hashes and attestations. Publish the verified draft as a prerelease with
+   `--latest=false`; retain the current regular release as latest.
+6. Link the snapshot from the README and provider setup guide. Keep stable release
+   gates open. Container installation checks do not establish clean-desktop
+   browser sign-in, provider reliability, reboot acceptance or upgrades.
+
+No host installation, credential change, cloud mutation or daemon restart is
+required to publish this snapshot. The stable-release procedure below retains
+its version alignment, live acceptance and recipe verification requirements.
+
 ## Before tagging
 
 1. The release blockers are closed, **except the two that are the release

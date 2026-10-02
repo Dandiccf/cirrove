@@ -310,8 +310,11 @@ expires after seven days; signing in again is then expected. See
 
 ## Connect
 
-Install the developer build first, following [Development](development.md).
-The 0.1.0 release does not include Google support.
+Install [0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
+for a packaged testing snapshot, or follow [Development](development.md) to build
+`main`. The 0.1.0 release does not include Google support. Canary does not close
+the public OAuth verification or exact-release clean-desktop sign-in gates; the
+built-in app remains restricted to approved testers, with a custom app optional.
 
 In the window, choose **Connect a drive → Provider → Google Drive**, enter a
 connection name and optionally change the proposed empty mount folder. The

@@ -1,0 +1,113 @@
+{
+  "tag": "v0.2.0-canary.1",
+  "kind": "prerelease-canary-snapshot",
+  "source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+  "ci_run": 36982695307,
+  "checked_at": "2026-10-02T16:07:13.498498+00:00",
+  "packages": [
+    {
+      "name": "cirrove-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "ci_artifact_name": "cirrove-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "sha256": "7a71471c0544603c3afd53b27c4eacd990a0237c2b44bdbeb2d87d3123b07548",
+      "bytes": 16603421,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove-debug-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "ci_artifact_name": "cirrove-debug-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "sha256": "ff249f6b6234642e1690070f7c1c8f44d01046b1e31debc1a2c1aa97de49db5c",
+      "bytes": 4189554,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove-desktop-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "ci_artifact_name": "cirrove-desktop-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "sha256": "16955c8eac78b13bfbf1951021e57ed450a604e26a2f7a3b5c830605f899029f",
+      "bytes": 7592038,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove-dolphin-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "ci_artifact_name": "cirrove-dolphin-0.2.0dev.r670.ga9e2429-1-x86_64.pkg.tar.zst",
+      "sha256": "5bbc88bbff94830a7565209a4e3267d7877680675802bb56c4b61e206ae4ecb2",
+      "bytes": 88613,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove-desktop_0.2.0.dev.r670.ga9e2429-1_amd64.deb",
+      "ci_artifact_name": "cirrove-desktop_0.2.0~dev.r670.ga9e2429-1_amd64.deb",
+      "sha256": "9dbfdb3bf9be7f572f6299a81245cb8c049fede6d541daf18cb6677755da194f",
+      "bytes": 5759432,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove_0.2.0.dev.r670.ga9e2429-1_amd64.deb",
+      "ci_artifact_name": "cirrove_0.2.0~dev.r670.ga9e2429-1_amd64.deb",
+      "sha256": "dcc147f3a5ffba1b23e80319b8bf6bbb2f88d7ca9346e276ad8d43058be7ed07",
+      "bytes": 12744156,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove-0.2.0.dev.r670.ga9e2429-1.fc42.x86_64.rpm",
+      "ci_artifact_name": "cirrove-0.2.0~dev.r670.ga9e2429-1.fc42.x86_64.rpm",
+      "sha256": "4f31e0207a8ab933bc60917cbdde63af10b507cf70cc02d2e527ea985b7c72fb",
+      "bytes": 12647883,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove-desktop-0.2.0.dev.r670.ga9e2429-1.fc42.x86_64.rpm",
+      "ci_artifact_name": "cirrove-desktop-0.2.0~dev.r670.ga9e2429-1.fc42.x86_64.rpm",
+      "sha256": "9767c10bf186f633c2f167238d93207c8a553b7d09529acaa764c8ffc2dda91c",
+      "bytes": 5969452,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    },
+    {
+      "name": "cirrove-dolphin-0.2.0.dev.r670.ga9e2429-1.fc42.x86_64.rpm",
+      "ci_artifact_name": "cirrove-dolphin-0.2.0~dev.r670.ga9e2429-1.fc42.x86_64.rpm",
+      "sha256": "34be76c6a68670d9ba1e9a82a3dd82f1f7db2461f6afd4cf24228c9c5374da9f",
+      "bytes": 83756,
+      "attestation_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "attestation_verified": true
+    }
+  ],
+  "release_gates_closed": false,
+  "cloud_mutations": 0,
+  "host_installation": false,
+  "cli_version_checks": {
+    "cirrove": "cirrove-service 0.2.0-dev",
+    "cirroved": "cirrove-service 0.2.0-dev"
+  },
+  "checksum_count": 9,
+  "initial_draft_issue": "GitHub normalized tilde to dot in asset filenames; package contents and digests were unchanged. Checksums and install commands now use canonical download names.",
+  "known_limits": [
+    "Virtual mount st_blocks reports logical size; du/file-manager allocated-space totals can overreport disk use. The local allocated-space hotfix is not in this main snapshot.",
+    "Stable Google OAuth/release gates remain open."
+  ],
+  "downloaded_assets_sha256_match": true,
+  "downloaded_attestations_verified": 9,
+  "downloaded_verification_at": "2026-10-02T16:16:10.628901+00:00",
+  "status": "published",
+  "published_at": "2026-10-02T16:17:22Z",
+  "release_url": "https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1",
+  "regular_latest_release": "v0.1.0",
+  "source_ci_url": "https://github.com/Dandiccf/cirrove/actions/runs/36982695307",
+  "package_versions": {
+    "arch": "0.2.0dev.r670.ga9e2429-1",
+    "deb": "0.2.0~dev.r670.ga9e2429-1",
+    "rpm": "0.2.0~dev.r670.ga9e2429-1.fc42"
+  },
+  "open_gates": [
+    "public Google OAuth site/verification",
+    "exact-package clean-desktop Google sign-in/read",
+    "broader provider and desktop acceptance",
+    "stable 0.2.0 release"
+  ]
+}

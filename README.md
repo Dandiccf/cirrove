@@ -13,10 +13,11 @@ with a shared filesystem, cache and recovery journal for its cloud adapters.
 
 **Status: early preview, actively developed and under validation.**
 [Version 0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0), released
-on 18 September 2026, is the first OneDrive-focused release. The current `main`
-branch also includes Google Drive previews. iCloud is being developed separately
-and is not included in `main` or the released packages. The table below describes
-implementation and validation status; it is not a general reliability guarantee.
+on 18 September 2026, is the first OneDrive-focused release.
+[0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
+packages the newer OneDrive and Google Drive previews for testing. iCloud is
+being developed separately and is not included in `main` or the released
+packages. The table below describes implementation and validation status; it is not a general reliability guarantee.
 See the [user guide](docs/user-guide.md) to get started and the
 [compatibility matrix](docs/compatibility.md) for the tested boundaries. Keep a
 separate copy of data you cannot replace while the preview is under validation.
@@ -58,8 +59,8 @@ filesystem operations have their own limits.
 | --- | --- | --- |
 | **Microsoft OneDrive** | Read/write preview in `main`; the focus of 0.1.0 | Browser sign-in, on-demand files, background saves, conflict recovery and offline pinning. Daily use and real-account recovery evidence are primarily from OneDrive for Business; Personal-account acceptance remains open. |
 | **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
-| **Google Drive My Drive** | Read/write preview in `main` | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
-| **Google Workspace Shared Drives** | Read/write preview in `main` | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
+| **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
+| **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
 | **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. Ordinary-file writes and native iWork documents are being validated separately; this integration is not yet part of `main` or a release. |
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
@@ -79,9 +80,15 @@ The [0.1.0 release](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0)
 contains Linux x86_64 packages for **Arch, Ubuntu 24.04 and Fedora**, installation
 commands, checksums and package-attestation instructions. Install the core and
 desktop packages for your distribution, then open **Cirrove** from the application
-menu. This release is OneDrive-focused; use a `main` developer build to test
-Google Drive. The [user guide](docs/user-guide.md) explains connections, offline
-pins, file-manager extras and recovery.
+menu. This release is OneDrive-focused. To test Google Drive without compiling,
+use [0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1),
+a prerelease snapshot with the same three package families. `du` can overreport
+virtual files' disk allocation in this snapshot; use `cirrove local-data` for
+cache/index accounting. Its Google app is limited to approved testers; your own
+OAuth app is an alternative. Canary packages retain their development version and commit suffix, and do not imply that the
+[stable Google release gates](docs/google-release-gate.json) have closed.
+The [user guide](docs/user-guide.md) explains connections, offline pins,
+file-manager extras and recovery.
 
 ### Build and try without a cloud account
 
@@ -149,10 +156,12 @@ account details removed.
 ## Connecting your own accounts
 
 You can try Cirrove with your own accounts before wider onboarding is available.
-There is currently no published Canary/nightly release channel: 0.1.0 is the
-published OneDrive release, and Google support requires a developer build from
-`main`. Follow [the development installation guide](docs/development.md) for that
-build and [the user guide](docs/user-guide.md#connecting-a-drive) for the window.
+Use the [0.2.0 Canary 1 packages](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
+for the newer OneDrive and Google Drive previews, or build `main` following
+[the development installation guide](docs/development.md). Canary is an opt-in
+testing snapshot, with no automatic nightly/update channel. The 0.1.0 release
+remains OneDrive-focused. See [the user guide](docs/user-guide.md#connecting-a-drive)
+for the connection window.
 
 - **OneDrive:** create your own Microsoft Entra desktop app registration and
   enter its application ID when connecting. Cirrove does not yet bundle a shared
