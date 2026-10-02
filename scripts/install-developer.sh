@@ -69,7 +69,9 @@ else
 fi
 install -Dm644 "$repo"/packaging/icons/scalable/apps/*.svg -t "$icons/scalable/apps/"
 install -Dm644 "$repo"/packaging/icons/symbolic/apps/*.svg -t "$icons/symbolic/apps/"
-gtk-update-icon-cache -f "$icons" >/dev/null 2>&1 || true
+# User hicolor overlays commonly have no index.theme. Without -t, GTK keeps
+# stale cache entries that can hide the packaged icons after a later switch.
+gtk-update-icon-cache -f -t "$icons" >/dev/null 2>&1 || true
 install -Dm644 "$repo/packaging/nautilus/cirrove.py" -t "$ext/"
 
 # Qt does not include a user-local plugin directory in its default search path.
@@ -104,7 +106,8 @@ systemctl --user restart cirroved.service
 pkill -x cirrove-tray 2>/dev/null || true
 sleep 1
 (setsid nohup "$bin/cirrove-tray" >/dev/null 2>&1 &)
-nautilus -q 2>/dev/null || true
+# nautilus-python must find the distribution's Python, not a version manager.
+env PATH=/usr/bin:/bin nautilus -q 2>/dev/null || true
 
 # Wait for the mount to be served again before reporting, so the line below is
 # the truth and not a hope.

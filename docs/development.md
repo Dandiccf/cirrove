@@ -45,6 +45,12 @@ Neither script touches `~/.local/state/cirrove`. Accounts, credentials, the
 index, the cache and bytes that have not reached the cloud stay where they are
 through any number of installs in either direction.
 
+Both scripts refresh the user icon cache even when the hicolor overlay has no
+`index.theme`. Switching to packages also repairs a stale cache left by an
+earlier cleanup, so deleted developer icons cannot hide the packaged badges.
+Files is refreshed with the system Python on PATH to avoid a version manager
+interfering with its embedded Python extension loader.
+
 Check the install rather than assuming it:
 
 ```sh
