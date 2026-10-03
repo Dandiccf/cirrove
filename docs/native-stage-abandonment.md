@@ -22,7 +22,9 @@ Conflict row, reads its current account-bound encrypted checkpoint, and requires
 Stage checkpoint whose package registration was armed. It inspects the original
 and allocated stage without downloading content. The original must retain its
 captured identity, revision, name, parent and size. The stage must retain its exact
-allocated identity, generated name and parent and still be a PACKAGE. Metadata is
+allocated identity, generated name and parent and still be a PACKAGE. The generated
+name uses the canonical `.pages`, `.numbers` or `.key` suffix of the captured
+original; its complete spelling and operation UUID must match exactly. Metadata is
 fenced before and after this inspection; the checkpoint is reread. Only then does
 a local transaction recheck the row, dependencies, current mount and cancellation
 before recording abandonment. Any unsupported or uncertain case refuses.
@@ -54,3 +56,10 @@ Validation is synthetic until the separately registered owned-provider arm passe
 The socket fixture uses an injected typed evidence producer; it does not validate
 Apple behavior or access a desktop keyring. Provider evidence validation belongs
 to the separate actual-HTTP adapter tests.
+
+The [format-bound recovery regression](benchmarks/icloud-native-stage-format-recovery-2026-10-03.json)
+records a matching Numbers/Keynote defect: the Stage constructor used the correct
+format, while the final abandonment record still required `.pages`. The correction
+uses the same suffix rule at both boundaries. Its local HTTPS fixtures verify
+observation-only behavior and retained original content; they do not establish
+live Numbers/Keynote abandonment or application fidelity.

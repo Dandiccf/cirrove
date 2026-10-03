@@ -1555,7 +1555,32 @@ SQLite open or cloud action.
 This subsequent protection is not covered by the completed 9527ff0 CI run.
 Its complete contributor check passed, including the newly wired 39 installer
 tests, all three native FUSE/HTTPS cases and all 55 writable kernel cases.
-Linux CI still requires validation for this source increment. It guards declared windows and known affected state routes; it does
+[CI for installer source 378a96d](https://github.com/Dandiccf/cirrove/actions/runs/37143554956)
+then passed all seven jobs. Its tested PR merge has the identical source tree,
+and Linux explicitly executed all 39 installer tests, all 22 windows on the
+GTK 4.14/libadwaita 1.5 floor, three native FUSE/HTTPS cases and 55 writable
+cases. This snapshot does not cover the subsequent format-recovery correction. It guards declared windows and known affected state routes; it does
 not reserve a concurrent measurement lease, discover unannotated historical
 windows, attest arbitrary artifacts or prove installed readiness. The
 schema19/metadata8 installation hold and all six full-iCloud gates remain open.
+
+### Format-bound native Stage recovery
+
+The [registered format recovery check](benchmarks/icloud-native-stage-format-recovery-2026-10-03.json)
+reproduces a concrete Numbers/Keynote recovery refusal. The coordinator allocates
+its Stage with the captured original format, but final abandonment validation
+still required a `.pages` name. The unchanged implementation rejects both formats
+only after complete read-only metadata observation and independent original
+semantic-v2 verification; original and mixed-case Pages controls pass.
+
+The correction derives the canonical suffix using the coordinator's existing
+rule. Complete name and operation equality, parent, identity, PACKAGE, revision
+and checkpoint fences remain strict. Stage abandonment retains the archive and
+checkpoint and resolves local ownership only after fresh observation; it does
+not delete the Stage, upload again, Trash the original or enqueue a replacement.
+The corrected source passes all four selected tests, including five new format
+arms and 15 exact-name tamper refusals. The complete contributor check also
+passed, including the new tests, existing provider/service/journal abandonment
+coverage, all three native FUSE/HTTPS scenarios, all 55 writable kernel cases
+and 39 installer tests. Source CI for this format correction remains separate;
+all six live/application/installed release gates remain open.

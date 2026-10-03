@@ -24,6 +24,8 @@ impl NativeReplacementAbandonRecord {
         else {
             return Err(UploadError::Invalid);
         };
+        let suffix = cirrove_core::upload::native_package_suffix(&self.original.name)
+            .ok_or(UploadError::Invalid)?;
         if self.version != 1
             || self.operation.is_nil()
             || original.as_ref() != &self.original
@@ -38,7 +40,7 @@ impl NativeReplacementAbandonRecord {
             || !self.staged.package
             || self.staged.target.is_some()
             || self.staged.content_version.is_some()
-            || self.staged.name != format!("staged-by-cirrove-{}.pages", self.operation)
+            || self.staged.name != format!("staged-by-cirrove-{}{suffix}", self.operation)
             || self.staged.etag.as_ref().is_none_or(|v| {
                 v.is_empty() || v.len() > 4096 || v.contains(['*', '\0', '\r', '\n'])
             })

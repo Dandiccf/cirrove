@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "controlled-baseline-omissions-restoration-host-refusal-and-complete-contributor-check-passed-source-CI-pending",
+  "status": "controlled-baseline-omissions-restoration-host-refusal-complete-check-and-seven-job-source-CI-passed",
   "question": "Can the actual developer installer refuse held19/8 transitions for every affected existing/current/future service state route and an exact declared restart embargo before any build/copy/service boundary, while ordinary released installations retain their behavior?",
   "prediction": "Unchanged installer reaches a fake mutation boundary in controlled refusal arms. Bounded preflight will refuse before it while retained synthetic bytes remain unchanged. Safe allowed arms reach exactly the first fake boundary, never an actual installation. The stopped shipped HOME state with empty caller XDG is a necessary control: ambient environment cannot substitute for unit routing.",
   "source_head_before_tests": "9527ff0dcb31cae3249909cffe2cf47d918559eb",
@@ -469,6 +469,137 @@
       "full_icloud_gates_open": 6,
       "result": "Whole scripts/check.sh passed formatting, Clippy/probes, workspace/features, kernel mounts, all script tests including the new unfiltered39 suite, coverage, ledger and docs. No display scenario repeated because no desktop behavior changed; prior9527ff0 floor/window CI remains separate. No actual deployment or Apple mutation.",
       "executable_source_unchanged_during_check": true
+    },
+    "remote_ci_378a96d": {
+      "run": 37143554956,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37143554956",
+      "head_sha": "378a96d5ab1dc9c4e40abdd384019c1312f31a59",
+      "tested_checkout_sha": "ca3f81de8fb54d919171f54339b6424e244bbebd",
+      "head_and_tested_checkout_tree": "1d770cf1c56dfa8a3525ec807d70e1a86243e876",
+      "status": "completed",
+      "conclusion": "success",
+      "seven_jobs_passed": true,
+      "jobs": [
+        {
+          "id": 111262792244,
+          "name": "linux",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792339,
+          "name": "deb-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792344,
+          "name": "dependency-audit",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792349,
+          "name": "rpm-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792408,
+          "name": "mounted-read-workloads",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792453,
+          "name": "arch-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111264486387,
+          "name": "headless-package-install",
+          "conclusion": "success"
+        }
+      ],
+      "scope_audit": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184522579317Z-completed-scope-audit.json",
+      "scope_audit_sha256": "2140533594e0dc8560375f313e433400b1e4990a6b80e7e9cf030495486e0863",
+      "linux_log": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184322568471Z-linux-job-111262792244.log",
+      "linux_log_bytes": 588103,
+      "linux_log_sha256": "b2ca316f369afb32c75573fcb69babf89b689f4576bcfc5833743436bef57b9f",
+      "terminal_run_metadata": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184311056224Z-run.json",
+        "sha256": "502aeb3b76ae0654c2e8be4853089c273cc703252138ff41a273c88491e9a33b"
+      },
+      "terminal_jobs_metadata": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184311056224Z-jobs.json",
+        "sha256": "c75b58685463f1eda5ef791a8c083ca6d0171baba8caf700a0deefde33c26fb2"
+      },
+      "git_commit_records": {
+        "378a96d5ab1dc9c4e40abdd384019c1312f31a59": {
+          "tree": "1d770cf1c56dfa8a3525ec807d70e1a86243e876",
+          "parents": [
+            "9527ff0dcb31cae3249909cffe2cf47d918559eb"
+          ],
+          "raw": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184406308009Z-git-commit-378a96d5ab1dc9c4e40abdd384019c1312f31a59.json",
+          "raw_sha256": "6b3e6526275273cb3aa23823fceef31ea5e4cca052b34a1a84e06bb4044669a8"
+        },
+        "ca3f81de8fb54d919171f54339b6424e244bbebd": {
+          "tree": "1d770cf1c56dfa8a3525ec807d70e1a86243e876",
+          "parents": [
+            "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+            "378a96d5ab1dc9c4e40abdd384019c1312f31a59"
+          ],
+          "raw": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184406308009Z-git-commit-ca3f81de8fb54d919171f54339b6424e244bbebd.json",
+          "raw_sha256": "89ca757153d22d7f7718373babc0f5171eba824cac8bb5ece84cd693d405b6ae"
+        }
+      },
+      "installer_39": {
+        "step_number": 44,
+        "command_line": 5375,
+        "count_line": 5381,
+        "ok_line": 5383,
+        "summary": "2026-10-03T18:40:39.7409983Z Ran 39 tests in 8.564s",
+        "outcome": "2026-10-03T18:40:39.7410163Z OK",
+        "scope": "Actual installer under fake mutation commands; typed synthetic query/process fixtures; no real install/restart."
+      },
+      "chooser_1": {
+        "command_line": 4754,
+        "result_line": 4766,
+        "result": "2026-10-03T18:32:22.4696007Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.13s",
+        "elapsed_command_to_result_seconds": 2.332685
+      },
+      "window_1_1_20": [
+        {
+          "command_line": 4768,
+          "result_line": 4800,
+          "result": "2026-10-03T18:32:33.9161513Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out",
+          "elapsed_command_to_result_seconds": 11.42231
+        },
+        {
+          "command_line": 4802,
+          "result_line": 4816,
+          "result": "2026-10-03T18:32:41.0081088Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out",
+          "elapsed_command_to_result_seconds": 7.050829
+        },
+        {
+          "command_line": 4818,
+          "result_line": 4871,
+          "result": "2026-10-03T18:33:01.2994636Z test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out",
+          "elapsed_command_to_result_seconds": 20.250611
+        }
+      ],
+      "native_fuse_https_3": {
+        "command_line": 5007,
+        "result_line": 5019,
+        "result": "2026-10-03T18:36:37.2939649Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 496 filtered out; finished in 4.53s",
+        "elapsed_command_to_result_seconds": 4.774668
+      },
+      "writable_session_55": {
+        "command_line": 5128,
+        "result_line": 5192,
+        "result": "2026-10-03T18:40:14.9226333Z test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 106.59s",
+        "elapsed_command_to_result_seconds": 106.820067
+      },
+      "floor_packages": {
+        "GTK": "4.14.5+ds-0ubuntu0.10",
+        "libadwaita": "1.5.0-1ubuntu2"
+      },
+      "scope_limits": "Synthetic exact-source CI only, no installed/live readiness or concurrent measurement lease. Subsequent native-format recovery fix is outside this run."
     }
   },
   "runner": {
@@ -622,5 +753,5 @@
     "shell_sha256_after_comment_edits": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
     "full_contributor_check": "passed; current executable/helper/test/policy/unit/check/CI source pins unchanged throughout run"
   },
-  "decision": "Bounded developer-install refusal is established by exact baseline, restored suite, eight omission controls and a helper-only existing-host arm. Source CI is pending for this increment; no installed acceptance or full-iCloud gate closed."
+  "decision": "Bounded developer-install refusal is established by baseline, restored suite, eight omission controls, helper-only existing-host refusal, complete contributor check and seven-job exact-sourceCI. No installed acceptance or full-iCloud gate closed."
 }

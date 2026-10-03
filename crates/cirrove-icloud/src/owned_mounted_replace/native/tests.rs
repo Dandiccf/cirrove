@@ -122,8 +122,9 @@ fn entry(p: &HandoffPlan, s: &State, old: bool) -> serde_json::Value {
     } else {
         &p.staged_name
     };
+    let (basename, extension) = name.rsplit_once('.').unwrap();
     json!({"drivewsid":if old{OLD}else{NEW},"docwsid":if old{"old"}else{"new"},"zone":"com.apple.CloudDocs","type":"FILE",
-        "name":name.strip_suffix(".pages").unwrap(),"extension":"pages","size":17,
+        "name":basename,"extension":extension,"size":17,
         "parentId":if old&&s.trashed{"TRASH_ROOT"}else if old&&s.moved{"FOLDER::com.apple.CloudDocs::elsewhere"}else{FOLDER},
         "restorePath":if old&&s.trashed{json!(["owned"])}else{json!(null)},
         "etag":if old&&s.changed{"changed"}else if old&&s.trashed{"trash-v2"}else if old{"old-v1"}else if s.installed{"new-v2"}else{"new-v1"}})
@@ -1154,4 +1155,181 @@ async fn native_mixed_case_pages_checkpoint_keeps_exact_names_and_phase() {
             ..
         }
     ));
+}
+
+/// Exercise the real HTTPS Stage observation through its final record validator.
+/// The lost registration reply retains Stage authority; no Trash/rename occurs.
+async fn native_abandon_format_arm(suffix: &str) {
+    tokio::time::timeout(Duration::from_secs(20), async {
+        let operation = Uuid::new_v4();
+        let op = operation.to_string();
+        let root = format!("Source{suffix}");
+        let target = format!("Target{suffix}");
+        let canonical = cirrove_core::upload::native_package_suffix(&target).unwrap();
+        let source = archive(&root, false, false);
+        let semantic_v2 = |root: &str, old: bool| {
+            let bytes = archive(root, old, false);
+            let mut file = tempfile::tempfile().unwrap();
+            file.write_all(&bytes).unwrap();
+            crate::package_archive_semantic_identity_versioned(
+                &file,
+                &PackageDownload {
+                    size: bytes.len() as u64,
+                    sha256: hex::encode(Sha256::digest(&bytes)),
+                },
+                root,
+                2,
+                &CancellationToken::new(),
+            )
+            .unwrap()
+        };
+        let mut r = request(
+            Scope {
+                account: Uuid::new_v4().to_string(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            },
+            &source,
+        );
+        let UploadRepresentation::PackageReplacementArchive {
+            expected_root,
+            semantic,
+            original,
+            original_semantic,
+        } = &mut r.representation
+        else {
+            panic!("native request fixture");
+        };
+        *expected_root = root.clone();
+        original.name = target.clone();
+        *semantic = semantic_v2(&root, false);
+        *original_semantic = semantic_v2(&target, true);
+        let original = original.as_ref().clone();
+        r.validate().unwrap();
+        let mut p = plan();
+        p.target_name = target;
+        p.staged_name = format!("staged-by-cirrove-{operation}{canonical}");
+        p.recovery_name = format!("recovery-by-cirrove-{operation}{canonical}");
+        if let UploadRepresentation::PackageReplacementArchive {
+            semantic,
+            original_semantic,
+            ..
+        } = &r.representation
+        {
+            let proof = p.package.as_mut().unwrap();
+            proof.original = original_semantic.clone();
+            proof.staged = semantic.clone();
+        }
+        p.validate().unwrap();
+        let dir = directory();
+        let source_path = dir.path().join("source.zip");
+        std::fs::write(&source_path, &source).unwrap();
+        let server = Server::start(p, source.clone(), true, false, false).await;
+        let owner = coordinator(&server, dir.path(), r.clone(), operation);
+        let cancel = CancellationToken::new();
+        assert_eq!(owner.stage_name, format!("staged-by-cirrove-{operation}{canonical}"));
+        let UploadStep::Allocate(armed) = owner
+            .begin_upload_for_operation(&op, &r, &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("allocate");
+        };
+        let UploadStep::Stream(body) = owner
+            .allocate_upload_for_operation(&op, &r, &armed, &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("stream");
+        };
+        let registration = take_commit(
+            owner
+                .upload_stream_for_operation(
+                    &op,
+                    &r,
+                    &body,
+                    File::open(&source_path).unwrap(),
+                    &cancel,
+                )
+                .await
+                .unwrap(),
+        );
+        assert!(matches!(
+            owner.commit_upload_for_operation(&op, &r, &registration, &cancel).await,
+            Err(UploadError::Uncertain)
+        ));
+        assert_eq!(counts(&server), (1, 1, 1, 0, 0));
+        let requests_before = server.state.lock().unwrap().requests;
+        let archives_before = server.state.lock().unwrap().archive_calls;
+        let observed = owner
+            .inspect_native_stage_abandonment_checkpoint(&op, &r, &registration, &cancel)
+            .await;
+        // A fixture panic/metadata mismatch cannot masquerade as the regression:
+        // all five exact read-only metadata/representation requests must finish.
+        assert_eq!(server.state.lock().unwrap().requests, requests_before + 5);
+        assert_eq!(server.state.lock().unwrap().archive_calls, archives_before);
+        assert_eq!(counts(&server), (1, 1, 1, 0, 0));
+        {
+            let state = server.state.lock().unwrap();
+            assert!(state.registered);
+            assert!(!state.trashed && !state.installed && !state.changed);
+            assert!(!state.moved && !state.deleted && !state.corrupt);
+        }
+        // Independently reverify original semantic-v2 content after observation,
+        // including baseline refusal, before asserting the final proof endpoint.
+        owner.native_before_stage(&cancel).await.unwrap();
+        assert_eq!(std::fs::read(&source_path).unwrap(), source);
+        assert_eq!(counts(&server), (1, 1, 1, 0, 0));
+        let proof = match observed {
+            Ok(proof) => proof,
+            Err(UploadError::Invalid) => panic!(
+                "valid native Stage format rejected at final record validation after exact metadata reads: {suffix}"
+            ),
+            Err(_) => panic!("unexpected native Stage observation failure: {suffix}"),
+        };
+        assert!(proof.is_fresh());
+        let record = proof.record();
+        record.validate().unwrap();
+        assert_eq!(record.operation, operation);
+        assert!(record.request == r);
+        assert!(record.original == original);
+        assert_eq!(record.staged.id, NEW);
+        assert_eq!(record.staged.parent_id, original.parent_id);
+        assert_eq!(record.staged.name, owner.stage_name);
+        assert_eq!(record.staged.etag.as_deref(), Some("new-v1"));
+        assert_eq!(record.checkpoint_sha256, hex::encode(Sha256::digest(registration.expose_secret().as_bytes())));
+        let wrong_suffix = if canonical == ".key" { ".numbers" } else { ".key" };
+        for bad_name in [
+            format!("staged-by-cirrove-{operation}{wrong_suffix}"),
+            format!("staged-by-cirrove-{}{canonical}", Uuid::new_v4()),
+            format!("staged-by-cirrove-{operation}{}", canonical.to_ascii_uppercase()),
+        ] {
+            let mut changed = record.clone();
+            changed.staged.name = bad_name;
+            assert!(matches!(changed.validate(), Err(UploadError::Invalid)),
+                "changed staged format, operation or exact canonical case was accepted");
+        }
+        assert_eq!(counts(&server), (1, 1, 1, 0, 0));
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn native_stage_abandonment_numbers_keeps_exact_operation_and_original() {
+    for suffix in [".numbers", ".NuMbErS"] {
+        native_abandon_format_arm(suffix).await;
+    }
+}
+
+#[tokio::test]
+async fn native_stage_abandonment_keynote_keeps_exact_operation_and_original() {
+    for suffix in [".key", ".KEY"] {
+        native_abandon_format_arm(suffix).await;
+    }
+}
+
+#[tokio::test]
+async fn native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original() {
+    native_abandon_format_arm(".PAGES").await;
 }
