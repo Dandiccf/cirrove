@@ -1239,3 +1239,25 @@ This is one controlled synthetic ordinary-file compatibility trial. It does not
 prove installed package rollback, credentials, real-provider pending work or
 native Apple application fidelity. It does not remove the schema19 installation
 hold or close full-iCloud lifecycle requirement 488.
+
+
+### One native kernel save through the HTTPS worker
+
+The [registered kernel-to-transport trial](benchmarks/icloud-native-fuse-https-2026-10-03.json)
+connects a genuine FUSE-sealed Pages archive to the actual native replacement
+coordinator and transfer worker using the existing loopback HTTPS fixture.
+Exactly one selected test passed. It checked the queued native representation,
+original/current semantic proofs, typed original/current/Trash identities,
+uploaded bytes, one call per mutation phase, confirmed metadata publication,
+an unread original descriptor, and remount with the confirmed bytes and no
+replay. Both mounted sessions joined successfully; no fixture FUSE mount
+remained under `/var/tmp` afterward. The complete `scripts/check.sh` for this additional source also passed and
+explicitly executed the new test again. Other desktop window scenarios were not
+run locally.
+
+This adds synthetic integration coverage without manufacturing a completion
+receipt. Initial hydration and observed metadata are fixture providers; one
+Pages ZIP generation is not an Apple application document or save. The normal
+account router, multiple pending generations, lost-response recovery and live
+Apple behavior remain separate requirements. No provider account or installed
+service was touched, and no full-iCloud release gate closed.

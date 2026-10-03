@@ -540,3 +540,6 @@ async fn native_coordinator_worker_abort_and_cancellation_keep_armed_checkpoint_
         assert_eq!(counts(&server), (1, 1, 1, 1, 1));
     }
 }
+
+#[path = "worker_transport/fuse_https.rs"]
+mod fuse_https;
