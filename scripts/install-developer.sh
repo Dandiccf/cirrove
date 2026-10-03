@@ -9,8 +9,9 @@
 # in the home shadow the packaged ones, and everything appears twice. So this
 # refuses to run while the packages are installed and says how to remove them.
 #
-# Nothing here touches ~/.local/state/cirrove -- accounts, credentials, the
-# index, the cache and unsent bytes stay exactly as they are.
+# The installer does not delete or replace account state. A newer daemon may
+# migrate its index or journal when restarted; the source-policy preflight
+# below refuses retained-state upgrades while this development source is held.
 #
 # Usage: scripts/install-developer.sh [--no-build]
 set -euo pipefail
@@ -41,6 +42,14 @@ if pacman -Qq cirrove >/dev/null 2>&1 || pacman -Qq cirrove-desktop >/dev/null 2
   exit 1
 fi
 
+# Read-only source hold, affected service routes and declared window checks.
+# No bypass: held --no-build artifacts have no independent provenance here.
+preflight=(python3 "$repo/scripts/install-preflight.py" --repo "$repo")
+if [[ ${1:-} == --no-build ]]; then
+  preflight+=(--no-build)
+fi
+"${preflight[@]}"
+
 if [[ ${1:-} != --no-build ]]; then
   echo "building"
   (cd "$repo" && cargo build --release --locked --workspace)
@@ -51,6 +60,10 @@ if [[ ${1:-} != --no-build ]]; then
     cmake --build "$target_dir/dolphin" --parallel
   fi
 fi
+
+# A build can outlive the first observation; refuse newly declared windows or
+# changed service/state routes before the first installed-file mutation.
+"${preflight[@]}"
 
 echo "installing into $HOME"
 install -Dm755 "$target_dir/release/cirroved" "$bin/cirroved"
@@ -107,7 +120,7 @@ systemctl --user enable cirroved.service
 # so a second developer install would leave the previous binary serving the
 # mount and report success. Every install must put the binary it just built in
 # front of the user. The unit unmounts on stop and remounts on start; the state
-# directory is untouched, so the account and index survive.
+# directory is retained; the restarted daemon may migrate its contents.
 systemctl --user restart cirroved.service
 
 # Replace a running tray with the one just installed, and reload Files so it
@@ -133,4 +146,4 @@ echo "  files extension: $ext/cirrove.py"
 if [[ -f $dolphin_plugins/kf6/kfileitemaction/cirrovefileitemaction.so ]]; then
   echo "  Dolphin plugins: $dolphin_plugins (available after the next login)"
 fi
-echo "Your accounts, credentials and cache under ~/.local/state/cirrove were not touched."
+echo "The installer retained account state; the running daemon may update its index, cache and journal."

@@ -646,6 +646,35 @@ older code that could interpret them as ordinary uploads. Schema17 and schema18 
 refuse schema19 rather than ignore the marker or lower the version. A table being
 additive does not make the writer downgrade safe.
 
+The developer installer enforces this hold through
+`packaging/developer-install-policy.json`. Before building and again before its
+first installed-file copy, a read-only preflight inspects the exact user service,
+its effective command, any live process and the shipped future unit template.
+It checks the union of their state directories, using the service owner's passwd
+home rather than the caller's `XDG_STATE_HOME`. Retained account, index or journal
+markers refuse installation, including ordinary-only, disabled and read-only
+accounts. It does not parse account settings, open SQLite, read credentials or
+contact a provider. A held `--no-build` installation is also refused because the
+source policy cannot establish arbitrary build-artifact provenance. Unknown,
+ambiguous or changing routes and unsafe symlink ancestry refuse installation.
+
+A benchmark can declare a top-level `restart_embargo` object with `version: 1`,
+`hostname`, numeric `uid`, `scope: "user"`, `unit: "cirroved.service"` and
+`state: "active"` or `"closed"`. An active declaration matching this host, user
+and service refuses installation; malformed declarations also refuse. Optional
+`owner_pid` and timezone-bearing `owner_started_at` identify the owner and do not
+expire an embargo. Historical status words alone are not such a declaration.
+The second preflight catches changes declared while the build ran.
+
+This is a bounded guard, not a measurement lease: it neither discovers every
+legacy window nor excludes a concurrent launch after the final check. Continue
+the manual measurement audit and prohibit concurrent measurement starts during
+deployment. Package switching, package-manager actions and reboot need their own
+checks; this helper does not intercept them. The
+[controlled preflight evidence](benchmarks/icloud-installation-preflight-2026-10-03.json)
+establishes guarded refusal, not installed iCloud transition acceptance. Releasing
+the source hold still requires the recovery and application acceptance above.
+
 Before any later authorized deployment, identify the actual installed version,
 state ownership and any active measurement; inventory retained uploads and dirty
 working generations using compatible read-only recovery. Export needed sealed

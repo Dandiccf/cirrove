@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "controlled-discovery-and-complete-local-check-passed-remote-CI-required",
+  "status": "controlled-discovery-local-check-and-source-CI-passed",
   "scope": "synthetic saved explicit-native-import discovery; no Apple mutation, desktop implementation, installed state or full-iCloud gate closure",
   "question": "Can the public service discover exact-account saved explicit PACKAGE imports after ephemeral jobs disappear, including read-only recovery, without capture, cloud IO, queue replay, private row leakage or journal migration?",
   "prediction": "Five focused tests will execute. Exact PackageArchive/Create rows retain historical verified completion identities, ordinary and replacement uploads stay excluded, foreign scope and corrupted owned rows are fenced, bounded cursors return every escaped-byte fixture once, and read-only restart plus a concurrent account withdrawal remain safe. No product defect or nonexistent-API failure is claimed by this new feature.",
@@ -224,6 +224,32 @@
       "writable_kernel_tests_passed": 55,
       "desktop_display_scenarios": "not covered by local check",
       "full_iCloud_open_rows": 6
+    },
+    "remote_ci_9527ff0": {
+      "run": 37140142769,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37140142769",
+      "head_sha": "9527ff0dcb31cae3249909cffe2cf47d918559eb",
+      "tested_checkout_sha": "ef4ee4fc2c86c4d497b80885d54428a2d3895fd3",
+      "head_and_tested_checkout_tree": "c71f293d3edbea01389c713d10e66f05f64ed037",
+      "status": "completed",
+      "conclusion": "success",
+      "seven_jobs_passed": true,
+      "linux_log_sha256": "c1fff9a00590fbb31ac9a020feb9181464d5e0d84e08b990fba95ca4be92c554",
+      "public_execution_record": "docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json",
+      "relevant_execution": {
+        "tests": 5,
+        "passed": 5,
+        "log_lines": [
+          3264,
+          3266,
+          3268,
+          3363,
+          3365
+        ],
+        "scope": "Three journal selection/paging/receipt controls and two public read-only restart/account-withdrawal controls explicitly executed in workspace tests."
+      },
+      "scope_limits": "The prior60ea0f9 reauthentication failure remains historical evidence, not a proven unique-cause diagnosis. Subsequent installer protection is outside this run; no installed/live or full-iCloud gate closure.",
+      "public_execution_key": "results.remote_ci_9527ff0"
     }
   },
   "registered_locally_at": "2026-10-03T14:59:41.810404+00:00",

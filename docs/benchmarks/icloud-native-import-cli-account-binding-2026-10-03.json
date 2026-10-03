@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "controlled-local-check-passed-source-CI-failed-existing-reauthentication-test",
+  "status": "controlled-local-check-historical-CI-failure-retained-new-source-CI-passed",
   "registered_at": "2026-10-03T14:33:45.589074+00:00",
   "source_head": "176bd0978715ecee506b63f0979aebebd1a55ceb",
   "question": "Can the public native-import CLI express an already selected account UUID through request submission and observation, refusing services that cannot enforce that binding while preserving intentional label-only use?",
@@ -281,6 +281,31 @@
       "linux_log": ".local-state/icloud-full-integration-20261003/remote-ci-60ea0f9-linux-failure-v1.log",
       "linux_log_sha256": "fc83d23941a2caeec152ed33190662218db926ce2f599d2695cd5cb2f7296817",
       "scope": "New CLI integration target and display/kernel groups not reached after service-lib failure; original controlled local CLI results retained. Subsequent settings-owner regression and combined local check passed as separately recorded; unique remote cause remains unproven."
+    },
+    "remote_ci_9527ff0": {
+      "run": 37140142769,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37140142769",
+      "head_sha": "9527ff0dcb31cae3249909cffe2cf47d918559eb",
+      "tested_checkout_sha": "ef4ee4fc2c86c4d497b80885d54428a2d3895fd3",
+      "head_and_tested_checkout_tree": "c71f293d3edbea01389c713d10e66f05f64ed037",
+      "status": "completed",
+      "conclusion": "success",
+      "seven_jobs_passed": true,
+      "linux_log_sha256": "c1fff9a00590fbb31ac9a020feb9181464d5e0d84e08b990fba95ca4be92c554",
+      "public_execution_record": "docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json",
+      "relevant_execution": {
+        "tests": 5,
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 0,
+        "log_lines": [
+          3713,
+          3722
+        ]
+      },
+      "scope_limits": "The prior60ea0f9 reauthentication failure remains historical evidence, not a proven unique-cause diagnosis. Subsequent installer protection is outside this run; no installed/live or full-iCloud gate closure.",
+      "public_execution_key": "results.remote_ci_9527ff0"
     }
   },
   "gate_closure": false,

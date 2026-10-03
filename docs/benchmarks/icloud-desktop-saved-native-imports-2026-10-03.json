@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "controlled-restored-local-tests-and-complete-check-passed-source-CI-required",
+  "status": "controlled-restored-local-check-and-seven-job-source-CI-passed",
   "scope": "synthetic desktop saved explicit-import discovery and observer attachment; service API is separately validated; no Apple IO or installed-state change",
   "question": "Can a desktop visitor find saved imports after transient transfer rows vanish, inspect bounded historical pages and explicitly check one exact operation without another import, retry or access-policy change, including read-only history and a delayed post-watch status response?",
   "prediction": "Four new non-window tests and one new window scenario will pass. The new native window scenario will stay within its independent unchanged30s bound on the supported GTK/adwaita floor. Immediate publication of the exact accepted observer job will prevent a second watch during a held status response. Omitting only that publication must fail the exact in-model operation assertion after the watch reply is accepted, before status is released.",
@@ -529,6 +529,197 @@
       "actual_cli_socket": "5 passed,0 filtered in native_import_cli integration target",
       "ci_coverage": "144 ignored tests,13 filters,4 unfiltered,25 excused; custom window groups1+1+20",
       "result": "Whole scripts/check.sh (no --fast) passed formatting, clippy/probes, workspace/features, kernel mounts, scripts/translations/coverage/ledger and docs. Display scenarios were separately executed before this run; no live Apple or installed acceptance."
+    },
+    "remote_ci_9527ff0": {
+      "run": 37140142769,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37140142769",
+      "head_sha": "9527ff0dcb31cae3249909cffe2cf47d918559eb",
+      "tested_checkout_sha": "ef4ee4fc2c86c4d497b80885d54428a2d3895fd3",
+      "tested_checkout_ref": "refs/pull/86/merge",
+      "tested_checkout_parents": [
+        "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+        "9527ff0dcb31cae3249909cffe2cf47d918559eb"
+      ],
+      "head_and_tested_checkout_tree": "c71f293d3edbea01389c713d10e66f05f64ed037",
+      "tree_equality": "Both full-SHA GitHub git/commits API records report the identical tree; checkout log lines108,126,129 identify the tested PR merge.",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 111252691061,
+          "name": "mounted-read-workloads",
+          "conclusion": "success"
+        },
+        {
+          "id": 111252691196,
+          "name": "dependency-audit",
+          "conclusion": "success"
+        },
+        {
+          "id": 111252691201,
+          "name": "rpm-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111252691250,
+          "name": "deb-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111252691263,
+          "name": "linux",
+          "conclusion": "success"
+        },
+        {
+          "id": 111252691269,
+          "name": "arch-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111254885951,
+          "name": "headless-package-install",
+          "conclusion": "success"
+        }
+      ],
+      "linux_job": 111252691263,
+      "linux_log": ".local-state/icloud-full-integration-20261003/remote-ci-9527ff0-agent/20261003T175046133108Z-linux-job-111252691263.log",
+      "linux_log_bytes": 587467,
+      "linux_log_sha256": "c1fff9a00590fbb31ac9a020feb9181464d5e0d84e08b990fba95ca4be92c554",
+      "terminal_run_metadata": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-9527ff0-agent/20261003T175035106768Z-run.json",
+        "sha256": "48dbcd068b39ccaa6ec1d1fef851e1ab2c43c1aadaf27f1de9453356ac39cc0c"
+      },
+      "terminal_jobs_metadata": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-9527ff0-agent/20261003T175035106768Z-jobs.json",
+        "sha256": "259754107dba55b3383766aec107926d4ba2a11095a55de11f6ac30cf765044c"
+      },
+      "merge_commit_api": {
+        "url": "https://api.github.com/repos/Dandiccf/cirrove/git/commits/ef4ee4fc2c86c4d497b80885d54428a2d3895fd3",
+        "raw": {
+          "tree": "c71f293d3edbea01389c713d10e66f05f64ed037",
+          "raw": ".local-state/icloud-full-integration-20261003/remote-ci-9527ff0-agent/20261003T175221705736Z-git-commit-ef4ee4fc2c86c4d497b80885d54428a2d3895fd3.json",
+          "raw_sha256": "989d48027508e84e699f65799fad58f668f62449b94ab8301c0a00e7d5c9242d"
+        }
+      },
+      "head_commit_api": {
+        "url": "https://api.github.com/repos/Dandiccf/cirrove/git/commits/9527ff0dcb31cae3249909cffe2cf47d918559eb",
+        "raw": {
+          "tree": "c71f293d3edbea01389c713d10e66f05f64ed037",
+          "raw": ".local-state/icloud-full-integration-20261003/remote-ci-9527ff0-agent/20261003T175221705736Z-git-commit-9527ff0dcb31cae3249909cffe2cf47d918559eb.json",
+          "raw_sha256": "27e95a42ebd6f5cdf286d9012f7792933d1b2b952a5e4ac1cb6837029e786c94"
+        }
+      },
+      "floor_packages": {
+        "GTK": "4.14.5+ds-0ubuntu0.10",
+        "libadwaita": "1.5.0-1ubuntu2",
+        "log_lines": [
+          291,
+          307,
+          988,
+          1012
+        ]
+      },
+      "executed_scopes": {
+        "settings_lock_and_original_reauthentication": {
+          "tests": 2,
+          "passed": 2,
+          "log_lines": [
+            2981,
+            2990
+          ],
+          "names": [
+            "accounts::tests::icloud_reauthentication_keeps_validated_read_only_access_and_desired_state",
+            "accounts::tests::config_guard_drop_releases_inherited_description_and_allows_icloud_restore"
+          ]
+        },
+        "native_import_cli_binding": {
+          "tests": 5,
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "log_lines": [
+            3713,
+            3722
+          ]
+        },
+        "saved_import_service_history": {
+          "tests": 5,
+          "passed": 5,
+          "log_lines": [
+            3264,
+            3266,
+            3268,
+            3363,
+            3365
+          ],
+          "scope": "Three journal selection/paging/receipt controls and two public read-only restart/account-withdrawal controls explicitly executed in workspace tests."
+        },
+        "saved_import_desktop_library_and_model": {
+          "new_tests": 4,
+          "passed": 4,
+          "log_lines": [
+            2422,
+            2423,
+            2463,
+            2467
+          ],
+          "model_target_total": 5
+        },
+        "chooser": {
+          "command_line": 4754,
+          "result_line": 4766,
+          "result": "2026-10-03T17:39:14.5782515Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.95s",
+          "elapsed_command_to_result_seconds": 4.97878
+        },
+        "windows": {
+          "total": 22,
+          "groups": [
+            1,
+            1,
+            20
+          ],
+          "per_group_timeout_seconds": 30,
+          "groups_evidence": [
+            {
+              "command_line": 4768,
+              "result_line": 4800,
+              "result": "2026-10-03T17:39:25.5931854Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out",
+              "elapsed_command_to_result_seconds": 10.930162
+            },
+            {
+              "command_line": 4802,
+              "result_line": 4816,
+              "result": "2026-10-03T17:39:32.9901572Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out",
+              "elapsed_command_to_result_seconds": 7.346627
+            },
+            {
+              "command_line": 4818,
+              "result_line": 4871,
+              "result": "2026-10-03T17:39:55.6350741Z test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out",
+              "elapsed_command_to_result_seconds": 22.606817
+            }
+          ]
+        },
+        "native_fuse_https": {
+          "command_line": 5007,
+          "result_line": 5019,
+          "result": "2026-10-03T17:43:56.9530424Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 496 filtered out; finished in 4.45s",
+          "elapsed_command_to_result_seconds": 4.749357
+        },
+        "writable_session": {
+          "command_line": 5128,
+          "result_line": 5192,
+          "result": "2026-10-03T17:47:48.5066120Z test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 105.87s",
+          "elapsed_command_to_result_seconds": 106.156568
+        }
+      },
+      "scope_limits": [
+        "Synthetic CI only; no live Apple, installed daemon, application fidelity or full-iCloud acceptance gate closure.",
+        "Command-to-summary timestamps are one CI execution, not repeated performance results.",
+        "The newer uncommitted installer preflight increment is outside9527ff0 and this CI run; its local controls do not provide CI or installed-transition acceptance."
+      ],
+      "observed_terminal_at": "2026-10-03T17:50:35.106768+00:00"
     }
   },
   "registered_locally_at": "2026-10-03T15:34:05.505524+00:00",

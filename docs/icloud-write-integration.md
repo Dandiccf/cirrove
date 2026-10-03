@@ -1499,8 +1499,18 @@ The restored source passed all 22 host window scenarios in disjoint groups
 1+1+20, each retaining its 30-second limit, plus the chooser filter and all five
 native-import model tests. The complete combined `scripts/check.sh` also passed,
 including all three native FUSE/HTTPS scenarios and 55 writable kernel scenarios.
-These host window results do not substitute for new-source CI on the supported
-Ubuntu/libadwaita 1.5 floor; that CI and installed/live acceptance remain separate.
+The subsequent [CI run for source 9527ff0](https://github.com/Dandiccf/cirrove/actions/runs/37140142769)
+passed all seven jobs. Linux checked out PR merge
+`ef4ee4fc2c86c4d497b80885d54428a2d3895fd3`, whose tree is identical to
+`9527ff0dcb31cae3249909cffe2cf47d918559eb`. Its complete log explicitly records
+the chooser, all 22 windows in groups 1+1+20, all three native FUSE/HTTPS cases
+and all 55 writable cases. The window groups retained their 30-second limits
+on Ubuntu GTK 4.14.5/libadwaita 1.5.0; their command-to-summary times were
+10.93, 7.35 and 22.61 seconds. The same run executed all five saved-history
+service tests, five CLI-binding tests and four new desktop library/model tests.
+These are synthetic source checks; live submission, Apple fidelity and installed
+acceptance remain open. The subsequent installer protection is outside
+this CI snapshot.
 
 ### Settings-lock ownership during reauthentication
 
@@ -1525,4 +1535,27 @@ reauthentication reliability. No retry or timeout relaxation was added.
 
 The combined full check subsequently executed both settings tests successfully
 alongside the desktop/discovery increment; its exact source and disk-temporary
-directory pins are recorded in the same artifact. New-source CI remains required.
+directory pins are recorded in the same artifact. CI run 37140142769 then
+explicitly passed both tests on the tree of source 9527ff0, together with all
+seven jobs. This leaves the older 60ea0f9 failure and its cause uncertainty
+recorded; a passing snapshot does not establish sustained or installed
+reauthentication reliability.
+
+### Developer installation refusal under the schema hold
+
+The newer [installation preflight record](benchmarks/icloud-installation-preflight-2026-10-03.json)
+checks the actual developer installer against synthetic typed service routing
+and fake mutation boundaries. The unchanged installer failed 31 refusal arms;
+the correction passed all 39 tests, with eight targeted omission controls
+showing sensitivity before restoration. A separate invocation of only the
+read-only helper on this host refused retained local state through the real
+D-Bus/process reader. It performed no installation, restart, state-content read,
+SQLite open or cloud action.
+
+This subsequent protection is not covered by the completed 9527ff0 CI run.
+Its complete contributor check passed, including the newly wired 39 installer
+tests, all three native FUSE/HTTPS cases and all 55 writable kernel cases.
+Linux CI still requires validation for this source increment. It guards declared windows and known affected state routes; it does
+not reserve a concurrent measurement lease, discover unannotated historical
+windows, attest arbitrary artifacts or prove installed readiness. The
+schema19/metadata8 installation hold and all six full-iCloud gates remain open.

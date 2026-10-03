@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "controlled-baseline-red-guard-green-and-complete-local-check-passed-source-CI-required",
+  "status": "controlled-baseline-red-guard-green-local-check-and-source-CI-passed",
   "question": "Can close-only config lock release remain blocked by a controlled inherited descriptor, and does a creator-PID explicit-unlock guard release only the ended logical owner while preserving exclusion and desired-state restore?",
   "remote_failure": {
     "run": 37132139130,
@@ -140,6 +140,32 @@
       "actual_cli_socket": "5 passed,0 filtered in native_import_cli integration target",
       "ci_coverage": "144 ignored tests,13 filters,4 unfiltered,25 excused; custom window groups1+1+20",
       "result": "Whole scripts/check.sh (no --fast) passed formatting, clippy/probes, workspace/features, kernel mounts, scripts/translations/coverage/ledger and docs. Display scenarios were separately executed before this run; no live Apple or installed acceptance."
+    },
+    "remote_ci_9527ff0": {
+      "run": 37140142769,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37140142769",
+      "head_sha": "9527ff0dcb31cae3249909cffe2cf47d918559eb",
+      "tested_checkout_sha": "ef4ee4fc2c86c4d497b80885d54428a2d3895fd3",
+      "head_and_tested_checkout_tree": "c71f293d3edbea01389c713d10e66f05f64ed037",
+      "status": "completed",
+      "conclusion": "success",
+      "seven_jobs_passed": true,
+      "linux_log_sha256": "c1fff9a00590fbb31ac9a020feb9181464d5e0d84e08b990fba95ca4be92c554",
+      "public_execution_record": "docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json",
+      "relevant_execution": {
+        "tests": 2,
+        "passed": 2,
+        "log_lines": [
+          2981,
+          2990
+        ],
+        "names": [
+          "accounts::tests::icloud_reauthentication_keeps_validated_read_only_access_and_desired_state",
+          "accounts::tests::config_guard_drop_releases_inherited_description_and_allows_icloud_restore"
+        ]
+      },
+      "scope_limits": "The prior60ea0f9 reauthentication failure remains historical evidence, not a proven unique-cause diagnosis. Subsequent installer protection is outside this run; no installed/live or full-iCloud gate closure.",
+      "public_execution_key": "results.remote_ci_9527ff0"
     }
   },
   "private_proposals": {

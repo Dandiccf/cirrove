@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "state": "held",
+  "journal_schema": 19,
+  "metadata_schema": 8,
+  "policy_document": "docs/development.md#native-working-journal-schema19-held-prerelease-policy"
+}
