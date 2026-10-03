@@ -489,18 +489,21 @@ completion; the native window scenario checks visibility, absence of destructive
 actions and clearing. This does not yet provide per-operation recovery export or
 complete iCloud conflict-resolution UX.
 
-## Explicit Pages archive import (preview)
+## Explicit native document archive import (preview)
 
-An active writable iCloud connection offers **Import a Pages document** when the
-running service advertises version 1 of `import-native-package`. Choose a local ZIP
-archive, enter the exact document folder inside it (including `.pages`), a relative
-destination folder (leave blank for the drive root), and a new `.pages` document
-name. The archive must be outside Cirrove mounts and private state. The daemon
+An active writable iCloud connection offers **Import an iWork document** when the
+running service advertises version 1 of both `import-native-package` and
+`import-native-package-account-binding`. Choose a local ZIP archive, enter the
+exact Pages, Numbers or Keynote document folder inside it, a relative destination
+folder (leave blank for the drive root), and a new document name in the same
+format. The archive must be outside Cirrove mounts and private state. The daemon
 validates the archive and stages at most 64 MiB before queueing any cloud work.
 
-This imports a new Pages document; it does not edit or replace existing native
-documents. The daemon independently validates the returned package before reporting
-completion and waits for metadata publication before reporting availability in Files.
+This creates a new native document; it does not edit or replace an existing one.
+The daemon independently verifies the returned content and waits for metadata
+publication before reporting import completion. Pages has bounded live evidence;
+Numbers import/open checks exist, while Numbers replacement and Keynote application
+fidelity remain open. Archive acceptance alone does not prove Apple fidelity.
 Progress and refusals appear with the connection's transfers. **Stop** stops watching;
 an already queued import may still finish. An uncertain response never triggers an
 automatic desktop retry. Check transfers before starting another import.

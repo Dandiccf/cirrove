@@ -853,9 +853,20 @@ experimental writable iCloud mount, with an explicit source archive root:
 
 ```sh
 cirrove import-native-package --label iCloudValidation \
+  --account-id '<account-uuid>' \
   --archive /absolute/local/Source.pages --source-root Source.pages \
   --parent 'Validation' --name 'Imported.pages'
 ```
+
+Use the selected connection's UUID from `cirrove status` for `--account-id`.
+The optional flag binds submission and observation to that account and requires
+version 1 of the service's `import-native-package-account-binding` capability.
+If the label has been reassigned, the daemon refuses the mismatched account
+before starting an import. Omitting the flag retains intentional label lookup.
+The [CLI identity controls](benchmarks/icloud-native-import-cli-account-binding-2026-10-03.json)
+exercise the actual executable and synthetic socket, including unsupported
+capabilities and a same-label foreign-account result. They do not establish
+live Apple application acceptance.
 
 The source must be a regular local ZIP archive outside Cirrove mounts and private
 state. Cirrove validates a private snapshot before allocation; an existing

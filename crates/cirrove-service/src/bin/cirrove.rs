@@ -1071,6 +1071,9 @@ enum Command {
     ImportNativePackage {
         #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
         label: String,
+        /// Bind this import to the selected account UUID shown by status.
+        #[arg(long)]
+        account_id: Option<uuid::Uuid>,
         #[arg(long)]
         archive: PathBuf,
         /// Exact enclosing directory name inside the source archive.
@@ -2516,6 +2519,7 @@ async fn main() -> Result<()> {
         }
         Command::ImportNativePackage {
             label,
+            account_id,
             archive,
             source_root,
             parent,
@@ -2530,6 +2534,15 @@ async fn main() -> Result<()> {
             if capabilities.capabilities.get("import-native-package") != Some(&1) {
                 bail!("this service does not support native document import");
             }
+            if account_id.is_some()
+                && capabilities
+                    .capabilities
+                    .get("import-native-package-account-binding")
+                    != Some(&1)
+            {
+                bail!("this service does not support native import account binding");
+            }
+            let account_id = account_id.map(|id| id.to_string());
             let archive = if archive.is_absolute() {
                 archive
             } else {
@@ -2539,7 +2552,7 @@ async fn main() -> Result<()> {
                 &socket,
                 &cirrove_service::ImportNativePackageRequest {
                     label: label.clone(),
-                    expected_account_id: None,
+                    expected_account_id: account_id.clone(),
                     archive,
                     expected_root: source_root,
                     parent,
@@ -2558,7 +2571,15 @@ async fn main() -> Result<()> {
                 "Native import started [{}]. Closing this command does not discard a queued upload.",
                 initial.id
             );
-            follow_native_import(&socket, &label, &initial, &name, None, None).await?;
+            follow_native_import(
+                &socket,
+                &label,
+                &initial,
+                &name,
+                None,
+                account_id.as_deref(),
+            )
+            .await?;
         }
         Command::WatchNativeImport {
             label,
