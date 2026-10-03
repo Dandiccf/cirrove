@@ -116,8 +116,17 @@ impl UploadJournal {
                 && (!local.follows_remote
                     || local.unlinked
                     || local.working_file.is_some()
+                    || local.latest.is_some()
                     || !local.remote_owned
-                    || local.remote.as_ref() != Some(ancestor))
+                    || local.remote.as_ref().is_none_or(|retained| {
+                        // Child publication may advance an otherwise unchanged
+                        // provider folder's ETag after its clean local handoff.
+                        // Preserve every identity/routing/shape field and the
+                        // selected document's independent full revision fence.
+                        let mut revision = retained.clone();
+                        revision.etag = ancestor.etag.clone();
+                        revision != *ancestor
+                    }))
             {
                 return Err(JournalError::Stale);
             }

@@ -2653,20 +2653,35 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let mut run_ignored = false;
     let mut filters = Vec::new();
+    let mut skips = Vec::new();
+    let mut exact = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--ignored" | "--include-ignored" => run_ignored = true,
+            "--exact" => exact = true,
+            "--skip" => skips.push(args.next().expect("--skip requires a test name")),
+            flag if flag.starts_with("--skip=") => skips.push(flag[7..].to_owned()),
             // Flags that take a value we do not use.
-            "--test-threads" | "--skip" | "--color" | "--format" | "--logfile" | "-Z" => {
+            "--test-threads" | "--color" | "--format" | "--logfile" | "-Z" => {
                 args.next();
             }
             flag if flag.starts_with('-') => {}
             _ => filters.push(arg),
         }
     }
+    let matches = |name: &str, filter: &str| {
+        if exact {
+            name == filter
+        } else {
+            name.contains(filter)
+        }
+    };
     let selected: Vec<_> = SCENARIOS
         .iter()
-        .filter(|(name, _)| filters.is_empty() || filters.iter().any(|f| name.contains(f.as_str())))
+        .filter(|(name, _)| {
+            (filters.is_empty() || filters.iter().any(|f| matches(name, f)))
+                && !skips.iter().any(|skip| matches(name, skip))
+        })
         .collect();
     println!("\nrunning {} tests", selected.len());
     if !run_ignored {

@@ -20,6 +20,7 @@ runtime is not.
 """
 
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -136,6 +137,68 @@ def ci_filters() -> tuple[list[str], set[str]]:
     return filters, unfiltered
 
 
+
+def window_coverage(workflow: str) -> tuple[dict[str, str], list[set[str]]]:
+    """Prove the custom GTK harness's scenario union, including exclusions.
+
+    Window scenarios are not #[ignore] functions: their custom main reports
+    them ignored without --ignored. Keep this proof separate from the legacy
+    substring audit so a skipped scenario cannot be covered by its own skip.
+    """
+    where = "crates/cirrove-desktop/tests/window.rs"
+    source = (ROOT / where).read_text()
+    table = source.split("const SCENARIOS:", 1)[1].split("];", 1)[0]
+    names = set(re.findall(r'"([a-z][a-z0-9_]+)"', table))
+    if not names:
+        raise ValueError("custom window harness has no declared scenarios")
+    groups: list[set[str]] = []
+    for line in workflow.splitlines():
+        if "cargo test" not in line or "--no-run" in line:
+            continue
+        tokens = shlex.split(line)
+        start = tokens.index("cargo") + 2
+        arguments = tokens[start:]
+        separator = arguments.index("--") if "--" in arguments else len(arguments)
+        cargo, harness = arguments[:separator], arguments[separator + 1 :]
+        if not any(cargo[i : i + 2] == ["-p", "cirrove-desktop"] for i in range(len(cargo))):
+            continue
+        if not any(cargo[i : i + 2] == ["--test", "window"] for i in range(len(cargo))):
+            continue
+        if "--ignored" not in harness and "--include-ignored" not in harness:
+            continue
+        filters: list[str] = []
+        skips: list[str] = []
+        value_flags = {"-p", "--package", "--test", "--bin", "--example", "--features", "--target", "--profile", "--jobs", "-j"}
+        consume = False
+        for token in cargo:
+            if consume:
+                consume = False
+            elif token in value_flags:
+                consume = True
+            elif not token.startswith("-"):
+                filters.append(token)
+        exact = "--exact" in harness
+        values = iter(harness)
+        for token in values:
+            if token == "--skip":
+                skips.append(next(values))
+            elif token.startswith("--skip="):
+                skips.append(token[7:])
+            elif token in {"--test-threads", "--color", "--format", "--logfile", "-Z"}:
+                next(values)
+            elif not token.startswith("-"):
+                filters.append(token)
+        def matches(name: str, needle: str) -> bool:
+            return name == needle if exact else needle in name
+        groups.append({
+            name for name in names
+            if (not filters or any(matches(name, f) for f in filters))
+            and not any(matches(name, skip) for skip in skips)
+        })
+    covered = set().union(*groups)
+    return {name: where for name in names - covered}, groups
+
+
 def ignored_tests() -> dict[str, str]:
     """Every #[ignore]d test name, mapped to the file that declares it."""
     found = {}
@@ -152,6 +215,28 @@ def ignored_tests() -> dict[str, str]:
     return found
 
 
+def matches_ci_filter(name: str, where: str, selected: str) -> bool:
+    """Module selectors cover only their declaring source subtree.
+
+    A selector ending in :: has no function-name suffix. Treating that empty
+    suffix as a prefix matches every ignored test, even in unrelated modules.
+    """
+    if selected.endswith("::"):
+        parts = Path(where).parts
+        if "src" not in parts:
+            return False
+        modules = list(parts[parts.index("src") + 1 :])
+        if not modules:
+            return False
+        modules[-1] = Path(modules[-1]).stem
+        if modules[-1] in {"lib", "main", "mod"}:
+            modules.pop()
+        declared = "::".join(modules)
+        prefix = selected[:-2]
+        return bool(prefix) and (declared == prefix or declared.startswith(prefix + "::"))
+    return selected in name or name.startswith(selected.split("::")[-1])
+
+
 def main() -> int:
     filters, unfiltered = ci_filters()
     tests = ignored_tests()
@@ -160,14 +245,17 @@ def main() -> int:
         for name, where in tests.items()
         if name not in EXCUSED
         and Path(where).stem not in unfiltered
-        and not any(f in name or name.startswith(f.split("::")[-1]) for f in filters)
+        and not any(matches_ci_filter(name, where, f) for f in filters)
     }
+    missing_windows, window_groups = window_coverage(WORKFLOW.read_text())
+    uncovered.update(missing_windows)
     stale = sorted(set(EXCUSED) - set(tests))
 
     print(
         f"{len(tests)} ignored tests, {len(filters)} name filters, "
         f"{len(unfiltered)} unfiltered targets, {len(EXCUSED)} excused"
     )
+    print(f"Custom window scenario groups: {[len(group) for group in window_groups]}")
     if stale:
         print("\nExcused tests that no longer exist -- remove them from EXCUSED:")
         for name in stale:

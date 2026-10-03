@@ -64,8 +64,18 @@ struct Plan {
     target_name: String,
     staged_name: String,
 }
+#[derive(Clone)]
+struct Generation {
+    original: Node,
+    current: Node,
+    original_body: Vec<u8>,
+    current_body: Vec<u8>,
+    staged_etag: String,
+    trash_etag: String,
+}
 #[derive(Default)]
 struct State {
+    generation: Option<Generation>,
     registered: bool,
     allocations: usize,
     body_calls: usize,
@@ -96,6 +106,33 @@ impl Drop for Server {
     }
 }
 fn entry(p: &Plan, s: &State, old: bool) -> serde_json::Value {
+    if let Some(generation) = &s.generation {
+        let node = if old {
+            &generation.original
+        } else {
+            &generation.current
+        };
+        let name = if old || s.installed {
+            &p.target_name
+        } else {
+            &p.staged_name
+        };
+        let etag = if old && s.changed {
+            "changed"
+        } else if old && s.trashed {
+            &generation.trash_etag
+        } else if old {
+            node.etag.as_deref().unwrap()
+        } else if s.installed {
+            generation.current.etag.as_deref().unwrap()
+        } else {
+            &generation.staged_etag
+        };
+        return json!({"drivewsid":node.id,"docwsid":node.id.rsplit("::").next().unwrap(),"zone":"com.apple.CloudDocs","type":"FILE",
+            "name":name.strip_suffix(".pages").unwrap(),"extension":"pages","size":node.size,
+            "parentId":if old&&s.trashed{"TRASH_ROOT"}else if old&&s.moved{"FOLDER::com.apple.CloudDocs::elsewhere"}else{FOLDER},
+            "restorePath":if old&&s.trashed{json!(["owned"])}else{json!(null)},"etag":etag});
+    }
     let name = if old || s.installed {
         &p.target_name
     } else {
@@ -115,6 +152,30 @@ impl Server {
         lost_trash: bool,
         lost_rename: bool,
         pause: Option<&'static str>,
+    ) -> Self {
+        Self::start_with_generation(
+            plan,
+            source,
+            lost_registration,
+            lost_trash,
+            lost_rename,
+            pause,
+            None,
+        )
+        .await
+    }
+    async fn start_generation(plan: Plan, source: Vec<u8>, generation: Generation) -> Self {
+        Self::start_with_generation(plan, source, false, false, false, None, Some(generation)).await
+    }
+    #[allow(clippy::too_many_arguments)]
+    async fn start_with_generation(
+        plan: Plan,
+        source: Vec<u8>,
+        lost_registration: bool,
+        lost_trash: bool,
+        lost_rename: bool,
+        pause: Option<&'static str>,
+        generation: Option<Generation>,
     ) -> Self {
         let decoder = base64::engine::general_purpose::STANDARD;
         let cert = decoder
@@ -152,7 +213,10 @@ impl Server {
             .timeout(Duration::from_secs(3))
             .build()
             .unwrap();
-        let state = Arc::new(Mutex::new(State::default()));
+        let state = Arc::new(Mutex::new(State {
+            generation,
+            ..State::default()
+        }));
         let observed = state.clone();
         let paused = Arc::new(tokio::sync::Notify::new());
         let release = Arc::new(tokio::sync::Notify::new());
@@ -169,16 +233,25 @@ impl Server {
                     if raw.len()>=end+4+size {break(head.lines().next().unwrap().split_whitespace().nth(1).unwrap().to_owned(),raw[end+4..end+4+size].to_vec())}
                 };
                 let mut status = "200 Fixture";
-                let mut reply={let mut s=observed.lock().unwrap();s.requests+=1;let url=reqwest::Url::parse(&format!("{ORIGIN}{path}")).unwrap();match url.path(){
+                let mut reply={let mut s=observed.lock().unwrap();s.requests+=1;let url=reqwest::Url::parse(&format!("{ORIGIN}{path}")).unwrap();
+                let old_id=s.generation.as_ref().map(|g|g.original.id.clone()).unwrap_or_else(||OLD.into());
+                let new_id=s.generation.as_ref().map(|g|g.current.id.clone()).unwrap_or_else(||NEW.into());
+                let old_doc=old_id.rsplit("::").next().unwrap().to_owned();
+                let new_doc=new_id.rsplit("::").next().unwrap().to_owned();
+                let old_etag=s.generation.as_ref().and_then(|g|g.original.etag.clone()).unwrap_or_else(||"old-v1".into());
+                let staged_etag=s.generation.as_ref().map(|g|g.staged_etag.clone()).unwrap_or_else(||"new-v1".into());
+                match url.path(){
                     "/retrieveItemDetailsInFolders"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request[0]["drivewsid"],FOLDER);let mut items=if s.registered{vec![entry(&plan,&s,false)]}else{vec![]};if !s.trashed&&!s.moved&&!s.deleted{items.push(entry(&plan,&s,true));}
                     if s.collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");other["name"]=json!("Target");items.push(other);}Some(json!([{"drivewsid":FOLDER,"parentId":ROOT_ID,"name":"Owned","zone":"com.apple.CloudDocs","type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())},
-                    "/ws/com.apple.CloudDocs/upload/web"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],source.len());s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":"new","owner_id":""}]).to_string().into_bytes())},
+                    "/ws/com.apple.CloudDocs/upload/web"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],source.len());s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":new_doc,"owner_id":""}]).to_string().into_bytes())},
                     "/signed-upload"=>{assert_eq!(body,source);s.body_calls+=1;assert_eq!(s.body_calls,1);Some(json!({"hexBrSyntheticChecksum":"aa","ckSectionAssets":[{"hexFileChecksum":"bb","hexReferenceChecksum":"cc","hexWrappingKey":"dd","receiptToken":"YQ==","size":source.len()}]}).to_string().into_bytes())},
-                    "/ws/com.apple.CloudDocs/update/documents"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["command"],"add_package");assert_eq!(r["document_id"],"new");assert_eq!(r["path"]["path"],plan.staged_name);assert_eq!(r["path"]["starting_document_id"],"owned");assert_eq!(r["allow_conflict"],false);assert_eq!(s.body_calls,1);s.registrations+=1;assert_eq!(s.registrations,1);s.registered=true;if lost_registration{None}else{Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":"new","item_id":"new-item","etag":"new-v1","size":17,"name":plan.staged_name}}]}).to_string().into_bytes())}},
-                    "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==OLD;assert!(old||request["items"][0]["drivewsid"]==NEW);Some(json!({"items":if old&&s.deleted{vec![]}else{vec![entry(&plan,&s,old)]}}).to_string().into_bytes())},
-                    "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id=="old"||id=="new");Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},
-                    "/archive/old"|"/archive/new"=>{
-                        let old=url.path().ends_with("old");
+                    "/ws/com.apple.CloudDocs/update/documents"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["command"],"add_package");assert_eq!(r["document_id"],new_doc);assert_eq!(r["path"]["path"],plan.staged_name);assert_eq!(r["path"]["starting_document_id"],"owned");assert_eq!(r["allow_conflict"],false);assert_eq!(s.body_calls,1);s.registrations+=1;assert_eq!(s.registrations,1);s.registered=true;if lost_registration{None}else{Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":new_doc,"item_id":format!("{new_doc}-item"),"etag":staged_etag,"size":17,"name":plan.staged_name}}]}).to_string().into_bytes())}},
+                    "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==old_id;assert!(old||request["items"][0]["drivewsid"]==new_id);Some(json!({"items":if old&&s.deleted{vec![]}else{vec![entry(&plan,&s,old)]}}).to_string().into_bytes())},
+                    "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id==old_doc||id==new_doc);Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},
+                    archive_path if archive_path.starts_with("/archive/")=>{
+                        let document=archive_path.strip_prefix("/archive/").unwrap();
+                        assert!(document==old_doc||document==new_doc);
+                        let old=document==old_doc;
                         if !old && s.trashed && !s.installed && s.package_507_after_trash_once {
                             s.package_507_after_trash_once=false;
                             s.package_507_responses+=1;
@@ -186,11 +259,13 @@ impl Server {
                             Some(b"PRIVATE PACKAGE PROVIDER BODY auth-secret".to_vec())
                         } else {
                             let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};
-                            Some(archive(name,old,s.corrupt))
+                            Some(if let Some(generation)=&s.generation {
+                                crate::native_import::synthetic_package_archive(&format!("{name}/Document"), if s.corrupt {b"divergent"} else if old {&generation.original_body} else {&generation.current_body})
+                            } else {archive(name,old,s.corrupt)})
                         }
                     },
-                    "/moveItemsToTrash"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],OLD);assert_eq!(request["items"][0]["etag"],"old-v1");s.trash_calls+=1;assert_eq!(s.trash_calls,1);assert!(!s.changed&&!s.moved&&!s.deleted);s.trashed=true;if lost_trash{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
-                    "/renameItems"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],NEW);assert_eq!(request["items"][0]["etag"],"new-v1");assert_eq!(request["items"][0]["name"],"Target.pages");s.rename_calls+=1;assert_eq!(s.rename_calls,1);assert!(s.trashed);s.installed=true;if lost_rename{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
+                    "/moveItemsToTrash"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],old_id);assert_eq!(request["items"][0]["etag"],old_etag);s.trash_calls+=1;assert_eq!(s.trash_calls,1);assert!(!s.changed&&!s.moved&&!s.deleted);s.trashed=true;if lost_trash{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
+                    "/renameItems"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],new_id);assert_eq!(request["items"][0]["etag"],staged_etag);assert_eq!(request["items"][0]["name"],plan.target_name);s.rename_calls+=1;assert_eq!(s.rename_calls,1);assert!(s.trashed);s.installed=true;if lost_rename{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
                     _=>panic!("unexpected synthetic native handoff route"),
                 }};
                 if pause.is_some_and(|route|path.split('?').next()==Some(route)) {reached.notify_one();resume.notified().await;reply=None;}

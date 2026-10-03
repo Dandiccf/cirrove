@@ -72,8 +72,12 @@ jobs:
         run: cargo test -p cirrove-desktop --lib --locked --no-run
       - name: Native archive chooser accepts supported filename cases
         run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --lib --locked ui::native_import::tests::native_import_chooser_filter_accepts_case_variants_only -- --ignored --exact --test-threads=1
+      # Keep the ten read-only receipt arms out of the original group budget.
+      # Both groups retain 30 seconds and together select every window scenario.
+      - name: Read-only recovery verifies exact saved and working receipts
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked readonly_recovery_requires_exact_saved_and_working_receipts -- --ignored --exact --test-threads=1
       - name: Native desktop with isolated account settings and status service
-        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads=1
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --skip readonly_recovery_requires_exact_saved_and_working_receipts --test-threads=1
       # The tray registered with a watcher, answered every property it declared,
       # and drew nothing, because the set was incomplete and a host reads the
       # whole of it. No unit test could see that; this one asks over a bus.
@@ -113,10 +117,10 @@ jobs:
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
       - name: Build native FUSE HTTPS integration test
-        run: cargo test -p cirrove-service --lib --locked journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_executes_https_package_worker_and_reopens_confirmed_bytes --no-run
-      - name: Native kernel save through the actual synthetic HTTPS package worker
+        run: cargo test -p cirrove-service --lib --locked journal::package_replacement::worker_transport::fuse_https:: --no-run
+      - name: Native kernel saves through the actual synthetic HTTPS package worker
         # Same loopback fixture protocol as coordinator tests, fed by real FUSE bytes.
-        run: timeout 90s cargo test -p cirrove-service --lib --locked journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_executes_https_package_worker_and_reopens_confirmed_bytes -- --ignored --exact --test-threads=1
+        run: timeout 90s cargo test -p cirrove-service --lib --locked journal::package_replacement::worker_transport::fuse_https:: -- --ignored --test-threads=1
       - name: Google Drive through the shared kernel mount (synthetic)
         run: timeout 60s cargo test -p cirrove-service --test google_drive --locked real_ -- --ignored --nocapture --test-threads=1
       - name: Namespace reclamation, deep-alias churn and held file versions

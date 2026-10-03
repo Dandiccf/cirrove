@@ -492,3 +492,6 @@ async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirm
         .unwrap()
         .unwrap();
 }
+
+#[path = "fuse_https/chain.rs"]
+mod chain;

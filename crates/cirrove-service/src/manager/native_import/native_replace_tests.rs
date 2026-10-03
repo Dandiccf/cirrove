@@ -492,3 +492,104 @@ async fn native_replace_job_reports_static_archive_phase_without_private_path() 
     );
     empty(&f);
 }
+
+#[tokio::test]
+async fn native_replace_completed_parent_revision_churn_preserves_exact_target() {
+    let mut f = Fixture::new().await;
+    let (request, target, _) = nested_numbers(&mut f).await;
+    let parent_id = target.parent_id.clone().unwrap();
+    let owner = f
+        .journal
+        .lock()
+        .unwrap()
+        .namespace_by_remote(&f.engine.scope("drive"), &parent_id)
+        .unwrap()
+        .unwrap();
+    assert!(owner.follows_remote && owner.latest.is_none());
+    assert_eq!(owner.remote.as_ref().unwrap().etag.as_deref(), Some("v1"));
+    // A provider folder revision changes when its child import is published.
+    // The followed stable local alias intentionally still retains the create revision.
+    f.provider
+        .nodes
+        .lock()
+        .unwrap()
+        .iter_mut()
+        .find(|n| n.id == parent_id)
+        .unwrap()
+        .etag = Some("parent-after-import-v2".into());
+    let expected = target.clone();
+    let captures = Arc::new(AtomicUsize::new(0));
+    let called = captures.clone();
+    let row = f
+        .manager
+        .enqueue_native_replacement_with(
+            f.engine.clone(),
+            request,
+            CancellationToken::new(),
+            move |captured, _, _| async move {
+                assert_eq!(
+                    captured, expected,
+                    "parent revision must not normalize the target"
+                );
+                called.fetch_add(1, Ordering::SeqCst);
+                Ok(semantic())
+            },
+        )
+        .await
+        .expect("clean following parent with only a newer folder ETag was refused");
+    assert!(matches!(&row.representation,
+        UploadRepresentation::PackageReplacementArchive { original, .. } if original.as_ref()==&target));
+    assert_eq!(captures.load(Ordering::SeqCst), 1);
+    assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
+    // Acceptance is read-only toward the ancestor binding; no metadata rewrite.
+    let retained = f
+        .journal
+        .lock()
+        .unwrap()
+        .namespace_by_remote(&f.engine.scope("drive"), &parent_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.remote, owner.remote);
+    assert!(retained.follows_remote && retained.latest.is_none());
+    assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn native_replace_parent_revision_churn_still_refuses_unfinished_handoff() {
+    let mut f = Fixture::new().await;
+    let (request, target, _) = nested_numbers_with_parent_handoff(&mut f, false).await;
+    f.provider
+        .nodes
+        .lock()
+        .unwrap()
+        .iter_mut()
+        .find(|n| Some(&n.id) == target.parent_id.as_ref())
+        .unwrap()
+        .etag = Some("parent-after-import-v2".into());
+    let captures = Arc::new(AtomicUsize::new(0));
+    let called = captures.clone();
+    let error = f
+        .manager
+        .enqueue_native_replacement_with(
+            f.engine.clone(),
+            request,
+            CancellationToken::new(),
+            move |_, _, _| async move {
+                called.fetch_add(1, Ordering::SeqCst);
+                Ok(semantic())
+            },
+        )
+        .await
+        .expect_err("new parent ETag bypassed unfinished handoff");
+    assert_eq!(
+        error.downcast_ref::<crate::native_import::ReplacementAdmissionError>(),
+        Some(&crate::native_import::ReplacementAdmissionError::Enqueue)
+    );
+    assert_eq!(
+        captures.load(Ordering::SeqCst),
+        1,
+        "final journal guard must refuse after original capture"
+    );
+    empty(&f);
+    assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+}

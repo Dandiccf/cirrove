@@ -1,0 +1,135 @@
+{
+  "status": "controlled-local-validation-complete-remote-CI-and-live-acceptance-open",
+  "question": "Does an unchanged selected Numbers target remain eligible when its clean following parent has advanced only folder ETag since the durable create handoff?",
+  "arms": [
+    "New manager completed-parent-v1/fresh-v2 positive via real selection+durable enqueue",
+    "Unfinished parent with same revision churn must refuse exact Enqueue phase after one read-only original capture; queue remains empty",
+    "Counterfactual restore only original full ancestor equality local.remote.as_ref()!=Some(ancestor), keeping new tests unchanged; positive must fail Enqueue; restore narrow ETag acceptance before green/fullcheck"
+  ],
+  "prediction": "Only clean linked following ancestors tolerate ETag-only churn. Full target Node/revision and all other parent fields/resource guards stay exact. No state rewrite is needed.",
+  "evidence": {
+    "path": ".local-state/icloud-full-integration-20261003/native-ancestor-revision/retained-evidence.json",
+    "sha256": "27d7590f745fe3140a915c8cf4683141df8babbc4447425e6db4ea78fa96c4a5"
+  },
+  "scope": "Synthetic admission only; no worker/cloud/retry proof. Live Numbers replacement remains refused; no replay authorized.",
+  "test_prefix": "manager::native_import::tests::native_replace_tests::native_replace_",
+  "production_change": "Following ancestor equality accepts ETag-only difference and explicitly rejects nonempty latest; all other Node fields and existing flags/queue guards unchanged.",
+  "sources": [
+    {
+      "patch": "regression.patch",
+      "patch_sha256": "f6bac828d9fcb4b8811a94638d4509ad97f33d9714408de0d2e22f35f9c347aa",
+      "target": "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs",
+      "baseline_sha256": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+      "proposed_sha256": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02"
+    },
+    {
+      "patch": "fix.patch",
+      "patch_sha256": "85edfdf8783ddb2405645074becbc633b6225b77a72ab29de3cd28c7db87b524",
+      "target": "crates/cirrove-service/src/journal/native_trash_admission.rs",
+      "baseline_sha256": "2aa83aaff7cba650f52e571c0d67a6564b55840f719cbf317ea518f65feee0c8",
+      "proposed_sha256": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1"
+    }
+  ],
+  "registered_at": "2026-10-03T10:45:49.615011+00:00",
+  "source_head": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91",
+  "observed_live_control": "icloud-numbers-parent-live-2026-10-02.json: single public replacement refused Enqueue with no retained replacement; independent exact A unchanged; old and fresh parent differ only ETag.",
+  "endpoint": "Unchanged production + new exact positive fails Enqueue. Narrow fix accepts1 unchanged target only with complete following parent; unfinished parent remains refused; existing target and routing controls remain green.",
+  "discipline": "Root sole build, separate checkout target, ext4 TMPDIR/SQLITE_TMPDIR, direct pinned binary, exact actual test counts, no real-provider replay. Full scripts/check.sh before commit.",
+  "results": {
+    "unchanged_production_control": {
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-parent-revision-negative-regular.json",
+        "sha256": "84fce64364727417533803819aa234e2976b257442e21a4ef27c7c899c3b7b1c"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-parent-revision-negative-regular.log",
+        "sha256": "99685cb24620fe1dede4ea4ab7cbadfa972406544987a79935203315bd9deb7b"
+      },
+      "exit_code": 101,
+      "seconds": 0.061793
+    },
+    "actual_negative_tests": 1,
+    "actual_negative_phase": "durable enqueue",
+    "correction": "Clean completed following ancestor accepts only ETag churn; remaining Node fields, target full revision, resources/publication/frontier flags stay exact. Adds latestNone requirement; no ancestor state rewrite.",
+    "intermediate_controls": {
+      "actual_passed": 11,
+      "evidence": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/native-parent-revision-positive-controls.json",
+          "sha256": "a7658e7df20166b37e9a54d1c5baa4a34ea54ed72e98af6cba12565020077ca5"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/native-parent-revision-positive-controls.log",
+          "sha256": "9201d543ac28fd1860126670fec4cf8ac7e94015cd0e3954924e35f7601823f9"
+        },
+        "exit_code": 0,
+        "seconds": 1.228919
+      },
+      "qualification": "Binary compiled during unrelated semantic-rebase counterfactual; final restored-source11 controls recorded separately."
+    },
+    "invalid_zero_selection": {
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-parent-revision-negative.json",
+        "sha256": "844d55b75c853a67bd5dc41e80d56503f1383d46238e015590b3bcd3f76de544"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-parent-revision-negative.log",
+        "sha256": "49f489cdc16f1676378686d86107afa05d3266f4b337a8d3d6f8d940296b5698"
+      },
+      "exit_code": 0,
+      "seconds": 0.004004
+    },
+    "live_replacement_replayed": false,
+    "fullcheck": "passed-complete-combined-command",
+    "final_restored_source_controls": {
+      "passed": 11,
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-final-parent-controls.json",
+        "sha256": "d1f986633fc9fcb61e1d62166bf12658f29c6caaf531ef0a87b89feb631f3e22"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-final-parent-controls.log",
+        "sha256": "6d9627e23861dcc62d03c543257deb3e5fc8095721230a8ec4dcca6ca0334d08"
+      },
+      "build": {
+        "path": ".local-state/icloud-full-integration-20261003/native-final-source-build.json",
+        "sha256": "990eb60dc5ffc6294def18f990c328197a7bb2a0d9bfabfa9f821f3bdc32b6e5"
+      },
+      "actual_binary_pin": {
+        "path": ".local-state/icloud-full-integration-20261003/native-final-fuse-https-module-binary-pin.json",
+        "sha256": "f2569c7a9b4532101224d2ebc57ed0330d6957da1fb753a28ee252b605c5e80f"
+      }
+    }
+  },
+  "full_iCloud_gates_closed": false,
+  "initial_runner_correction": "First direct selection accidentally used --ignored for the new ordinary regression and selected0. This is invalid evidence; retained manifest native-parent-revision-negative.json. Corrected ordinary exact command selected1 and actually failed durable enqueue, as preregistered.",
+  "full_contributor_check": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "status": "passed",
+    "manifest": {
+      "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.json",
+      "sha256": "7a589ce1e9eac02c6dcba4f0ec88e7c778da6b2100530ba7973dc4320f0104fb"
+    },
+    "log": {
+      "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.log",
+      "sha256": "5632a3b76ba9d82bfce89a56672892a26317b2b3de970470d12662792cb0059f"
+    },
+    "completed_at": "2026-10-03T11:13:21.471157+00:00",
+    "warnings": 0,
+    "native_FUSE_HTTPS_actual_tests": 2,
+    "writable_kernel_actual_tests": 55,
+    "writable_kernel_seconds": 105.01,
+    "coverage_ignored_tests": 143,
+    "custom_window_union": 21,
+    "desktop_window_runs": "Separate supported-floor1+20 passed; these are not run by scripts/check.sh.",
+    "final_source_sha256": {
+      "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+      "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+      "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+      "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
+      "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb"
+    }
+  }
+}

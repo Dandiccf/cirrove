@@ -197,7 +197,7 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Development update, 2 October 2026:** iCloud has moved beyond a feasibility
+**Development update, 3 October 2026:** iCloud has moved beyond a feasibility
 study. Cirrove has its own native adapter using Apple's undocumented web
 transport, with no rclone or Stratosync runtime, configuration or credential
 import. Live checks have covered sign-in, directory browsing, on-demand and
@@ -215,8 +215,10 @@ reopen; a Numbers import has opened in Apple Numbers with its formula intact,
 and a separate copy has passed full-content verification.
 
 These are bounded development results. **Full iCloud support is still open:**
-a Numbers replacement-admission defect has been reproduced and fixed in
-synthetic tests; live replacement confirmation remains open. Broader Numbers
+the latest owned Numbers trial passed import and independent content verification,
+then stopped at replacement admission with the original independently confirmed
+unchanged. The newly exposed folder-revision defect has been reproduced and
+corrected synthetically; live replacement confirmation remains open. Broader Numbers
 and Keynote editing/reopen fidelity, DATA representations, session retention
 and renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;

@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "status": "controlled-local-validation-complete-remote-CI-and-live-acceptance-open",
+  "question": "Do three genuinely FUSE-promoted pending native generations rebase original identity/revision/v2 proof through three actual HTTPS package handoffs, while retaining unread O/A/B descriptors and newest local C across intermediate completion/publication and final restart without replay?",
+  "arms": [
+    "Positive: atomic O->A->B->C all3 Pending before first worker; actual successive HTTPS workers and final remount.",
+    "Counterfactual: disable only successor original-semantic rebase and require exact chain test to fail before or at B dispatch; restore before green/fullcheck."
+  ],
+  "prediction": "A original O; B original exactly A confirmed current/proof; C original exactly B confirmed current/proof. Each generation gets a fresh provider ID/revision, distinct v2 semantic SHA and exactly1 allocation/body/registration/Trash/rename. Original/A/B held readers stay exact despite canonical C; completion never overwrites C; final restart has same3 Uploaded operations and no extra mutation.",
+  "endpoints": [
+    "Exactly1 ignored synthetic FUSE test executes; no zero-filter proof.",
+    "3 actual typed handoff receipts, exact predecessor owner/ID/etag/semantic links;3 unchanged local immutable archive hashes.",
+    "Held O/A/B original bytes first read after all worker completions; canonical C checked after each completion.",
+    "Actual fresh metadata publication for A/B/C, then journal/engine/kernel remount + clean fsync with unchanged operation IDs and exact total3 per mutation.",
+    "After A/B acknowledgements and exact metadata publication, C working UUID/generation/latest/dirty flag and source-owner latest operation remain unchanged, together with canonical C bytes.",
+    "New test must fail without the exact semantic rebase assignment; source restored before confirmation and full scripts/check.sh."
+  ],
+  "scope": "Tests-only loopback TLS and synthetic ZIPs; no Apple/network credentials, new dependencies, new production testhooks or public resolver. Default account router/sealed sign-in constructor and real application acceptance remain open.",
+  "execution": "Root alone reviews/applies/compiles/registers/runs. This subagent writes private source/patch only; no builds/state opens/cloud/tracked edits.",
+  "registered_at": "2026-10-03T06:46:23.056727+00:00",
+  "source_head_before_application": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91",
+  "seam": "Fixture explicitly invokes existing internal successor resolver before constructing each standalone operation-bound HTTPS adapter. The real TransferWorker produces typed completions, but this does not exercise untouched default account-router or sealed sign-in adapter construction.",
+  "environment": {
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+    "filesystem": "ext4",
+    "kernel_fixture_tmp": "/var/tmp",
+    "kernel_fixture_filesystem": "btrfs",
+    "cargo_target": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "runtime_bound_seconds": 90,
+    "build_outside_runtime": true,
+    "expected_selected_new_test_count": 1,
+    "expected_combined_module_test_count": 2,
+    "concurrency": "Root builds/runs sequentially, no simultaneous measurement or local compilation."
+  },
+  "results": {
+    "initial_authoring_failure": {
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-chain-positive.json",
+        "sha256": "7fa95bf8ad376c8b7e4f752381811f0f2907192fe50c7ac96ed3d354f5cbc5dc"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-chain-positive.log",
+        "sha256": "855389cd8673dd029124aa85edea0e2f84edfc5fa502cff5e02413ef41d63bce"
+      },
+      "exit_code": 101,
+      "seconds": 0.156872
+    },
+    "initial_failure_meaning": "Wrong fixture assertion expected C.working_fileSome; native commits use native_working_operations. No HTTPS generation began; not a production defect or counterfactual proof.",
+    "authoring_correction": "Assert exact SQL native_working_operations binding for queuedC operation to activeC working and ownerUUID; source and semantic independent pins unchanged.",
+    "first_corrected_positive": {
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-chain-association-corrected.json",
+        "sha256": "0742a9a90a4171de360daf7d53e93eb63f9530db191484df142fb8868eb67fa4"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-chain-association-corrected.log",
+        "sha256": "deeb615025590678a891ac957aca521e2dee02d2092fa20d5185486bc6463fa5"
+      },
+      "exit_code": 0,
+      "seconds": 1.629658
+    },
+    "actual_positive_tests": 1,
+    "semantic_counterfactual": {
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-chain-semantic-negative.json",
+        "sha256": "a02edd5390e37c11e2de1e4c064144b7294b982e148a090eb6450c84170e5f8e"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-chain-semantic-negative.log",
+        "sha256": "465174cda02070352101484bf00d1d3628d0d6a66040e56cd67f8b3e0f096421"
+      },
+      "exit_code": 101,
+      "seconds": 0.63957
+    },
+    "actual_negative_tests": 1,
+    "counterfactual_change": "Removed only original_semantic=h.semantic in successor resolver. All other identity/Node/revision/confirmation guards kept.",
+    "actual_failure": "B resolution retained O semantic while correctly rebasing Node/revision to A. Exact semantic assertion failed chain.rs444 after A completed/published, before B HTTPS server existed. Later confirmed_base guard remained. This proves lineage assertion sensitivity, not unsafe provider upload.",
+    "production_source_restoration_sha256": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+    "all_prior_private_evidence_retained": true,
+    "limits": "Synthetic metadata/hydration and explicit resolver-before-adapter seam; not untouched default account router, real Apple document, installed acceptance or provider reliability. Raw archives/v2 pins independently asserted; worker produces typed receipts; no forged acknowledgment.",
+    "fullcheck": "passed-complete-combined-command",
+    "final_restored_module": {
+      "passed": 2,
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-final-fuse-https-module.json",
+        "sha256": "67e76f17aa5aab99440c347e1395938a3890e346885022f79c8402d0fe270dcb"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-final-fuse-https-module.log",
+        "sha256": "662cd838fc90c51a72eed249e15d6db752ede05bd51c411bd5ea847bcbacf63c"
+      },
+      "binary_pin": {
+        "path": ".local-state/icloud-full-integration-20261003/native-final-fuse-https-module-binary-pin.json",
+        "sha256": "f2569c7a9b4532101224d2ebc57ed0330d6957da1fb753a28ee252b605c5e80f"
+      }
+    }
+  },
+  "input_pins": [
+    {
+      "label": "O",
+      "body_utf8": "old owned content",
+      "body_size": 17,
+      "archive_size": 157,
+      "archive_sha256": "ebf518173b8e146d0a2ac52f14031f6d95d956896573dc8321f47b5eb4419e1e",
+      "semantic_v2": {
+        "version": 2,
+        "entries": 2,
+        "files": 1,
+        "expanded_bytes": 17,
+        "sha256": "10cc7a7fb05f4050ed332906def99413e48155ba60e34994ade67104b5dc66b3"
+      }
+    },
+    {
+      "label": "A",
+      "body_utf8": "generation A body",
+      "body_size": 17,
+      "archive_size": 157,
+      "archive_sha256": "cd9a6a23e8e557a8b6f5c61034612b24f9cb9fd856713c15a02880b415875505",
+      "semantic_v2": {
+        "version": 2,
+        "entries": 2,
+        "files": 1,
+        "expanded_bytes": 17,
+        "sha256": "2b3a1a01daacb9121d835551627359ef1e5291cb70f06086f38b1f058aa0f3de"
+      }
+    },
+    {
+      "label": "B",
+      "body_utf8": "generation B body",
+      "body_size": 17,
+      "archive_size": 157,
+      "archive_sha256": "ae02da16c848e2f6714fffcc9ee9f480508591112c12f940ac446e14f06e9255",
+      "semantic_v2": {
+        "version": 2,
+        "entries": 2,
+        "files": 1,
+        "expanded_bytes": 17,
+        "sha256": "2bcbbe12679891442eabe0eb51b15a8d898ff47f4b4bac92f63354cec75d5188"
+      }
+    },
+    {
+      "label": "C",
+      "body_utf8": "generation C body",
+      "body_size": 17,
+      "archive_size": 157,
+      "archive_sha256": "bd2a1476fc2fd855e2521efc9ccecd5792683d58c865af0c889e35ce22799234",
+      "semantic_v2": {
+        "version": 2,
+        "entries": 2,
+        "files": 1,
+        "expanded_bytes": 17,
+        "sha256": "2f221d772a9c4e23de6e422da2700f2c2fcd3354e687057e99e0f19b07a566d7"
+      }
+    }
+  ],
+  "patch_before_root_refinements": {
+    "sha256": "b984b2100b2f1068da4f969b356eaaadbc312c2ad3f706d81a24e7a5faff22bf",
+    "source_pins": [
+      {
+        "target": "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs",
+        "baseline_sha256": "5becc2013dbf9b8a97fd8b0dc24dbc98c7aee783ac9b67c7dfa61fa9ab00aa39",
+        "proposed_sha256": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea"
+      },
+      {
+        "target": "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs",
+        "baseline_sha256": "439c86d8b91b60cb738917248b1f7c6a3dfb65c320b774eb577a5663edd7b9ce",
+        "proposed_sha256": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73"
+      },
+      {
+        "target": "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs",
+        "baseline_sha256": null,
+        "proposed_sha256": "3220ef894c1413234dc9792b44c47f47e877b316dd9fca08761cbd32f2cc3123"
+      }
+    ],
+    "independent_review": "regression_review found no blocker; old defaults, typed actual handoffs, Cidentity/bytes, exact drainedpublication and restart/no replay inspected."
+  },
+  "counterfactual_exact_change": "Counterfactual: omit only *original_semantic = h.semantic in working/native/successors.rs::resolve, retaining Node/intent rebasing and all safety fences. The same chain must fail its exact predecessor-semantic assertion before B HTTPS; restore before green/fullcheck.",
+  "counterfactual_preparation_correction": "Initial removal script expected16-space indentation rather than actual4 and refused without modifying successors; actual bytes verified equal saved source. A build of unchanged successors plus parent regression completed. Subsequent exact removal verified single4-space assignment; controls still pending.",
+  "full_contributor_check": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "status": "passed",
+    "manifest": {
+      "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.json",
+      "sha256": "7a589ce1e9eac02c6dcba4f0ec88e7c778da6b2100530ba7973dc4320f0104fb"
+    },
+    "log": {
+      "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.log",
+      "sha256": "5632a3b76ba9d82bfce89a56672892a26317b2b3de970470d12662792cb0059f"
+    },
+    "completed_at": "2026-10-03T11:13:21.471157+00:00",
+    "warnings": 0,
+    "native_FUSE_HTTPS_actual_tests": 2,
+    "writable_kernel_actual_tests": 55,
+    "writable_kernel_seconds": 105.01,
+    "coverage_ignored_tests": 143,
+    "custom_window_union": 21,
+    "desktop_window_runs": "Separate supported-floor1+20 passed; these are not run by scripts/check.sh.",
+    "final_source_sha256": {
+      "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+      "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+      "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+      "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
+      "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb"
+    }
+  }
+}

@@ -1137,10 +1137,15 @@ expected tampered-source arm. Source was restored to its recorded digest;
 all four restored tests passed. The complete contributor check subsequently
 passed after main reconciliation and observer integration, including these tests,
 kernel mounts, scripts and the ledger.
-This is not live Numbers confirmation or Apple application fidelity. The [fresh isolated live arm](benchmarks/icloud-numbers-parent-live-2026-10-02.json)
-is preregistered and its local source proofs and dormant state are prepared.
-It requires explicit scoped cloud-task authorization, which remains pending;
-installed schema14 state is unchanged and schema19 stays isolated.
+The [fresh isolated live arm](benchmarks/icloud-numbers-parent-live-2026-10-02.json)
+received explicit scoped authorization and ran once on 3 October. Its new folder
+and Numbers import completed; this observer independently verified A's exact
+identity, revision and complete semantic content. Replacement then refused at
+durable enqueue. Read-only inspection found no replacement operation, and a
+second independent read proved A unchanged. No replay, restore, deletion or
+Apple GUI open followed. This is partial live Numbers evidence, not replacement
+or Apple application fidelity. Installed schema14 state is unchanged and schema19
+stays isolated; the later synthetic correction is described below.
 
 ### Native working schema19 remains isolated
 
@@ -1211,7 +1216,7 @@ These targeted checks and the complete `scripts/check.sh` passed for the new
 The GTK chooser regression ran separately; other desktop window scenarios were
 not run locally. No cloud request, live replacement,
 installed daemon restart or state migration was performed. The prepared Numbers
-live arm remains separately subject to explicit scoped authorization, and
+live arm subsequently ran under separate scoped authorization, as recorded above;
 schema19 validation remains isolated from installed schema14 state.
 
 
@@ -1258,8 +1263,9 @@ run locally.
 This adds synthetic integration coverage without manufacturing a completion
 receipt. Initial hydration and observed metadata are fixture providers; one
 Pages ZIP generation is not an Apple application document or save. The normal
-account router, multiple pending generations, lost-response recovery and live
-Apple behavior remain separate requirements. No provider account or installed
+account router, lost-response recovery and live Apple behavior remain separate
+requirements; multiple pending generations are covered by the later synthetic
+trial below. No provider account or installed
 service was touched, and no full-iCloud release gate closed.
 
 
@@ -1307,3 +1313,61 @@ passing runs. This validates the compatibility correction, not live Apple
 imports or installed-account transitions. The complete `scripts/check.sh`
 passed for this correction, including all 55 writable kernel tests; its result
 is recorded in the same artifact. All six full-iCloud release gates remain open.
+
+### Folder revision changes after an owned Numbers import
+
+The [single authorized Numbers trial](benchmarks/icloud-numbers-parent-live-2026-10-02.json)
+confirmed its new folder's stable local-to-provider binding, public import and
+independent current-content proof, then refused replacement admission. iCloud
+had advanced only the parent folder's ETag after the child import; the completed
+local binding retained the create revision. The journal's whole-ancestor Node
+comparison rejected this change. No replacement was queued; independent
+post-refusal readback confirmed the original's identity, revision and content.
+
+The [registered regression](benchmarks/icloud-native-parent-revision-2026-10-03.json)
+failed at durable enqueue on unchanged production code. The correction permits
+only ETag drift for a linked, remote-owned, following ancestor with no working
+file or latest operation. Other ancestor fields and the selected document's
+full identity/revision remain exact, along with resource, frontier and publication
+fences. No retained ancestor state is rewritten. All eleven replacement controls
+passed, including unfinished-parent refusal. This corrects synthetic admission;
+the live replacement has not been replayed or confirmed.
+
+### Three pending native kernel saves through HTTPS
+
+The [registered chain trial](benchmarks/icloud-native-pending-https-chain-2026-10-03.json)
+queues A, B and C through actual FUSE atomic saves before starting the worker.
+Each successor receives its completed predecessor's exact provider identity,
+revision and semantic proof. Actual HTTPS worker receipts complete all three;
+held unread O/A/B descriptors retain their bytes, C remains visible, and remount
+does not replay completed work. The original and chain tests both execute in
+the local check and CI through their shared module selector.
+
+Removing only semantic rebasing made the new test fail after A completed,
+before any B HTTPS request. The unchanged later confirmation guard remained;
+this control demonstrates test sensitivity, not an unsafe provider upload.
+The assignment was restored and both tests passed. Metadata/hydration are
+synthetic and each adapter is prepared after an explicit resolver call; default
+account routing, Apple application saves and real-provider reliability remain open.
+
+### Complete desktop coverage within two unchanged time budgets
+
+After the crash correction, shared-runner CI hit the 30-second timeout for the
+combined window group. The [registered group comparison](benchmarks/icloud-window-ci-groups-2026-10-03.json)
+separates the expensive read-only receipt scenario from the other twenty, with
+the same 30-second limit for each. The custom harness now honors `--skip` and
+`--exact`. A coverage audit verifies all 21 declared scenarios are selected;
+removing the dedicated scenario or selecting only a prefix correctly fails it.
+
+The supported Ubuntu 24.04 / GTK 4.14.5 / libadwaita 1.5.0 environment ran one
+and twenty scenarios successfully in separate groups. No scenario, warning,
+renderer or library floor was suppressed or changed. One local run per group
+does not establish shared-runner timing reliability; final remote CI is required.
+
+The complete `scripts/check.sh` passed for these final corrections, including
+formatting, all clippy/probe checks, workspace and script tests, two native
+FUSE-to-HTTPS tests, all 55 writable kernel cases, coverage audit and ledger.
+The module audit also rejects an unrelated ignored canary that the earlier
+empty-suffix comparison incorrectly counted as covered. Final command, source
+hashes and results are retained in the three registered artifacts above.
+No full-iCloud gate closed and the installed daemon remains unchanged.

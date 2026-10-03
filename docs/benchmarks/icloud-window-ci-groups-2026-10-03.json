@@ -1,0 +1,437 @@
+{
+  "registered_at": "2026-10-03T10:43:48.653943+00:00",
+  "status": "controlled-local-validation-complete-remote-CI-and-live-acceptance-open",
+  "question": "Can all 21 custom GTK window scenarios remain covered with unchanged 30-second limits by splitting the expensive read-only receipt scenario from the remaining20?",
+  "prior_CI": {
+    "run": 37103660055,
+    "source": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91",
+    "result": "timeout124 after about18 passes; prior SIGSEGV eliminated; six other jobs passed"
+  },
+  "prediction": "Existing harness ignores --skip and --exact; unchanged source reports21 ignored for skip arm and1 ignored for prefix --exact. Corrected harness selects20+1 exact union and0 for nonfull exact prefix; unmodified scenarios pass two groups with30s each on Ubuntu GTK4.14.5/adw1.5.0. Prior single21 group CI timedout124 after18 passes; no crash now.",
+  "arms": [
+    {
+      "args": [
+        "--skip",
+        "readonly_recovery_requires_exact_saved_and_working_receipts"
+      ],
+      "expected": "20 ignored,1 filtered; noGTK init/noignored flag"
+    },
+    {
+      "args": [
+        "--exact",
+        "readonly_recovery_requires_exact_saved_and_working_receipts"
+      ],
+      "expected": "1 ignored,20 filtered"
+    },
+    {
+      "args": [
+        "--exact",
+        "readonly_recovery_requires_exact_saved"
+      ],
+      "expected": "0 ignored,21 filtered; original harness falselyselects1"
+    },
+    {
+      "args": [
+        "--skip=readonly_recovery_requires_exact_saved_and_working_receipts"
+      ],
+      "expected": "20 ignored,1filtered"
+    },
+    {
+      "args": [
+        "--skip",
+        "readonly_recovery"
+      ],
+      "expected": "19 ignored,2filtered"
+    },
+    {
+      "args": [
+        "--exact",
+        "--skip",
+        "readonly_recovery"
+      ],
+      "expected": "21 ignored,0filtered; exactskip doesnot match prefix"
+    },
+    "Run corrected checker on exactproposedworkflow: customgroups[1,20], union21.",
+    "Remove dedicatedreadonlystep temporarily in PRIVATEworkflowcontrol: checker must fail naming skippedscenario; do not count skippedargument as positivefilter.",
+    "Change dedicatedexact selector to prefix: checker fails missingreadonly; testscompileerrorsneverred proof.",
+    "Generic ignored-tests audit still uses prior substringparser; unrelated shell-variable selection/exclusions not broadened in thisfocusedpatch.",
+    "Ubuntu samepinnedGTK4.14.5/adw1.5.0 exactreadonly1 under30s privateXvfb/D-Bus afterprebuild",
+    "Ubuntu remaining20 --ignored --skip readonly full name under30s separate privateXvfb/D-Bus aftersameprebuild"
+  ],
+  "endpoint": "Demonstrate old selection parser misses skip/exact; corrected parser chooses1+20 with union21; removal/prefix workflow controls fail coverage; both original unchanged scenario groups execute all selected cases before30s on supported floor; remote CI required for shared-runner deadline.",
+  "source_sha256": {
+    "crates/cirrove-desktop/tests/window.rs": "dc378b1e1d3ca081c5cdbe25533c5e620cd9ec5ad65492a575262a727a55df12",
+    ".github/workflows/ci.yml": "76240124126073690803512969647cf472a517a3b6abd7d6580b37197887cde6",
+    "scripts/ci-coverage.py": "f568df41a179fecaa5ada6277a4df908f9d682ddd3cb1ccc4740268df9fc5bcc"
+  },
+  "patch_sha256": "626c582d8808bd14c34452cacfad8114e0b65d4aeba0eb9305bc5e9600aba321",
+  "discipline": "Private disk TMPDIR/SQLITE_TMPDIR; only root builds; no measurements or live daemon concurrent; prebuild then pin executable and exact manifests; preserve all evidence; no production timer/renderer/workflow suppression changes.",
+  "results": {
+    "old_harness_controls": {
+      "skip_selected": 21,
+      "expected": 20,
+      "exact_prefix_selected": 1,
+      "expected_exact_prefix": 0,
+      "evidence": [
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-old-skip-dry.json",
+            "sha256": "e23c6d6c23610533ce8c45f39a6750179aed5cd39384b7c4af9a751ae8e45e4a"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-old-skip-dry.log",
+            "sha256": "a46ebc359a981b664d9d4c02b9d1756a64350ff5462bc087f1071305b255fbf3"
+          },
+          "exit_code": 0,
+          "seconds": 0.033739
+        },
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-old-exact-prefix-dry.json",
+            "sha256": "a9810c333bf0d78c1a2f4370fb391f6c499250ce3043b9a96eea41c8a5e4e26d"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-old-exact-prefix-dry.log",
+            "sha256": "64eb756059672501323f3fb66a8b7108c584163f7031a4a1bef3d6e26c859413"
+          },
+          "exit_code": 0,
+          "seconds": 0.028855
+        }
+      ]
+    },
+    "new_dry_selectors": {
+      "actual_counts": [
+        20,
+        1,
+        0,
+        20,
+        19,
+        21
+      ],
+      "evidence": [
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-skip-dry.json",
+            "sha256": "d6c9c5d4b7a65ddea8b9ce2103e5a07fa22bb2a393d49e89e7e08db7d4dc4de0"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-skip-dry.log",
+            "sha256": "3ac49f87777d3141876f8c6345045edac02dc1652ed1d3082eb42f6e6ab72848"
+          },
+          "exit_code": 0,
+          "seconds": 0.029321
+        },
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-exact-dry.json",
+            "sha256": "e3162cfecb3c4a4b2d808179ba1e3698a229672f893ca103a712686fd3a1f14b"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-exact-dry.log",
+            "sha256": "64eb756059672501323f3fb66a8b7108c584163f7031a4a1bef3d6e26c859413"
+          },
+          "exit_code": 0,
+          "seconds": 0.028205
+        },
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-exact-prefix-dry.json",
+            "sha256": "7ab836c797b8556704327c585eac31ac438ef57150c53f0f251e60cad2187a8f"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-exact-prefix-dry.log",
+            "sha256": "5a9fb5bd69dffa227a6aac46d20fdd8c932dcb99d394a5b10c935e70538b0d5e"
+          },
+          "exit_code": 0,
+          "seconds": 0.028204
+        },
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-skip-equals-dry.json",
+            "sha256": "eb5581abbb94cd2fa5d5a0497c0e1a80e975b4cf0fe4ff0956563419a0dfc00d"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-skip-equals-dry.log",
+            "sha256": "3ac49f87777d3141876f8c6345045edac02dc1652ed1d3082eb42f6e6ab72848"
+          },
+          "exit_code": 0,
+          "seconds": 0.028517
+        },
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-skip-prefix-dry.json",
+            "sha256": "ee65517e01c32c298511b31b71c101b5ed97c92bdd862adf05db44c0c98c1db7"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-skip-prefix-dry.log",
+            "sha256": "25b003c2a36f77d451bb26c65ca3fc4c825844d7077e6a16a8bbcbdf25065781"
+          },
+          "exit_code": 0,
+          "seconds": 0.0281
+        },
+        {
+          "manifest": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-exact-skip-prefix-dry.json",
+            "sha256": "1ed968a1818f9e1ae62a4550fa2c59c5d707cd61ad0e6d7ac50a6172f891e0eb"
+          },
+          "log": {
+            "path": ".local-state/icloud-full-integration-20261003/window-split-new-exact-skip-prefix-dry.log",
+            "sha256": "a46ebc359a981b664d9d4c02b9d1756a64350ff5462bc087f1071305b255fbf3"
+          },
+          "exit_code": 0,
+          "seconds": 0.029065
+        }
+      ]
+    },
+    "CI_coverage": {
+      "positive_group_counts": [
+        1,
+        20
+      ],
+      "union": 21,
+      "missing_step": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-audit-missing-step.json",
+          "sha256": "6cf905be0bf00f14ed6942c41caa56f4da07052c94770bdbe1c097f46ac4fbf4"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-audit-missing-step.log",
+          "sha256": "2b69c544b0666e748bf2ce915de28e8b49a09f6fca3975ae4d6ddb5bfc5a2b82"
+        },
+        "exit_code": 1,
+        "seconds": 0.066827
+      },
+      "prefix_exact": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-audit-prefix-exact.json",
+          "sha256": "66431dcacd7cd032be4cb48084193db76105f0e785c046e61dbdc3098040201d"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-audit-prefix-exact.log",
+          "sha256": "de7fa75f4d74d7139ba2abaf68f5fdb5af2e0c9d3d665d36137ff65c7e6b5085"
+        },
+        "exit_code": 1,
+        "seconds": 0.058226
+      },
+      "both_negatives_name_missing_scenario": true
+    },
+    "supported_floor": {
+      "distribution": "Ubuntu24.04",
+      "GTK": "4.14.5",
+      "libadwaita": "1.5.0",
+      "container_id": "980140d18616019b1b5722be41165e669b30617f136381f8d0c838b9bcfc9158",
+      "container_image_id": "sha256:a853f94d226358a79c740cfc7bce0c289748f3fe3488d921d038ccd752c61b60",
+      "binary_pin": {
+        "path": ".local-state/icloud-full-integration-20261003/window-split-container-binary-pin.json",
+        "sha256": "f4da3016c08f22b1145a49d476db7d31f73b9a3635b149cb898fb8196ecf3e10"
+      },
+      "prebuild": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-build.json",
+          "sha256": "375e6ad4510d286e96106e043fbb6e1e070398871018ec827ca158ddbd2fd34b"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-build.log",
+          "sha256": "ae232514783559cb6fce6601c732d319ba078fc017db2b7f185ee918a445e27e"
+        },
+        "exit_code": 0,
+        "seconds": 6.674779
+      },
+      "readonly_one": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-readonly-one.json",
+          "sha256": "01ede1f7cb4659b5ce064d1139489b7a21a3f28d32d0f6458d984e105d6509aa"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-readonly-one.log",
+          "sha256": "355bebe6d79669a9b03390b876a5dc6eca35db37c5c31ea38d9b9c0953b999ab"
+        },
+        "exit_code": 0,
+        "seconds": 8.504332
+      },
+      "remaining_twenty": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-remaining-twenty.json",
+          "sha256": "190507a9a44bf807b139f2aba2447ea0dbcf24ccf1af99f59e79dc6123d8cc3c"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-remaining-twenty.log",
+          "sha256": "696b7795b3333ae163310cd3697a305e99908c98d585b5902eab6734abb71cf2"
+        },
+        "exit_code": 0,
+        "seconds": 20.02177
+      },
+      "actual_passed": [
+        1,
+        20
+      ],
+      "per_group_timeout_seconds": 30,
+      "stop": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-stop.json",
+          "sha256": "e92b7cce28d205d15196e2e6106caa7ef9c58f6631e3bb0c5c564ec0f6fd4e43"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/window-split-container-stop.log",
+          "sha256": "70c4c131bd756ef3f2de460d24034bdc67072b5591eb840a04d496cebedbd4bf"
+        },
+        "exit_code": 0,
+        "seconds": 10.117415
+      },
+      "container_retained": true,
+      "warnings_suppressed": false,
+      "scenarios_modified": false,
+      "source_bind": "whole repository RO, including gitignored evidence; tests use separate synthetic fixtures; no installed-state/display/keyring bind",
+      "temp_bind": "private /fixture-tmp on host ext4; SQLITE_TMPDIR same; container-specific target /build/target"
+    },
+    "limits": "One local run per group demonstrates selection and supported-floor execution, not timing reliability. Shared-runner CI on final commit remains required. No installed changes or real-provider operations in these scenarios."
+  },
+  "full_iCloud_gates_closed": false,
+  "module_accounting_followup": {
+    "registered_at": "2026-10-03T11:02:56.501668+00:00",
+    "status": "corrected-controls-and-complete-combined-check-passed",
+    "question": "Does a trailing :: module selector cover only ignored tests declared within that source subtree rather than all ignored functions?",
+    "prediction": "Current checker with module filter journal::package_replacement::worker_transport::fuse_https:: mistakenly reports an unrelated unexcused private canary covered via startswith(empty). Narrow modulepath fix retains original and nestedchain positivecoverage and rejects unrelatedcanary.",
+    "private_patch": {
+      "path": ".local-state/icloud-full-integration-20261003/ci-module-selection/ci-module-selection.patch",
+      "sha256": "8823c45b11e96ded2e540c3115a7b647926fe4d6dafd4204107d47cb27f433c6"
+    },
+    "old_checker_sha256": "9a1e26ff14b558c1c224e92b81fc62ee8246246e52c367042e8d26d98c5e9184",
+    "positive_and_boundary_controls": [
+      {
+        "name": "real_native_fuse_save_executes_https_package_worker_and_reopens_confirmed_bytes",
+        "where": "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs",
+        "expected": true
+      },
+      {
+        "name": "real_native_fuse_pending_atomic_chain_rebases_https_proofs_and_preserves_unread_readers",
+        "where": "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs",
+        "expected": true
+      },
+      {
+        "name": "definitely_unselected_coverage_canary",
+        "where": "crates/cirrove-service/src/unrelated_coverage_canary.rs",
+        "expected": false
+      },
+      {
+        "name": "definitely_unselected_coverage_canary",
+        "where": "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https_other.rs",
+        "expected": false
+      }
+    ],
+    "arms": {
+      "red": "python3 .local-state/icloud-full-integration-20261003/ci-module-selection/canary-control.py --checker .local-state/icloud-full-integration-20261003/ci-module-selection/ci-coverage.before.py --repo /home/dandiccf/Work/cirrove; expected actualexit0 is a falsepositive, record canaryselectedbynocommand.",
+      "green": "python3 .local-state/icloud-full-integration-20261003/ci-module-selection/canary-control.py --checker .local-state/icloud-full-integration-20261003/ci-module-selection/ci-coverage.proposed.py --repo /home/dandiccf/Work/cirrove; expected actualexit1 naming definitely_unselected_coverage_canary; no staleEXCUSED artifacts because wholeactualscan retained.",
+      "positive": "Load proposedchecker with ROOT/WORKFLOW pointing realrepo as controlscript does, withoutcanaryoverlay, callmain expectedexit0; assert exact4 matches_ci_filter positive/negative cases above, currentworkflowwindowgroups[1,20].",
+      "integration": "Root preregisters public window artifact correction before controls, preserves before/proposedcheckerSHA, exactsource/workflowpins and controlmanifest/log; applies minimalpatch only afterred; entire scripts/check.sh must rerunafterfix, not append to currentrunningcheck."
+    },
+    "endpoint": "Old generic checker wrongly accepts unrelated ignored canary while trailing module filter is present. Corrected checker rejects it, covers exactly both FUSE declaring source paths and keeps custom window groups1+20. Entire check rerun after correction.",
+    "results": {
+      "old_unrelated_canary_audit": {
+        "exit_code": 0,
+        "meaning": "False coverage: private ignored canary has no selected CI command but empty basename accepted it.",
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/ci-module-unselected-canary-old.json",
+          "sha256": "df5839b089ad61d6d3590f7176a16360e1b55bd25778b284eee9a58413b54586"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/ci-module-unselected-canary-old.log",
+          "sha256": "2c8ae8375855e65f3c404c5f8239ea81d3f240633938f2e1350afaf5c727b65e"
+        }
+      },
+      "corrected_unrelated_canary_audit": {
+        "exit_code": 1,
+        "meaning": "Correctly refused and named unselected canary; no other unexpected uncovered tests.",
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/ci-module-unselected-canary-corrected.json",
+          "sha256": "992d2fd7900e6f2739488bb1281d01725faae090a41c97bb411a90bff73e5e7f"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/ci-module-unselected-canary-corrected.log",
+          "sha256": "f845ef2632515fd3846416102644835461e7c6c59334e21a74e90d1c8c3514c7"
+        }
+      },
+      "four_source_boundaries": {
+        "path": ".local-state/icloud-full-integration-20261003/ci-module-selection/direct-boundary-results.json",
+        "sha256": "e5e3d1eb93008d0481dd1c6b8aa827f1220cb7e5ef0557c1c4307923c683d1a3"
+      },
+      "ordinary_audit": {
+        "exit_code": 0,
+        "ignored_tests": 143,
+        "window_groups": [
+          1,
+          20
+        ]
+      },
+      "first_complete_check_before_generic_fix": {
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-full-check.json",
+          "sha256": "84da504b9354ebc305f784a74358f8256da584d1e8d0c04eff92ee67ae8dd0cd"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-full-check.log",
+          "sha256": "a29d27873213fd11a15b5e61ddacfe4ac2852134abbe3768414df1e7d53b5e3b"
+        },
+        "meaning": "Entire command passed, including2 actual FUSE tests and all55 writable cases; generic audit falsepositive discovered independently and corrected afterward. This run alone is not proof of final coverage accounting."
+      },
+      "final_combined_check": {
+        "command": [
+          "scripts/check.sh"
+        ],
+        "status": "passed",
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.json",
+          "sha256": "7a589ce1e9eac02c6dcba4f0ec88e7c778da6b2100530ba7973dc4320f0104fb"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.log",
+          "sha256": "5632a3b76ba9d82bfce89a56672892a26317b2b3de970470d12662792cb0059f"
+        },
+        "completed_at": "2026-10-03T11:13:21.471157+00:00",
+        "warnings": 0,
+        "native_FUSE_HTTPS_actual_tests": 2,
+        "writable_kernel_actual_tests": 55,
+        "writable_kernel_seconds": 105.01,
+        "coverage_ignored_tests": 143,
+        "custom_window_union": 21,
+        "desktop_window_runs": "Separate supported-floor1+20 passed; these are not run by scripts/check.sh.",
+        "final_source_sha256": {
+          "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+          "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+          "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+          "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
+          "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb"
+        }
+      }
+    }
+  },
+  "full_contributor_check": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "status": "passed",
+    "manifest": {
+      "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.json",
+      "sha256": "7a589ce1e9eac02c6dcba4f0ec88e7c778da6b2100530ba7973dc4320f0104fb"
+    },
+    "log": {
+      "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.log",
+      "sha256": "5632a3b76ba9d82bfce89a56672892a26317b2b3de970470d12662792cb0059f"
+    },
+    "completed_at": "2026-10-03T11:13:21.471157+00:00",
+    "warnings": 0,
+    "native_FUSE_HTTPS_actual_tests": 2,
+    "writable_kernel_actual_tests": 55,
+    "writable_kernel_seconds": 105.01,
+    "coverage_ignored_tests": 143,
+    "custom_window_union": 21,
+    "desktop_window_runs": "Separate supported-floor1+20 passed; these are not run by scripts/check.sh.",
+    "final_source_sha256": {
+      "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+      "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+      "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+      "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
+      "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb"
+    }
+  }
+}
