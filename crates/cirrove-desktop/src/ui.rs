@@ -16,6 +16,7 @@ mod connect;
 mod native_import;
 mod offline_recovery;
 mod recovery;
+mod saved_native_imports;
 
 #[derive(Clone)]
 pub enum Backend {
@@ -56,6 +57,8 @@ struct AccountRow {
     recovery: adw::ActionRow,
     import: adw::ActionRow,
     import_choose: gtk::Button,
+    saved_imports: adw::ActionRow,
+    saved_imports_choose: gtk::Button,
     destruction: adw::ActionRow,
     destroy: gtk::Button,
     wastebasket: adw::ActionRow,
@@ -725,6 +728,22 @@ impl Window {
                 ui.choose_native_import(&key);
             }
         });
+        let saved_imports = adw::ActionRow::builder()
+            .title(gettext("Saved iWork imports"))
+            .subtitle(gettext("Find retained imports and check an existing operation without submitting another copy."))
+            .use_markup(false).subtitle_lines(0).build();
+        let saved_imports_choose = gtk::Button::builder()
+            .label(gettext("Saved imports…"))
+            .valign(gtk::Align::Center)
+            .build();
+        saved_imports.add_suffix(&saved_imports_choose);
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        saved_imports_choose.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.load_saved_native_imports(&key, None);
+            }
+        });
         let destruction = adw::ActionRow::builder()
             .title(gettext("Delete a file permanently"))
             .subtitle(gettext(
@@ -791,6 +810,7 @@ impl Window {
         recovery.add_suffix(&export);
         row.add_row(&recovery);
         row.add_row(&import);
+        row.add_row(&saved_imports);
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
         export.connect_clicked(move |_| {
@@ -900,6 +920,8 @@ impl Window {
             recovery,
             import,
             import_choose,
+            saved_imports,
+            saved_imports_choose,
             destruction,
             destroy,
             wastebasket,
@@ -942,6 +964,10 @@ impl Window {
         row.import.set_visible(card.can_import_native_package());
         row.import_choose
             .set_sensitive(idle && live && card.can_import_native_package());
+        row.saved_imports
+            .set_visible(card.can_list_native_imports());
+        row.saved_imports_choose
+            .set_sensitive(idle && live && card.can_list_native_imports());
         // Offered wherever the state says so, in the preview too: the preview
         // shows what the window does, and the actions themselves are what
         // check for a live service.
@@ -1193,6 +1219,32 @@ impl Window {
                 }
                 bar.update_property(&[gtk::accessible::Property::Label(&job.detail)]);
                 entry.add_suffix(&bar);
+            }
+            if job.native_import
+                && !job.running
+                && let Some(progress) = &job.import_progress
+            {
+                let check = gtk::Button::builder()
+                    .label(gettext("Check saved import"))
+                    .valign(gtk::Align::Center)
+                    .sensitive(idle && card.can_watch_native_import())
+                    .build();
+                let weak = Rc::downgrade(self);
+                let selected = card.clone();
+                let operation = progress.operation;
+                check.connect_clicked(move |_| {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.watch_saved_native_import(
+                            &selected,
+                            cirrove_service::WatchNativeImportRequest {
+                                label: selected.label.clone(),
+                                expected_account_id: selected.id.clone(),
+                                operation,
+                            },
+                        );
+                    }
+                });
+                entry.add_suffix(&check);
             }
             let stop = gtk::Button::builder()
                 // The same button whether the work is running or over: one asks

@@ -155,3 +155,114 @@ fn native_import_progress_never_claims_offline_pinning() {
         }
     }
 }
+
+#[test]
+fn saved_import_discovery_watch_capabilities_and_target_binding_are_independent() {
+    let selected = card();
+    assert!(selected.can_list_native_imports());
+    assert!(selected.can_watch_native_import());
+    let mut readonly = selected.clone();
+    readonly.writable = false;
+    assert!(readonly.can_list_native_imports());
+    assert!(!readonly.can_watch_native_import());
+    let mut unmounted = selected.clone();
+    unmounted.mounted = false;
+    assert!(unmounted.can_list_native_imports());
+    assert!(!unmounted.can_watch_native_import());
+    for state in [
+        ConnectionState::WaitingForService,
+        ConnectionState::ServiceUnavailable,
+        ConnectionState::IncompatibleService,
+    ] {
+        let mut stale = selected.clone();
+        stale.state = state;
+        assert!(!stale.can_list_native_imports());
+    }
+    let mut mismatched = demo::snapshot().unwrap();
+    mismatched.settings.as_mut().unwrap().accounts[0].registration =
+        cirrove_auth::AppRegistration::ICloud;
+    let status = &mut mismatched.status.as_mut().unwrap().accounts[0];
+    status.provider = "icloud".into();
+    status.drive_id = "not-the-selected-collection".into();
+    let stale = Overview::from_snapshot(mismatched).accounts.remove(0);
+    assert_eq!(stale.state, ConnectionState::WaitingForService);
+    assert!(!stale.can_list_native_imports());
+    for field in [
+        "id",
+        "label",
+        "collection",
+        "root",
+        "user",
+        "tenant",
+        "path",
+        "provider",
+        "access",
+    ] {
+        let mut changed = selected.clone();
+        match field {
+            "id" => changed.id = "other".into(),
+            "label" => changed.label = "other".into(),
+            "collection" => changed.collection_id = "other".into(),
+            "root" => changed.root_id = "other".into(),
+            "user" => changed.username = "other".into(),
+            "tenant" => changed.tenant = "other".into(),
+            "path" => changed.mount_path = "/other".into(),
+            "provider" => changed.provider_id = "googledrive",
+            _ => changed.writable = false,
+        }
+        assert!(!changed.same_native_import_connection(&selected), "{field}");
+    }
+    for capability in ["list-native-imports", "watch-native-import"] {
+        for version in [None, Some(2)] {
+            let mut sample = demo::snapshot().unwrap();
+            sample.capabilities.capabilities.remove(capability);
+            if let Some(version) = version {
+                sample
+                    .capabilities
+                    .capabilities
+                    .insert(capability.into(), version);
+            }
+            let card = Overview::from_snapshot(sample).accounts.remove(0);
+            if capability == "list-native-imports" {
+                assert!(!card.supports_native_import_listing);
+            } else {
+                assert!(!card.supports_native_import_watch);
+            }
+        }
+    }
+}
+#[test]
+fn native_import_job_projection_preserves_exact_durable_operation_across_progress_states() {
+    use cirrove_service::jobs::{Job, JobKind, JobState, NativeImportProgress};
+    let progress = NativeImportProgress {
+        operation: "00000000-0000-4000-8000-000000000042".parse().unwrap(),
+        remote: None,
+    };
+    for state in [
+        JobState::Running,
+        JobState::Stopped,
+        JobState::Failed,
+        JobState::Succeeded,
+    ] {
+        let job = Job {
+            kind: JobKind::ImportNativePackage,
+            state,
+            native_import: Some(progress.clone()),
+            ..Default::default()
+        };
+        assert_eq!(
+            cirrove_desktop::model::RunningJob::from_job(&job).import_progress,
+            Some(progress.clone())
+        );
+    }
+    let ordinary = Job {
+        kind: JobKind::KeepOffline,
+        native_import: Some(progress),
+        ..Default::default()
+    };
+    assert!(
+        cirrove_desktop::model::RunningJob::from_job(&ordinary)
+            .import_progress
+            .is_none()
+    );
+}

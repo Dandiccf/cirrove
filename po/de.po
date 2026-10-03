@@ -1755,3 +1755,71 @@ msgstr "Cirrove konnte die Offline-Verfügbarkeit nicht ändern"
 
 #~ msgid "New document name (including .pages)"
 #~ msgstr "Neuer Dokumentname (einschließlich .pages)"
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "An active writable iCloud mount is required to check current availability."
+msgstr "Zum Prüfen der aktuellen Verfügbarkeit muss iCloud aktiv mit Schreibzugriff eingebunden sein."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Check saved import"
+msgstr "Gespeicherten Import prüfen"
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Checking saved import…"
+msgstr "Gespeicherter Import wird geprüft…"
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Checking the saved import. Progress appears with this connection's transfers."
+msgstr "Der gespeicherte Import wird geprüft. Der Fortschritt erscheint bei den Übertragungen dieser Verbindung."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Could not confirm the saved import check. Its operation remains retained; no new copy was submitted."
+msgstr "Die Prüfung des gespeicherten Imports konnte nicht bestätigt werden. Der Vorgang bleibt gespeichert; es wurde keine neue Kopie übermittelt."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Could not load saved imports. Nothing was submitted or retried."
+msgstr "Gespeicherte Importe konnten nicht geladen werden. Es wurde nichts neu übermittelt oder erneut versucht."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Find retained imports and check an existing operation without submitting another copy."
+msgstr "Gespeicherte Importe finden und einen bestehenden Vorgang prüfen, ohne eine weitere Kopie zu übermitteln."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "History is available without uploading. Checking current availability requires an active writable iCloud mount."
+msgstr "Der Verlauf ist ohne Upload verfügbar. Zum Prüfen der aktuellen Verfügbarkeit muss iCloud aktiv mit Schreibzugriff eingebunden sein."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Loading saved imports…"
+msgstr "Gespeicherte Importe werden geladen…"
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "No saved imports on this page."
+msgstr "Keine gespeicherten Importe auf dieser Seite."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Saved iWork imports"
+msgstr "Gespeicherte iWork-Importe"
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Saved imports…"
+msgstr "Gespeicherte Importe…"
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "These are retained import records, not a current cloud listing. Checking observes an existing operation; it never submits another copy."
+msgstr "Dies sind gespeicherte Importvorgänge, keine aktuelle Cloud-Dateiliste. Die Prüfung beobachtet einen bestehenden Vorgang und übermittelt keine weitere Kopie."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This import remains saved. Checking observes its progress without submitting another copy."
+msgstr "Dieser Import bleibt gespeichert. Die Prüfung beobachtet seinen Fortschritt, ohne eine weitere Kopie zu übermitteln."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This saved import was not confirmed. Checking does not submit another copy."
+msgstr "Dieser gespeicherte Import wurde nicht bestätigt. Die Prüfung übermittelt keine weitere Kopie."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This saved import was resolved. Its retained history does not confirm current availability."
+msgstr "Über diesen gespeicherten Import wurde entschieden. Sein gespeicherter Verlauf bestätigt keine aktuelle Verfügbarkeit."
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Upload completion recorded. Check to confirm current availability."
+msgstr "Der abgeschlossene Upload ist dokumentiert. Prüfen Sie die aktuelle Verfügbarkeit."

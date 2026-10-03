@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "status": "controlled-baseline-red-guard-green-and-complete-local-check-passed-source-CI-required",
+  "question": "Can close-only config lock release remain blocked by a controlled inherited descriptor, and does a creator-PID explicit-unlock guard release only the ended logical owner while preserving exclusion and desired-state restore?",
+  "remote_failure": {
+    "run": 37132139130,
+    "job": 111229185247,
+    "head": "60ea0f9",
+    "failure": "accounts.rs2809 restore EAGAIN settings operation running",
+    "limits": "Hypothesis only; no proof of the unique CI cause."
+  },
+  "prediction": "Tests-only unchanged production fails exact immediate reacquisition after parent drop while child remains alive. Guard releases that logical owner; test passes both originally-enabled modes, held/successor exclusion and completed original desired-state restoration without retries.",
+  "selector": "accounts::tests::config_guard_drop_releases_inherited_description_and_allows_icloud_restore",
+  "arms": [
+    {
+      "name": "baseline",
+      "source": "tests-first only",
+      "expected": "one executed failure at inherited-FD parent-drop reacquisition with EAGAIN; not startup/compiler/timeout failure"
+    },
+    {
+      "name": "guard",
+      "source": "same test plus production guard",
+      "expected": "one executed test/two enabled-state arms pass; child still alive before and after actual restoration"
+    },
+    {
+      "name": "optional-unlock-omission",
+      "source": "only explicit guard unlock statement omitted",
+      "expected": "same exact reacquisition failure while exclusion/creator-PID guards retained"
+    }
+  ],
+  "mechanism_scope": "Workspace forbids unsafe. Actual Rust pre_exec/fork/raw libc syscall barrier is unavailable without weakening policy. Reuses existing safe journal owner inheritance seam: temporarily clear CLOEXEC for this exact fixture FD and hold it alive in a bounded post-exec Python child. This models the same kernel open-file-description ownership, not an actual pre-exec run.",
+  "claim_limits": [
+    "No config-lock retry/timeout or ownership policy relaxation. Failed contenders never instantiate/unlock guard. No production file descriptor clone/exposure.",
+    "Only config_lock return guard changes. Daemon/account-operation/journal owner policy remains unchanged.",
+    "Creator-PID behavior is matched to existing JournalOwner source; this safe post-exec fixture does not execute a copied Rust guard destructor in a child.",
+    "No installed-state, cloud/keyring/settings-outside-fixture actions. No compilation/test execution by author.",
+    "Root must preregister public question and disk temp/source/binary pins before execution, baseline before fix and scripts/check.sh before commit."
+  ],
+  "execution_requirements": [
+    "existing python3 and rustix io/fs safe APIs; no dependencies added",
+    "child alarm10s/readiness5s and RAII exact Child.kill+wait, no kill patterns",
+    "no recursive cleanup of live paths; private fixture only"
+  ],
+  "public_gate_closure": false,
+  "results": {
+    "baseline_red": {
+      "manifest": ".local-state/icloud-full-integration-20261003/config-lock-inheritance-baseline-red.json",
+      "manifest_sha256": "9deaaab9e64df2273448a180cf30a7ecd8d0a6d2c45eff03701e522ff902b43a",
+      "log_sha256": "2903f57a0f5101898226d7d69a037a44a3aef6f30142a6a930c76753c643daf3",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-desktop/src/model.rs": "93ef2ed01ef7b72b114883c186ea505cdbf3ebe569238ff8cdc11fd2945cf40c",
+        "crates/cirrove-desktop/src/ui.rs": "ce82a68dae8953648dbe3d208a9805d8583757b444774683b1990748b74aa0fd",
+        "crates/cirrove-desktop/src/ui/saved_native_imports.rs": "aa1c35cd9faafcafacb1449664ce1774c25835d69f1acedf832b461987553409",
+        "crates/cirrove-desktop/tests/native_import.rs": "a294e5b50d8f9ba59c3e92fc9fd8add5a048fd9bcbd10577571ce46338a688fe",
+        "crates/cirrove-desktop/tests/window.rs": "ef4765562716d7441f97f220aa9788009094da93965f4526c2eb10c139c5eea8",
+        "crates/cirrove-service/src/accounts.rs": "4a82be115261c2a0ac78f58616c0b5e546af927d2dc5ce937ac2d788f41daec1",
+        "po/cirrove.pot": "58e07e341ce03015f073c8ccfa06be093f092fba552ee0bb35e193d43e589620",
+        "po/de.po": "0af457a72c024384101fa7aab9de35c1ee011c1d364de91f1896ae9086266dee",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "test_binary_sha256": "b92d574c8b5f3bf9bf3155fe78d6f8b01a468110420e54865bda9478199eea68",
+      "exit_code": 101,
+      "result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 498 filtered out; finished in 0.01s",
+      "endpoint": "Exact reacquisition after owner drop with inherited holder still alive failed EAGAIN; no startup/compiler/timeout failure."
+    },
+    "guard-green": {
+      "manifest": ".local-state/icloud-full-integration-20261003/config-lock-inheritance-guard-green.json",
+      "manifest_sha256": "529bfec8370ba63292ae941a52d1b032269f176346d5dd9ab99bbdcb2aaa38a3",
+      "log_sha256": "25357dcf66ad9de8409f34b56757cf26d312e9788c712d882b1a9e884981a376",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-desktop/src/model.rs": "93ef2ed01ef7b72b114883c186ea505cdbf3ebe569238ff8cdc11fd2945cf40c",
+        "crates/cirrove-desktop/src/ui.rs": "ce82a68dae8953648dbe3d208a9805d8583757b444774683b1990748b74aa0fd",
+        "crates/cirrove-desktop/src/ui/saved_native_imports.rs": "aa1c35cd9faafcafacb1449664ce1774c25835d69f1acedf832b461987553409",
+        "crates/cirrove-desktop/tests/native_import.rs": "a294e5b50d8f9ba59c3e92fc9fd8add5a048fd9bcbd10577571ce46338a688fe",
+        "crates/cirrove-desktop/tests/window.rs": "ef4765562716d7441f97f220aa9788009094da93965f4526c2eb10c139c5eea8",
+        "crates/cirrove-service/src/accounts.rs": "d92e6e5f5fe0c0f4de0eb3f68665243ad6fcd64cc580be10b71c346ca34202eb",
+        "po/cirrove.pot": "58e07e341ce03015f073c8ccfa06be093f092fba552ee0bb35e193d43e589620",
+        "po/de.po": "0af457a72c024384101fa7aab9de35c1ee011c1d364de91f1896ae9086266dee",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "test_binary_sha256": "f1660d13c7e47e73eb6f71ff8a0732446328762ba160f11fe44b80370d2aa018",
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 498 filtered out; finished in 0.03s"
+    },
+    "original-reauth-green": {
+      "manifest": ".local-state/icloud-full-integration-20261003/config-lock-inheritance-original-reauth-green.json",
+      "manifest_sha256": "5dda879210b1d39e837fa41acbd99e6dfd627245cb4b044091575a54cd8543d8",
+      "log_sha256": "c3c34989b34a118ec8b548fc48299f4bb8d1b0df70aed427e07fb10f65614c71",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-desktop/src/model.rs": "93ef2ed01ef7b72b114883c186ea505cdbf3ebe569238ff8cdc11fd2945cf40c",
+        "crates/cirrove-desktop/src/ui.rs": "ce82a68dae8953648dbe3d208a9805d8583757b444774683b1990748b74aa0fd",
+        "crates/cirrove-desktop/src/ui/saved_native_imports.rs": "aa1c35cd9faafcafacb1449664ce1774c25835d69f1acedf832b461987553409",
+        "crates/cirrove-desktop/tests/native_import.rs": "a294e5b50d8f9ba59c3e92fc9fd8add5a048fd9bcbd10577571ce46338a688fe",
+        "crates/cirrove-desktop/tests/window.rs": "ef4765562716d7441f97f220aa9788009094da93965f4526c2eb10c139c5eea8",
+        "crates/cirrove-service/src/accounts.rs": "d92e6e5f5fe0c0f4de0eb3f68665243ad6fcd64cc580be10b71c346ca34202eb",
+        "po/cirrove.pot": "58e07e341ce03015f073c8ccfa06be093f092fba552ee0bb35e193d43e589620",
+        "po/de.po": "0af457a72c024384101fa7aab9de35c1ee011c1d364de91f1896ae9086266dee",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "test_binary_sha256": "f1660d13c7e47e73eb6f71ff8a0732446328762ba160f11fe44b80370d2aa018",
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 498 filtered out; finished in 0.01s"
+    },
+    "optional_omission_not_run": "Not required after the unchanged-production baseline failed the exact behavioral reacquisition endpoint; baseline is the counterfactual for this production fix.",
+    "full_check": {
+      "manifest": ".local-state/icloud-full-integration-20261003/desktop-saved-imports-combined-full-check.json",
+      "manifest_sha256": "ef99e3e1d39a8423c50b453e18b257bc6758c85b1cdea517f6729b023edfdabf",
+      "log_sha256": "6cd447bbf71960bfc7258aa3a6a34835a36ef8d5fea334dd68abe0d05651d59e",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T17:09:18.471110+00:00",
+      "finished_at": "2026-10-03T17:18:35.999008+00:00",
+      "seconds": 557.527898,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+      "source_sha256": {
+        ".github/workflows/ci.yml": "87b7729d8b6d7438c0bcf651acbfa9c3a4085a2597ae678e89fcbe960a04754c",
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-desktop/src/model.rs": "93ef2ed01ef7b72b114883c186ea505cdbf3ebe569238ff8cdc11fd2945cf40c",
+        "crates/cirrove-desktop/src/ui.rs": "ce82a68dae8953648dbe3d208a9805d8583757b444774683b1990748b74aa0fd",
+        "crates/cirrove-desktop/src/ui/saved_native_imports.rs": "aa1c35cd9faafcafacb1449664ce1774c25835d69f1acedf832b461987553409",
+        "crates/cirrove-desktop/tests/native_import.rs": "a294e5b50d8f9ba59c3e92fc9fd8add5a048fd9bcbd10577571ce46338a688fe",
+        "crates/cirrove-desktop/tests/window.rs": "b0a9d1b8c2125e5392ffde8ff10838018fb253b362503b1fc4cbd92e831a1674",
+        "crates/cirrove-service/src/accounts.rs": "d92e6e5f5fe0c0f4de0eb3f68665243ad6fcd64cc580be10b71c346ca34202eb",
+        "po/cirrove.pot": "58e07e341ce03015f073c8ccfa06be093f092fba552ee0bb35e193d43e589620",
+        "po/de.po": "0af457a72c024384101fa7aab9de35c1ee011c1d364de91f1896ae9086266dee",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "service_library": "471 passed,28 ignored; both lock regression and original reauthentication test executed",
+      "native_fuse_https": "3 passed,496 filtered; actual kernel/loopback TLS fixtures",
+      "writable_kernel": "55 passed,1 filtered; sole intentionally excluded full-device test remains separate",
+      "actual_cli_socket": "5 passed,0 filtered in native_import_cli integration target",
+      "ci_coverage": "144 ignored tests,13 filters,4 unfiltered,25 excused; custom window groups1+1+20",
+      "result": "Whole scripts/check.sh (no --fast) passed formatting, clippy/probes, workspace/features, kernel mounts, scripts/translations/coverage/ledger and docs. Display scenarios were separately executed before this run; no live Apple or installed acceptance."
+    }
+  },
+  "private_proposals": {
+    "tests-first.patch": {
+      "path": ".local-state/icloud-full-integration-20261003/config-lock-inheritance/v1/tests-first.patch",
+      "sha256": "8b6bd9dd5b083d1021d69814c89081f91942bb70b56b8240831f6542df8ee9f1"
+    },
+    "production.patch": {
+      "path": ".local-state/icloud-full-integration-20261003/config-lock-inheritance/v1/production.patch",
+      "sha256": "9cdce0003a96cb02854c90ea19cf5bb005d28a2c75f2285d4f6606ccf5cbaab9"
+    }
+  },
+  "baseline_source_sha256": {
+    "crates/cirrove-service/src/accounts.rs": "3b26c1ba367c5f915b3ec84837ff311b59bd3ff08b013914f55c9f9aa6ad9f4f"
+  },
+  "authoring_status": "Private proposals formatted and git apply --check accepted; no source application/build/runtime by author.",
+  "registered_locally_at": "2026-10-03T16:24:55.329094+00:00",
+  "source_head_before_tests": "07d2862",
+  "root_note": "At baseline the prepared desktop proposal was separately applied but not yet compiled/executed; service-lib mechanism arms ran first. Subsequent restored desktop checks and the combined whole-project check are separately recorded. No installed daemon or cloud mutation.",
+  "independent_review": "No blocking finding: successful-acquisition-only guard, creatorPID unlock protection, private non-clonable descriptor, test-only FD traits, compatible inferred repository callers; bounded exact child cleanup. Forked Rust child destructor remains static coverage only.",
+  "runtime_scope": "Inherited Python FD remains alive across parent logical release, successor exclusion and full desired-state restore; two enabled-state arms green. Actual forked Rust guard destructor/PID behavior is static-only, and CI unique cause is unproven."
+}

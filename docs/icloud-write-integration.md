@@ -1469,11 +1469,60 @@ Each result contains the operation UUID, sequence, state, destination parent/nam
 and historical completion identity. A recorded completion receipt does not prove
 that the document is still present or published now. The existing explicit
 `watch-native-import` action checks the exact saved operation on an active writable
-connection; listing does not enable writes or mount an account. Desktop discovery
-and reconnect controls are a separate implementation step.
+connection; listing does not enable writes or mount an account. The development
+desktop now offers [saved-import discovery](desktop.md#find-an-import-again-after-reconnecting),
+with 25-record pages and explicit checks of existing operations. Enabled
+read-only/unmounted connections can discover history after the service confirms
+their exact identity; disabled accounts and unavailable, incompatible or
+identity-unconfirmed services cannot. Checking still requires an active writable
+mount and the exact supported capability.
 
 The [registered discovery checks](benchmarks/icloud-saved-native-import-discovery-2026-10-03.json)
 cover exact-account scope, malformed ownership/receipts, bounded indexed and legacy
 paging, read-only journal preservation, a real Engine restart with no jobs, and
 account withdrawal during a journal wait. They use synthetic retained operations
 and do not establish Apple application acceptance or complete recovery UX.
+
+The [desktop discovery record](benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json)
+registers bounded page validation, selected account/collection checks, retained
+typed operation identity and a synthetic window reconnect/paging/watch scenario.
+An accepted observer is published before a delayed status response, so a second
+check cannot attach another observer for that running operation. Removing only
+that publication makes the exact accepted-operation assertion fail while the
+fake service is reachable; restoring it passes. Earlier intact fixture failures
+were caused by a queued toast outlasting the deliberately held status request;
+the fixture now waits for the earlier toast before arming that hold, with the
+same network and scenario limits. This evidence does not establish a live import
+submission, provider contents, Apple fidelity or installed lifecycle acceptance.
+
+The restored source passed all 22 host window scenarios in disjoint groups
+1+1+20, each retaining its 30-second limit, plus the chooser filter and all five
+native-import model tests. The complete combined `scripts/check.sh` also passed,
+including all three native FUSE/HTTPS scenarios and 55 writable kernel scenarios.
+These host window results do not substitute for new-source CI on the supported
+Ubuntu/libadwaita 1.5 floor; that CI and installed/live acceptance remain separate.
+
+### Settings-lock ownership during reauthentication
+
+[CI for CLI account binding at 60ea0f9](https://github.com/Dandiccf/cirrove/actions/runs/37132139130)
+finished with six successful jobs and a failed Linux job: an existing iCloud
+reauthentication test could not reacquire the settings lock during desired-state
+restoration. The workspace step stopped before the new CLI integration target
+and later window/kernel groups. This is not evidence of a CLI-binding assertion
+failure or proof of the unique remote cause.
+
+The [controlled lock record](benchmarks/config-lock-inherited-description-2026-10-03.json)
+reproduces one matching mechanism: closing the parent's file alone retains a
+`flock` while a child holds the inherited open file description. The settings
+lock now has a non-clonable guard that explicitly unlocks only in its acquiring
+process, matching the journal owner's existing policy. Failed contenders never
+construct an unlocking guard. The same regression fails before the correction
+and passes afterward, preserving exclusion and restoring both originally enabled
+and disabled account states while the child remains alive. The original
+reauthentication test also passes locally. This safe post-exec descriptor fixture
+does not execute a forked Rust guard destructor or establish live/installed
+reauthentication reliability. No retry or timeout relaxation was added.
+
+The combined full check subsequently executed both settings tests successfully
+alongside the desktop/discovery increment; its exact source and disk-temporary
+directory pins are recorded in the same artifact. New-source CI remains required.

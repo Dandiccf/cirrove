@@ -212,6 +212,9 @@ struct FakeService {
     hold_next: Arc<AtomicBool>,
     working_supported: Arc<AtomicBool>,
     retryable_fixture: Arc<AtomicBool>,
+    native_import_enabled: Arc<AtomicBool>,
+    native_imports: Arc<Mutex<Vec<cirrove_service::journal::NativeImportSelection>>>,
+    native_drop_status: Arc<AtomicBool>,
     reply_gate: Arc<tokio::sync::Semaphore>,
     requests: Arc<Mutex<Vec<String>>>,
     task: tokio::task::JoinHandle<()>,
@@ -236,6 +239,14 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
     let hold = hold_next.clone();
     let reply_gate = Arc::new(tokio::sync::Semaphore::new(0));
     let gate = reply_gate.clone();
+    let native_import_enabled = Arc::new(AtomicBool::new(false));
+    let native_enabled = native_import_enabled.clone();
+    let native_imports = Arc::new(Mutex::new(Vec::<
+        cirrove_service::journal::NativeImportSelection,
+    >::new()));
+    let native_saved = native_imports.clone();
+    let native_drop_status = Arc::new(AtomicBool::new(false));
+    let native_drop = native_drop_status.clone();
     let requests = Arc::new(Mutex::new(Vec::new()));
     let seen = requests.clone();
     let task = runtime.spawn(async move {
@@ -250,6 +261,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                     let seen = seen.clone();
                     let working_support = working_support.clone();
                     let retryable = retryable.clone();
+                    let native_enabled=native_enabled.clone();let native_saved=native_saved.clone();let native_drop=native_drop.clone();
                     clients.spawn(async move {
                         let mut reader = tokio::io::BufReader::new(stream);
                         let mut line = String::new();
@@ -261,12 +273,34 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                             }
                             // A slow service must not block native GTK events.
                             tokio::time::sleep(Duration::from_millis(200)).await;
-                            serde_json::to_vec(&*replies.lock().unwrap()).unwrap()
+                            if native_drop.swap(false,Ordering::SeqCst) {Vec::new()}
+                            else {serde_json::to_vec(&*replies.lock().unwrap()).unwrap()}
                         } else if line == "capabilities\n" {
                             serde_json::to_vec(&cirrove_service::Capabilities::current()).unwrap()
                         } else if line.starts_with("import-native-package ") {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
-                            serde_json::to_vec(&cirrove_service::ImportNativePackageReply { job:None, refusal:Some("synthetic import refusal".into()) }).unwrap()
+                            if native_enabled.load(Ordering::SeqCst) {
+                                let request:cirrove_service::ImportNativePackageRequest=serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                                let saved=native_saved.lock().unwrap().iter().find(|row|row.name==request.name).cloned().unwrap();
+                                let job=cirrove_service::jobs::Job {id:"native-submitted-job".into(),kind:cirrove_service::jobs::JobKind::ImportNativePackage,
+                                    name:request.name,files_total:1,bytes_total:10,native_import:Some(cirrove_service::jobs::NativeImportProgress {operation:saved.operation,remote:None}),..Default::default()};
+                                replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                                serde_json::to_vec(&cirrove_service::ImportNativePackageReply {job:Some(job),refusal:None}).unwrap()
+                            } else {serde_json::to_vec(&cirrove_service::ImportNativePackageReply { job:None, refusal:Some("synthetic import refusal".into()) }).unwrap()}
+                        } else if line.starts_with("list-native-imports ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request:cirrove_service::ListNativeImportsRequest=serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let reply=if request.after.is_none() {cirrove_service::ListNativeImportsReply {next:Some(1),..Default::default()}}
+                                else {cirrove_service::ListNativeImportsReply {operations:native_saved.lock().unwrap().clone(),next:None,refusal:None}};
+                            serde_json::to_vec(&reply).unwrap()
+                        } else if line.starts_with("watch-native-import ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request:cirrove_service::WatchNativeImportRequest=serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let saved=native_saved.lock().unwrap().iter().find(|row|row.operation==request.operation).cloned().unwrap();
+                            let job=cirrove_service::jobs::Job {id:"native-observer-job".into(),kind:cirrove_service::jobs::JobKind::ImportNativePackage,
+                                name:saved.name,files_total:1,bytes_total:10,native_import:Some(cirrove_service::jobs::NativeImportProgress {operation:saved.operation,remote:None}),..Default::default()};
+                            replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                            serde_json::to_vec(&cirrove_service::ImportNativePackageReply {job:Some(job),refusal:None}).unwrap()
                         } else if line.starts_with("recent ") {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             // One thing from the cloud and one saved here,
@@ -457,6 +491,9 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
         hold_next,
         working_supported,
         retryable_fixture,
+        native_import_enabled,
+        native_imports,
+        native_drop_status,
         reply_gate,
         requests,
         task,
@@ -2478,6 +2515,10 @@ fn readonly_recovery_requires_live_capability_and_never_enables_mutations() {
 
 const SCENARIOS: &[(&str, fn())] = &[
     (
+        "saved_native_imports_are_paged_account_bound_and_observer_only",
+        saved_native_imports_are_paged_account_bound_and_observer_only,
+    ),
+    (
         "readonly_recovery_requires_exact_saved_and_working_receipts",
         readonly_recovery_requires_exact_saved_and_working_receipts,
     ),
@@ -2856,4 +2897,310 @@ fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() 
     );
     window.close();
     service.task.abort();
+}
+
+fn saved_native_imports_are_paged_account_bound_and_observer_only() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    let account = &mut settings.accounts[0];
+    account.registration = cirrove_auth::AppRegistration::ICloud;
+    account.access = cirrove_auth::AccessMode::ReadWrite;
+    account.drive.id = "drive".into();
+    account.drive.drive_type = "icloud_drive".into();
+    account.root_id = cirrove_icloud::ROOT_ID.into();
+    account.identity.tenant_id.clear();
+    account.identity.graph_user_id.clear();
+    write_settings(&state, &settings);
+    let mut status = sample.status.unwrap();
+    status.accounts[0].provider = "icloud".into();
+    status.accounts[0].drive_id = "drive".into();
+    status.accounts[0].root_id = cirrove_icloud::ROOT_ID.into();
+    status.accounts[0].tenant.clear();
+    status.accounts[0].mounted = true;
+    status.accounts[0].state = "ready".into();
+    status.accounts[0].jobs.clear();
+    let service = fake_service(&runtime, temp.path(), status);
+    service.native_import_enabled.store(true, Ordering::SeqCst);
+    *service.native_imports.lock().unwrap() = vec![
+        cirrove_service::journal::NativeImportSelection {
+            operation: "00000000-0000-4000-8000-000000000041".parse().unwrap(),
+            sequence: 2,
+            state: cirrove_service::journal::UploadState::Uploaded,
+            parent: cirrove_icloud::ROOT_ID.into(),
+            name: "Earlier.pages".into(),
+            remote_item: Some("FILE::com.apple.CloudDocs::earlier".into()),
+            completion_receipt_recorded: true,
+        },
+        cirrove_service::journal::NativeImportSelection {
+            operation: "00000000-0000-4000-8000-000000000042".parse().unwrap(),
+            sequence: 3,
+            state: cirrove_service::journal::UploadState::Pending,
+            parent: cirrove_icloud::ROOT_ID.into(),
+            name: "Imported.pages".into(),
+            remote_item: None,
+            completion_receipt_recorded: false,
+        },
+    ];
+    let app = application("SavedNativeImports");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state: state.clone(),
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("saved import capabilities", || {
+        ui.current().is_some_and(|v| {
+            v.accounts[0].can_list_native_imports() && v.accounts[0].can_watch_native_import()
+        })
+    });
+    let window = ui.window.upgrade().unwrap();
+    expand_all(window.upcast_ref());
+    let selected = ui.current().unwrap().accounts[0].clone();
+    ui.native_import_dialog(selected.clone(), temp.path().join("Imported.pages"));
+    pump_until("explicit import button", || {
+        button(window.upcast_ref(), "Import").is_some()
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("typed running import", || {
+        ui.current().is_some_and(|v| {
+            v.accounts[0].running.iter().any(|job| {
+                job.running
+                    && job.import_progress.as_ref().is_some_and(|p| {
+                        p.operation.to_string() == "00000000-0000-4000-8000-000000000042"
+                    })
+            })
+        })
+    });
+    assert!(!displays_text(
+        window.upcast_ref(),
+        "Document imported and available in Files."
+    ));
+    let make_visible = |job: &mut cirrove_service::jobs::Job| {
+        job.state = cirrove_service::jobs::JobState::Succeeded;
+        job.files_done = 1;
+        job.bytes_done = 10;
+        job.native_import.as_mut().unwrap().remote = Some(cirrove_core::Node {
+            id: format!("FILE::com.apple.CloudDocs::{}", job.name),
+            parent_id: Some(cirrove_icloud::ROOT_ID.into()),
+            name: job.name.clone(),
+            kind: cirrove_core::NodeKind::Folder,
+            size: 10,
+            modified_unix: 1,
+            etag: Some("verified-E1".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        });
+    };
+    make_visible(&mut service.response.lock().unwrap().accounts[0].jobs[0]);
+    ui.refresh();
+    pump_until("published import receipt shown", || {
+        displays_text(
+            window.upcast_ref(),
+            "Document imported and available in Files.",
+        )
+    });
+    // A service restart loses transient jobs. A socket hiccup cannot resubmit them.
+    service.response.lock().unwrap().accounts[0].jobs.clear();
+    service.native_drop_status.store(true, Ordering::SeqCst);
+    ui.refresh();
+    pump_until("socket outage visible", || {
+        ui.current().is_some_and(|v| !v.service_reachable)
+    });
+    ui.refresh();
+    pump_until("reconnected without jobs", || {
+        ui.current()
+            .is_some_and(|v| v.service_reachable && v.accounts[0].running.is_empty())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        1
+    );
+    button(window.upcast_ref(), "Saved imports…")
+        .unwrap()
+        .emit_clicked();
+    pump_until("empty historical page", || {
+        displays_text(window.upcast_ref(), "No saved imports on this page.")
+    });
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("historical completion wording", || {
+        displays_text(
+            window.upcast_ref(),
+            "Upload completion recorded. Check to confirm current availability.",
+        )
+    });
+    assert!(!displays_text(
+        window.upcast_ref(),
+        "Document imported and available in Files."
+    ));
+    // The initial import toast must not queue the observer-acceptance toast
+    // beyond the held status exchange's existing deadline.
+    pump_until("earlier import toast cleared", || {
+        !displays_text(
+            window.upcast_ref(),
+            "Import started. Progress appears with this connection's transfers.",
+        )
+    });
+    // Hold the status request started after the watch reply. Only the accepted
+    // reply can expose a live operation before fresh status becomes available.
+    service.hold_next.store(true, Ordering::SeqCst);
+    let earlier = action_row(window.upcast_ref(), "Earlier.pages").unwrap();
+    button(earlier.upcast_ref(), "Check saved import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("exact operation observer", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("watch-native-import "))
+    });
+    pump_until("watch reply accepted", || {
+        displays_text(
+            window.upcast_ref(),
+            "Checking the saved import. Progress appears with this connection's transfers.",
+        )
+    });
+    let observed = ui.current();
+    assert!(
+        observed
+            .as_ref()
+            .is_some_and(|v| v.accounts[0].running.iter().any(|job| job.running
+                && job.import_progress.as_ref().is_some_and(
+                    |p| p.operation.to_string() == "00000000-0000-4000-8000-000000000041"
+                ))),
+        "accepted observer reply must publish its exact operation before held status refresh; observed reachable/jobs: {:?}",
+        observed
+            .as_ref()
+            .map(|v| (v.service_reachable, &v.accounts[0].running))
+    );
+    let watch_line = service
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|line| line.starts_with("watch-native-import "))
+        .cloned()
+        .unwrap();
+    let watched: cirrove_service::WatchNativeImportRequest =
+        serde_json::from_str(watch_line.split_once(' ').unwrap().1).unwrap();
+    assert_eq!(watched.expected_account_id, selected.id);
+    assert_eq!(watched.label, selected.label);
+    assert_eq!(
+        watched.operation.to_string(),
+        "00000000-0000-4000-8000-000000000041"
+    );
+    // The response was accepted, but its status request is still held. A
+    // second explicit request must be stopped by the newly published job.
+    ui.watch_saved_native_import(&selected, watched.clone());
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("watch-native-import "))
+            .count(),
+        1
+    );
+    make_visible(&mut service.response.lock().unwrap().accounts[0].jobs[0]);
+    service.reply_gate.add_permits(1);
+    ui.refresh();
+    pump_until("watched publication shown", || {
+        displays_text(
+            window.upcast_ref(),
+            "Document imported and available in Files.",
+        )
+    });
+    // Fresh read-only policy may discover history but cannot attach watchers.
+    service.response.lock().unwrap().accounts[0].jobs.clear();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadOnly;
+    write_settings(&state, &settings);
+    ui.refresh();
+    pump_until("read-only history capability", || {
+        ui.current().is_some_and(|v| {
+            v.accounts[0].can_list_native_imports() && !v.accounts[0].can_watch_native_import()
+        })
+    });
+    let before_watch = service
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|line| line.starts_with("watch-native-import "))
+        .count();
+    ui.watch_saved_native_import(&selected, watched.clone());
+    button(window.upcast_ref(), "Saved imports…")
+        .unwrap()
+        .emit_clicked();
+    pump_until("read-only first page", || {
+        button(window.upcast_ref(), "Next page").is_some()
+    });
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("read-only historical rows", || {
+        displays_text(
+            window.upcast_ref(),
+            "Upload completion recorded. Check to confirm current availability.",
+        ) && button(window.upcast_ref(), "Check saved import").is_some()
+    });
+    let earlier = action_row(window.upcast_ref(), "Earlier.pages").unwrap();
+    let check = button(earlier.upcast_ref(), "Check saved import").unwrap();
+    assert!(!check.is_sensitive());
+    check.emit_clicked();
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("watch-native-import "))
+            .count(),
+        before_watch
+    );
+    let lines = service.requests.lock().unwrap();
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        1
+    );
+    for line in lines
+        .iter()
+        .filter(|line| line.starts_with("list-native-imports "))
+    {
+        let request: cirrove_service::ListNativeImportsRequest =
+            serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+        assert_eq!(request.expected_account_id, selected.id);
+        assert_eq!(request.label, selected.label);
+        assert_eq!(request.limit, 25);
+    }
+    assert!(!lines.iter().any(|line| line.starts_with("retry ")
+        || line.starts_with("retry-stuck ")
+        || line.starts_with("discard-stuck ")
+        || line.starts_with("keep-both ")
+        || line.starts_with("replace-native-package ")));
+    drop(lines);
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
 }

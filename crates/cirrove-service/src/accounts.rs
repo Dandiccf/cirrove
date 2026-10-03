@@ -197,7 +197,36 @@ pub fn valid_label(label: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
-pub fn config_lock(state: &Path) -> Result<File> {
+/// Exclusive settings critical section, independent of unrelated inherited FDs.
+/// The guard cannot clone its descriptor or transfer unlock ownership to a child.
+pub struct ConfigLock {
+    file: File,
+    pid: u32,
+}
+impl Drop for ConfigLock {
+    fn drop(&mut self) {
+        // flock belongs to the open file description: close alone can leave an
+        // unrelated fork-before-exec child holding it. Only the acquiring
+        // process may end this critical section; a forked guard must not unlock
+        // the parent's still-live owner. An unlock error stays conservative.
+        if self.pid == std::process::id() {
+            let _ = fs2::FileExt::unlock(&self.file);
+        }
+    }
+}
+#[cfg(test)]
+impl std::os::fd::AsFd for ConfigLock {
+    fn as_fd(&self) -> std::os::fd::BorrowedFd<'_> {
+        std::os::fd::AsFd::as_fd(&self.file)
+    }
+}
+#[cfg(test)]
+impl std::os::fd::AsRawFd for ConfigLock {
+    fn as_raw_fd(&self) -> std::os::fd::RawFd {
+        std::os::fd::AsRawFd::as_raw_fd(&self.file)
+    }
+}
+pub fn config_lock(state: &Path) -> Result<ConfigLock> {
     private_dir(state)?;
     let file = OpenOptions::new()
         .read(true)
@@ -208,7 +237,10 @@ pub fn config_lock(state: &Path) -> Result<File> {
         .open(state.join("settings.lock"))?;
     fs2::FileExt::try_lock_exclusive(&file)
         .context("another Cirrove settings operation is running")?;
-    Ok(file)
+    Ok(ConfigLock {
+        file,
+        pid: std::process::id(),
+    })
 }
 pub fn daemon_lock(state: &Path) -> Result<File> {
     private_dir(state)?;
@@ -2786,6 +2818,115 @@ mod tests {
                 before
             );
             assert!(!super::restore_marker(&state, &original.id).exists());
+        }
+    }
+
+    #[test]
+    fn config_guard_drop_releases_inherited_description_and_allows_icloud_restore() {
+        use std::{
+            io::Read,
+            os::fd::{AsFd, AsRawFd},
+            process::{Child, Command, Stdio},
+            sync::mpsc,
+            time::Duration,
+        };
+        // The real pre-exec interval has this same flock lifetime. A controlled
+        // CLOEXEC seam retains it after exec without unsafe code or global fork.
+        // This is mechanism coverage, not proof of CI's unique cause.
+        #[derive(Debug)]
+        struct Inheritor(Child);
+        impl Drop for Inheritor {
+            fn drop(&mut self) {
+                // Kill/reap only this exact synthetic child, never a pattern.
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        fn inherit(owner: &(impl AsFd + AsRawFd)) -> Inheritor {
+            let identity = rustix::fs::fstat(owner).expect("owner identity");
+            let flags = rustix::io::fcntl_getfd(owner).expect("owner flags");
+            rustix::io::fcntl_setfd(owner, flags & !rustix::io::FdFlags::CLOEXEC)
+                .expect("controlled descriptor inheritance");
+            let child = Command::new("python3")
+                .args([
+                    "-I", "-S", "-c",
+                    "import os,signal,sys; signal.alarm(10); held=os.fstat(int(sys.argv[1])); assert (held.st_dev,held.st_ino)==(int(sys.argv[2]),int(sys.argv[3])); sys.stdout.buffer.write(b'ready'); sys.stdout.buffer.flush(); sys.stdin.buffer.read(1)",
+                ])
+                .arg(owner.as_raw_fd().to_string())
+                .arg(identity.st_dev.to_string())
+                .arg(identity.st_ino.to_string())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map(Inheritor);
+            // Install child cleanup before this fallible flag restoration.
+            rustix::io::fcntl_setfd(owner, flags).expect("restore original descriptor flags");
+            let mut child = child.expect("controlled descriptor holder");
+            let mut stdout = child.0.stdout.take().expect("readiness pipe");
+            let (send, receive) = mpsc::channel();
+            let reader = std::thread::spawn(move || {
+                let mut ready = [0; 5];
+                let _ = send.send(stdout.read_exact(&mut ready).is_ok() && ready == *b"ready");
+            });
+            assert!(
+                receive
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("bounded readiness")
+            );
+            reader.join().expect("readiness reader");
+            child
+        }
+        for originally_enabled in [false, true] {
+            let temp = tempfile::Builder::new()
+                .prefix("cirrove-config-inheritance-")
+                .tempdir_in("/var/tmp")
+                .expect("private fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut original = icloud_reauth_fixture();
+            original.enabled = originally_enabled;
+            Settings {
+                version: 2,
+                accounts: vec![original.clone()],
+            }
+            .save(&state)
+            .expect("seed");
+            let held = super::config_lock(&state).expect("parent settings owner");
+            let mut child = inherit(&held);
+            assert!(
+                super::config_lock(&state).is_err(),
+                "live parent remains exclusive"
+            );
+            assert!(
+                super::config_lock(&state).is_err(),
+                "a failed contender must not unlock its owner"
+            );
+            drop(held);
+            assert!(child.0.try_wait().expect("holder status").is_none());
+            let next = super::config_lock(&state).expect(
+                "dropping logical owner must release flock while inherited descriptor stays alive",
+            );
+            assert!(
+                super::config_lock(&state).is_err(),
+                "successor owner remains exclusive"
+            );
+            drop(next);
+            let (_operation, desired) = super::suspend_validated_icloud_account(&state, &original)
+                .expect("validated suspend after inherited description release");
+            assert!(!Settings::load(&state).expect("suspended settings").accounts[0].enabled);
+            desired
+                .complete(None)
+                .expect("completed desired-state restore");
+            assert_eq!(
+                serde_json::to_value(
+                    Settings::load(&state).expect("restored settings").accounts[0].clone()
+                )
+                .expect("account"),
+                serde_json::to_value(&original).expect("original")
+            );
+            assert!(!super::restore_marker(&state, &original.id).exists());
+            assert!(child.0.try_wait().expect("holder still alive").is_none());
         }
     }
 

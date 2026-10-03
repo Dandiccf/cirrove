@@ -521,6 +521,32 @@ change while the dialog is open. A successful synthetic dialog or socket test do
 not establish Apple document-editing compatibility. Installed desktop click-through
 and a new owned live Pages import remain separate acceptance steps.
 
+### Find an import again after reconnecting
+
+Choose **Saved imports…** on an enabled iCloud connection when the compatible
+service advertises `list-native-imports` version 1. The **Saved iWork imports**
+dialog shows retained import records, up to 25 per page. **Next page** advances
+through the journal; an empty legacy page can still have a next page. A recorded
+upload completion describes history, not whether that document is available now.
+Listing also works for an enabled read-only or unmounted connection once the
+service confirms its identity. Disabled accounts and unavailable, incompatible
+or identity-unconfirmed services do not offer listing.
+
+**Check saved import** attaches an observer to that exact retained operation and
+shows progress with the connection's transfers. Checking requires an active
+writable iCloud mount and version 1 of `watch-native-import`; the button is
+disabled otherwise. The account identity, collection and current access are
+checked again before dispatch and when the reply arrives. An accepted observer
+appears immediately, preventing another check in this window for the same running
+operation while the next status response is pending.
+
+Neither listing nor checking submits another copy, retries an upload, changes
+access or mounts the account. The synthetic window scenario
+`saved_native_imports_are_paged_account_bound_and_observer_only` covers reconnect,
+paging, historical wording, exact observation and refusal after a read-only
+transition. It uses a fake socket service, not an Apple upload worker or a live
+chooser-to-completion workflow; installed and live acceptance remain open.
+
 ## Strata preview
 
 An opt-in [Strata integration](strata.md) adds asynchronous conditional pin menus,

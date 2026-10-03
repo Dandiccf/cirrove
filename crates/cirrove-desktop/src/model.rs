@@ -136,6 +136,8 @@ pub struct AccountCard {
     /// Ordinary writes do not imply an irreversible provider deletion API.
     pub supports_permanent_delete: bool,
     pub supports_native_import: bool,
+    pub supports_native_import_listing: bool,
+    pub supports_native_import_watch: bool,
     /// The app registration this account signed in through, so connecting a
     /// second drive can start from it rather than from an empty field.
     pub client_id: String,
@@ -155,6 +157,8 @@ pub struct AccountCard {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunningJob {
     pub native_import: bool,
+    /// Exact durable operation/receipt from the service, separate from the transient job ID.
+    pub import_progress: Option<cirrove_service::jobs::NativeImportProgress>,
     pub native_replace: bool,
     /// What `stop` takes. Not shown.
     pub id: String,
@@ -230,6 +234,9 @@ impl RunningJob {
         Self {
             native_replace: job.kind == cirrove_service::jobs::JobKind::ReplaceNativePackage,
             native_import: job.kind == cirrove_service::jobs::JobKind::ImportNativePackage,
+            import_progress: (job.kind == cirrove_service::jobs::JobKind::ImportNativePackage)
+                .then(|| job.native_import.clone())
+                .flatten(),
             id: job.id.clone(),
             name: job.name.clone(),
             detail,
@@ -304,6 +311,43 @@ impl AccountCard {
                 self.state,
                 ConnectionState::Connected | ConnectionState::Updating
             )
+    }
+
+    pub fn can_list_native_imports(&self) -> bool {
+        self.supports_native_import_listing
+            && self.provider_id == "icloud"
+            && self.enabled
+            && self.controls_available
+            && !matches!(
+                self.state,
+                ConnectionState::WaitingForService
+                    | ConnectionState::ServiceUnavailable
+                    | ConnectionState::IncompatibleService
+            )
+    }
+    pub fn can_watch_native_import(&self) -> bool {
+        self.supports_native_import_watch
+            && self.provider_id == "icloud"
+            && self.enabled
+            && self.controls_available
+            && self.mounted
+            && self.writable
+            && matches!(
+                self.state,
+                ConnectionState::Connected | ConnectionState::Updating
+            )
+    }
+    /// Discovery/watch selection must remain on the chosen account and location.
+    pub fn same_native_import_connection(&self, selected: &Self) -> bool {
+        self.id == selected.id
+            && self.label == selected.label
+            && self.collection_id == selected.collection_id
+            && self.root_id == selected.root_id
+            && self.username == selected.username
+            && self.tenant == selected.tenant
+            && self.mount_path == selected.mount_path
+            && self.provider_id == selected.provider_id
+            && self.writable == selected.writable
     }
 
     /// A dialog cannot transfer consent to another connection or mount.
@@ -640,6 +684,16 @@ impl Overview {
                             .capabilities
                             .get("import-native-package-account-binding")
                             == Some(&1),
+                    supports_native_import_listing: snapshot
+                        .capabilities
+                        .capabilities
+                        .get("list-native-imports")
+                        == Some(&1),
+                    supports_native_import_watch: snapshot
+                        .capabilities
+                        .capabilities
+                        .get("watch-native-import")
+                        == Some(&1),
                     provider_id: account.registration.provider_id(),
                     supports_permanent_delete: matches!(
                         account.registration,

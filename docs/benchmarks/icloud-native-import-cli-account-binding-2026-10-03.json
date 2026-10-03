@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "cli-controlled-red-green-and-complete-local-check-passed-remote-CI-required",
+  "status": "controlled-local-check-passed-source-CI-failed-existing-reauthentication-test",
   "registered_at": "2026-10-03T14:33:45.589074+00:00",
   "source_head": "176bd0978715ecee506b63f0979aebebd1a55ceb",
   "question": "Can the public native-import CLI express an already selected account UUID through request submission and observation, refusing services that cannot enforce that binding while preserving intentional label-only use?",
@@ -262,6 +262,25 @@
       "writable_kernel_tests_passed": 55,
       "desktop_display_scenarios": "not in local check; require corresponding remote source CI",
       "full_iCloud_open_rows": 6
+    },
+    "remote_ci": {
+      "run": 37132139130,
+      "head": "60ea0f94fbbf4ee671a66a3865b27251a141b275",
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37132139130",
+      "conclusion": "failure",
+      "jobs_succeeded": 6,
+      "jobs_failed": 1,
+      "linux_failed_step": "Run cargo test --workspace --locked",
+      "failed_test": "accounts::tests::icloud_reauthentication_keeps_validated_read_only_access_and_desired_state",
+      "failure": "desired.complete(None) failed settings-lock reacquisition with EAGAIN",
+      "service_lib_passed": 464,
+      "service_lib_failed": 1,
+      "service_lib_ignored": 28,
+      "service_lib_seconds": 102.01,
+      "metadata": ".local-state/icloud-full-integration-20261003/remote-ci-60ea0f9-terminal-metadata-v1.json",
+      "linux_log": ".local-state/icloud-full-integration-20261003/remote-ci-60ea0f9-linux-failure-v1.log",
+      "linux_log_sha256": "fc83d23941a2caeec152ed33190662218db926ce2f599d2695cd5cb2f7296817",
+      "scope": "New CLI integration target and display/kernel groups not reached after service-lib failure; original controlled local CLI results retained. Subsequent settings-owner regression and combined local check passed as separately recorded; unique remote cause remains unproven."
     }
   },
   "gate_closure": false,

@@ -1470,3 +1470,71 @@ msgstr ""
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:102
 msgid "Cirrove could not change offline availability"
 msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "An active writable iCloud mount is required to check current availability."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Check saved import"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Checking saved import…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Checking the saved import. Progress appears with this connection's transfers."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Could not confirm the saved import check. Its operation remains retained; no new copy was submitted."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Could not load saved imports. Nothing was submitted or retried."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Find retained imports and check an existing operation without submitting another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "History is available without uploading. Checking current availability requires an active writable iCloud mount."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Loading saved imports…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "No saved imports on this page."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Saved iWork imports"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Saved imports…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "These are retained import records, not a current cloud listing. Checking observes an existing operation; it never submits another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This import remains saved. Checking observes its progress without submitting another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This saved import was not confirmed. Checking does not submit another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This saved import was resolved. Its retained history does not confirm current availability."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Upload completion recorded. Check to confirm current availability."
+msgstr ""

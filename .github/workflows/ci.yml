@@ -73,11 +73,13 @@ jobs:
       - name: Native archive chooser accepts supported filename cases
         run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --lib --locked ui::native_import::tests::native_import_chooser_filter_accepts_case_variants_only -- --ignored --exact --test-threads=1
       # Keep the ten read-only receipt arms out of the original group budget.
-      # Both groups retain 30 seconds and together select every window scenario.
+      # Three groups retain 30 seconds and together select every window scenario.
       - name: Read-only recovery verifies exact saved and working receipts
         run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked readonly_recovery_requires_exact_saved_and_working_receipts -- --ignored --exact --test-threads=1
+      - name: Saved native imports resume exact observers after reconnect
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked saved_native_imports_are_paged_account_bound_and_observer_only -- --ignored --exact --test-threads=1
       - name: Native desktop with isolated account settings and status service
-        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --skip readonly_recovery_requires_exact_saved_and_working_receipts --test-threads=1
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --skip readonly_recovery_requires_exact_saved_and_working_receipts --skip saved_native_imports_are_paged_account_bound_and_observer_only --test-threads=1
       # The tray registered with a watcher, answered every property it declared,
       # and drew nothing, because the set was incomplete and a host reads the
       # whole of it. No unit test could see that; this one asks over a bus.
