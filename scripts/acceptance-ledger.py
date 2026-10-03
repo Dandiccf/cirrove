@@ -27,10 +27,19 @@ ROOT = Path(__file__).resolve().parent.parent
 MILESTONES = ROOT / "docs/product-milestones.md"
 LEDGER = ROOT / "docs/acceptance-ledger.json"
 
-# Whether an open row stands between the project and a 1.0 release. The
+# Whether an open row blocks its declared release scope. The
 # criteria are in docs/release-procedure.md; "no" always carries a reason,
 # because a "no" without one is how a release quietly shrinks its own scope.
 RELEASE = {"yes", "no"}
+DEFAULT_SCOPE = "onedrive-1.0"
+RELEASE_SCOPES = {"onedrive-1.0": "OneDrive 1.0", "full-icloud": "full iCloud"}
+
+
+def release_scope(row: dict) -> str:
+    # Existing ledgers did not carry a scope: their documented contract was
+    # explicitly OneDrive 1.0, never all future providers.
+    return row.get("release_scope", DEFAULT_SCOPE)
+
 
 BLOCKERS = {
     "autonomous",
@@ -47,8 +56,14 @@ def boxes() -> list[dict]:
     """Every acceptance checkbox, with the milestone it belongs to."""
     found = []
     milestone = None
+    scope = DEFAULT_SCOPE
     open_box = False
     for number, line in enumerate(MILESTONES.read_text().splitlines(), 1):
+        scope_marker = re.match(r"^<!-- acceptance-release-scope: ([a-z0-9.-]+) -->$", line)
+        if scope_marker:
+            scope = scope_marker.group(1)
+            open_box = False
+            continue
         heading = re.match(r"^## (\d)\. (.+)$", line)
         if heading:
             milestone = (int(heading.group(1)), heading.group(2))
@@ -65,6 +80,8 @@ def boxes() -> list[dict]:
                     "text": re.sub(r"\s+", " ", box.group(2)).strip(),
                 }
             )
+            if scope != DEFAULT_SCOPE:
+                found[-1]["release_scope"] = scope
             open_box = True
             continue
         # A wrapped box continues on the indented lines directly beneath it.
@@ -100,7 +117,7 @@ def main() -> int:
     parser.add_argument(
         "--blockers",
         action="store_true",
-        help="list the open rows that block a 1.0 release, and those that do not",
+        help="list open blockers and explicit exclusions separately for each release scope",
     )
     args = parser.parse_args()
 
@@ -148,6 +165,10 @@ def main() -> int:
         row = known.get(box["text"])
         if row is None:
             continue
+        if release_scope(row) not in RELEASE_SCOPES:
+            problems.append(f"unknown release scope: {release_scope(row)!r}")
+        if release_scope(row) != release_scope(box):
+            problems.append(f"ledger and source disagree on release scope: {box['text'][:70]}")
         if row["done"] != box["done"]:
             problems.append(
                 f"ledger and document disagree on whether this is done: {box['text'][:70]}"
@@ -196,20 +217,22 @@ def main() -> int:
         f"{len(current)} acceptance boxes, {sum(b['done'] for b in current)} ticked; "
         + ", ".join(f"{n} {b}" for b, n in sorted(counts.items()))
     )
-    blocking = [r for r in ledger["rows"] if not r["done"] and r.get("blocks_release") == "yes"]
-    waived = [r for r in ledger["rows"] if not r["done"] and r.get("blocks_release") == "no"]
-    print(
-        f"{len(blocking)} open row(s) block a 1.0 release, {len(waived)} do not "
-        "(scripts/acceptance-ledger.py --blockers lists them)"
-    )
-    if args.blockers:
-        print("\nWhat stands between this and a 1.0 release:")
-        for row in sorted(blocking, key=lambda r: (r["milestone"], r["line"])):
-            print(f"  M{row['milestone']}  {row['text'][:96]}")
-        print("\nOpen, and deliberately not blocking:")
-        for row in sorted(waived, key=lambda r: (r["milestone"], r["line"])):
-            print(f"  M{row['milestone']}  {row['text'][:70]}")
-            print(f"        {row.get('release_note', '')[:150]}")
+    for scope, title in RELEASE_SCOPES.items():
+        scoped = [r for r in ledger["rows"] if release_scope(r) == scope]
+        blocking = [r for r in scoped if not r["done"] and r.get("blocks_release") == "yes"]
+        waived = [r for r in scoped if not r["done"] and r.get("blocks_release") == "no"]
+        print(
+            f"{len(blocking)} open row(s) block {title}, {len(waived)} do not "
+            "(scripts/acceptance-ledger.py --blockers lists them)"
+        )
+        if args.blockers:
+            print(f"\nWhat stands between this and {title}:")
+            for row in sorted(blocking, key=lambda r: (r["milestone"], r["line"])):
+                print(f"  M{row['milestone']}  {row['text'][:96]}")
+            print(f"\nOpen, and deliberately not blocking {title}:")
+            for row in sorted(waived, key=lambda r: (r["milestone"], r["line"])):
+                print(f"  M{row['milestone']}  {row['text'][:70]}")
+                print(f"        {row.get('release_note', '')[:150]}")
     if problems:
         print("\n" + "\n".join(f"  {p}" for p in problems))
         print(

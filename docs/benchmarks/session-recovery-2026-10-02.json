@@ -1,0 +1,53 @@
+{
+  "question": "Can the recovered iCloud work pass the full contributor checks after fixing the recorded Clippy failure?",
+  "prediction": "The static admission diagnostics and allocation hotfix pass the full suite; any remaining failure is retained and investigated. Synthetic results close no live-provider release gate.",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "source_head": "c15f7ee6fd4d27c0a7189ef5991ccdf6649f0b5f",
+  "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
+  "filesystem": "ext4",
+  "expected_duration_seconds": 1800,
+  "status": "passed",
+  "registered_at": "2026-10-02T06:27:58.439124+00:00",
+  "evidence": ".local-state/session-recovery-20261002/full-check.log",
+  "installed_daemon_restarted": false,
+  "pid": 24044,
+  "started_at": "2026-10-02T06:27:58.510588+00:00",
+  "child_pid": 24045,
+  "exit_code": 0,
+  "finished_at": "2026-10-02T06:40:31.657170+00:00",
+  "endpoint": "Complete scripts/check.sh exits 0; all required steps reach all checks passed.",
+  "runner_provenance": {
+    "recorded_at": "2026-10-02T06:32:16.317642+00:00",
+    "runner_binary": "/home/dandiccf/.local/share/mise/installs/python/latest/bin/python3",
+    "binary_sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+    "check_script_sha256": "e084e78d24a5449802f710d188bcf38b4a95e34db2987fec2bc726d1112bc09b"
+  },
+  "built_binary_sha256": {
+    "cirrove": "d1d4361a7ec16a33aa71bbd6416dca223ec04ce11fd709ec803ad61cfb2a760b",
+    "cirroved": "c9199c30ee409282694381f7136cb2c9cb37cb100a27fef473e6e96a29265427"
+  },
+  "validated_source_sha256": {
+    "crates/cirrove-service/src/engine/native_replace.rs": "a11b529416692d82583920afbb20177b5182789cca522e3fa99175212ab8cd9e",
+    "crates/cirrove-service/src/manager/native_import/native_replace.rs": "7f57be1d6529d2e7aff0cf4e83528731158de09508c8d830ad7e6dc7da59648e",
+    "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "c70c0f05db9c616ac7371e0c2e91dec16f0995410168fc10151f33b09e72f696",
+    "crates/cirrove-service/src/native_import.rs": "104af53979e31d54b3c0ac6af5f2ce20e2f08a70535bfdce1c74bd75bc512f8c",
+    "crates/cirrove-service/src/filesystem.rs": "25018a8232eaa252804043be421cab1d875fc4add6d2c22fccf84282ef3ee690",
+    "crates/cirrove-service/tests/read_only.rs": "38a92676e49bcd95a47ee984f315f298a9d63087410fa75ddbfbc17219da8d4b",
+    "crates/cirrove-service/tests/writable_session.rs": "7b2203c6fceaf5257c599676c9ae72f3bd73386d18f6bbcea30d9b08cf7803eb"
+  },
+  "validation": {
+    "full_script_passed": true,
+    "completed_test_suites": 75,
+    "admission_phase_regression_executed": true,
+    "admission_job_privacy_regression_executed": true,
+    "allocated_space_kernel_regression_executed": true,
+    "desktop_window_scenarios_run": false,
+    "existing_rustdoc_warning": "unresolved internal link to Writeback::retry_stuck",
+    "live_provider_release_gates_closed": false,
+    "cloud_mutations_performed": false
+  }
+}

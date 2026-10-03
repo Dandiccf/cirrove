@@ -1,0 +1,55 @@
+{
+  "question": "Does a real RW to RO downgrade retain local saved and dirty recovery without further cloud writes?",
+  "provider": "synthetic",
+  "arms": [
+    {
+      "arm": "red",
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/deps/writable_session-943bd154e896527a",
+        "real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "binary_sha256": "5462e558a72c755e514d4ae093b53069c8e3a72797ead3c0a7da85949d1c76ca",
+      "started_at": "2026-10-01T06:28:33.284542+00:00",
+      "expected_duration_seconds": 120,
+      "TMPDIR": "/var/tmp/cirrove-readonly-fuse-afyxpxyu",
+      "SQLITE_TMPDIR": "/var/tmp/cirrove-readonly-fuse-afyxpxyu",
+      "filesystem": "btrfs",
+      "status": "failed",
+      "pid": 658492,
+      "child_pid": 658516,
+      "exit_code": 101,
+      "finished_at": "2026-10-01T06:28:38.413462+00:00"
+    },
+    {
+      "arm": "green",
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/deps/writable_session-943bd154e896527a",
+        "real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "binary_sha256": "d98930ba7c3d6306a42e4cefd738260886d474586afb812468222618b0dc23cf",
+      "started_at": "2026-10-01T06:29:52.196722+00:00",
+      "expected_duration_seconds": 120,
+      "TMPDIR": "/var/tmp/cirrove-readonly-fuse-is5ks448",
+      "SQLITE_TMPDIR": "/var/tmp/cirrove-readonly-fuse-is5ks448",
+      "filesystem": "btrfs",
+      "status": "passed",
+      "pid": 661076,
+      "child_pid": 661087,
+      "exit_code": 0,
+      "finished_at": "2026-10-01T06:30:03.346612+00:00"
+    }
+  ],
+  "result": "green passed exact kernel/socket assertions; red refused RO local journal",
+  "limits": [
+    "Not installed iCloud live acceptance",
+    "Not a timing comparison"
+  ]
+}

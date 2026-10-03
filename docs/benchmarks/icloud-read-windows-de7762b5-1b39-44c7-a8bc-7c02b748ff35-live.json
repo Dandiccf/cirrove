@@ -1,0 +1,26 @@
+{
+  "run": "de7762b5-1b39-44c7-a8bc-7c02b748ff35",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-read-windows",
+    "de7762b5-1b39-44c7-a8bc-7c02b748ff35"
+  ],
+  "binary_sha256": "21d5a33104151919c7efc067ceeb2d3d9b2714712467d85303a571b5fac23530",
+  "revision": "6e44cf2140bd47314682573f9bdf43817d6fb072",
+  "dirty": true,
+  "started_at": "2026-10-01T01:15:02.360356+00:00",
+  "expected_duration_seconds": 1800,
+  "TMPDIR": "/var/tmp/cirrove-read-windows-grrhqrts",
+  "SQLITE_TMPDIR": "/var/tmp/cirrove-read-windows-grrhqrts",
+  "filesystem": "btrfs",
+  "status": "finished",
+  "supervisor_pid": 4063498,
+  "installed_service_changed": false,
+  "mounted": false,
+  "pid": 4063523,
+  "process_group": 4063523,
+  "exit_code": 1,
+  "elapsed_seconds": 103.795,
+  "finished_at": "2026-10-01T01:16:46.155484+00:00",
+  "passed": false
+}

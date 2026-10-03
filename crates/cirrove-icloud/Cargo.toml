@@ -1,0 +1,44 @@
+[package]
+name = "cirrove-icloud"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+# Explicitly invoked developer probe; never linked into the normal service.
+write-probe = []
+# Explicit synthetic transport seam, enabled only by downstream test builds.
+test-support = []
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+cirrove-auth.workspace = true
+cirrove-core.workspace = true
+hex.workspace = true
+reqwest = { workspace = true, features = ["cookies", "stream"] }
+secrecy.workspace = true
+ring.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tokio-util = { workspace = true, features = ["io"] }
+url.workspace = true
+uuid.workspace = true
+getrandom = "0.3"
+pbkdf2 = "0.13"
+rpassword = "7.4"
+srp = "0.7.0-rc.3"
+tempfile.workspace = true
+zeroize = "1.8"
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tokio-rustls = "0.26.5"

@@ -64,8 +64,19 @@ struct Remote {
     moves: Vec<MutationRequest>,
     deletes: Vec<MutationRequest>,
 }
+struct NativePublicationPause {
+    item: String,
+    ready: Arc<Notify>,
+    release: Arc<Notify>,
+}
 #[derive(Default)]
 struct Cloud {
+    native_publication_pause: Mutex<Option<NativePublicationPause>>,
+    refused_write_target: Mutex<Option<String>>,
+    admission_targets: Mutex<Vec<String>>,
+    hold_admission: AtomicBool,
+    admission_entered: Notify,
+    admission_release: Notify,
     remote: Mutex<Remote>,
     pause_once: AtomicBool,
     reads: AtomicUsize,
@@ -89,6 +100,9 @@ struct Cloud {
     /// asserted. Nothing else in this fixture can make the provider unreachable.
     offline: AtomicBool,
     google_names: AtomicBool,
+    icloud_identity: AtomicBool,
+    cross_parent_folder_move: AtomicBool,
+    write_calls: AtomicUsize,
 }
 fn root() -> Node {
     Node {
@@ -107,7 +121,11 @@ fn root() -> Node {
 #[async_trait]
 impl MetadataProvider for Cloud {
     fn provider_id(&self) -> &'static str {
-        "fixture"
+        if self.icloud_identity.load(Ordering::SeqCst) {
+            "icloud"
+        } else {
+            "fixture"
+        }
     }
     async fn changes(
         &self,
@@ -115,7 +133,7 @@ impl MetadataProvider for Cloud {
         _: Option<&Cursor>,
         _: &CancellationToken,
     ) -> Result<ChangePage, ProviderError> {
-        let mut nodes = vec![Change::Upsert(root())];
+        let mut nodes = vec![Change::Upsert(self.root())];
         nodes.extend(
             self.remote
                 .lock()
@@ -132,6 +150,26 @@ impl MetadataProvider for Cloud {
 }
 #[async_trait]
 impl ReadProvider for Cloud {
+    async fn validate_write_target(
+        &self,
+        _: &Scope,
+        node: &Node,
+        _: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        self.admission_targets.lock().unwrap().push(node.id.clone());
+        if self.hold_admission.swap(false, Ordering::SeqCst) {
+            self.admission_entered.notify_one();
+            self.admission_release.notified().await;
+        }
+        if self.refused_write_target.lock().unwrap().as_deref() == Some(node.id.as_str()) {
+            return Err(ProviderError::Permission);
+        }
+        Ok(())
+    }
+    fn supports_cross_parent_folder_move(&self) -> bool {
+        self.cross_parent_folder_move.load(Ordering::SeqCst)
+    }
+
     /// OneDrive's rules, so the mount is tested against the real ones.
     fn name_problem(&self, name: &str) -> Option<cirrove_core::NameProblem> {
         cirrove_onedrive::naming::name_problem(name)
@@ -142,8 +180,19 @@ impl ReadProvider for Cloud {
         id: &str,
         _: &CancellationToken,
     ) -> Result<Node, ProviderError> {
-        if id == "root" {
-            return Ok(root());
+        if id == self.root().id {
+            return Ok(self.root());
+        }
+        let pause = self
+            .native_publication_pause
+            .lock()
+            .unwrap()
+            .as_ref()
+            .filter(|p| p.item == id)
+            .map(|p| (p.ready.clone(), p.release.clone()));
+        if let Some((ready, release)) = pause {
+            ready.notify_one();
+            release.notified().await;
         }
         self.remote
             .lock()
@@ -161,7 +210,7 @@ impl ReadProvider for Cloud {
         _: &CancellationToken,
     ) -> Result<DirectoryPage, ProviderError> {
         let remote = self.remote.lock().unwrap();
-        if !Self::has_parent(&remote, parent) {
+        if !self.has_parent(&remote, parent) {
             return Err(ProviderError::NotFound);
         }
         Ok(DirectoryPage {
@@ -201,6 +250,14 @@ impl ReadProvider for Cloud {
     }
 }
 impl Cloud {
+    fn root(&self) -> Node {
+        let mut node = root();
+        if self.icloud_identity.load(Ordering::SeqCst) {
+            node.id = "FOLDER::com.apple.CloudDocs::root".into();
+        }
+        node
+    }
+
     fn read_node(&self, node: &Node) -> Node {
         let mut node = node.clone();
         if self.google_names.load(Ordering::SeqCst) && node.id != "root" {
@@ -216,8 +273,8 @@ impl Cloud {
         node
     }
 
-    fn has_parent(remote: &Remote, parent: &str) -> bool {
-        parent == "root"
+    fn has_parent(&self, remote: &Remote, parent: &str) -> bool {
+        parent == self.root().id
             || remote
                 .files
                 .get(parent)
@@ -261,6 +318,7 @@ impl UploadProvider for Cloud {
         request: &UploadRequest,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         if self.stall.load(Ordering::SeqCst) {
             self.entered.notify_one();
             std::future::pending::<()>().await;
@@ -283,6 +341,7 @@ impl UploadProvider for Cloud {
         checkpoint: &SecretString,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         self.step(request, checkpoint)
     }
     async fn upload_part(
@@ -293,6 +352,7 @@ impl UploadProvider for Cloud {
         bytes: Vec<u8>,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         {
             let mut remote = self.remote.lock().unwrap();
             let data = remote
@@ -310,6 +370,7 @@ impl UploadProvider for Cloud {
         checkpoint: &SecretString,
         _: &CancellationToken,
     ) -> upload::Result<UploadStep> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         let mut remote = self.remote.lock().unwrap();
         let before = Self::target(&remote, &request.intent).map(|(n, _)| n.clone());
         let (id, parent, name) = match (&request.intent, before) {
@@ -329,7 +390,7 @@ impl UploadProvider for Cloud {
             }
             _ => return Err(UploadError::Conflict),
         };
-        if !Self::has_parent(&remote, &parent) {
+        if !self.has_parent(&remote, &parent) {
             return Err(ProviderError::NotFound.into());
         }
         let bytes = remote
@@ -361,6 +422,7 @@ impl UploadProvider for Cloud {
         _: Option<&SecretString>,
         _: &CancellationToken,
     ) -> upload::Result<Reconciliation> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         let remote = self.remote.lock().unwrap();
         let target = Self::target(&remote, &request.intent);
         Ok(match target {
@@ -396,6 +458,7 @@ impl MutationProvider for Cloud {
         request: &MutationRequest,
         _: &CancellationToken,
     ) -> mutation::Result<MutationReceipt> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         if self.stall.load(Ordering::SeqCst) {
             self.entered.notify_one();
             std::future::pending::<()>().await;
@@ -407,7 +470,7 @@ impl MutationProvider for Cloud {
                 self.folder_release.notified().await;
             }
             let mut remote = self.remote.lock().unwrap();
-            if !Self::has_parent(&remote, parent) {
+            if !self.has_parent(&remote, parent) {
                 return Err(ProviderError::NotFound.into());
             }
             if remote.files.values().any(|(n, _)| {
@@ -490,7 +553,7 @@ impl MutationProvider for Cloud {
             return Err(MutationError::Unsupported("fixture only relocates files"));
         };
         let mut remote = self.remote.lock().unwrap();
-        if !Self::has_parent(&remote, parent) {
+        if !self.has_parent(&remote, parent) {
             return Err(ProviderError::NotFound.into());
         }
         if remote.files.values().any(|(n, _)| {
@@ -529,6 +592,7 @@ impl MutationProvider for Cloud {
         request: &MutationRequest,
         _: &CancellationToken,
     ) -> mutation::Result<MutationReconciliation> {
+        self.write_calls.fetch_add(1, Ordering::SeqCst);
         let MutationIntent::Relocate {
             before,
             parent,
@@ -1532,7 +1596,13 @@ async fn mutations_applied(session: &WritableSession, count: usize) {
     use cirrove_service::journal::MutationState;
     tokio::time::timeout(Duration::from_secs(12), async {
         loop {
-            let records = session.mutations(0, 100).await.unwrap();
+            let records: Vec<_> = session
+                .mutations(0, 100)
+                .await
+                .unwrap()
+                .into_iter()
+                .filter(|r| r.state != MutationState::Resolved)
+                .collect();
             assert!(
                 !records.iter().any(|r| matches!(
                     r.state,
@@ -1549,6 +1619,97 @@ async fn mutations_applied(session: &WritableSession, count: usize) {
     })
     .await
     .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a moved folder must retain its nested route"]
+async fn real_cross_parent_folder_move_keeps_nested_files_and_refuses_cycles() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    cloud.cross_parent_folder_move.store(true, Ordering::SeqCst);
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        for (id, parent, name) in [
+            ("source", "root", "Source"),
+            ("destination", "root", "Destination"),
+            ("moved", "source", "Moved"),
+            ("nested", "moved", "Nested"),
+        ] {
+            let folder = Node {
+                id: id.into(),
+                parent_id: Some(parent.into()),
+                name: name.into(),
+                etag: Some(format!("etag-{id}")),
+                ..root()
+            };
+            remote.files.insert(id.into(), (folder, vec![]));
+        }
+        let file = Node {
+            id: "child-file".into(),
+            parent_id: Some("nested".into()),
+            name: "child.txt".into(),
+            kind: NodeKind::File,
+            size: 13,
+            etag: Some("etag-child".into()),
+            content_version: Some("content-child".into()),
+            ..root()
+        };
+        remote
+            .files
+            .insert(file.id.clone(), (file, b"nested bytes!".to_vec()));
+    }
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal,
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    refresh_fixture(&engine, &cloud).await;
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(
+            std::fs::read(root.join("Source/Moved/Nested/child.txt")).unwrap(),
+            b"nested bytes!"
+        );
+        std::fs::rename(root.join("Source/Moved"), root.join("Destination/Moved")).unwrap();
+        assert_eq!(
+            std::fs::read(root.join("Destination/Moved/Nested/child.txt")).unwrap(),
+            b"nested bytes!"
+        );
+        assert!(!root.join("Source/Moved").exists());
+        let cycle = std::fs::rename(
+            root.join("Destination/Moved"),
+            root.join("Destination/Moved/Nested/Cycle"),
+        )
+        .unwrap_err();
+        assert_eq!(cycle.raw_os_error(), Some(libc::EINVAL));
+    })
+    .await
+    .unwrap();
+    mutations_applied(&session, 1).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        assert_eq!(remote.moves.len(), 1);
+        let moved = &remote.files.get("moved").unwrap().0;
+        assert_eq!(moved.parent_id.as_deref(), Some("destination"));
+        assert_eq!(
+            remote.files.get("nested").unwrap().0.parent_id.as_deref(),
+            Some("moved")
+        );
+        assert_eq!(remote.files.get("child-file").unwrap().1, b"nested bytes!");
+    }
+    session.shutdown().await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -3702,7 +3863,33 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
         let reads = cloud.clone();
         let writes = cloud.clone();
         let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
-        let write_factory: WriteFactory = Arc::new(move |_| Ok(writes.clone()));
+        let factory_state = state.clone();
+        let refuse_writes = Arc::new(AtomicBool::new(false));
+        let factory_refusal = refuse_writes.clone();
+        let write_factory: WriteFactory = Arc::new(move |account, context| {
+            let directory = factory_state.join("accounts").join(&account.id);
+            assert_eq!(context.state(), factory_state);
+            assert_eq!(context.metadata_db(), directory.join("metadata.db"));
+            assert!(context.journal().try_lock().is_ok());
+            assert!(
+                UploadJournal::open(&directory.join("journal"), &account.id, 64 * 1024 * 1024)
+                    .is_err(),
+                "write factory was given an unopened or foreign journal"
+            );
+            assert!(
+                directory.join("metadata.db").is_file(),
+                "write factory ran before account storage was opened"
+            );
+            assert!(
+                cirrove_service::accounts::account_lock(&directory).is_err(),
+                "write factory ran without the account owner lock"
+            );
+            anyhow::ensure!(
+                !factory_refusal.load(Ordering::SeqCst),
+                "synthetic writer unavailable"
+            );
+            Ok(writes.clone())
+        });
         let cancel = CancellationToken::new();
         let (manager, worker) = Manager::start_with_providers(
             state.clone(),
@@ -3813,11 +4000,62 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
                 "visible path did not unpin: {unpinned:?}"
             );
         }
+        // An unavailable writer must not silently remount a granted account
+        // read-only and hide journal-backed edits. Clean up before asserting.
+        let remount_result: anyhow::Result<()> = async {
+            if !writable {
+                return Ok(());
+            }
+            refuse_writes.store(true, Ordering::SeqCst);
+            let unmounted = tokio::process::Command::new("fusermount3")
+                .args(["-u", "-z", "--"])
+                .arg(&mount)
+                .status()
+                .await?;
+            anyhow::ensure!(unmounted.success(), "synthetic ejection failed");
+            tokio::time::timeout(Duration::from_secs(20), async {
+                loop {
+                    let rows = manager.status.read().await;
+                    if rows
+                        .first()
+                        .is_some_and(|row| !row.mounted && row.state.contains("mount unavailable"))
+                    {
+                        break;
+                    }
+                    drop(rows);
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .map_err(|_| anyhow::anyhow!("writer failure was hidden by a readonly fallback"))?;
+            refuse_writes.store(false, Ordering::SeqCst);
+            tokio::time::timeout(Duration::from_secs(20), async {
+                loop {
+                    if manager
+                        .status
+                        .read()
+                        .await
+                        .first()
+                        .is_some_and(|row| row.mounted)
+                    {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .map_err(|_| anyhow::anyhow!("writer did not recover after remount"))?;
+            let path = mount.join("after-remount");
+            tokio::task::spawn_blocking(move || std::fs::create_dir(path)).await??;
+            Ok(())
+        }
+        .await;
         cancel.cancel();
         let _ = tokio::time::timeout(Duration::from_secs(20), worker).await;
         if let Some(server) = control_server {
             let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
         }
+        remount_result.unwrap();
     }
 }
 
@@ -3983,6 +4221,15 @@ async fn real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount
             .unwrap()
             .expect("editing a pinned file offline must be accepted locally");
     }
+    let metadata = tokio::task::spawn_blocking(move || std::fs::metadata(path).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(metadata.len(), edited.len() as u64);
+    assert_eq!(
+        std::os::unix::fs::MetadataExt::blocks(&metadata),
+        0,
+        "pending edits are allocated in the backing spool, not again in the mount"
+    );
     session.shutdown().await.unwrap();
 
     // Rebuilt from disk: the cache's registry and the journal's files are
@@ -4452,3 +4699,1475 @@ async fn real_a_package_is_readable_and_refuses_every_change_inside_it() {
     }
     session.shutdown().await.unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; keep both exposes cloud and local copies independently"]
+async fn real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upload() {
+    keep_both_mount(false, false, false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; autosave conflict rescue retains newest content"]
+async fn real_keep_both_rescues_multiple_autosaves_without_replaying_them() {
+    keep_both_mount(true, false, false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; atomic-save conflict rescue preserves both identities"]
+async fn real_keep_both_rescues_atomic_save_and_delays_temporary_cleanup() {
+    keep_both_mount(false, true, false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; chained atomic conflict rescue preserves each stream"]
+async fn real_keep_both_rescues_chained_atomic_saves_without_early_cleanup() {
+    keep_both_mount(false, true, true).await;
+}
+
+async fn keep_both_mount(autosave: bool, atomic: bool, chain: bool) {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    replacement_fixture(&cloud);
+    cloud.pause_once.store(!atomic, Ordering::SeqCst);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    let old_descriptor = if atomic {
+        application(
+            &mount,
+            "import pathlib,sys; pathlib.Path(sys.argv[1], 'source.txt').write_bytes(b'local')",
+        )
+        .await;
+        acknowledged(&session, 1).await;
+        let old = tokio::task::spawn_blocking({
+            let path = mount.join("document.txt");
+            move || std::fs::File::open(path).unwrap()
+        })
+        .await
+        .unwrap();
+        cloud.pause_once.store(true, Ordering::SeqCst);
+        application(
+            &mount,
+            "import os,sys; os.chdir(sys.argv[1]); os.replace('source.txt','document.txt')",
+        )
+        .await;
+        Some(old)
+    } else {
+        application(
+            &mount,
+            "import pathlib,sys; pathlib.Path(sys.argv[1], 'document.txt').write_bytes(b'local')",
+        )
+        .await;
+        None
+    };
+    tokio::time::timeout(Duration::from_secs(5), cloud.entered.notified())
+        .await
+        .unwrap();
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        let (node, bytes) = remote.files.get_mut("target").unwrap();
+        *bytes = b"remote".to_vec();
+        node.size = bytes.len() as u64;
+        node.etag = Some("competing-edit".into());
+        node.content_version = node.etag.clone();
+    }
+    cloud.release.notify_one();
+    let refused = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let rows = session.uploads(0, 10).await.unwrap();
+            if let Some(row) = rows.into_iter().find(|r| r.state == UploadState::Conflict) {
+                break row;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let mut second_temporary = None;
+    let intermediate = if chain {
+        let held = tokio::task::spawn_blocking({
+            let path = mount.join("document.txt");
+            move || std::fs::File::open(path).unwrap()
+        })
+        .await
+        .unwrap();
+        application(
+            &mount,
+            "import pathlib,sys; pathlib.Path(sys.argv[1], 'second.txt').write_bytes(b'latest')",
+        )
+        .await;
+        second_temporary = Some(tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let rows = session.uploads(0,10).await.unwrap();
+                if let Some(row) = rows.into_iter().find(|r|matches!(&r.intent, UploadIntent::Create{name,..} if name=="second.txt")) {
+                    assert!(!matches!(row.state,UploadState::Failed | UploadState::Conflict));
+                    if row.state == UploadState::Uploaded { break row.remote.unwrap().id; }
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }).await.unwrap());
+        application(
+            &mount,
+            "import os,sys; os.chdir(sys.argv[1]); os.replace('second.txt','document.txt')",
+        )
+        .await;
+        Some(held)
+    } else {
+        None
+    };
+    let expected: &[u8] = if chain {
+        b"latest"
+    } else if autosave {
+        b"local-3"
+    } else {
+        b"local"
+    };
+    if autosave {
+        application(&mount, "import pathlib,sys; p=pathlib.Path(sys.argv[1], 'document.txt'); p.write_bytes(b'local-2'); p.write_bytes(b'local-3')").await;
+    }
+    let held = tokio::task::spawn_blocking({
+        let path = mount.join("document.txt");
+        move || std::fs::File::open(path).unwrap()
+    })
+    .await
+    .unwrap();
+    refresh_fixture(&engine, &cloud).await;
+    cloud.pause_once.store(true, Ordering::SeqCst);
+    assert_eq!(
+        session
+            .keep_both(vec![(
+                refused.id,
+                "root".into(),
+                "document-copy.txt".into()
+            )])
+            .await
+            .unwrap(),
+        1
+    );
+    tokio::time::timeout(Duration::from_secs(5), cloud.entered.notified())
+        .await
+        .unwrap();
+    // Both names must work even while the rescue upload cannot finish.
+    application(
+        &mount,
+        &format!(
+            r#"import pathlib,sys,time
+p=pathlib.Path(sys.argv[1])
+assert (p/'document-copy.txt').read_bytes()==b'{expected}'
+deadline=time.monotonic()+5
+while True:
+    data=(p/'document.txt').read_bytes()
+    if data==b'remote': break
+    assert time.monotonic()<deadline, repr(data)
+    time.sleep(.02)
+"#,
+            expected = std::str::from_utf8(expected).unwrap()
+        ),
+    )
+    .await;
+    tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        let mut held = held;
+        let mut bytes = Vec::new();
+        held.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, expected, "an open descriptor keeps the rescued edit");
+    })
+    .await
+    .unwrap();
+    if let Some(mut intermediate) = intermediate {
+        tokio::task::spawn_blocking(move || {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            intermediate.read_to_end(&mut bytes).unwrap();
+            assert_eq!(bytes, b"local");
+        })
+        .await
+        .unwrap();
+    }
+    if let Some(mut old) = old_descriptor {
+        tokio::task::spawn_blocking(move || {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            old.read_to_end(&mut bytes).unwrap();
+            assert_eq!(
+                bytes, b"old",
+                "the replaced descriptor retains its original stream"
+            );
+        })
+        .await
+        .unwrap();
+        assert!(cloud.remote.lock().unwrap().files.contains_key("source"));
+        assert!(cloud.remote.lock().unwrap().deletes.is_empty());
+    }
+    cloud.release.notify_one();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if session
+                .uploads(0, 10)
+                .await
+                .unwrap()
+                .iter()
+                .any(|r| matches!(&r.intent, UploadIntent::Create { name, .. } if name == "document-copy.txt") && r.state == UploadState::Uploaded)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        journal.lock().unwrap().get(refused.id).unwrap().state,
+        UploadState::Resolved
+    );
+    assert_eq!(
+        cloud.remote.lock().unwrap().files.get("target").unwrap().1,
+        b"remote"
+    );
+    if atomic {
+        mutations_applied(&session, if chain { 2 } else { 1 }).await;
+        let remote = cloud.remote.lock().unwrap();
+        assert!(!remote.files.contains_key("source"));
+        let mut expected = vec!["source".to_owned()];
+        if let Some(second) = second_temporary {
+            assert!(!remote.files.contains_key(&second));
+            expected.push(second);
+        }
+        expected.sort();
+        let mut actual: Vec<_> = remote
+            .deletes
+            .iter()
+            .map(|r| r.intent.before().unwrap().id.clone())
+            .collect();
+        actual.sort();
+        assert_eq!(actual, expected);
+    }
+    session.shutdown().await.unwrap();
+    drop(engine);
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal, cloud, Arc::new(Vault::default()))
+        .await
+        .unwrap();
+    application(&mount, &format!("import pathlib,sys; p=pathlib.Path(sys.argv[1]); assert (p/'document-copy.txt').read_bytes()==b'{expected}'; assert (p/'document.txt').read_bytes()==b'remote'",expected=std::str::from_utf8(expected).unwrap())).await;
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse; synthetic account only"]
+async fn real_recovery_export_uses_the_service_without_replaying_a_failed_save() {
+    use cirrove_service::{
+        accounts::Settings,
+        manager::{Manager, ProviderFactory, WriteFactory},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut config = account(&mount);
+    config.enabled = true;
+    config.label = "export-fixture".into();
+    config.access = cirrove_auth::AccessMode::ReadWrite;
+    config.cache_bytes = 64 * 1024 * 1024;
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 2,
+            accounts: vec![config],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    let cloud = Arc::new(Cloud::default());
+    let reads = cloud.clone();
+    let writes = cloud.clone();
+    let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
+    let captured = Arc::new(Mutex::new(None));
+    let captured_by_factory = captured.clone();
+    let write_factory: WriteFactory = Arc::new(move |account, context| {
+        let journal = context.journal();
+        let mut journal = journal.lock().unwrap();
+        let row = journal.enqueue(
+            Scope {
+                account: account.id.clone(),
+                provider: "fixture".into(),
+                collection: "home".into(),
+            },
+            UploadIntent::Create {
+                parent: "root".into(),
+                name: "Saved.txt".into(),
+            },
+            b"recover my saved bytes".as_slice(),
+        )?;
+        let attempt = journal.claim_next()?.unwrap();
+        journal.stop_attempt(row.id, attempt.attempt.unwrap(), UploadState::Conflict)?;
+        *captured_by_factory.lock().unwrap() = Some((row.id, context.journal()));
+        Ok(writes.clone())
+    });
+    let cancel = CancellationToken::new();
+    let (manager, worker) = Manager::start_with_providers(
+        state.clone(),
+        cancel.clone(),
+        read_factory,
+        Some(write_factory),
+    );
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            if manager.status.read().await.iter().any(|a| a.mounted) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let id = captured.lock().unwrap().as_ref().unwrap().0;
+    let socket = temp.path().join("runtime/control.sock");
+    let server_socket = socket.clone();
+    let server_cancel = cancel.clone();
+    let server_manager = manager.clone();
+    let db = state.join("status.sqlite");
+    let server = tokio::spawn(async move {
+        cirrove_service::serve_managed(db, server_socket, server_cancel, Some(server_manager)).await
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !socket.exists() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let destination = temp.path().join("Recovered.txt");
+    let reply = cirrove_service::export_save(
+        &socket,
+        &cirrove_service::ExportSaveRequest {
+            label: "export-fixture".into(),
+            operation: id,
+            destination: destination.clone(),
+        },
+    )
+    .await
+    .unwrap();
+    assert!(reply.refusal.is_none(), "{:?}", reply.refusal);
+    let job = reply.job.unwrap();
+    let complete = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let status = cirrove_service::status(&socket).await.unwrap();
+            if let Some(job) = status
+                .accounts
+                .iter()
+                .flat_map(|a| &a.jobs)
+                .find(|j| j.id == job.id && !j.running())
+            {
+                break job.clone();
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(complete.state, cirrove_service::jobs::JobState::Succeeded);
+    assert_eq!(complete.export.unwrap().operation, id);
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        b"recover my saved bytes"
+    );
+    let recent = cirrove_service::recent(
+        &socket,
+        &cirrove_service::RecentRequest {
+            label: "export-fixture".into(),
+            limit: 5,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(recent.local[0].operation, Some(id));
+    assert_eq!(recent.local[0].state, "conflict");
+    let cli_target = temp.path().join("CLI copy.txt");
+    let output = tokio::time::timeout(
+        Duration::from_secs(10),
+        tokio::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+            .arg("export-save")
+            .arg("--label")
+            .arg("export-fixture")
+            .arg("--operation")
+            .arg(id.to_string())
+            .arg("--destination")
+            .arg(&cli_target)
+            .arg("--socket")
+            .arg(&socket)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        std::fs::read(cli_target).unwrap(),
+        b"recover my saved bytes"
+    );
+    let refused = cirrove_service::export_save(
+        &socket,
+        &cirrove_service::ExportSaveRequest {
+            label: "export-fixture".into(),
+            operation: id,
+            destination: mount.join("not-an-export"),
+        },
+    )
+    .await
+    .unwrap();
+    assert!(refused.refusal.is_some());
+    assert!(!mount.join("not-an-export").exists());
+    let source = captured
+        .lock()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .1
+        .lock()
+        .unwrap()
+        .local_export_source(id)
+        .unwrap();
+    assert!(
+        source
+            .copy_to(
+                &mount.join("direct-export"),
+                &CancellationToken::new(),
+                |_| {}
+            )
+            .is_err()
+    );
+    assert!(!mount.join("direct-export").exists());
+    assert!(
+        cloud.remote.lock().unwrap().files.is_empty(),
+        "export must never publish cloud content"
+    );
+    // Keep an application descriptor open, with written but unsealed FUSE bytes.
+    // Recovery must not fsync/release that descriptor or trigger an upload.
+    let ready = temp.path().join("working-ready");
+    let release = temp.path().join("working-release");
+    let mut editor = tokio::process::Command::new("python3")
+        .args([
+            "-c",
+            r#"import pathlib,sys,time
+p,ready,release=map(pathlib.Path,sys.argv[1:])
+with p.open('wb',buffering=0) as f:
+    f.write(b'active unsaved bytes')
+    ready.touch()
+    end=time.monotonic()+30
+    while not release.exists():
+        if time.monotonic()>end: raise RuntimeError('test release deadline')
+        time.sleep(.02)
+"#,
+        ])
+        .arg(mount.join("Working.txt"))
+        .arg(&ready)
+        .arg(&release)
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !ready.exists() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let listed = cirrove_service::recovery_working(
+        &socket,
+        &cirrove_service::RecoveryWorkingRequest {
+            label: "export-fixture".into(),
+            after: None,
+            limit: 200,
+        },
+    )
+    .await
+    .unwrap();
+    assert!(listed.refusal.is_none());
+    let working = listed
+        .files
+        .iter()
+        .find(|file| file.name == "Working.txt")
+        .unwrap()
+        .clone();
+    let output = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+            .args([
+                "recovery-working",
+                "--active",
+                "--label",
+                "export-fixture",
+                "--socket",
+            ])
+            .arg(&socket)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let listing: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(
+        listing["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|file| file["file"] == working.file.to_string())
+    );
+    let journal = captured.lock().unwrap().as_ref().unwrap().1.clone();
+    let before =
+        serde_json::to_value(journal.lock().unwrap().working_file(working.file).unwrap()).unwrap();
+    let uploads_before =
+        serde_json::to_value(journal.lock().unwrap().list(0, 200).unwrap()).unwrap();
+    let target = temp.path().join("working-copy");
+    let request = cirrove_service::ExportWorkingRequest {
+        label: "export-fixture".into(),
+        file: working.file,
+        generation: working.generation,
+        destination: target.clone(),
+    };
+    let initial = cirrove_service::export_working(&socket, &request)
+        .await
+        .unwrap()
+        .job
+        .unwrap();
+    let complete = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let status = cirrove_service::status(&socket).await.unwrap();
+            if let Some(job) = status
+                .accounts
+                .iter()
+                .flat_map(|a| &a.jobs)
+                .find(|job| job.id == initial.id && !job.running())
+            {
+                break job.clone();
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(request.confirmed_receipt(&initial, &complete).is_some());
+    assert_eq!(std::fs::read(&target).unwrap(), b"active unsaved bytes");
+    let cli_target = temp.path().join("working-cli-copy");
+    let output = tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+            .args(["export-working", "--active", "--label", "", "--socket"])
+            .arg(&socket)
+            .arg("--file")
+            .arg(working.file.to_string())
+            .arg("--generation")
+            .arg(working.generation.to_string())
+            .arg("--destination")
+            .arg(&cli_target)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let receipt: cirrove_service::journal::WorkingExportReceipt =
+        serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(receipt.source.file, working.file);
+    assert_eq!(receipt.source.generation, working.generation);
+    assert_eq!(std::fs::read(cli_target).unwrap(), b"active unsaved bytes");
+    let mut stale = request.clone();
+    stale.generation += 1;
+    stale.destination = temp.path().join("stale-copy");
+    assert!(
+        cirrove_service::export_working(&socket, &stale)
+            .await
+            .unwrap()
+            .refusal
+            .is_some()
+    );
+    assert!(!stale.destination.exists());
+    stale.generation = request.generation;
+    stale.destination = mount.join("unsafe-working-export");
+    assert!(
+        cirrove_service::export_working(&socket, &stale)
+            .await
+            .unwrap()
+            .refusal
+            .is_some()
+    );
+    assert!(!stale.destination.exists());
+    assert_eq!(
+        serde_json::to_value(journal.lock().unwrap().working_file(working.file).unwrap()).unwrap(),
+        before
+    );
+    assert_eq!(
+        serde_json::to_value(journal.lock().unwrap().list(0, 200).unwrap()).unwrap(),
+        uploads_before
+    );
+    assert!(cloud.remote.lock().unwrap().files.is_empty());
+    // The mounted source remains readable while the editor still owns its stream.
+    application(&mount, "import pathlib,sys; assert (pathlib.Path(sys.argv[1])/'Working.txt').read_bytes()==b'active unsaved bytes'").await;
+    std::fs::write(&release, b"release").unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(5), editor.wait())
+            .await
+            .unwrap()
+            .unwrap()
+            .success()
+    );
+    cancel.cancel();
+    worker.await.unwrap();
+    server.await.unwrap().unwrap();
+}
+
+/// A permission downgrade must keep local recovery available without reopening
+/// mutation workers. Working bytes here are written through the actual kernel
+/// mount, then unlinked while open so shutdown cannot seal them for upload.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse; synthetic RW-to-RO manager/socket lifecycle only"]
+async fn real_manager_readonly_downgrade_exports_retained_saved_and_dirty_bytes()
+-> anyhow::Result<()> {
+    manager_readonly_downgrade_exports_retained_bytes(false).await
+}
+
+/// Exercise actual settings reload and manager ownership with iCloud identity.
+/// Providers remain synthetic: this does not exercise Apple transport or login.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse and the ordinary iCloud write settings gate"]
+async fn real_manager_icloud_readonly_write_readonly_retains_recovery() -> anyhow::Result<()> {
+    manager_readonly_downgrade_exports_retained_bytes(true).await
+}
+
+async fn manager_readonly_downgrade_exports_retained_bytes(icloud: bool) -> anyhow::Result<()> {
+    use cirrove_service::{
+        accounts::Settings,
+        manager::{Manager, ProviderFactory, WriteFactory},
+    };
+    let temp = tempfile::tempdir()?;
+    // Preserve this fixture on any failure; never recursively remove a mount.
+    let root = temp.keep();
+    let mount = root.join("mount");
+    std::fs::create_dir(&mount)?;
+    let state = root.join("state");
+    cirrove_service::private_dir(&state)?;
+    let mut config = account(&mount);
+    config.enabled = true;
+    config.access = if icloud {
+        AccessMode::ReadOnly
+    } else {
+        AccessMode::ReadWrite
+    };
+    if icloud {
+        config.registration = AppRegistration::ICloud;
+        config.identity.tenant_id.clear();
+        config.identity.graph_user_id.clear();
+        config.drive.drive_type = "icloud_drive".into();
+        config.root_id = "FOLDER::com.apple.CloudDocs::root".into();
+    }
+    config.label = "downgrade-fixture".into();
+    config.cache_bytes = 64 * 1024 * 1024;
+    let save_settings = |config: &Account| -> anyhow::Result<()> {
+        let next = state.join("accounts.next.json");
+        let settings = Settings {
+            version: 2,
+            accounts: vec![config.clone()],
+        };
+        settings.validate()?;
+        std::fs::write(&next, serde_json::to_vec(&settings)?)?;
+        std::fs::rename(next, state.join("accounts.json"))?;
+        Ok(())
+    };
+    save_settings(&config)?;
+    let cloud = Arc::new(Cloud::default());
+    cloud.stall.store(true, Ordering::SeqCst);
+    cloud.icloud_identity.store(icloud, Ordering::SeqCst);
+    let reads = cloud.clone();
+    let writes = cloud.clone();
+    let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
+    let factory_calls = Arc::new(AtomicUsize::new(0));
+    let calls = factory_calls.clone();
+    let captured = Arc::new(Mutex::new(None));
+    let capture = captured.clone();
+    let write_factory: WriteFactory = Arc::new(move |account, context| {
+        anyhow::ensure!(
+            account.access == AccessMode::ReadWrite,
+            "RO invoked write factory"
+        );
+        anyhow::ensure!(matches!(account.registration, AppRegistration::ICloud) == icloud);
+        calls.fetch_add(1, Ordering::SeqCst);
+        let journal = context.journal();
+        let mut journal = journal.lock().unwrap();
+        let record = journal.enqueue(
+            Scope {
+                account: account.id.clone(),
+                provider: writes.provider_id().into(),
+                collection: account.drive.id.clone(),
+            },
+            UploadIntent::Create {
+                parent: account.root_id.clone(),
+                name: "Saved.txt".into(),
+            },
+            &b"sealed before downgrade"[..],
+        )?;
+        let attempt = journal.claim_next()?.unwrap();
+        journal.stop_attempt(record.id, attempt.attempt.unwrap(), UploadState::Conflict)?;
+        *capture.lock().unwrap() = Some((record.id, record.sha256, context.journal()));
+        Ok(writes.clone())
+    });
+    let cancel = CancellationToken::new();
+    let (manager, worker) = Manager::start_with_providers(
+        state.clone(),
+        cancel.clone(),
+        read_factory,
+        Some(write_factory),
+    );
+    let socket = root.join("runtime/control.sock");
+    let server_socket = socket.clone();
+    let server_cancel = cancel.clone();
+    let server_manager = manager.clone();
+    let db = state.join("status.sqlite");
+    let server = tokio::spawn(async move {
+        cirrove_service::serve_managed(db, server_socket, server_cancel, Some(server_manager)).await
+    });
+    let outcome: anyhow::Result<()> = async {
+        tokio::time::timeout(Duration::from_secs(20), async {
+            loop {
+                if socket.exists() && manager.status.read().await.iter().any(|row| row.mounted) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await?;
+        if icloud {
+            let initial = manager.engine(&config.label).await?;
+            anyhow::ensure!(initial.account.access == AccessMode::ReadOnly);
+            anyhow::ensure!(initial.provider.provider_id() == "icloud");
+            let initial_engine = Arc::downgrade(&initial);
+            drop(initial);
+            anyhow::ensure!(factory_calls.load(Ordering::SeqCst) == 0);
+            anyhow::ensure!(cloud.write_calls.load(Ordering::SeqCst) == 0);
+            let path = mount.join("initial-ro-must-not-write.txt");
+            let error = tokio::task::spawn_blocking(move || std::fs::write(path, b"forbidden"))
+                .await?
+                .expect_err("initial RO mount accepted a write");
+            anyhow::ensure!(error.raw_os_error() == Some(libc::EROFS));
+            config.access = AccessMode::ReadWrite;
+            save_settings(&config)?;
+            tokio::time::timeout(Duration::from_secs(30), async {
+                loop {
+                    if let Ok(engine) = manager.engine(&config.label).await
+                        && engine.account.access == AccessMode::ReadWrite
+                        && manager.status.read().await.iter().any(|row| row.mounted)
+                        && initial_engine.upgrade().is_none()
+                        && factory_calls.load(Ordering::SeqCst) == 1
+                    {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await?;
+        }
+        let old_engine = Arc::downgrade(&manager.engine(&config.label).await?);
+        // No fsync before unlink: no sealed copy can replace the dirty generation.
+        let path = mount.join("Open then removed.txt");
+        tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+            let mut file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create_new(true)
+                .open(&path)?;
+            file.write_all(b"initial")?;
+            std::fs::remove_file(&path)?;
+            file.set_len(0)?;
+            file.seek(SeekFrom::Start(0))?;
+            file.write_all(b"dirty retained after unlink")?;
+            drop(file);
+            Ok(())
+        })
+        .await??;
+        let (saved, saved_hash, journal) = captured.lock().unwrap().take().unwrap();
+        let dirty = journal
+            .lock()
+            .unwrap()
+            .working_files()?
+            .into_iter()
+            .find(|file| file.unlinked && file.dirty)
+            .ok_or_else(|| anyhow::anyhow!("kernel unlink did not retain dirty working bytes"))?;
+        anyhow::ensure!(
+            journal.lock().unwrap().read_working(dirty.id, 0, 128)?
+                == b"dirty retained after unlink"
+        );
+        drop(journal); // The retiring RW owner must be able to close.
+        config.access = AccessMode::ReadOnly;
+        save_settings(&config)?;
+        tokio::time::timeout(Duration::from_secs(30), async {
+            loop {
+                if let Ok(engine) = manager.engine(&config.label).await
+                    && engine.account.access == AccessMode::ReadOnly
+                    && manager
+                        .status
+                        .read()
+                        .await
+                        .iter()
+                        .any(|row| row.mounted && row.local_recovery)
+                    && old_engine.upgrade().is_none()
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await?;
+        let calls_after_downgrade = cloud.write_calls.load(Ordering::SeqCst);
+        anyhow::ensure!(
+            factory_calls.load(Ordering::SeqCst) == 1,
+            "downgrade reopened a write factory"
+        );
+        let path = mount.join("must-not-write.txt");
+        let error = tokio::task::spawn_blocking(move || std::fs::write(path, b"forbidden"))
+            .await?
+            .expect_err("RO mount accepted a write");
+        anyhow::ensure!(
+            error.raw_os_error() == Some(libc::EROFS),
+            "wrong readonly write refusal: {error}"
+        );
+        let journal_root = state.join("accounts").join(&config.id).join("journal");
+        let before_db = std::fs::read(journal_root.join("uploads.db"))?;
+        let listed = cirrove_service::recovery_working(
+            &socket,
+            &cirrove_service::RecoveryWorkingRequest {
+                label: config.label.clone(),
+                after: None,
+                limit: 200,
+            },
+        )
+        .await?;
+        anyhow::ensure!(
+            listed.refusal.is_none(),
+            "RO list refused: {:?}",
+            listed.refusal
+        );
+        let retained = listed
+            .files
+            .iter()
+            .find(|file| file.file == dirty.id)
+            .ok_or_else(|| anyhow::anyhow!("dirty generation disappeared"))?;
+        anyhow::ensure!(retained.generation == dirty.generation);
+        let wait_job = |id: String| {
+            let socket = socket.clone();
+            async move {
+                tokio::time::timeout(Duration::from_secs(5), async {
+                    loop {
+                        let status = cirrove_service::status(&socket).await?;
+                        if let Some(job) = status
+                            .accounts
+                            .iter()
+                            .flat_map(|row| &row.jobs)
+                            .find(|job| job.id == id && !job.running())
+                        {
+                            return Ok::<_, anyhow::Error>(job.clone());
+                        }
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                })
+                .await?
+            }
+        };
+        let saved_destination = root.join("sealed-export.txt");
+        let saved_reply = cirrove_service::export_save(
+            &socket,
+            &cirrove_service::ExportSaveRequest {
+                label: config.label.clone(),
+                operation: saved,
+                destination: saved_destination.clone(),
+            },
+        )
+        .await?;
+        let saved_job = saved_reply
+            .job
+            .ok_or_else(|| anyhow::anyhow!("RO saved export refused: {:?}", saved_reply.refusal))?;
+        let complete = wait_job(saved_job.id).await?;
+        let receipt = complete
+            .export
+            .ok_or_else(|| anyhow::anyhow!("missing sealed receipt"))?;
+        anyhow::ensure!(receipt.operation == saved && receipt.sha256 == saved_hash);
+        anyhow::ensure!(std::fs::read(saved_destination)? == b"sealed before downgrade");
+        let request = cirrove_service::ExportWorkingRequest {
+            label: config.label.clone(),
+            file: dirty.id,
+            generation: dirty.generation,
+            destination: root.join("dirty-export.txt"),
+        };
+        let working_reply = cirrove_service::export_working(&socket, &request).await?;
+        let initial = working_reply.job.ok_or_else(|| {
+            anyhow::anyhow!("RO working export refused: {:?}", working_reply.refusal)
+        })?;
+        let complete = wait_job(initial.id.clone()).await?;
+        let receipt = request
+            .confirmed_receipt(&initial, &complete)
+            .ok_or_else(|| anyhow::anyhow!("missing exact dirty receipt"))?;
+        anyhow::ensure!(
+            receipt.sha256 == hex::encode(Sha256::digest(b"dirty retained after unlink"))
+        );
+        anyhow::ensure!(std::fs::read(&request.destination)? == b"dirty retained after unlink");
+        anyhow::ensure!(manager.retry_stuck(&config.label).await.is_err());
+        anyhow::ensure!(manager.discard_stuck(&config.label).await.is_err());
+        // Cross a manager refresh as well as the export completion boundaries.
+        tokio::time::sleep(Duration::from_secs(6)).await;
+        anyhow::ensure!(
+            cloud.write_calls.load(Ordering::SeqCst) == calls_after_downgrade,
+            "RO account replayed provider work"
+        );
+        anyhow::ensure!(factory_calls.load(Ordering::SeqCst) == 1);
+        anyhow::ensure!(
+            std::fs::read(journal_root.join("uploads.db"))? == before_db,
+            "RO recovery changed the journal"
+        );
+        anyhow::ensure!(cloud.remote.lock().unwrap().history.is_empty());
+        Ok(())
+    }
+    .await;
+    cancel.cancel();
+    let stopped = tokio::time::timeout(Duration::from_secs(20), worker).await;
+    let served = tokio::time::timeout(Duration::from_secs(5), server).await;
+    stopped??;
+    served???;
+    outcome
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; selected representation admission precedes local edits"]
+async fn real_unknown_package_admission_refuses_namespace_and_content_before_journalling() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    replacement_fixture(&cloud);
+    // Metadata deliberately says ordinary file, with an unrecognized extension.
+    cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .get_mut("target")
+        .unwrap()
+        .0
+        .name = "bundle.unknown-native".into();
+    let mut folder = root();
+    folder.id = "folder".into();
+    folder.parent_id = Some("root".into());
+    folder.name = "folder".into();
+    cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .insert("folder".into(), (folder, vec![]));
+    *cloud.refused_write_target.lock().unwrap() = Some("target".into());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine,
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys,errno
+os.chdir(sys.argv[1])
+p='bundle.unknown-native'
+def refused(action):
+    try:
+        result=action()
+    except OSError as e:
+        assert e.errno == errno.EACCES, e
+    else:
+        if isinstance(result,int): os.close(result)
+        raise AssertionError('unclassified package edit accepted')
+for action in [
+    lambda: os.open(p,os.O_WRONLY),
+    lambda: os.open(p,os.O_WRONLY|os.O_TRUNC),
+    lambda: os.truncate(p,0),
+    lambda: os.unlink(p),
+    lambda: os.rename(p,'renamed'),
+    lambda: os.rename(p,'folder/moved'),
+    lambda: os.replace('source.txt',p),
+    lambda: os.replace(p,'source.txt'),
+]:
+    refused(action)
+    assert sorted(os.listdir('.')) == ['bundle.unknown-native','folder','source.txt']
+    assert os.stat(p).st_size == 3
+    assert os.stat('source.txt').st_size == 3
+"#,
+    )
+    .await;
+    {
+        let j = journal.lock().unwrap();
+        assert!(j.list(0, 64).unwrap().is_empty());
+        assert!(j.list_mutations(0, 64).unwrap().is_empty());
+        assert!(j.working_files().unwrap().is_empty());
+    }
+    assert_eq!(
+        cloud.reads.load(Ordering::SeqCst),
+        0,
+        "admission must not download content"
+    );
+    assert!(cloud.remote.lock().unwrap().moves.is_empty());
+    assert!(cloud.remote.lock().unwrap().deletes.is_empty());
+    // Ordinary metadata remains editable; then its local alias must not bypass
+    // a subsequent representation refusal for the canonical provider identity.
+    application(&mount, "import os,sys; os.rename(os.path.join(sys.argv[1],'source.txt'),os.path.join(sys.argv[1],'alias.txt'))").await;
+    mutations_applied(&session, 1).await;
+    *cloud.refused_write_target.lock().unwrap() = Some("source".into());
+    cloud.admission_targets.lock().unwrap().clear();
+    application(
+        &mount,
+        r#"
+import os,sys,errno
+p=os.path.join(sys.argv[1],'alias.txt')
+try: os.unlink(p)
+except OSError as e: assert e.errno==errno.EACCES
+else: raise AssertionError('local alias bypassed remote admission')
+assert os.stat(p).st_size==3
+"#,
+    )
+    .await;
+    assert!(
+        cloud
+            .admission_targets
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|id| id == "source")
+    );
+    assert_eq!(
+        journal.lock().unwrap().list_mutations(0, 64).unwrap().len(),
+        1
+    );
+    *cloud.refused_write_target.lock().unwrap() = None;
+    cloud.hold_admission.store(true, Ordering::SeqCst);
+    let raced_path = mount.join("alias.txt");
+    let pending = tokio::task::spawn_blocking(move || {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(raced_path)
+    });
+    tokio::time::timeout(Duration::from_secs(5), cloud.admission_entered.notified())
+        .await
+        .unwrap();
+    {
+        let mut j = journal.lock().unwrap();
+        let row = j.list_mutations(0, 64).unwrap().remove(0);
+        let object = j
+            .namespace_by_remote(&row.request.scope, "source")
+            .unwrap()
+            .unwrap();
+        // Reactivate an idle follows-remote alias through the same journal API
+        // used by foreground materialization before constructing its successor.
+        let object = j
+            .observe_namespace_file(row.request.scope.clone(), object.remote.clone().unwrap())
+            .unwrap();
+        j.relocate_namespace_item(
+            object.id,
+            object.revision,
+            "root".into(),
+            "raced.txt".into(),
+        )
+        .unwrap();
+    }
+    cloud.admission_release.notify_one();
+    let failure = tokio::time::timeout(Duration::from_secs(5), pending)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(
+        failure.raw_os_error(),
+        Some(libc::ESTALE),
+        "binding changed while metadata validation awaited"
+    );
+    assert!(journal.lock().unwrap().working_files().unwrap().is_empty());
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; admission races with an existing working stream"]
+async fn real_existing_working_admission_rechecks_open_and_path_truncate_atomically() {
+    for truncate_path in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let mount = temp.path().join("mount");
+        std::fs::create_dir(&mount).unwrap();
+        let account = account(&mount);
+        let cloud = Arc::new(Cloud::default());
+        replacement_fixture(&cloud);
+        let journal = Arc::new(Mutex::new(
+            UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+        ));
+        let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+            .await
+            .unwrap();
+        let session = WritableSession::mount(
+            engine,
+            journal.clone(),
+            cloud.clone(),
+            Arc::new(Vault::default()),
+        )
+        .await
+        .unwrap();
+        let source = mount.join("source.txt");
+        let old = tokio::task::spawn_blocking(move || {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(source)
+                .unwrap()
+        })
+        .await
+        .unwrap();
+        let working = journal.lock().unwrap().working_files().unwrap();
+        assert_eq!(working.len(), 1);
+        assert_eq!(working[0].node.size, 3);
+        let working_id = working[0].id;
+        cloud.hold_admission.store(true, Ordering::SeqCst);
+        let path = mount.clone();
+        let pending = tokio::spawn(async move {
+            application(
+                &path,
+                if truncate_path {
+                    r#"
+import os,sys,errno
+try: os.truncate(os.path.join(sys.argv[1],'source.txt'),1)
+# Linux may retry ESTALE by resolving the old pathname, which the deliberate
+# concurrent rename removed. Both outcomes refuse the stale operation.
+except OSError as e: assert e.errno in (errno.ESTALE,errno.ENOENT), e
+else: raise AssertionError('stale pathname truncate accepted')
+"#
+                } else {
+                    r#"
+import os,sys,errno
+try: fd=os.open(os.path.join(sys.argv[1],'source.txt'),os.O_WRONLY)
+# Linux may retry ESTALE by resolving the old pathname, which the deliberate
+# concurrent rename removed. Both outcomes refuse the stale operation.
+except OSError as e: assert e.errno in (errno.ESTALE,errno.ENOENT), e
+else:
+    os.close(fd)
+    raise AssertionError('stale existing-working open accepted')
+"#
+                },
+            )
+            .await;
+        });
+        tokio::time::timeout(Duration::from_secs(5), cloud.admission_entered.notified())
+            .await
+            .unwrap();
+        {
+            let mut j = journal.lock().unwrap();
+            let object = j
+                .namespace_objects()
+                .unwrap()
+                .into_iter()
+                .find(|o| o.remote.as_ref().is_some_and(|n| n.id == "source"))
+                .unwrap();
+            j.relocate_namespace_item(
+                object.id,
+                object.revision,
+                "root".into(),
+                "raced.txt".into(),
+            )
+            .unwrap();
+        }
+        cloud.admission_release.notify_one();
+        tokio::time::timeout(Duration::from_secs(5), pending)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            journal
+                .lock()
+                .unwrap()
+                .working_file(working_id)
+                .unwrap()
+                .node
+                .size,
+            3,
+            "refused pathname action must preserve the existing stream length"
+        );
+        // Previously admitted descriptors retain their stream semantics even if
+        // another namespace operation renamed that stream while a new open waited.
+        tokio::task::spawn_blocking(move || old.set_len(2).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            journal
+                .lock()
+                .unwrap()
+                .working_file(working_id)
+                .unwrap()
+                .node
+                .size,
+            2
+        );
+        // The unified pathname path must still hydrate, shrink and extend an
+        // ordinary file without changing the already-open-descriptor contract.
+        application(
+            &mount,
+            r#"
+import os,sys
+p=os.path.join(sys.argv[1],'document.txt')
+os.truncate(p,2)
+assert open(p,'rb').read()==b'ol'
+os.truncate(p,6)
+assert open(p,'rb').read()==b'ol\0\0\0\0'
+"#,
+        )
+        .await;
+        session.shutdown().await.unwrap();
+    }
+}
+
+/// Inject an already-confirmed receipt to isolate the kernel/publication boundary.
+/// This does not validate Apple's Trash or its generated ZIP implementation.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE"]
+async fn real_native_trash_publication_preserves_held_generated_archive_reader() {
+    use std::io::Read;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    let original = Node {
+        id: "FILE::com.apple.CloudDocs::synthetic-native".into(),
+        parent_id: Some("root".into()),
+        name: "Held.pages".into(),
+        kind: NodeKind::Folder,
+        package: true,
+        size: 5,
+        modified_unix: 1,
+        etag: Some("original-E1".into()),
+        content_version: Some("original-E1".into()),
+        target: None,
+    };
+    // Models already verified immutable artifact bytes, not native ZIP parsing.
+    let bytes: Vec<u8> = (0..128 * 1024).map(|n| (n % 251) as u8).collect();
+    let expected_sha256 = hex::encode(Sha256::digest(&bytes));
+    let artifact = Node {
+        id: format!("icloud-artifact:{}", original.id),
+        parent_id: Some(original.id.clone()),
+        name: original.name.clone(),
+        kind: NodeKind::File,
+        package: false,
+        size: bytes.len() as u64,
+        modified_unix: 1,
+        etag: None,
+        content_version: Some(format!("synthetic-verified-artifact:{expected_sha256}")),
+        target: None,
+    };
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        remote
+            .files
+            .insert(original.id.clone(), (original.clone(), Vec::new()));
+        remote
+            .files
+            .insert(artifact.id.clone(), (artifact.clone(), bytes.clone()));
+    }
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    let path = mount.join(&original.name).join(&artifact.name);
+    let (mut held, initial) = tokio::task::spawn_blocking({
+        let path = path.clone();
+        move || {
+            let mut held = std::fs::File::open(path).unwrap();
+            let mut contents = Vec::new();
+            held.read_to_end(&mut contents).unwrap();
+            (held, contents)
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(initial, bytes);
+    assert_eq!(hex::encode(Sha256::digest(&initial)), expected_sha256);
+    let reads_before = cloud.reads.load(Ordering::SeqCst);
+    assert!(reads_before > 0);
+    let scope = engine.scope("drive");
+    assert!(
+        cirrove_store::Store::open(&engine.db)
+            .unwrap()
+            .node(&scope, &original.id)
+            .unwrap()
+            .is_some()
+    );
+    let row = {
+        // Prevent workers from claiming between enqueue and acknowledgement.
+        let mut journal = journal.lock().unwrap();
+        let row = journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::TrashNativeDocument {
+                    before: original.clone(),
+                },
+            })
+            .unwrap();
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        assert_eq!(claimed.id, row.id);
+        {
+            let mut remote = cloud.remote.lock().unwrap();
+            remote.files.remove(&original.id).unwrap();
+            remote.files.remove(&artifact.id).unwrap();
+        }
+        journal
+            .acknowledge_mutation(
+                row.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Removed {
+                    item: original.id.clone(),
+                },
+            )
+            .unwrap();
+        journal.mutation(row.id).unwrap()
+    };
+    cloud.offline.store(true, Ordering::SeqCst);
+    let receipt_before = serde_json::to_vec(&row).unwrap();
+    // Engine's package rechecks may independently learn the same absence.
+    // Require this operation's durable publication acknowledgement as well;
+    // otherwise disabling the publication worker can falsely pass this test.
+    let publication_db = temp.path().join("journal/uploads.db");
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let db = rusqlite::Connection::open_with_flags(
+                &publication_db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+            ).unwrap();
+            let done: bool = db.query_row(
+                "SELECT EXISTS(SELECT 1 FROM native_trash_metadata_publication WHERE operation=?1 AND done=1)",
+                [row.id.to_string()], |r| r.get(0),
+            ).unwrap();
+            if done { break; }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }).await.expect("native Trash publication was not durably acknowledged");
+    // Also require visible Store convergence without triggering a frontend fetch.
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if cirrove_store::Store::open(&engine.db)
+                .unwrap()
+                .node(&scope, &original.id)
+                .unwrap()
+                .is_none()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let root = mount.clone();
+    let name = original.name.clone();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let present = tokio::task::spawn_blocking({
+                let root = root.clone();
+                let name = name.clone();
+                move || {
+                    std::fs::read_dir(root)
+                        .unwrap()
+                        .any(|entry| entry.unwrap().file_name() == name.as_str())
+                }
+            })
+            .await
+            .unwrap();
+            if !present {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let (contents, path_error) = tokio::task::spawn_blocking(move || {
+        assert_eq!(held.seek(SeekFrom::Start(0)).unwrap(), 0);
+        let mut contents = Vec::new();
+        held.read_to_end(&mut contents).unwrap();
+        let error = std::fs::File::open(path).expect_err("removed path reopened");
+        (contents, error.raw_os_error())
+    })
+    .await
+    .unwrap();
+    assert_eq!(contents, bytes);
+    assert_eq!(hex::encode(Sha256::digest(&contents)), expected_sha256);
+    assert_eq!(path_error, Some(libc::ENOENT));
+    assert_eq!(
+        cloud.reads.load(Ordering::SeqCst),
+        reads_before,
+        "held reader must not refetch deleted content"
+    );
+    assert_eq!(
+        cloud.write_calls.load(Ordering::SeqCst),
+        0,
+        "publication must not dispatch mutations"
+    );
+    assert_eq!(
+        serde_json::to_vec(&journal.lock().unwrap().mutation(row.id).unwrap()).unwrap(),
+        receipt_before
+    );
+    session.shutdown().await.unwrap();
+}
+
+#[path = "writable_session/native_replacement_publication.rs"]
+mod native_replacement_publication;
+
+#[path = "writable_session/native_archive_edit.rs"]
+mod native_archive_edit;

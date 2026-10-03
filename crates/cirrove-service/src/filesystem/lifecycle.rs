@@ -1,4 +1,7 @@
 //! Close edit admission atomically before awaiting the admitted callbacks.
+mod native_abandon;
+mod native_import;
+mod native_trash;
 use super::*;
 use tokio_util::task::{TaskTracker, task_tracker::TaskTrackerToken};
 
@@ -41,6 +44,9 @@ pub(crate) struct WriteControl {
     provider: Option<Arc<dyn cirrove_core::mutation::MutationProvider>>,
 }
 impl WriteControl {
+    pub(crate) fn belongs_to(&self, engine: &Arc<Engine>) -> bool {
+        Arc::ptr_eq(&self.inner.engine, engine)
+    }
     pub(crate) fn with_provider(
         mut self,
         provider: Arc<dyn cirrove_core::mutation::MutationProvider>,
@@ -63,20 +69,37 @@ impl WriteControl {
         engine: &Arc<Engine>,
         path: &str,
     ) -> std::io::Result<(Scope, Node)> {
+        self.resolve_visible_path_mode(engine, path, false).await
+    }
+
+    pub(crate) async fn resolve_visible_path_mode(
+        &self,
+        engine: &Arc<Engine>,
+        path: &str,
+        cached: bool,
+    ) -> std::io::Result<(Scope, Node)> {
+        if cached
+            && (path.len() > 16384
+                || path.starts_with('/')
+                || path.split('/').count() > 128
+                || path.split('/').any(|p| matches!(p, "." | "..")))
+        {
+            return Err(std::io::Error::other("invalid status path"));
+        }
         fn unavailable(error: impl std::fmt::Display) -> std::io::Error {
             std::io::Error::other(error.to_string())
         }
 
         let mut scope = engine.scope(&engine.account.drive.id);
         let mut node = engine
-            .node(&scope, &engine.account.root_id)
+            .status_node(&scope, &engine.account.root_id, cached)
             .await
             .map_err(unavailable)?;
         for name in path.split('/').filter(|part| !part.is_empty()) {
             if let Some(target) = node.target.clone() {
                 scope = engine.scope(&target.collection);
                 node = engine
-                    .node(&scope, &target.item)
+                    .status_node(&scope, &target.item, cached)
                     .await
                     .map_err(unavailable)?;
             }
@@ -87,7 +110,7 @@ impl WriteControl {
                 .map_err(|error| std::io::Error::from_raw_os_error(error.code()))?;
             let children = match provider_parent {
                 Some(provider_parent) => engine
-                    .children(&scope, &provider_parent)
+                    .status_children(&scope, &provider_parent, cached)
                     .await
                     .map_err(unavailable)?,
                 None => Vec::new(),
@@ -105,7 +128,7 @@ impl WriteControl {
         if let Some(target) = node.target.clone() {
             scope = engine.scope(&target.collection);
             node = engine
-                .node(&scope, &target.item)
+                .status_node(&scope, &target.item, cached)
                 .await
                 .map_err(unavailable)?;
         }
@@ -114,7 +137,10 @@ impl WriteControl {
             .remote_identity(&scope, &node.id)
             .map_err(|error| std::io::Error::from_raw_os_error(error.code()))?
         {
-            node = engine.node(&scope, &item).await.map_err(unavailable)?;
+            node = engine
+                .status_node(&scope, &item, cached)
+                .await
+                .map_err(unavailable)?;
         }
         Ok((scope, node))
     }
@@ -140,6 +166,27 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("local namespace maintenance failed"))
     }
+    pub(crate) async fn publish_completed_package(&self) -> std::io::Result<bool> {
+        self.writer
+            .publish_completed_package(&self.inner.engine)
+            .await
+            .map_err(|_| std::io::Error::other("native package metadata refresh is pending"))
+    }
+    pub(crate) async fn publish_completed_native_trash(&self) -> std::io::Result<bool> {
+        self.writer
+            .publish_completed_native_trash(&self.inner.engine)
+            .await
+            .map_err(|_| std::io::Error::other("native Trash metadata refresh is pending"))
+    }
+    pub(crate) async fn native_trash_publication(
+        &self,
+        id: uuid::Uuid,
+    ) -> std::io::Result<crate::journal::PackagePublicationStatus> {
+        self.writer
+            .native_trash_publication(id)
+            .await
+            .map_err(|_| std::io::Error::other("native Trash metadata publication is unavailable"))
+    }
     pub async fn refresh_operation(&self, id: uuid::Uuid) -> std::io::Result<()> {
         self.writer
             .refresh_operation(id)
@@ -162,9 +209,52 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("could not discard the stuck changes"))
     }
+    pub async fn working_recovery_list(
+        &self,
+        after: Option<uuid::Uuid>,
+        limit: u32,
+    ) -> std::io::Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        self.writer
+            .working_recovery_list(after, limit)
+            .await
+            .map_err(|_| std::io::Error::other("working versions are unavailable"))
+    }
+    pub async fn working_export_source(
+        &self,
+        id: uuid::Uuid,
+        generation: u64,
+    ) -> std::io::Result<crate::journal::WorkingExportSource> {
+        self.writer
+            .working_export_source(id, generation)
+            .await
+            .map_err(|_| std::io::Error::other("the working version changed or is unavailable"))
+    }
+    pub async fn verify_working_export(
+        &self,
+        prepared: crate::journal::PreparedWorkingExport,
+    ) -> std::io::Result<crate::journal::VerifiedWorkingExport> {
+        self.writer
+            .verify_working_export(prepared)
+            .await
+            .map_err(|_| std::io::Error::other("the working version changed while copying"))
+    }
+    pub async fn local_export_source(
+        &self,
+        id: uuid::Uuid,
+    ) -> std::io::Result<crate::journal::LocalExportSource> {
+        self.writer.local_export_source(id).await.map_err(|_| {
+            std::io::Error::other("the saved generation is unavailable or cannot be exported")
+        })
+    }
     pub async fn stuck_changes(&self) -> std::io::Result<u64> {
         self.writer
             .stuck_changes()
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn unconfirmed_changes(&self) -> std::io::Result<u64> {
+        self.writer
+            .unconfirmed_changes()
             .await
             .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
@@ -205,10 +295,13 @@ impl WriteControl {
         &self,
         plans: Vec<(uuid::Uuid, String, String)>,
     ) -> std::io::Result<u64> {
-        self.writer
+        let kept = self
+            .writer
             .keep_both(plans)
             .await
-            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))?;
+        self.inner.engine.changed.notify_waiters();
+        Ok(kept)
     }
     pub async fn recent_local(
         &self,
@@ -271,3 +364,5 @@ mod tests {
         assert!(gate.admit().is_err());
     }
 }
+
+mod native_replace;

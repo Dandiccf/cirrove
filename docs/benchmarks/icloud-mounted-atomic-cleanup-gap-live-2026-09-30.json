@@ -1,0 +1,16 @@
+{
+  "run": "c1d0f572-c8d2-488e-90ab-4bcdb20777eb",
+  "binary_sha256": "be468f147aec0ea5776c1a95f0bc65989ceb32c5a55b4d0ec5674932cf2168a8",
+  "filesystem": "btrfs",
+  "exit_code": -15,
+  "elapsed_seconds": 608.64,
+  "local_editor_passed": true,
+  "confirmed_uploads": 5,
+  "unprepared_cleanup_rows": 2,
+  "source_difference_fields": [
+    "content_version"
+  ],
+  "remote_completed": false,
+  "stopped_by_recorded_pid": true,
+  "isolated_mount_detached": true
+}

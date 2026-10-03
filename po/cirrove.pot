@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cirrove\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-22 17:45+0200\n"
+"POT-Creation-Date: 2026-10-02 00:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,606 +17,741 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:24
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:24
 msgid "Connected"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:25
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:25
 msgid "Updating or offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:26
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:26
 msgid "Provider is limiting requests"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:27
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:530
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:27
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:585
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:844
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:1038
 msgid "Sign in again"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:28
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:28
 msgid "Mounting…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:29
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:29
 msgid "Unmounting…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:30
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:30
 msgid "Unmounted"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:31
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:31
 msgid "Connection needs attention"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:32
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:32
 msgid "Service unavailable"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:33
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:33
 msgid "Service update required"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:34
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:34
 msgid "Waiting for service"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:40
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:40
 msgid ""
 "File contents download when opened. Cirrove checks for folder changes in the "
 "background."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:43
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:43
 msgid ""
 "Cirrove is checking for changes. Previously listed files may be out of date."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:46
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:46
 msgid ""
 "The cloud provider has asked Cirrove to wait. It will retry automatically."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:49
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:49
 msgid "This account needs a new sign-in before cloud access can resume."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:51
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:51
 msgid "Waiting for the service to confirm the mount."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:52
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:52
 msgid "Waiting for the service to release this mount."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:53
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:53
 msgid "This connection is saved and can be mounted again."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:55
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:55
 msgid ""
 "The mount or a cloud library is unavailable. Check the connection and mount "
 "location."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:58
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:58
 msgid ""
 "The Cirrove service could not be reached. This is saved configuration, not a "
 "current mount status."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:61
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:61
 msgid ""
 "The running service cannot confirm this account's identity. Update the "
 "service before using mount controls."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:64
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:64
 msgid "Waiting for the service to observe the saved account settings."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:171
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:182
 msgid "{} of {} files · {} of {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:181
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1704
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:194
+msgid ""
+"Document replaced and available in Files. Original Trash receipt recorded."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:197
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1901
+msgid "Stopped watching the replacement; its saved operation remains retained."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:199
+msgid "Replacing native document…"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:204
+msgid "Document imported and available in Files."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:205
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:214
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1867
 msgid "Stopping…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:183
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:207
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1902
+msgid ""
+"Stopped watching the import. An already queued document may still finish "
+"uploading."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:209
+msgid "Importing document · {}"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:216
 msgid "Stopped after {} of {} files. Nothing is kept offline for it."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:187
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:220
 msgid "Kept {} of {} files, then stopped: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:262
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:537
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:335
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:592
 msgid "Mount"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:264
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:337
 msgid "Unmount"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:266
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:339
 msgid "Cancel mount"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:311
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:385
 msgid "just now"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:312
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:386
 msgid "1 minute ago"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:313
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:387
 msgid "{} minutes ago"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:314
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:388
 msgid "1 hour ago"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:315
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:389
 msgid "{} hours ago"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:316
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:390
 msgid "yesterday"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:317
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:391
 msgid "{} days ago"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:318
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:392
 msgid "more than a week ago"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:332
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:406
 msgid "removed in the cloud"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:334
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:408
 msgid "changed in the cloud"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:341
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:415
 msgid "saved here · in the cloud"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:342
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:416
 msgid "saved here · waiting to upload"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:344
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:417
 msgid "saved here · uploading"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:349
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:419
+msgid "saved here · checking cloud confirmation"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:424
 msgid "saved here · the cloud refused it"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:350
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:425
 msgid "saved here · upload failed"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:359
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:431
 msgid "{} · {} of {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:28
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:28
 msgid ""
 "Cirrove does not have permission to read your saved connections. Check "
 "access to the settings directory, then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:30
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:30
 msgid ""
 "The accounts settings path is a directory instead of a file. Restore the "
 "settings file, then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:32
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:32
 msgid ""
 "The saved connections could not be read from disk. Check that the settings "
 "location is accessible, then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:35
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:35
 msgid ""
 "The settings file has invalid data at line {}, column {}. Restore a valid "
 "settings file, then retry. Your cloud files have not been changed."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:40
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:40
 msgid ""
 "The saved connections contain unsupported or invalid settings. Check the "
 "Cirrove version and restore a valid settings file, then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:42
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:42
 msgid ""
 "The task reading your saved connections stopped unexpectedly. Retry or "
 "reopen Cirrove."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:69
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:69
 msgid ""
 "The Cirrove service is not running at this location. Start the service, then "
 "retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:72
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:72
 msgid ""
 "Access to the Cirrove service was denied. Check the service permissions, "
 "then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:75
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:75
 msgid ""
 "The Cirrove service did not respond in time. Check the service, then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:78
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:78
 msgid ""
 "The connection to the Cirrove service failed. Check the service, then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:81
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:81
 msgid ""
 "The Cirrove service returned an invalid response. Check that the desktop and "
 "service versions match."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model/failures.rs:84
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model/failures.rs:84
 msgid ""
 "This Cirrove service version is incompatible. Update the desktop and service "
 "together, then retry."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:136
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:143
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:148
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:155
 msgid "Cirrove"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:144
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:156
 msgid "Cloud drives"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:152
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:164
 msgid "Cirrove service is unavailable"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:153
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:165
 msgid "Retry"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:162
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:174
 msgid ""
 "No tray icon: this desktop has no tray. On GNOME, install the AppIndicator "
 "extension; most other desktops provide one."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:174
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:186
 msgid ""
 "A newer version of Cirrove is installed. Log out and back in, or restart the "
 "Cirrove service, to start using it."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:185
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:197
 msgid "Your clouds, in Files"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:191
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:203
 msgid "Manage your saved cloud connections."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:205
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:217
 msgid "Recent activity"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:211
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:239
 msgid "Loading connections…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:212
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:245
 msgid "Reading your saved accounts and service status."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:230
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:272
 msgid "OneDrive setup guide"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:234
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:276
 msgid "Google Drive setup guide"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:246
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:288
 msgid "Interface preview · sample accounts"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:248
-msgid "Files download when opened · changes upload in the background"
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:290
+msgid "Files download when opened"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:404
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:449
 msgid "Could not read connection status. Try again."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:422
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:467
 msgid "No drives connected"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:424
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:469
 msgid "Account settings unavailable"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:427
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:478
 msgid ""
 "Connect a cloud drive and its files appear in Files, downloaded as you open "
 "them."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:497
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:548
 msgid "{} · {} · {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:501
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:821
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:552
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:926
 msgid "{} · {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:542
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:597
 msgid "Connection status"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:547
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:602
 msgid "Location in Files"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:553
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:608
 msgid "Cloud account"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:559
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:614
 msgid "Access"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:568
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:177
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:623
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:215
 msgid "Allow changes"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:573
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:628
 msgid "Local cache"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:579
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:634
+msgid "Checking cloud confirmation"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:640
 msgid "Changes the cloud refused"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:589
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:650
 msgid "Try again"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:593
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:654
 msgid "Discard"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:600
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:199
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:253
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:661
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1264
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:199
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:253
 msgid "Kept offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:611
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:672
 msgid "File…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:616
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:677
 msgid "Folder…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:629
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:690
 msgid "Keep a file or folder offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:643
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:704
 msgid "A wastebasket folder is in this drive"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:652
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1444
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:713
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:56
+msgid "Import an iWork document"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:714
+msgid ""
+"Create a new iCloud document from a local Pages, Numbers or Keynote ZIP "
+"archive. Existing documents are never replaced."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:717
+msgid "Import document…"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:729
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1607
 msgid "Delete a file permanently"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:654
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:731
 msgid ""
 "Skips the drive's recycle bin, so there is no way back. An ordinary delete "
 "in any file manager is recoverable and stays that way."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:660
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:737
 msgid "Choose a file…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:666
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:743
 msgid "Remove this connection"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:668
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:745
 msgid ""
 "Its sign-in and local index are set aside; nothing in the cloud is touched."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:674
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:751
 msgid "Remove"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:692
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:769
 msgid "Saves that did not reach the cloud"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:699
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:776
 msgid "Keep both copies"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:816
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:781
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:89
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:117
+msgid "Save a local copy…"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:785
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1141
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:53
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:68
+msgid "Recover local changes"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:787
+msgid "Save a copy outside the cloud without retrying the upload."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:921
 msgid "Still waiting for service"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:824
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:929
 msgid ""
 "The request is saved, but the service has not confirmed it. You can change "
 "the mount preference or check the service."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:851
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:959
 msgid "Google account"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:853
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:960
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:821
+msgid "Apple Account"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:961
 msgid "Microsoft account"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:890
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:975
+msgid ""
+"Sign in again to change Cirrove's local access policy. Apple session "
+"permissions stay unchanged; native document packages remain protected."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:977
+msgid ""
+"Sign in again asking only to read. Cirrove stops making changes; withdraw "
+"the earlier permission separately in your Google Account"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:985
+msgid ""
+"Sign in again asking only to read. Cirrove stops making changes; withdraw "
+"the earlier permission separately in your Microsoft account"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:987
+msgid ""
+"Sign in again asking to make changes, so files in this drive can be saved"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1000
 msgid "Up to {} GiB · downloaded as needed"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:902
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1009
+msgid ""
+"{} changes have no confirmed cloud result yet. Cirrove is checking their "
+"outcome before continuing. Local recovery data is retained."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1013
+msgid ""
+"{} changes have no confirmed cloud result. Recovery data is retained; read-"
+"only mode does not retry these changes."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1021
 msgid "1 change"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:904
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1023
 msgid "{} changes"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:911
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1029
+msgid ""
+"Local changes are retained while this connection is read-only. Recover a "
+"copy before deciding how to continue."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1034
 msgid ""
 "{} that the cloud would not accept. The cloud has decided about these, so "
 "they are not re-sent; discarding removes the local copies and the cloud "
 "keeps its version."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:918
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1041
 msgid ""
 "{} that did not reach the cloud. Try again sends them once more; discarding "
 "removes the local copies and the cloud keeps its version."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:925
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1048
 msgid ""
 "{} that the cloud would not accept, {} of which are worth trying again. The "
 "rest the cloud has decided about and are not re-sent; discarding removes the "
 "local copies and the cloud keeps its version."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:944
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:983
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1067
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1116
 msgid ", and {} more"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:960
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1087
+msgid ""
+"Local saves are retained while this connection is read-only. Saving a "
+"recovery copy does not upload or discard them."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1092
 msgid ""
 "{} did not reach the cloud. The file is on this computer; the cloud has an "
 "older version or none. Open the file and save it again to try once more."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:963
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1095
 msgid "1 save"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:965
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1097
 msgid "{} saves"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:993
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1126
 msgid ""
 "{} was made by a file manager before Cirrove refused to hold one, and "
 "whatever is in it is still in your cloud drive. Nothing can be added to it "
 "now. Removing it is yours to decide; Cirrove will not."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1002
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1146
 msgid ""
 "Put your version beside the cloud's, under a new name, instead of losing one "
 "of them"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1057
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1201
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:168
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:219
 msgid "Stop"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1059
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1203
 msgid "Dismiss"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1083
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1227
 msgid "{} · everything inside it"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1091
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1235
 msgid "Stop keeping"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1114
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1262
+msgid "Transfers and kept offline"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1270
+msgid "Importing {} · {}"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1273
 msgid "Keeping {} offline · {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1123
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1282
 msgid "{} items kept offline."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1176
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1335
 msgid "Saving mount preference…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1224
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1383
 msgid "Cirrove is busy with this drive. Wait a moment and try again."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1227
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1386
 msgid ""
 "This connection is no longer configured. It may have been removed in another "
 "window."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1230
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1389
 msgid ""
 "Your saved connections could not be read, so the change was not made. Check "
 "the settings location, then try again."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1233
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1392
 msgid ""
 "The change could not be saved. Check that the settings location is writable "
 "and has space, then try again."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1240
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1399
 msgid ""
 "The task saving this change stopped unexpectedly. Retry or reopen Cirrove."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1287
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1450
 msgid "read and write"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1289
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1452
 msgid "read-only"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1292
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1455
 msgid "Continue to Google sign-in?"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1295
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1458
 msgid ""
 "Google grants {} access to Drive files across your account. Cirrove mounts "
 "only the drive you chose. Your name, email, file names, metadata and opened "
@@ -626,258 +761,279 @@ msgid ""
 "discard it."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1300
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1497
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:818
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1463
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1660
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:110
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:85
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:113
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:818
 msgid "Cancel"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1301
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1464
 msgid "Continue to Google"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1324
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1487
 msgid "Signing in in your browser…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1361
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1524
 msgid "The sign-in did not finish: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1362
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1525
 msgid "The sign-in did not finish."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1380
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1543
 msgid "Releasing…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1409
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1572
 msgid "{} is still kept offline: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1413
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1576
 msgid "{} is no longer kept offline."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1415
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1662
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1578
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1825
 msgid "{} was not kept offline."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1418
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1581
 msgid "Could not release {}: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1421
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1562
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1677
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1743
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1861
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1915
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1584
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1725
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1840
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1916
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2040
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2097
 msgid "The service did not answer."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1445
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1608
 msgid "Choose"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1482
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1645
 msgid ""
 "A folder cannot be deleted permanently: the cloud's delete is recursive and "
 "nothing can tell whether a file arrived in it a moment ago."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1487
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1622
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1650
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1785
 msgid "Choose a file inside this drive's folder."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1492
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:809
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1655
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:809
 #, python-brace-format
 msgid "Delete {} permanently?"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1494
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1657
 msgid ""
 "It does not go to the drive's recycle bin, and it cannot be recovered from "
 "this computer or from the cloud. Deleting it the ordinary way would be "
 "recoverable."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1498
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:818
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1661
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:818
 msgid "Delete permanently"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1525
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1688
 msgid "Deleting permanently…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1552
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1715
 msgid "{} is gone. It was not put in the recycle bin."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1556
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1719
 msgid "Nothing was removed."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1559
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1722
 msgid "Could not delete permanently: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1633
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1796
 msgid "Keeping offline…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1731
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1904
 msgid "Stopping. {} will not be kept offline."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1740
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1913
 msgid "Could not stop {}: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1760
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1936
 msgid "Discarding refused changes…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1791
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:1967
 msgid "Could not discard the refused changes."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1821
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2000
 msgid "Keeping both copies…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1846
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2025
 msgid "Copying {} save(s) to the cloud beside the version already there."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1852
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2031
 msgid ""
 "Copying {} save(s) beside the version already there. {} could not be copied, "
 "because the file each was replacing is no longer in the drive."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1858
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2037
 msgid "Could not keep both copies: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1876
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2058
 msgid "Trying the refused changes again…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1899
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2081
 msgid "Trying {} change(s) again."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1907
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2089
 msgid ""
 "Trying {} change(s) again. {} the cloud already decided about; those are not "
 "re-sent, because the file has moved on since. Discard them to let the drive "
 "show what the cloud has."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1912
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2094
 msgid "Could not try again: {}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1951
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2133
 msgid "Could not check this connection."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1997
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2179
 msgid "Removing…"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:2018
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2200
 msgid "Could not remove the connection."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:2049
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2231
 msgid ""
 "This drive's folder is not there. It may have been unmounted; refresh and "
 "try again."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:2051
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:2233
 msgid ""
 "No application is set up to open a folder on this desktop. Install a file "
 "manager, or open the folder path yourself."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:59
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:157
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:68
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:183
 msgid "Choose an empty folder"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:126
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:151
 msgid "Connect a drive"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:141
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:166
 msgid "Drive"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:143
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:168
 msgid "A name for this connection, and the folder its files appear in."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:147
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:172
 msgid "Provider"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:150
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:175
 msgid "Google Drive"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:154
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:176
+msgid "iCloud Drive"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:180
 msgid "Name"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:156
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:182
 msgid "Folder in Files"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:165
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:279
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:191
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:373
 msgid "Microsoft sign-in"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:166
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:282
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:192
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:379
 msgid ""
 "The application (client) ID of your app registration; the OneDrive setup "
 "guide explains where it comes from."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:169
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:195
 msgid "Application (client) ID"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:173
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:199
 msgid "Tenant"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:179
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:203
+msgid "Apple Account email"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:207
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:825
+msgid "Apple Account password"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:211
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:828
+msgid "Trusted-device code"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:217
 msgid "Files saved in this drive are uploaded. Off, the drive is read-only."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:183
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:221
 msgid "Use another Google OAuth app"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:185
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:223
 msgid "Using the Google app from an existing connection"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:187
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:225
 msgid "Using the Cirrove Google app (approved testers only for now)"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:202
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:243
 msgid ""
 "Google grants account-wide Drive access: read-only, or read/write with Allow "
 "changes. Cirrove mounts only your chosen drive. Your name, email, file "
@@ -886,156 +1042,499 @@ msgid ""
 "discarded."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:217
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:278
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:251
+msgid ""
+"Experimental iCloud Drive. Read-only is the default. Allow changes enables "
+"ordinary-file edits; native document packages remain protected. Access is "
+"enforced locally by Cirrove, not by a narrower Apple permission. Cirrove "
+"keeps a short key in your desktop keyring and the Apple web session "
+"encrypted in private local account data. Apple's Drive web protocol is "
+"undocumented; this connection is still under validation."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:266
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:366
 msgid "Sign in with Microsoft"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:233
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:283
 msgid "Choose a drive"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:278
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:362
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:665
+msgid "Sign in to iCloud"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:364
 msgid "Sign in with Google"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:279
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:369
+msgid "Apple sign-in"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:371
 msgid "Google sign-in"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:281
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:376
+msgid ""
+"Use your regular Apple Account password. A trusted-device code may be "
+"required. Allow changes applies only to ordinary files."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:378
 msgid ""
 "My Drive and Shared Drives can be connected. Allow changes enables edits to "
 "ordinary files. Google Docs and Sheets appear as read-only export packages."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:291
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:388
 msgid "Google Desktop OAuth client JSON"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:321
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:430
 msgid "Folder for this drive"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:386
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:507
 msgid ""
 "Your browser opens the Google sign-in. Choose the account there; this window "
 "continues when it is done."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:387
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:508
 msgid ""
 "Your browser opens the Microsoft sign-in. Choose the account there; this "
 "window continues when it is done."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:193
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:229
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:601
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:960
+msgid "Signing in to iCloud…"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:644
+msgid "Verify code and connect"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:652
+msgid ""
+"Connected {0} with changes allowed for ordinary files. Its files appear in "
+"{1}."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:655
+msgid "Connected {0} read-only. Its files appear in {1}."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:668
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:1045
+msgid "The iCloud sign-in did not finish."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:806
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:1024
+msgid "This connection changed. Close this dialog and try again."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:813
+msgid "Sign in to iCloud again"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:920
+msgid ""
+"After sign-in, Cirrove will keep this drive read-only. Pending local changes "
+"are retained. This is a local Cirrove policy, not a narrower Apple "
+"permission."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:923
+msgid ""
+"After sign-in, Cirrove will allow ordinary-file changes and resume pending "
+"changes. Native document packages remain protected. This is a local Cirrove "
+"policy, not a narrower Apple permission."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:1003
+msgid "Verify code"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:1010
+msgid "iCloud is signed in again with changes allowed for ordinary files."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:1012
+msgid "iCloud is signed in again with read-only access."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:14
+msgid "Choose a local iWork archive"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:18
+msgid "Pages, Numbers, Keynote and ZIP archives"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:39
+msgid "Choose an archive stored on this computer."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:58
+msgid ""
+"Choose a ZIP archive containing one Pages, Numbers or Keynote document "
+"folder. Import creates a new document, up to 64 MiB. It does not replace or "
+"edit an existing document."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:64
+msgid "Local archive"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:70
+msgid "Document folder"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:73
+msgid "Destination folder"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:76
+msgid "New document name"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:101
+msgid ""
+"Use the exact document folder name inside the archive. The folder and new "
+"name must have the same .pages, .numbers or .key extension. Leave the "
+"destination blank for the top level, or enter a folder such as Documents/"
+"Reports."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:111
+msgid "Import"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:196
+msgid "Starting document import…"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:224
+msgid "Import started. Progress appears with this connection's transfers."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:225
+msgid "The service did not start the import."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/native_import.rs:226
+msgid ""
+"Could not confirm the import. Check this connection's transfers before "
+"trying again."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:18
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:30
+msgid "Loading saved versions…"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:44
+msgid ""
+"Could not read local recovery data. Keep this connection unmounted and try "
+"again."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:55
+msgid ""
+"Saved versions are complete local saves. Working files may contain an "
+"interrupted write. Exporting does not upload or discard anything."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:63
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:78
+msgid "{} — saved version {}, {} bytes"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:71
+msgid "{} — working file, {} bytes"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:80
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:107
+msgid "No recoverable versions on this page."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:87
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:115
+msgid "Next page"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:108
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:145
+msgid "Save a local copy outside your cloud drives"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:123
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:159
+msgid "Choose a local folder outside your cloud drives."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:148
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:152
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:202
+msgid "Saving a local copy"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:166
+msgid ""
+"Local recovery data stays in Cirrove. Existing destination files will not be "
+"replaced."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:215
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:302
+msgid "{} of {} bytes copied"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:235
+msgid ""
+"Working-file copy saved to {}. An interrupted write may be incomplete; the "
+"original local data is unchanged."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:235
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:319
+msgid "Verified copy saved to {}. The cloud operation is unchanged."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:237
+msgid ""
+"Export was not confirmed. Inspect the destination before trying again. The "
+"original saved version was not discarded."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/offline_recovery.rs:239
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:329
+msgid "Close"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:57
+msgid "Could not load local versions. The service may be unavailable."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:70
+msgid ""
+"The first page includes the latest 200 saves. Working files are listed in "
+"pages and may contain unfinished edits. Exporting does not upload or discard "
+"anything."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:86
+msgid "{} — working version {}, {} bytes"
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:100
+msgid ""
+"Working files could not be loaded. This service may need updating; available "
+"saved versions are shown."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:216
+msgid ""
+"The selected local version stays in Cirrove. Existing destination files will "
+"not be replaced."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:322
+msgid ""
+"Working copy saved to {}. It contains the selected working version, which "
+"may include an unfinished edit. This export did not upload or discard "
+"changes."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/recovery.rs:327
+msgid ""
+"Export was not confirmed. Inspect the destination before trying again. Local "
+"changes were not discarded. If the working file changed, select its new "
+"version and try again."
+msgstr ""
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:193
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:229
 msgid "On demand"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:199
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:199
 msgid "Kept offline through a folder"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:202
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:202
 #, python-brace-format
 msgid "Kept offline through a folder · fetching {percent}%"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:204
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:204
 #, python-brace-format
 msgid "Kept offline · fetching {percent}%"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:229
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:229
 msgid "Availability"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:238
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:238
 #, python-brace-format
 msgid "all {size}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:240
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:240
 #, python-brace-format
 msgid "all {size}, until the space is needed"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:242
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:245
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:251
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:242
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:245
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:251
 msgid "On this computer"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:246
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:246
 #, python-brace-format
 msgid "{here} of {total}"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:251
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:251
 msgid "not downloaded yet"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:255
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:255
 msgid "yes"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:256
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:256
 msgid "yes, through a folder above"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:257
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:257
 msgid "no"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:259
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:259
 msgid "Cloud location"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:261
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:261
 msgid "Provider item"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:312
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/dolphin/actionplugin.cpp:75
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:312
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:75
 msgid "Stop keeping offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:314
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/dolphin/actionplugin.cpp:77
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:314
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:77
 msgid "Keep folder offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:314
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/dolphin/actionplugin.cpp:79
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:314
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:79
 msgid "Keep folders offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:316
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/dolphin/actionplugin.cpp:81
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:316
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:81
 msgid "Keep offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:697
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:697
 msgid "Whether the file is kept offline"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:801
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:801
 msgid "Delete permanently (no recycle bin)"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:813
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/nautilus/cirrove.py:813
 msgid ""
 "It does not go to the drive's recycle bin and cannot be recovered, from this "
 "computer or from the cloud. Deleting it the ordinary way would be "
 "recoverable."
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/dolphin/actionplugin.cpp:95
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:95
 msgid "Cirrove service is not reachable"
 msgstr ""
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/dolphin/actionplugin.cpp:102
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/packaging/dolphin/actionplugin.cpp:102
 msgid "Cirrove could not change offline availability"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "An active writable iCloud mount is required to check current availability."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Check saved import"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Checking saved import…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Checking the saved import. Progress appears with this connection's transfers."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Could not confirm the saved import check. Its operation remains retained; no new copy was submitted."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Could not load saved imports. Nothing was submitted or retried."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Find retained imports and check an existing operation without submitting another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "History is available without uploading. Checking current availability requires an active writable iCloud mount."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Loading saved imports…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "No saved imports on this page."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Saved iWork imports"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Saved imports…"
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "These are retained import records, not a current cloud listing. Checking observes an existing operation; it never submits another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This import remains saved. Checking observes its progress without submitting another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This saved import was not confirmed. Checking does not submit another copy."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "This saved import was resolved. Its retained history does not confirm current availability."
+msgstr ""
+
+#: crates/cirrove-desktop/src/ui/saved_native_imports.rs
+msgid "Upload completion recorded. Check to confirm current availability."
 msgstr ""

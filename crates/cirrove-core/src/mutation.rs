@@ -15,6 +15,12 @@ pub enum MutationError {
     Locked,
     #[error("cloud storage quota exceeded")]
     Quota,
+    /// The provider reported insufficient server storage, not necessarily a
+    /// user quota. Retain the operation and wait for an explicit retry.
+    #[error(
+        "the cloud service reported insufficient storage; local changes are kept; retry explicitly when storage is available"
+    )]
+    InsufficientStorage,
     #[error("namespace change has an uncertain outcome; verify before retrying")]
     Uncertain,
     #[error("namespace operation is not supported: {0}")]
@@ -54,6 +60,12 @@ pub enum MutationIntent {
     RemoveFolder {
         before: Node,
     },
+    /// Trash one original native-document container, never its generated children.
+    /// This explicit action is not POSIX rmdir and does not require an empty
+    /// projected directory. Only an adapter with native recovery proof may apply it.
+    TrashNativeDocument {
+        before: Node,
+    },
 }
 impl MutationIntent {
     pub fn before(&self) -> Option<&Node> {
@@ -61,7 +73,8 @@ impl MutationIntent {
             Self::CreateFolder { .. } => None,
             Self::Relocate { before, .. }
             | Self::RemoveFile { before }
-            | Self::RemoveFolder { before } => Some(before),
+            | Self::RemoveFolder { before }
+            | Self::TrashNativeDocument { before } => Some(before),
         }
     }
 }
@@ -107,6 +120,9 @@ impl MutationRequest {
             } => text(parent) && name(value),
             MutationIntent::RemoveFile { before } => before.kind == NodeKind::File,
             MutationIntent::RemoveFolder { before } => before.kind == NodeKind::Folder,
+            MutationIntent::TrashNativeDocument { before } => {
+                before.kind == NodeKind::Folder && before.package
+            }
         };
         if !valid {
             return Err(MutationError::Invalid);
@@ -145,7 +161,9 @@ impl MutationRequest {
                     && node.etag.as_ref().is_some_and(|s| !s.is_empty())
             }
             (
-                MutationIntent::RemoveFile { before } | MutationIntent::RemoveFolder { before },
+                MutationIntent::RemoveFile { before }
+                | MutationIntent::RemoveFolder { before }
+                | MutationIntent::TrashNativeDocument { before },
                 MutationReceipt::Removed { item },
             ) => &before.id == item,
             _ => false,
@@ -161,10 +179,87 @@ pub enum MutationReceipt {
         item: String,
     },
 }
+/// Provider attestation that the exact source and result revisions have the
+/// same full SHA-256 content. The source digest must have been captured before
+/// dispatch under the source ETag; a hash of only the current file is not proof.
+/// This is separate from a provider content-version token and never becomes a
+/// cache identity. Scope, item, both ETags and size bind its use to one receipt.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VerifiedMutationContent {
+    pub scope: Scope,
+    pub item: String,
+    pub source_etag: String,
+    pub result_etag: String,
+    pub size: u64,
+    pub sha256: String,
+}
+impl VerifiedMutationContent {
+    /// Call only after verifying both full revisions, or recovering a durable
+    /// conditional receipt whose original and result content were so verified.
+    pub fn for_relocation(
+        request: &MutationRequest,
+        receipt: &MutationReceipt,
+        sha256: String,
+    ) -> Result<Self> {
+        let (MutationIntent::Relocate { before, .. }, MutationReceipt::Upsert(after)) =
+            (&request.intent, receipt)
+        else {
+            return Err(MutationError::Invalid);
+        };
+        let proof = Self {
+            scope: request.scope.clone(),
+            item: before.id.clone(),
+            source_etag: before.etag.clone().ok_or(MutationError::Invalid)?,
+            result_etag: after.etag.clone().ok_or(MutationError::Invalid)?,
+            size: before.size,
+            sha256,
+        };
+        if !proof.valid_for(request, receipt) {
+            return Err(MutationError::Invalid);
+        }
+        Ok(proof)
+    }
+    pub fn valid_for(&self, request: &MutationRequest, receipt: &MutationReceipt) -> bool {
+        let (MutationIntent::Relocate { before, .. }, MutationReceipt::Upsert(after)) =
+            (&request.intent, receipt)
+        else {
+            return false;
+        };
+        request.accepts(receipt)
+            && self.scope == request.scope
+            && self.item == before.id
+            && before.kind == NodeKind::File
+            && !before.package
+            && !after.package
+            && before.target.is_none()
+            && before.etag.as_deref() == Some(self.source_etag.as_str())
+            && after.etag.as_deref() == Some(self.result_etag.as_str())
+            && [&self.source_etag, &self.result_etag]
+                .into_iter()
+                .all(|etag| {
+                    !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\r', '\n', '*'])
+                })
+            && self.size == before.size
+            && self.size == after.size
+            && self.sha256.len() == 64
+            && self
+                .sha256
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    }
+}
+
 pub enum MutationReconciliation {
     /// The namespace result is observed. A later content edit may be included;
     /// consumers must verify content lineage before rebasing a subsequent save.
     Applied(MutationReceipt),
+    /// Unlike a namespace-only observation, the adapter verified unchanged
+    /// content under the original and result ETags. Journal code validates the
+    /// attestation's binding; the provider is responsible for its byte evidence.
+    AppliedWithVerifiedContent {
+        receipt: MutationReceipt,
+        proof: VerifiedMutationContent,
+    },
     Uncommitted,
     Conflict,
     /// Cannot distinguish a lost success from another actor/access change.
@@ -239,6 +334,18 @@ pub trait MutationProvider: Send + Sync {
         Ok(None)
     }
 
+    /// Prepare against the durable journal identity before any remote mutation.
+    /// Providers may persist read-only preflight evidence under this identity;
+    /// returned values still obey the opaque-item-only contract above.
+    async fn prepare_mutation_for_operation(
+        &self,
+        _operation: &str,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> Result<Option<String>> {
+        self.prepare_mutation(request, cancel).await
+    }
+
     /// Return the actual conditional mutation receipt. A later independent GET
     /// can include another actor's edit and is not an equivalent upload base.
     async fn mutate(
@@ -261,6 +368,18 @@ pub trait MutationProvider: Send + Sync {
         }
         self.mutate(request, cancel).await
     }
+    /// Execute with the durable journal operation ID. A provider may use this
+    /// ID to save a response-only item identity before it returns a receipt.
+    /// Existing providers that do not need it retain their prepared contract.
+    async fn mutate_operation(
+        &self,
+        _operation: &str,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        self.mutate_prepared(request, prepared_item, cancel).await
+    }
     async fn reconcile_mutation(
         &self,
         request: &MutationRequest,
@@ -280,5 +399,72 @@ pub trait MutationProvider: Send + Sync {
             return Err(MutationError::Invalid);
         }
         self.reconcile_mutation(request, cancel).await
+    }
+    /// Reconcile the same durable operation after an uncertain response or a
+    /// process restart. The default preserves existing provider behavior.
+    async fn reconcile_operation(
+        &self,
+        _operation: &str,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReconciliation> {
+        self.reconcile_prepared_mutation(request, prepared_item, cancel)
+            .await
+    }
+}
+
+#[cfg(test)]
+mod native_trash_tests {
+    use super::*;
+    fn request() -> MutationRequest {
+        MutationRequest {
+            scope: Scope {
+                account: "owned".into(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            },
+            intent: MutationIntent::TrashNativeDocument {
+                before: Node {
+                    id: "FILE::com.apple.CloudDocs::owned".into(),
+                    parent_id: Some("parent".into()),
+                    name: "Owned.pages".into(),
+                    kind: NodeKind::Folder,
+                    package: true,
+                    etag: Some("E1".into()),
+                    content_version: None,
+                    target: None,
+                    size: 17,
+                    modified_unix: 0,
+                },
+            },
+        }
+    }
+    #[test]
+    fn native_trash_intent_requires_original_container_and_exact_removed_receipt() {
+        let valid = request();
+        assert!(valid.validate().is_ok());
+        let id = valid.intent.before().expect("source").id.clone();
+        assert!(valid.accepts(&MutationReceipt::Removed { item: id }));
+        assert!(!valid.accepts(&MutationReceipt::Removed {
+            item: "other".into()
+        }));
+        assert!(!valid.accepts(&MutationReceipt::Upsert(
+            valid.intent.before().expect("source").clone()
+        )));
+        for arm in 0..5 {
+            let mut changed = request();
+            let MutationIntent::TrashNativeDocument { before } = &mut changed.intent else {
+                unreachable!()
+            };
+            match arm {
+                0 => before.package = false,
+                1 => before.kind = NodeKind::File,
+                2 => before.etag = None,
+                3 => before.parent_id = None,
+                _ => before.kind = NodeKind::Shortcut,
+            }
+            assert!(changed.validate().is_err(), "arm {arm}");
+        }
     }
 }

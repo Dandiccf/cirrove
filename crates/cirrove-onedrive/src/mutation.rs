@@ -23,6 +23,9 @@ fn error(error: UploadError) -> MutationError {
 impl OneDrive {
     fn check_mutation(&self, request: &MutationRequest) -> Result<()> {
         request.validate()?;
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            return Err(MutationError::Unsupported("native document Trash"));
+        }
         if request.scope.account != self.account || request.scope.provider != "onedrive" {
             return Err(MutationError::Invalid);
         }
@@ -31,6 +34,15 @@ impl OneDrive {
 }
 #[async_trait]
 impl MutationProvider for OneDrive {
+    async fn prepare_mutation(
+        &self,
+        request: &MutationRequest,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<String>> {
+        self.check_mutation(request)?;
+        Ok(None)
+    }
+
     /// OneDrive answers yes to both. An ordinary `DELETE` puts the item in the
     /// drive's recycle bin, which was demonstrated on a live account on
     /// 2026-09-16 by deleting a file through the mount and finding it there;

@@ -469,3 +469,56 @@ bounded stale-revision check: `requiredRevisionId` rejected the second update
 with HTTP 400 and three exports retained the winning content. Cirrove has not
 implemented native writeback, and Sheets has no proven safe conflict path here.
 Completion of OneDrive 1.0 does not claim either adapter is finished.
+
+
+<!-- acceptance-release-scope: full-icloud -->
+## 7. Full iCloud release acceptance
+
+This additional scope records the user's next **full iCloud** release objective.
+It does not retroactively expand the historical OneDrive 1.0 milestones above.
+The ledger assigns these rows `release_scope: full-icloud`; unchecked rows block
+that scope even when the historical OneDrive summary reports zero open blockers.
+The ordinary-file opt-in is an intermediate milestone, not a reduced definition
+of full support. Synthetic coverage and isolated imports are supporting evidence,
+not permission to tick installed or native-editing requirements.
+
+- [ ] Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.
+- [ ] Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.
+- [ ] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
+- [ ] Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.
+- [ ] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
+- [ ] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
+
+The Pages import row remains open for the live desktop chooser, verified job
+completion and publication on its original mount. The retained ec7 import has
+since passed observer-only public completion, warm mounted visibility and Apple
+Pages open of its exact allocated document; see the
+[retained observation](benchmarks/icloud-native-import-watch-2026-10-01.md).
+Its original false-failure job and missed original post-success mount endpoint
+remain historical failures. The later fresh f2dec CLI arm passed import,
+independent semantic readback and mounted access before native Trash, as recorded
+in [the public Trash arm](benchmarks/icloud-public-native-trash-2026-10-01.md).
+That separate arm does not establish live desktop import or Apple Pages open of
+the f2dec document. No acceptance box is closed by combining those observations.
+
+Supporting evidence and remaining limits are in
+[the write integration boundary](icloud-write-integration.md),
+[public native import](benchmarks/icloud-public-native-import-2026-10-01.md),
+[ordinary opt-in](benchmarks/icloud-ordinary-write-opt-in-acceptance-2026-10-01.md),
+[application acceptance](benchmarks/icloud-real-applications-acceptance-2026-10-01.md),
+[read-only recovery](benchmarks/icloud-readonly-recovery-2026-10-01.md) and
+[controlled ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md).
+Native Trash readability or a stale-ETag experiment alone cannot establish native
+replacement. Evidence from these scopes must not be reused as proof of arbitrary
+formats, live quota behavior or atomic cloud replacement.
+
+
+For the unchecked native editing/replacement row (486), the explicit public
+Pages replacement CLI/socket and retained list/watch interfaces are now present;
+see [the workflow contract](native-document-replacement.md).
+[Recorded synthetic evidence](benchmarks/icloud-native-package-replacement-2026-10-01.md)
+covers worker fault recovery, routing, publication observation and bounded retained
+discovery. The [owned live arm](benchmarks/icloud-native-replacement-live-2026-10-01.md)
+remains separate and incomplete. Two-ID archive replacement does not establish
+ordinary native editor saves, preserved sharing/history, Apple application
+fidelity or installed acceptance; the requirement therefore remains open.

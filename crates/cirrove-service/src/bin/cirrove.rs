@@ -1,5 +1,331 @@
 use anyhow::{Context, Result, bail};
 
+async fn require_abandon_capability(socket: &std::path::Path, verb: &str) -> Result<()> {
+    if cirrove_service::capabilities(socket)
+        .await?
+        .capabilities
+        .get(verb)
+        != Some(&1)
+    {
+        bail!("this service does not support the requested native Stage recovery action");
+    }
+    Ok(())
+}
+fn show_native_abandonment(
+    input: &cirrove_service::native_abandon::NativeAbandonRequest,
+    receipt: &cirrove_service::native_abandon::NativeAbandonReceipt,
+) -> Result<()> {
+    if receipt.operation != input.operation
+        || receipt.account_id != input.expected_account_id
+        || receipt.original.id == receipt.retained_stage.id
+    {
+        bail!("abandonment receipt binding changed");
+    }
+    println!(
+        "Local abandonment recorded [{}]. Original {:?} and staged document {:?} were active when checked. No document was deleted or moved; current cloud state may differ.",
+        receipt.operation, receipt.original.id, receipt.retained_stage.id
+    );
+    println!(
+        "Saved archive and encrypted checkpoint remain retained. Export the saved archive with export-save using this operation UUID. The retained stage is not a confirmed Trash backup."
+    );
+    Ok(())
+}
+
+async fn follow_native_replacement(
+    socket: &std::path::Path,
+    label: &str,
+    account: &str,
+    initial: &cirrove_service::jobs::Job,
+    expected_operation: Option<uuid::Uuid>,
+    selected: Option<(String, String)>,
+) -> Result<()> {
+    let following = async {
+        let mut operation = expected_operation;
+        let mut original = initial.native_replace.as_ref().map(|p| p.original.clone());
+        loop {
+            let snapshot = cirrove_service::status(socket).await.context("replacement observation lost; use list-native-replacements before submitting again")?;
+            let job = snapshot
+                .accounts
+                .iter()
+                .filter(|a| a.label == label && a.account_id == account)
+                .flat_map(|a| &a.jobs)
+                .find(|j| j.id == initial.id)
+                .context("replacement observer unavailable; use retained-operation discovery")?;
+            if job.kind != cirrove_service::jobs::JobKind::ReplaceNativePackage
+                || job.native_import.is_some()
+                || job.native_trash.is_some()
+                || job.export.is_some()
+                || job.working_export.is_some()
+            {
+                bail!("unexpected replacement job");
+            }
+            if let Some(progress) = &job.native_replace {
+                if operation.is_some_and(|op| op != progress.operation)
+                    || original.as_ref().is_some_and(|n| n != &progress.original)
+                    || selected.as_ref().is_some_and(|(id, etag)| {
+                        &progress.original.id != id || progress.original.etag.as_ref() != Some(etag)
+                    })
+                {
+                    bail!("replacement operation or selected original changed");
+                }
+                if operation.is_none() {
+                    eprintln!("Queued replacement operation {}", progress.operation);
+                }
+                operation = Some(progress.operation);
+                original = Some(progress.original.clone());
+            }
+            if job.state == cirrove_service::jobs::JobState::Succeeded {
+                let receipt = job
+                    .native_replace
+                    .as_ref()
+                    .context("replacement receipt missing")?;
+                let current = receipt
+                    .current
+                    .as_ref()
+                    .context("replacement current identity missing")?;
+                let backup = receipt
+                    .recovery
+                    .as_ref()
+                    .context("replacement recovery receipt missing")?;
+                if operation != Some(receipt.operation)
+                    || current.id == receipt.original.id
+                    || backup.id != receipt.original.id
+                    || current.parent_id != receipt.original.parent_id
+                    || current.name != receipt.original.name
+                    || backup.parent_id.as_deref()
+                        != Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
+                    || backup.name != receipt.original.name
+                    || backup.size != receipt.original.size
+                    || [current, backup].iter().any(|n| {
+                        n.kind != cirrove_core::NodeKind::Folder
+                            || !n.package
+                            || n.target.is_some()
+                            || n.content_version.is_some()
+                            || n.etag.as_ref().is_none_or(String::is_empty)
+                    })
+                {
+                    bail!("replacement completion identity mismatch");
+                }
+                println!(
+                    "Replacement completed [{}]; new document {:?}. Original Trash receipt recorded; current recovery availability may differ.",
+                    receipt.operation, current.id
+                );
+                return Ok(());
+            }
+            if !job.running() {
+                bail!(
+                    "{}",
+                    job.issue
+                        .as_deref()
+                        .unwrap_or("replacement unconfirmed; inspect its retained operation")
+                );
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+    };
+    tokio::select! {
+        biased;
+        _ = tokio::signal::ctrl_c() => {
+            let _ = cirrove_service::stop_job(socket, &cirrove_service::StopJobRequest {label:label.into(),id:initial.id.clone()}).await;
+            bail!("stopped watching; any queued replacement remains retained and may complete; use list-native-replacements if its ID was not received");
+        }
+        result = following => result,
+    }
+}
+
+async fn follow_native_trash(
+    socket: &std::path::Path,
+    label: &str,
+    account: &str,
+    initial: &cirrove_service::jobs::Job,
+    expected_operation: Option<uuid::Uuid>,
+) -> Result<()> {
+    let following = async {
+        let mut operation = expected_operation;
+        loop {
+            let snapshot=cirrove_service::status(socket).await.context("native Trash observation lost; use list-native-trash with this account before submitting another removal")?;
+            let current=snapshot.accounts.iter().filter(|a|a.label==label && a.account_id==account).flat_map(|a|&a.jobs).find(|job|job.id==initial.id).context("native Trash observer unavailable; use watch-native-trash with the retained operation")?;
+            if current.kind != cirrove_service::jobs::JobKind::TrashNativeDocument {
+                bail!("unexpected native Trash job");
+            }
+            if let Some(progress) = &current.native_trash {
+                if progress.account_id != account
+                    || operation.is_some_and(|op| op != progress.operation)
+                {
+                    bail!("native Trash account or operation changed");
+                }
+                if operation.is_none() {
+                    eprintln!("Queued operation {}", progress.operation);
+                    operation = Some(progress.operation);
+                }
+            }
+            if current.state == cirrove_service::jobs::JobState::Succeeded {
+                let receipt = current
+                    .native_trash
+                    .as_ref()
+                    .context("native Trash receipt missing")?;
+                if operation != Some(receipt.operation)
+                    || !receipt.removal_receipt_recorded
+                    || !receipt.metadata_absence_recorded
+                {
+                    bail!("native Trash completion is not confirmed");
+                }
+                println!(
+                    "Recorded native Trash completion [{}]; historical receipt and metadata absence, current cloud state may differ",
+                    receipt.operation
+                );
+                return Ok(());
+            }
+            if !current.running() {
+                bail!(
+                    "{}",
+                    current
+                        .issue
+                        .as_deref()
+                        .unwrap_or("native Trash is unconfirmed; inspect its retained operation")
+                );
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+    };
+    tokio::select! {biased;
+        _=tokio::signal::ctrl_c()=>{
+            let _=cirrove_service::stop_job(socket,&cirrove_service::StopJobRequest{label:label.into(),id:initial.id.clone()}).await;
+            bail!("stopped watching; any queued native Trash operation remains retained and may complete");
+        }
+        result=following=>result,
+    }
+}
+
+async fn follow_native_import(
+    socket: &std::path::Path,
+    label: &str,
+    initial: &cirrove_service::jobs::Job,
+    expected_name: &str,
+    expected_operation: Option<uuid::Uuid>,
+    expected_account_id: Option<&str>,
+) -> Result<()> {
+    let following = async {
+        let mut operation = expected_operation;
+        loop {
+            let state = cirrove_service::status(socket).await.context("import observation lost; inspect Cirrove jobs and retained operations before retrying")?;
+            let current = state
+                .accounts
+                .iter()
+                .filter(|a| {
+                    a.label == label && expected_account_id.is_none_or(|id| a.account_id == id)
+                })
+                .flat_map(|a| &a.jobs)
+                .find(|job| job.id == initial.id)
+                .context(
+                    "import result unavailable; inspect retained operations before retrying",
+                )?;
+            if current.kind != cirrove_service::jobs::JobKind::ImportNativePackage {
+                bail!("unexpected import job");
+            }
+            if let Some(progress) = &current.native_import {
+                if operation.is_some_and(|id| id != progress.operation) {
+                    bail!("import operation changed");
+                }
+                if operation.is_none() {
+                    eprintln!("Queued operation {}", progress.operation);
+                    operation = Some(progress.operation);
+                }
+            }
+            if current.state == cirrove_service::jobs::JobState::Succeeded {
+                let receipt = current
+                    .native_import
+                    .as_ref()
+                    .context("import receipt missing")?;
+                let remote = receipt
+                    .remote
+                    .as_ref()
+                    .context("verified document receipt missing")?;
+                if remote.name != expected_name
+                    || !remote.package
+                    || remote.kind != cirrove_core::NodeKind::Folder
+                {
+                    bail!("unexpected imported document receipt");
+                }
+                println!(
+                    "Verified native document import [{}]: {}",
+                    receipt.operation, remote.name
+                );
+                break;
+            }
+            if !current.running() {
+                bail!("{}", current.issue.as_deref().unwrap_or("native import is not confirmed; inspect the retained operation before retrying"));
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+        Ok(())
+    };
+    tokio::select! { biased;
+        _=tokio::signal::ctrl_c()=>{
+            let _=cirrove_service::stop_job(socket,&cirrove_service::StopJobRequest{label:label.into(),id:initial.id.clone()}).await;
+            bail!("stopped watching; the retained import may still finish and was not discarded");
+        }
+        result=following=>result,
+    }
+}
+
+/// Recover one selected working generation through the daemon, with an exact receipt.
+async fn active_working_export(
+    socket: &std::path::Path,
+    request: cirrove_service::ExportWorkingRequest,
+) -> Result<()> {
+    let reply = cirrove_service::export_working(socket, &request).await?;
+    if let Some(refusal) = reply.refusal {
+        bail!("{refusal}");
+    }
+    let initial = reply.job.context("working export was not accepted")?;
+    eprintln!("Working export started [{}]", initial.id);
+    let interrupt = tokio::signal::ctrl_c();
+    tokio::pin!(interrupt);
+    let mut stopping = false;
+    loop {
+        let status = tokio::select! {
+            result = cirrove_service::status(socket) => result?,
+            _ = &mut interrupt, if !stopping => {
+                let reply = cirrove_service::stop_job(socket, &cirrove_service::StopJobRequest {
+                    label: request.label.clone(), id: initial.id.clone(),
+                }).await?;
+                stopping = true;
+                if reply.already_ended {
+                    bail!("export finished before cancellation; inspect the destination because its receipt was dismissed");
+                }
+                continue;
+            }
+        };
+        let current = status
+            .accounts
+            .iter()
+            .filter(|account| request.label.is_empty() || account.label == request.label)
+            .flat_map(|account| &account.jobs)
+            .find(|job| job.id == initial.id)
+            .context(
+                "working export result unavailable; inspect the destination before retrying",
+            )?;
+        if current.state == cirrove_service::jobs::JobState::Succeeded {
+            let receipt = request.confirmed_receipt(&initial, current)
+                .context("working export receipt does not match the selected version; inspect the destination")?;
+            println!("{}", serde_json::to_string_pretty(receipt)?);
+            return Ok(());
+        }
+        if !current.running() {
+            bail!(
+                "{}",
+                current
+                    .issue
+                    .as_deref()
+                    .unwrap_or("working export did not complete")
+            );
+        }
+        // A short interval also bounds interrupt handling when the previous poll finished.
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+}
+
 /// Print what the daemon did, in a sentence rather than as JSON.
 ///
 /// A refusal is an ordinary outcome here, not a crash: the exit status says the
@@ -88,6 +414,7 @@ fn report_pin_change(verb: &str, reply: &cirrove_service::PinReply) -> Result<()
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, Node, NodeKind, Scope,
 };
+use cirrove_icloud::{ICloudReadSession, SignInStep};
 use cirrove_onedrive::{OneDrive, StaticToken};
 use cirrove_service::{private_dir, refresh, socket_path, state_dir, status};
 use cirrove_store::Store;
@@ -98,6 +425,47 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+
+fn reauth_access(write_access: bool, read_only: bool) -> Option<cirrove_auth::AccessMode> {
+    match (write_access, read_only) {
+        (true, _) => Some(cirrove_auth::AccessMode::ReadWrite),
+        (_, true) => Some(cirrove_auth::AccessMode::ReadOnly),
+        _ => None,
+    }
+}
+
+fn connection_access(write_access: bool) -> cirrove_auth::AccessMode {
+    if write_access {
+        cirrove_auth::AccessMode::ReadWrite
+    } else {
+        cirrove_auth::AccessMode::ReadOnly
+    }
+}
+
+fn access_name(access: cirrove_auth::AccessMode) -> &'static str {
+    match access {
+        cirrove_auth::AccessMode::ReadOnly => "read-only",
+        cirrove_auth::AccessMode::ReadWrite => "read-write",
+    }
+}
+
+async fn icloud_login(apple_id: &str) -> Result<ICloudReadSession> {
+    cirrove_auth::DesktopVault::reachable().await?;
+    let password =
+        SecretString::new(rpassword::prompt_password("Apple account password: ")?.into());
+    let mut session = ICloudReadSession::new()?;
+    match session.sign_in(apple_id, &password).await? {
+        SignInStep::Ready => {}
+        SignInStep::NeedsTrustedDeviceCode => {
+            session.request_trusted_device_code().await?;
+            let code =
+                SecretString::new(rpassword::prompt_password("Trusted-device code: ")?.into());
+            session.verify_trusted_device_code(&code).await?;
+        }
+    }
+    drop(password);
+    Ok(session)
+}
 
 #[derive(Parser)]
 #[command(
@@ -310,12 +678,11 @@ enum Command {
         label: String,
         #[arg(long)]
         state_dir: Option<PathBuf>,
-        /// Request write consent for this account instead of keeping its current
-        /// mode. The only way to move an existing account between read-only and
-        /// writable without discarding its index.
+        /// Explicitly allow changes after sign-in, preserving the drive and cache.
+        /// For iCloud this is Cirrove's local policy, not narrower Apple consent.
         #[arg(long, conflicts_with = "read_only")]
         write_access: bool,
-        /// Return this account to read-only consent.
+        /// Explicitly return this account to read-only after sign-in.
         #[arg(long)]
         read_only: bool,
     },
@@ -352,6 +719,21 @@ enum Command {
         #[arg(long)]
         state_dir: Option<PathBuf>,
         /// Request full Drive consent and mount this connection read-write.
+        #[arg(long)]
+        write_access: bool,
+    },
+    /// Experimental iCloud Drive connection; defaults to locally enforced read-only.
+    ConnectIcloud {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        apple_id: String,
+        #[arg(long)]
+        mount_path: PathBuf,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+        /// Explicitly allow ordinary-file changes after sign-in. Locally enforced
+        /// by Cirrove; does not narrow the native Apple session permission.
         #[arg(long)]
         write_access: bool,
     },
@@ -524,6 +906,214 @@ enum Command {
         yes: bool,
         #[arg(long)]
         socket: Option<PathBuf>,
+    },
+    /// List retained saves from a disabled account without starting its worker.
+    RecoverySaves {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state: Option<PathBuf>,
+        #[arg(long, default_value_t = 0)]
+        after: u64,
+        #[arg(long, default_value_t = 200)]
+        limit: u32,
+    },
+    /// List retained working files offline, or use --active for a running account.
+    RecoveryWorking {
+        #[arg(long)]
+        label: String,
+        #[arg(long, conflicts_with = "active")]
+        state: Option<PathBuf>,
+        /// Use the running daemon; the default remains offline recovery.
+        #[arg(long)]
+        active: bool,
+        #[arg(long, requires = "active")]
+        socket: Option<PathBuf>,
+        #[arg(long)]
+        after: Option<uuid::Uuid>,
+        #[arg(long, default_value_t = 200)]
+        limit: u32,
+    },
+    /// Recover working bytes offline or with --active; never seals or uploads.
+    ExportWorking {
+        #[arg(long)]
+        label: String,
+        #[arg(long, conflicts_with = "active")]
+        state: Option<PathBuf>,
+        /// Use the running daemon; the default remains offline recovery.
+        #[arg(long)]
+        active: bool,
+        #[arg(long, requires = "active")]
+        socket: Option<PathBuf>,
+        #[arg(long)]
+        file: uuid::Uuid,
+        #[arg(long)]
+        generation: u64,
+        #[arg(long)]
+        destination: PathBuf,
+    },
+    /// Replace one exact selected Pages/Numbers/Keynote PACKAGE with a validated local archive.
+    /// Creates a new identity; original Trash receipt is retained. Not a normal editor save.
+    ReplaceNativePackage {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        path: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        item_id: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        etag: String,
+        #[arg(long)]
+        archive: PathBuf,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        source_root: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Resolve one proven pre-handoff conflict locally. Retains cloud stage,
+    /// encrypted checkpoint and saved archive; never retries or deletes anything.
+    AbandonNativeStage {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Read a recorded Stage-abandonment outcome, including after restart.
+    /// Historical evidence only; does not inspect current cloud state.
+    NativeStageAbandonment {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Observe a saved replacement; never capture, queue or retry it.
+    WatchNativeReplacement {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// List one bounded retained-replacement page; follow next even if empty.
+    /// Receipts are historical evidence, not current recovery availability.
+    ListNativeReplacements {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        after: Option<u64>,
+        #[arg(long, default_value_t = 100, value_parser=clap::value_parser!(u32).range(1..=100))]
+        limit: u32,
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// List durable native Trash operations after lost replies/restarts; evidence is historical.
+    /// Reads one bounded page without enqueueing or retrying any removal.
+    ListNativeTrash {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        after: Option<u64>,
+        #[arg(long, default_value_t = 100, value_parser=clap::value_parser!(u32).range(1..=100))]
+        limit: u32,
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Move one exact original native Pages/Numbers/Keynote PACKAGE revision to iCloud recovery; never permanent delete.
+    TrashNativeDocument {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        /// Mount-relative original document path (not a generated package child).
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        path: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        item_id: String,
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        etag: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Observe recorded native Trash completion; historical evidence, not current cloud state.
+    /// Never enqueue or replay a removal.
+    WatchNativeTrash {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Import a validated native Pages/Numbers/Keynote archive as a new iCloud document; never overwrites.
+    ImportNativePackage {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        /// Bind this import to the selected account UUID shown by status.
+        #[arg(long)]
+        account_id: Option<uuid::Uuid>,
+        #[arg(long)]
+        archive: PathBuf,
+        /// Exact enclosing directory name inside the source archive.
+        #[arg(long)]
+        source_root: String,
+        /// Visible relative destination directory; empty means the drive root.
+        #[arg(long, default_value = "")]
+        parent: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Observe an existing native import; never submit its archive again.
+    WatchNativeImport {
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        label: String,
+        /// Exact account UUID shown by status, preventing label reassignment.
+        #[arg(long)]
+        account_id: uuid::Uuid,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Export an immutable local save without changing its cloud operation.
+    ExportSave {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        destination: PathBuf,
+        #[arg(long, conflicts_with = "offline")]
+        socket: Option<PathBuf>,
+        /// Recover a disabled, unmounted account without the daemon or credentials.
+        #[arg(long)]
+        offline: bool,
+        #[arg(long, requires = "offline")]
+        state: Option<PathBuf>,
     },
     /// Keep both copies of every save the cloud refused.
     ///
@@ -756,12 +1346,25 @@ async fn main() -> Result<()> {
                 Some(path) => path,
                 None => state_dir()?,
             };
-            let access = match (write_access, read_only) {
-                (true, _) => Some(cirrove_auth::AccessMode::ReadWrite),
-                (_, true) => Some(cirrove_auth::AccessMode::ReadOnly),
-                _ => None,
-            };
-            cirrove_service::accounts::reauthenticate(state, label, access).await?;
+            let account = cirrove_service::accounts::Settings::load(&state)?
+                .accounts
+                .into_iter()
+                .find(|account| account.label == label)
+                .context("unknown account label")?;
+            let access = reauth_access(write_access, read_only);
+            if matches!(account.registration, cirrove_auth::AppRegistration::ICloud) {
+                let pending =
+                    cirrove_service::accounts::begin_reauthenticate_icloud(state, label, access)?;
+                let mode = pending.access();
+                let session = icloud_login(pending.apple_id()).await?;
+                pending.finish(session).await?;
+                println!(
+                    "iCloud is signed in again with {} access (enforced locally by Cirrove).",
+                    access_name(mode)
+                );
+            } else {
+                cirrove_service::accounts::reauthenticate(state, label, access).await?;
+            }
         }
         Command::Connect {
             label,
@@ -858,6 +1461,43 @@ async fn main() -> Result<()> {
                 );
             }
         }
+        Command::ConnectIcloud {
+            label,
+            apple_id,
+            mount_path,
+            state_dir: state,
+            write_access,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            if !cirrove_service::accounts::valid_label(&label) {
+                bail!("use a label of 1–48 letters, digits, hyphens or underscores");
+            }
+            cirrove_service::manager::validate_mount_directory(&mount_path)?;
+            let canonical_mount = std::fs::canonicalize(&mount_path)?;
+            if cirrove_service::accounts::Settings::load(&state)?
+                .accounts
+                .iter()
+                .any(|account| account.label == label || account.mount_path == canonical_mount)
+            {
+                bail!("this label or mount path is already configured");
+            }
+            let session = icloud_login(&apple_id).await?;
+            let account = cirrove_service::accounts::connect_icloud_with_session_and_access(
+                state,
+                label,
+                mount_path,
+                apple_id,
+                session,
+                connection_access(write_access),
+            )
+            .await?;
+            println!(
+                "Connected {} {} at {}. Access is enforced locally by Cirrove; this iCloud path remains experimental.",
+                account.label,
+                access_name(account.access),
+                account.mount_path.display()
+            );
+        }
         Command::Accounts { state_dir: state } => {
             let state = match state {
                 Some(p) => p,
@@ -952,7 +1592,19 @@ async fn main() -> Result<()> {
                 }
                 for job in &account.jobs {
                     let state = match job.state {
-                        cirrove_service::jobs::JobState::Running => "keeping offline".to_owned(),
+                        cirrove_service::jobs::JobState::Running => if job.kind
+                            == cirrove_service::jobs::JobKind::ImportNativePackage
+                        {
+                            "importing native document"
+                        } else if job.kind == cirrove_service::jobs::JobKind::TrashNativeDocument {
+                            "observing native document Trash"
+                        } else if job.kind == cirrove_service::jobs::JobKind::ExportLocal {
+                            "exporting local save"
+                        } else {
+                            "keeping offline"
+                        }
+                        .to_owned(),
+                        cirrove_service::jobs::JobState::Succeeded => "completed".to_owned(),
                         cirrove_service::jobs::JobState::Stopping => "stopping".to_owned(),
                         cirrove_service::jobs::JobState::Stopped => "stopped".to_owned(),
                         cirrove_service::jobs::JobState::Failed => {
@@ -972,6 +1624,12 @@ async fn main() -> Result<()> {
                         cirrove_service::human_bytes(job.bytes_total),
                         job.id
                     );
+                    if let Some(progress) = &job.native_trash {
+                        println!(
+                            "    account {}  retained operation {}",
+                            progress.account_id, progress.operation
+                        );
+                    }
                 }
             }
         }
@@ -1239,7 +1897,16 @@ async fn main() -> Result<()> {
                 println!("  nothing in the journal");
             }
             for change in reply.local {
-                println!("  {}  {}  {} bytes", change.state, change.name, change.size);
+                println!(
+                    "  {}  {}  {} bytes{}",
+                    change.state,
+                    change.name,
+                    change.size,
+                    change
+                        .operation
+                        .map(|id| format!("  [save {id}]"))
+                        .unwrap_or_default()
+                );
             }
             // The count in `status` says how many were refused; this says
             // which, which is the difference between knowing and being able to
@@ -1380,6 +2047,695 @@ async fn main() -> Result<()> {
             }
             if refused > 0 {
                 bail!("{refused} of {} were not removed", reply.deletions.len());
+            }
+        }
+        Command::RecoverySaves {
+            label,
+            state,
+            after,
+            limit,
+        } => {
+            let state = match state {
+                Some(state) => state,
+                None => state_dir()?,
+            };
+            let rows = tokio::task::spawn_blocking(move || {
+                cirrove_service::accounts::OfflineRecovery::open(&state, &label)?.list(after, limit)
+            })
+            .await??;
+            println!("{}", serde_json::to_string_pretty(&rows)?);
+        }
+        Command::RecoveryWorking {
+            label,
+            state,
+            active,
+            socket,
+            after,
+            limit,
+        } => {
+            if active {
+                let socket = socket.map(Ok).unwrap_or_else(socket_path)?;
+                let reply = cirrove_service::recovery_working(
+                    &socket,
+                    &cirrove_service::RecoveryWorkingRequest {
+                        label,
+                        after,
+                        limit,
+                    },
+                )
+                .await?;
+                if let Some(refusal) = reply.refusal {
+                    bail!("{refusal}");
+                }
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(
+                        &serde_json::json!({"files":reply.files,"next":reply.next})
+                    )?
+                );
+                return Ok(());
+            }
+            let state = match state {
+                Some(state) => state,
+                None => state_dir()?,
+            };
+            let (files, next) = tokio::task::spawn_blocking(move || {
+                cirrove_service::accounts::OfflineRecovery::open(&state, &label)?
+                    .working_list(after, limit)
+            })
+            .await??;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({"files":files,"next":next}))?
+            );
+        }
+        Command::ExportWorking {
+            label,
+            state,
+            active,
+            socket,
+            file,
+            generation,
+            destination,
+        } => {
+            if active {
+                let socket = socket.map(Ok).unwrap_or_else(socket_path)?;
+                let destination = if destination.is_absolute() {
+                    destination
+                } else {
+                    std::env::current_dir()?.join(destination)
+                };
+                return active_working_export(
+                    &socket,
+                    cirrove_service::ExportWorkingRequest {
+                        label,
+                        file,
+                        generation,
+                        destination,
+                    },
+                )
+                .await;
+            }
+            let state = match state {
+                Some(state) => state,
+                None => state_dir()?,
+            };
+            let destination = if destination.is_absolute() {
+                destination
+            } else {
+                std::env::current_dir()?.join(destination)
+            };
+            let cancel = CancellationToken::new();
+            let copy_cancel = cancel.clone();
+            let mut task =
+                tokio::task::spawn_blocking(move || {
+                    cirrove_service::accounts::OfflineRecovery::open(&state, &label)?
+                        .export_working(file, generation, &destination, &copy_cancel, |_| {})
+                });
+            let receipt = tokio::select! {
+                result = &mut task => result??,
+                _ = tokio::signal::ctrl_c() => { cancel.cancel(); task.await?? }
+            };
+            println!("{}", serde_json::to_string_pretty(&receipt)?);
+        }
+        Command::ReplaceNativePackage {
+            label,
+            account_id,
+            path,
+            item_id,
+            etag,
+            archive,
+            source_root,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("replace-native-package")
+                != Some(&1)
+            {
+                bail!("this service does not support explicit native replacement");
+            }
+            let account = account_id.to_string();
+            let selected = (item_id.clone(), etag.clone());
+            let reply=cirrove_service::replace_native_package(&socket,&cirrove_service::ReplaceNativePackageRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag,archive,expected_root:source_root}).await.context("replacement reply unavailable; use list-native-replacements for this account before submitting again")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("replacement job was not started")?;
+            follow_native_replacement(&socket, &label, &account, &initial, None, Some(selected))
+                .await?;
+        }
+        Command::AbandonNativeStage {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let input = cirrove_service::native_abandon::NativeAbandonRequest {
+                label,
+                expected_account_id: account_id.to_string(),
+                operation,
+            };
+            require_abandon_capability(&socket, "abandon-native-stage").await?;
+            let reply = cirrove_service::native_abandon::abandon_native_stage(&socket, &input)
+                .await
+                .context(
+                    "abandonment reply lost; inspect native-stage-abandonment before resubmitting",
+                )?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("abandonment job unavailable")?;
+            eprintln!(
+                "Checking retained operation {operation}; no cloud retry or cleanup will be performed."
+            );
+            let following = async {
+                loop {
+                    let status = cirrove_service::status(&socket).await?;
+                    let job = status
+                        .accounts
+                        .iter()
+                        .filter(|a| {
+                            a.label == input.label && a.account_id == input.expected_account_id
+                        })
+                        .flat_map(|a| &a.jobs)
+                        .find(|j| j.id == initial.id)
+                        .context("abandonment job unavailable; inspect native-stage-abandonment")?;
+                    let progress = job
+                        .native_abandon
+                        .as_ref()
+                        .context("abandonment progress missing")?;
+                    if job.kind != cirrove_service::jobs::JobKind::AbandonNativeStage
+                        || progress.operation != operation
+                        || progress.account_id != input.expected_account_id
+                    {
+                        bail!("abandonment job binding changed");
+                    }
+                    if job.state == cirrove_service::jobs::JobState::Succeeded {
+                        let receipt = progress
+                            .receipt
+                            .as_ref()
+                            .context("abandonment receipt missing")?;
+                        show_native_abandonment(&input, receipt)?;
+                        return Ok::<_, anyhow::Error>(());
+                    }
+                    if !job.running() {
+                        bail!(
+                            "{}",
+                            job.issue.as_deref().unwrap_or(
+                                "abandonment not confirmed; inspect native-stage-abandonment"
+                            )
+                        );
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+            };
+            tokio::select! {
+                result=following=>result?,
+                _=tokio::signal::ctrl_c()=>{
+                    let _=cirrove_service::stop_job(&socket,&cirrove_service::StopJobRequest{label:input.label.clone(),id:initial.id.clone()}).await;
+                    bail!("Stop requested. A local commit may already have completed; inspect native-stage-abandonment. No cloud cleanup requested.");
+                }
+            }
+        }
+        Command::NativeStageAbandonment {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            require_abandon_capability(&socket, "native-stage-abandonment").await?;
+            let input = cirrove_service::native_abandon::NativeAbandonRequest {
+                label,
+                expected_account_id: account_id.to_string(),
+                operation,
+            };
+            let reply =
+                cirrove_service::native_abandon::native_stage_abandonment(&socket, &input).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            if let Some(receipt) = reply.receipt {
+                show_native_abandonment(&input, &receipt)?;
+            } else {
+                println!(
+                    "No recorded local abandonment for {operation}. No cloud action performed."
+                );
+            }
+        }
+        Command::WatchNativeReplacement {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("watch-native-replacement")
+                != Some(&1)
+            {
+                bail!("this service does not support native replacement observation");
+            }
+            let account = account_id.to_string();
+            let reply = cirrove_service::watch_native_replacement(
+                &socket,
+                &cirrove_service::WatchNativeReplacementRequest {
+                    label: label.clone(),
+                    expected_account_id: account.clone(),
+                    operation,
+                },
+            )
+            .await
+            .context("replacement observation could not attach; no replacement submitted")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("replacement watch was not started")?;
+            eprintln!("Observing retained replacement {operation}; no replacement submitted.");
+            follow_native_replacement(&socket, &label, &account, &initial, Some(operation), None)
+                .await?;
+        }
+        Command::ListNativeReplacements {
+            label,
+            account_id,
+            after,
+            limit,
+            json,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("list-native-replacements")
+                != Some(&1)
+            {
+                bail!("this service does not support retained replacement discovery");
+            }
+            let reply = cirrove_service::list_native_replacements(
+                &socket,
+                &cirrove_service::ListNativeReplacementsRequest {
+                    label,
+                    expected_account_id: account_id.to_string(),
+                    after,
+                    limit,
+                },
+            )
+            .await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            if json {
+                println!("{}", serde_json::to_string_pretty(&reply)?);
+            } else {
+                println!(
+                    "Retained replacements for {account_id}; historical receipts, current recovery availability may differ."
+                );
+                for item in &reply.operations {
+                    println!(
+                        "{} {:?} original {:?} revision {:?} current {:?} recovery {:?} handoff receipt {}",
+                        item.operation,
+                        item.state,
+                        item.original.item,
+                        item.original.etag,
+                        item.current.as_ref().map(|n| &n.item),
+                        item.recovery.as_ref().map(|n| &n.item),
+                        item.handoff_receipt_recorded
+                    );
+                }
+                if let Some(next) = reply.next {
+                    println!("Next page: --after {next}");
+                }
+            }
+        }
+        Command::ListNativeTrash {
+            label,
+            account_id,
+            after,
+            limit,
+            json,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("list-native-trash")
+                != Some(&1)
+            {
+                bail!("this service does not support discovering retained native Trash operations");
+            }
+            let reply = cirrove_service::list_native_trash(
+                &socket,
+                &cirrove_service::ListNativeTrashRequest {
+                    label,
+                    expected_account_id: account_id.to_string(),
+                    after,
+                    limit,
+                },
+            )
+            .await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            if json {
+                println!("{}", serde_json::to_string_pretty(&reply)?);
+            } else {
+                println!(
+                    "Recorded native Trash operations for {account_id}; historical evidence, current cloud state may differ."
+                );
+                for row in &reply.operations {
+                    println!(
+                        "{}  {:?}  {:?}  item {:?}  original revision {:?}  removal receipt {}  metadata absence {}",
+                        row.operation,
+                        row.state,
+                        row.name,
+                        row.item_id,
+                        row.etag,
+                        row.removal_receipt_recorded,
+                        row.metadata_absence_recorded
+                    );
+                }
+                if let Some(next) = reply.next {
+                    println!("Next page: --after {next}");
+                }
+            }
+        }
+        Command::TrashNativeDocument {
+            label,
+            account_id,
+            path,
+            item_id,
+            etag,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("trash-native-document")
+                != Some(&1)
+            {
+                bail!("this service does not support explicit native document Trash");
+            }
+            let account = account_id.to_string();
+            let reply=cirrove_service::trash_native_document(&socket,&cirrove_service::TrashNativeDocumentRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag}).await.context("native Trash reply unavailable; use list-native-trash with this exact account before resubmitting")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply
+                .job
+                .context("native Trash admission was not started")?;
+            eprintln!(
+                "Native Trash admission started [{}]. Stopping observation never discards a queued removal.",
+                initial.id
+            );
+            follow_native_trash(&socket, &label, &account, &initial, None).await?;
+        }
+        Command::WatchNativeTrash {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("watch-native-trash")
+                != Some(&1)
+            {
+                bail!("this service does not support observing retained native Trash operations");
+            }
+            let account = account_id.to_string();
+            let reply = cirrove_service::watch_native_trash(
+                &socket,
+                &cirrove_service::WatchNativeTrashRequest {
+                    label: label.clone(),
+                    expected_account_id: account.clone(),
+                    operation,
+                },
+            )
+            .await
+            .context("native Trash observer could not attach; no removal was submitted")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply
+                .job
+                .context("native Trash observation was not started")?;
+            eprintln!("Checking retained native Trash [{operation}]. No removal was submitted.");
+            follow_native_trash(&socket, &label, &account, &initial, Some(operation)).await?;
+        }
+        Command::ImportNativePackage {
+            label,
+            account_id,
+            archive,
+            source_root,
+            parent,
+            name,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let capabilities = cirrove_service::capabilities(&socket).await?;
+            if capabilities.capabilities.get("import-native-package") != Some(&1) {
+                bail!("this service does not support native document import");
+            }
+            if account_id.is_some()
+                && capabilities
+                    .capabilities
+                    .get("import-native-package-account-binding")
+                    != Some(&1)
+            {
+                bail!("this service does not support native import account binding");
+            }
+            let account_id = account_id.map(|id| id.to_string());
+            let archive = if archive.is_absolute() {
+                archive
+            } else {
+                std::env::current_dir()?.join(archive)
+            };
+            let reply = cirrove_service::import_native_package(
+                &socket,
+                &cirrove_service::ImportNativePackageRequest {
+                    label: label.clone(),
+                    expected_account_id: account_id.clone(),
+                    archive,
+                    expected_root: source_root,
+                    parent,
+                    name: name.clone(),
+                },
+            )
+            .await
+            .context(
+                "import response unavailable; inspect Cirrove jobs before submitting another copy",
+            )?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply.job.context("import was not accepted")?;
+            eprintln!(
+                "Native import started [{}]. Closing this command does not discard a queued upload.",
+                initial.id
+            );
+            follow_native_import(
+                &socket,
+                &label,
+                &initial,
+                &name,
+                None,
+                account_id.as_deref(),
+            )
+            .await?;
+        }
+        Command::WatchNativeImport {
+            label,
+            account_id,
+            operation,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            if cirrove_service::capabilities(&socket)
+                .await?
+                .capabilities
+                .get("watch-native-import")
+                != Some(&1)
+            {
+                bail!("this service does not support observing retained native imports");
+            }
+            let account_id = account_id.to_string();
+            let reply = cirrove_service::watch_native_import(
+                &socket,
+                &cirrove_service::WatchNativeImportRequest {
+                    label: label.clone(),
+                    expected_account_id: account_id.clone(),
+                    operation,
+                },
+            )
+            .await
+            .context("could not attach import observer; no archive was submitted")?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let initial = reply
+                .job
+                .context("native import observation was not accepted")?;
+            if initial
+                .native_import
+                .as_ref()
+                .is_none_or(|p| p.operation != operation)
+            {
+                bail!("native import observer bound a different saved operation");
+            }
+            eprintln!("Watching retained native import [{operation}]. No archive was submitted.");
+            follow_native_import(
+                &socket,
+                &label,
+                &initial,
+                &initial.name,
+                Some(operation),
+                Some(&account_id),
+            )
+            .await?;
+        }
+        Command::ExportSave {
+            label,
+            operation,
+            destination,
+            socket,
+            offline,
+            state,
+        } => {
+            if offline {
+                let state = match state {
+                    Some(state) => state,
+                    None => state_dir()?,
+                };
+                let destination = if destination.is_absolute() {
+                    destination
+                } else {
+                    std::env::current_dir()?.join(destination)
+                };
+                let cancel = CancellationToken::new();
+                let copy_cancel = cancel.clone();
+                let mut task = tokio::task::spawn_blocking(move || {
+                    cirrove_service::accounts::OfflineRecovery::open(&state, &label)?.export(
+                        operation,
+                        &destination,
+                        &copy_cancel,
+                        |_| {},
+                    )
+                });
+                let receipt = tokio::select! {
+                    result = &mut task => result??,
+                    _ = tokio::signal::ctrl_c() => {
+                        cancel.cancel();
+                        task.await??
+                    }
+                };
+                println!(
+                    "Saved {} verified bytes to {} (SHA-256 {}). The cloud operation is unchanged.",
+                    receipt.size,
+                    receipt.destination.display(),
+                    receipt.sha256
+                );
+                return Ok(());
+            }
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let destination = if destination.is_absolute() {
+                destination
+            } else {
+                std::env::current_dir()?.join(destination)
+            };
+            let reply = cirrove_service::export_save(
+                &socket,
+                &cirrove_service::ExportSaveRequest {
+                    label: label.clone(),
+                    operation,
+                    destination,
+                },
+            )
+            .await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let job = reply.job.context("export was not accepted")?;
+            println!(
+                "Export started [{}]; use cirrove stop with this job ID to cancel",
+                job.id
+            );
+            loop {
+                let status = cirrove_service::status(&socket).await?;
+                let current = status
+                    .accounts
+                    .iter()
+                    .flat_map(|a| &a.jobs)
+                    .find(|j| j.id == job.id)
+                    .context(
+                        "export result is unavailable; inspect the destination before trying again",
+                    )?;
+                if current.state == cirrove_service::jobs::JobState::Succeeded {
+                    let receipt = current.export.as_ref().context("export receipt missing")?;
+                    if receipt.operation != operation {
+                        bail!("unexpected export receipt");
+                    }
+                    println!(
+                        "Saved {} verified bytes to {} (SHA-256 {}). The cloud operation is unchanged.",
+                        receipt.size,
+                        receipt.destination.display(),
+                        receipt.sha256
+                    );
+                    break;
+                }
+                if !current.running() {
+                    bail!(
+                        "{}",
+                        current
+                            .issue
+                            .as_deref()
+                            .unwrap_or("export did not complete")
+                    );
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
         }
         Command::KeepBoth { label, socket } => {
@@ -1525,4 +2881,317 @@ async fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod icloud_access_tests {
+    use super::*;
+    #[test]
+    fn native_trash_list_cli_has_exact_account_bounded_page_and_no_mutation_inputs() {
+        let base = [
+            "cirrove",
+            "list-native-trash",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+        ];
+        assert!(matches!(
+            Args::try_parse_from(base).expect("read page").command,
+            Command::ListNativeTrash {
+                limit: 100,
+                after: None,
+                ..
+            }
+        ));
+        for limit in ["0", "101", "4294967295"] {
+            let mut args = base.to_vec();
+            args.extend(["--limit", limit]);
+            assert!(Args::try_parse_from(args).is_err());
+        }
+        for extra in ["--path", "--etag", "--item-id", "--retry", "--permanent"] {
+            let mut args = base.to_vec();
+            args.extend([extra, "forbidden"]);
+            assert!(Args::try_parse_from(args).is_err());
+        }
+        let mut args = base.to_vec();
+        args.extend(["--limit", "1", "--after", "42", "--json"]);
+        assert!(matches!(
+            Args::try_parse_from(args).expect("bounded page").command,
+            Command::ListNativeTrash {
+                limit: 1,
+                after: Some(42),
+                json: true,
+                ..
+            }
+        ));
+        assert!(Args::try_parse_from(&base[..4]).is_err());
+    }
+    #[test]
+    fn native_trash_cli_requires_exact_binding_and_watch_cannot_accept_mutation_fields() {
+        let args = [
+            "cirrove",
+            "trash-native-document",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--path",
+            "Folder/Own \"quoted\"; $.pages",
+            "--item-id",
+            "FILE::com.apple.CloudDocs::own",
+            "--etag",
+            "original-v1",
+        ];
+        assert!(
+            matches!(Args::try_parse_from(args).expect("bound removal").command,Command::TrashNativeDocument{path,..} if path==args[7])
+        );
+        for missing in [4, 6, 8, 10] {
+            let mut incomplete = args.to_vec();
+            incomplete.drain(missing..missing + 2);
+            assert!(Args::try_parse_from(incomplete).is_err());
+        }
+        let watch = [
+            "cirrove",
+            "watch-native-trash",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--operation",
+            "22222222-2222-4222-8222-222222222222",
+        ];
+        assert!(Args::try_parse_from(watch).is_ok());
+        for extra in [
+            "--path",
+            "--item-id",
+            "--etag",
+            "--archive",
+            "--retry",
+            "--permanent",
+        ] {
+            let mut invalid = watch.to_vec();
+            invalid.extend([extra, "forbidden"]);
+            assert!(Args::try_parse_from(invalid).is_err());
+        }
+    }
+    #[test]
+    fn native_import_watch_requires_exact_account_and_operation_without_source_arguments() {
+        let args = [
+            "cirrove",
+            "watch-native-import",
+            "--label",
+            "Cloud",
+            "--account-id",
+            "11111111-1111-4111-8111-111111111111",
+            "--operation",
+            "22222222-2222-4222-8222-222222222222",
+        ];
+        assert!(Args::try_parse_from(args).is_ok());
+        assert!(Args::try_parse_from(&args[..6]).is_err());
+        let mut wrong = args.to_vec();
+        wrong.extend(["--archive", "/must/not/read.pages"]);
+        assert!(Args::try_parse_from(wrong).is_err());
+        assert!(
+            Args::try_parse_from([
+                "cirrove",
+                "watch-native-import",
+                "--label",
+                "Cloud",
+                "--operation",
+                "22222222-2222-4222-8222-222222222222"
+            ])
+            .is_err()
+        );
+    }
+    #[test]
+    fn native_import_requires_explicit_source_root_and_destination_name() {
+        let valid = [
+            "cirrove",
+            "import-native-package",
+            "--label",
+            "Cloud",
+            "--archive",
+            "/local/source.pages",
+            "--source-root",
+            "Source.pages",
+            "--name",
+            "Copy.pages",
+        ];
+        let mut empty_label = valid;
+        empty_label[3] = "";
+        assert!(Args::try_parse_from(empty_label).is_err());
+        assert!(matches!(
+            Args::try_parse_from(valid)
+                .expect("explicit import")
+                .command,
+            Command::ImportNativePackage { .. }
+        ));
+        assert!(
+            Args::try_parse_from([
+                "cirrove",
+                "import-native-package",
+                "--label",
+                "Cloud",
+                "--archive",
+                "/local/source.pages",
+                "--name",
+                "Copy.pages"
+            ])
+            .is_err()
+        );
+    }
+
+    use cirrove_auth::AccessMode;
+
+    #[test]
+    fn icloud_connection_defaults_read_only_and_write_choice_is_explicit() {
+        for requested in [false, true] {
+            let mut args = vec![
+                "cirrove",
+                "connect-icloud",
+                "--label",
+                "Cloud",
+                "--apple-id",
+                "synthetic@example.invalid",
+                "--mount-path",
+                "/nonexistent/mount",
+            ];
+            if requested {
+                args.push("--write-access");
+            }
+            let parsed = Args::try_parse_from(args).expect("CLI");
+            let Command::ConnectIcloud { write_access, .. } = parsed.command else {
+                panic!("wrong command")
+            };
+            assert_eq!(
+                connection_access(write_access),
+                if requested {
+                    AccessMode::ReadWrite
+                } else {
+                    AccessMode::ReadOnly
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn reauth_preserves_mode_unless_one_explicit_access_flag_is_given() {
+        for (flag, expected) in [
+            (None, None),
+            (Some("--write-access"), Some(AccessMode::ReadWrite)),
+            (Some("--read-only"), Some(AccessMode::ReadOnly)),
+        ] {
+            let mut args = vec!["cirrove", "reauth", "Cloud"];
+            if let Some(flag) = flag {
+                args.push(flag);
+            }
+            let parsed = Args::try_parse_from(args).expect("CLI");
+            let Command::Reauth {
+                write_access,
+                read_only,
+                ..
+            } = parsed.command
+            else {
+                panic!("wrong command")
+            };
+            assert_eq!(reauth_access(write_access, read_only), expected);
+        }
+        assert!(
+            Args::try_parse_from([
+                "cirrove",
+                "reauth",
+                "Cloud",
+                "--write-access",
+                "--read-only"
+            ])
+            .is_err()
+        );
+    }
+    #[test]
+    fn native_stage_abandonment_cli_requires_exact_identity_and_accepts_no_mutation_payload() {
+        for verb in ["abandon-native-stage", "native-stage-abandonment"] {
+            let base = [
+                "cirrove",
+                verb,
+                "--label",
+                "Owned",
+                "--account-id",
+                "00000000-0000-4000-8000-000000000001",
+                "--operation",
+                "00000000-0000-4000-8000-000000000002",
+            ];
+            assert!(Args::try_parse_from(base).is_ok());
+            assert!(Args::try_parse_from(&base[..6]).is_err());
+            let mut forged = base.to_vec();
+            forged.extend(["--archive", "/var/tmp/other.pages"]);
+            assert!(Args::try_parse_from(forged).is_err());
+        }
+    }
+    #[test]
+    fn native_replacement_cli_requires_bound_original_and_keeps_observers_read_only() {
+        let base = [
+            "cirrove",
+            "replace-native-package",
+            "--label",
+            "Owned",
+            "--account-id",
+            "00000000-0000-4000-8000-000000000001",
+            "--path",
+            "Folder/Owned.pages",
+            "--item-id",
+            "FILE::com.apple.CloudDocs::owned",
+            "--etag",
+            "v1",
+            "--archive",
+            "/var/tmp/source ; $(literal).zip",
+            "--source-root",
+            "Source.pages",
+        ];
+        assert!(matches!(
+            Args::try_parse_from(base).expect("valid replacement arguments").command,
+            Command::ReplaceNativePackage { archive, .. }
+                if archive == std::path::Path::new(base[13])
+        ));
+        for option in [
+            "--account-id",
+            "--path",
+            "--item-id",
+            "--etag",
+            "--archive",
+            "--source-root",
+        ] {
+            let index = base
+                .iter()
+                .position(|s| *s == option)
+                .expect("required option in fixture");
+            let mut args = base.to_vec();
+            args.drain(index..index + 2);
+            assert!(Args::try_parse_from(args).is_err(), "{option}");
+        }
+        for verb in ["watch-native-replacement", "list-native-replacements"] {
+            let mut args = vec!["cirrove", verb, "--label", "Owned", "--account-id", base[5]];
+            if verb.starts_with("watch") {
+                args.extend(["--operation", base[5]]);
+            }
+            assert!(Args::try_parse_from(args.clone()).is_ok());
+            args.extend(["--archive", "/var/tmp/not-submitted.zip"]);
+            assert!(Args::try_parse_from(args).is_err());
+        }
+        for limit in ["0", "101"] {
+            assert!(
+                Args::try_parse_from([
+                    "cirrove",
+                    "list-native-replacements",
+                    "--label",
+                    "Owned",
+                    "--account-id",
+                    base[5],
+                    "--limit",
+                    limit
+                ])
+                .is_err()
+            );
+        }
+    }
 }

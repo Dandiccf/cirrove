@@ -1,0 +1,50 @@
+{
+  "status": "complete_single_synthetic_pass",
+  "date": "2026-09-26",
+  "question": "Does a 20,010-byte synthetic Cirrove DesktopVault value become empty after the same delay that emptied an iCloud session value?",
+  "arms": [
+    "save and immediately read in a new process",
+    "read the same item from a new process at least 17 minutes later",
+    "remove only the unique synthetic item"
+  ],
+  "endpoint": "Record exact value equality without printing the value; distinguish an absent item from a present item with zero bytes using libsecret metadata. A failure in one run is not a failure rate.",
+  "prediction": "If the desktop Secret Service loses large Cirrove values independent of iCloud, the delayed read will fail; if it survives, iCloud-specific updates or session serialization need investigation. Neither outcome alone proves the cause.",
+  "environment": {
+    "key": "icloud-retention-test-20260926-delayed-a",
+    "test_binary_sha256": "32e3e9d6fcd7ad914fae331abcc836f66df98248116499a63d28204dae8f954d",
+    "test_binary": ".target-icloud-feasibility/debug/deps/desktop_vault-f07ed018be5e6bc3",
+    "test_command": "CIRROVE_SYNTHETIC_KEYRING_TEST_KEY=icloud-retention-test-20260926-delayed-a CIRROVE_KEYRING_RETENTION_PHASE=<save|check|clear> .target-icloud-feasibility/debug/deps/desktop_vault-f07ed018be5e6bc3 --ignored --exact desktop_keyring_delayed_checkpoint_phase",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 18,
+    "cleanup": "Always run the clear phase for this exact synthetic key after the delayed check; leave real Cirrove credentials untouched."
+  },
+  "saved_at_utc": "2026-09-26T05:34:13Z",
+  "delayed_check_not_before_utc": "2026-09-26T05:51:13Z",
+  "results": [
+    {
+      "arm": "save_and_immediate_independent_process_check",
+      "exact_value_match": true
+    },
+    {
+      "arm": "five_minute_independent_process_check",
+      "observed_at_utc": "2026-09-26T05:39:35Z",
+      "exact_value_match": true
+    },
+    {
+      "arm": "eleven_minute_independent_process_check",
+      "observed_at_utc": "2026-09-26T05:45:13Z",
+      "exact_value_match": true
+    },
+    {
+      "arm": "seventeen_minute_independent_process_check",
+      "observed_at_utc": "2026-09-26T05:51:18Z",
+      "exact_value_match": true
+    },
+    {
+      "arm": "remove_only_synthetic_item",
+      "item_absent_after_cleanup": true
+    }
+  ],
+  "interpretation": "This one 20,010-byte DesktopVault value survived independent process reads beyond the 15.2-minute point when a real iCloud session item became empty. It rules out neither intermittent desktop keyring failure nor a difference in iCloud session writes or content. No real credential was used or removed."
+}

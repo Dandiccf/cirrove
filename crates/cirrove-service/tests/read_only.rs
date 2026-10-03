@@ -3747,3 +3747,95 @@ async fn real_a_crawler_never_sees_resource_temporarily_unavailable() {
         CALLERS * EACH
     );
 }
+
+/// The mount is a virtual view, not a second allocation of the backing cache.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_virtual_allocations_do_not_duplicate_cloud_or_cached_bytes() {
+    use std::os::unix::fs::MetadataExt;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let (provider, engine, config) = pin_fixture(&temp, &mount).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let check_mount = |mount: std::path::PathBuf| {
+        tokio::task::spawn_blocking(move || {
+            for (name, size) in [
+                ("large.bin", 3 * 1024 * 1024 * 1024),
+                ("small.txt", 3_100_000),
+                ("Documents/shared.txt", 29),
+                ("Documents-again/shared.txt", 29),
+            ] {
+                let metadata = std::fs::metadata(mount.join(name)).unwrap();
+                assert_eq!(metadata.len(), size, "logical size: {name}");
+                assert_eq!(metadata.blocks(), 0, "virtual allocation: {name}");
+            }
+            let usage = std::process::Command::new("du")
+                .args(["-s", "-B1"])
+                .arg(&mount)
+                .output()
+                .unwrap();
+            assert!(usage.status.success());
+            assert_eq!(
+                String::from_utf8(usage.stdout)
+                    .unwrap()
+                    .split_whitespace()
+                    .next(),
+                Some("0")
+            );
+        })
+    };
+    check_mount(mount.clone()).await.unwrap();
+    assert_eq!(
+        provider.reads.load(Ordering::SeqCst),
+        0,
+        "stat/du must not download content"
+    );
+    let path = mount.join("Documents/shared.txt");
+    assert_eq!(
+        tokio::task::spawn_blocking(move || std::fs::read(path).unwrap())
+            .await
+            .unwrap()
+            .len(),
+        29
+    );
+    let scope = engine.scope("home");
+    let pinned = engine.node(&scope, "small.txt").await.unwrap();
+    engine
+        .pin(
+            scope.clone(),
+            pinned.id.clone(),
+            false,
+            cirrove_service::content::stored_bytes(pinned.size),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(engine.materialise_pin(&scope, &pinned).await.unwrap() > 0);
+    let before = provider.reads.load(Ordering::SeqCst);
+    check_mount(mount.clone()).await.unwrap();
+    assert_eq!(provider.reads.load(Ordering::SeqCst), before);
+    let cache = temp
+        .path()
+        .join("state/accounts")
+        .join(config.id)
+        .join("cache");
+    let usage = std::process::Command::new("du")
+        .args(["-s", "-B1"])
+        .arg(cache)
+        .output()
+        .unwrap();
+    assert!(usage.status.success());
+    assert!(
+        String::from_utf8(usage.stdout)
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
+            > 0,
+        "actual backing cache must still count toward disk usage"
+    );
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}

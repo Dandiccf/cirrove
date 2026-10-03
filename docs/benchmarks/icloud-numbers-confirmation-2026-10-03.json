@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "status": "ready-awaiting-explicit-new-cloud-authorization",
+  "run": "f7e33734-347e-46ba-ae79-1fc631958fac",
+  "registered_at": "2026-10-03T11:31:11.265525+00:00",
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "label": "iCloudNumbersParentValidation",
+  "root": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac",
+  "state": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/state",
+  "mount": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/mount",
+  "socket": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/control.sock",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-rev-f7e33734",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-rev-f7e33734",
+  "temp_filesystem": "ext4",
+  "root_filesystem": "btrfs",
+  "settings_sha256": "2cc703f0f5ea7bc901a2755c660866b6da35f036a7526665970da882e560bc17",
+  "source_state_unchanged": true,
+  "source_semantics": {
+    "A": {
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133089,
+      "version": 2,
+      "sha256": "67e0f4d4ed8a098959e7a32630dede70bd726b75fc7dd45414e726014658646b"
+    },
+    "B": {
+      "entries": 46,
+      "expanded_bytes": 133151,
+      "files": 42,
+      "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+      "version": 2
+    },
+    "Apple_B_values": [
+      7,
+      3,
+      10
+    ],
+    "Apple_B_formula": "SUM(A2:B2)",
+    "provenance": "docs/benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json"
+  },
+  "archive_sha256": {
+    "source-a.numbers": "add6c6f634ab18e792c3ec15b892da895d323661df29c8cef2f9fc639d9adf18",
+    "source-b.numbers": "d0a1b35bd5b7c32c5c1831a59729bbfff8ab7445e0dd74c8821f09578f9bda66"
+  },
+  "source_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45",
+  "source_checkout": "/home/dandiccf/Storage/.cirrove-validation/icloud-numbers-confirmation-20261003/source-04dc9e1",
+  "cargo_target": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-current-04dc9e1/target",
+  "folder": "Cirrove-Native-f7e33734-347e-46ba-ae79-1fc631958fac",
+  "document": "Cirrove-Numbers-Parent-f7e33734-347e-46ba-ae79-1fc631958fac.numbers",
+  "scope": "One fresh UUID-owned folder, one ownA Numbers import, one B replacement, independent exact currentB/originalA Trash proofs, subsequent exact Apple Numbers open if existing authenticated session available. No ambiguous automatic retry, restore, delete or prior-run replay.",
+  "cloud_requests": 0,
+  "cloud_mutations": 0,
+  "authorization": null,
+  "installed_state_changed": false,
+  "installed_service_restarted": false,
+  "old_live_run": "91a58b61-a31a-4348-811a-e11c9904d709",
+  "expected_duration_seconds": 1800,
+  "guards": "Before each dispatch persist attempted flag; exact one-account ID/label/capabilities; soleApplied folder with stableprovider binding and0 unfinished queue; import soleUploaded with complete publication; daemon stopped by recordedPID before digest-pinnedreceipt observer; A exact selectedid/etag from preflight; replacement singleUUID\u2260import; no replay on ambiguity; source/settings hashes unchanged; session rejection stops without automatic login.",
+  "question": "Does the reviewed clean-parent folder ETag correction enable one fresh owned Numbers replacement with complete B and recoverableA proofs?",
+  "prediction": "The previous exact parent metadata mismatch is now accepted only on cleanfollowing ancestors; new importA and single replacementB complete with full currentB/TrashA semantic and exactrevision proof. Apple open remains separate.",
+  "binaries": "All3 pinned from separate clean04dc9e1 checkout with its own Cargo target; no daemon or provider request started.",
+  "results": null,
+  "full_iCloud_gates_closed": false,
+  "pinned_binaries": {
+    "cirroved": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-current-04dc9e1/target/debug/cirroved",
+      "sha256": "80a6fad0075b9728153ad620d0bf01f42ae324f8c7eb0872e818c4b43198f295",
+      "bytes": 492291888,
+      "source_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45"
+    },
+    "cirrove": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-current-04dc9e1/target/debug/cirrove",
+      "sha256": "864d9bbd6eb55163e86757f6f64cd5473b137c809efd01f168415cb89a5fe035",
+      "bytes": 491641704,
+      "source_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45"
+    },
+    "cirrove-icloud-mounted-write-probe": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-current-04dc9e1/target/debug/cirrove-icloud-mounted-write-probe",
+      "sha256": "2b072e59e4b119c4700f7a1a9baeb3ecb8414d8116074c1b870102aeb1f76da8",
+      "bytes": 469832216,
+      "source_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45"
+    }
+  },
+  "source_clean": true,
+  "independent_local_preparation_review": "Exact one account UUID/label and frozen source/session/settings remain unchanged. Current import CLI explicitly binds account-id. Current binary/local-check/review sidecars are versioned; initial658d8d6 records remain historical.",
+  "controller_preparation": {
+    "reviewed_at": "2026-10-03T21:22:13.353799+00:00",
+    "reviewer": "/root/regression_review",
+    "controller_sha256": "b84a2eca41efdad49b82e9e1a1b944b6acdb141df04610d8f22f6f4d678521f1",
+    "blocking_findings": [],
+    "source_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45",
+    "cloud_phases_executed": [],
+    "limits": [
+      "Only same fresh UUID scope; no old run replay, automatic retry, restore or deletion.",
+      "Current CLI import explicitly binds account UUID as well as label.",
+      "Root-supervised overall1800s daemon lifetime; stop only recorded matching PID.",
+      "Source/settings/session/archive hashes remain frozen and cloud phases need explicit new task authorization."
+    ],
+    "finding": "Only immutable hash and explicit import account-id differ from initial controller. Actual pins match current clean frozen checkout; old controller rejects refreshed plan. Earlier sidecar records remain historical and current readiness cites versioned records. No cloud phase or installed delivery proven."
+  },
+  "source_refresh": {
+    "registered_at": "2026-10-03T21:14:40.776808+00:00",
+    "status": "prepared-current-source-awaiting-explicit-new-cloud-authorization",
+    "source_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45",
+    "source_checkout": "/home/dandiccf/Storage/.cirrove-validation/icloud-numbers-confirmation-20261003/source-04dc9e1",
+    "cargo_target": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-current-04dc9e1/target",
+    "question": "Can the prepared one-shot Numbers trial use the current validated native staging/account-bound CLI implementation while preserving every frozen real-account action and refusal guard?",
+    "prediction": "All three isolated binaries build from clean04dc9e1, local pins validate and CLI import accepts explicit account-id; every cloud phase still refuses without new authorization. Existing A/B artifacts, account/settings/sealed-session hashes and fresh owned target remain unchanged.",
+    "endpoint": "Compile pinned daemon/CLI/receipt observer in a separate worktree target; independent controller review plus local-only check; no daemon launch, credential decryption or provider request.",
+    "expected_duration_seconds": 1800,
+    "cloud_requests": 0,
+    "cloud_mutations": 0,
+    "authorization": null,
+    "scope_unchanged": true,
+    "installed_state_changed": false,
+    "limitations": [
+      "Local preparation is not Numbers replacement, Apple reopen or native session acceptance.",
+      "Previous658d8d6 pins remain recorded as initial preparation; they are not current-source proof.",
+      "This build is not an installed developer delivery and preserves the existing schema19/metadata8 deployment hold."
+    ],
+    "finished_at": "2026-10-03T21:16:35.732197+00:00",
+    "build_manifest": ".local-state/icloud-numbers-confirmation-20261003/build-current-04dc9e1.json",
+    "build_manifest_sha256": "4d4dc42be67ede9e11e58579c56b3776459da79fcaa16f376fa7ac80b93de472",
+    "build_log_sha256": "3eec8d28e65ed7c806b107009a4ec40fb45e863a2a43ed1a61aa6575bee2ebec",
+    "local_check": ".local-state/icloud-numbers-confirmation-20261003/controller-local-check-current-04dc9e1.json",
+    "local_check_sha256": "83e5663bdaf682e1aac55633fc8ee81c4343155fc24f7f0048d6d8b6cbf0be78",
+    "binary_pins": ".local-state/icloud-numbers-confirmation-20261003/binary-pins-current-04dc9e1.json",
+    "binary_pins_sha256": "eae03a5cbb47a65d880de1589c23df9f0ff9aff68407f0dae5b44fbacc248d66",
+    "independent_review": ".local-state/icloud-numbers-confirmation-20261003/independent-controller-review-current-04dc9e1.json",
+    "independent_review_sha256": "624c2bb4279633fe9859f0e13862d43317828dc4c5611d0636afaef6b48bc7a8",
+    "controller_sha256": "b84a2eca41efdad49b82e9e1a1b944b6acdb141df04610d8f22f6f4d678521f1",
+    "initial_controller_new_plan_refused": true,
+    "actual_binaries": 3,
+    "source_clean": true,
+    "import_explicit_account_binding": true,
+    "full_contributor_check": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/native-write-staging-numbers-preparation-full-check.json",
+      "manifest_sha256": "6acd487272b5a00da006873cb270b360587703b89ecc4cd2a7c70bc943a51d5d",
+      "log_sha256": "b922cf577e47e2b6abb1b8e74e1146061b4a6a91fce18a9c93e155eb24eec7b9",
+      "status": "passed",
+      "exit_code": 0,
+      "source_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45",
+      "executable_source_unchanged": true,
+      "local_diff": "Only Numbers preparation JSON and integration Markdown changed; production source remains exact04dc9e1.",
+      "executed": {
+        "default_icloud": 247,
+        "write_probe_icloud": 362,
+        "native_fuse_https": 4,
+        "writable_kernel": 55,
+        "installer": 39
+      },
+      "desktop_display": "Not rerun locally; separate exact04dc9e1 CI observed independently."
+    },
+    "source_remote_ci": {
+      "run": 37153730851,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37153730851",
+      "head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": 7,
+      "canonical_scope_evidence": "docs/benchmarks/icloud-native-write-staging-budget-2026-10-03.json",
+      "scope": "Exact prepared executable source04dc9e1. Not a Numbers live replacement, Apple reopen or installed test."
+    }
+  },
+  "initial_preparation": {
+    "source_head": "658d8d608cf283e11db8c0d79689986219181df4",
+    "source_checkout": "/home/dandiccf/Storage/.cirrove-validation/icloud-numbers-confirmation-20261003/source",
+    "cargo_target": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target",
+    "binaries": "All3 pinned from separate clean658d8d6 checkout with dedicatedtarget; no daemon orcloudrequest started.",
+    "pinned_binaries": {
+      "cirroved": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target/debug/cirroved",
+        "sha256": "203bfd9ad63f742dc7ba76a5307ae21b07e57006e8816ce9fdd857f7eea13d9e",
+        "bytes": 487890192,
+        "source_head": "658d8d608cf283e11db8c0d79689986219181df4"
+      },
+      "cirrove": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target/debug/cirrove",
+        "sha256": "280d2fdc8a1645ebb78047db4f5c637e91fa1558d51fdad3adc8bdf6f14a3796",
+        "bytes": 487991792,
+        "source_head": "658d8d608cf283e11db8c0d79689986219181df4"
+      },
+      "cirrove-icloud-mounted-write-probe": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target/debug/cirrove-icloud-mounted-write-probe",
+        "sha256": "c57ef5e10c3a566042fd618b88d718452e1456710a206b2a1374dd6afdd3693a",
+        "bytes": 465738824,
+        "source_head": "658d8d608cf283e11db8c0d79689986219181df4"
+      }
+    },
+    "source_clean": true,
+    "controller_preparation": {
+      "reviewed_at": "2026-10-03T13:02:16.200555+00:00",
+      "reviewer": "/root/regression_review",
+      "controller_sha256": "c1a0569dc36945ac6059b03f06bf4e58cc4f1727287ef832335d5c497b8c8594",
+      "blocking_findings": [],
+      "limits": [
+        "Root-supervised overall1800s deadline and exact recorded-process stop required; not autonomous teardown.",
+        "ImportCLI remains label-only, fenced by frozenoneaccount settings and exactstatus/typedinventory.",
+        "No new authorization or authenticatedphase executed."
+      ],
+      "cloud_phases_executed": []
+    },
+    "status": "superseded-before-any-cloud-phase",
+    "private_plan_sha256": "183787e7353852eb096500383b2c1f75902c8073e54ada312adceafcf7610661"
+  }
+}

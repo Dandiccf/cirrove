@@ -1,0 +1,19 @@
+{
+  "run": "65f8ce7c-51b1-46c4-b813-c1f46f8edc60",
+  "arm": "recover",
+  "binary_sha256": "cc64b9b2c176905cb882e2dff82b49fba4225fb670397753ba29810042c79122",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 72.731,
+  "isolated_mount_detached": true,
+  "passed": true,
+  "exact_removed_receipt": true,
+  "held_read_after_unlink": true,
+  "independent_active_absence": true,
+  "independent_trash_presence": true,
+  "mounted_unlink": true,
+  "permanent_deletions": 0,
+  "process_exit_before_journal_receipt": true,
+  "recovery_mutation_replays": 0,
+  "remounted_absence": true
+}

@@ -1,0 +1,252 @@
+{
+  "run": "f93981be-66e2-45a1-a252-8c291706e37c",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-trash-lookup-control",
+    "21d05f56-70c4-47a8-a5e3-577ab68994ac"
+  ],
+  "binary_sha256": "6c3fd9cfaa64e28e9eb809d9f4deb5b8e33929a7d47bde5b9eaf5acc7753058f",
+  "revision": "fd46c384d02192a2d26aa7e4b405ab4e86024cb5",
+  "dirty": true,
+  "start_utc": "2026-09-30T00:47:44.012123+00:00",
+  "expected_duration_seconds": 600,
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "private_manifest": ".local-state/icloud-trash-lookup-control-f93981be-66e2-45a1-a252-8c291706e37c/manifest.json",
+  "installed_service_changed": false,
+  "cloud_mutations": false,
+  "pid": 1597037,
+  "exit_code": 0,
+  "elapsed_seconds": 64.686,
+  "finished_utc": "2026-09-30T00:48:48.698103+00:00",
+  "report": {
+    "envelopes": [
+      {
+        "active_then_predecessors": [
+          {
+            "array_entries": null,
+            "elapsed_ms": 156,
+            "fields": null,
+            "response_object": false,
+            "shape": "nested_array",
+            "status": 400
+          },
+          {
+            "array_entries": null,
+            "elapsed_ms": 158,
+            "fields": null,
+            "response_object": false,
+            "shape": "nested_array",
+            "status": 400
+          },
+          {
+            "array_entries": null,
+            "elapsed_ms": 157,
+            "fields": null,
+            "response_object": false,
+            "shape": "nested_array",
+            "status": 400
+          }
+        ],
+        "shape": "nested_array"
+      },
+      {
+        "active_then_predecessors": [
+          {
+            "array_entries": 1,
+            "elapsed_ms": 899,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": false,
+                "equal": false,
+                "listed_present": false
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "response_object": true,
+            "shape": "object_items",
+            "status": 200
+          },
+          {
+            "array_entries": 1,
+            "elapsed_ms": 881,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "response_object": true,
+            "shape": "object_items",
+            "status": 200
+          },
+          {
+            "array_entries": 1,
+            "elapsed_ms": 852,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "response_object": true,
+            "shape": "object_items",
+            "status": 200
+          }
+        ],
+        "shape": "object_items"
+      },
+      {
+        "active_then_predecessors": [
+          {
+            "array_entries": null,
+            "elapsed_ms": 163,
+            "fields": null,
+            "response_object": false,
+            "shape": "flat_array",
+            "status": 400
+          },
+          {
+            "array_entries": null,
+            "elapsed_ms": 161,
+            "fields": null,
+            "response_object": false,
+            "shape": "flat_array",
+            "status": 400
+          },
+          {
+            "array_entries": null,
+            "elapsed_ms": 168,
+            "fields": null,
+            "response_object": false,
+            "shape": "flat_array",
+            "status": 400
+          }
+        ],
+        "shape": "flat_array"
+      }
+    ],
+    "selected_metadata_stable": true
+  }
+}

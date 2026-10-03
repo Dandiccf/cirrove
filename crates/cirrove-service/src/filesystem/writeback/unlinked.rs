@@ -4,6 +4,7 @@ use tokio_util::task::task_tracker::TaskTrackerToken;
 
 pub(crate) enum ReadSource {
     Working(Uuid),
+    Native(Arc<dyn cirrove_core::reads::ReadSession>),
     Remote(Node, TaskTrackerToken),
 }
 impl Writeback {
@@ -19,6 +20,13 @@ impl Writeback {
     /// this stream even if OPEN has not returned its file handle yet.
     pub fn register_open(&self, file: OpenFile) -> Result<Arc<OpenFile>> {
         let mut p = self.projection.lock().map_err(|_| Errno::EIO)?;
+        if let Ok(identity) = cirrove_core::reads::ReadIdentity::new(&file.view.scope, &file.node)
+            && let Some(session) = p.native_readers.get(&identity).and_then(Weak::upgrade)
+        {
+            let _ = file.native_snapshot.set(session);
+        }
+        p.native_readers
+            .retain(|_, session| session.strong_count() > 0);
         let object = p.local_object(&file.view.scope, &file.view.id);
         if object.is_some_and(|o| o.unlinked) {
             return Err(Errno::ENOENT);
@@ -49,6 +57,9 @@ impl Writeback {
     }
     pub fn read_source(&self, file: &OpenFile) -> Result<ReadSource> {
         let p = self.projection.lock().map_err(|_| Errno::EIO)?;
+        if let Some(session) = file.native_snapshot.get() {
+            return Ok(ReadSource::Native(session.clone()));
+        }
         let object = p.local_object(&file.view.scope, &file.view.id);
         if let Some(working) = object.and_then(|o| o.working_file) {
             return Ok(ReadSource::Working(working));
@@ -59,6 +70,10 @@ impl Writeback {
         let mut node = file.node.clone();
         if let Some(remote) = object.and_then(|o| o.remote.as_ref()) {
             node.id = remote.id.clone();
+            // A local directory identity can differ from its confirmed
+            // provider identity after a move. Providers that address file
+            // bytes by both item and parent need the remote parent here.
+            node.parent_id = remote.parent_id.clone();
         }
         // Registration and switching to working bytes use the same short lock.
         // The token is a counter, not a filesystem lock held during network I/O.
@@ -77,8 +92,12 @@ impl Writeback {
         let writer = self.clone();
         let scope = view.scope.as_ref().clone();
         let source = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
+        let admission = self
+            .admit_write(&inner.engine, &scope, &source, &inner.cancel)
+            .await?;
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
+            admission.recheck(&j).map_err(error)?;
             let mut object = Self::materialize(&mut j, scope, source).map_err(error)?;
             if object.unlinked {
                 return Err(Errno::ENOENT);
@@ -119,7 +138,7 @@ impl Writeback {
             let committed = j
                 .unlink_namespace_file(object.id, object.revision, preserve)
                 .map_err(error)?;
-            p.apply(committed.object, committed.working);
+            p.apply(committed.object, committed.working, None);
             Ok(())
         })
         .await
@@ -148,8 +167,22 @@ impl Writeback {
         let writer = self.clone();
         let scope = view.scope.as_ref().clone();
         let source = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
+        let (source, folder_snapshot) = self
+            .observed_folder_source(&inner.engine, &scope, &source, &inner.cancel)
+            .await?;
+        let source_cancel = inner.cancel.clone();
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
+            if source_cancel.is_cancelled() {
+                return Err(Errno::ENODEV);
+            }
+            Self::recheck_folder_source(&j, folder_snapshot.as_ref()).map_err(|e| {
+                if matches!(e, JournalError::Stale) {
+                    Errno::EBUSY
+                } else {
+                    error(e)
+                }
+            })?;
             let object = Self::materialize(&mut j, scope, source).map_err(error)?;
             if object.unlinked {
                 return Err(Errno::ENOENT);
@@ -190,7 +223,7 @@ impl Writeback {
             let committed = j
                 .remove_namespace_directory(object.id, object.revision)
                 .map_err(error)?;
-            p.apply(committed.object, None);
+            p.apply(committed.object, None, None);
             Ok(())
         })
         .await
@@ -320,7 +353,8 @@ impl Writeback {
             let mut view = users[0].view.clone();
             view.node = Some(std::sync::Arc::new(object.node.clone()));
             drop(users);
-            self.prepare(engine, &view, false, &engine.cancel).await?;
+            self.prepare_inner(engine, &view, None, &engine.cancel, false, None)
+                .await?;
         }
         let users = {
             let p = self.projection.lock().map_err(|_| Errno::EIO)?;

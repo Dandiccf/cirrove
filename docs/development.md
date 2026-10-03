@@ -26,6 +26,11 @@ scripts/install-developer.sh --no-build # install what is already in target/rele
 scripts/switch-to-package.sh            # after pacman -U, move off the developer install
 ```
 
+In a separate worktree, set `CARGO_TARGET_DIR` to that worktree's own build
+directory when running `install-developer.sh` (including `--no-build`). The
+installer uses the same directory for Cargo binaries and optional Dolphin
+plugins, rather than picking up artifacts from another checkout.
+
 `install-developer.sh` puts the binaries in `~/.local/bin`, the unit in
 `~/.config/systemd/user`, the tray's autostart entry in `~/.config/autostart`,
 and the icons, desktop entry, metainfo and Files extension under
@@ -618,9 +623,78 @@ while `cirroved` holds the state.
 This is written down because it happened: a `pin` invocation aimed at
 demonstrating an error message was run without `--state-dir`, migrated a live
 account's index on the way to failing, and left the installed daemon unable to
-read it. Recovery is `PRAGMA user_version=<previous>` on that database — the
-migration only adds empty tables, and `CREATE TABLE IF NOT EXISTS` makes the real
-migration idempotent afterwards — followed by a service restart.
+read it. That historical metadata-index incident involved only added empty tables;
+it is not a general downgrade procedure. In particular, never lower a journal's
+`user_version` to make an older writer accept new persisted semantics. The native
+working schema policy below requires a compatible recovery reader instead.
 
 Upgrading properly is: install the new binaries first, then restart the service,
 then use the new commands.
+
+
+### Native working journal schema19: held prerelease policy
+
+Schema19 adds native backup-first state to the native-working prerequisite, not permission to upgrade
+installed accounts. Until its recovery, successor and application acceptance is
+complete, validation must use explicitly isolated state, sockets, mounts and
+binaries. Do not open the user's current journal with a schema19 writer, restart
+the installed service or change package/developer installation state for these tests.
+
+Every writable journal opened by that build migrates, including ordinary-only
+accounts with no native documents. The fence protects native working bytes from
+older code that could interpret them as ordinary uploads. Schema17 and schema18 binaries must
+refuse schema19 rather than ignore the marker or lower the version. A table being
+additive does not make the writer downgrade safe.
+
+The developer installer enforces this hold through
+`packaging/developer-install-policy.json`. Before building and again before its
+first installed-file copy, a read-only preflight inspects the exact user service,
+its effective command, any live process and the shipped future unit template.
+It checks the union of their state directories, using the service owner's passwd
+home rather than the caller's `XDG_STATE_HOME`. Retained account, index or journal
+markers refuse installation, including ordinary-only, disabled and read-only
+accounts. It does not parse account settings, open SQLite, read credentials or
+contact a provider. A held `--no-build` installation is also refused because the
+source policy cannot establish arbitrary build-artifact provenance. Unknown,
+ambiguous or changing routes and unsafe symlink ancestry refuse installation.
+
+A benchmark can declare a top-level `restart_embargo` object with `version: 1`,
+`hostname`, numeric `uid`, `scope: "user"`, `unit: "cirroved.service"` and
+`state: "active"` or `"closed"`. An active declaration matching this host, user
+and service refuses installation; malformed declarations also refuse. Optional
+`owner_pid` and timezone-bearing `owner_started_at` identify the owner and do not
+expire an embargo. Historical status words alone are not such a declaration.
+The second preflight catches changes declared while the build ran.
+
+This is a bounded guard, not a measurement lease: it neither discovers every
+legacy window nor excludes a concurrent launch after the final check. Continue
+the manual measurement audit and prohibit concurrent measurement starts during
+deployment. Package switching, package-manager actions and reboot need their own
+checks; this helper does not intercept them. The
+[controlled preflight evidence](benchmarks/icloud-installation-preflight-2026-10-03.json)
+establishes guarded refusal, not installed iCloud transition acceptance. Releasing
+the source hold still requires the recovery and application acceptance above.
+
+Before any later authorized deployment, identify the actual installed version,
+state ownership and any active measurement; inventory retained uploads and dirty
+working generations using compatible read-only recovery. Export needed sealed
+and working bytes to an explicitly chosen independent local filesystem, checking
+operation/generation, length and digest. Keep the export receipts. A coherent
+backup of state requires coordinated ownership and consistent database/WAL and
+spool files; copying a live database file alone is not a validated backup.
+
+Exports and backups preserve selected local data, not cloud history or mutation
+rollback. They cannot reverse a completed two-ID replacement, recreate sharing
+links, undo deletion, or establish that an uncertain request never reached Apple.
+Do not restore an old pending queue and let an older daemon replay it. If an
+upgrade must be rolled back, retain the newer state and use a compatible
+read-only recovery reader first; decide any account reconnection or state
+restoration from its actual provider and journal outcomes. There is no blanket
+version-reset or database-copy downgrade recipe.
+
+Native recovery must remain byte-based when the binding is missing/corrupt or the
+latest archive is incomplete. Read-only export must not parse ZIP, reconstruct
+upload authority, migrate, auto-seal, retry or contact Apple. Validate saved and
+dirty generations independently, including uncertain predecessor and queued
+successor states, without changing the journal. Ordinary schema17 records must
+remain readable after the migration. Keep these gates explicit before deployment.

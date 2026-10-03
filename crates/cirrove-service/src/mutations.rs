@@ -61,13 +61,15 @@ impl MutationWorker {
             return Ok(None);
         };
         let id = record.id;
+        let operation = id.to_string();
         let attempt = record.attempt.ok_or(JournalError::Stale)?;
         if record.state == MutationState::Applying && record.prepared_item.is_none() {
             match self
-                .remote(
-                    self.provider
-                        .prepare_mutation(&record.request, &self.cancel),
-                )
+                .remote(self.provider.prepare_mutation_for_operation(
+                    &operation,
+                    &record.request,
+                    &self.cancel,
+                ))
                 .await
             {
                 Ok(Some(item)) => {
@@ -83,6 +85,7 @@ impl MutationWorker {
                         MutationError::Invalid
                             | MutationError::Unsupported(_)
                             | MutationError::Quota
+                            | MutationError::InsufficientStorage
                             | MutationError::Provider(
                                 ProviderError::Permission
                                     | ProviderError::Authentication
@@ -118,14 +121,16 @@ impl MutationWorker {
             }
         }
         let result = if record.state == MutationState::Verifying {
-            self.remote(self.provider.reconcile_prepared_mutation(
+            self.remote(self.provider.reconcile_operation(
+                &operation,
                 &record.request,
                 record.prepared_item.as_deref(),
                 &self.cancel,
             ))
             .await
         } else {
-            self.remote(self.provider.mutate_prepared(
+            self.remote(self.provider.mutate_operation(
+                &operation,
                 &record.request,
                 record.prepared_item.as_deref(),
                 &self.cancel,
@@ -134,6 +139,12 @@ impl MutationWorker {
             .map(MutationReconciliation::Applied)
         };
         let (state, issue) = match result {
+            Ok(MutationReconciliation::AppliedWithVerifiedContent { receipt, proof }) => {
+                let state = self
+                    .local(move |j| j.acknowledge_verified_mutation(id, attempt, receipt, proof))
+                    .await?;
+                (state, None)
+            }
             Ok(MutationReconciliation::Applied(receipt)) => {
                 let state = self
                     .local(move |j| j.acknowledge_mutation(id, attempt, receipt))
@@ -168,6 +179,7 @@ impl MutationWorker {
                             MutationError::Invalid
                             | MutationError::Unsupported(_)
                             | MutationError::Quota
+                            | MutationError::InsufficientStorage
                             | MutationError::Provider(
                                 ProviderError::Permission
                                 | ProviderError::Authentication

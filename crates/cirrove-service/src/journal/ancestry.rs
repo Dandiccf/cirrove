@@ -206,6 +206,7 @@ impl UploadJournal {
                 }
                 count += 1;
                 NamespaceObject {
+                    native_archive: None,
                     id: Uuid::new_v4(),
                     names: namespace::policy(&tx, &scope)?,
                     scope,

@@ -1,0 +1,274 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "status": "controlled-discovery-local-check-and-source-CI-passed",
+  "scope": "synthetic saved explicit-native-import discovery; no Apple mutation, desktop implementation, installed state or full-iCloud gate closure",
+  "question": "Can the public service discover exact-account saved explicit PACKAGE imports after ephemeral jobs disappear, including read-only recovery, without capture, cloud IO, queue replay, private row leakage or journal migration?",
+  "prediction": "Five focused tests will execute. Exact PackageArchive/Create rows retain historical verified completion identities, ordinary and replacement uploads stay excluded, foreign scope and corrupted owned rows are fenced, bounded cursors return every escaped-byte fixture once, and read-only restart plus a concurrent account withdrawal remain safe. No product defect or nonexistent-API failure is claimed by this new feature.",
+  "endpoint": {
+    "test_count": 5,
+    "journal_tests": 3,
+    "manager_tests": 2,
+    "selectors": [
+      "journal::native_import_list::tests::",
+      "manager::native_import::tests::list::"
+    ],
+    "public_request_refusal_arms": 10,
+    "journal_corruption_arms": 19,
+    "pagination_arms": [
+      "indexed",
+      "legacy-index-absent"
+    ],
+    "pagination_imports_per_arm": 50,
+    "readonly_comparisons": [
+      "byte-identical uploads.db before/after RecoveryJournal discovery",
+      "exact serialized retained upload records before/after listing",
+      "no jobs or writable control after full read-only Engine restart"
+    ],
+    "metadata_scope": "root/item counters are unchanged and no provider implementation is constructed by listing; provider children is not independently counted by this fixture",
+    "runtime_bounds": "private API startup/exchange each3s; journal-lock holder waits at most5s; root records actual filtered test count, binary/source pins, disk TMPDIR/SQLITE_TMPDIR and elapsed time before and after execution"
+  },
+  "arms": [
+    {
+      "name": "positive-feature",
+      "source": "new proposal intact",
+      "expected": "five focused tests pass; no current availability inferred from historical list"
+    },
+    {
+      "name": "scope-filter-omission-counterfactual",
+      "source_edit": "change only `if row.scope == *scope {` to `if true {` in journal/native_import_list.rs, leaving request exact-account and journal-owner fences intact",
+      "selector": "journal::native_import_list::tests::native_import_list_is_scoped_historical_and_unchanged_under_readonly_recovery",
+      "expected": "one selected test fails its exact owned-operation sequence assertion because foreign account/provider/collection retained rows enter the DTO page; no build/timeout/zero-selection failure counts"
+    },
+    {
+      "name": "scope-filter-restored",
+      "source": "restore exact original production source checksum after omission arm",
+      "expected": "same exact test and all five focused tests pass; complete scripts/check.sh then required"
+    }
+  ],
+  "controls": [
+    "Page limit0/101 and cursor abovei64MAX refused; unknown archive/retry/operation fields refused at public handler.",
+    "Foreign account/provider/collection rows are excluded; input foreign scope refused. Body id/sequence/state must agree with indexed columns.",
+    "Explicit import ownership fences: Create+PackageArchive, no base/working/identity handoff. Corrupt completion semantic and remote identity/name/parent/package/revision refused.",
+    "Legacy ETag content-version alias remains accepted exactly and retained records are never rewritten.",
+    "Response serialization<=512KiB; overflowing selected row not consumed. Legacy empty pages advance cursor.",
+    "Scoped read-only recovery uses existing owner lease and does not migrate absent additive index; full Engine restart discovers retained imports with empty ephemeral job register.",
+    "Account removed while journal read waits is refused after the read completes.",
+    "DTO contains only operation,sequence,state,parent,name,remote_item,completion_receipt_recorded. No source/archive/checkpoint/raw row/current-availability fields."
+  ],
+  "private_proposals": [
+    {
+      "path": ".local-state/icloud-full-integration-20261003/saved-native-imports/production.v1.patch",
+      "sha256": "eea373b0562eb6f7090d801de2d48824f61d62e49f7f9f7300359f8cfb385734"
+    },
+    {
+      "path": ".local-state/icloud-full-integration-20261003/saved-native-imports/tests.v3.patch",
+      "sha256": "38d4927d7d602456a85c4098f341f7574f288fb62f5c14bbb7f1e7c7968669c3"
+    }
+  ],
+  "authoring_corrections_before_execution": [
+    "tests.v1 used non-existent WriteBase.operation instead of actual predecessor/resolved; tests.v2 corrects the retained-row corruption fixture.",
+    "tests.v1 omitted explicit uuid::Uuid import in new manager submodule; tests.v2 supplies it.",
+    "No builds, test runs, production application or cloud calls performed by authoring agent.",
+    "tests.v3 adds an independently valid PackageReplacementArchive retained fixture to the scope/typed test; imports listing must exclude it. Test count unchanged.",
+    "Post-control recording initially expected495 filtered tests from the three-test group rather than actual497 for the one-test selector; recording assertion aborted before restoration/build. Corrected to observed497, then restored source exactly. No duplicate run or intervening build occurred."
+  ],
+  "claim_limits": [
+    "The list describes retained historical completion receipts. Explicit watch is still required for current exact metadata/publication.",
+    "Read-only listing does not enable the existing watcher on a read-only mount, mount accounts, change access or retry workers.",
+    "No GTK chooser/completion flow, Apple fidelity, live Pages/Numbers/Keynote acceptance, installed transition, DATA acceptance or sustained reliability is established.",
+    "All full-iCloud acceptance rows485-490 remain done=false/asserted_by=null."
+  ],
+  "results": {
+    "green-journal": {
+      "manifest": ".local-state/icloud-full-integration-20261003/saved-import-discovery-green-journal.json",
+      "manifest_sha256": "b25ca101d51d0346fcd38fcbbd62a354c1ec88223b6047e8018506ea24eabb4e",
+      "log_sha256": "615282f1ac533bda59a2fb2659249eb2182d9a2d8bbe20415afaebe6922ffa64",
+      "test_binary_sha256": "742d9b46191adf7e18e322250b2abcff3b49c5b9bf48fd4558fb897858a6e7db",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_import.rs": "f21d1fb55b2b059aef3127ac59a0abe559f16361ab25f59539d415fa086afc0f",
+        "crates/cirrove-service/src/filesystem/writeback/native_import.rs": "588a8636f95917b7af380f93049074abbb4f6c745ffffe066397de6d05a30109",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "79e628041b59a2f833157bf9980cc8571f5d255b246b8c6e1689413bbca97b05",
+        "crates/cirrove-service/src/journal/native_import_list.rs": "4ccdf4b486f7e3595fd2e5a30f598bf64d05fda5cb2f928681cd02a75bcaea98",
+        "crates/cirrove-service/src/journal/native_import_list/tests.rs": "7e3752ed72ae320b376f06040257e0942f84c63fe041007fdf60d6a9aceefd93",
+        "crates/cirrove-service/src/lib.rs": "4deb0ce6ca22075f9a1300ff5a03be853fbb08c99452f236c12f2bd53645ead3",
+        "crates/cirrove-service/src/manager/native_import.rs": "fb3b3b416885975ea56ce0b3aaec2bdecbf23216e772d079ca3925ab2247fc97",
+        "crates/cirrove-service/src/manager/native_import/tests.rs": "0a058d276c47a91fbc60545ac370b61c6ed9a395bcb0094df52c24c942070236",
+        "crates/cirrove-service/src/manager/native_import/tests/list.rs": "70a2d5bcb5f9ca54888bca7e0a4fb3547cd79a3f2888ac6d61d2d0718df83210",
+        "crates/cirrove-service/src/recovery.rs": "91f990571d6a801713e885ac0187d8e9bab74e8556efcf3745d98fda6ed957e8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 495 filtered out; finished in 1.22s"
+    },
+    "green-manager": {
+      "manifest": ".local-state/icloud-full-integration-20261003/saved-import-discovery-green-manager.json",
+      "manifest_sha256": "2239e935c68701e6cbce194f7cb13b6fd3d00f87c30453ac0d0c3ebd4569db7c",
+      "log_sha256": "dc3beaa9f260764f9f1305f2f085c422e3f2c062bd9528e2431ac2003cdb0f2d",
+      "test_binary_sha256": "742d9b46191adf7e18e322250b2abcff3b49c5b9bf48fd4558fb897858a6e7db",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_import.rs": "f21d1fb55b2b059aef3127ac59a0abe559f16361ab25f59539d415fa086afc0f",
+        "crates/cirrove-service/src/filesystem/writeback/native_import.rs": "588a8636f95917b7af380f93049074abbb4f6c745ffffe066397de6d05a30109",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "79e628041b59a2f833157bf9980cc8571f5d255b246b8c6e1689413bbca97b05",
+        "crates/cirrove-service/src/journal/native_import_list.rs": "4ccdf4b486f7e3595fd2e5a30f598bf64d05fda5cb2f928681cd02a75bcaea98",
+        "crates/cirrove-service/src/journal/native_import_list/tests.rs": "7e3752ed72ae320b376f06040257e0942f84c63fe041007fdf60d6a9aceefd93",
+        "crates/cirrove-service/src/lib.rs": "4deb0ce6ca22075f9a1300ff5a03be853fbb08c99452f236c12f2bd53645ead3",
+        "crates/cirrove-service/src/manager/native_import.rs": "fb3b3b416885975ea56ce0b3aaec2bdecbf23216e772d079ca3925ab2247fc97",
+        "crates/cirrove-service/src/manager/native_import/tests.rs": "0a058d276c47a91fbc60545ac370b61c6ed9a395bcb0094df52c24c942070236",
+        "crates/cirrove-service/src/manager/native_import/tests/list.rs": "70a2d5bcb5f9ca54888bca7e0a4fb3547cd79a3f2888ac6d61d2d0718df83210",
+        "crates/cirrove-service/src/recovery.rs": "91f990571d6a801713e885ac0187d8e9bab74e8556efcf3745d98fda6ed957e8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 496 filtered out; finished in 0.09s"
+    },
+    "scope_filter_omission": {
+      "manifest": ".local-state/icloud-full-integration-20261003/saved-import-discovery-scope-omission-red.json",
+      "manifest_sha256": "f98cbb9d95a00e7cc79471ec73a07eee551a38919c1cc9071034b13c14a304e9",
+      "log_sha256": "ace92a5e685964c5288fc16a277ae23f06456ab510d2a841d6616791273acf45",
+      "test_binary_sha256": "f73018305e1585bdcc770cb11bb59b52fbf789b5efde6aa46fbfe23022d6efdd",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_import.rs": "f21d1fb55b2b059aef3127ac59a0abe559f16361ab25f59539d415fa086afc0f",
+        "crates/cirrove-service/src/filesystem/writeback/native_import.rs": "588a8636f95917b7af380f93049074abbb4f6c745ffffe066397de6d05a30109",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "79e628041b59a2f833157bf9980cc8571f5d255b246b8c6e1689413bbca97b05",
+        "crates/cirrove-service/src/journal/native_import_list.rs": "94aefbf472563638dc7f1a0e7ff705ae72c3d9424a9ef834bcc93cc99759be7c",
+        "crates/cirrove-service/src/journal/native_import_list/tests.rs": "7e3752ed72ae320b376f06040257e0942f84c63fe041007fdf60d6a9aceefd93",
+        "crates/cirrove-service/src/lib.rs": "4deb0ce6ca22075f9a1300ff5a03be853fbb08c99452f236c12f2bd53645ead3",
+        "crates/cirrove-service/src/manager/native_import.rs": "fb3b3b416885975ea56ce0b3aaec2bdecbf23216e772d079ca3925ab2247fc97",
+        "crates/cirrove-service/src/manager/native_import/tests.rs": "0a058d276c47a91fbc60545ac370b61c6ed9a395bcb0094df52c24c942070236",
+        "crates/cirrove-service/src/manager/native_import/tests/list.rs": "70a2d5bcb5f9ca54888bca7e0a4fb3547cd79a3f2888ac6d61d2d0718df83210",
+        "crates/cirrove-service/src/recovery.rs": "91f990571d6a801713e885ac0187d8e9bab74e8556efcf3745d98fda6ed957e8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "exit_code": 101,
+      "result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 497 filtered out; finished in 0.06s",
+      "endpoint": "Owned historical operation sequence assertion admitted foreign scope rows; exactly one expected test failed. Not a compiler, timeout or zero-selection failure."
+    },
+    "restored-journal": {
+      "manifest": ".local-state/icloud-full-integration-20261003/saved-import-discovery-restored-journal.json",
+      "manifest_sha256": "01ac4839010490ef8cf9b5711c466f40359770e40002a954f7f75ddc7599f4b8",
+      "log_sha256": "fccdee971058cc6a4aa471688c7cc8ea2aa54797bf61671baf2478f99f58e1f9",
+      "test_binary_sha256": "742d9b46191adf7e18e322250b2abcff3b49c5b9bf48fd4558fb897858a6e7db",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_import.rs": "f21d1fb55b2b059aef3127ac59a0abe559f16361ab25f59539d415fa086afc0f",
+        "crates/cirrove-service/src/filesystem/writeback/native_import.rs": "588a8636f95917b7af380f93049074abbb4f6c745ffffe066397de6d05a30109",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "79e628041b59a2f833157bf9980cc8571f5d255b246b8c6e1689413bbca97b05",
+        "crates/cirrove-service/src/journal/native_import_list.rs": "4ccdf4b486f7e3595fd2e5a30f598bf64d05fda5cb2f928681cd02a75bcaea98",
+        "crates/cirrove-service/src/journal/native_import_list/tests.rs": "7e3752ed72ae320b376f06040257e0942f84c63fe041007fdf60d6a9aceefd93",
+        "crates/cirrove-service/src/lib.rs": "4deb0ce6ca22075f9a1300ff5a03be853fbb08c99452f236c12f2bd53645ead3",
+        "crates/cirrove-service/src/manager/native_import.rs": "fb3b3b416885975ea56ce0b3aaec2bdecbf23216e772d079ca3925ab2247fc97",
+        "crates/cirrove-service/src/manager/native_import/tests.rs": "0a058d276c47a91fbc60545ac370b61c6ed9a395bcb0094df52c24c942070236",
+        "crates/cirrove-service/src/manager/native_import/tests/list.rs": "70a2d5bcb5f9ca54888bca7e0a4fb3547cd79a3f2888ac6d61d2d0718df83210",
+        "crates/cirrove-service/src/recovery.rs": "91f990571d6a801713e885ac0187d8e9bab74e8556efcf3745d98fda6ed957e8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 495 filtered out; finished in 1.29s"
+    },
+    "restored-manager": {
+      "manifest": ".local-state/icloud-full-integration-20261003/saved-import-discovery-restored-manager.json",
+      "manifest_sha256": "19893258eb6732ee156fceda5d85ce8ff6ce0c1fece147a07edc67bc5e9ad0d2",
+      "log_sha256": "a0dd6b87deedb32d4cd3ba1be31a7bcc4764a07b22bd6063e4969ee0da731238",
+      "test_binary_sha256": "742d9b46191adf7e18e322250b2abcff3b49c5b9bf48fd4558fb897858a6e7db",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_import.rs": "f21d1fb55b2b059aef3127ac59a0abe559f16361ab25f59539d415fa086afc0f",
+        "crates/cirrove-service/src/filesystem/writeback/native_import.rs": "588a8636f95917b7af380f93049074abbb4f6c745ffffe066397de6d05a30109",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "79e628041b59a2f833157bf9980cc8571f5d255b246b8c6e1689413bbca97b05",
+        "crates/cirrove-service/src/journal/native_import_list.rs": "4ccdf4b486f7e3595fd2e5a30f598bf64d05fda5cb2f928681cd02a75bcaea98",
+        "crates/cirrove-service/src/journal/native_import_list/tests.rs": "7e3752ed72ae320b376f06040257e0942f84c63fe041007fdf60d6a9aceefd93",
+        "crates/cirrove-service/src/lib.rs": "4deb0ce6ca22075f9a1300ff5a03be853fbb08c99452f236c12f2bd53645ead3",
+        "crates/cirrove-service/src/manager/native_import.rs": "fb3b3b416885975ea56ce0b3aaec2bdecbf23216e772d079ca3925ab2247fc97",
+        "crates/cirrove-service/src/manager/native_import/tests.rs": "0a058d276c47a91fbc60545ac370b61c6ed9a395bcb0094df52c24c942070236",
+        "crates/cirrove-service/src/manager/native_import/tests/list.rs": "70a2d5bcb5f9ca54888bca7e0a4fb3547cd79a3f2888ac6d61d2d0718df83210",
+        "crates/cirrove-service/src/recovery.rs": "91f990571d6a801713e885ac0187d8e9bab74e8556efcf3745d98fda6ed957e8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 496 filtered out; finished in 0.10s"
+    },
+    "full_check": {
+      "manifest": ".local-state/icloud-full-integration-20261003/saved-import-discovery-full-check.json",
+      "manifest_sha256": "a611aeba4d2c86d60e2fcc5b9b20b4a6e32b5ca09f5d6f617dfb8c695df10e92",
+      "log_sha256": "9d234a42b69f8c47a043dc05eebbc1a5a938df0544a2375dae092770bbae1327",
+      "exit_code": 0,
+      "started_at": "2026-10-03T15:14:18.020950+00:00",
+      "finished_at": "2026-10-03T15:23:05.495364+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_import.rs": "f21d1fb55b2b059aef3127ac59a0abe559f16361ab25f59539d415fa086afc0f",
+        "crates/cirrove-service/src/filesystem/writeback/native_import.rs": "588a8636f95917b7af380f93049074abbb4f6c745ffffe066397de6d05a30109",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "79e628041b59a2f833157bf9980cc8571f5d255b246b8c6e1689413bbca97b05",
+        "crates/cirrove-service/src/journal/native_import_list.rs": "4ccdf4b486f7e3595fd2e5a30f598bf64d05fda5cb2f928681cd02a75bcaea98",
+        "crates/cirrove-service/src/journal/native_import_list/tests.rs": "7e3752ed72ae320b376f06040257e0942f84c63fe041007fdf60d6a9aceefd93",
+        "crates/cirrove-service/src/lib.rs": "4deb0ce6ca22075f9a1300ff5a03be853fbb08c99452f236c12f2bd53645ead3",
+        "crates/cirrove-service/src/manager/native_import.rs": "fb3b3b416885975ea56ce0b3aaec2bdecbf23216e772d079ca3925ab2247fc97",
+        "crates/cirrove-service/src/manager/native_import/tests.rs": "0a058d276c47a91fbc60545ac370b61c6ed9a395bcb0094df52c24c942070236",
+        "crates/cirrove-service/src/manager/native_import/tests/list.rs": "70a2d5bcb5f9ca54888bca7e0a4fb3547cd79a3f2888ac6d61d2d0718df83210",
+        "crates/cirrove-service/src/recovery.rs": "91f990571d6a801713e885ac0187d8e9bab74e8556efcf3745d98fda6ed957e8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b"
+      },
+      "native_cli_tests_passed": 5,
+      "saved_import_discovery_tests_passed": 5,
+      "native_fuse_https_tests_passed": 3,
+      "writable_kernel_tests_passed": 55,
+      "desktop_display_scenarios": "not covered by local check",
+      "full_iCloud_open_rows": 6
+    },
+    "remote_ci_9527ff0": {
+      "run": 37140142769,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37140142769",
+      "head_sha": "9527ff0dcb31cae3249909cffe2cf47d918559eb",
+      "tested_checkout_sha": "ef4ee4fc2c86c4d497b80885d54428a2d3895fd3",
+      "head_and_tested_checkout_tree": "c71f293d3edbea01389c713d10e66f05f64ed037",
+      "status": "completed",
+      "conclusion": "success",
+      "seven_jobs_passed": true,
+      "linux_log_sha256": "c1fff9a00590fbb31ac9a020feb9181464d5e0d84e08b990fba95ca4be92c554",
+      "public_execution_record": "docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json",
+      "relevant_execution": {
+        "tests": 5,
+        "passed": 5,
+        "log_lines": [
+          3264,
+          3266,
+          3268,
+          3363,
+          3365
+        ],
+        "scope": "Three journal selection/paging/receipt controls and two public read-only restart/account-withdrawal controls explicitly executed in workspace tests."
+      },
+      "scope_limits": "The prior60ea0f9 reauthentication failure remains historical evidence, not a proven unique-cause diagnosis. Subsequent installer protection is outside this run; no installed/live or full-iCloud gate closure.",
+      "public_execution_key": "results.remote_ci_9527ff0"
+    }
+  },
+  "registered_locally_at": "2026-10-03T14:59:41.810404+00:00",
+  "private_final_proposals": {
+    "production": {
+      "path": ".local-state/icloud-full-integration-20261003/saved-native-imports/production.v1.patch",
+      "sha256": "eea373b0562eb6f7090d801de2d48824f61d62e49f7f9f7300359f8cfb385734"
+    },
+    "tests": {
+      "path": ".local-state/icloud-full-integration-20261003/saved-native-imports/tests.v3.patch",
+      "sha256": "38d4927d7d602456a85c4098f341f7574f288fb62f5c14bbb7f1e7c7968669c3"
+    },
+    "preregistration": {
+      "path": ".local-state/icloud-full-integration-20261003/saved-native-imports/icloud-saved-native-import-discovery-2026-10-03.v2.json.proposed",
+      "sha256": "12044a5096bd20839136159f2d8fa35c168ab1d8a8811e3ddbee030e3a755c53"
+    }
+  },
+  "independent_review": "Applied formatted source independently reviewed: no blocking finding in bounded typed historical projection, indexed/legacy paging, read-only leases/no migration, before/after await exact account+Engine guards; sensitivity omission intentionally temporary and restored byte-exact.",
+  "restored_source_expected_sha256": "4ccdf4b486f7e3595fd2e5a30f598bf64d05fda5cb2f928681cd02a75bcaea98",
+  "root_note_at_registration": "CLI account binding is a separate active increment; this service discovery proposal is not implemented by that increment. No compile/runtime evidence claimed.",
+  "implementation_note": "Production v1 and tests v3 applied after separate CLI commit60ea0f9, formatted, compiled and controlled locally. No desktop patch applied by this increment. Full contributor check now required."
+}

@@ -1,5 +1,40 @@
 //! Explicit developer-only cloud checks. Never called by the daemon. Mutation
 //! checks create every target they change; read checks emit only aggregate data.
+#[cfg(feature = "icloud-write-probe")]
+mod icloud_account;
+#[cfg(feature = "icloud-write-probe")]
+pub use icloud_account::{
+    icloud_account_cold_node, icloud_account_combined, icloud_account_combined_inspect,
+    icloud_account_empty, icloud_account_empty_read, icloud_account_metadata_shapes,
+    icloud_account_mounted, icloud_account_mounted_applications, icloud_account_mounted_atomic,
+    icloud_account_mounted_competing, icloud_account_mounted_competing_atomic,
+    icloud_account_mounted_competing_autosaves, icloud_account_mounted_competing_chain,
+    icloud_account_mounted_delete_interrupt, icloud_account_mounted_delete_recover,
+    icloud_account_mounted_empty_replace, icloud_account_mounted_final_interrupt,
+    icloud_account_mounted_final_recover, icloud_account_mounted_interrupt,
+    icloud_account_mounted_large, icloud_account_mounted_large_sized,
+    icloud_account_mounted_recover, icloud_account_mounted_relocation_interrupt,
+    icloud_account_mounted_relocation_recover, icloud_account_mounted_relocation_step_interrupt,
+    icloud_account_namespace, icloud_account_package_download, icloud_account_package_mounted,
+    icloud_account_package_native, icloud_account_parent_listing_timing,
+    icloud_account_read_windows, icloud_account_registration_interrupt,
+    icloud_account_registration_recover, icloud_account_replace_registration_interrupt,
+    icloud_account_replace_registration_recover, icloud_account_replace_stream_interrupt,
+    icloud_account_replace_stream_recover, icloud_account_stream_interrupt,
+    icloud_account_stream_recover, icloud_account_trash_lookup,
+    icloud_account_trash_lookup_control, icloud_account_uploads, icloud_native_v2_baseline,
+    icloud_native_v2_preflight, icloud_native_v2_verify, icloud_owned_fixture_verify,
+    icloud_owned_package_import, icloud_owned_package_mounted, icloud_owned_package_restore,
+    icloud_owned_package_restore_inspect, icloud_owned_package_restore_shape,
+    icloud_owned_package_source, icloud_owned_package_trash, icloud_owned_package_trash_inspect,
+    icloud_owned_package_verify, icloud_owned_receipt_verify, icloud_public_native_bootstrap,
+    icloud_public_native_manifest, icloud_public_native_readiness,
+    icloud_public_native_renewal_readiness, icloud_public_native_replacement_diagnose,
+    icloud_public_native_replacement_preflight, icloud_public_native_replacement_verify,
+    icloud_public_native_restore, icloud_public_native_restore_inspect,
+    icloud_public_native_trash_bootstrap, icloud_public_native_trash_import_verify,
+    icloud_public_native_trash_verify, icloud_public_native_verify,
+};
 mod catchup;
 mod freshness;
 mod google_read;
@@ -65,6 +100,7 @@ impl UploadProvider for CompetingEdit {
         r: &UploadRequest,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         self.inner.begin_upload(r, c).await
     }
     async fn inspect_upload(
@@ -73,6 +109,7 @@ impl UploadProvider for CompetingEdit {
         s: &SecretString,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         self.inner.inspect_upload(r, s, c).await
     }
     async fn upload_part(
@@ -83,6 +120,7 @@ impl UploadProvider for CompetingEdit {
         b: Vec<u8>,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         self.inner.upload_part(r, s, o, b, c).await
     }
     async fn commit_upload(
@@ -91,6 +129,7 @@ impl UploadProvider for CompetingEdit {
         s: &SecretString,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        r.require_file_bytes()?;
         let UploadIntent::Replace {
             item,
             expected_etag,
@@ -104,6 +143,7 @@ impl UploadProvider for CompetingEdit {
         if !self.fired.swap(true, Ordering::SeqCst) {
             println!("  creating a competing edit after all replacement bytes were staged");
             let competing = UploadRequest {
+                representation: Default::default(),
                 scope: r.scope.clone(),
                 intent: r.intent.clone(),
                 size: 0,
@@ -137,6 +177,7 @@ impl UploadProvider for CompetingEdit {
         s: Option<&SecretString>,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<Reconciliation> {
+        r.require_file_bytes()?;
         self.inner.reconcile_upload(r, s, c).await
     }
 }
@@ -199,6 +240,7 @@ async fn verify(
         bail!("upload was not acknowledged; local bytes are retained");
     }
     let request = UploadRequest {
+        representation: Default::default(),
         scope: record.scope.clone(),
         intent: record.intent.clone(),
         size: record.size,

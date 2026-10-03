@@ -1,6 +1,6 @@
 {
   "generated_from": "docs/product-milestones.md",
-  "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
+  "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check. Missing release_scope means historical onedrive-1.0. Explicit full-icloud rows are a separate release commitment; blocks_release applies within each scope, and summaries must not combine them.",
   "operator_guide": "docs/authorization-request.md \u2014 the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply.",
   "rows": [
     {
@@ -114,7 +114,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 206,
+      "line": 205,
       "done": true,
       "text": "Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).",
       "blocker": "autonomous",
@@ -126,7 +126,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 207,
+      "line": 206,
       "done": true,
       "text": "Durable local file contents and journal before local-save acknowledgement.",
       "blocker": "autonomous",
@@ -138,7 +138,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 208,
+      "line": 207,
       "done": true,
       "text": "Persisted upload progress, resumable transfers and idempotent recovery.",
       "blocker": "autonomous",
@@ -150,7 +150,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 209,
+      "line": 208,
       "done": true,
       "text": "Version-conditional changes and preservation of both sides of conflicts.",
       "blocker": "autonomous",
@@ -162,7 +162,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 210,
+      "line": 209,
       "done": true,
       "text": "Distinct local-save, pending-upload, uploading, uploaded and failure states.",
       "blocker": "autonomous",
@@ -174,7 +174,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 211,
+      "line": 210,
       "done": true,
       "text": "Correct application save patterns, truncation and atomic replacement.",
       "blocker": "needs-live-account",
@@ -186,7 +186,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 212,
+      "line": 211,
       "done": true,
       "text": "Crash/fault tests at every durable transition and concurrent remote edits.",
       "blocker": "autonomous",
@@ -198,7 +198,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 213,
+      "line": 212,
       "done": true,
       "text": "Opt-in write consent and live tests in a dedicated Cirrove test folder.",
       "blocker": "needs-live-account",
@@ -210,7 +210,7 @@
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 220,
+      "line": 219,
       "done": true,
       "text": "Persistent per-file and recursive-folder pinning with storage reservations.",
       "blocker": "autonomous",
@@ -222,7 +222,7 @@
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 221,
+      "line": 220,
       "done": true,
       "text": "Clear unpin/free-space behavior and accurate availability status.",
       "blocker": "autonomous",
@@ -234,7 +234,7 @@
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 222,
+      "line": 221,
       "done": true,
       "text": "Offline access and editing of pinned content, including across restart.",
       "blocker": "autonomous",
@@ -246,7 +246,7 @@
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 223,
+      "line": 222,
       "done": true,
       "text": "Unsent changes excluded from cache eviction and connection cleanup.",
       "blocker": "autonomous",
@@ -258,7 +258,7 @@
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 224,
+      "line": 223,
       "done": true,
       "text": "Disk-full recovery preserves edited data and explains required action.",
       "blocker": "autonomous",
@@ -270,7 +270,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 228,
+      "line": 227,
       "done": false,
       "text": "Personal and business accounts, including multiple simultaneous accounts.",
       "blocker": "out-of-agreed-scope",
@@ -282,7 +282,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 229,
+      "line": 228,
       "done": false,
       "text": "Explicit account, drive and SharePoint library selection.",
       "blocker": "out-of-agreed-scope",
@@ -294,7 +294,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 230,
+      "line": 229,
       "done": false,
       "text": "Linked folders, duplicate links, moved/deleted links and folder-only access.",
       "blocker": "out-of-agreed-scope",
@@ -306,7 +306,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 231,
+      "line": 230,
       "done": false,
       "text": "Per-item capabilities, restricted permissions and revoked-access behavior.",
       "blocker": "out-of-agreed-scope",
@@ -318,7 +318,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 232,
+      "line": 231,
       "done": true,
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
       "blocker": "autonomous",
@@ -330,7 +330,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 233,
+      "line": 232,
       "done": true,
       "text": "Defined filename, package/notebook and unsupported-operation behavior.",
       "blocker": "autonomous",
@@ -342,7 +342,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 234,
+      "line": 233,
       "done": true,
       "text": "Deletion defined end to end: the provider's recycle bin as the default for every file manager without an extension, no local wastebasket created inside the user's drive, permanent deletion reachable only as an explicit second gesture that the window offers too, and both gated on a per-provider capability so a provider without a recycle bin is never presented as recoverable. See [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md).",
       "blocker": "needs-live-account",
@@ -354,7 +354,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 240,
+      "line": 239,
       "done": false,
       "text": "Documented compatibility matrix backed by real-account checks.",
       "blocker": "out-of-agreed-scope",
@@ -366,7 +366,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 259,
+      "line": 258,
       "done": true,
       "text": "GTK4/libadwaita setup and settings without a terminal in ordinary flows.",
       "blocker": "autonomous",
@@ -378,7 +378,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 260,
+      "line": 259,
       "done": true,
       "text": "Account picker, mount controls, reconnect, connection removal and cleanup.",
       "blocker": "autonomous",
@@ -390,7 +390,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 261,
+      "line": 260,
       "done": false,
       "text": "Tray status and actions using the daemon as the source of truth.",
       "blocker": "autonomous",
@@ -402,7 +402,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 262,
+      "line": 261,
       "done": true,
       "text": "Nautilus badges, pin/unpin actions and consistent status refresh.",
       "blocker": "autonomous",
@@ -414,7 +414,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 263,
+      "line": 262,
       "done": true,
       "text": "Actionable errors, progress, cancellation and conflict resolution.",
       "blocker": "autonomous",
@@ -426,7 +426,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 264,
+      "line": 263,
       "done": false,
       "text": "Keyboard navigation, accessibility, localization and visual verification.",
       "blocker": "autonomous",
@@ -438,7 +438,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 265,
+      "line": 264,
       "done": true,
       "text": "Verify a declared session matrix covering native Wayland and X11, and GNOME and KDE Plasma: windows, dialogs, system dark-style preference and portal-backed folder opening, including cancellation and missing-portal behavior. Record the actual backend and supported session combinations; Xwayland is not native Wayland coverage. Current CI uses Xvfb (X11) only and does not exercise a complete GNOME or Plasma session.",
       "blocker": "autonomous",
@@ -450,7 +450,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 271,
+      "line": 270,
       "done": true,
       "text": "One application identity across the desktop entry, installed application icon, AppStream metainfo, desktop application's D-Bus name and Wayland `app_id`. Verify launcher/window association, including X11, on every declared shell; naming consistency alone is not a runtime check.",
       "blocker": "autonomous",
@@ -462,7 +462,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 275,
+      "line": 274,
       "done": false,
       "text": "Install application-specific scalable and symbolic icons in standard theme locations, replacing the generic application icon. Check dock, launcher and software-centre presentation, including symbolic recoloring.",
       "blocker": "autonomous",
@@ -474,7 +474,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 278,
+      "line": 277,
       "done": true,
       "text": "Redraw the mark itself, on three counts the old one failed. **Size:** the cloud occupied 50% of its canvas by 39%, centred 11px below the canvas centre, so every launcher and panel scaled mostly empty space. Done: the mark fills 93% of its box, the application icon is a tile that fills the canvas, and `scripts/test-icon-geometry.py` holds every icon to 82% of each dimension, centred within a tenth. **Monochrome:** done -- the tray icons are white with a dark rim, which reads on a dark panel and survives a light one without asking the host to recolor anything (a symbolic icon would, and Quickshell does not). **The cloud itself:** it is the most used shape in the category and says nothing about what this program does differently. The mark should be its own, and should carry the idea that the whole drive is visible while almost none of it is on the computer.",
       "blocker": "autonomous",
@@ -486,7 +486,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 291,
+      "line": 290,
       "done": false,
       "text": "Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME extension requirement, detect missing tray support and keep all actions available from the window when no tray host is present.",
       "blocker": "autonomous",
@@ -498,7 +498,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 294,
+      "line": 293,
       "done": false,
       "text": "Show recent activity -- remote changes from the delta feed and local saves from the upload journal, with each entry's state -- in the window, and a short form of it in the tray menu. \"Recent\" means changes to content, not files the user merely opened: a mount stages cache on every read, so a touched-files list would be noise. This is a log and not a level, so it does not ride the coalescing event channel, which by design hands a lagging client current state instead of the entries it missed; it needs its own query. File names appear in the menu and in the window, never in the tray tooltip, which is shown on hover without intent and is visible to anyone looking at the screen or a shared one; the tooltip carries a count. Provide a setting to turn the listing off entirely.",
       "blocker": "autonomous",
@@ -510,7 +510,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 305,
+      "line": 304,
       "done": true,
       "text": "Publish a supported file-manager list beyond the initial Nautilus target, with an explicit Dolphin decision and a shared daemon status contract behind each integration. Unsupported managers must still access mounted files; badge/control availability must be explained. The original no-plugin decision was revisited on 2026-09-20: Dolphin now has KF6 badge and context-menu plugins over the same daemon contract ([ADR 0010](adr/0010-file-managers-and-dolphin.md)). The supported list, access guarantee and remaining column/properties difference are in [Desktop](desktop.md) and the [user guide](user-guide.md).",
       "blocker": "autonomous",
@@ -650,15 +650,93 @@
       "release_note": null,
       "evidence": "NOT DONE 2026-09-13, but no longer undefined: docs/release-procedure.md says what a release is -- the blockers closed, CI green, versions agreeing across Cargo.toml and the three packaging sources, a tag, the PKGBUILD checksum from the tag, packages from a clean chroot and from the tag's CI artefacts, SHA256SUMS signed, installation on a clean machine per family through a reboot, a second build compared for reproducibility, a GitHub release. docs/changelog.md holds the Unreleased entry. What blocks the first tag is listed in docs/distribution.md. NOT DONE: every step of it, and the release key decision. 2026-09-17: the release key decision is now a choice between four written options rather than an open question -- docs/release-procedure.md, section 'The signature, and the one decision it needs'. A: GitHub artifact attestations, no key to hold, verified with `gh attestation verify`, needs two CI permissions it does not have and covers only artifacts CI built. B: an OpenPGP release key, offline-verifiable with the gpg on every machine, at the cost of a private key one person keeps for the life of the project; there is none on this machine today. C: both. D: unsigned and said so. The recommendation is A for 0.1.0, because the failure mode of B is a lost or leaked key held by one person and there is no signed channel yet whose metadata would need one -- signed APT and COPR are a separate row that explicitly does not gate this release. It is the owner's call and nothing was generated or changed in CI on its behalf. Everything else on this row waits on the milestone-1 rows, whose measurements are running: the capped-memory window in the Ubuntu VM closes 2026-09-17 18:35 and the twenty-four hour G7 run in the Fedora VM closes 2026-09-18 06:45. DECIDED AND BUILT 2026-09-17: the account owner chose A, GitHub artifact attestations. All three package jobs in ci.yml now attest what they build with actions/attest-build-provenance pinned to v4.2.2, each carrying id-token: write and attestations: write of its own (naming any permission at a job replaces the workflow's whole set, so contents: read is repeated beside them). The attestation is made BEFORE the upload, so a release publishes the file the workflow signed rather than one that passed through something afterwards, and it runs on every push and pull request rather than only at a release -- a mechanism exercised once a year is one that is broken when it is needed. A stranger verifies with `gh attestation verify <file> --repo Dandiccf/cirrove` and needs no key. Two consequences are written into the procedure: SHA256SUMS ships unsigned with each package carrying its own attestation and the release body saying so, and step 8's published Arch package now comes from the tagged commit's arch-packages artefact rather than a local clean chroot, because an attestation covers what CI built and nothing else; the local build remains step 12's reproducibility comparison. No private key exists and none is needed. PROVEN the same day, not assumed: CI run 35185096527 attested the three Arch packages, and the artefact was downloaded again and verified from a directory unrelated to the build -- repository Dandiccf/cirrove, commit a9e47dbf, workflow .github/workflows/ci.yml, subject cirrove-0.1.0dev.r522.ga9e47db-1-x86_64.pkg.tar.zst, exit 0. `gh attestation verify` prints nothing on success, which is recorded because an empty output reads like a failure. CLOSED 2026-09-18. v0.1.0 is tagged at 1543bab, CI is green on it, and the release is published with the seven packages, SHA256SUMS and the changelog entry as its body. Verified FROM THE PUBLISHED ARTEFACTS rather than from what was uploaded: downloaded again with `gh release download`, `sha256sum -c SHA256SUMS` clean on all seven, all seven attestations verified naming commit 1543bab, and a clean-machine install of those exact files on Arch through a reboot and a removal. Reproducibility is recorded as NOT achieved with what differed -- same compiler, every data file identical, the four binaries embedding the path they were built in -- rather than skipped or claimed; docs/validation.md carries it, and what would close it. Signing is option A from this row's own decision: no key exists, each package is attested by the workflow that built it, and SHA256SUMS ships unsigned and says so, because it is a convenience for checking a download arrived intact and the attestation is the evidence.",
       "asserted_by": "Nothing yet; the procedure is text until its first run."
+    },
+    {
+      "milestone": 7,
+      "milestone_title": "Full iCloud release acceptance",
+      "line": 485,
+      "done": false,
+      "text": "Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.",
+      "release_scope": "full-icloud",
+      "blocker": "needs-live-account",
+      "blocks_release": "yes",
+      "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
+      "evidence": "docs/benchmarks/icloud-native-import-watch-2026-10-01.md: retained ec7 public watch, warm mount and exact Apple Pages open passed; original false-failure and missed original mount endpoint remain recorded. docs/benchmarks/icloud-public-native-trash-2026-10-01.md: later fresh f2dec CLI import/readback/mounted access passed. Live desktop chooser-to-completion/publication remains open. docs/benchmarks/icloud-saved-native-import-discovery-2026-10-03.json adds exact-account retained service history; docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json records restored synthetic desktop paging/reconnect/exact observer coverage, all22 host window scenarios, and a sensitive accepted-observer publication omission. No live submission/publication/Apple or installed gate is closed. Source9527ff0 CI37140142769 subsequently passed all7 jobs; the actual tested PR merge ef4ee4fc2c86c4d497b80885d54428a2d3895fd3 has the identical tree c71f293d3edbea01389c713d10e66f05f64ed037. docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json records the completed Linux log hash and explicit Ubuntu GTK4.14.5/libadwaita1.5.0 execution: chooser1, windows1+1+20, native FUSE/HTTPS3 and writable55. This synthetic source validation does not close live/Apple/installed acceptance. All5 saved-history service tests and4 new desktop model/library tests also executed.",
+      "asserted_by": null
+    },
+    {
+      "milestone": 7,
+      "milestone_title": "Full iCloud release acceptance",
+      "line": 486,
+      "done": false,
+      "text": "Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.",
+      "release_scope": "full-icloud",
+      "blocker": "needs-live-account",
+      "blocks_release": "yes",
+      "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
+      "evidence": "docs/native-document-replacement.md: explicit native archive replacement CLI/socket plus retained listing/watch are implemented. Experimental canonical archive saves have synthetic coverage; arbitrary generated-child editing remains refused. docs/benchmarks/icloud-native-package-replacement-2026-10-01.md: actual-worker synthetic HTTPS faults, encrypted checkpoint recovery, routing, publication observation and bounded read-only discovery evidence. docs/benchmarks/icloud-native-owned-v2-live-2026-10-01.md and icloud-native-owned-v2-readback-2026-10-01.json: one owned public Pages replacement completed with typed receipt and mounted publication; independent current and recoverable Trash content verification passed without mutation replay. Original v1 proof and retained abandoned Stage preserved. docs/benchmarks/icloud-native-replacement-apple-open-2026-10-02.md: exact replacement ID opened in Apple Pages and rendered the version-B marker. Ordinary application saves and installed acceptance remain unverified. docs/benchmarks/icloud-public-native-trash-2026-10-01.md: separate owned native recoverable-removal arm passed. docs/benchmarks/icloud-numbers-parent-live-2026-10-02.json records one newly authorized isolated folder/import A with independent proof, then one replacement refusal and no retained operation. Original A independently unchanged afterward; no replay. docs/benchmarks/icloud-native-parent-revision-2026-10-03.json reproduces the parent folder ETag churn defect and records narrow synthetic correction with11 controls passing. Live replacement acceptance stays open. Final combined scripts/check.sh for parent revision, pending native HTTPS chain and complete CI accounting passed; no full-iCloud gate closed. docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json registers a concrete format-bound Stage abandonment refusal: actual local HTTPS observation completes five read-only requests and original semantic-v2 verification before Numbers/Keynote final record validation fails, while original and mixed-case Pages controls pass. Correction aligns the exact generated suffix with the existing coordinator rule; corrected source validation is recorded there. No live/installed/application gate closed. Corrected format source passed4 selected tests/five new positive format arms/15 exact-name tamper refusals and the complete scripts/check.sh, including3 native FUSE/HTTPS,55 writable and39 installer cases. Source CI remains pending; actual application/installed acceptance stays open. docs/benchmarks/icloud-native-account-router-https-2026-10-03.json couples actual kernel save with normal root account/WriteContext/shared journal/router factory before synthetic transport binding. Unsafe intermediate staging refuses before HTTP; lost registration retains checkpoint/payload; fresh begin refuses absent current parent, while explicit captured-parent restore completes without repeating allocation/body/registration. The omission control fails Conflict versus Uploaded, and restored four native FUSE/HTTPS tests pass. Complete scripts/check.sh passed with four native FUSE/HTTPS, 55 writable and 39 installer cases; source CI pending. Credential/session loading, real Apple/application and installed acceptance remain open. Format-fix source0e48e13 CI37145716828 explicitly passed new format and original recovery tests,22 windows,3 native FUSE/HTTPS,55 writable and39 installer cases, but the Linux job was cancelled by the annotated30-minute aggregate limit during final cargo doc; six other jobs succeeded. This is not seven green. docs/benchmarks/icloud-ci-completion-budget-2026-10-03.json records the incident and40-minute aggregate budget hypothesis, preserving every per-group bound; subsequent sourceCI and real/installed acceptance remain required. Final complete scripts/check.sh after the40-minute aggregate CI correction passed again with four native FUSE/HTTPS,55 writable and39 installer cases; executable source unchanged. New source CI remains pending; no full-iCloud gate closed. Subsequent b5136fd CI37148483127 passed all seven jobs; actual PR merge07f58b45 has identical tree8899e8e2. The completed audit in docs/benchmarks/icloud-native-account-router-https-2026-10-03.json records four native HTTPS/FUSE,55 writable,39 installer,22 floor windows and chooser1, including format recovery and prior safety controls. This exact snapshot excludes subsequent native WRITE staging changes and supplies no live/installed acceptance. Subsequent exact04dc9e1 CI37153730851 passed all seven jobs. Tested PR merge0eb0747b has identical tree94f2698e; canonical docs/benchmarks/icloud-native-write-staging-budget-2026-10-03.json records default247/feature362,13 staging controls in both runs,native FUSE4,writable55,installer39,window22 and chooser1 with exact log/hash proof. No live/application/installed acceptance or timing repeatability established.",
+      "asserted_by": null
+    },
+    {
+      "milestone": 7,
+      "milestone_title": "Full iCloud release acceptance",
+      "line": 487,
+      "done": false,
+      "text": "Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.",
+      "release_scope": "full-icloud",
+      "blocker": "needs-live-account",
+      "blocks_release": "yes",
+      "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
+      "evidence": "docs/benchmarks/icloud-owned-package-create-2026-10-01.md and docs/benchmarks/icloud-native-package-adapter-2026-09-30.md support bounded Pages create/read behavior. docs/benchmarks/icloud-native-owned-v2-live-2026-10-01.md and icloud-native-replacement-apple-open-2026-10-02.md record one completed Pages replacement, independent current/Trash content verification and exact replacement Apple open. docs/benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json records a Numbers import opened with expected cells and SUM formula, plus a separate imported copy passing exact-content readback before Apple open. docs/benchmarks/icloud-native-parent-admission-2026-10-02.json records a matching parent-identity admission defect reproduced and fixed synthetically; its full contributor check passed. docs/benchmarks/icloud-owned-receipt-observer-2026-10-02.json records the subsequent complete check after observer integration and main reconciliation at commit 621a576. docs/benchmarks/icloud-integration-development-2026-10-03.json records additional three-format FUSE coverage: 9 executed tests, 12 scenario arms and 24 synthetic mount lifetimes, including Numbers/Keynote in-place, atomic and backup-first saves with wrong-format refusal and retained bytes after remount. Its chooser mixed-case and narrow CI accounting controls passed; the complete scripts/check.sh for the new 3 October source passed, including all 55 writable kernel tests. Other desktop window scenarios were not run locally. Live Numbers replacement remains unconfirmed without a recorded operation and has not been replayed. Second-copy Apple reopen, actual DATA acceptance, Keynote application fidelity, ordinary mounted saves and installed transitions remain open. docs/benchmarks/icloud-native-fuse-https-2026-10-03.json adds one executed native FUSE save through the actual synthetic HTTPS replacement worker, with typed receipts, old-reader preservation, publication and remount without replay; hydration/metadata remain fixtures, and its full scripts/check.sh passed with the selected test executing again. Synthetic native archive/atomic/backup-first tests do not close these application requirements. docs/benchmarks/icloud-native-pending-https-chain-2026-10-03.json adds actual FUSE queued A/B/C through synthetic HTTPS workers, predecessor identity/revision/semantic rebasing, unread O/A/B reader preservation and C remount without replay. Semantic-assignment removal fails after A before B requests; restored shared module executes2 tests. Fixtures and explicit resolver seam do not establish normal account routing or Apple fidelity. Final combined scripts/check.sh for parent revision, pending native HTTPS chain and complete CI accounting passed; no full-iCloud gate closed. Source9527ff0 CI37140142769 subsequently passed all7 jobs; the actual tested PR merge ef4ee4fc2c86c4d497b80885d54428a2d3895fd3 has the identical tree c71f293d3edbea01389c713d10e66f05f64ed037. docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json records the completed Linux log hash and explicit Ubuntu GTK4.14.5/libadwaita1.5.0 execution: chooser1, windows1+1+20, native FUSE/HTTPS3 and writable55. This synthetic source validation does not close live/Apple/installed acceptance. docs/benchmarks/icloud-numbers-confirmation-2026-10-03.json refreshes the still-unexecuted one-shot Numbers plan from658d8d6 to validated04dc9e1. Three frozen isolated binaries and explicit import account-id binding pass independent local review; source/account/A+B/settings/session/target scope unchanged and no cloud phase started. New authorization is absent; actual Numbers replacement/current+Trash/Apple open and Keynote/application gates remain open.",
+      "asserted_by": null
+    },
+    {
+      "milestone": 7,
+      "milestone_title": "Full iCloud release acceptance",
+      "line": 488,
+      "done": false,
+      "text": "Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.",
+      "release_scope": "full-icloud",
+      "blocker": "needs-machine-window",
+      "blocks_release": "yes",
+      "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
+      "evidence": "docs/benchmarks/icloud-ordinary-write-opt-in-acceptance-2026-10-01.md; docs/benchmarks/icloud-readonly-recovery-2026-10-01.md. docs/benchmarks/icloud-canary-state-compatibility-2026-10-03.json proves isolated ordinary-file recovery before/after genuine Canary14/7 to current19/8 migration, actual Canary refusal with unchanged complete state snapshots, and retained staged refresh completion. It does not prove installed package rollback, credentials, real-provider pending completion or native application fidelity. Synthetic access/recovery and three application arms do not close installed Apple-account transitions. docs/benchmarks/icloud-native-window-crash-2026-10-03.json reproduces a standalone import dialog SIGSEGV on the declared libadwaita1.5 floor, captures its sizing-before-presentation call stack and verifies the compatible call ordering with all21 synthetic desktop window scenarios. No installed or live-account acceptance follows. docs/benchmarks/icloud-window-ci-groups-2026-10-03.json retains all21 unchanged window scenarios as groups1+20, each with30s limit; custom skip/exact and missing-scenario audit controls passed, both supported-floor groups executed. Final source658d8d6 passed all7 shared-runner CI jobs in run37119742211, including both desktop groups and mounted writable scenarios; one CI run does not establish timing repeatability. Installed acceptance remains open. Final combined scripts/check.sh for parent revision, pending native HTTPS chain and complete CI accounting passed; no full-iCloud gate closed. docs/benchmarks/config-lock-inherited-description-2026-10-03.json reproduces settings-lock retention by an inherited open file description and verifies creator-process explicit unlock with exclusion and both desired-state restoration arms. Matching mechanism only, not the unique remote CI cause or installed reauthentication acceptance. docs/benchmarks/config-lock-inherited-description-2026-10-03.json: source9527ff0 CI37140142769 passed all7 jobs and explicitly executed the inherited-description guard regression and original reauthentication test. PR merge ef4ee4fc has the identical source tree. Installed schema14 remains untouched and schema19/metadata8 remains held. The newer uncommitted installer preflight protection is not covered by this CI or an installed transition; no gate closed. docs/benchmarks/icloud-installation-preflight-2026-10-03.json adds guarded-refusal evidence: actual installer baseline31 failing refusal arms, corrected39 passing synthetic tests and8 sensitive omission controls; the helper-only real-host read-only invocation refused retained state without content/SQLite/cloud/install/restart. The new uncommitted source has checks wired but remains outside9527ff0 CI and does not prove installed readiness, migration/rollback or an atomic measurement lease. The subsequent complete scripts/check.sh passed for the installer increment, executing all39 new installer fixtures plus3 native FUSE/HTTPS and55 writable kernel cases; sourceCI remains pending and installed acceptance stays open. Installer source378a96d subsequently passed all7 CI jobs in run37143554956; merge ca3f81de8fb54d919171f54339b6424e244bbebd and head have identical tree1d770cf1c56dfa8a3525ec807d70e1a86243e876. Linux explicitly executed39 installer tests,22 floor windows,3 native FUSE/HTTPS and55 writable tests. This source snapshot excludes subsequent native-format recovery correction and supplies no installed acceptance. Subsequent b5136fd CI37148483127 passed all seven jobs; actual PR merge07f58b45 has identical tree8899e8e2. The completed audit in docs/benchmarks/icloud-native-account-router-https-2026-10-03.json records four native HTTPS/FUSE,55 writable,39 installer,22 floor windows and chooser1, including format recovery and prior safety controls. This exact snapshot excludes subsequent native WRITE staging changes and supplies no live/installed acceptance. Subsequent exact04dc9e1 CI37153730851 passed all seven jobs. Tested PR merge0eb0747b has identical tree94f2698e; canonical docs/benchmarks/icloud-native-write-staging-budget-2026-10-03.json records default247/feature362,13 staging controls in both runs,native FUSE4,writable55,installer39,window22 and chooser1 with exact log/hash proof. No live/application/installed acceptance or timing repeatability established.",
+      "asserted_by": null
+    },
+    {
+      "milestone": 7,
+      "milestone_title": "Full iCloud release acceptance",
+      "line": 489,
+      "done": false,
+      "text": "Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.",
+      "release_scope": "full-icloud",
+      "blocker": "needs-machine-window",
+      "blocks_release": "yes",
+      "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
+      "evidence": "Existing feat/strata-integration commit c60127fb0b1026c6e09862cad632d60cad91de5d provides paths-cached and provider integration. Reconciliation with iCloud and installed compatibility must be checked before daemon replacement; preserve companion Strata/default settings.",
+      "asserted_by": null
+    },
+    {
+      "milestone": 7,
+      "milestone_title": "Full iCloud release acceptance",
+      "line": 490,
+      "done": false,
+      "text": "Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.",
+      "release_scope": "full-icloud",
+      "blocker": "needs-live-account",
+      "blocks_release": "yes",
+      "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
+      "evidence": "docs/icloud-write-integration.md records unresolved in-flight/retained-fixture/session/capacity boundaries. docs/benchmarks/icloud-full-device-export-2026-10-01.md proves bounded local ENOSPC recovery, not live Apple quota or arbitrary-size reliability. docs/benchmarks/icloud-package-readback-storage-2026-10-03.json records two actual failing controls for signed PACKAGE507 classification and post-Trash VerifyRequired state, corrected unit/worker behavior, retained identity/checkpoint/source, no automatic requests after the one-shot fault clears and explicit retry without repeating earlier mutations. Eight package and three native coordinator controls passed; the complete scripts/check.sh passed for the correction, including the regressions and mounted scenarios; other desktop window scenarios were not run locally. Live Apple quota, account-session, dirty-successor and installed requirements remain open. docs/benchmarks/icloud-native-pending-https-chain-2026-10-03.json adds bounded synthetic pending successor lineage coverage with counterfactual sensitivity. Lost-response, real sessions, ordinary application saves and installed acceptance are not established by this fixture. Final combined scripts/check.sh for parent revision, pending native HTTPS chain and complete CI accounting passed; no full-iCloud gate closed. docs/benchmarks/icloud-native-uncertain-chain-2026-10-03.json couples actual FUSE A/B saves and unfinished dirty C with cancellation after synthetic HTTPS Trash, encrypted checkpoint/journal reopen, read-only exact A/B/C exports, blocked unchanged B and zero successor requests, inspection-only completed-step recovery, exact receipt-derived B lineage and C preservation through publication/remount. Scoped1 and restored3-module tests passed; omission of the existing semantic assignment fails before B requests. Coverage sensitivity only, not a new production defect or live/installed acceptance. Complete scripts/check.sh passed with3 nativeFUSEHTTPS/55 writable scenarios. Separate documentation-only CI37123619790 on unchanged earlier source failed the created-then-removed folder no-failed-mutations assertion (54pass/1fail); stale local-view re-adoption after settled handoff is under controlled investigation. Earlier CI success is not repeated reliability. docs/benchmarks/ordinary-folder-handoff-race-2026-10-03.json: actual stale E1 view restored creation metadata over settled E2 and the conditional worker returned Conflict. Final removal/relocation source uses current scoped cached ordinary-folder metadata, selected identity/path/shape validation and full journal snapshot recheck. Intermediate settled-only and historical-path corrections failed newer revision and fresh external-rename controls. Final12 handoff tests passed, including the external move through distinct local/provider parent IDs. Complete scripts/check.sh passed with3 native FUSE/HTTPS tests and55 writable kernel tests, including the original create/remove case, without warnings. Remote CI remains pending; the previous remote helper had no exact mutation-row detail, so this proves a matching interleaving rather than its unique remote cause. Real/installed acceptance remains open. Corrected ordinary-folder source176bd09 subsequently passed all7 CI jobs in run37129401664, including all55 writable cases; this exact snapshot does not cover newer changes. CLI-binding source60ea0f9 CI37132139130 failed the existing reauthentication lock test before later window/kernel groups. The subsequent combined full scripts/check.sh passed, including3 native FUSE/HTTPS and55 writable kernel cases; source CI was pending at that stage. No full-iCloud gate closed. Source9527ff0 CI37140142769 subsequently passed all7 jobs; the actual tested PR merge ef4ee4fc2c86c4d497b80885d54428a2d3895fd3 has the identical tree c71f293d3edbea01389c713d10e66f05f64ed037. docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json records the completed Linux log hash and explicit Ubuntu GTK4.14.5/libadwaita1.5.0 execution: chooser1, windows1+1+20, native FUSE/HTTPS3 and writable55. This synthetic source validation does not close live/Apple/installed acceptance. CLI-binding5, saved-history5 and settings-lock/reauthentication controls explicitly passed; the historical60ea0f9 CI failure remains recorded. New uncommitted installer protection remains separately unvalidated by CI. docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json registers a concrete format-bound Stage abandonment refusal: actual local HTTPS observation completes five read-only requests and original semantic-v2 verification before Numbers/Keynote final record validation fails, while original and mixed-case Pages controls pass. Correction aligns the exact generated suffix with the existing coordinator rule; corrected source validation is recorded there. No live/installed/application gate closed. Corrected format source passed4 selected tests/five new positive format arms/15 exact-name tamper refusals and the complete scripts/check.sh, including3 native FUSE/HTTPS,55 writable and39 installer cases. Source CI remains pending; actual application/installed acceptance stays open. docs/benchmarks/icloud-native-account-router-https-2026-10-03.json couples actual kernel save with normal root account/WriteContext/shared journal/router factory before synthetic transport binding. Unsafe intermediate staging refuses before HTTP; lost registration retains checkpoint/payload; fresh begin refuses absent current parent, while explicit captured-parent restore completes without repeating allocation/body/registration. The omission control fails Conflict versus Uploaded, and restored four native FUSE/HTTPS tests pass. Complete scripts/check.sh passed with four native FUSE/HTTPS, 55 writable and 39 installer cases; source CI pending. Credential/session loading, real Apple/application and installed acceptance remain open. Format-fix source0e48e13 CI37145716828 explicitly passed new format and original recovery tests,22 windows,3 native FUSE/HTTPS,55 writable and39 installer cases, but the Linux job was cancelled by the annotated30-minute aggregate limit during final cargo doc; six other jobs succeeded. This is not seven green. docs/benchmarks/icloud-ci-completion-budget-2026-10-03.json records the incident and40-minute aggregate budget hypothesis, preserving every per-group bound; subsequent sourceCI and real/installed acceptance remain required. Final complete scripts/check.sh after the40-minute aggregate CI correction passed again with four native FUSE/HTTPS,55 writable and39 installer cases; executable source unchanged. New source CI remains pending; no full-iCloud gate closed. Subsequent b5136fd CI37148483127 passed all seven jobs; actual PR merge07f58b45 has identical tree8899e8e2. The completed audit in docs/benchmarks/icloud-native-account-router-https-2026-10-03.json records four native HTTPS/FUSE,55 writable,39 installer,22 floor windows and chooser1, including format recovery and prior safety controls. This exact snapshot excludes subsequent native WRITE staging changes and supplies no live/installed acceptance. docs/benchmarks/icloud-native-write-staging-budget-2026-10-03.json records a concrete unreserved native WRITE staging lifetime gap and its correction: one four-file/64MiB-each pool per Engine runtime, shared by WriteContext, fresh/restore package adapters, native handoff/removal and replacement-admission Original verification. Detached file/blocking/body owners retain slots; allocation holds admission before dispatch. Explicit Restore shares its source pool. Seven targeted omission controls fail expected ownership/admission assertions; initial corrected library247 and coupled normal-router tests pass. Final restored source passed library247/native FUSE4, followed by feature-only private-fixture correction and complete scripts/check.sh from the beginning: default iCloud247, write-probe iCloud362, native FUSE4, writable55 and installer39 all passed. Executable source was unchanged during that complete command; desktop display scenarios were not repeated locally and source CI remains pending. Read cache, spool, local source capture, other Engines/processes and physical-host quotas remain separate; no live/application/installed gate closed. Subsequent exact04dc9e1 CI37153730851 passed all seven jobs. Tested PR merge0eb0747b has identical tree94f2698e; canonical docs/benchmarks/icloud-native-write-staging-budget-2026-10-03.json records default247/feature362,13 staging controls in both runs,native FUSE4,writable55,installer39,window22 and chooser1 with exact log/hash proof. No live/application/installed acceptance or timing repeatability established.",
+      "asserted_by": null
     }
   ],
   "totals": {
-    "boxes": 54,
+    "boxes": 60,
     "ticked": 41,
     "by_blocker": {
       "autonomous": 36,
-      "needs-live-account": 8,
-      "needs-machine-window": 2,
+      "needs-live-account": 12,
+      "needs-machine-window": 4,
       "needs-reboot": 2,
       "out-of-agreed-scope": 6
     }

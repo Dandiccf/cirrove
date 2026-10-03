@@ -2,6 +2,8 @@
 //! in one transaction, only after the last page. This is not an upload journal.
 mod blocks;
 mod directories;
+mod directory_sources;
+pub use directory_sources::DirectorySourceState;
 mod metadata_changes;
 pub mod pins;
 pub use metadata_changes::{MetadataChange, MetadataChangeKind, MetadataChanges, MetadataPosition};
@@ -14,7 +16,7 @@ pub use observations::{
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
@@ -317,7 +319,7 @@ pub type Result<T> = std::result::Result<T, StoreError>;
 /// Exposed so that a tool sharing a state directory with a running service can
 /// ask whether opening a store would migrate it, rather than finding out by
 /// having migrated it.
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 8;
 /// The schema version a database is currently at, without opening or migrating it.
 pub fn schema_version(path: impl AsRef<Path>) -> Result<u32> {
     let db = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -473,6 +475,7 @@ impl Store {
             }
             observations::migrate(&tx, version)?;
             directories::migrate(&tx, version)?;
+            directory_sources::migrate(&tx, version)?;
             metadata_changes::migrate(&tx, version)?;
             pins::migrate(&tx, version)?;
             // An unusable clock or malformed schema must roll back migration,
@@ -480,6 +483,7 @@ impl Store {
             observations::validate(&tx)?;
             metadata_changes::validate(&tx)?;
             directories::validate(&tx)?;
+            directory_sources::validate(&tx)?;
             pins::validate(&tx)?;
             if version < SCHEMA_VERSION {
                 tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
@@ -488,6 +492,7 @@ impl Store {
         }
         observations::validate(&db)?;
         directories::validate(&db)?;
+        directory_sources::validate(&db)?;
         metadata_changes::validate(&db)?;
         Ok(Self {
             db: Pooled::built(db, key),
@@ -546,6 +551,35 @@ impl Store {
         tx.commit()?;
         Ok(cursor.map(Cursor))
     }
+    /// Start a replacement baseline only when no round is pending. Retrying an
+    /// interrupted scan keeps its staged rows and continuation; a completed
+    /// scan's cursor is never passed as a delta cursor to a snapshot provider.
+    pub fn begin_snapshot(&mut self, scope: &Scope) -> Result<Option<Cursor>> {
+        let key = Self::key(scope)?;
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
+        let tx = self.db.transaction()?;
+        tx.execute("INSERT OR IGNORE INTO feeds(scope) VALUES(?1)", [&key])?;
+        let pending: bool =
+            tx.query_row("SELECT pending FROM feeds WHERE scope=?1", [&key], |r| {
+                r.get(0)
+            })?;
+        if !pending {
+            tx.execute("INSERT INTO rounds(scope,started) VALUES(?1,?2) ON CONFLICT(scope) DO UPDATE SET started=excluded.started",params![key,observations::advance(&tx)?])?;
+            tx.execute("DELETE FROM staged WHERE scope=?1", [&key])?;
+            tx.execute(
+                "UPDATE feeds SET pending=1,next_cursor=NULL,reset=1 WHERE scope=?1",
+                [&key],
+            )?;
+        }
+        let cursor = tx.query_row(
+            "SELECT next_cursor FROM feeds WHERE scope=?1",
+            [&key],
+            |r| r.get::<_, Option<String>>(0),
+        )?;
+        tx.commit()?;
+        Ok(cursor.map(Cursor))
+    }
     pub fn stage(
         &mut self,
         scope: &Scope,
@@ -591,12 +625,15 @@ impl Store {
             // A delta with no relevant changes must not discard a fresher
             // foreground directory snapshot. Invalidate only touched identities
             // and their old/new parents, before replacing the indexed rows.
+            // Only a successfully bound, provider-opted-in snapshot is retained.
+            // Migration's legacy classification is not an opt-in capability;
+            // retain ordinary invalidation for those snapshots across providers.
             if reset {
                 tx.execute("DELETE FROM observed_absent WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
                 tx.execute("DELETE FROM observed WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND NOT EXISTS(SELECT 1 FROM directory_sources b WHERE b.scope=directories.scope AND b.parent=directories.parent AND b.source IS NOT NULL) AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
             } else {
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND NOT EXISTS(SELECT 1 FROM directory_sources b WHERE b.scope=directories.scope AND b.parent=directories.parent AND b.source IS NOT NULL) AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
                     SELECT id FROM staged WHERE scope=?1
                     UNION SELECT json_extract(body,'$.parent_id') FROM staged WHERE scope=?1
                     UNION SELECT json_extract((SELECT body FROM nodes WHERE scope=?1 AND id=s.id),'$.parent_id') FROM staged s WHERE scope=?1
@@ -684,6 +721,45 @@ impl Store {
     pub fn node(&self, scope: &Scope, id: &str) -> Result<Option<Node>> {
         Self::node_on(&self.db, scope, id)
     }
+    /// Resolve an exact item and every indexed ancestor up to `root` in one
+    /// SQLite snapshot. The returned chain excludes the root and is ordered
+    /// from item toward root. Unknown, hidden, cyclic or disconnected chains
+    /// are never treated as an identity for a write.
+    pub fn node_chain_to_root(
+        &self,
+        scope: &Scope,
+        item: &str,
+        root: &str,
+    ) -> Result<Option<Vec<Node>>> {
+        if item.is_empty() || root.is_empty() || item == root {
+            return Ok(None);
+        }
+        let tx = self.db.unchecked_transaction()?;
+        let mut chain = Vec::new();
+        let mut seen = HashSet::new();
+        let mut id = item.to_string();
+        for _ in 0..128 {
+            if !seen.insert(id.clone()) {
+                return Ok(None);
+            }
+            let Some(node) = Self::node_on(&tx, scope, &id)? else {
+                return Ok(None);
+            };
+            if node.id != id {
+                return Ok(None);
+            }
+            let Some(parent) = node.parent_id.clone() else {
+                return Ok(None);
+            };
+            chain.push(node);
+            if parent == root {
+                tx.commit()?;
+                return Ok(Some(chain));
+            }
+            id = parent;
+        }
+        Ok(None)
+    }
     fn node_on(db: &Connection, scope: &Scope, id: &str) -> Result<Option<Node>> {
         let key = Self::key(scope)?;
         let body = db
@@ -707,8 +783,27 @@ impl Store {
     /// other children. Outer None means unknown; Some(None) means known absent.
     /// The first name/identity-ordered match agrees with the listing API.
     pub fn child(&self, scope: &Scope, parent: &str, name: &str) -> Result<Option<Option<Node>>> {
+        self.child_with_mode(scope, parent, name, false)
+    }
+    /// For root-only feeds, only a published directory snapshot can establish
+    /// that a child is present or absent. A completed root cursor is insufficient.
+    pub fn child_from_snapshot(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+    ) -> Result<Option<Option<Node>>> {
+        self.child_with_mode(scope, parent, name, true)
+    }
+    fn child_with_mode(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+        require_snapshot: bool,
+    ) -> Result<Option<Option<Node>>> {
         let tx = self.db.unchecked_transaction()?;
-        let node = directories::child_on(&tx, scope, parent, name)?;
+        let node = directories::child_on(&tx, scope, parent, name, require_snapshot)?;
         tx.commit()?;
         Ok(node)
     }
@@ -723,8 +818,27 @@ impl Store {
         parent: &str,
         consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
     ) -> Result<Option<T>> {
+        self.with_children_mode(scope, parent, consume, false)
+    }
+    /// Stream only a published directory snapshot; an unvisited folder is
+    /// unknown even when the feed has completed its root-only cursor.
+    pub fn with_snapshot_children<T>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+    ) -> Result<Option<T>> {
+        self.with_children_mode(scope, parent, consume, true)
+    }
+    fn with_children_mode<T>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+        require_snapshot: bool,
+    ) -> Result<Option<T>> {
         let tx = self.db.unchecked_transaction()?;
-        let result = directories::read_on(&tx, scope, parent, consume)?;
+        let result = directories::read_on(&tx, scope, parent, consume, require_snapshot)?;
         tx.commit()?;
         Ok(result)
     }
@@ -937,6 +1051,58 @@ mod tests {
             },
         }
     }
+
+    #[test]
+    fn indexed_item_chain_is_scoped_and_rejects_missing_or_cyclic_ancestry() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let folder = Node {
+            id: "folder".into(),
+            parent_id: Some("root".into()),
+            name: "Folder".into(),
+            kind: NodeKind::Folder,
+            ..match node("folder") {
+                Change::Upsert(node) => node,
+                _ => unreachable!(),
+            }
+        };
+        let file = Node {
+            id: "file".into(),
+            parent_id: Some("folder".into()),
+            name: "File".into(),
+            ..match node("file") {
+                Change::Upsert(node) => node,
+                _ => unreachable!(),
+            }
+        };
+        db.observe_node(&s, &folder).unwrap();
+        db.observe_node(&s, &file).unwrap();
+        assert_eq!(
+            db.node_chain_to_root(&s, "file", "root")
+                .unwrap()
+                .unwrap()
+                .into_iter()
+                .map(|node| node.id)
+                .collect::<Vec<_>>(),
+            vec!["file", "folder"]
+        );
+        assert!(
+            db.node_chain_to_root(&scope("other"), "file", "root")
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            db.node_chain_to_root(&s, "file", "elsewhere")
+                .unwrap()
+                .is_none()
+        );
+        let cycle = Node {
+            parent_id: Some("file".into()),
+            ..folder
+        };
+        db.observe_node(&s, &cycle).unwrap();
+        assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
+    }
     #[test]
     fn interrupted_pages_resume_without_exposing_partial_tree() {
         let dir = tempfile::tempdir().unwrap();
@@ -961,6 +1127,44 @@ mod tests {
         .unwrap();
         assert_eq!(db.nodes(&s).unwrap().len(), 2);
         assert_eq!(db.cursor(&s).unwrap(), Some(Cursor("delta1".into())));
+    }
+
+    #[test]
+    fn full_snapshot_retries_staged_pages_and_replaces_only_on_completion() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metadata.db");
+        let s = scope("snapshot");
+        {
+            let mut db = Store::open(&path).unwrap();
+            assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+            db.stage(&s, None, &page(vec![node("old")], true, "round-one"))
+                .unwrap();
+            assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+            db.stage(&s, None, &page(vec![node("new")], false, "resume"))
+                .unwrap();
+            assert_eq!(db.nodes(&s).unwrap()[0].id, "old");
+        }
+        let mut db = Store::open(path).unwrap();
+        let continuation = db.begin_snapshot(&s).unwrap();
+        assert_eq!(continuation, Some(Cursor("resume".into())));
+        assert_eq!(db.nodes(&s).unwrap()[0].id, "old");
+        db.stage(
+            &s,
+            continuation.as_ref(),
+            &page(vec![node("last")], true, "round-two"),
+        )
+        .unwrap();
+        assert_eq!(
+            db.nodes(&s)
+                .unwrap()
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["last", "new"]
+        );
+        assert_eq!(db.cursor(&s).unwrap(), Some(Cursor("round-two".into())));
+        assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+        assert_eq!(db.nodes(&s).unwrap().len(), 2);
     }
 
     #[test]
@@ -1567,7 +1771,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
-            7
+            SCHEMA_VERSION
         );
         assert_eq!(
             db.db

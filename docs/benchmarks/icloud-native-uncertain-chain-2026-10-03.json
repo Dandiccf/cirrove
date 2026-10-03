@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "status": "controlled-local-validation-complete-existing-shared-folder-CI-race-and-live-acceptance-open",
+  "question": "Does a genuine kernel native A/B chain survive a lost reply after completed Trash plus cancellation, encrypted checkpoint/journal reopen and exact offline exports, while B stays unclaimed/unrebased until typed A confirmation and unfinished dirty C survives both acknowledgements, publication and remount?",
+  "arms": [
+    {
+      "name": "positive",
+      "description": "FUSE promotes valid A then B; in-place 90-byte incomplete C edit has rejected fsync and stays dirty. A real HTTPS server processes Trash then pauses/drops reply on cancellation. Restart and recover A via inspection, then replace with B."
+    },
+    {
+      "name": "semantic-lineage-sensitivity",
+      "description": "Remove only *original_semantic = h.semantic in existing successors::resolve. Predict recovered A succeeds, then B exact predecessor-v2 semantic assertion fails before B provider construction/request. Restore exact production source before positive and fullcheck."
+    }
+  ],
+  "prediction": "A cancellation retains VerifyRequired at armed move_old checkpoint with reserved old identity and no current/backup receipt. B remains byte-for-byte unchanged Pending/base unresolved/no attempt and its TLS server receives zero requests. RO recovery owns the journal lease and exports exact sealed A/B and incomplete C. Reopened A reconciles already-completed Trash without allocating, re-uploading, re-registering or trashing again. A and B each finish with one allocation/body/registration/Trash/rename; B original Node+etag+v2 proof equals typed A receipt. C UUID/generation/latest=B/dirty/node identity/bytes survive all phases; no third operation or post-remount replay.",
+  "endpoints": [
+    "Exact ignored selector executes 1 test; combined existing FUSE HTTPS module executes 3 tests, sequentially within unchanged CI 90s budget.",
+    "At cancellation boundary and after reopen: A VerifyRequired/typed receipt absent; B Pending/unresolved/attempt absent and exact row JSON unchanged; claim_next returns None; B requests and all mutation counters exactly zero. VerifyRequired read inspection remains permitted.",
+    "Sealed A checkpoint decrypts with a fresh vault using only shared test wrapping keys, operation UUID and move_old phase match, encrypted bytes persist unchanged through reopen and contain no known plaintext fixture host/account/representation marker.",
+    "RO owner obtained only after writer and mount owners drop; exact raw A/B immutable exports plus dirty C generation/size/SHA/bytes, list records unchanged by export.",
+    "Actual worker recovery completes A, receipt records old O/current A/Trash O; B rebases full original Node/revision/v2 proof from that receipt before HTTPS request, then records old A/current B/Trash A.",
+    "After each acknowledgement and metadata publication, C remains exact dirty unfinished stream; final remount/refused fsync retains same 2 Uploaded operation UUIDs and no extra mutation on idle worker."
+  ],
+  "input_pins": {
+    "original_archive_sha256": "ebf518173b8e146d0a2ac52f14031f6d95d956896573dc8321f47b5eb4419e1e",
+    "A_archive_sha256": "cd9a6a23e8e557a8b6f5c61034612b24f9cb9fd856713c15a02880b415875505",
+    "B_archive_sha256": "ae02da16c848e2f6714fffcc9ee9f480508591112c12f940ac446e14f06e9255",
+    "C_complete_archive_sha256": "bd2a1476fc2fd855e2521efc9ccecd5792683d58c865af0c889e35ce22799234",
+    "C_incomplete_definition": "first90 bytes of independently pinned complete C archive; lacks complete central directory/end record",
+    "C_incomplete_size": 90,
+    "C_incomplete_sha256": "e21919a7ae03c90039531b04169cfd4f544234e826b28e48c9224fc739685051",
+    "semantic_version": 2,
+    "A_semantic_sha256": "2b3a1a01daacb9121d835551627359ef1e5291cb70f06086f38b1f058aa0f3de",
+    "B_semantic_sha256": "2bcbbe12679891442eabe0eb51b15a8d898ff47f4b4bac92f63354cec75d5188"
+  },
+  "scope": "Tests/helpers only; existing private standalone operation-bound ICloudFileReplace adapter and internal resolver seam. Actual FUSE and actual HTTPS worker/checkpoints/typed receipts with synthetic metadata and ZIP bytes. No default account-router constructor claim, Apple application fidelity, live reliability, provider credentials, installed state or schema migration. All full integration rows485\u2013490 remain unchecked; schema19 development isolated from installed schema14.",
+  "controls": {
+    "counterfactual_kind": "assertion sensitivity for new coupled coverage, not demonstrated product fix",
+    "only_allowed_omission": "crates/cirrove-service/src/journal/working/native/successors.rs: *original_semantic = h.semantic;",
+    "all_other_fences": "Preserve queue prerequisites, resource serialization, receipt checks, Node/etag/semantic confirmation and later confirmed_base guard. Never force B to bypass unconfirmed A.",
+    "restoration": "Record exact before/after sha256; confirm original source restored before green, full module and scripts/check.sh. Authoring/compiler failures do not count as behavioral red."
+  },
+  "proposed_public_destination": "docs/benchmarks/icloud-native-uncertain-chain-2026-10-03.json",
+  "registered_at": "2026-10-03T12:49:36.772448+00:00",
+  "source_head_before_application": "f9a4ee939d0e0553710464d6a6729e184e41b50b",
+  "private_patch": {
+    "path": ".local-state/icloud-full-integration-20261003/native-uncertain-chain/historical-reconstruction/tests.patch",
+    "sha256": "8ee97b002693e7cea841d4293c0d90f14f882bd8671cf6a6386149ec10e74b36",
+    "source_chain_sha256_before_application": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
+    "proposed_chain_sha256": "3233bdc07af459cc169b867501d8011074f77c5ba92e5935cf6bb65302fdf3c2"
+  },
+  "execution": {
+    "owner": "Root alone applies/builds/registers/runs. No sub-agent fixture/build/cloud execution.",
+    "exact_selector": "journal::package_replacement::worker_transport::fuse_https::chain::real_native_fuse_uncertain_predecessor_reopens_sealed_chain_and_preserves_dirty_successor",
+    "test_count": 1,
+    "expected_combined_module_count": 3,
+    "mount_lifetimes": 3,
+    "test_outer_endpoint_seconds": 40,
+    "existing_ci_group_endpoint_seconds": 90,
+    "tls_per_connection_bound_seconds": 3,
+    "worker_cancel_bound_seconds": 2,
+    "build_outside_runtime": true,
+    "measurement_concurrency": "One runtime measurement and no simultaneous compilation.",
+    "filesystem_precondition": "Register and assert disk-backed TMPDIR/SQLITE_TMPDIR, Cargo target dedicated to worktree, fixture /var/tmp filesystem and exclusive manifest command/binary SHA/source pins before execution.",
+    "no_cloud": true
+  },
+  "results": {
+    "initial_scoped_runtime": {
+      "manifest": ".local-state/icloud-full-integration-20261003/native-uncertain-chain-first-runtime.json",
+      "manifest_sha256": "a8c214ab522ec1b86e31061fbc9d32180242a4588132851e447ba1f4e445fc43",
+      "result": "1 passed,0 failed,486 filtered,1.28s",
+      "no_product_fix_claim": true
+    },
+    "sensitivity_runtime": {
+      "manifest": ".local-state/icloud-full-integration-20261003/native-uncertain-chain-sensitivity-runtime.json",
+      "manifest_sha256": "3e11e368ec5295c37943281faceef7139150972d418daf017701632671006274",
+      "result": "0 passed,1 failed,486 filtered,0.77s",
+      "failure": "chain.rs1188 full predecessor semantic assertion before B HTTPS; A recovery passed; originalO proof remained instead of confirmedA proof. Later confirmed_base guard unchanged.",
+      "build_warning": "Omission leaves original_semantic unused; warning retained, not suppressed. Final restored builds/checks must be warning-free."
+    },
+    "source_restoration": {
+      "status": "original-source-restored-byte-exact",
+      "registered_at": "2026-10-03T12:58:31.552857+00:00",
+      "source": "crates/cirrove-service/src/journal/working/native/successors.rs",
+      "backup": ".local-state/icloud-full-integration-20261003/native-uncertain-chain/successors-before-sensitivity.rs",
+      "original_sha256": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+      "counterfactual_sha256": "7356bd355756c89f33b2f1ce6806d056d3d580466000b39961efeef98b80891a",
+      "change": "Omit only predecessor semantic assignment; all other guards remain.",
+      "expected": "New uncertainchain fails B fullsemantic before B HTTPS request, after A recovery. Not a productbugfix claim.",
+      "restored_at": "2026-10-03T13:01:00.661994+00:00",
+      "restored_sha256": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1"
+    },
+    "restored_module_runtime": {
+      "manifest": ".local-state/icloud-full-integration-20261003/native-uncertain-chain-restored-module-runtime.json",
+      "manifest_sha256": "8edbbc92dad3f143822e41adbefb7711f2707299d3437ce96063039e34c023eb",
+      "result": "3 passed,0 failed,484 filtered,3.39s",
+      "build": ".local-state/icloud-full-integration-20261003/native-uncertain-chain-restored-build.json",
+      "warnings": 0
+    },
+    "full_check": {
+      "manifest": ".local-state/icloud-full-integration-20261003/native-uncertain-chain-full-check.json",
+      "manifest_sha256": "7c72b1a2241396796026080fc758498a5bf943a6d53bc40cd3a7da7789a6cc8b",
+      "log_sha256": "11f775e3ac264c7e1abb4a986babb92e1bc37798eba13795a7b0ac8d2068ed27",
+      "status": "passed",
+      "new_fixture_executed": true,
+      "native_fuse_https_count": 3,
+      "writable_kernel_count": 55,
+      "compiler_warnings": 0,
+      "all_six_gates_open": true
+    }
+  },
+  "gate_closure": false,
+  "registered_locally_at": "2026-10-03T12:51:14.315323+00:00",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "temp_filesystem": "ext4",
+  "pre_execution_authoring_corrections": [
+    "Drop writable journal owner before acquiring RecoveryJournal lease, then reopen only after RO owner drops.",
+    "Select exactly one C working-recovery source by its known UUID rather than assuming only one account-wide recovery stream: atomic promotions retain detached unlinked streams. Preserve full-list pre/post export equality.",
+    "Assert independently derived incompleteC raw digest in code. Compilation-only validation before these corrections passed; no runtime fixture executed before registration."
+  ],
+  "fixture_filesystem": "btrfs (/var/tmp; tempfile helper explicitly creates all fixture directories here)",
+  "controller_preparation_separate": "Private next live Numbers controller prepared/reviewed separately; no new cloud approval or dispatch follows from this synthetic trial.",
+  "lease_order_supplement": {
+    "path": ".local-state/icloud-full-integration-20261003/native-uncertain-chain/tests-applied-preregistration.patch",
+    "sha256": "37ae93f9b9d715cad6ef249804bac954097a7aa86b83965c52c09bfc65a0c718",
+    "source_chain_sha256_before_application": "3233bdc07af459cc169b867501d8011074f77c5ba92e5935cf6bb65302fdf3c2",
+    "proposed_chain_sha256": "5cd635459b26f63caca4477f576adc87be728935f742541686c9809ba5d42b5e"
+  },
+  "authoring_provenance_correction": "Initial public prereg conflated the full addition with the later 20-line lease supplement. Agent later overwrote mutable proposal paths while authoring an unapplied broader alternative. Exact initial and lease-stage bytes were reconstructed and SHA-verified into distinct retained paths; the unapplied alternative is preserved separately. Root source/binary manifests and actual scoped execution remain authoritative. No fixture result was changed or inferred from authoring.",
+  "subsequent_existing_source_ci_failure": {
+    "observed_at": "2026-10-03T13:13:56.867812+00:00",
+    "run": 37123619790,
+    "source_head": "f9a4ee939d0e0553710464d6a6729e184e41b50b",
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37123619790",
+    "change_since_green658d8d6": "Documentation and preregistration only; production/test source unchanged.",
+    "failed_job": "linux",
+    "failed_step": "Automatic writable-session uploads and draining",
+    "result": "54 passed,1 failed,1 filtered,109.34s",
+    "failed_test": "real_a_directory_created_and_removed_again_is_gone_from_the_provider",
+    "failure_site": "writable_session.rs3191 applied helper rejects Failed/Conflict/NeedsReview state; final provider absence assertion not reached.",
+    "log_sha256": "594fab9a2f565b0d56ab18ae6051cf842f3ce05401d7abe6f3e58fa0725b0752",
+    "status": "investigating-stale-local-folder-view-after-settled-handoff-race",
+    "not_an_observation_timeout": true,
+    "not_caused_by_new_uncertain_chain_test": "This new fixture was not in f9a4ee9."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "run": "e7b2662f-f41f-4402-ac94-525c9285bdfe",
+  "binary_sha256": "3cdad0e4480a7aeb038ad417b0bc36185d7229bd1cb8048c489ba4d6dffb816f",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 279.807,
+  "isolated_mount_detached": true,
+  "autosaves_queued": true,
+  "competing_started": true,
+  "competing_confirmed": true,
+  "conflict_verified": true,
+  "rescue_verified": true,
+  "passed": true,
+  "both_read_after_remount": true,
+  "cloud_content_preserved": true,
+  "keep_both_after_restart": true,
+  "local_payload_preserved": true,
+  "normal_adapter_conflict": true,
+  "pending_autosaves": 2,
+  "real_competing_content_edit": true,
+  "rescue_uploaded_and_hashed": true,
+  "staging_cleanup": "retained_pending_separate_validation"
+}

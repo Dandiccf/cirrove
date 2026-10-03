@@ -9,13 +9,23 @@
 # in the home shadow the packaged ones, and everything appears twice. So this
 # refuses to run while the packages are installed and says how to remove them.
 #
-# Nothing here touches ~/.local/state/cirrove -- accounts, credentials, the
-# index, the cache and unsent bytes stay exactly as they are.
+# The installer does not delete or replace account state. A newer daemon may
+# migrate its index or journal when restarted; the source-policy preflight
+# below refuses retained-state upgrades while this development source is held.
 #
 # Usage: scripts/install-developer.sh [--no-build]
 set -euo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# Opt-in file-manager integration can be staged without replacing the daemon.
+if [[ ${1:-} == --strata-only ]]; then
+  shift
+  exec /usr/bin/python3 "$repo/scripts/install-strata.py" "$@"
+fi
+target_dir=${CARGO_TARGET_DIR:-$repo/target}
+if [[ $target_dir != /* ]]; then
+  target_dir="$repo/$target_dir"
+fi
 id=io.github.Dandiccf.Cirrove
 bin="$HOME/.local/bin"
 icons="$HOME/.local/share/icons/hicolor"
@@ -32,22 +42,34 @@ if pacman -Qq cirrove >/dev/null 2>&1 || pacman -Qq cirrove-desktop >/dev/null 2
   exit 1
 fi
 
+# Read-only source hold, affected service routes and declared window checks.
+# No bypass: held --no-build artifacts have no independent provenance here.
+preflight=(python3 "$repo/scripts/install-preflight.py" --repo "$repo")
+if [[ ${1:-} == --no-build ]]; then
+  preflight+=(--no-build)
+fi
+"${preflight[@]}"
+
 if [[ ${1:-} != --no-build ]]; then
   echo "building"
   (cd "$repo" && cargo build --release --locked --workspace)
   if find /usr/lib /usr/lib64 /usr/local/lib -maxdepth 4 \
     -name KF6KIOConfig.cmake -print -quit 2>/dev/null | grep -q .; then
-    cmake -S "$repo/packaging/dolphin" -B "$repo/target/dolphin" \
+    cmake -S "$repo/packaging/dolphin" -B "$target_dir/dolphin" \
       -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
-    cmake --build "$repo/target/dolphin" --parallel
+    cmake --build "$target_dir/dolphin" --parallel
   fi
 fi
 
+# A build can outlive the first observation; refuse newly declared windows or
+# changed service/state routes before the first installed-file mutation.
+"${preflight[@]}"
+
 echo "installing into $HOME"
-install -Dm755 "$repo/target/release/cirroved" "$bin/cirroved"
-install -Dm755 "$repo/target/release/cirrove" "$bin/cirrove"
-install -Dm755 "$repo/target/release/cirrove-desktop" "$bin/cirrove-desktop"
-install -Dm755 "$repo/target/release/cirrove-tray" "$bin/cirrove-tray"
+install -Dm755 "$target_dir/release/cirroved" "$bin/cirroved"
+install -Dm755 "$target_dir/release/cirrove" "$bin/cirrove"
+install -Dm755 "$target_dir/release/cirrove-desktop" "$bin/cirrove-desktop"
+install -Dm755 "$target_dir/release/cirrove-tray" "$bin/cirrove-tray"
 
 # The unit template runs %h/.local/bin/cirroved, which is exactly right here.
 install -Dm644 "$repo/packaging/systemd/cirroved.service" "$unit"
@@ -77,11 +99,11 @@ install -Dm644 "$repo/packaging/nautilus/cirrove.py" -t "$ext/"
 # Qt does not include a user-local plugin directory in its default search path.
 # Put the plugins under ~/.local and add that directory for the next login.
 # Packaged plugins live in Qt's system directory and need no environment entry.
-if [[ -f $repo/target/dolphin/plugins/cirrovefileitemaction.so \
-   && -f $repo/target/dolphin/plugins/cirroveoverlayicon.so ]]; then
-  install -Dm755 "$repo/target/dolphin/plugins/cirrovefileitemaction.so" \
+if [[ -f $target_dir/dolphin/plugins/cirrovefileitemaction.so \
+   && -f $target_dir/dolphin/plugins/cirroveoverlayicon.so ]]; then
+  install -Dm755 "$target_dir/dolphin/plugins/cirrovefileitemaction.so" \
     "$dolphin_plugins/kf6/kfileitemaction/cirrovefileitemaction.so"
-  install -Dm755 "$repo/target/dolphin/plugins/cirroveoverlayicon.so" \
+  install -Dm755 "$target_dir/dolphin/plugins/cirroveoverlayicon.so" \
     "$dolphin_plugins/kf6/overlayicon/cirroveoverlayicon.so"
   install -d "$(dirname "$dolphin_environment")"
   printf 'QT_PLUGIN_PATH=%s${QT_PLUGIN_PATH:+:${QT_PLUGIN_PATH}}\n' \
@@ -98,7 +120,7 @@ systemctl --user enable cirroved.service
 # so a second developer install would leave the previous binary serving the
 # mount and report success. Every install must put the binary it just built in
 # front of the user. The unit unmounts on stop and remounts on start; the state
-# directory is untouched, so the account and index survive.
+# directory is retained; the restarted daemon may migrate its contents.
 systemctl --user restart cirroved.service
 
 # Replace a running tray with the one just installed, and reload Files so it
@@ -124,4 +146,4 @@ echo "  files extension: $ext/cirrove.py"
 if [[ -f $dolphin_plugins/kf6/kfileitemaction/cirrovefileitemaction.so ]]; then
   echo "  Dolphin plugins: $dolphin_plugins (available after the next login)"
 fi
-echo "Your accounts, credentials and cache under ~/.local/state/cirrove were not touched."
+echo "The installer retained account state; the running daemon may update its index, cache and journal."

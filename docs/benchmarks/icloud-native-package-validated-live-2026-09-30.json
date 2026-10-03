@@ -1,0 +1,39 @@
+{
+  "run": "16b6673e-f182-489d-8267-f6af26e489f5",
+  "binary_sha256": "ef3104924a8d1d991867a6cb51ccc81d419ae76bc1418be52569954fdbac929c",
+  "revision": "c6e0c4abd0c4b9e6411490088bec3e30eb1b94f4",
+  "dirty": true,
+  "expected_duration_seconds": 900,
+  "start_utc": "2026-09-30T03:35:21.454035+00:00",
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "read_only": true,
+  "installed_service_changed": false,
+  "pid": 1926162,
+  "exit_code": 0,
+  "elapsed_seconds": 34.204,
+  "finished_utc": "2026-09-30T03:35:55.658631+00:00",
+  "report": {
+    "artifact_size": 21759419,
+    "cache_provider_reads": 0,
+    "canonical_directory_times": true,
+    "fresh_provider_refetch_verified": true,
+    "mounted": true,
+    "native_provider": true,
+    "offline_remount_full_read": true,
+    "private_disk_digest_verified": true,
+    "read_only": true,
+    "run": "16b6673e-f182-489d-8267-f6af26e489f5",
+    "shared_cache_reopened_full_digest_verified": true,
+    "source_listing_size": 21957877,
+    "source_revision_checked_before_after": true
+  },
+  "independent_zip_validation": {
+    "entries": 56,
+    "files": 53,
+    "uncompressed_bytes": 21957877,
+    "all_entry_payload_sha256_equal": true,
+    "file_timestamps_equal": true,
+    "names_order_methods_and_crcs_equal": true
+  }
+}

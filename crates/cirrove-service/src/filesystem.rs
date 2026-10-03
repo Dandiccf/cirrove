@@ -171,6 +171,7 @@ struct OpenFile {
     flags: i32,
     _lease: Option<writeback::FileLease>,
     remote_reads: tokio_util::task::TaskTracker,
+    native_snapshot: std::sync::OnceLock<Arc<dyn cirrove_core::reads::ReadSession>>,
 }
 pub struct CloudFs {
     inner: Arc<Inner>,
@@ -595,6 +596,22 @@ impl Inner {
         }
         false
     }
+    /// Check the current view route before a folder move reaches the journal.
+    /// A corrupt or missing route is refused rather than letting the provider
+    /// move a folder into its own descendant.
+    fn folder_move_cycle(&self, source: &Node, destination: &View) -> Result<(), Errno> {
+        let mut current = destination.clone();
+        for _ in 0..128 {
+            if current.id.as_ref() == source.id {
+                return Err(Errno::EINVAL);
+            }
+            if current.inode == ROOT_INODE {
+                return Ok(());
+            }
+            current = self.view(current.parent).map_err(|_| Errno::EIO)?;
+        }
+        Err(Errno::ELOOP)
+    }
     /// Returns the node beside the view rather than inside it: the caller
     /// wants it for the inode key and for attributes, and a view that keeps it
     /// for its whole life is what costs 650 bytes each during a traversal.
@@ -1013,7 +1030,12 @@ impl Inner {
         FileAttr {
             ino: INodeNo(view.inode),
             size,
-            blocks: size.div_ceil(512),
+            // This inode is a virtual projection. Cache blocks and edit spools
+            // are allocated in the private state directory, where disk-usage
+            // tools already count them (including pinned content). Reporting
+            // logical size here invents allocation for online-only files and
+            // double-counts cached bytes, also across shared-file aliases.
+            blocks: 0,
             atime: time,
             mtime: time,
             ctime: time,
@@ -1338,12 +1360,19 @@ impl Filesystem for CloudFs {
                     content_version: None,
                     target: None,
                 };
-                inner.refuse_within_package(&parent)?;
-                inner.capture_ancestors(&parent).await?;
-                let record = writer
-                    .create(parent.scope.as_ref().clone(), node)
-                    .await
-                    .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
+                let record = if let Some(native) = inner
+                    .create_native_temporary(&parent, &nodes, node.name.clone())
+                    .await?
+                {
+                    native
+                } else {
+                    inner.refuse_within_package(&parent)?;
+                    inner.capture_ancestors(&parent).await?;
+                    writer
+                        .create(parent.scope.as_ref().clone(), node)
+                        .await
+                        .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?
+                };
                 let lease = writer
                     .lease(&parent.scope, &record.node.id, &inner.cancel)
                     .await?;
@@ -1362,6 +1391,7 @@ impl Filesystem for CloudFs {
                         flags,
                         _lease: Some(lease),
                         remote_reads: tokio_util::task::TaskTracker::new(),
+                        native_snapshot: std::sync::OnceLock::new(),
                     },
                 )?;
                 Ok::<_, Errno>((attr, handle))
@@ -1459,8 +1489,22 @@ impl Filesystem for CloudFs {
                     .find(|n| n.name == name)
                     .cloned()
                     .ok_or(Errno::ENOENT)?;
-                if source.kind != NodeKind::File || source.target.is_some() {
+                if !matches!(source.kind, NodeKind::File | NodeKind::Folder)
+                    || source.target.is_some()
+                {
                     return Err(Errno::EOPNOTSUPP);
+                }
+                if source.kind == NodeKind::Folder {
+                    if parent.id == destination.id {
+                        if !inner.engine.provider.supports_same_parent_folder_rename() {
+                            return Err(Errno::EOPNOTSUPP);
+                        }
+                    } else {
+                        if !inner.engine.provider.supports_cross_parent_folder_move() {
+                            return Err(Errno::EOPNOTSUPP);
+                        }
+                        inner.folder_move_cycle(&source, &destination)?;
+                    }
                 }
                 let _lease = writer
                     .lease(&parent.scope, &source.id, &inner.cancel)
@@ -1471,6 +1515,34 @@ impl Filesystem for CloudFs {
                     } else {
                         Ok(())
                     };
+                }
+                if parent.package || destination.package {
+                    if parent.inode != destination.inode {
+                        return Err(Errno::EOPNOTSUPP);
+                    }
+                    let victim = nodes
+                        .iter()
+                        .find(|n| {
+                            n.id != source.id && n.name.to_lowercase() == newname.to_lowercase()
+                        })
+                        .cloned();
+                    let Some(victim) = victim else {
+                        if inner
+                            .rename_native_backup(&parent, source.clone(), newname.clone())
+                            .await?
+                        {
+                            return Ok(());
+                        }
+                        return inner
+                            .change_native_temporary(&parent, source, Some(newname))
+                            .await;
+                    };
+                    if flags.contains(RenameFlags::RENAME_NOREPLACE) || victim.name != newname {
+                        return Err(Errno::EEXIST);
+                    }
+                    return inner
+                        .rename_native_temporary(&parent, &destination, source, victim)
+                        .await;
                 }
                 inner.refuse_within_package(&parent)?;
                 inner.capture_ancestors(&parent).await?;
@@ -1487,6 +1559,9 @@ impl Filesystem for CloudFs {
                 {
                     if flags.contains(RenameFlags::RENAME_NOREPLACE) || victim.name != newname {
                         return Err(Errno::EEXIST);
+                    }
+                    if source.kind == NodeKind::Folder {
+                        return Err(Errno::EOPNOTSUPP);
                     }
                     if victim.kind == NodeKind::Folder {
                         return Err(Errno::EISDIR);
@@ -1510,10 +1585,10 @@ impl Filesystem for CloudFs {
                 }
                 let moved = writer
                     .relocate(
+                        &inner.engine,
                         parent.scope.as_ref().clone(),
                         source,
-                        parent.id.to_string(),
-                        name,
+                        (parent.id.to_string(), name),
                         destination.id.to_string(),
                         newname,
                     )
@@ -1653,6 +1728,12 @@ impl Filesystem for CloudFs {
                 }
                 if source.target.is_some() {
                     return Err(Errno::EOPNOTSUPP);
+                }
+                if parent.package {
+                    if inner.unlink_native_backup(&parent, source.clone()).await? {
+                        return Ok(());
+                    }
+                    return inner.change_native_temporary(&parent, source, None).await;
                 }
                 let view = inner.insert(&parent, source).await.map_err(|e| errno(&e))?;
                 // unlink and rmdir never walk their ancestors, so neither was
@@ -1819,13 +1900,13 @@ impl Filesystem for CloudFs {
                 }
                 let _lease = writer.lease(&view.scope, &view.id, &inner.cancel).await?;
                 let mut view = view;
+                let pathname = (!view.reference)
+                    .then(|| view.node.as_deref().cloned())
+                    .flatten();
                 view.node = Some(Arc::new(inner.node(&view).await.map_err(|e| errno(&e))?));
-                inner.refuse_within_package(&view)?;
-                inner.capture_ancestors(&view).await?;
-                let working = writer
-                    .prepare(&inner.engine, &view, size == 0, &inner.cancel)
+                let record = inner
+                    .prepare_path_edit(&view, pathname.as_ref(), Some(size))
                     .await?;
-                let record = writer.truncate(working.id, size).await?;
                 Ok::<_, Errno>(inner.attr(&view, &record.node))
             }
             .await;
@@ -1939,25 +2020,33 @@ impl Filesystem for CloudFs {
                     flags: flags.0,
                     _lease: lease,
                     remote_reads: tokio_util::task::TaskTracker::new(),
+                    native_snapshot: std::sync::OnceLock::new(),
                 };
-                let file = if let Some(writer) = &inner.writeback {
+                let mut file = if let Some(writer) = &inner.writeback {
                     writer.register_open(file)?
                 } else {
                     Arc::new(file)
                 };
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
+                    let pathname = (!view.reference)
+                        .then(|| view.node.as_deref().cloned())
+                        .flatten();
                     view.node = Some(Arc::new(node.clone()));
-                    inner.refuse_within_package(&view)?;
-                    inner.capture_ancestors(&view).await?;
-                    writer
-                        .prepare(
-                            &inner.engine,
+                    let record = inner
+                        .prepare_path_edit(
                             &view,
-                            flags.0 & libc::O_TRUNC != 0,
-                            &inner.cancel,
+                            pathname.as_ref(),
+                            (flags.0 & libc::O_TRUNC != 0).then_some(0),
                         )
                         .await?;
+                    if record.native {
+                        // Preserve old preparation/read handles until the new
+                        // local working handle is registered with its own lease.
+                        file = writer
+                            .native_open_file(&file, record, &inner.cancel)
+                            .await?;
+                    }
                 }
                 let handle = inner.handle();
                 inner
@@ -2029,6 +2118,15 @@ impl Filesystem for CloudFs {
                                 .read(id, offset, size)
                                 .await
                                 .map_err(|_| ProviderError::Unavailable);
+                        }
+                        writeback::ReadSource::Native(session) => {
+                            return writeback::native_edit::read_snapshot(
+                                session,
+                                offset,
+                                size,
+                                &inner.cancel,
+                            )
+                            .await;
                         }
                         writeback::ReadSource::Remote(node, token) => (node, Some(token)),
                     }

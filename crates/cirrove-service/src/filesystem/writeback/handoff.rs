@@ -18,7 +18,7 @@ impl Drop for Lease {
     }
 }
 impl Writeback {
-    fn activity_gate(&self, identity: EditKey) -> Result<Arc<RwLock<()>>> {
+    pub(super) fn activity_gate(&self, identity: EditKey) -> Result<Arc<RwLock<()>>> {
         let mut gates = self.activity.lock().map_err(|_| Errno::EIO)?;
         gates.retain(|_, gate| gate.strong_count() > 0);
         if let Some(gate) = gates.get(&identity).and_then(Weak::upgrade) {
@@ -97,6 +97,9 @@ impl Writeback {
         for (object, clean) in batch {
             *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)? = Some(object.id);
             if !clean {
+                if let Some(progress) = self.maintain_native(engine, object.id).await? {
+                    return Ok(progress);
+                }
                 continue;
             }
             if self
@@ -124,7 +127,12 @@ impl Writeback {
                 .await
                 .map_err(|_| Errno::EIO)?
                 .map_err(|_| Errno::EIO)?;
-            let remote = if cached.as_ref() == Some(&expected) {
+            // A folder creation receipt can already be in the metadata cache
+            // while its provider ETag has settled to a different value. Reusing
+            // that receipt would clear `latest` and permit rmdir with the stale
+            // precondition. Observe folders independently before handoff.
+            let remote = if expected.kind != NodeKind::Folder && cached.as_ref() == Some(&expected)
+            {
                 expected
             } else {
                 let response = tokio::select! {biased;
@@ -187,7 +195,7 @@ impl Writeback {
                 let committed = journal
                     .handoff_namespace(object.id, object.revision, remote)
                     .map_err(error)?;
-                projection.apply(committed, None);
+                projection.apply(committed, None, None);
                 Ok(())
             })
             .await
@@ -482,6 +490,674 @@ mod tests {
         );
         f.writer.maintain(&f.engine).await.unwrap();
         assert_eq!(f.journal.lock().unwrap().retained_bytes().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn folder_handoff_refreshes_a_cached_creation_receipt_before_removal() {
+        let f = Fixture::new(false).await;
+        f.writer.maintain(&f.engine).await.unwrap();
+        let scope = f.engine.scope("drive");
+        let receipt = Node {
+            id: "new-folder".into(),
+            name: "made-and-unmade".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            content_version: None,
+            etag: Some("create-receipt".into()),
+            ..f.provider.node.clone()
+        };
+        let settled = Node {
+            etag: Some("settled-folder".into()),
+            ..receipt.clone()
+        };
+        let provider = Arc::new(Provider {
+            node: settled.clone(),
+            hold: AtomicBool::new(false),
+            fail: AtomicBool::new(false),
+            calls: AtomicUsize::new(0),
+            entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
+        });
+        let engine = Engine::new(
+            f.engine.account.clone(),
+            provider.clone(),
+            f._temp.path().join("folder-state"),
+        )
+        .await
+        .unwrap();
+        let object = {
+            let mut journal = f.journal.lock().unwrap();
+            let object = journal
+                .create_namespace_directory(scope.clone(), "root".into(), receipt.name.clone())
+                .unwrap();
+            let operation = journal.claim_mutation().unwrap().unwrap();
+            journal
+                .acknowledge_mutation(
+                    operation.id,
+                    operation.attempt.unwrap(),
+                    cirrove_core::mutation::MutationReceipt::Upsert(receipt.clone()),
+                )
+                .unwrap();
+            object
+        };
+        // A receipt may reach the index before maintenance runs. Equality with
+        // that cache entry is not an independent observation of a settled ETag.
+        Store::open(engine.db.clone())
+            .unwrap()
+            .observe_node(&scope, &receipt)
+            .unwrap();
+        let writer = Writeback::new(&engine, f.journal.clone()).await.unwrap();
+        assert!(writer.maintain(&engine).await.unwrap());
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+        let mut journal = f.journal.lock().unwrap();
+        let handed = journal.namespace_object(object.id).unwrap();
+        assert!(handed.follows_remote && handed.latest.is_none());
+        assert_eq!(handed.remote.as_ref(), Some(&settled));
+        let current = Store::open(engine.db.clone())
+            .unwrap()
+            .node(&scope, &receipt.id)
+            .unwrap()
+            .unwrap();
+        let materialized = journal.observe_namespace_file(scope, current).unwrap();
+        let removed = journal
+            .remove_namespace_directory(materialized.id, materialized.revision)
+            .unwrap();
+        assert_eq!(
+            removed.mutation.request.intent.before().unwrap().etag,
+            settled.etag
+        );
+    }
+
+    struct SettledFolderFixture {
+        _base: Fixture,
+        fs: crate::filesystem::CloudFs,
+        writer: Arc<Writeback>,
+        stale: View,
+        object: Uuid,
+        settled: Node,
+        provider: Arc<Provider>,
+    }
+    impl SettledFolderFixture {
+        async fn new() -> Self {
+            let f = Fixture::new(false).await;
+            f.writer.maintain(&f.engine).await.unwrap();
+            let scope = f.engine.scope("drive");
+            let receipt = Node {
+                id: "new-folder".into(),
+                name: "made-and-unmade".into(),
+                kind: NodeKind::Folder,
+                size: 0,
+                content_version: None,
+                etag: Some("create-receipt".into()),
+                ..f.provider.node.clone()
+            };
+            let settled = Node {
+                etag: Some("settled-folder".into()),
+                ..receipt.clone()
+            };
+            let provider = Arc::new(Provider {
+                node: settled.clone(),
+                hold: AtomicBool::new(false),
+                fail: AtomicBool::new(false),
+                calls: AtomicUsize::new(0),
+                entered: tokio::sync::Notify::new(),
+                release: tokio::sync::Notify::new(),
+            });
+            let engine = Engine::new(
+                f.engine.account.clone(),
+                provider.clone(),
+                f._temp.path().join("stale-folder-state"),
+            )
+            .await
+            .unwrap();
+            let (object, stale_node) = {
+                let mut journal = f.journal.lock().unwrap();
+                let object = journal
+                    .create_namespace_directory(scope.clone(), "root".into(), receipt.name.clone())
+                    .unwrap();
+                let operation = journal.claim_mutation().unwrap().unwrap();
+                journal
+                    .acknowledge_mutation(
+                        operation.id,
+                        operation.attempt.unwrap(),
+                        cirrove_core::mutation::MutationReceipt::Upsert(receipt.clone()),
+                    )
+                    .unwrap();
+                let confirmed = journal.namespace_object(object.id).unwrap();
+                assert_eq!(confirmed.node.etag, receipt.etag);
+                assert!(confirmed.latest.is_some());
+                (object.id, confirmed.node)
+            };
+            Store::open(engine.db.clone())
+                .unwrap()
+                .observe_node(&scope, &receipt)
+                .unwrap();
+            let fs = crate::filesystem::CloudFs::new_experimental_writable(
+                engine.clone(),
+                f.journal.clone(),
+            )
+            .await
+            .unwrap();
+            let writer = fs.inner.writeback.as_ref().unwrap().clone();
+            let root = fs.inner.view(1).unwrap();
+            // Deterministically capture the rmdir view before maintenance finishes.
+            let stale = fs.inner.insert(&root, stale_node).await.unwrap();
+            assert_eq!(stale.node.as_ref().unwrap().etag, receipt.etag);
+            assert!(writer.maintain(&engine).await.unwrap());
+            assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+            {
+                let journal = f.journal.lock().unwrap();
+                let handed = journal.namespace_object(object).unwrap();
+                assert!(handed.follows_remote && handed.latest.is_none());
+                assert_eq!(handed.remote.as_ref(), Some(&settled));
+            }
+            Self {
+                _base: f,
+                fs,
+                writer,
+                stale,
+                object,
+                settled,
+                provider,
+            }
+        }
+    }
+    struct ConditionalFolderRemoval {
+        settled: Node,
+        attempts: Mutex<Vec<Node>>,
+        removed: AtomicBool,
+    }
+    #[async_trait]
+    impl cirrove_core::mutation::MutationProvider for ConditionalFolderRemoval {
+        async fn mutate(
+            &self,
+            request: &cirrove_core::mutation::MutationRequest,
+            _: &cirrove_core::CancellationToken,
+        ) -> cirrove_core::mutation::Result<cirrove_core::mutation::MutationReceipt> {
+            request.validate()?;
+            let cirrove_core::mutation::MutationIntent::RemoveFolder { before } = &request.intent
+            else {
+                return Err(cirrove_core::mutation::MutationError::Unsupported(
+                    "only synthetic empty-folder removal",
+                ));
+            };
+            self.attempts.lock().unwrap().push(before.clone());
+            if before != &self.settled {
+                return Err(cirrove_core::mutation::MutationError::Conflict);
+            }
+            assert!(
+                !self.removed.swap(true, Ordering::SeqCst),
+                "folder deletion replayed"
+            );
+            Ok(cirrove_core::mutation::MutationReceipt::Removed {
+                item: before.id.clone(),
+            })
+        }
+        async fn reconcile_mutation(
+            &self,
+            _: &cirrove_core::mutation::MutationRequest,
+            _: &cirrove_core::CancellationToken,
+        ) -> cirrove_core::mutation::Result<cirrove_core::mutation::MutationReconciliation>
+        {
+            Ok(cirrove_core::mutation::MutationReconciliation::Indeterminate)
+        }
+    }
+    #[tokio::test]
+    async fn stale_created_folder_view_cannot_restore_creation_etag_after_settled_handoff() {
+        let f = SettledFolderFixture::new().await;
+        assert_eq!(
+            f.stale.node.as_ref().unwrap().etag.as_deref(),
+            Some("create-receipt")
+        );
+        f.writer.rmdir(&f.fs.inner, f.stale.clone()).await.unwrap();
+        let provider = Arc::new(ConditionalFolderRemoval {
+            settled: f.settled.clone(),
+            attempts: Mutex::new(Vec::new()),
+            removed: AtomicBool::new(false),
+        });
+        let worker = crate::mutations::MutationWorker::new(
+            f._base.journal.clone(),
+            provider.clone(),
+            cirrove_core::CancellationToken::new(),
+        );
+        let result = tokio::time::timeout(Duration::from_secs(5), worker.run_once())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let attempts = provider.attempts.lock().unwrap().clone();
+        assert_eq!(attempts.len(), 1);
+        let mut shape = attempts[0].clone();
+        shape.etag = f.settled.etag.clone();
+        assert_eq!(shape, f.settled);
+        assert_eq!(
+            result.state,
+            crate::journal::MutationState::Applied,
+            "conditional deletion from a pre-handoff view must use independently observed settled ETag; attempted fixture ETag: {:?}",
+            attempts[0].etag
+        );
+        assert!(result.issue.is_none());
+        assert!(provider.removed.load(Ordering::SeqCst));
+        assert_eq!(
+            provider.attempts.lock().unwrap().as_slice(),
+            std::slice::from_ref(&f.settled)
+        );
+        let journal = f._base.journal.lock().unwrap();
+        let rows = journal.list_mutations(0, 10).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(
+            rows.iter()
+                .all(|r| r.state == crate::journal::MutationState::Applied)
+        );
+        assert!(rows[1].base.is_none());
+        assert_eq!(rows[1].request.intent.before(), Some(&f.settled));
+    }
+    #[tokio::test]
+    async fn settled_folder_readoption_refuses_changed_path_kind_shape_and_invalid_identity() {
+        for arm in 0..7 {
+            let f = SettledFolderFixture::new().await;
+            let mut selected = f.stale.node.as_ref().unwrap().as_ref().clone();
+            match arm {
+                0 => selected.name = "a-different-folder".into(),
+                1 => selected.parent_id = Some("different-parent".into()),
+                2 => selected.kind = NodeKind::File,
+                3 => selected.package = true,
+                4 => selected.size = 123,
+                5 => selected.id.clear(),
+                _ => {
+                    selected.target = Some(Box::new(cirrove_core::RemoteRef {
+                        collection: "drive".into(),
+                        item: "other-folder".into(),
+                        kind: Some(NodeKind::Folder),
+                    }))
+                }
+            }
+            let before = {
+                let journal = f._base.journal.lock().unwrap();
+                serde_json::to_value(journal.namespace_object(f.object).unwrap()).unwrap()
+            };
+            let mut view = f.stale.clone();
+            view.remember(&selected, true);
+            assert!(
+                f.writer.rmdir(&f.fs.inner, view).await.is_err(),
+                "changed selected folder path/shape was silently adopted, arm {arm}"
+            );
+            let journal = f._base.journal.lock().unwrap();
+            assert_eq!(
+                serde_json::to_value(journal.namespace_object(f.object).unwrap()).unwrap(),
+                before
+            );
+            assert_eq!(journal.list_mutations(0, 10).unwrap().len(), 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn fresh_scoped_cached_folder_alias_keeps_its_observed_revision_for_rmdir() {
+        let f = SettledFolderFixture::new().await;
+        let scope = f.stale.scope.as_ref().clone();
+        let fresh = Node {
+            etag: Some("fresh-observed-E5".into()),
+            content_version: Some("fresh-observed-C5".into()),
+            modified_unix: 5,
+            ..f.settled.clone()
+        };
+        Store::open(f.fs.inner.engine.db.clone())
+            .unwrap()
+            .observe_node(&scope, &fresh)
+            .unwrap();
+        let projected = f
+            .writer
+            .overlay(&scope, "root", vec![fresh.clone()])
+            .unwrap();
+        let selected = projected
+            .into_iter()
+            .find(|n| n.name == fresh.name)
+            .unwrap();
+        assert_eq!(selected.id, f.stale.id.as_ref());
+        assert_ne!(selected.id, fresh.id);
+        assert_eq!(selected.etag, fresh.etag);
+        let root = f.fs.inner.view(1).unwrap();
+        let view = f.fs.inner.insert(&root, selected).await.unwrap();
+        assert_eq!(view.node.as_ref().unwrap().etag, fresh.etag);
+        assert_eq!(
+            f._base
+                .journal
+                .lock()
+                .unwrap()
+                .namespace_object(f.object)
+                .unwrap()
+                .remote
+                .as_ref(),
+            Some(&f.settled)
+        );
+        f.writer.rmdir(&f.fs.inner, view).await.unwrap();
+        let provider = Arc::new(ConditionalFolderRemoval {
+            settled: fresh.clone(),
+            attempts: Mutex::new(Vec::new()),
+            removed: AtomicBool::new(false),
+        });
+        let worker = crate::mutations::MutationWorker::new(
+            f._base.journal.clone(),
+            provider.clone(),
+            cirrove_core::CancellationToken::new(),
+        );
+        let result = tokio::time::timeout(Duration::from_secs(5), worker.run_once())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let attempts = provider.attempts.lock().unwrap().clone();
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(
+            result.state,
+            crate::journal::MutationState::Applied,
+            "fresh projected local alias must condition on observed E5; attempted fixture ETag: {:?}",
+            attempts[0].etag
+        );
+        assert!(result.issue.is_none());
+        assert!(provider.removed.load(Ordering::SeqCst));
+        assert_eq!(attempts.as_slice(), std::slice::from_ref(&fresh));
+        let journal = f._base.journal.lock().unwrap();
+        let rows = journal.list_mutations(0, 10).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(
+            rows.iter()
+                .all(|r| r.state == crate::journal::MutationState::Applied)
+        );
+        assert!(rows[1].base.is_none());
+        assert_eq!(rows[1].request.intent.before(), Some(&fresh));
+    }
+
+    #[tokio::test]
+    async fn fresh_scoped_cached_renamed_folder_alias_remains_removable() {
+        let f = SettledFolderFixture::new().await;
+        let scope = f.stale.scope.as_ref().clone();
+        let fresh = Node {
+            name: "externally-renamed-folder".into(),
+            etag: Some("fresh-observed-E5".into()),
+            content_version: Some("fresh-observed-C5".into()),
+            modified_unix: 5,
+            ..f.settled.clone()
+        };
+        Store::open(f.fs.inner.engine.db.clone())
+            .unwrap()
+            .observe_node(&scope, &fresh)
+            .unwrap();
+        let projected = f
+            .writer
+            .overlay(&scope, "root", vec![fresh.clone()])
+            .unwrap();
+        let selected = projected
+            .into_iter()
+            .find(|n| n.name == fresh.name)
+            .unwrap();
+        assert_eq!(selected.id, f.stale.id.as_ref());
+        assert_ne!(selected.id, fresh.id);
+        assert_eq!(selected.etag, fresh.etag);
+        let root = f.fs.inner.view(1).unwrap();
+        let view = f.fs.inner.insert(&root, selected).await.unwrap();
+        assert_eq!(view.node.as_ref().unwrap().etag, fresh.etag);
+        assert_eq!(
+            f._base
+                .journal
+                .lock()
+                .unwrap()
+                .namespace_object(f.object)
+                .unwrap()
+                .remote
+                .as_ref(),
+            Some(&f.settled)
+        );
+        f.writer.rmdir(&f.fs.inner, view).await.unwrap();
+        let provider = Arc::new(ConditionalFolderRemoval {
+            settled: fresh.clone(),
+            attempts: Mutex::new(Vec::new()),
+            removed: AtomicBool::new(false),
+        });
+        let worker = crate::mutations::MutationWorker::new(
+            f._base.journal.clone(),
+            provider.clone(),
+            cirrove_core::CancellationToken::new(),
+        );
+        let result = tokio::time::timeout(Duration::from_secs(5), worker.run_once())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let attempts = provider.attempts.lock().unwrap().clone();
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(
+            result.state,
+            crate::journal::MutationState::Applied,
+            "fresh projected local alias must condition on observed E5; attempted fixture ETag: {:?}",
+            attempts[0].etag
+        );
+        assert!(result.issue.is_none());
+        assert!(provider.removed.load(Ordering::SeqCst));
+        assert_eq!(attempts.as_slice(), std::slice::from_ref(&fresh));
+        let journal = f._base.journal.lock().unwrap();
+        let rows = journal.list_mutations(0, 10).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(
+            rows.iter()
+                .all(|r| r.state == crate::journal::MutationState::Applied)
+        );
+        assert!(rows[1].base.is_none());
+        assert_eq!(rows[1].request.intent.before(), Some(&fresh));
+    }
+
+    #[tokio::test]
+    async fn scoped_folder_source_refuses_absent_wrong_kind_cancelled_cache_and_snapshot_drift() {
+        for arm in 0..4 {
+            let f = SettledFolderFixture::new().await;
+            let scope = f.stale.scope.as_ref().clone();
+            let calls = f.provider.calls.load(Ordering::SeqCst);
+            let before = {
+                let j = f._base.journal.lock().unwrap();
+                serde_json::to_value(j.namespace_object(f.object).unwrap()).unwrap()
+            };
+            match arm {
+                0 => {
+                    let mut store = Store::open(f.fs.inner.engine.db.clone()).unwrap();
+                    let ticket = store.node_observation(&scope, &f.settled.id).unwrap();
+                    store.publish_absence(&ticket).unwrap();
+                    assert!(store.node(&scope, &f.settled.id).unwrap().is_none());
+                    drop(store);
+                    assert!(f.writer.rmdir(&f.fs.inner, f.stale.clone()).await.is_err());
+                }
+                1 => {
+                    let wrong = Node {
+                        kind: NodeKind::File,
+                        ..f.settled.clone()
+                    };
+                    Store::open(f.fs.inner.engine.db.clone())
+                        .unwrap()
+                        .observe_node(&scope, &wrong)
+                        .unwrap();
+                    assert!(f.writer.rmdir(&f.fs.inner, f.stale.clone()).await.is_err());
+                }
+                2 => {
+                    let cancel = CancellationToken::new();
+                    cancel.cancel();
+                    assert!(
+                        f.writer
+                            .observed_folder_source(
+                                &f.fs.inner.engine,
+                                &scope,
+                                f.stale.node.as_ref().unwrap(),
+                                &cancel
+                            )
+                            .await
+                            .is_err()
+                    );
+                }
+                _ => {
+                    let (_, snapshot) = f
+                        .writer
+                        .observed_folder_source(
+                            &f.fs.inner.engine,
+                            &scope,
+                            f.stale.node.as_ref().unwrap(),
+                            &CancellationToken::new(),
+                        )
+                        .await
+                        .unwrap();
+                    let mut j = f._base.journal.lock().unwrap();
+                    let concurrent = Node {
+                        etag: Some("concurrent-E9".into()),
+                        ..f.settled.clone()
+                    };
+                    j.observe_namespace_file(scope.clone(), concurrent).unwrap();
+                    let changed =
+                        serde_json::to_value(j.namespace_object(f.object).unwrap()).unwrap();
+                    assert!(Writeback::recheck_folder_source(&j, snapshot.as_ref()).is_err());
+                    assert_eq!(
+                        serde_json::to_value(j.namespace_object(f.object).unwrap()).unwrap(),
+                        changed
+                    );
+                }
+            }
+            assert_eq!(
+                f.provider.calls.load(Ordering::SeqCst),
+                calls,
+                "source preparation must never fall back to provider IO, arm {arm}"
+            );
+            let j = f._base.journal.lock().unwrap();
+            assert_eq!(j.list_mutations(0, 10).unwrap().len(), 1);
+            if arm != 3 {
+                assert_eq!(
+                    serde_json::to_value(j.namespace_object(f.object).unwrap()).unwrap(),
+                    before
+                );
+            }
+        }
+    }
+    #[tokio::test]
+    async fn externally_moved_folder_refuses_old_route_and_accepts_current_projected_route() {
+        let f = SettledFolderFixture::new().await;
+        let scope = f.stale.scope.as_ref().clone();
+        let moved = Node {
+            parent_id: Some("other-parent".into()),
+            etag: Some("fresh-moved-E5".into()),
+            ..f.settled.clone()
+        };
+        let parent = Node {
+            id: "other-parent".into(),
+            parent_id: Some("root".into()),
+            name: "other-parent".into(),
+            etag: Some("parent-E5".into()),
+            ..f.settled.clone()
+        };
+        {
+            let mut store = Store::open(f.fs.inner.engine.db.clone()).unwrap();
+            store.observe_node(&scope, &parent).unwrap();
+            store.observe_node(&scope, &moved).unwrap();
+        }
+        let parent_object = {
+            let mut j = f._base.journal.lock().unwrap();
+            let object = j
+                .create_namespace_directory(scope.clone(), "root".into(), parent.name.clone())
+                .unwrap();
+            let operation = j.claim_mutation().unwrap().unwrap();
+            j.acknowledge_mutation(
+                operation.id,
+                operation.attempt.unwrap(),
+                cirrove_core::mutation::MutationReceipt::Upsert(parent.clone()),
+            )
+            .unwrap();
+            let current = j.namespace_object(object.id).unwrap();
+            assert_ne!(current.node.id, parent.id);
+            assert_eq!(current.remote.as_ref(), Some(&parent));
+            current
+        };
+        f.writer.refresh_projection().await.unwrap();
+        let before = serde_json::to_value(
+            f._base
+                .journal
+                .lock()
+                .unwrap()
+                .namespace_object(f.object)
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(
+            f.writer.rmdir(&f.fs.inner, f.stale.clone()).await.is_err(),
+            "old root route must not remove a folder moved into another parent"
+        );
+        assert_eq!(
+            serde_json::to_value(
+                f._base
+                    .journal
+                    .lock()
+                    .unwrap()
+                    .namespace_object(f.object)
+                    .unwrap()
+            )
+            .unwrap(),
+            before
+        );
+        assert_eq!(
+            f._base
+                .journal
+                .lock()
+                .unwrap()
+                .list_mutations(0, 10)
+                .unwrap()
+                .len(),
+            2
+        );
+        let projected = f
+            .writer
+            .overlay(&scope, &parent_object.node.id, vec![moved.clone()])
+            .unwrap();
+        let selected = projected
+            .into_iter()
+            .find(|n| n.id == f.stale.id.as_ref())
+            .unwrap();
+        assert_eq!(
+            selected.parent_id.as_deref(),
+            Some(parent_object.node.id.as_str())
+        );
+        assert_eq!(selected.etag, moved.etag);
+        let root = f.fs.inner.view(1).unwrap();
+        let parent_view =
+            f.fs.inner
+                .insert(&root, parent_object.node.clone())
+                .await
+                .unwrap();
+        let view = f.fs.inner.insert(&parent_view, selected).await.unwrap();
+        f.writer.rmdir(&f.fs.inner, view).await.unwrap();
+        let provider = Arc::new(ConditionalFolderRemoval {
+            settled: moved.clone(),
+            attempts: Mutex::new(Vec::new()),
+            removed: AtomicBool::new(false),
+        });
+        let worker = crate::mutations::MutationWorker::new(
+            f._base.journal.clone(),
+            provider.clone(),
+            CancellationToken::new(),
+        );
+        let result = tokio::time::timeout(Duration::from_secs(5), worker.run_once())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.state, crate::journal::MutationState::Applied);
+        assert!(result.issue.is_none());
+        assert!(provider.removed.load(Ordering::SeqCst));
+        assert_eq!(
+            provider.attempts.lock().unwrap().as_slice(),
+            std::slice::from_ref(&moved)
+        );
+        let j = f._base.journal.lock().unwrap();
+        let rows = j.list_mutations(0, 10).unwrap();
+        assert_eq!(rows.len(), 3);
+        assert!(
+            rows.iter()
+                .all(|r| r.state == crate::journal::MutationState::Applied)
+        );
+        assert_eq!(rows[2].request.intent.before(), Some(&moved));
+        assert!(rows[2].base.is_none());
     }
 
     /// An explicit write grant is the opt-in, and it is the only one.

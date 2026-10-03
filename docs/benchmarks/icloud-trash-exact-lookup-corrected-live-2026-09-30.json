@@ -1,0 +1,393 @@
+{
+  "run": "2bfb1982-77de-40d3-8a81-81a25f9e70dd",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-trash-lookup",
+    "21d05f56-70c4-47a8-a5e3-577ab68994ac"
+  ],
+  "binary_sha256": "6a1a56d22173f8b5c9b266b493078f765114b70bb3d88ecec0a9a2992e0f8a4b",
+  "revision": "fd46c384d02192a2d26aa7e4b405ab4e86024cb5",
+  "dirty": true,
+  "start_utc": "2026-09-30T00:52:03.462040+00:00",
+  "expected_duration_seconds": 1200,
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "private_manifest": ".local-state/icloud-trash-lookup-corrected-2bfb1982-77de-40d3-8a81-81a25f9e70dd/manifest.json",
+  "installed_service_changed": false,
+  "cloud_mutations": false,
+  "pid": 1603856,
+  "exit_code": 0,
+  "elapsed_seconds": 183.041,
+  "finished_utc": "2026-09-30T00:55:06.503237+00:00",
+  "reports": [
+    {
+      "arm": 0,
+      "report": {
+        "direct": [
+          {
+            "array_entries": 1,
+            "elapsed_ms": 1005,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "parent_is_trash": true,
+            "shape": "production",
+            "status": 200,
+            "type_is_file": true
+          },
+          {
+            "array_entries": 1,
+            "elapsed_ms": 817,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "parent_is_trash": true,
+            "shape": "production",
+            "status": 200,
+            "type_is_file": true
+          }
+        ],
+        "full_after_count": 54,
+        "full_after_ms": 29584,
+        "full_before_count": 54,
+        "full_before_ms": 29992,
+        "full_listings_complete": true,
+        "selected_metadata_stable": true
+      }
+    },
+    {
+      "arm": 1,
+      "report": {
+        "direct": [
+          {
+            "array_entries": 1,
+            "elapsed_ms": 822,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "parent_is_trash": true,
+            "shape": "production",
+            "status": 200,
+            "type_is_file": true
+          },
+          {
+            "array_entries": 1,
+            "elapsed_ms": 880,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "parent_is_trash": true,
+            "shape": "production",
+            "status": 200,
+            "type_is_file": true
+          }
+        ],
+        "full_after_count": 54,
+        "full_after_ms": 29384,
+        "full_before_count": 54,
+        "full_before_ms": 29711,
+        "full_listings_complete": true,
+        "selected_metadata_stable": true
+      }
+    },
+    {
+      "arm": 2,
+      "report": {
+        "direct": [
+          {
+            "array_entries": 1,
+            "elapsed_ms": 1110,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "parent_is_trash": true,
+            "shape": "production",
+            "status": 200,
+            "type_is_file": true
+          },
+          {
+            "array_entries": 1,
+            "elapsed_ms": 864,
+            "fields": {
+              "docwsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "drivewsid": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "etag": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "extension": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "name": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "parentId": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "restorePath": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "size": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              },
+              "type": {
+                "direct_present": true,
+                "equal": true,
+                "listed_present": true
+              }
+            },
+            "parent_is_trash": true,
+            "shape": "production",
+            "status": 200,
+            "type_is_file": true
+          }
+        ],
+        "full_after_count": 54,
+        "full_after_ms": 29237,
+        "full_before_count": 54,
+        "full_before_ms": 29534,
+        "full_listings_complete": true,
+        "selected_metadata_stable": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "run": "6f5a1073-8aca-4639-b458-ee8577bf95a9",
+  "binary_sha256": "e7667970dd69487601b2e63ff52aa63ed4125e3eeb43b6b225c067294f2a2444",
+  "revision": "310940d2d44d6d73bd27d70c764ce5a2687f828d",
+  "dirty": true,
+  "expected_duration_seconds": 1200,
+  "start_utc": "2026-09-30T03:52:32.365234+00:00",
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "cloud_mutations": "new owned validation folder and empty file only",
+  "installed_service_changed": false,
+  "phases": [
+    {
+      "flag": "--account-empty",
+      "status": "finished",
+      "start_utc": "2026-09-30T03:52:32.365528+00:00",
+      "pid": 1965718,
+      "exit_code": 0,
+      "elapsed_seconds": 79.378,
+      "finished_utc": "2026-09-30T03:53:51.743546+00:00"
+    },
+    {
+      "flag": "--account-empty-read",
+      "status": "finished",
+      "start_utc": "2026-09-30T03:53:51.743751+00:00",
+      "pid": 1967297,
+      "exit_code": 0,
+      "elapsed_seconds": 1.975,
+      "finished_utc": "2026-09-30T03:53:53.718957+00:00"
+    }
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 81.354,
+  "finished_utc": "2026-09-30T03:53:53.719164+00:00",
+  "report": {
+    "independent_revision_digest": true,
+    "mounted_zero_size_and_eof": true,
+    "reopened_journal": true,
+    "run": "6f5a1073-8aca-4639-b458-ee8577bf95a9"
+  }
+}

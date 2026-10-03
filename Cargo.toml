@@ -51,6 +51,7 @@ libc = "0.2"
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "json", "form", "query"] }
 rusqlite = { version = "0.40", features = ["bundled", "hooks"] }
 secrecy = "0.10"
+ring = "0.17"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tempfile = "3.27"

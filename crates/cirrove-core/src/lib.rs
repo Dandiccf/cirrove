@@ -127,6 +127,14 @@ pub struct ChangePage {
     pub checkpoint: Checkpoint,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FeedMode {
+    Incremental,
+    /// Every completed round replaces the collection's entire visible index.
+    /// A continuation belongs to the in-progress round, not a change feed.
+    FullSnapshot,
+}
+
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ProviderError {
     #[error("remote file changed; reopen it to read the new version")]
@@ -155,6 +163,9 @@ pub enum ProviderError {
 #[async_trait]
 pub trait MetadataProvider: Send + Sync {
     fn provider_id(&self) -> &'static str;
+    fn feed_mode(&self) -> FeedMode {
+        FeedMode::Incremental
+    }
     /// Maintain one collection's notification session until cancellation, renewal
     /// or failure. Implementations report connected only after subscribing, and
     /// turn remote hints into `changed`; metadata is still fetched via `changes`.
@@ -234,6 +245,39 @@ impl std::fmt::Display for NameProblem {
 /// Read-only filesystem operations, deliberately separate from change feeds.
 #[async_trait]
 pub trait ReadProvider: MetadataProvider {
+    /// Resolve one selected native-document export archive, if supported. This
+    /// may perform bounded content reads and semantic validation; never call it
+    /// for menu rendering or while holding a journal/filesystem lock. None means
+    /// this item has no supported archive binding, not ordinary-write approval.
+    /// No provider mutation or write admission is performed by this operation.
+    async fn resolve_native_archive(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<reads::NativeArchiveBinding>, ProviderError> {
+        Ok(None)
+    }
+    /// Metadata-only admission before changing an existing remote item's local
+    /// bytes or namespace. Providers may refuse representations that ordinary
+    /// filesystem writes cannot preserve. This must not download file content or
+    /// mutate the provider. The caller binds the result to this exact revision
+    /// and rechecks its local identity binding before committing any local edit.
+    async fn validate_write_target(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        Ok(())
+    }
+    /// A completed change feed may cover only the root, while other folders
+    /// become known through their own complete directory pages. In that case
+    /// an absent directory snapshot must trigger a foreground fetch, even if
+    /// the feed has a completed cursor.
+    fn unknown_directories_require_fetch(&self) -> bool {
+        false
+    }
     /// A generated package child can require a bounded provider conversion
     /// before its directory entry has a trustworthy size. Ordinary folders
     /// retain the service's short directory deadline.
@@ -246,6 +290,21 @@ pub trait ReadProvider: MetadataProvider {
     fn refresh_cached_packages_on_first_open(&self) -> bool {
         false
     }
+    /// Whether a selected generated-package directory binds enumeration to the
+    /// supplied source metadata and can reject a stale cached source revision.
+    /// On VersionChanged the service may refresh that exact node and retry the
+    /// whole listing once, within the original deadline. Identity, location and
+    /// package shape must remain unchanged; partial pages/cursors are discarded.
+    /// This does not request periodic/first-open refreshes or retarget existing
+    /// opened artifacts. Ordinary directories and other providers default off.
+    /// Successful generated snapshots also retain this source binding. When a
+    /// later local metadata observation changes its content revision or child
+    /// presentation inputs, the service revalidates the complete snapshot. This
+    /// does not poll the provider on every read. Sources need a content revision;
+    /// metadata-only changes with a stable content tag can reuse staged bytes.
+    fn retry_package_source_on_version_change(&self, _parent: &Node) -> bool {
+        false
+    }
     /// Why this provider would refuse a file or folder name, or `None`. The
     /// mount asks before creating or renaming, so a name the cloud will not
     /// take fails at the application that chose it and not an hour later as a
@@ -254,10 +313,28 @@ pub trait ReadProvider: MetadataProvider {
     fn name_problem(&self, _name: &str) -> Option<NameProblem> {
         None
     }
+    /// Opt into same-parent folder renames through the writable namespace.
+    /// The default keeps existing providers' folder behavior unchanged while
+    /// an adapter validates conditional rename and recovery end to end.
+    fn supports_same_parent_folder_rename(&self) -> bool {
+        false
+    }
+    /// Opt into cross-parent folder moves after the provider's conditional
+    /// mutation and recovery path has been validated. Existing providers keep
+    /// refusing this operation unless they explicitly enable it.
+    fn supports_cross_parent_folder_move(&self) -> bool {
+        false
+    }
     /// Read-path counters, for adapters that keep them. `None` means the adapter
     /// does not count, which is not the same as counting zero.
     fn read_path_counters(&self) -> Option<ReadPathCounters> {
         None
+    }
+    /// Deadline for a cache-miss content request, including session setup. A
+    /// generated package may need a complete bounded transfer to recover one
+    /// evicted range. Ordinary content retains the 30-second deadline.
+    fn content_read_timeout(&self, _node: &Node) -> Duration {
+        Duration::from_secs(30)
     }
     /// Optional version-bound transport. The shared service coalesces creation
     /// and bounds residency; adapters keep credentials and validators private.
@@ -298,6 +375,22 @@ pub trait ReadProvider: MetadataProvider {
     ) -> Result<DirectoryPage, ProviderError> {
         self.children(scope, &parent.id, cursor, cancel).await
     }
+    /// A complete, already validated generated artifact backed by private storage.
+    /// Its identity must exactly match the derived node. Every returned range
+    /// must remain bound to that identity; partial/unvalidated downloads must
+    /// never be exposed here. The service copies bounded ranges to its ordinary
+    /// cache before publishing the node, without holding filesystem/DB locks
+    /// across the provider call. This avoids a whole-artifact memory copy.
+    /// None falls back to `staged_content` for existing in-memory exporters.
+    async fn staged_content_session(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<Arc<dyn reads::ReadSession>>, ProviderError> {
+        Ok(None)
+    }
+
     /// Bytes already materialized while constructing a derived directory entry.
     ///
     /// Generated provider representations sometimes have no trustworthy size

@@ -1,0 +1,28 @@
+{
+  "run": "f5c61412-5f8a-4660-be49-a8d58623d26f",
+  "read_only_sqlite_audit": true,
+  "integrity_check": "ok",
+  "upload_states": [
+    "uploaded",
+    "uploaded",
+    "resolved",
+    "uploaded"
+  ],
+  "mutation_states": [
+    "resolved",
+    "applied"
+  ],
+  "cloud_identity_preserved": true,
+  "rescue_has_distinct_identity": true,
+  "one_remote_owner_per_version": true,
+  "distinct_local_identities": true,
+  "rescued_payload_digest_matches": true,
+  "same_working_identity": true,
+  "conflicted_local_payload_hashed": true,
+  "old_cleanup_never_started": true,
+  "new_cleanup_depends_on_rescue": true,
+  "cleanup_only_targets_editor_temporary": true,
+  "victim_remains_detached": true,
+  "no_unfinished_queue_reservations": true,
+  "all_prerequisites_point_backward": true
+}

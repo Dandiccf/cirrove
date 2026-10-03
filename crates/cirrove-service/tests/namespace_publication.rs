@@ -141,7 +141,7 @@ fn schema_eleven_migration_seeds_complete_namespace_and_preserves_pending_bytes(
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i32>(0))
             .unwrap(),
-        14
+        19
     );
 }
 
@@ -203,7 +203,7 @@ fn rollback_and_clock_exhaustion_never_expose_an_unpublished_namespace_change() 
     )
     .unwrap();
     assert!(
-        j.relocate_namespace_file(
+        j.relocate_namespace_item(
             original.id,
             original.revision,
             "root".into(),

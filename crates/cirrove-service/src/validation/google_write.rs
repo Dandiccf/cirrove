@@ -1332,6 +1332,8 @@ mod tests {
             reads: AtomicUsize::new(0),
         };
         let record = UploadRecord {
+            representation: Default::default(),
+            package_completion: None,
             id: uuid::Uuid::new_v4(),
             sequence: 1,
             scope,
@@ -1344,6 +1346,7 @@ mod tests {
             sha256: hex::encode(Sha256::digest(&bytes)),
             attempt: None,
             remote: Some(node),
+            identity_handoff: None,
             base: None,
             working_file: None,
             session_key: None,

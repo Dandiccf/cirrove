@@ -1,0 +1,35 @@
+{
+  "run": "e1fbb31a-6195-49dc-9b77-eb70e8326934",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-mounted-large",
+    "e1fbb31a-6195-49dc-9b77-eb70e8326934"
+  ],
+  "binary_sha256": "fd3e100e66251b1caab9d93b61ff208b7c5d4d252c13ee31352b511c393a3647",
+  "revision": "a1821970cf8f9d03bff7d771e113136d6f9aa76d",
+  "dirty": true,
+  "start_utc": "2026-09-30T01:26:07.302361+00:00",
+  "expected_duration_seconds": 2400,
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "private_manifest": ".local-state/icloud-large-account-arm-e1fbb31a-6195-49dc-9b77-eb70e8326934/manifest.json",
+  "installed_service_changed": false,
+  "ordinary_account_writes_enabled": false,
+  "pid": 1663572,
+  "exit_code": 0,
+  "elapsed_seconds": 407.578,
+  "finished_utc": "2026-09-30T01:32:54.880654+00:00",
+  "functional_endpoints": {
+    "independent_digests": true,
+    "journal_budget": 536870912,
+    "mounted_create": true,
+    "mounted_replace": true,
+    "original_in_trash": true,
+    "original_size": 68157457,
+    "remounted_full_read": true,
+    "replacement_size": 69206045,
+    "run": "e1fbb31a-6195-49dc-9b77-eb70e8326934"
+  },
+  "exact_mount_observed_during_run": true,
+  "unmounted_after_completion": true
+}

@@ -1,0 +1,99 @@
+{
+  "run": "9a6a0a9d-bd1e-499e-a9cf-a07d19cde91e",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-trash-lookup",
+    "21d05f56-70c4-47a8-a5e3-577ab68994ac"
+  ],
+  "binary_sha256": "491bdf648b256269e7ab6d314d1810ef255e6c47ff7c6d707001f8a1db79f620",
+  "revision": "fd46c384d02192a2d26aa7e4b405ab4e86024cb5",
+  "dirty": true,
+  "start_utc": "2026-09-30T00:42:03.515634+00:00",
+  "expected_duration_seconds": 1200,
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "private_manifest": ".local-state/icloud-trash-lookup-arm-9a6a0a9d-bd1e-499e-a9cf-a07d19cde91e/manifest.json",
+  "installed_service_changed": false,
+  "cloud_mutations": false,
+  "pid": 1588984,
+  "exit_code": 0,
+  "elapsed_seconds": 188.984,
+  "finished_utc": "2026-09-30T00:45:12.499852+00:00",
+  "reports": [
+    {
+      "arm": 0,
+      "report": {
+        "direct": [
+          {
+            "array_entries": null,
+            "elapsed_ms": 164,
+            "fields": null,
+            "status": 400
+          },
+          {
+            "array_entries": null,
+            "elapsed_ms": 161,
+            "fields": null,
+            "status": 400
+          }
+        ],
+        "full_after_count": 54,
+        "full_after_ms": 31165,
+        "full_before_count": 54,
+        "full_before_ms": 31519,
+        "full_listings_complete": true,
+        "selected_metadata_stable": true
+      }
+    },
+    {
+      "arm": 1,
+      "report": {
+        "direct": [
+          {
+            "array_entries": null,
+            "elapsed_ms": 162,
+            "fields": null,
+            "status": 400
+          },
+          {
+            "array_entries": null,
+            "elapsed_ms": 163,
+            "fields": null,
+            "status": 400
+          }
+        ],
+        "full_after_count": 54,
+        "full_after_ms": 31614,
+        "full_before_count": 54,
+        "full_before_ms": 31098,
+        "full_listings_complete": true,
+        "selected_metadata_stable": true
+      }
+    },
+    {
+      "arm": 2,
+      "report": {
+        "direct": [
+          {
+            "array_entries": null,
+            "elapsed_ms": 164,
+            "fields": null,
+            "status": 400
+          },
+          {
+            "array_entries": null,
+            "elapsed_ms": 173,
+            "fields": null,
+            "status": 400
+          }
+        ],
+        "full_after_count": 54,
+        "full_after_ms": 31709,
+        "full_before_count": 54,
+        "full_before_ms": 30801,
+        "full_listings_complete": true,
+        "selected_metadata_stable": true
+      }
+    }
+  ]
+}

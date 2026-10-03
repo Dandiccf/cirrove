@@ -1,0 +1,251 @@
+{
+  "registered_at": "2026-10-02T21:46:05.468660+00:00",
+  "status": "live-arm-closed-replacement-admission-refused-original-A-unchanged",
+  "question": "Does one Numbers PACKAGE replacement inside a newly created own folder with a completed stable local-to-provider handoff pass public admission, publish version B and retain A recoverably?",
+  "prediction": "After the parent handoff, mounted child parent_id is local while independent provider parent_id is remote. The mapping fix accepts that exact binding without weakening identity/revision fences. One import A and one replacement B complete; independent v2 content proof matches B and recoverable Trash matches A; Apple Numbers subsequently displays 7,3,10 with SUM(A2:B2).",
+  "run": "91a58b61-a31a-4348-811a-e11c9904d709",
+  "arms": [
+    "One new UUID-owned Numbers document inside one folder created through the isolated FUSE mount; import A, verify A independently, replace once with B, verify current B and retained original A in Trash, then inspect Apple Numbers."
+  ],
+  "endpoint": [
+    "Completed parent identity handoff preserves stable local directory alias.",
+    "One import and one replacement complete with exact typed journal/publication receipts.",
+    "Independent bounded PACKAGE readback matches B semantic v2 and recoverable Trash matches A at the recorded revision.",
+    "Subsequent exact-document Apple Numbers open displays 7,3,10 and SUM(A2:B2), recorded separately from pre-open proofs."
+  ],
+  "inputs": [
+    {
+      "version": "A-archive",
+      "path": "/var/tmp/cirrove-iwork-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f/staging/numbers-source.zip",
+      "sha256": "add6c6f634ab18e792c3ec15b892da895d323661df29c8cef2f9fc639d9adf18",
+      "bytes": 140101,
+      "root": "Source.numbers",
+      "local_integrity_verified": true
+    },
+    {
+      "version": "B-archive",
+      "path": "/var/tmp/cirrove-iwork-b5c8041e-18e3-4d6a-82fa-9429af5d3c4f/staging/numbers-source-b.zip",
+      "sha256": "d0a1b35bd5b7c32c5c1831a59729bbfff8ab7445e0dd74c8821f09578f9bda66",
+      "bytes": 68997,
+      "root": "Source.numbers",
+      "local_integrity_verified": true
+    }
+  ],
+  "source_semantics": {
+    "A": {
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133089,
+      "version": 2,
+      "sha256": "67e0f4d4ed8a098959e7a32630dede70bd726b75fc7dd45414e726014658646b"
+    },
+    "B": {
+      "entries": 46,
+      "expanded_bytes": 133151,
+      "files": 42,
+      "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+      "version": 2
+    },
+    "Apple_B_values": [
+      7,
+      3,
+      10
+    ],
+    "Apple_B_formula": "SUM(A2:B2)",
+    "provenance": "docs/benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json"
+  },
+  "isolation": {
+    "state_directory": "/var/tmp/cirrove-numbers-parent-91a58b61-a31a-4348-811a-e11c9904d709/state",
+    "mount": "/var/tmp/cirrove-numbers-parent-91a58b61-a31a-4348-811a-e11c9904d709/mount",
+    "socket": "/var/tmp/cirrove-numbers-parent-91a58b61-a31a-4348-811a-e11c9904d709/control.sock",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-91a58b61",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-91a58b61",
+    "temp_filesystem": "ext4, reassert before execution",
+    "session_directory_filesystem": "btrfs, required by existing evidence helper",
+    "installed_daemon_restarted": false,
+    "installed_state_opened_or_migrated": false
+  },
+  "discipline": [
+    "Explicit scoped cloud-task authorization before any cloud request.",
+    "Pin daemon, CLI, observer and source archive hashes before execution.",
+    "Record exact command, binary SHA-256, private disk TMPDIR, duration and process ID before each phase.",
+    "One phase at a time, no concurrent compile or measurement.",
+    "Record each mutation attempted before dispatch; ambiguous reply permits read-only inspection only, never automatic retry.",
+    "Stop only the recorded isolated daemon before receipt observers; keep its state and every result.",
+    "Do not replay earlier Numbers attempts, restore originals, permanently delete or perform cleanup cloud mutations."
+  ],
+  "cloud_requests": null,
+  "cloud_mutations": {
+    "confirmed_owned_folder_creates": 1,
+    "confirmed_owned_package_imports": 1,
+    "replacement_CLI_dispatches": 1,
+    "retained_replacement_operations": 0,
+    "automatic_retries": 0,
+    "restores": 0,
+    "deletes": 0
+  },
+  "results": {
+    "source_head": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91",
+    "source_clean": true,
+    "completed_at": "2026-10-03T10:43:03.290715+00:00",
+    "binaries": {
+      "cirroved": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-parent-20261003/target/debug/cirroved",
+        "sha256": "d15b92f0860433d7dba423b416d008b0db9337602549adb10501bac61b1ffaf1",
+        "size": 487926048,
+        "source_head": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91"
+      },
+      "cirrove": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-parent-20261003/target/debug/cirrove",
+        "sha256": "0639c69d620d0108c73a0fdf51f59e6b9743090e819088240c3c2bd6f515941e",
+        "size": 488028536,
+        "source_head": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91"
+      },
+      "cirrove-icloud-mounted-write-probe": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-parent-20261003/target/debug/cirrove-icloud-mounted-write-probe",
+        "sha256": "ae704c286877a804e91e7b7a8dc76babdb0f534b0b7f51fc137d3211d8c59d5f",
+        "size": 465775576,
+        "source_head": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91"
+      }
+    },
+    "parent_create_applied": true,
+    "stable_parent_handoff_completed": true,
+    "import_A_uploaded_and_visible": true,
+    "A_preflight_independent_semantic_v2_passed": true,
+    "replacement": "Public CLI refused at durable enqueue. No second dispatch. Read-only list showed 0 operations; journal retained exactly 1 Applied folder, 1 Uploaded import and 0 unfinished queue entries.",
+    "replacement_refusal": "Replacement admission was not confirmed during durable enqueue; inspect retained operations before retrying.",
+    "post_refusal_A": {
+      "independent_exact_identity_revision_content_verified": true,
+      "semantic": {
+        "entries": 46,
+        "expanded_bytes": 133089,
+        "files": 42,
+        "sha256": "67e0f4d4ed8a098959e7a32630dede70bd726b75fc7dd45414e726014658646b",
+        "version": 2
+      },
+      "cloud_mutated_by_observer": false
+    },
+    "B_readback_Trash_and_Apple_open": "Not reached; no completed replacement receipt. No GUI open performed.",
+    "installed_state_untouched": true,
+    "isolated_daemon_stopped_by_recorded_PID": true,
+    "cleanup_performed": false,
+    "initial_guard_authoring_refusal": "A local wrapper expected a serialized native_archive field on NamespaceObject; serde omits absent field. It failed before creating import attempt/dispatch. Wrapper corrected to treat absent optional field as None and to read typed upsert.value receipt. This was not a product failure.",
+    "observed_admission_mismatch": "Read-only diagnostic: following completed parent NamespaceObject had old folder ETag i18u; fresh provider parent and root cache agreed on i18z after import. Remaining full parent Node fields matched. Journal ancestor selection currently requires exact whole-Node equality, so this normal parent metadata change is refused. New synthetic positive failed durable enqueue without correction; ETag-only clean ancestor correction passed all11 replacement controls, including unfinished-parent refusal. See icloud-native-parent-revision-2026-10-03.json; live outcome remains refused, not replayed.",
+    "private_evidence": [
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/authorized-clean-binaries-build.json",
+        "sha256": "b7b2c26f3d3c62a6483920ea89d23924a9f7f8ba55489016972b66e45ec5bfc8"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/authorized-clean-binaries-pins.json",
+        "sha256": "ab711e63be5bdf64af30a64e4b7a2729738f010a76aafe3a9deef45230907ea4"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/preflight-daemon.json",
+        "sha256": "4e0330d92d7fe6336c9359b6b73a7e5dc18a4df34139ce7ecc8f0ce5b52565e5"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/folder-create-attempt.json",
+        "sha256": "085a3a55e547f9b67ad4308741d28b0b9428fe5862060608c5e037ee0d3d3415"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/import-attempt.json",
+        "sha256": "96c9f946f1e7ae8127835d8a68feacf9d9b326a4e956402d16e0a3afc47e1f17"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/preflight-observer.json",
+        "sha256": "7366a90b2b886fab9fff2511c878ed4b5606e206f72dc0da2638dec65d3086d3"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/replacement-daemon.json",
+        "sha256": "faa9d87f320982b8b624421cb9d2fcec06bd8b436eee4f37a4f9e328b2817f0c"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/replacement-attempt.json",
+        "sha256": "1b34cfefaffec16c740b0c47ec16e687eb7928b86e82adb5a2469b41c813dee1"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/replacement-readonly-inspection.json",
+        "sha256": "aae67ad234b36f367ffccfb6c00ba4e9ddb91260b17d5645438c92d7c9e7babe"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/post-refusal-A-observer.json",
+        "sha256": "55309e6608f03a82cb145a34081b56a3a9dfb81ce8ca286135dd60be0f62fd0e"
+      },
+      {
+        "path": ".local-state/icloud-native-parent-admission-20261002/post-refusal-A-observer.log",
+        "sha256": "89d7e62080d49170abcb4a86cbc9e67fc89a5da919ded3063859486b95c9f21e"
+      }
+    ]
+  },
+  "full_iCloud_gates_closed": false,
+  "limits": [
+    "One controlled owned fixture cannot establish broad provider reliability.",
+    "Apple opening can rewrite package metadata or content; pre-open proofs must be retained independently.",
+    "Session rejection stops the arm without background login or renewal.",
+    "Schema19 validation remains isolated from installed schema14 Canary journals."
+  ],
+  "local_source_preparation": {
+    "status": "complete-local-archive-proofs-only",
+    "manifest": ".local-state/icloud-native-parent-admission-20261002/source-proof-run.json",
+    "binary_sha256": "ac15d4870744d055ba667daf7a2f655ce727e8d95348f9dd8175a378745bdcca",
+    "expected_root": "Source.numbers",
+    "A_reproduces_retained_proof": true,
+    "B_has_distinct_semantic_v2": true,
+    "cloud_requests": 0,
+    "cloud_mutations": 0,
+    "private_initial_build_issue": "Initial no-deps metadata did not resolve standalone lock; locked build correctly refused. Full offline metadata resolved only the private lock, and subsequent offline locked build and pure local proof passed. No tracked dependency or lock changes.",
+    "fresh_isolated_state": "Private dormant settings, encrypted session and immutable A/B archive copies prepared under the exact new root; no daemon started or provider request. Old source state owner lease held; source bytes unchanged before/after.",
+    "snapshot_manifest": ".local-state/icloud-native-parent-admission-20261002/fresh-local-snapshot.json",
+    "initial_preparation_issue": "A private preparation assertion used icloud instead of the existing typed serialization i_cloud. It refused before creating any path; exact serialization was corrected and local preparation completed. No product change or cloud action."
+  },
+  "authorization": {
+    "received_at": "2026-10-03T10:23:53.535600+00:00",
+    "answer": "Ja, diesen begrenzten Numbers-Test freigeben",
+    "scope": "Exactlyone newUUIDownedfolder, oneownNumbersimportA, one replacementB, read-only new/originalTrash checks; no automatic ambiguousretry. Installed services untouched."
+  },
+  "current_source_repin_plan": {
+    "source_head": "e6b93d3ebca1c9ce94dd0c6e877df7f832e9dc91",
+    "rationale": "Clean reviewed source with full scripts/check.sh passed; subsequent CI desktop timeout124 is isolated from daemon/CLI/observer. Root current checkout has uncommitted tests-only work; use distinct clean checkout/target rather than imply clean source.",
+    "directory": "/home/dandiccf/Storage/.cirrove-validation/icloud-numbers-parent-20261003/source",
+    "cargo_target": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-parent-20261003/target",
+    "compile_before_start": true
+  },
+  "cloud_requests_note": "Authenticated read and mutation requests occurred; exact HTTP count not instrumented",
+  "synthetic_correction_validation": {
+    "evidence": "icloud-native-parent-revision-2026-10-03.json",
+    "regression_failed_without_fix": true,
+    "all_eleven_admission_controls_passed": true,
+    "full_contributor_check": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "status": "passed",
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.json",
+        "sha256": "7a589ce1e9eac02c6dcba4f0ec88e7c778da6b2100530ba7973dc4320f0104fb"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-parent-chain-window-accounting-full-check.log",
+        "sha256": "5632a3b76ba9d82bfce89a56672892a26317b2b3de970470d12662792cb0059f"
+      },
+      "completed_at": "2026-10-03T11:13:21.471157+00:00",
+      "warnings": 0,
+      "native_FUSE_HTTPS_actual_tests": 2,
+      "writable_kernel_actual_tests": 55,
+      "writable_kernel_seconds": 105.01,
+      "coverage_ignored_tests": 143,
+      "custom_window_union": 21,
+      "desktop_window_runs": "Separate supported-floor1+20 passed; these are not run by scripts/check.sh.",
+      "final_source_sha256": {
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb"
+      }
+    },
+    "live_replacement_replayed": false,
+    "live_acceptance_closed": false
+  }
+}

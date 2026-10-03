@@ -1,0 +1,757 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "status": "controlled-baseline-omissions-restoration-host-refusal-complete-check-and-seven-job-source-CI-passed",
+  "question": "Can the actual developer installer refuse held19/8 transitions for every affected existing/current/future service state route and an exact declared restart embargo before any build/copy/service boundary, while ordinary released installations retain their behavior?",
+  "prediction": "Unchanged installer reaches a fake mutation boundary in controlled refusal arms. Bounded preflight will refuse before it while retained synthetic bytes remain unchanged. Safe allowed arms reach exactly the first fake boundary, never an actual installation. The stopped shipped HOME state with empty caller XDG is a necessary control: ambient environment cannot substitute for unit routing.",
+  "source_head_before_tests": "9527ff0dcb31cae3249909cffe2cf47d918559eb",
+  "registered_at": "2026-10-03T17:32:20.463728+00:00",
+  "scope": "Development-only source-policy hold, exact typed service ownership/route inspection, retained-state preservation and declared embargo enforcement; synthetic shell fixtures only. Not installed Apple-account acceptance.",
+  "arms": [
+    {
+      "name": "unchanged-installer",
+      "expected": "Refusal tests fail at first recorded fake cargo/install boundary, not compiler/timeout or missing-helper execution failure."
+    },
+    {
+      "name": "bounded-preflight",
+      "expected": "Same refusal arms do not reach any mutation; released/foreign/closed/historical-boundary controls remain allowed. Normal held fresh install can reach fake build; held no-build refuses until artifact provenance is independently established."
+    },
+    {
+      "name": "route-union-omission",
+      "expected": "Omitting only future HOME route or stopped effective route makes its specific meaningful preservation test fail at mutation boundary; other controls remain intact."
+    },
+    {
+      "name": "host-read-only-refusal",
+      "expected": "After controlled source tests pass, invoking only the helper (normal held mode, no installer) on this running Cirrove host refuses specifically for retained local state. This reads D-Bus/proc/path metadata only, never settings contents, SQLite, credentials, Apple or any install/restart. It exercises actual existing process reader but not installed transition acceptance."
+    }
+  ],
+  "invariants": [
+    "Every retained account is held, including ordinary-only, disabled and read-only accounts; schema19 affects all writable journals.",
+    "No SQLite writer, vault/keyring/provider access, state migration, installed unit restart or real installer action in any test.",
+    "Typed bounded D-Bus data, passwd service-user home, exact PID/executable/route and stable before/after observations; unknown/ambiguous ownership refuses without retry.",
+    "No raw argv/environment/service response output and no implicit-consent env overrides.",
+    "Non-recursive fixture setup; fake mutation commands terminate at first boundary, except the explicit postbuild arm whose fake cargo declares an embargo then exits0 so the second preflight can be tested. Preserve fixture evidence instead of cleanup walks."
+  ],
+  "claim_limits": [
+    "The declaration guard cannot discover legacy/unannotated windows or atomically exclude new measurement launches; root-supervised ownership audit and no-concurrent-launch discipline remain required.",
+    "Package switching and external package-manager/reboot actions need independent provenance/transition protection; no universal interception claim.",
+    "A source policy is not proof of arbitrary --no-build binary provenance; held no-build is refused rather than guessed.",
+    "No actual installed readiness, package rollback, reauthentication, access downgrade, Apple fidelity or full-iCloud release gate is established. Gates485-490 remain open.",
+    "Synthetic live-route union substitutes the kernel process-identity seam while retaining production argv route validation; it alone does not verify the actual /proc parser. A separate read-only host refusal arm may supply narrow existing-owner evidence, not installation proof."
+  ],
+  "results": {
+    "installer-preflight-host-readonly-refusal": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/install-preflight.py",
+        "--repo",
+        "/home/dandiccf/Work/cirrove"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-host-readonly-refusal.json",
+      "manifest_sha256": "1d3923d28fb73e6cc0abf29ca7095d45ee13affd8a3cbbb2d0521b5e22413738",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-host-readonly-refusal.log",
+      "log_sha256": "510a73a06633f72e7b8ed419fb9ade4fad11df72b043deaad8091fcd236ed574",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:56:15.276963+00:00",
+      "finished_at": "2026-10-03T17:56:15.350872+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "endpoint": "installation refused: this source holds upgrades of retained local state",
+      "scope": "Actual typed user-systemd and /proc process reader, path-presence inspection only; helper normal held mode, no installer invocation."
+    },
+    "installer-preflight-omission-current-route-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_current_live_route_retained_effective_and_future_fresh",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-current-route-red.json",
+      "manifest_sha256": "8dd2491b14bd420924e3979237313156a545054b4ae391e4cea46730af514228",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-current-route-red.log",
+      "log_sha256": "3da5b7b064e7fb1e5a2720a02865bb927414177a3250d0e53b6846d718290986",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:47.225668+00:00",
+      "finished_at": "2026-10-03T17:54:47.554616+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "51d547dafbf5757bb39094cfd9187e6917a1b4bd02bafe1e225daf971742b2e3",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "test_runtime_seconds": 0.279,
+      "failures": 1,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Intended preserved-state/refusal assertion failed at first fake cargo/install boundary."
+    },
+    "installer-preflight-omission-effective-route-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_stopped_custom_effective_route_retained",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-effective-route-red.json",
+      "manifest_sha256": "92968dea6cc59ebca34d9f28dccbe5eef2d4a95b636ff12ff188900851ef3bc2",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-effective-route-red.log",
+      "log_sha256": "f2c3aada27fd0162c4b169c5bde562985ca4aab97c9ee33f01a6ec6a72c5dd2e",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:46.765659+00:00",
+      "finished_at": "2026-10-03T17:54:47.080982+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "2d7420db9df3afbee95e239c95276ba8a51cf2d58c6cf1f1ec45160897c6e260",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "test_runtime_seconds": 0.267,
+      "failures": 1,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Intended preserved-state/refusal assertion failed at first fake cargo/install boundary."
+    },
+    "installer-preflight-omission-embargo-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_active_exact_embargo_refused",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-embargo-red.json",
+      "manifest_sha256": "4ae2f3254c17cc9ef3901084903b578ba6fa56c6339b849a39d7b5bcb0d8bb11",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-embargo-red.log",
+      "log_sha256": "9b07388b962e93b0ed862fbf10a475b6183a5c64f9347cb7e88bd19b97c951fb",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:47.700278+00:00",
+      "finished_at": "2026-10-03T17:54:48.286256+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "41c20efeb87f5c1b0f885211f3a713ebb515e5b00228209ba2d90990466abcb4",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "test_runtime_seconds": 0.536,
+      "failures": 1,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Intended preserved-state/refusal assertion failed at first fake cargo/install boundary."
+    },
+    "installer-preflight-omission-future-route-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_future_shipped_home_retained_old_route_fresh",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-future-route-red.json",
+      "manifest_sha256": "c8fe0ace97abe9986d331e1fa3e0398661ee2aa26ee6ce7eb6ad5fc0a4726673",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-future-route-red.log",
+      "log_sha256": "43144183c2f1ba1b92227aaaa220a3f7da9923b87b3b87ec6ebf4f1be4f800d0",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:46.308932+00:00",
+      "finished_at": "2026-10-03T17:54:46.626703+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "2e48fd86058e24c6a4b2faa2c24594ec94b7c28514cbb8a0789ad700f0d6c988",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "test_runtime_seconds": 0.269,
+      "failures": 1,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Intended preserved-state/refusal assertion failed at first fake cargo/install boundary."
+    },
+    "installer-preflight-omission-no-build-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_held_no_build_fresh_artifact_provenance_refused",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-no-build-red.json",
+      "manifest_sha256": "8136c6ac36f3036ae2fe717f0b0273a166731300601cbc70126bbe5d0e3027f5",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-no-build-red.log",
+      "log_sha256": "2ad7f6e2a705b74eb513b23c6f5cf6dcad02ff404968ce2193ebd804b060869c",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:49.168307+00:00",
+      "finished_at": "2026-10-03T17:54:49.738271+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "16e17fe989382b5069286552324a5daf0ec7a4b7f47426b09b01d995e976ed75",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "test_runtime_seconds": 0.522,
+      "failures": 1,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Intended preserved-state/refusal assertion failed at first fake cargo/install boundary."
+    },
+    "installer-preflight-omission-postbuild-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_postbuild_new_exact_embargo_refuses_before_install",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-postbuild-red.json",
+      "manifest_sha256": "7a6fa3289104e085c7b9bb1b41dc2371010b43ada76a8690dfb11e888c2388bc",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-postbuild-red.log",
+      "log_sha256": "dc15377bc13ec73cd6f84c8d0d517a59a9a67e87b928489cbf001d937e853d4e",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:50.863177+00:00",
+      "finished_at": "2026-10-03T17:54:51.204791+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "6a9898a8befa294b0a4ec51b13854ce4e86436e9b586a6fdac2fa2cb4ff9aa20",
+        "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "test_runtime_seconds": 0.286,
+      "failures": 1,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Only second shell preflight omitted: fake cargo declares an exact active window, then fake install is reached; marker assertion fails."
+    },
+    "installer-preflight-omission-snapshot-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_invocation_drift_refused",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-snapshot-red.json",
+      "manifest_sha256": "607e1dfe589cd404f5cde195c59469aaab8d80a8ebf66d1838d474e046058f27",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-snapshot-red.log",
+      "log_sha256": "71cb8493c46e3a4ea275e9e480859256e961376ed5fc949c7b1e85c518c19c2d",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:48.433682+00:00",
+      "finished_at": "2026-10-03T17:54:49.023165+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "c94a3b3b9acac9dbbe141e7e89cbf8d2addf15c4707a43fe1f8b5085b20c131d",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "test_runtime_seconds": 0.542,
+      "failures": 1,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Intended preserved-state/refusal assertion failed at first fake cargo/install boundary."
+    },
+    "installer-preflight-omission-template-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "InstallerPreflight.test_future_template_changed_state_refused",
+        "InstallerPreflight.test_future_template_reset_execstart_refused",
+        "InstallerPreflight.test_future_template_duplicate_execstart_refused",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-template-red.json",
+      "manifest_sha256": "70ef79b0eabc394e19eed7cd695465a12a92086b8a7686032e344c65a61e22a2",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-omission-template-red.log",
+      "log_sha256": "4a00380acb017b53ab53ea74dfc7aa65f95c57ddd510411a8d00b449520b1890",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:54:49.872275+00:00",
+      "finished_at": "2026-10-03T17:54:50.728061+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "1042be5211e18264086164a3e5edb43d46dcf0bc96c09976460face91c1bbced",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 3,
+      "test_runtime_seconds": 0.803,
+      "failures": 3,
+      "passes": 0,
+      "errors": 0,
+      "endpoint": "Intended preserved-state/refusal assertion failed at first fake cargo/install boundary."
+    },
+    "installer-preflight-restored-full-green": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-restored-full-green.json",
+      "manifest_sha256": "3fa39c162fa27f723dba5502679b8951f879a9edf0c7123f43d3c4637c75c112",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-restored-full-green.log",
+      "log_sha256": "a49c99f971fa9e819897e6bd255545465f12d252dcadd9f0ae9400a8e7f906cd",
+      "exit_code": 0,
+      "started_at": "2026-10-03T17:55:30.244054+00:00",
+      "finished_at": "2026-10-03T17:55:39.514891+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ca8951f6713977f105a2ccd481c4179108035f3b6223993403830ee43fcaa8da",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 39,
+      "test_runtime_seconds": 9.218,
+      "failures": 0,
+      "passes": 39,
+      "errors": 0,
+      "endpoint": "All 39 actual-installer synthetic fixtures passed; no real installed-file copy or service action."
+    },
+    "installer-preflight-unchanged-baseline-red": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-unchanged-baseline-red.json",
+      "manifest_sha256": "02b4f85a9b6d65c8da4454401a3c146c097aa89da1eb34922766c7a748b8457f",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-unchanged-baseline-red.log",
+      "log_sha256": "7c7f8ccfd18e899073eb54da811a832a31bb11e1a220103fc1d6302fe99686b1",
+      "exit_code": 1,
+      "started_at": "2026-10-03T17:48:02.730430+00:00",
+      "finished_at": "2026-10-03T17:48:03.113676+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "826bb1fe223243ba7bac479e0821ceb04512791c0a778d266bd3eb1bb269adef",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "5257c3a1fd491ae0141f70a8deee1163666e39c9cc33acfbc89b0e4459c3ae83",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 39,
+      "test_runtime_seconds": 0.332,
+      "failures": 31,
+      "passes": 8,
+      "errors": 0,
+      "endpoint": "30 initial refusal arms reached fake cargo/install, plus one postbuild cargo+install marker failure; eight allowed arms passed. No real installation."
+    },
+    "installer-preflight-v4-full-green": {
+      "command": [
+        "/usr/bin/python3",
+        "scripts/test-installer-preflight.py",
+        "-v"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-v4-full-green.json",
+      "manifest_sha256": "b042507b255f4c8053871e5ddb8fd0662b4147a13758d93c7436dade220fd2dd",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-v4-full-green.log",
+      "log_sha256": "60052da8ad716c4df348c5e9203cad425585e9ea6b9bc0f5390a3f907a0a857c",
+      "exit_code": 0,
+      "started_at": "2026-10-03T17:48:32.970460+00:00",
+      "finished_at": "2026-10-03T17:48:41.397456+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "826bb1fe223243ba7bac479e0821ceb04512791c0a778d266bd3eb1bb269adef",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83",
+        "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "expected_outcome_observed": true,
+      "executed_tests": 39,
+      "test_runtime_seconds": 8.378,
+      "failures": 0,
+      "passes": 39,
+      "errors": 0,
+      "endpoint": "All 39 actual-installer synthetic fixtures passed; no real installed-file copy or service action."
+    },
+    "combined_full_check": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/installer-preflight-combined-full-check.json",
+      "manifest_sha256": "1c5436de851db1188258ca4f21e0e5f4e5e44d38d7a563b78e3f95ff08a5d154",
+      "log": ".local-state/icloud-full-integration-20261003/installer-preflight-combined-full-check.log",
+      "log_sha256": "7ef69560481a9384dcb99e1d6432ccff752a0af89c4c4f76e59e2ee7b1c72f0d",
+      "exit_code": 0,
+      "started_at": "2026-10-03T18:07:20.564570+00:00",
+      "finished_at": "2026-10-03T18:13:53.110799+00:00",
+      "elapsed_seconds": 392.546229,
+      "source_sha256": {
+        ".github/workflows/ci.yml": "1b57b55f5d4c0afbfecd585308c262f1adccb08bf424e600b7c0a5d29fcc97df",
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "docs/benchmarks/icloud-installation-preflight-2026-10-03.json": "ab6259aff9cf4bc7f9ea66dd9ec664c2151a7e48dd413f0d5e06eee02b2047fe",
+        "packaging/developer-install-policy.json": "cf276ac1040604c36228850b10937fd5556ab2438809f80bb4be67fb2274ae70",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+        "scripts/test-installer-preflight.py": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff"
+      },
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "filesystem": "ext4",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+      "actual_installer_tests": 39,
+      "native_fuse_https": {
+        "passed": 3,
+        "filtered": 496
+      },
+      "writable_kernel": {
+        "passed": 55,
+        "filtered": 1
+      },
+      "full_icloud_gates_open": 6,
+      "result": "Whole scripts/check.sh passed formatting, Clippy/probes, workspace/features, kernel mounts, all script tests including the new unfiltered39 suite, coverage, ledger and docs. No display scenario repeated because no desktop behavior changed; prior9527ff0 floor/window CI remains separate. No actual deployment or Apple mutation.",
+      "executable_source_unchanged_during_check": true
+    },
+    "remote_ci_378a96d": {
+      "run": 37143554956,
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37143554956",
+      "head_sha": "378a96d5ab1dc9c4e40abdd384019c1312f31a59",
+      "tested_checkout_sha": "ca3f81de8fb54d919171f54339b6424e244bbebd",
+      "head_and_tested_checkout_tree": "1d770cf1c56dfa8a3525ec807d70e1a86243e876",
+      "status": "completed",
+      "conclusion": "success",
+      "seven_jobs_passed": true,
+      "jobs": [
+        {
+          "id": 111262792244,
+          "name": "linux",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792339,
+          "name": "deb-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792344,
+          "name": "dependency-audit",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792349,
+          "name": "rpm-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792408,
+          "name": "mounted-read-workloads",
+          "conclusion": "success"
+        },
+        {
+          "id": 111262792453,
+          "name": "arch-package",
+          "conclusion": "success"
+        },
+        {
+          "id": 111264486387,
+          "name": "headless-package-install",
+          "conclusion": "success"
+        }
+      ],
+      "scope_audit": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184522579317Z-completed-scope-audit.json",
+      "scope_audit_sha256": "2140533594e0dc8560375f313e433400b1e4990a6b80e7e9cf030495486e0863",
+      "linux_log": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184322568471Z-linux-job-111262792244.log",
+      "linux_log_bytes": 588103,
+      "linux_log_sha256": "b2ca316f369afb32c75573fcb69babf89b689f4576bcfc5833743436bef57b9f",
+      "terminal_run_metadata": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184311056224Z-run.json",
+        "sha256": "502aeb3b76ae0654c2e8be4853089c273cc703252138ff41a273c88491e9a33b"
+      },
+      "terminal_jobs_metadata": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184311056224Z-jobs.json",
+        "sha256": "c75b58685463f1eda5ef791a8c083ca6d0171baba8caf700a0deefde33c26fb2"
+      },
+      "git_commit_records": {
+        "378a96d5ab1dc9c4e40abdd384019c1312f31a59": {
+          "tree": "1d770cf1c56dfa8a3525ec807d70e1a86243e876",
+          "parents": [
+            "9527ff0dcb31cae3249909cffe2cf47d918559eb"
+          ],
+          "raw": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184406308009Z-git-commit-378a96d5ab1dc9c4e40abdd384019c1312f31a59.json",
+          "raw_sha256": "6b3e6526275273cb3aa23823fceef31ea5e4cca052b34a1a84e06bb4044669a8"
+        },
+        "ca3f81de8fb54d919171f54339b6424e244bbebd": {
+          "tree": "1d770cf1c56dfa8a3525ec807d70e1a86243e876",
+          "parents": [
+            "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+            "378a96d5ab1dc9c4e40abdd384019c1312f31a59"
+          ],
+          "raw": ".local-state/icloud-full-integration-20261003/remote-ci-378a96d-agent/20261003T184406308009Z-git-commit-ca3f81de8fb54d919171f54339b6424e244bbebd.json",
+          "raw_sha256": "89ca757153d22d7f7718373babc0f5171eba824cac8bb5ece84cd693d405b6ae"
+        }
+      },
+      "installer_39": {
+        "step_number": 44,
+        "command_line": 5375,
+        "count_line": 5381,
+        "ok_line": 5383,
+        "summary": "2026-10-03T18:40:39.7409983Z Ran 39 tests in 8.564s",
+        "outcome": "2026-10-03T18:40:39.7410163Z OK",
+        "scope": "Actual installer under fake mutation commands; typed synthetic query/process fixtures; no real install/restart."
+      },
+      "chooser_1": {
+        "command_line": 4754,
+        "result_line": 4766,
+        "result": "2026-10-03T18:32:22.4696007Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.13s",
+        "elapsed_command_to_result_seconds": 2.332685
+      },
+      "window_1_1_20": [
+        {
+          "command_line": 4768,
+          "result_line": 4800,
+          "result": "2026-10-03T18:32:33.9161513Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out",
+          "elapsed_command_to_result_seconds": 11.42231
+        },
+        {
+          "command_line": 4802,
+          "result_line": 4816,
+          "result": "2026-10-03T18:32:41.0081088Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out",
+          "elapsed_command_to_result_seconds": 7.050829
+        },
+        {
+          "command_line": 4818,
+          "result_line": 4871,
+          "result": "2026-10-03T18:33:01.2994636Z test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out",
+          "elapsed_command_to_result_seconds": 20.250611
+        }
+      ],
+      "native_fuse_https_3": {
+        "command_line": 5007,
+        "result_line": 5019,
+        "result": "2026-10-03T18:36:37.2939649Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 496 filtered out; finished in 4.53s",
+        "elapsed_command_to_result_seconds": 4.774668
+      },
+      "writable_session_55": {
+        "command_line": 5128,
+        "result_line": 5192,
+        "result": "2026-10-03T18:40:14.9226333Z test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 106.59s",
+        "elapsed_command_to_result_seconds": 106.820067
+      },
+      "floor_packages": {
+        "GTK": "4.14.5+ds-0ubuntu0.10",
+        "libadwaita": "1.5.0-1ubuntu2"
+      },
+      "scope_limits": "Synthetic exact-source CI only, no installed/live readiness or concurrent measurement lease. Subsequent native-format recovery fix is outside this run."
+    }
+  },
+  "runner": {
+    "path": ".local-state/icloud-full-integration-20261003/run-installer-preflight-v1.py",
+    "sha256": "6b0ac9cd7c44753d101734efc68ec384f8020b8d7129a5bcefe8eb7b308ebadc"
+  },
+  "prediction_counts": {
+    "baseline_actual_installer": {
+      "tests": 39,
+      "refusal_failures_at_first_fake_boundary": 30,
+      "postbuild_marker_failure": 1,
+      "total_expected_failures": 31,
+      "allowed_passes_at_fake_boundary": 8
+    },
+    "reviewed_v3_helper_and_insertion": {
+      "tests": 39,
+      "expected_passes": 36,
+      "expected_failures": 3,
+      "failures": "Three future-template refusals reach fake cargo because v3 lacks future template binding."
+    },
+    "reviewed_v4_helper_and_insertion": {
+      "tests": 39,
+      "expected_passes": 39,
+      "expected_failures": 0
+    },
+    "runtime_results": "Unchanged baseline39 executed:31 intended failures/8 passes; reviewedv4 and restored source39 passes; eight narrow omission arms10 intended failures. v3 intermediate prediction was not executed."
+  },
+  "planned_tests": {
+    "initial_refusal_test_names": [
+      "test_held_ordinary_retained_account",
+      "test_held_readonly_icloud_account",
+      "test_held_disabled_account",
+      "test_stopped_shipped_home_retained_empty_ambient_xdg",
+      "test_stopped_custom_effective_route_retained",
+      "test_future_shipped_home_retained_old_route_fresh",
+      "test_current_live_route_retained_effective_and_future_fresh",
+      "test_retained_spool_without_settings",
+      "test_retained_empty_settings",
+      "test_malformed_settings_refused",
+      "test_state_symlink_refused",
+      "test_settings_symlink_refused",
+      "test_missing_source_policy_refused",
+      "test_malformed_source_policy_refused",
+      "test_source_policy_symlink_refused",
+      "test_unknown_effective_route_refused",
+      "test_wrapper_effective_route_refused",
+      "test_relative_effective_route_refused",
+      "test_duplicate_effective_route_refused",
+      "test_home_binding_mismatch_refused",
+      "test_invocation_drift_refused",
+      "test_pid_drift_refused",
+      "test_effective_route_drift_refused",
+      "test_malformed_typed_service_reply_refused",
+      "test_active_exact_embargo_refused",
+      "test_malformed_declared_embargo_refused",
+      "test_held_no_build_fresh_artifact_provenance_refused",
+      "test_future_template_changed_state_refused",
+      "test_future_template_reset_execstart_refused",
+      "test_future_template_duplicate_execstart_refused"
+    ],
+    "allowed_test_names": [
+      "test_held_fresh_normal_build_reaches_cargo_only",
+      "test_held_fresh_not_found_unit_reaches_cargo_only",
+      "test_released_retained_routine_install_reaches_install_only",
+      "test_closed_exact_embargo_permits_install",
+      "test_foreign_host_embargo_permits_install",
+      "test_foreign_uid_embargo_permits_install",
+      "test_other_unit_embargo_permits_install",
+      "test_historical_open_status_permits_install"
+    ],
+    "postbuild_refusal_test_name": "test_postbuild_new_exact_embargo_refuses_before_install"
+  },
+  "private_proposals": {
+    ".local-state/icloud-full-integration-20261003/installer-preflight/v4/production.patch": "fe4737927a9b05a7c37a6f8875470fae523c211977417060d3b80a10a9148dae",
+    ".local-state/icloud-full-integration-20261003/installer-preflight/v4-tests/tests-only.patch": "0bcb45616d1876d93d2afb9e49708783a9bf136e7bfc8c3b975785ad5559d2f0",
+    ".local-state/icloud-full-integration-20261003/installer-preflight/v4-tests/plan.json": "070389cc23426d59ee5e92242eb42aa4af643ab09ffafccca79c44d736e3b0f1"
+  },
+  "authoring_corrections_before_execution": [
+    {
+      "phase": "before-any-execution",
+      "correction": "Not-found fake Manager response now retains one explicit not-found/inactive/dead/job0 row; empty array would not match production selection contract."
+    },
+    {
+      "phase": "before-any-execution",
+      "correction": "Retained spool fixture uses concrete journal objects directory (journal.rs348), rather than inventing a literal spool directory."
+    },
+    {
+      "phase": "before-any-execution",
+      "correction": "Added separate current-live retained route union arm using a mocked kernel identity only; totals now35 with27 refusal arms and8 allowed arms. Initial34 count was an unexecuted earlier proposal."
+    },
+    {
+      "phase": "before-any-execution",
+      "correction": "Root requested actual future-template and postbuild sensitivity. Preserved v3 immutably; v4 adds3 initial refusals and1 controlled postbuild refusal. Counts now39 tests, baseline31 expected failures/8 expected passes."
+    },
+    "Root makes positive fake MainPID rows active/running instead of contradictory inactive/dead; zero PID remains inactive/dead. No runtime preceded correction; original agent proposal retained immutably."
+  ],
+  "test_source_sha256_before_baseline": "126871bfcd2aea8be98e110aab6f4410572bc7455004768caa491705fea292ff",
+  "controls": [
+    "Baseline unchanged installer does not invoke absent helper; every refusal reaches first fake cargo/install97 and fails explicit marker assertion, not absent-import/timeout.",
+    "Remove only future HOME route inventory: test_future_shipped_home_retained_old_route_fresh must reach fake cargo.",
+    "Remove only effective route inventory: test_stopped_custom_effective_route_retained must reach fake cargo.",
+    "Remove only current-live process route from affected union: test_current_live_route_retained_effective_and_future_fresh must reach fake cargo.",
+    "Remove only exact active restart embargo refusal: test_active_exact_embargo_refused must reach fake install.",
+    "Remove only snapshot equality: invocation/route drift controls must reach fake install; PID nonexistent process may independently refuse and is not a snapshot-omission proof.",
+    "Remove only held no-build provenance refusal: fresh no-build arm must reach fake install.",
+    "Remove ONLY second pre-copy shell preflight, leaving initial/helper guards intact: test_postbuild_new_exact_embargo_refuses_before_install must fail marker equality with cargo+install and exit97. Successful restored arm must retain markeronlycargo and exit1/static declared-measurement message.",
+    "Remove ONLY future template validation: changed/reset/duplicate template controls must fail at fakecargo while other route/home/embargo fences remain."
+  ],
+  "chosen_omission_controls": [
+    "future-route",
+    "effective-route",
+    "current-route",
+    "embargo",
+    "snapshot",
+    "no-build",
+    "template",
+    "postbuild"
+  ],
+  "restored_expected_sha256": {
+    "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e",
+    "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83"
+  },
+  "evidence_recorded_at": "2026-10-03T18:06:59.551171+00:00",
+  "execution_environment": {
+    "runner_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+    "runner_SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+    "runner_filesystem": "ext4",
+    "test_fixture_directory": "/var/tmp",
+    "test_fixture_filesystem": "btrfs",
+    "fixtures_retained": true,
+    "parallel_builds_or_measurements": false
+  },
+  "restoration_verified": {
+    "method": "Omission controller finally restores both source files byte for byte for each of eight controls; restored full-suite manifest independently pins expected source hashes.",
+    "controls": 8,
+    "executed_tests": 10,
+    "restored_sha256": {
+      "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e",
+      "scripts/install-developer.sh": "c1181189520ffecccee0ad8be121a7f4204b283551e54ea3e7f3505f854d8e83"
+    },
+    "controller": ".local-state/icloud-full-integration-20261003/run-installer-omission-v1.py",
+    "controller_sha256": "d4dbd66795ab5c41cf9ab7d66209b03f34fdc64583f606c589b903aaf11227c1"
+  },
+  "post_control_edits": {
+    "behavior_unchanged": true,
+    "changes": [
+      "Wire 39-test suite into full contributor check and Linux CI.",
+      "Correct installer comments/report: retained state may be migrated by restarted daemon.",
+      "Document bounded hold and exact restart-embargo contract."
+    ],
+    "shell_sha256_after_comment_edits": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+    "full_contributor_check": "passed; current executable/helper/test/policy/unit/check/CI source pins unchanged throughout run"
+  },
+  "decision": "Bounded developer-install refusal is established by baseline, restored suite, eight omission controls, helper-only existing-host refusal, complete contributor check and seven-job exact-sourceCI. No installed acceptance or full-iCloud gate closed."
+}

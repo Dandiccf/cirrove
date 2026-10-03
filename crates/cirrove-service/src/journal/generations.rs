@@ -97,7 +97,9 @@ impl Operation {
                 MutationIntent::Relocate { before, .. } => Some(before.kind.clone()),
                 // A removal leaves no node behind, so it contributes no kind to
                 // the generation, folders included.
-                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => None,
+                MutationIntent::RemoveFile { .. }
+                | MutationIntent::RemoveFolder { .. }
+                | MutationIntent::TrashNativeDocument { .. } => None,
             },
         }
     }
@@ -138,7 +140,8 @@ impl UploadJournal {
     }
     pub(super) fn upload_intent_after(&self, predecessor: Uuid) -> Result<(Scope, UploadIntent)> {
         match self.operation(predecessor)? {
-            Operation::Upload(r) => Ok((r.scope, r.intent)),
+            Operation::Upload(r) if r.representation.is_file_bytes() => Ok((r.scope, r.intent)),
+            Operation::Upload(_) => Err(JournalError::Intent),
             Operation::Mutation(r) => match r.request.intent {
                 MutationIntent::Relocate { before, .. } if before.kind == NodeKind::File => Ok((
                     r.request.scope,
@@ -192,6 +195,9 @@ impl UploadJournal {
         request: &MutationRequest,
     ) -> Result<()> {
         let previous = self.operation(predecessor)?;
+        if matches!(&previous, Operation::Upload(row) if !row.representation.is_file_bytes()) {
+            return Err(JournalError::Intent);
+        }
         if previous.scope() != &request.scope || request.scope.account != self.account {
             return Err(JournalError::Account);
         }
@@ -256,6 +262,33 @@ impl UploadJournal {
             .query_row(&format!("SELECT EXISTS({ready})"), [], |r| r.get(0))?;
         Ok(destinations && !waiting)
     }
+    /// The exact completed source already used to resolve this upload intent.
+    /// A provider may need it before a metadata refresh indexes a new remote ID.
+    pub(crate) fn confirmed_upload_base(&self, id: Uuid) -> Result<Option<Node>> {
+        let record = self.get(id)?;
+        let Some(base) = record.base.as_ref() else {
+            return Ok(None);
+        };
+        if !base.resolved {
+            return Err(JournalError::Stale);
+        }
+        if package_replacement::original(&record.representation).is_some() {
+            return working::native::successors::confirmed_base(self, &record).map(Some);
+        }
+        let node = self
+            .base_node(base, &record.scope, record.sequence)?
+            .ok_or(JournalError::Stale)?;
+        if node.kind != NodeKind::File
+            || node.package
+            || node.target.is_some()
+            || !matches!(&record.intent, UploadIntent::Replace { item, expected_etag }
+                if item == &node.id && Some(expected_etag) == node.etag.as_ref())
+        {
+            return Err(JournalError::Stale);
+        }
+        Ok(Some(node))
+    }
+
     fn base_node(&self, base: &WriteBase, scope: &Scope, sequence: u64) -> Result<Option<Node>> {
         let previous = self.operation(base.predecessor)?;
         if previous.scope() != scope || previous.sequence() >= sequence {
@@ -265,6 +298,9 @@ impl UploadJournal {
     }
     fn resolve_upload(&mut self, id: Uuid) -> Result<()> {
         let mut record = self.get(id)?;
+        if package_replacement::original(&record.representation).is_some() {
+            return working::native::successors::resolve(self, record);
+        }
         let base = record.base.as_ref().ok_or(JournalError::Corrupt)?;
         let intent = self
             .base_node(base, &record.scope, record.sequence)?

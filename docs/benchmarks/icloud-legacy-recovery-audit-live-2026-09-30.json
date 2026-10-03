@@ -1,0 +1,23 @@
+{
+  "fixture": "e83673ff-dfdf-452d-8284-90c2cf1c8c7c",
+  "binary_sha256": "e7667970dd69487601b2e63ff52aa63ed4125e3eeb43b6b225c067294f2a2444",
+  "filesystem": "btrfs",
+  "elapsed_seconds": 68.464,
+  "exit_code": 0,
+  "checkpoint_bytes": 2621,
+  "inner_checkpoint_bytes": 1137,
+  "observations": {
+    "outer_phase": "handoff",
+    "original_in_owned_folder": false,
+    "expected_stage_name_present": true,
+    "expected_recovery_name_present": false,
+    "original_exact_id_in_trash": true
+  },
+  "remote_mutations_requested": false,
+  "completed_recovery": false,
+  "limits": [
+    "Stage name presence does not verify staged identity or content.",
+    "Current metadata cannot prove that the historical rename was not sent.",
+    "No automatic replay or journal acknowledgement was performed."
+  ]
+}

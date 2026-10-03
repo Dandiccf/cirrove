@@ -12,6 +12,9 @@ pub struct ReplacementRecord {
     pub cleanup_object: Uuid,
     pub local_ready: bool,
     pub remote_applied: bool,
+    /// A refused replacement was rescued as this independent create.
+    #[serde(default)]
+    pub rescued_as: Option<Uuid>,
 }
 pub(super) struct ReplacementCommit {
     pub(super) source: NamespaceObject,
@@ -57,10 +60,14 @@ fn load(db: &Connection, id: Uuid) -> Result<ReplacementRecord> {
         .optional()?;
     Ok(serde_json::from_str(&body.ok_or(JournalError::Missing)?)?)
 }
-fn save(db: &Connection, record: &ReplacementRecord) -> Result<()> {
+pub(super) fn save(db: &Connection, record: &ReplacementRecord) -> Result<()> {
     if db.execute(
-        "UPDATE file_replacements SET body=?2 WHERE id=?1",
-        params![record.id.to_string(), serde_json::to_string(record)?],
+        "UPDATE file_replacements SET body=?2,cleanup=?3 WHERE id=?1",
+        params![
+            record.id.to_string(),
+            serde_json::to_string(record)?,
+            record.cleanup.to_string()
+        ],
     )? != 1
     {
         return Err(JournalError::Missing);
@@ -323,6 +330,7 @@ pub(super) fn commit(
         state: MutationState::Pending,
         attempt: None,
         receipt: None,
+        verified_content: None,
         retry_at: 0,
         failed_attempts: 0,
         base: plan.cleanup_base.clone(),
@@ -359,6 +367,7 @@ pub(super) fn commit(
         cleanup_object: Uuid::new_v4(),
         local_ready: !plan.preserve_readers,
         remote_applied: false,
+        rescued_as: None,
     };
     let mut source_working = plan.source_working.clone();
     let mut victim_working = plan.victim_working.clone();
@@ -408,11 +417,66 @@ pub(super) fn commit(
 
 /// Acknowledgement and all three binding changes share the upload transaction.
 /// Historical victim metadata remains available to its retained local stream.
+/// Resolve the *victim* of a durable editor replacement. The operation's source
+/// still owns the temporary upload ID until both provider identities are committed.
+pub(super) fn handoff_victim(
+    db: &Connection,
+    upload: &UploadRecord,
+    source: &NamespaceObject,
+) -> Result<Option<NamespaceObject>> {
+    let record = match load(db, upload.id) {
+        Ok(record) => record,
+        Err(JournalError::Missing) => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let victim = namespace::by_id(db, record.victim)?;
+    let old = victim.remote.as_ref().ok_or(JournalError::Stale)?;
+    if record.source != source.id
+        || !record.local_ready
+        || record.remote_applied
+        || victim.scope != upload.scope
+        || source.scope != upload.scope
+        || !victim.unlinked
+        || !victim.remote_owned
+        || old.kind != NodeKind::File
+        || old.package
+        || old.target.is_some()
+        || source.remote.as_ref().is_none_or(|node| node.id == old.id)
+        || !matches!(&upload.intent, UploadIntent::Replace { item, expected_etag }
+            if item == &old.id && Some(expected_etag) == old.etag.as_ref())
+    {
+        return Err(JournalError::Stale);
+    }
+    Ok(Some(victim))
+}
+
+pub(super) fn confirm_handoff(
+    tx: &Transaction<'_>,
+    upload: &UploadRecord,
+    remote: &Node,
+    old_item: &str,
+) -> Result<()> {
+    if !confirm_with_victim(tx, upload.id, upload.sequence, remote, old_item)? {
+        return Err(JournalError::Corrupt);
+    }
+    Ok(())
+}
+
 pub(super) fn confirm(
     tx: &Transaction<'_>,
     operation: Uuid,
     sequence: u64,
     remote: &Node,
+) -> Result<bool> {
+    confirm_with_victim(tx, operation, sequence, remote, &remote.id)
+}
+
+fn confirm_with_victim(
+    tx: &Transaction<'_>,
+    operation: Uuid,
+    sequence: u64,
+    remote: &Node,
+    victim_item: &str,
 ) -> Result<bool> {
     let mut record = match load(tx, operation) {
         Ok(r) => r,
@@ -432,7 +496,7 @@ pub(super) fn confirm(
     if !source.remote_owned
         || !victim.remote_owned
         || !victim.unlinked
-        || victim.remote.as_ref().is_none_or(|n| n.id != remote.id)
+        || victim.remote.as_ref().is_none_or(|n| n.id != victim_item)
         || old_source.id == remote.id
         || source.scope != victim.scope
         || source.remote_sequence >= sequence

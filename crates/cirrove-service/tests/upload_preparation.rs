@@ -150,7 +150,7 @@ fn a_source_move_receipt_is_distinct_from_the_target_content_base() {
         .observe_namespace_file(scope(), node("target", "document", "target-original"))
         .unwrap();
     let moved = j
-        .relocate_namespace_file(src.id, src.revision, "root".into(), "renamed-temp".into())
+        .relocate_namespace_item(src.id, src.revision, "root".into(), "renamed-temp".into())
         .unwrap();
     let src = j.namespace_object(src.id).unwrap();
     let r = j
@@ -279,7 +279,7 @@ fn old_schema_migration_retains_saves_and_missing_preparation_table_fails_closed
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i32>(0))
             .unwrap(),
-        14
+        19
     );
     db.execute_batch("DROP TABLE upload_preparations").unwrap();
     assert!(UploadJournal::open(&root, &scope().account, 4096).is_err());
@@ -292,7 +292,7 @@ fn old_schema_migration_retains_saves_and_missing_preparation_table_fails_closed
         .unwrap(),
         "preparing"
     );
-    db.execute_batch("PRAGMA user_version=15").unwrap();
+    db.execute_batch("PRAGMA user_version=20").unwrap();
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 4096),
         Err(JournalError::Schema)

@@ -38,10 +38,15 @@ drive from the window, or with `systemctl --user enable --now cirroved`. The
 tray starts with your next login (it is an autostart entry); to have it now,
 run `cirrove-tray`.
 
-Sign-in grants are kept in your desktop keyring. On a new desktop profile,
+Sign-in grants are kept in your desktop keyring.
+Experimental iCloud connections keep a short sealing key there and their
+encrypted web session in Cirrove's private local account data.
+On a new desktop profile,
 Cirrove creates the ordinary default ("Login") collection when you first
-connect a drive. Your desktop owns the password prompt; Cirrove never receives
-the password. If the collection already exists but is locked, Cirrove asks the
+connect a drive. Your desktop owns the keyring unlock prompt. For Microsoft
+and Google, Cirrove receives no account password; the experimental native
+iCloud flow asks for the Apple Account password in Cirrove's local window.
+If the collection already exists but is locked, Cirrove asks the
 desktop to unlock it before opening the browser.
 
 If no Secret Service is running, Cirrove stops before sign-in and names the
@@ -72,6 +77,18 @@ cannot be restarted without ending the session. So right after installing,
 the top bar shows nothing and `gnome-extensions` will say the extension does
 not exist. Log out and back in, and the icon is there. Nothing is broken in
 between, and the window works the whole time.
+
+## File size and local disk usage
+
+A cloud file's **Size** is its full content size, even before it is downloaded.
+The mounted view reports **Size on disk** as zero: downloaded content is stored
+in Cirrove's private state directory, where disk-usage tools count it once.
+This includes pinned files, recently opened files, metadata and pending edits.
+Use Cirrove's availability indicators to tell whether a file is kept offline;
+zero allocated space in the mounted view does not tell you that.
+
+Tools that total logical sizes (including `du --apparent-size`) still show the
+full cloud size. Tools that total allocated blocks exclude that remote content.
 
 ## Connecting a drive
 
@@ -210,6 +227,13 @@ stays on your computer; the cloud has an older version or none. The window
 shows **Saves that did not reach the cloud** with a count, and the tray marks
 it. To try again, open the file and save it once more. `cirrove recent` lists
 these as "saved here · upload failed".
+
+Pending saves have their own disk budget, separate from downloaded cache files.
+When that budget fills, Cirrove refuses further growth and keeps the unsent data.
+Uploads normally free room as they finish. Both budgets use the connection's
+configured size, so their combined disk use can be larger than the cache size
+shown in the window. A changed budget takes effect after unmounting and remounting
+the connection; reducing it does not discard pending saves.
 
 ## When the cloud refuses a change
 

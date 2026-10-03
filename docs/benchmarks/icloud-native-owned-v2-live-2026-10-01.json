@@ -1,0 +1,42 @@
+{
+  "run": "99aa5d99-abf8-45bf-85fd-366e6ec89365",
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "old_operation": "82767008-4553-4f8b-99cc-8a521ad9c5ac",
+  "status": "stopped-before-cloud-actions",
+  "registered_at": "2026-10-01T21:14:29.275817+00:00",
+  "source_commit": "122478a857ffed2657e0c59e2f9b7e785007a2f1",
+  "fullcheck_passed": true,
+  "fullcheck_arm": "native-atomic-retirement-fullcheck-corrected",
+  "exclusive_window_confirmed": true,
+  "maximum_seconds": 2700,
+  "binaries": {
+    "cirroved": "2376250eef11bea8b25a45700bce607759deb3478f521e930e8f4ad6b34ba017",
+    "cirrove": "2d956cc75bf12d5c0f80e3c4ab9804f2deabdc302a9c12a2dda02e607edcdf9c",
+    "cirrove-icloud-mounted-write-probe": "4db521882cdf291e1b698262edababa5f86e48c9fcfaf9ddccbb8ba01212c7f6"
+  },
+  "runner_sha256": "406518b3dbb1543536ccc37866bd5489a3bb5abe77ecddbca640d61a25705820",
+  "predictions": [
+    "Exact old v1 Conflict locally resolves with typed Stage retention; payload and ciphertext hashes unchanged, no cloud mutation in abandonment.",
+    "One fresh v2 replacement accepts normalized directory entries while preserving exact file content and semantic edit.",
+    "Original remains independently readable in recoverable Trash; new visible identity and retained old stage verified without mutation replay."
+  ],
+  "limits": [
+    "Owned synthetic Pages document only; no general editor/Numbers/Keynote reliability claim.",
+    "No installation, no regular daemon restart, no cloud cleanup or automatic retry.",
+    "Any missing or changed identity, expired session or uncertain outcome stops mutation work."
+  ],
+  "preconditions_observed": {
+    "isolated_socket_absent": true,
+    "isolated_mount_absent": true,
+    "previous_isolated_daemon_exited": true,
+    "journal_schema": 17,
+    "exact_old_inventory": true,
+    "regular_daemon_pid": 3206061
+  },
+  "observed": {
+    "baseline": "passed local-only",
+    "offline_export": "refused enabled account",
+    "abandon_attempted": false,
+    "replacement_attempted": false
+  }
+}

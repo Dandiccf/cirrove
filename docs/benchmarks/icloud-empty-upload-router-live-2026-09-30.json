@@ -1,0 +1,55 @@
+{
+  "run": "09c98a4c-4506-42cd-90d6-1c23d118f456",
+  "commands": [
+    [
+      "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+      "--account-empty",
+      "09c98a4c-4506-42cd-90d6-1c23d118f456"
+    ],
+    [
+      "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+      "--account-empty-read",
+      "09c98a4c-4506-42cd-90d6-1c23d118f456"
+    ]
+  ],
+  "binary_sha256": "d309ae826acb54f726502482538416799caf2a840e613eaffc22a1d9d78de337",
+  "revision": "627b43cda7b151c28a2b9cf36dbb8a5b8581a50b",
+  "dirty": true,
+  "start_utc": "2026-09-30T00:05:25.479374+00:00",
+  "expected_duration_seconds": 600,
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "phases": [
+    {
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+        "--account-empty",
+        "09c98a4c-4506-42cd-90d6-1c23d118f456"
+      ],
+      "start_utc": "2026-09-30T00:05:25.479768+00:00",
+      "status": "finished",
+      "pid": 1512048,
+      "exit_code": 0,
+      "finished_utc": "2026-09-30T00:06:39.261111+00:00"
+    },
+    {
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+        "--account-empty-read",
+        "09c98a4c-4506-42cd-90d6-1c23d118f456"
+      ],
+      "start_utc": "2026-09-30T00:06:39.261421+00:00",
+      "status": "finished",
+      "pid": 1513716,
+      "exit_code": 0,
+      "finished_utc": "2026-09-30T00:06:40.878555+00:00"
+    }
+  ],
+  "pid": 1513716,
+  "exit_code": 0,
+  "elapsed_seconds": 75.544,
+  "finished_utc": "2026-09-30T00:06:40.878837+00:00",
+  "private_manifest": ".local-state/icloud-empty-router-arm-09c98a4c-4506-42cd-90d6-1c23d118f456/manifest.json",
+  "installed_service_changed": false,
+  "ordinary_account_writes_enabled": false
+}

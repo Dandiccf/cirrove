@@ -1,0 +1,19 @@
+{
+  "run": "8c2c3382-5394-446f-ad8e-9adfdb7a05c6",
+  "read_only_sqlite_audit": true,
+  "integrity_check": "ok",
+  "confirmed_uploads": 3,
+  "confirmed_mutations": 7,
+  "combined_relocations": 2,
+  "interrupted_operation_completed": true,
+  "completed_step_at_interruption": 1,
+  "remaining_child_dispatches": [
+    1,
+    2
+  ],
+  "file_identity_preserved": true,
+  "folder_and_child_identity_preserved": true,
+  "eight_distinct_active_fixture_owners": true,
+  "no_deletion_intents": true,
+  "no_unfinished_queue_reservations": true
+}

@@ -1,0 +1,10 @@
+{
+  "run": "0bc993cf-3503-491f-a132-7b7b02feab35",
+  "arm": "recover",
+  "binary_sha256": "2a3ab9f99a7836fec343958a795b8a04b29fa6e6da981524800a752eff1668cf",
+  "filesystem": "btrfs",
+  "exit_code": 1,
+  "elapsed_seconds": 4.177,
+  "isolated_mount_detached": true,
+  "passed": false
+}

@@ -9,6 +9,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         .accounts
         .iter()
         .map(|a| AccountStatus {
+            local_recovery: a.enabled,
             wastebasket: None,
             account_id: a.id.clone(),
             provider: a.registration.provider_id().into(),
@@ -44,6 +45,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             // not exist.
             stuck_changes: if a.enabled { 2 } else { 0 },
             failed_uploads: 0,
+            unconfirmed_changes: 0,
             pin_budget: Default::default(),
             pins: Vec::new(),
             kept_generation: 0,
@@ -62,6 +64,12 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                     started_at: 0,
                     state: cirrove_service::jobs::JobState::Running,
                     issue: None,
+                    export: None,
+                    native_import: None,
+                    native_replace: None,
+                    native_trash: None,
+                    native_abandon: None,
+                    working_export: None,
                 }]
             } else {
                 Vec::new()
@@ -71,6 +79,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         })
         .collect();
     Ok(Snapshot {
+        capabilities: cirrove_service::Capabilities::current(),
         // The demo showed an empty activity list, which is the one thing the
         // window does that a demo screenshot could not show. Times are
         // relative to now, so it reads the same whenever it is opened, and the
@@ -98,6 +107,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                         // arrived: the state word alone cannot tell a transfer
                         // that is moving from one that is stuck.
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 4,
                             name: "Presentation.key".into(),
                             item: None,
@@ -107,6 +117,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             transferred: 61_000_000,
                         },
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 3,
                             name: "Notes.txt".into(),
                             item: None,
@@ -116,6 +127,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             transferred: 0,
                         },
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 2,
                             name: "Budget.xlsx".into(),
                             item: None,
@@ -125,6 +137,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             transferred: 0,
                         },
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 1,
                             name: "Old draft.md".into(),
                             item: None,

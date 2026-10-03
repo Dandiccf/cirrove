@@ -1,0 +1,123 @@
+{
+  "registered_at": "2026-10-02T21:32:44.794646+00:00",
+  "question": "Can a feature-gated read-only observer bind a fresh owned Numbers import/replacement to exact journal receipts, source proofs, provider metadata and recoverable original without constructing write workers or replaying operations?",
+  "prediction": "Positive synthetic contracts accept only the exact fresh UUID/account/folder/import/replacement/source/publication binding; mismatched scopes, phases, content proofs and extra pending work refuse before any provider access. Existing provider content and Trash readers retain pre/post revision and representation fences.",
+  "scope": "Minimal feature-gated wrapper around existing owned-fixture verifier and typed Trash proof; historical Pages observers remain unchanged. Synthetic fixtures only in this implementation turn.",
+  "arms": [
+    "Exact fresh owned import and replacement contract positives",
+    "Individually tampered registration/receipt/parent/content/publication contracts",
+    "Counterfactual selected guard removal must make intended refusal test fail",
+    "Full scripts/check.sh after main reconciliation and observer integration"
+  ],
+  "endpoint": "All expected tests actually execute and pass restored source; meaningful guard-removal control fails at expected assertion; full contributor command exits 0.",
+  "source_head": "cc1470f",
+  "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/session-recovery-20261002",
+  "filesystem": "ext4",
+  "status": "full-contributor-check-passed-live-confirmation-open",
+  "evidence_directory": ".local-state/icloud-native-parent-admission-20261002",
+  "cloud_requests": 0,
+  "cloud_mutations": 0,
+  "live_provider_gates_closed": false,
+  "limitations": [
+    "Synthetic wrapper contracts do not establish Apple Numbers fidelity or general iCloud reliability.",
+    "An exclusive read-only recovery lease protects validation state ownership; no network await occurs inside a SQLite transaction or shared projection lock.",
+    "Fresh live execution additionally needs explicit cloud-task authorization and pinned isolated binaries."
+  ],
+  "implementation": {
+    "feature": "icloud-write-probe",
+    "command": "cirrove-icloud-mounted-write-probe --owned-receipt-verify REGISTRATION SHA256",
+    "journal": "Exclusive read-only RecoveryJournal owner lease retained throughout observations; no writer constructor, migration, enqueue or replay.",
+    "binding": "Exact fresh run/account/settings/source A+B/folder handoff/import/replacement/publication identities, current PACKAGE revision/content and typed original Trash receipt revision/content.",
+    "source_sha256": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7"
+  },
+  "results": {
+    "initial_fixture": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/observer-positive.json",
+      "exit_code": 101,
+      "passed": 0,
+      "failed": 4,
+      "ignored": 0,
+      "started_at": "2026-10-02T21:36:52.605933+00:00",
+      "finished_at": "2026-10-02T21:37:28.564249+00:00",
+      "validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442"
+      },
+      "classification": "Authoring error: v2 semantic fixture entries=files=1 violates core files<entries invariant. Corrected fixture entries=2 only; not product failure or negative-control evidence."
+    },
+    "corrected_positive": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/observer-positive-corrected.json",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "started_at": "2026-10-02T21:38:21.561005+00:00",
+      "finished_at": "2026-10-02T21:38:28.439150+00:00",
+      "validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442"
+      },
+      "tampered_import_contract_arms": 17,
+      "tampered_replacement_contract_arms": 8
+    },
+    "checksum_negative_control": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/observer-source-fence-negative.json",
+      "exit_code": 101,
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "started_at": "2026-10-02T21:40:37.910533+00:00",
+      "finished_at": "2026-10-02T21:40:50.499343+00:00",
+      "validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "c57ad7014a7eaa15ee167b73f0dc7df6286531c0b1181f82ce941abf708cdc49",
+        "crates/cirrove-service/src/journal/export.rs": "fca868cc4ba49800a257d34eef748b6cf6180af782346711e92d7964b1e60f3d"
+      },
+      "classification": "Only the source A archive SHA-256 equality guard was removed. Compiled one actual test failed at the intended assertion: tampered arm 3 accepted."
+    },
+    "restored": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/observer-restored.json",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "started_at": "2026-10-02T21:42:30.665380+00:00",
+      "finished_at": "2026-10-02T21:42:43.141859+00:00",
+      "validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "1d166aaa1a3ec55ca3e48089983156c580cf67685273c802863c966bb2d80c43",
+        "crates/cirrove-service/src/journal/export.rs": "fca868cc4ba49800a257d34eef748b6cf6180af782346711e92d7964b1e60f3d"
+      },
+      "source_restored_exactly": true
+    },
+    "full_check": {
+      "status": "passed",
+      "exit_code": 0,
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/final-full-check-corrected.json",
+      "started_at": "2026-10-02T21:44:24.516736+00:00",
+      "finished_at": "2026-10-02T21:51:35.762572+00:00",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "new_parent_regressions_executed": 3,
+      "new_observer_tests_executed": 4,
+      "kernel_fixtures_executed": true,
+      "desktop_window_scenarios_run": false,
+      "final_validated_source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76"
+      }
+    },
+    "initial_full_check": {
+      "manifest": ".local-state/icloud-native-parent-admission-20261002/final-full-check.json",
+      "exit_code": 101,
+      "classification": "Feature Clippy cmp_owned refused a temporary PathBuf made solely for comparison. Compared existing PathBuf directly with formatted String; identity/path guard semantics unchanged. Complete contributor command rerun rather than resuming half a command."
+    }
+  }
+}

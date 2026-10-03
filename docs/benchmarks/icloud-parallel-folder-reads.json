@@ -1,0 +1,17 @@
+{
+  "status": "synthetic_control_passed_live_gate_open",
+  "date": "2026-09-27",
+  "question": "Does the iCloud adapter serialize independent read-only folder requests behind its session mutex, and can bounded concurrent reads remove that queue without changing authentication ownership?",
+  "arms": [
+    "current adapter: two synthetic folder HTTP requests held until both arrive",
+    "adapter with read-only session forks and a four-request account limit: same fixture"
+  ],
+  "endpoint": "Both HTTP requests reach the fixture before either response is released; record whether the pre-fix regression fails and the post-fix test passes. No network service or live mount is part of this synthetic control.",
+  "prediction": "The current adapter times out because it holds one mutex through network I/O. A shared-cookie read-only session fork lets both reach the fixture while a semaphore bounds account concurrency to four.",
+  "scope": "Synthetic transport control only. The installed Cirrove daemon and isolated iCloud validation mount remain untouched. Live latency and Apple acceptance require separate evidence.",
+  "results": {
+    "pre_fix": "The filtered regression executed one test and failed after its two-second deadline: the second HTTP request could not reach the fixture while the first held the session mutex awaiting a response.",
+    "post_fix": "The same filtered test executed one test and passed in 0.04 seconds. Both requests reached the fixture before either response was released.",
+    "interpretation": "This demonstrates removal of the adapter's per-account network serialization for two synthetic directory reads. It does not measure an Apple endpoint, file-manager crawl, or provider rate limits; the four-request cap is conservative pending live measurement."
+  }
+}

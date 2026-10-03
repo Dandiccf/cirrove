@@ -1,0 +1,61 @@
+{
+  "status": "complete_controlled_cold_first_opens_passed",
+  "date": "2026-09-26",
+  "question": "With the root-only feed no longer treated as proof that unknown folders are empty, does the first FUSE open of each cold iCloud folder wait for a complete directory page and return the expected count?",
+  "pre_fix_failure": "icloud-cold-navigation-live.json records a first-open zero count in root folders and ENOENT for a nested folder, followed by expected counts later in the same isolated mount.",
+  "arms": [
+    "new isolated private state with no metadata or content cache, using the same Cirrove-owned sealed session",
+    "first complete root iterator",
+    "first complete iterators for two root folders and one nested folder",
+    "warm repeat of those paths"
+  ],
+  "endpoint": "Every first folder iterator returns the independently observed count, or reports a real error; zero must not stand in for an unvisited folder. Record monotonic latency and count, no names or contents in public evidence.",
+  "prediction": "The first root iterator will return 30 entries. The first root-folder iterators will return 42 and 28 entries and the nested one 52, after waiting for Apple metadata; warm repeats will finish in milliseconds.",
+  "scope": "New read-only isolated mount; existing iCloud and regular Cirrove mounts untouched. No cloud mutation.",
+  "environment": {
+    "binary_sha256": "1c37501f73fce57980d2f38a1dbc2cd077a5729d625b417826db5eeff9b4a41e",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 20,
+    "private_manifest": ".local-state/icloud-cold-fix-validation/manifest.json"
+  },
+  "first_rerun": {
+    "status": "contaminated_by_external_indexer",
+    "mounted_and_ready_seconds": 113.886,
+    "first_root_count": 30,
+    "first_root_folder_counts": [42, 28],
+    "first_nested_folder_count": 52,
+    "first_nested_folder_seconds": 1.383,
+    "warm_iterator_seconds_range": [0.001, 0.003],
+    "external_reader": "GNOME localsearch-3 held the mounted filesystem; 113 directory snapshots appeared during startup, before the controlled first-folder measurements. The startup and already-warm root-folder times cannot be attributed to Cirrove alone."
+  },
+  "followup_registered_before_run": {
+    "question": "Does the fixed first-open behavior hold on a truly cold mount under a hidden private path that GNOME local search does not crawl?",
+    "prediction": "Startup will be materially shorter without a recursive desktop indexer, while first cold folder opens will wait and return full counts on the first iterator rather than empty or ENOENT.",
+    "private_manifest": ".local-state/icloud-cold-fix-hidden-validation/manifest.json",
+    "method": "Same read-only account and sealed session, another empty private metadata state. Observe external readers with fuser; any crawler invalidates the startup arm."
+  },
+  "results": [
+    {
+      "arm": "hidden_private_mount_with_empty_metadata_cache",
+      "external_readers_seen": false,
+      "directory_snapshots_before_probe": 1,
+      "mounted_and_ready_seconds": 11.238,
+      "first_root_count": 30,
+      "first_root_iterator_seconds": 0.004
+    },
+    {
+      "arm": "first_complete_folder_iterators",
+      "counts": [42, 52, 28],
+      "seconds": [0.485, 0.455, 0.466],
+      "errors": [null, null, null],
+      "directory_snapshots_after_probe": 4
+    },
+    {
+      "arm": "warm_repeat",
+      "counts": [42, 52, 28],
+      "seconds": [0.002, 0.002, 0.001]
+    }
+  ],
+  "interpretation": "The pre-fix false-empty result is absent in this one controlled repeat: unknown folders waited for complete pages on their first open. The non-hidden first rerun demonstrates a separate desktop-indexer effect: GNOME localsearch-3 recursively read 113 folders during startup, making that 113.886-second startup arm uninterpretable as isolated Cirrove latency. Neither run establishes iCloud behavior across accounts or long-lived Apple sessions."
+}

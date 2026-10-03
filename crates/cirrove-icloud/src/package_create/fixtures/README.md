@@ -1,0 +1,1 @@
+Synthetic localhost TLS test identity. The key is intentionally public and must never be used outside tests. Certificate SAN: fixture.icloud-content.com. The fixture uses an explicit DNS override to a loopback listener, disables proxies, and trusts only this certificate. No Apple account or network traffic is used.

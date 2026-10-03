@@ -1,0 +1,220 @@
+//! Active working-byte recovery: copy privately, validate generation, then publish.
+use super::*;
+
+/// Selected under the journal owner's lock; copying never retains that mutex.
+pub struct WorkingExportSource {
+    file: File,
+    source: WorkingRecovery,
+    scope: Scope,
+    working: PathBuf,
+    journal_root: PathBuf,
+    directory: Option<std::sync::Arc<File>>,
+    // Last: keep ownership through descriptor and private-copy teardown.
+    owner: Arc<JournalOwner>,
+}
+/// Private copied bytes with no authority to publish until journal validation.
+pub struct PreparedWorkingExport {
+    source: WorkingRecovery,
+    scope: Scope,
+    working: PathBuf,
+    copy: PreparedLocalCopy,
+    directory: Option<std::sync::Arc<File>>,
+    owner: Arc<JournalOwner>,
+}
+/// A coherent selected generation, independent of subsequent working-file edits.
+pub struct VerifiedWorkingExport {
+    source: WorkingRecovery,
+    copy: PreparedLocalCopy,
+    _directory: Option<std::sync::Arc<File>>,
+    _owner: Arc<JournalOwner>,
+}
+impl UploadJournal {
+    /// Bounded metadata-only pagination; clean records still advance the cursor.
+    pub fn working_recovery_list(
+        &self,
+        after: Option<Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<WorkingRecovery>, Option<Uuid>)> {
+        let limit = limit.clamp(1, 200);
+        let mut query = self
+            .db
+            .prepare("SELECT id FROM working_files WHERE id > ?1 ORDER BY id LIMIT ?2")?;
+        let ids = query
+            .query_map(
+                params![
+                    after.map(|id| id.to_string()).unwrap_or_default(),
+                    limit + 1
+                ],
+                |row| row.get::<_, String>(0),
+            )?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let more = ids.len() > limit as usize;
+        let mut rows = Vec::new();
+        let mut next = None;
+        for id in ids.into_iter().take(limit as usize) {
+            let id = Uuid::parse_str(&id).map_err(|_| JournalError::Corrupt)?;
+            next = Some(id);
+            let record = self.working_file(id)?;
+            if record.dirty || record.unlinked {
+                rows.push(self.working_export_source(id, record.generation)?.source);
+            }
+        }
+        Ok((rows, more.then_some(next).flatten()))
+    }
+    pub fn working_export_source(&self, id: Uuid, generation: u64) -> Result<WorkingExportSource> {
+        let record = self.working_file(id)?;
+        if record.id != id
+            || record.scope.account != self.account
+            || record.generation != generation
+            || !(record.dirty || record.unlinked)
+        {
+            return Err(JournalError::Stale);
+        }
+        let flags =
+            rustix::fs::OFlags::RDONLY | rustix::fs::OFlags::NOFOLLOW | rustix::fs::OFlags::CLOEXEC;
+        let directory = File::from(
+            rustix::fs::open(
+                &self.working,
+                flags | rustix::fs::OFlags::DIRECTORY,
+                rustix::fs::Mode::empty(),
+            )
+            .map_err(std::io::Error::from)?,
+        );
+        let metadata = directory.metadata()?;
+        if metadata.uid() != self._owner.file().metadata()?.uid()
+            || metadata.permissions().mode() & 0o077 != 0
+        {
+            return Err(JournalError::Storage);
+        }
+        let file = File::from(
+            rustix::fs::openat(
+                &directory,
+                id.to_string(),
+                flags | rustix::fs::OFlags::NONBLOCK,
+                rustix::fs::Mode::empty(),
+            )
+            .map_err(std::io::Error::from)?,
+        );
+        owned_private(&file)?;
+        let source = WorkingRecovery {
+            file: id,
+            generation,
+            name: record.node.name,
+            size: file.metadata()?.len(),
+            recorded_size: record.node.size,
+            unlinked: record.unlinked,
+        };
+        Ok(WorkingExportSource {
+            file,
+            source,
+            scope: record.scope,
+            working: self.working.clone(),
+            journal_root: self
+                .working
+                .parent()
+                .ok_or(JournalError::Storage)?
+                .canonicalize()?,
+            owner: self._owner.clone(),
+            directory: None,
+        })
+    }
+
+    /// Only journal reads under the caller's lock: no copying, syncing or publication.
+    /// Every normal byte mutation increments generation before touching the file.
+    pub fn verify_working_export(
+        &self,
+        prepared: PreparedWorkingExport,
+    ) -> Result<VerifiedWorkingExport> {
+        let record = self.working_file(prepared.source.file)?;
+        if prepared.working != self.working
+            || prepared.scope.account != self.account
+            || record.id != prepared.source.file
+            || record.scope != prepared.scope
+            || record.generation != prepared.source.generation
+            || !(record.dirty || record.unlinked)
+        {
+            return Err(JournalError::Stale);
+        }
+        Ok(VerifiedWorkingExport {
+            source: prepared.source,
+            copy: prepared.copy,
+            _owner: prepared.owner,
+            _directory: prepared.directory,
+        })
+    }
+}
+impl RecoveryJournal {
+    /// Metadata-only pagination using the same selection contract as an active
+    /// writer. The journal stays read-only; no recovery transition runs.
+    pub fn working_recovery_list(
+        &self,
+        after: Option<Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<WorkingRecovery>, Option<Uuid>)> {
+        self.journal.working_recovery_list(after, limit)
+    }
+
+    /// Acquire a selected generation without copying while the caller holds its
+    /// recovery mutex. Retain the exact directory descriptor behind the journal's
+    /// /proc/self/fd paths as well as the exclusive journal lease through staging
+    /// and publication, including if the read-only account stops meanwhile.
+    pub fn working_export_source(&self, id: Uuid, generation: u64) -> Result<WorkingExportSource> {
+        let mut source = self.journal.working_export_source(id, generation)?;
+        source.directory = Some(self._directory.clone());
+        Ok(source)
+    }
+
+    /// Verify only journal identity and the selected generation; never seal,
+    /// retry or modify retained records. Copying and publication stay outside
+    /// the caller's recovery mutex.
+    pub fn verify_working_export(
+        &self,
+        prepared: PreparedWorkingExport,
+    ) -> Result<VerifiedWorkingExport> {
+        self.journal.verify_working_export(prepared)
+    }
+}
+
+impl WorkingExportSource {
+    pub fn source(&self) -> &WorkingRecovery {
+        &self.source
+    }
+    /// Blocking bounded-memory staging, outside the journal mutex. No visible file.
+    pub fn prepare_copy(
+        self,
+        destination: &Path,
+        cancel: &CancellationToken,
+        progress: impl FnMut(u64),
+    ) -> Result<PreparedWorkingExport> {
+        let copy = prepare_local_copy(
+            self.file,
+            &self.journal_root,
+            self.source.size,
+            None,
+            destination,
+            cancel,
+            progress,
+        )?;
+        Ok(PreparedWorkingExport {
+            source: self.source,
+            scope: self.scope,
+            working: self.working,
+            copy,
+            owner: self.owner,
+            directory: self.directory,
+        })
+    }
+}
+impl VerifiedWorkingExport {
+    /// Publish outside the journal mutex. Later edits cannot alter these copied bytes;
+    /// the receipt identifies the selected generation, not the current latest one.
+    pub fn publish(self, cancel: &CancellationToken) -> Result<WorkingExportReceipt> {
+        let destination = self.copy.destination.clone();
+        let (_, sha256) = self.copy.publish(cancel)?;
+        Ok(WorkingExportReceipt {
+            source: self.source,
+            sha256,
+            destination,
+        })
+    }
+}

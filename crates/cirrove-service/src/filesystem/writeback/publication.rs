@@ -3,13 +3,20 @@ use super::*;
 use crate::journal::NamespacePublication;
 use std::collections::HashSet;
 
+pub(super) struct PreparedPublication {
+    updates: Vec<crate::journal::NamespaceSnapshot>,
+    through: u64,
+}
 impl Projection {
-    fn publish_batch(&mut self, batch: NamespacePublication) -> Result<bool> {
+    pub(super) fn prepare_batch(
+        &self,
+        batch: NamespacePublication,
+    ) -> Result<Option<PreparedPublication>> {
         if batch.after > self.frontier || batch.through < batch.after {
             return Err(Errno::ESTALE);
         }
         if batch.through <= self.frontier {
-            return Ok(false);
+            return Ok(None);
         }
         let mut updates = Vec::with_capacity(batch.objects.len());
         let mut ids = HashSet::new();
@@ -20,7 +27,11 @@ impl Projection {
             if !ids.insert(object.id) {
                 return Err(Errno::EIO);
             }
-            if !self.validate_snapshot(object, snapshot.working.as_ref())? {
+            if !self.validate_snapshot(
+                object,
+                snapshot.working.as_ref(),
+                snapshot.native_local.as_ref(),
+            )? {
                 continue;
             }
             if locals
@@ -48,6 +59,116 @@ impl Projection {
                 return Err(Errno::EIO);
             }
         }
+        // Validate derived children against the effective whole committed batch,
+        // not object iteration order or a half-updated source owner.
+        let changed_objects: HashMap<_, _> =
+            updates.iter().map(|s| (s.object.id, &s.object)).collect();
+        let changed_local: HashMap<_, _> = updates
+            .iter()
+            .filter_map(|s| s.native_local.as_ref().map(|r| (s.object.id, r)))
+            .collect();
+        let mut affected_archives = HashSet::new();
+        let mut new_owners = HashMap::new();
+        for snapshot in &updates {
+            let object = &snapshot.object;
+            if let Some(role) = &object.native_archive {
+                if self
+                    .objects
+                    .get(&object.id)
+                    .and_then(|old| old.native_archive.as_ref())
+                    .is_some_and(|old| old.retired != role.retired)
+                    && !changed_objects.contains_key(&role.source_owner)
+                {
+                    return Err(Errno::EIO);
+                }
+                if self
+                    .native_archives
+                    .get(&role.source_owner)
+                    .is_some_and(|id| {
+                        *id != object.id
+                            && !changed_objects.get(id).is_some_and(|old| {
+                                (old.unlinked || changed_local.get(id).is_some_and(|r| r.backup))
+                                    && old.native_archive.is_none()
+                                    && changed_local.get(id).is_some_and(|local| {
+                                        local.detached && local.source_owner == role.source_owner
+                                    })
+                            })
+                    })
+                    || new_owners
+                        .insert(role.source_owner, object.id)
+                        .is_some_and(|id| id != object.id)
+                {
+                    return Err(Errno::EIO);
+                }
+                affected_archives.insert(object.id);
+            }
+            if let Some(child) = self.native_archives.get(&object.id)
+                && !changed_local
+                    .get(child)
+                    .is_some_and(|r| r.detached && r.source_owner == object.id)
+            {
+                affected_archives.insert(*child);
+            }
+            if let Some(local) = &snapshot.native_local {
+                let owner = changed_objects
+                    .get(&local.source_owner)
+                    .copied()
+                    .or_else(|| self.objects.get(&local.source_owner))
+                    .ok_or(Errno::EIO)?;
+                if owner.scope != object.scope
+                    || owner.node.kind != NodeKind::Folder
+                    || !owner.node.package
+                    || owner.node.target.is_some()
+                    || (local.backup
+                        && (object.node.parent_id.as_ref() != Some(&owner.node.id)
+                            || object.node.name == owner.node.name))
+                    || (!local.detached
+                        && (owner.unlinked
+                            || !owner.remote_owned
+                            || owner.follows_remote
+                            || object.node.parent_id.as_ref() != Some(&owner.node.id)
+                            || object.node.name == owner.node.name))
+                {
+                    return Err(Errno::EIO);
+                }
+            }
+        }
+        for snapshot in &updates {
+            if let Some(old) = self
+                .objects
+                .get(&snapshot.object.id)
+                .and_then(|o| o.native_archive.as_ref())
+                && snapshot.native_local.as_ref().is_some_and(|r| r.detached)
+                && new_owners
+                    .get(&old.source_owner)
+                    .is_none_or(|id| *id == snapshot.object.id)
+            {
+                return Err(Errno::EIO);
+            }
+        }
+        for id in affected_archives {
+            let object = changed_objects
+                .get(&id)
+                .copied()
+                .or_else(|| self.objects.get(&id))
+                .ok_or(Errno::EIO)?;
+            let role = object.native_archive.as_ref().ok_or(Errno::EIO)?;
+            let owner = changed_objects
+                .get(&role.source_owner)
+                .copied()
+                .or_else(|| self.objects.get(&role.source_owner))
+                .ok_or(Errno::EIO)?;
+            if !object.valid_native_archive_owner(owner) {
+                return Err(Errno::EIO);
+            }
+        }
+        Ok(Some(PreparedPublication {
+            updates,
+            through: batch.through,
+        }))
+    }
+    pub(super) fn apply_prepared(&mut self, prepared: PreparedPublication) -> bool {
+        let PreparedPublication { updates, through } = prepared;
         // Validation above changes nothing. Remove all old bindings before
         // assigning any new one, so UUID/order of the pair cannot affect it.
         for snapshot in &updates {
@@ -58,12 +179,27 @@ impl Projection {
                 self.remote_bindings.remove(&key(&old.scope, &remote.id));
             }
         }
+        for snapshot in &updates {
+            if let Some(old) = self
+                .objects
+                .get(&snapshot.object.id)
+                .and_then(|o| o.native_archive.as_ref())
+                && self.native_archives.get(&old.source_owner) == Some(&snapshot.object.id)
+            {
+                self.native_archives.remove(&old.source_owner);
+            }
+        }
         let changed = !updates.is_empty();
         for snapshot in updates {
-            self.apply(snapshot.object, snapshot.working);
+            self.apply(snapshot.object, snapshot.working, snapshot.native_local);
         }
-        self.frontier = batch.through;
-        Ok(changed)
+        self.frontier = through;
+        changed
+    }
+    fn publish_batch(&mut self, batch: NamespacePublication) -> Result<bool> {
+        Ok(self
+            .prepare_batch(batch)?
+            .is_some_and(|prepared| self.apply_prepared(prepared)))
     }
 
     /// The caller owns the journal, then the projection. Only local indexed
@@ -342,3 +478,6 @@ mod tests {
         assert!(!p.catch_up(&j).unwrap());
     }
 }
+
+#[cfg(test)]
+mod native_projection_tests;

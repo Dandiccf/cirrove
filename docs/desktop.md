@@ -471,3 +471,96 @@ The [desktop milestone](product-milestones.md#5-polished-desktop-experience) rem
 
 The desktop entry at `packaging/desktop/io.github.Dandiccf.Cirrove.desktop` is a
 packaging source. A build does not install it or register file-type associations.
+
+
+### Unconfirmed cloud changes
+
+The account detail row **Checking cloud confirmation** reports uploads and
+namespace operations in `VerifyRequired` or `Verifying`. It is separate from
+failed/conflicting changes and has no Retry or Discard button. The daemon retains
+recovery state while checking the outcome; it does not infer that an ambiguous
+request failed. Recent upload activity describes verification separately from
+bytes being transferred. The additive `unconfirmed_changes` status/event field
+defaults to zero for older daemons. The existing account identity match prevents
+stale or foreign snapshots from supplying the count.
+
+Synthetic journal tests cover restart, both operation kinds, inspection and
+completion; the native window scenario checks visibility, absence of destructive
+actions and clearing. This does not yet provide per-operation recovery export or
+complete iCloud conflict-resolution UX.
+
+## Explicit native document archive import (preview)
+
+An active writable iCloud connection offers **Import an iWork document** when the
+running service advertises version 1 of both `import-native-package` and
+`import-native-package-account-binding`. Choose a local ZIP archive, enter the
+exact Pages, Numbers or Keynote document folder inside it, a relative destination
+folder (leave blank for the drive root), and a new document name in the same
+format. The archive must be outside Cirrove mounts and private state. The daemon
+validates the archive and stages at most 64 MiB before queueing any cloud work.
+
+This creates a new native document; it does not edit or replace an existing one.
+The daemon independently verifies the returned content and waits for metadata
+publication before reporting import completion. Pages has bounded live evidence;
+Numbers import/open checks exist, while Numbers replacement and Keynote application
+fidelity remain open. Archive acceptance alone does not prove Apple fidelity.
+Progress and refusals appear with the connection's transfers. **Stop** stops watching;
+an already queued import may still finish. An uncertain response never triggers an
+automatic desktop retry. Check transfers before starting another import.
+
+The dialog checks the selected account and mount again when submitted. Older services,
+read-only or disconnected accounts, and other providers do not offer this action.
+Local ZIP parsing and all provider calls remain outside the desktop process.
+
+The synthetic window scenario
+`native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request` uses
+only a local fake socket. Set `CIRROVE_NATIVE_IMPORT_SNAPSHOT` to a private PNG path
+to capture its actual import dialog. Validate it in light and dark themes, including
+German labels, keyboard submission, invalid fields, cancellation and a write-access
+change while the dialog is open. A successful synthetic dialog or socket test does
+not establish Apple document-editing compatibility. Installed desktop click-through
+and a new owned live Pages import remain separate acceptance steps.
+
+### Find an import again after reconnecting
+
+Choose **Saved imports…** on an enabled iCloud connection when the compatible
+service advertises `list-native-imports` version 1. The **Saved iWork imports**
+dialog shows retained import records, up to 25 per page. **Next page** advances
+through the journal; an empty legacy page can still have a next page. A recorded
+upload completion describes history, not whether that document is available now.
+Listing also works for an enabled read-only or unmounted connection once the
+service confirms its identity. Disabled accounts and unavailable, incompatible
+or identity-unconfirmed services do not offer listing.
+
+**Check saved import** attaches an observer to that exact retained operation and
+shows progress with the connection's transfers. Checking requires an active
+writable iCloud mount and version 1 of `watch-native-import`; the button is
+disabled otherwise. The account identity, collection and current access are
+checked again before dispatch and when the reply arrives. An accepted observer
+appears immediately, preventing another check in this window for the same running
+operation while the next status response is pending.
+
+Neither listing nor checking submits another copy, retries an upload, changes
+access or mounts the account. The synthetic window scenario
+`saved_native_imports_are_paged_account_bound_and_observer_only` covers reconnect,
+paging, historical wording, exact observation and refusal after a read-only
+transition. It uses a fake socket service, not an Apple upload worker or a live
+chooser-to-completion workflow; installed and live acceptance remain open.
+
+## Strata preview
+
+An opt-in [Strata integration](strata.md) adds asynchronous conditional pin menus,
+availability details and Cirrove's branded badges through a companion generic
+file-provider API. Stock Strata 0.20.1 does not yet expose that API. The isolated
+preview does not replace a working file manager or install global custom actions.
+
+
+## Explicit native replacement jobs
+
+The service and CLI provide an experimental
+[explicit Pages archive replacement workflow](native-document-replacement.md).
+There is currently no desktop replacement chooser and no normal editor-save
+admission for generated iCloud package children. A CLI-started replacement job
+can appear in the desktop transfer area. Its Stop action stops watching; it
+does not undo or discard an already queued replacement. The recorded original
+Trash receipt is historical evidence, not a promise of present recovery availability.

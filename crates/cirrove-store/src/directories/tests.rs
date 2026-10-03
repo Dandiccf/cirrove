@@ -40,6 +40,44 @@ fn seed(db: &mut Store, nodes: &[Node]) {
     )
     .unwrap();
 }
+
+#[test]
+fn a_complete_root_only_feed_does_not_make_unvisited_folders_empty() {
+    let mut db = Store::open(":memory:").unwrap();
+    seed(&mut db, &[]);
+    let scope = scope();
+    // Ordinary complete feeds retain their indexed-empty behavior.
+    assert_eq!(db.child(&scope, "unvisited", "file").unwrap(), Some(None));
+    assert_eq!(
+        db.with_children(&scope, "unvisited", |rows| rows.count())
+            .unwrap(),
+        Some(0)
+    );
+    // A root-only feed needs a complete folder page before reporting absence.
+    assert_eq!(
+        db.child_from_snapshot(&scope, "unvisited", "file").unwrap(),
+        None
+    );
+    assert_eq!(
+        db.with_snapshot_children(&scope, "unvisited", |rows| rows.count())
+            .unwrap(),
+        None
+    );
+    let mut child = node(0);
+    child.parent_id = Some("unvisited".into());
+    db.observe_directory(&scope, "unvisited", &[child.clone()])
+        .unwrap();
+    assert_eq!(
+        db.child_from_snapshot(&scope, "unvisited", &child.name)
+            .unwrap(),
+        Some(Some(child))
+    );
+    assert_eq!(
+        db.with_snapshot_children(&scope, "unvisited", |rows| rows.count())
+            .unwrap(),
+        Some(1)
+    );
+}
 fn legacy_directory_format(db: &Connection) {
     // Restore the actual pre-v5 columns and array representation for migration
     // tests; changing user_version alone would leave an impossible old schema.
@@ -104,7 +142,7 @@ fn concurrent_open_initializes_or_migrates_once_without_losing_metadata() {
                             db.db
                                 .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
                                 .unwrap(),
-                            7
+                            SCHEMA_VERSION
                         );
                         db.inode("same-identity").unwrap()
                     })
@@ -461,7 +499,7 @@ fn named_child_uses_bounded_index_work_for_present_and_absent_names() {
         if snapshot {
             db.observe_directory(&scope(), "root", &nodes).unwrap();
         }
-        let (sql, revision) = read_source(&db.db, &key, "root").unwrap().unwrap();
+        let (sql, revision) = read_source(&db.db, &key, "root", false).unwrap().unwrap();
         // Duplicate names are covered by the result-equivalence test. Their
         // stale observation candidates can legitimately add index work; this
         // bound checks unique/present and absent names against directory size.

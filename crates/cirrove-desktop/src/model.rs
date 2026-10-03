@@ -88,6 +88,8 @@ pub struct AccountCard {
     pub id: String,
     /// The name the CLI and the daemon know the account by; every verb takes it.
     pub label: String,
+    pub collection_id: String,
+    pub root_id: String,
     pub title: String,
     pub username: String,
     pub tenant: String,
@@ -123,10 +125,19 @@ pub struct AccountCard {
     /// Saves that did not reach the cloud -- uploads the provider refused or
     /// that failed. The file is here; the cloud has an older version or none.
     pub failed_uploads: u64,
+    /// Outcomes still under inspection, separate from failures and conflicts.
+    pub unconfirmed_changes: u64,
     /// Whether the grant allows changes; a read-only drive shows as such.
     pub writable: bool,
+    /// Active daemon can list and export retained local bytes without admitting writes.
+    pub local_recovery: bool,
     pub supports_writes: bool,
     pub provider_id: &'static str,
+    /// Ordinary writes do not imply an irreversible provider deletion API.
+    pub supports_permanent_delete: bool,
+    pub supports_native_import: bool,
+    pub supports_native_import_listing: bool,
+    pub supports_native_import_watch: bool,
     /// The app registration this account signed in through, so connecting a
     /// second drive can start from it rather than from an empty field.
     pub client_id: String,
@@ -145,6 +156,10 @@ pub struct AccountCard {
 /// One piece of long work, in the words the window shows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunningJob {
+    pub native_import: bool,
+    /// Exact durable operation/receipt from the service, separate from the transient job ID.
+    pub import_progress: Option<cirrove_service::jobs::NativeImportProgress>,
+    pub native_replace: bool,
     /// What `stop` takes. Not shown.
     pub id: String,
     /// What is being kept, as a path in the drive.
@@ -176,24 +191,52 @@ impl RunningJob {
                 &human_bytes(job.bytes_total),
             ],
         );
-        let detail = match (job.state, &job.issue) {
-            (JobState::Running, _) => counted,
-            (JobState::Stopping, _) => gettext("Stopping…"),
-            (JobState::Stopped, _) => fill(
-                &gettext("Stopped after {} of {} files. Nothing is kept offline for it."),
-                &[&job.files_done.to_string(), &job.files_total.to_string()],
-            ),
-            (_, Some(issue)) => fill(
-                &gettext("Kept {} of {} files, then stopped: {}"),
-                &[
-                    &job.files_done.to_string(),
-                    &job.files_total.to_string(),
-                    issue,
-                ],
-            ),
-            (_, None) => counted,
+        let detail = if job.kind == cirrove_service::jobs::JobKind::ReplaceNativePackage {
+            match (job.state, &job.issue) {
+                (_, Some(issue)) => issue.clone(),
+                (JobState::Succeeded, _) => gettext(
+                    "Document replaced and available in Files. Original Trash receipt recorded.",
+                ),
+                (JobState::Stopped, _) => gettext(
+                    "Stopped watching the replacement; its saved operation remains retained.",
+                ),
+                _ => gettext("Replacing native document…"),
+            }
+        } else if job.kind == cirrove_service::jobs::JobKind::ImportNativePackage {
+            match (job.state, &job.issue) {
+                (_, Some(issue)) => issue.clone(),
+                (JobState::Succeeded, _) => gettext("Document imported and available in Files."),
+                (JobState::Stopping, _) => gettext("Stopping…"),
+                (JobState::Stopped, _) => gettext(
+                    "Stopped watching the import. An already queued document may still finish uploading.",
+                ),
+                _ => fill(&gettext("Importing document · {}"), &[&counted]),
+            }
+        } else {
+            match (job.state, &job.issue) {
+                (JobState::Running, _) => counted,
+                (JobState::Stopping, _) => gettext("Stopping…"),
+                (JobState::Stopped, _) => fill(
+                    &gettext("Stopped after {} of {} files. Nothing is kept offline for it."),
+                    &[&job.files_done.to_string(), &job.files_total.to_string()],
+                ),
+                (_, Some(issue)) => fill(
+                    &gettext("Kept {} of {} files, then stopped: {}"),
+                    &[
+                        &job.files_done.to_string(),
+                        &job.files_total.to_string(),
+                        issue,
+                    ],
+                ),
+                (_, None) => counted,
+            }
         };
         Self {
+            native_replace: job.kind == cirrove_service::jobs::JobKind::ReplaceNativePackage,
+            native_import: job.kind == cirrove_service::jobs::JobKind::ImportNativePackage,
+            import_progress: (job.kind == cirrove_service::jobs::JobKind::ImportNativePackage)
+                .then(|| job.native_import.clone())
+                .flatten(),
             id: job.id.clone(),
             name: job.name.clone(),
             detail,
@@ -257,6 +300,80 @@ impl KeptOffline {
     }
 }
 impl AccountCard {
+    pub fn can_import_native_package(&self) -> bool {
+        self.supports_native_import
+            && self.provider_id == "icloud"
+            && self.enabled
+            && self.mounted
+            && self.writable
+            && self.controls_available
+            && matches!(
+                self.state,
+                ConnectionState::Connected | ConnectionState::Updating
+            )
+    }
+
+    pub fn can_list_native_imports(&self) -> bool {
+        self.supports_native_import_listing
+            && self.provider_id == "icloud"
+            && self.enabled
+            && self.controls_available
+            && !matches!(
+                self.state,
+                ConnectionState::WaitingForService
+                    | ConnectionState::ServiceUnavailable
+                    | ConnectionState::IncompatibleService
+            )
+    }
+    pub fn can_watch_native_import(&self) -> bool {
+        self.supports_native_import_watch
+            && self.provider_id == "icloud"
+            && self.enabled
+            && self.controls_available
+            && self.mounted
+            && self.writable
+            && matches!(
+                self.state,
+                ConnectionState::Connected | ConnectionState::Updating
+            )
+    }
+    /// Discovery/watch selection must remain on the chosen account and location.
+    pub fn same_native_import_connection(&self, selected: &Self) -> bool {
+        self.id == selected.id
+            && self.label == selected.label
+            && self.collection_id == selected.collection_id
+            && self.root_id == selected.root_id
+            && self.username == selected.username
+            && self.tenant == selected.tenant
+            && self.mount_path == selected.mount_path
+            && self.provider_id == selected.provider_id
+            && self.writable == selected.writable
+    }
+
+    /// A dialog cannot transfer consent to another connection or mount.
+    pub fn same_native_import_target(&self, selected: &Self) -> bool {
+        self.can_import_native_package()
+            && selected.can_import_native_package()
+            && self.id == selected.id
+            && self.label == selected.label
+            && self.collection_id == selected.collection_id
+            && self.root_id == selected.root_id
+            && self.username == selected.username
+            && self.tenant == selected.tenant
+            && self.mount_path == selected.mount_path
+            && self.provider_id == selected.provider_id
+    }
+
+    /// Recheck at each chooser/confirmation boundary, not only when rendering.
+    pub fn can_delete_permanently(&self) -> bool {
+        self.supports_permanent_delete
+            && matches!(self.provider_id, "onedrive" | "googledrive")
+            && self.enabled
+            && self.mounted
+            && self.writable
+            && self.controls_available
+    }
+
     pub fn action_label(&self) -> &'static str {
         if !self.enabled {
             n("Mount")
@@ -269,6 +386,7 @@ impl AccountCard {
 }
 
 pub struct Snapshot {
+    pub capabilities: cirrove_service::Capabilities,
     pub settings: Result<Settings, SettingsFailure>,
     pub status: Result<Status, ServiceFailure>,
     /// What changed lately, per account label, latest first. Empty when the
@@ -340,8 +458,9 @@ impl ActivityEntry {
             let (what, warning) = match change.state.as_str() {
                 "uploaded" => (n("saved here · in the cloud"), false),
                 "pending" | "preparing" => (n("saved here · waiting to upload"), false),
-                "uploading" | "verifying" | "verifyrequired" => {
-                    (n("saved here · uploading"), false)
+                "uploading" => (n("saved here · uploading"), false),
+                "verifying" | "verifyrequired" | "verify_required" => {
+                    (n("saved here · checking cloud confirmation"), false)
                 }
                 // A word with no number cannot tell a save that is moving from
                 // one that is stuck; the journal has always known how much of it
@@ -350,10 +469,7 @@ impl ActivityEntry {
                 "failed" => (n("saved here · upload failed"), true),
                 other => (other, false),
             };
-            let moving = matches!(
-                change.state.as_str(),
-                "uploading" | "verifying" | "verifyrequired"
-            );
+            let moving = change.state == "uploading";
             let what = if moving && change.transferred > 0 && change.size > 0 {
                 fill(
                     &gettext("{} · {} of {}"),
@@ -477,18 +593,17 @@ impl Overview {
                 AccountCard {
                     id: account.id.clone(),
                     label: account.label.clone(),
-                    title: format!(
-                        "{} · {}",
-                        if matches!(
-                            account.registration,
-                            cirrove_auth::AppRegistration::Google { .. }
-                        ) {
-                            "Google Drive"
-                        } else {
-                            "OneDrive"
-                        },
-                        account.drive.name
-                    ),
+                    collection_id: account.drive.id.clone(),
+                    root_id: account.root_id.clone(),
+                    title: match account.registration {
+                        cirrove_auth::AppRegistration::Google { .. } => {
+                            format!("Google Drive · {}", account.drive.name)
+                        }
+                        cirrove_auth::AppRegistration::Microsoft { .. } => {
+                            format!("OneDrive · {}", account.drive.name)
+                        }
+                        cirrove_auth::AppRegistration::ICloud => "iCloud Drive".into(),
+                    },
                     username: account.identity.username.clone(),
                     tenant: account.identity.tenant_id.clone(),
                     mount_path: account.mount_path.clone(),
@@ -552,16 +667,54 @@ impl Overview {
                         .unwrap_or_default(),
                     wastebasket: status.and_then(|s| s.wastebasket.clone()),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
+                    unconfirmed_changes: status.map_or(0, |s| s.unconfirmed_changes),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
+                    local_recovery: status.is_some_and(|s| {
+                        s.local_recovery
+                            || (s.mounted && account.access == cirrove_auth::AccessMode::ReadWrite)
+                    }),
                     supports_writes: true,
+                    supports_native_import: snapshot
+                        .capabilities
+                        .capabilities
+                        .get("import-native-package")
+                        == Some(&1)
+                        && snapshot
+                            .capabilities
+                            .capabilities
+                            .get("import-native-package-account-binding")
+                            == Some(&1),
+                    supports_native_import_listing: snapshot
+                        .capabilities
+                        .capabilities
+                        .get("list-native-imports")
+                        == Some(&1),
+                    supports_native_import_watch: snapshot
+                        .capabilities
+                        .capabilities
+                        .get("watch-native-import")
+                        == Some(&1),
                     provider_id: account.registration.provider_id(),
+                    supports_permanent_delete: matches!(
+                        account.registration,
+                        cirrove_auth::AppRegistration::Microsoft { .. }
+                            | cirrove_auth::AppRegistration::Google { .. }
+                    ),
                     client_id: account.registration.client_id().to_owned(),
                     authority: account.registration.authority().to_owned(),
                     kept_offline: status
                         .map(|s| s.pins.iter().map(KeptOffline::from_status).collect())
                         .unwrap_or_default(),
                     running: status
-                        .map(|s| s.jobs.iter().map(RunningJob::from_job).collect())
+                        .map(|s| {
+                            s.jobs
+                                .iter()
+                                .filter(|job| {
+                                    job.kind != cirrove_service::jobs::JobKind::ExportLocal
+                                })
+                                .map(RunningJob::from_job)
+                                .collect()
+                        })
                         .unwrap_or_default(),
                     pin_budget: status.map(|s| s.pin_budget.explain()),
                 }
@@ -608,7 +761,8 @@ fn connection_state(s: &AccountStatus) -> ConnectionState {
 pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
     let settings = tokio::task::spawn_blocking(move || Settings::load(&state));
     let status = cirrove_service::status(&socket);
-    let (settings, status) = tokio::join!(settings, status);
+    let (settings, status, capabilities) =
+        tokio::join!(settings, status, cirrove_service::capabilities(&socket));
     // One `recent` per mounted account. An older daemon answers with a
     // refusal, which is an empty list here, not an error: activity is an
     // extra, and a window must not go blank for want of it.
@@ -627,6 +781,7 @@ pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
         }
     }
     Snapshot {
+        capabilities: capabilities.unwrap_or_default(),
         settings: match settings {
             Ok(result) => result.map_err(SettingsFailure::from_error),
             Err(_) => Err(SettingsFailure::WorkerUnavailable),
@@ -634,4 +789,33 @@ pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
         status: status.map_err(ServiceFailure::from_error),
         activity,
     }
+}
+
+/// Lightweight form validation only. The daemon checks archive contents and routes.
+pub fn native_import_fields_valid(
+    archive: &std::path::Path,
+    root: &str,
+    parent: &str,
+    name: &str,
+) -> bool {
+    let component = |s: &str| {
+        !s.is_empty()
+            && s.len() <= 255
+            && s != "."
+            && s != ".."
+            && !s
+                .chars()
+                .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
+    };
+    archive.is_absolute()
+        && !archive
+            .components()
+            .any(|p| matches!(p, std::path::Component::ParentDir))
+        && component(root)
+        && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase()).is_some()
+        && component(name)
+        && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase())
+            == cirrove_core::upload::native_package_suffix(&name.to_ascii_lowercase())
+        && parent.len() <= 4096
+        && (parent.is_empty() || parent.split('/').all(component))
 }
