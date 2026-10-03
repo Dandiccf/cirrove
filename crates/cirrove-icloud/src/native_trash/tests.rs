@@ -2,7 +2,12 @@
 use super::*;
 use base64::Engine as _;
 use serde_json::json;
-use std::{io::Write, sync::Mutex as StdMutex, time::Duration};
+use std::{
+    io::Write,
+    os::unix::fs::{MetadataExt, PermissionsExt},
+    sync::Mutex as StdMutex,
+    time::Duration,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -165,6 +170,7 @@ fn adapter(
         before: request.intent.before().unwrap().clone(),
         apple_id: "fixture@example.com".into(),
         staging: dir.into(),
+        staging_budget: crate::ICloudWriteStagingBudget::new(),
         session: Mutex::new(Session::Ready(Box::new(session))),
         checkpoint: vault,
         operation_lock: Mutex::new(()),
@@ -576,15 +582,29 @@ async fn native_trash_staging_requires_owned_private_directory_without_symlink()
     let request = request();
     let mut provider = adapter(&request, &server, dir.path(), Arc::new(Vault::default()));
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
-    assert!(matches!(provider.staging(), Err(MutationError::Invalid)));
+    assert!(matches!(
+        provider.staging().await,
+        Err(MutationError::Invalid)
+    ));
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
-    let file = provider.staging().unwrap();
-    assert_eq!(file.metadata().unwrap().nlink(), 0);
-    assert_eq!(file.metadata().unwrap().permissions().mode() & 0o077, 0);
+    let file = provider.staging().await.unwrap();
+    assert_eq!(file.borrowed_file().metadata().unwrap().nlink(), 0);
+    assert_eq!(
+        file.borrowed_file()
+            .metadata()
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o077,
+        0
+    );
     let link = dir.path().join("staging-link");
     std::os::unix::fs::symlink(dir.path(), &link).unwrap();
     provider.staging = link;
-    assert!(matches!(provider.staging(), Err(MutationError::Invalid)));
+    assert!(matches!(
+        provider.staging().await,
+        Err(MutationError::Invalid)
+    ));
     assert_eq!(server.state.lock().unwrap().reads, 0);
 }
 
@@ -634,4 +654,82 @@ fn native_trash_internal_formats_still_require_package_and_clouddocs() {
             );
         }
     }
+}
+
+#[tokio::test]
+async fn native_trash_shared_staging_pressure_refuses_capture_before_http() {
+    let dir = private_directory();
+    let server = Server::start(false, false).await;
+    let budget = crate::ICloudWriteStagingBudget::new();
+    let provider = adapter(&request(), &server, dir.path(), Arc::new(Vault::default()))
+        .with_write_staging_budget(budget.clone());
+    let mut held = Vec::new();
+    for _ in 0..4 {
+        held.push(budget.create(dir.path()).await.unwrap());
+    }
+    assert!(matches!(
+        provider
+            .capture_active_semantic(&CancellationToken::new())
+            .await,
+        Err(MutationError::Uncertain)
+    ));
+    assert_eq!(server.state.lock().unwrap().reads, 0);
+    assert_eq!(server.state.lock().unwrap().trash_calls, 0);
+    held.pop();
+    let semantic = provider
+        .capture_active_semantic(&CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(semantic.version, 2);
+    // Three retained owners leave exactly one slot. The successful capture
+    // released its last owner; it did not reserve a second untracked pool.
+    held.push(budget.create(dir.path()).await.unwrap());
+    assert!(budget.create(dir.path()).await.is_err());
+}
+
+#[tokio::test]
+async fn native_trash_shared_staging_pressure_refuses_recovery_without_replay() {
+    let dir = private_directory();
+    let server = Server::start(true, false).await;
+    let budget = crate::ICloudWriteStagingBudget::new();
+    let request = request();
+    let provider = adapter(&request, &server, dir.path(), Arc::new(Vault::default()))
+        .with_write_staging_budget(budget.clone());
+    let cancel = CancellationToken::new();
+    let operation = Uuid::new_v4().to_string();
+    let prepared = provider
+        .prepare_mutation_for_operation(&operation, &request, &cancel)
+        .await
+        .unwrap();
+    assert!(
+        provider
+            .mutate_operation(&operation, &request, prepared.as_deref(), &cancel)
+            .await
+            .is_err()
+    );
+    assert_eq!(server.state.lock().unwrap().trash_calls, 1);
+    let mut held = Vec::new();
+    for _ in 0..4 {
+        held.push(budget.create(dir.path()).await.unwrap());
+    }
+    let reads = server.state.lock().unwrap().reads;
+    assert!(matches!(
+        provider
+            .reconcile_operation(&operation, &request, prepared.as_deref(), &cancel)
+            .await
+            .unwrap(),
+        MutationReconciliation::Indeterminate
+    ));
+    assert_eq!(server.state.lock().unwrap().reads, reads);
+    assert_eq!(server.state.lock().unwrap().trash_calls, 1);
+    held.pop();
+    // One free slot must suffice for download+proof; adopting this guarded
+    // file again would fail here and falsely leave the operation unresolved.
+    assert!(
+        matches!(provider.reconcile_operation(&operation, &request, prepared.as_deref(), &cancel).await.unwrap(),
+        MutationReconciliation::Applied(MutationReceipt::Removed { item }) if item == ID)
+    );
+    assert_eq!(server.state.lock().unwrap().trash_calls, 1);
+    held.push(budget.create(dir.path()).await.unwrap());
+    assert!(budget.create(dir.path()).await.is_err());
 }

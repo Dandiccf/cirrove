@@ -161,9 +161,13 @@ pub struct WriteContext {
     metadata_db: PathBuf,
     journal: Arc<std::sync::Mutex<crate::journal::UploadJournal>>,
     checkpoints: Arc<dyn cirrove_auth::CredentialVault>,
+    icloud_staging_budget: Option<cirrove_icloud::ICloudWriteStagingBudget>,
 }
 
 impl WriteContext {
+    pub(crate) fn icloud_staging_budget(&self) -> Option<cirrove_icloud::ICloudWriteStagingBudget> {
+        self.icloud_staging_budget.clone()
+    }
     pub fn state(&self) -> &Path {
         &self.state
     }
@@ -203,6 +207,7 @@ impl WriteContext {
             metadata_db: engine.db.clone(),
             journal: Arc::new(std::sync::Mutex::new(journal)),
             checkpoints,
+            icloud_staging_budget: engine.icloud_write_staging_budget(),
         })
     }
 }

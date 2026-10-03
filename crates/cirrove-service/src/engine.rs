@@ -232,6 +232,7 @@ struct KeptOffline {
     stopped: bool,
 }
 pub struct Engine {
+    icloud_write_staging_budget: Option<cirrove_icloud::ICloudWriteStagingBudget>,
     pub account: Account,
     pub db: PathBuf,
     pub provider: Arc<dyn ReadProvider>,
@@ -287,6 +288,11 @@ pub struct Engine {
     pub(crate) recovery_test_hooks: Arc<crate::recovery::RecoveryTestHooks>,
 }
 impl Engine {
+    pub(crate) fn icloud_write_staging_budget(
+        &self,
+    ) -> Option<cirrove_icloud::ICloudWriteStagingBudget> {
+        self.icloud_write_staging_budget.clone()
+    }
     pub async fn new(
         account: Account,
         provider: Arc<dyn ReadProvider>,
@@ -320,6 +326,11 @@ impl Engine {
         })
         .await??;
         Ok(Arc::new(Self {
+            icloud_write_staging_budget: matches!(
+                account.registration,
+                cirrove_auth::AppRegistration::ICloud
+            )
+            .then(cirrove_icloud::ICloudWriteStagingBudget::default),
             account,
             db,
             provider,

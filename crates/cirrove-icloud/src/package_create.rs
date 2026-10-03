@@ -1,7 +1,10 @@
 //! Native package creation through the shared durable upload worker.
 //! No mount routing and no package replacement. Recovery only observes exact IDs.
 use crate::file_create::{map_content_error, map_session_error};
-use crate::{ICloudReadSession, ROOT_ID, SealedSessionVault, package_transport as wire};
+use crate::{
+    ICloudReadSession, ICloudWriteStagingBudget, ROOT_ID, SealedSessionVault,
+    package_transport as wire, write_staging::WriteStagingFile,
+};
 use async_trait::async_trait;
 use cirrove_auth::CredentialVault;
 use cirrove_core::upload::{
@@ -16,13 +19,12 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     fs::File,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom},
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
-use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 const MAX_CHECKPOINT: usize = 96 * 1024;
@@ -53,7 +55,7 @@ struct VerificationProgress {
     #[cfg(feature = "write-probe")]
     retain_download: bool,
     #[cfg(feature = "write-probe")]
-    download: Option<(File, crate::PackageDownload)>,
+    download: Option<(Arc<WriteStagingFile>, crate::PackageDownload)>,
 }
 enum Session {
     Ready(Box<ICloudReadSession>),
@@ -68,10 +70,17 @@ pub struct ICloudPackageCreate {
     parent: Node,
     session: Mutex<Session>,
     staging: PathBuf,
+    pub(crate) staging_budget: ICloudWriteStagingBudget,
     #[cfg(test)]
     body_dispatch_probe: Option<Arc<std::sync::atomic::AtomicUsize>>,
 }
 impl ICloudPackageCreate {
+    /// Share native staging admission across fresh and restored account adapters.
+    /// Standalone constructors otherwise own an isolated four-file budget.
+    pub fn with_write_staging_budget(mut self, budget: ICloudWriteStagingBudget) -> Self {
+        self.staging_budget = budget;
+        self
+    }
     /// Bind an already constructed provider to credential-free synthetic HTTPS.
     /// Identity and retained checkpoint validation remain on their normal paths.
     #[cfg(feature = "test-support")]
@@ -110,6 +119,7 @@ impl ICloudPackageCreate {
             scope,
             parent,
             staging: staging.into(),
+            staging_budget: ICloudWriteStagingBudget::default(),
             session: Mutex::new(Session::Ready(Box::new(session))),
             #[cfg(test)]
             body_dispatch_probe: None,
@@ -135,6 +145,7 @@ impl ICloudPackageCreate {
             scope,
             parent,
             staging: staging.into(),
+            staging_budget: ICloudWriteStagingBudget::default(),
             #[cfg(test)]
             body_dispatch_probe: None,
             session: Mutex::new(Session::Sealed {
@@ -161,6 +172,7 @@ impl ICloudPackageCreate {
             scope,
             parent,
             staging: staging.into(),
+            staging_budget: ICloudWriteStagingBudget::default(),
             #[cfg(test)]
             body_dispatch_probe: None,
             session: Mutex::new(Session::Ready(Box::new(session))),
@@ -375,10 +387,14 @@ impl ICloudPackageCreate {
         mut source: File,
         request: &UploadRequest,
         cancel: &CancellationToken,
-    ) -> Result<File> {
+    ) -> Result<Arc<WriteStagingFile>> {
         let request = request.clone();
         let cancel = cancel.clone();
-        let staging = self.staging.clone();
+        let target = self
+            .staging_budget
+            .create(&self.staging)
+            .await
+            .map_err(|_| UploadError::Uncertain)?;
         tokio::task::spawn_blocking(move || {
             let UploadRepresentation::PackageArchive {
                 expected_root,
@@ -397,7 +413,6 @@ impl ICloudPackageCreate {
             source
                 .seek(SeekFrom::Start(0))
                 .map_err(|_| UploadError::Invalid)?;
-            let mut target = tempfile::tempfile_in(staging).map_err(|_| UploadError::Invalid)?;
             let mut hash = Sha256::new();
             let mut size = 0u64;
             let mut buffer = [0; 64 * 1024];
@@ -409,12 +424,13 @@ impl ICloudPackageCreate {
                 if n == 0 {
                     break;
                 }
+                let offset = size;
                 size += n as u64;
                 if size > request.size {
                     return Err(UploadError::Invalid);
                 }
                 target
-                    .write_all(&buffer[..n])
+                    .write_chunk_at(offset, &buffer[..n])
                     .map_err(|_| UploadError::Invalid)?;
                 hash.update(&buffer[..n]);
             }
@@ -427,7 +443,7 @@ impl ICloudPackageCreate {
                 sha256: digest,
             };
             let actual = crate::package_archive_semantic_identity_versioned(
-                &target,
+                target.borrowed_file(),
                 &receipt,
                 expected_root,
                 semantic.version,
@@ -436,9 +452,6 @@ impl ICloudPackageCreate {
             if &actual != semantic {
                 return Err(UploadError::Invalid);
             }
-            target
-                .seek(SeekFrom::Start(0))
-                .map_err(|_| UploadError::Invalid)?;
             Ok(target)
         })
         .await
@@ -489,21 +502,24 @@ impl ICloudPackageCreate {
             return Err(UploadError::Conflict);
         }
         progress.fence = "package-download";
-        let file = tempfile::tempfile_in(&self.staging).map_err(|_| UploadError::Uncertain)?;
-        file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        let file = self
+            .staging_budget
+            .create(&self.staging)
+            .await
             .map_err(|_| UploadError::Uncertain)?;
-        let clone = file.try_clone().map_err(|_| UploadError::Uncertain)?;
-        let mut sink = DiskSink(tokio::fs::File::from_std(clone));
+        let mut sink = DiskSink {
+            file: file.clone(),
+            offset: 0,
+        };
         let receipt = session
             .download_package(&self.parent.id, entry, MAX_ARCHIVE, &mut sink, cancel)
             .await
             .map_err(map_session_error)?;
-        sink.0.flush().await.map_err(|_| UploadError::Uncertain)?;
         drop(sink);
         #[cfg(feature = "write-probe")]
         if progress.retain_download {
             progress.download = Some((
-                file.try_clone().map_err(|_| UploadError::Uncertain)?,
+                file.clone(),
                 crate::PackageDownload {
                     size: receipt.size,
                     sha256: receipt.sha256.clone(),
@@ -522,7 +538,11 @@ impl ICloudPackageCreate {
         let version = expected.version;
         let semantic = tokio::task::spawn_blocking(move || {
             crate::package_archive_semantic_identity_versioned(
-                &file, &receipt, &root, version, &token,
+                file.borrowed_file(),
+                &receipt,
+                &root,
+                version,
+                &token,
             )
         })
         .await
@@ -574,14 +594,24 @@ impl ICloudPackageCreate {
         })
     }
 }
-struct DiskSink(tokio::fs::File);
+struct DiskSink {
+    file: Arc<WriteStagingFile>,
+    offset: u64,
+}
 #[async_trait]
 impl ReadWindowSink for DiskSink {
     async fn write_chunk(&mut self, bytes: &[u8]) -> std::result::Result<(), ProviderError> {
-        self.0
-            .write_all(bytes)
+        if bytes.len() > 64 * 1024 {
+            return Err(ProviderError::Protocol(
+                "package verification chunk exceeds bound",
+            ));
+        }
+        self.file
+            .write_at(self.offset, bytes.to_vec())
             .await
-            .map_err(|_| ProviderError::Protocol("package verification staging unavailable"))
+            .map_err(|_| ProviderError::Protocol("package verification staging unavailable"))?;
+        self.offset += bytes.len() as u64;
+        Ok(())
     }
 }
 #[async_trait]
@@ -623,6 +653,7 @@ impl UploadProvider for ICloudPackageCreate {
             return Err(UploadError::CheckpointInvalid);
         }
         tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let _reservation = self.staging_budget.create(&self.staging).await.map_err(|_| UploadError::Uncertain)?;
             let mut state = self.session.lock().await; let session = Self::active(&mut state).await?; Self::binding(session, &saved)?;
             self.vacant(session, self.request(request)?).await?;
             if cancel.is_cancelled() {return Err(UploadError::Uncertain);}
@@ -832,7 +863,7 @@ impl ICloudPackageCreate {
                     &source,
                     &source_receipt,
                     &source_root,
-                    &download,
+                    download.borrowed_file(),
                     &receipt,
                     &stage_root,
                     &token,

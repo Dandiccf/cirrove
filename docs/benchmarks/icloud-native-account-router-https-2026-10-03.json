@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "new-coupled-acceptance-sensitive-control-and-final-full-contributor-check-passed-source-CI-pending",
+  "status": "coupled-acceptance-sensitive-control-full-check-and-exact-b513-source-CI-seven-jobs-passed",
   "registered_at": "2026-10-03T19:06:24.458947+00:00",
   "source_head": "0e48e13ad84af25534abc020df8b9fa17213e5bc",
   "question": "Does a real native kernel FUSE save flow through normal ICloudWriteProvider account admission, shared WriteContext journal, private staging, current-parent lookup and captured-parent restore to actual native HTTPS completion without repeated mutations?",
@@ -473,5 +473,137 @@
     "control_manifest": ".local-state/icloud-full-integration-20261003/native-account-router-control-pins.json",
     "control_manifest_sha256": "6c865be212da4cd9bf7dc47715278b940b62be5e52769c93c03f25bba67ec0eb"
   },
-  "final_ci_budget_record": "docs/benchmarks/icloud-ci-completion-budget-2026-10-03.json"
+  "final_ci_budget_record": "docs/benchmarks/icloud-ci-completion-budget-2026-10-03.json",
+  "remote_ci": {
+    "recorded_at": "2026-10-03T20:08:05.036301+00:00",
+    "run": 37148483127,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37148483127",
+    "requested_head": "b5136fd3dcde3ec3e86f088b8b13796266c0e87c",
+    "actual_pull_request_merge_checkout": "07f58b45f3b1ca7e4601d4e9de4e5ac94c71a8b0",
+    "head_merge_exact_tree_equality": {
+      "tree": "8899e8e2ab2bf320f7dca9bc6bd363d9792c263a",
+      "head": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-b5136fd-agent/20261003T194558070524Z-git-commit-b5136fd3dcde3ec3e86f088b8b13796266c0e87c.json",
+        "sha256": "77183f025a10ef84816121b1005704144cf0322c9d9fccbad5486d17388933f7",
+        "parents": [
+          "0e48e13ad84af25534abc020df8b9fa17213e5bc"
+        ]
+      },
+      "merge": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-b5136fd-agent/20261003T200647330281Z-git-commit-07f58b45f3b1ca7e4601d4e9de4e5ac94c71a8b0.json",
+        "sha256": "001d78784be95cd495f4c7e0748dbd2dd46a09c15e36186545d09dfb90bda879",
+        "parents": [
+          "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+          "b5136fd3dcde3ec3e86f088b8b13796266c0e87c"
+        ]
+      }
+    },
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 111277198795,
+        "name": "linux",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T19:36:09Z",
+        "completed_at": "2026-10-03T20:05:45Z"
+      },
+      {
+        "id": 111277198936,
+        "name": "rpm-package",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T19:36:09Z",
+        "completed_at": "2026-10-03T19:46:59Z"
+      },
+      {
+        "id": 111277198942,
+        "name": "mounted-read-workloads",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T19:36:09Z",
+        "completed_at": "2026-10-03T19:47:42Z"
+      },
+      {
+        "id": 111277198948,
+        "name": "dependency-audit",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T19:36:09Z",
+        "completed_at": "2026-10-03T19:39:17Z"
+      },
+      {
+        "id": 111277198954,
+        "name": "arch-package",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T19:36:09Z",
+        "completed_at": "2026-10-03T19:54:10Z"
+      },
+      {
+        "id": 111277198962,
+        "name": "deb-package",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T19:36:10Z",
+        "completed_at": "2026-10-03T19:46:22Z"
+      },
+      {
+        "id": 111279010726,
+        "name": "headless-package-install",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T19:46:24Z",
+        "completed_at": "2026-10-03T19:48:03Z"
+      }
+    ],
+    "linux_log": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-b5136fd-agent/20261003T200618519679Z-linux-job-111277198795.log",
+      "sha256": "d19f25677ad9ba6f12095e4f93e3a61882e3281236f282fe551977204a029854",
+      "bytes": 589394
+    },
+    "terminal_run_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-b5136fd-agent/20261003T200556754583Z-run.json",
+      "sha256": "d1f7d71050afd91821a1bb759b1b2a3dbe431bfa47e997966950e74554c16f3c"
+    },
+    "terminal_jobs_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-b5136fd-agent/20261003T200556754583Z-jobs.json",
+      "sha256": "5e21f2e63dcd01f64f8a063dba40d821dc0a43cfba93f17c361592cac2e1327d"
+    },
+    "linux_elapsed_seconds": 1776.0,
+    "ubuntu_package_floor": {
+      "gtk_runtime": "4.14.5+ds-0ubuntu0.10",
+      "libadwaita_runtime": "1.5.0-1ubuntu2",
+      "evidence": [
+        {
+          "line": 988,
+          "text": "2026-10-03T19:36:40.8331130Z Setting up libgtk-4-1:amd64 (4.14.5+ds-0ubuntu0.10) ..."
+        },
+        {
+          "line": 1012,
+          "text": "2026-10-03T19:36:41.7924149Z Setting up libadwaita-1-0:amd64 (1.5.0-1ubuntu2) ..."
+        }
+      ]
+    },
+    "audit": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-b5136fd-agent/20261003T200805040442Z-completed-scope-audit.json",
+      "sha256": "9a854b9bcb02fa8a5bd6c0533c8295a183d658dece47f73097ca70c9c6a340cc"
+    },
+    "executed": {
+      "native_fuse_https": 4,
+      "writable_kernel": 55,
+      "installer": 39,
+      "desktop_windows": [
+        1,
+        1,
+        20
+      ],
+      "chooser": 1,
+      "new_stage_format_recovery_workspace": 3,
+      "new_stage_format_recovery_feature": 3,
+      "original_pages_current_vault_proof": 2
+    },
+    "scope": "Exact b5136fd source only. Later native WRITE staging correction, installed transitions, live Apple/application fidelity and repeatability remain unproven."
+  }
 }

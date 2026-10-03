@@ -82,6 +82,15 @@ fn unpack(mut inner: Value) -> UploadResult<SecretString> {
     Ok(text.into())
 }
 impl ICloudFileReplace {
+    /// Retain the account runtime's staging pool through every native phase.
+    pub fn with_write_staging_budget(
+        mut self,
+        budget: crate::ICloudWriteStagingBudget,
+    ) -> UploadResult<Self> {
+        let context = self.native.as_mut().ok_or(UploadError::Invalid)?;
+        context.provider.staging_budget = budget;
+        Ok(self)
+    }
     /// Replace only transport/session access after normal construction or restore.
     /// The fixed synthetic origin uses no account credentials or live endpoints.
     #[cfg(feature = "test-support")]
@@ -538,9 +547,16 @@ impl ICloudFileReplace {
             session.http = client.clone();
             session.drive_endpoint = Some(endpoint.clone());
             session.docs_endpoint = Some(endpoint.clone());
+            session.write_staging_budget = self
+                .native
+                .as_ref()
+                .ok_or(UploadError::Invalid)?
+                .provider
+                .staging_budget
+                .clone();
             return Ok(session);
         }
-        let session = self.load_session().await?;
+        let mut session = self.load_session().await?;
         if cancel.is_cancelled() {
             return Err(UploadError::Uncertain);
         }
@@ -548,6 +564,13 @@ impl ICloudFileReplace {
         {
             return Err(UploadError::Invalid);
         }
+        session.write_staging_budget = self
+            .native
+            .as_ref()
+            .ok_or(UploadError::Invalid)?
+            .provider
+            .staging_budget
+            .clone();
         Ok(session)
     }
     async fn native_before_stage(&self, cancel: &CancellationToken) -> UploadResult<()> {

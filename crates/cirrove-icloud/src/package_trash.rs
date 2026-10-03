@@ -1,11 +1,12 @@
 //! Read-only, explicitly owned native-package recovery experiment.
 use super::*;
+use crate::write_staging::WriteStagingFile;
 use cirrove_core::{CancellationToken, ProviderError, reads::ReadWindowSink};
+use std::sync::Arc;
 use std::{
     fs::File,
     os::unix::fs::{MetadataExt, PermissionsExt},
 };
-use tokio::io::AsyncWriteExt;
 
 /// Bind these fields from the retained owned-import plan, never a Trash search.
 /// The Apple account identifier is checked against the signed-in session locally.
@@ -90,14 +91,24 @@ fn verify_archive(
     }
     Ok(semantic)
 }
-struct Sink(tokio::fs::File);
+struct Sink {
+    file: Arc<WriteStagingFile>,
+    offset: u64,
+}
 #[async_trait::async_trait]
 impl ReadWindowSink for Sink {
     async fn write_chunk(&mut self, bytes: &[u8]) -> std::result::Result<(), ProviderError> {
-        self.0
-            .write_all(bytes)
+        if bytes.len() > 64 * 1024 {
+            return Err(ProviderError::Protocol(
+                "package recovery chunk exceeds bound",
+            ));
+        }
+        self.file
+            .write_at(self.offset, bytes.to_vec())
             .await
-            .map_err(|_| ProviderError::Protocol("package recovery staging unavailable"))
+            .map_err(|_| ProviderError::Protocol("package recovery staging unavailable"))?;
+        self.offset += bytes.len() as u64;
+        Ok(())
     }
 }
 impl ICloudReadSession {
@@ -110,7 +121,17 @@ impl ICloudReadSession {
         staging: File,
         cancel: &CancellationToken,
     ) -> Result<VerifiedPackageTrash> {
+        if cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled.into());
+        }
         let expected_account = account_hash(&request.apple_account)?;
+        if self.account_hash.as_deref() != Some(expected_account.as_str())
+            || request.document_id.is_empty()
+            || request.drive_id != format!("FILE::com.apple.CloudDocs::{}", request.document_id)
+        {
+            bail!("iCloud package recovery account or identity mismatch");
+        }
+        let staging = self.write_staging_budget.adopt(staging)?;
         self.verify_package_in_trash_for_account_hash(request, &expected_account, staging, cancel)
             .await
     }
@@ -119,7 +140,7 @@ impl ICloudReadSession {
         &mut self,
         request: OwnedPackageTrashRequest,
         expected_account: &str,
-        staging: File,
+        staging: Arc<WriteStagingFile>,
         cancel: &CancellationToken,
     ) -> Result<VerifiedPackageTrash> {
         tokio::select! { biased;
@@ -129,7 +150,7 @@ impl ICloudReadSession {
                     || request.document_id.is_empty()
                     || request.drive_id != format!("FILE::com.apple.CloudDocs::{}", request.document_id)
                 { bail!("iCloud package recovery account or identity mismatch"); }
-                let meta = staging.metadata().map_err(|_| anyhow!("package recovery staging unavailable"))?;
+                let meta = staging.borrowed_file().metadata().map_err(|_| anyhow!("package recovery staging unavailable"))?;
                 if !meta.is_file() || meta.len() != 0 || meta.nlink() != 0 || meta.permissions().mode() & 0o077 != 0 {
                     bail!("package recovery requires empty anonymous private staging");
                 }
@@ -140,15 +161,13 @@ impl ICloudReadSession {
                 let response = self.http.get(url).header(reqwest::header::ACCEPT_ENCODING, "identity")
                     .timeout(VERIFICATION_TRANSFER_TIMEOUT).send().await
                     .map_err(|_| anyhow!("iCloud package recovery download failed"))?;
-                let clone = staging.try_clone().map_err(|_| anyhow!("package recovery staging unavailable"))?;
-                let mut sink = Sink(tokio::fs::File::from_std(clone));
+                let mut sink = Sink { file: staging.clone(), offset: 0 };
                 let archive = package_download::stage_response(response, &mut sink, 64 * 1024 * 1024, cancel).await?;
-                sink.0.flush().await.map_err(|_| anyhow!("package recovery staging unavailable"))?;
                 drop(sink);
                 unchanged(&before, &self.item_details(&request.drive_id).await?, &request)?;
                 let token = cancel.clone();
                 let semantic = tokio::task::spawn_blocking(move || {
-                    let semantic = verify_archive(&staging, &archive, &request, &token)?;
+                    let semantic = verify_archive(staging.borrowed_file(), &archive, &request, &token)?;
                     Ok::<_, ProviderError>((archive, semantic))
                 }).await.map_err(|_| anyhow!("package recovery verification interrupted"))??;
                 if cancel.is_cancelled() { return Err(ProviderError::Cancelled.into()); }

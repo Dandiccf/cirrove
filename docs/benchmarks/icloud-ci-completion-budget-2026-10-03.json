@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "terminal-timeout-verified-40-minute-budget-and-final-local-full-check-passed-source-CI-pending",
+  "status": "terminal-30-minute-timeout-verified-candidate-40-minute-run-completed-no-repeatability-claim",
   "registered_at": "2026-10-03T19:26:17.176751+00:00",
   "question": "Can the complete Linux contributor CI finish all existing checks including documentation within a job budget that exceeds the observed cold-build total, without relaxing any individual test-group endpoint?",
   "incident": {
@@ -96,5 +96,18 @@
     "writable_tests": 55,
     "installer_tests": 39,
     "scope": "Full scripts/check.sh after only Linux global CI budget30-to40 correction; formatting, clippy/probes, workspace/features, kernel/scripts/coverage/ledger/docs all passed. Display not repeated locally."
+  },
+  "candidate_remote_ci": {
+    "run": 37148483127,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37148483127",
+    "requested_head": "b5136fd3dcde3ec3e86f088b8b13796266c0e87c",
+    "actual_pull_request_merge_checkout": "07f58b45f3b1ca7e4601d4e9de4e5ac94c71a8b0",
+    "status": "completed",
+    "conclusion": "success",
+    "linux_elapsed_seconds": 1776.0,
+    "scope": "Exact b5136fd source only. Later native WRITE staging correction, installed transitions, live Apple/application fidelity and repeatability remain unproven.",
+    "public_scope_evidence": "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json",
+    "seven_jobs_success": true,
+    "original_0e_run_remains_cancelled": true
   }
 }

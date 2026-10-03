@@ -2,7 +2,7 @@
 use super::*;
 use cirrove_core::mutation::{MutationIntent, Result as MutationResult};
 impl ICloudWriteProvider {
-    pub(super) fn native_trash_adapter(
+    pub(crate) fn native_trash_adapter(
         &self,
         request: &MutationRequest,
     ) -> MutationResult<cirrove_icloud::ICloudNativeTrash> {
@@ -24,5 +24,6 @@ impl ICloudWriteProvider {
             before.clone(),
             staging,
         )
+        .map(|adapter| adapter.with_write_staging_budget(self.package_staging_budget.clone()))
     }
 }

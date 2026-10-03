@@ -592,6 +592,7 @@ pub struct ICloudReadSession {
     headers: SessionHeaders,
     drive_endpoint: Option<Url>,
     docs_endpoint: Option<Url>,
+    write_staging_budget: ICloudWriteStagingBudget,
 }
 
 impl ICloudReadSession {
@@ -608,6 +609,7 @@ impl ICloudReadSession {
             headers: SessionHeaders::default(),
             drive_endpoint: self.drive_endpoint.clone(),
             docs_endpoint: self.docs_endpoint.clone(),
+            write_staging_budget: self.write_staging_budget.clone(),
         }
     }
 
@@ -629,6 +631,7 @@ impl ICloudReadSession {
             headers: SessionHeaders::default(),
             drive_endpoint: None,
             docs_endpoint: None,
+            write_staging_budget: ICloudWriteStagingBudget::default(),
         })
     }
 
@@ -2025,6 +2028,8 @@ mod storage_refusal_tests;
 mod package_create;
 mod package_transport;
 pub use package_create::ICloudPackageCreate;
+mod write_staging;
+pub use write_staging::WriteStagingBudget as ICloudWriteStagingBudget;
 
 mod native_restore;
 pub use native_restore::{ICloudNativeRestore, NativeRestoreRequest};

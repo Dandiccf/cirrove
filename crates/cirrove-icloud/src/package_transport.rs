@@ -6,10 +6,9 @@ use crate::{
 use anyhow::{Context, Result, ensure};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
+use std::sync::Arc;
 const MAX_BODY: u64 = 64 * 1024 * 1024;
 use serde_json::{Value, json};
-use tokio_util::io::ReaderStream;
 const MAX_REPLY: usize = 64 * 1024;
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -148,15 +147,12 @@ pub(crate) async fn allocate(
 pub(crate) async fn upload(
     session: &mut ICloudReadSession,
     slot: &Slot,
-    file: File,
+    file: Arc<crate::write_staging::WriteStagingFile>,
     size: u64,
 ) -> Result<SecretString> {
     slot.validate()?;
     let url = checked_content_url(&slot.url)?;
-    let body = reqwest::Body::wrap_stream(ReaderStream::with_capacity(
-        tokio::fs::File::from_std(file),
-        64 * 1024,
-    ));
+    let body = file.body(size)?;
     let response = session
         .http
         .post(url)

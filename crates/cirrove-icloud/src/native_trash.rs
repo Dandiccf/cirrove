@@ -1,6 +1,7 @@
 //! Journal-bound recoverable removal of an exact native PACKAGE revision.
 //! This adapter is not a filesystem/public admission API. Possibly dispatched
 //! operations are inspect-only forever; absence never proves removal.
+use crate::write_staging::WriteStagingFile;
 use crate::{ICloudReadSession, PackageSemanticIdentity, SealedSessionVault};
 use async_trait::async_trait;
 use cirrove_auth::CredentialVault;
@@ -14,12 +15,10 @@ use cirrove_core::{
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::File,
-    os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::{io::AsyncWriteExt, sync::Mutex};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 const LIMIT: usize = 96 * 1024;
 const ARCHIVE_LIMIT: u64 = 64 * 1024 * 1024;
@@ -54,6 +53,7 @@ pub struct ICloudNativeTrash {
     before: Node,
     apple_id: String,
     staging: PathBuf,
+    pub(super) staging_budget: crate::ICloudWriteStagingBudget,
     session: Mutex<Session>,
     pub(super) checkpoint: Arc<dyn CredentialVault>,
     operation_lock: Mutex<()>,
@@ -80,6 +80,7 @@ impl ICloudNativeTrash {
             before,
             apple_id: apple_id.clone(),
             staging,
+            staging_budget: crate::ICloudWriteStagingBudget::new(),
             session: Mutex::new(Session::Vault {
                 apple_id,
                 credential_id,
@@ -88,6 +89,30 @@ impl ICloudNativeTrash {
             checkpoint: Arc::new(checkpoint),
             operation_lock: Mutex::new(()),
         })
+    }
+    /// Share the account runtime's staging reservations across native adapters.
+    pub fn with_write_staging_budget(mut self, budget: crate::ICloudWriteStagingBudget) -> Self {
+        self.staging_budget = budget;
+        self
+    }
+    /// Replace transport only after normal identity/factory validation. This new
+    /// fixture session carries no credentials, cookies or inherited headers.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn with_synthetic_native_transport(mut self, client: reqwest::Client) -> Result<Self> {
+        let mut session = ICloudReadSession::new().map_err(crate::mutation_error)?;
+        session.account_hash =
+            Some(crate::account_hash(&self.apple_id).map_err(crate::mutation_error)?);
+        session.http = client;
+        session.drive_endpoint = Some(
+            "https://fixture.icloud-content.com/"
+                .parse()
+                .map_err(|_| MutationError::Invalid)?,
+        );
+        session.docs_endpoint = session.drive_endpoint.clone();
+        session.write_staging_budget = self.staging_budget.clone();
+        *self.session.get_mut() = Session::Ready(Box::new(session));
+        Ok(self)
     }
     pub(super) fn identity(scope: &Scope, before: &Node) -> Result<()> {
         let id = before.id.strip_prefix("FILE::com.apple.CloudDocs::");
@@ -215,25 +240,14 @@ impl ICloudNativeTrash {
             _ => Err(MutationError::Uncertain),
         }
     }
-    pub(super) fn staging(&self) -> Result<File> {
-        let meta =
-            std::fs::symlink_metadata(&self.staging).map_err(|_| MutationError::Uncertain)?;
-        let uid = std::fs::metadata("/proc/self")
-            .map_err(|_| MutationError::Uncertain)?
-            .uid();
-        if !self.staging.is_absolute()
-            || !meta.is_dir()
-            || meta.uid() != uid
-            || meta.permissions().mode() & 0o077 != 0
-        {
-            return Err(MutationError::Invalid);
-        }
-        let file = tempfile::tempfile_in(&self.staging).map_err(|_| MutationError::Uncertain)?;
-        // tempfile's anonymous file follows the process umask. Establish the
-        // private-file contract before any cloud content is written into it.
-        file.set_permissions(std::fs::Permissions::from_mode(0o600))
-            .map_err(|_| MutationError::Uncertain)?;
-        Ok(file)
+    pub(super) async fn staging(&self) -> Result<Arc<WriteStagingFile>> {
+        self.staging_budget
+            .create(&self.staging)
+            .await
+            .map_err(|error| match error {
+                ProviderError::Permission => MutationError::Invalid,
+                _ => MutationError::Uncertain,
+            })
     }
     fn observed(&self, value: &serde_json::Value) -> Result<()> {
         let entry: crate::DriveEntry =
@@ -287,6 +301,8 @@ impl ICloudNativeTrash {
         {
             return Err(MutationError::Invalid);
         }
+        session.write_staging_budget = self.staging_budget.clone();
+        let file = self.staging().await?;
         self.observed(
             &session
                 .item_details(&self.before.id)
@@ -301,10 +317,10 @@ impl ICloudNativeTrash {
             return Err(MutationError::Conflict);
         };
         check(cancel)?;
-        let file = self.staging()?;
-        let mut sink = Sink(tokio::fs::File::from_std(
-            file.try_clone().map_err(|_| MutationError::Uncertain)?,
-        ));
+        let mut sink = Sink {
+            file: file.clone(),
+            offset: 0,
+        };
         let response = session
             .http
             .get(url)
@@ -317,7 +333,6 @@ impl ICloudNativeTrash {
             crate::package_download::stage_response(response, &mut sink, ARCHIVE_LIMIT, cancel)
                 .await
                 .map_err(crate::mutation_error)?;
-        sink.0.flush().await.map_err(|_| MutationError::Uncertain)?;
         drop(sink);
         self.observed(
             &session
@@ -329,7 +344,11 @@ impl ICloudNativeTrash {
         let token = cancel.clone();
         let semantic = tokio::task::spawn_blocking(move || {
             crate::package_archive_semantic_identity_versioned(
-                &file, &archive, &root, version, &token,
+                file.borrowed_file(),
+                &archive,
+                &root,
+                version,
+                &token,
             )
         })
         .await
@@ -344,8 +363,12 @@ impl ICloudNativeTrash {
         cancel: &CancellationToken,
     ) -> Result<MutationReceipt> {
         check(cancel)?;
+        let expected_account =
+            crate::account_hash(&self.apple_id).map_err(crate::mutation_error)?;
+        session.write_staging_budget = self.staging_budget.clone();
+        let staging = self.staging().await?;
         session
-            .verify_owned_package_in_trash(
+            .verify_package_in_trash_for_account_hash(
                 crate::package_trash::OwnedPackageTrashRequest {
                     apple_account: self.apple_id.clone(),
                     drive_id: self.before.id.clone(),
@@ -359,7 +382,8 @@ impl ICloudNativeTrash {
                     expected_root: self.before.name.clone(),
                     semantic: saved.semantic.clone(),
                 },
-                self.staging()?,
+                &expected_account,
+                staging,
                 cancel,
             )
             .await
@@ -377,14 +401,20 @@ fn check(cancel: &CancellationToken) -> Result<()> {
         Ok(())
     }
 }
-struct Sink(tokio::fs::File);
+struct Sink {
+    file: Arc<WriteStagingFile>,
+    offset: u64,
+}
 #[async_trait]
 impl ReadWindowSink for Sink {
     async fn write_chunk(&mut self, bytes: &[u8]) -> std::result::Result<(), ProviderError> {
-        self.0
-            .write_all(bytes)
-            .await
-            .map_err(|_| ProviderError::Protocol("native package staging unavailable"))
+        // Preserve one bounded blocking write even when a transport emits a
+        // chunk larger than the file API's 64 KiB positional-write contract.
+        for chunk in bytes.chunks(64 * 1024) {
+            self.file.write_at(self.offset, chunk.to_vec()).await?;
+            self.offset += chunk.len() as u64;
+        }
+        Ok(())
     }
 }
 #[async_trait]

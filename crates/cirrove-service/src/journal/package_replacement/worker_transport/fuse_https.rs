@@ -429,6 +429,65 @@ async fn save_and_reopen(account_router: bool) {
         ));
         std::fs::set_permissions(&accounts, permissions).unwrap();
         assert_eq!(counts(&server), (0, 0, 0, 0, 0));
+        let budget = context.icloud_staging_budget().unwrap();
+        let mut held_staging = Vec::new();
+        for _ in 0..4 {
+            held_staging.push(budget.hold_synthetic_file(staging.path()).await.unwrap());
+        }
+        assert!(
+            matches!(
+                router
+                    .begin_upload_for_operation(
+                        &queued.id.to_string(),
+                        &request(&queued),
+                        &CancellationToken::new()
+                    )
+                    .await,
+                Err(cirrove_core::upload::UploadError::Uncertain)
+            ),
+            "normal native factory must share the account's exhausted staging budget"
+        );
+        assert_eq!(counts(&server), (0, 0, 0, 0, 0));
+        assert_eq!(server.state.lock().unwrap().requests, 0);
+        let native_trash = router
+            .native_trash_adapter(&cirrove_core::mutation::MutationRequest {
+                scope: scope.clone(),
+                intent: cirrove_core::mutation::MutationIntent::TrashNativeDocument {
+                    before: original(),
+                },
+            })
+            .unwrap()
+            .with_synthetic_native_transport(server.client.clone())
+            .unwrap();
+        assert!(
+            matches!(
+                native_trash
+                    .capture_active_semantic(&CancellationToken::new())
+                    .await,
+                Err(cirrove_core::mutation::MutationError::Uncertain)
+            ),
+            "native Trash factory must share the account's exhausted staging budget"
+        );
+        assert_eq!(server.state.lock().unwrap().requests, 0);
+        let original_capture = crate::manager::Manager::native_original_capture_adapter(
+            &engine,
+            original(),
+            staging.path().to_owned(),
+        )
+        .unwrap()
+        .with_synthetic_native_transport(server.client.clone())
+        .unwrap();
+        assert!(
+            matches!(
+                original_capture
+                    .capture_active_semantic(&CancellationToken::new())
+                    .await,
+                Err(cirrove_core::mutation::MutationError::Uncertain)
+            ),
+            "replacement admission must share the account's exhausted staging budget"
+        );
+        assert_eq!(server.state.lock().unwrap().requests, 0);
+        drop(held_staging);
         Arc::new(router)
     } else {
         provider(&server, staging.path(), &queued)
@@ -472,6 +531,27 @@ async fn save_and_reopen(account_router: bool) {
         let router = crate::icloud_writes::ICloudWriteProvider::new(&account, context)
             .unwrap()
             .synthetic_native_transport(server.client.clone());
+        let budget = context.icloud_staging_budget().unwrap();
+        let mut held_staging = Vec::new();
+        for _ in 0..4 {
+            held_staging.push(budget.hold_synthetic_file(staging.path()).await.unwrap());
+        }
+        assert!(
+            matches!(
+                router
+                    .inspect_upload_for_operation(
+                        &queued.id.to_string(),
+                        &request(&queued),
+                        &saved,
+                        &CancellationToken::new()
+                    )
+                    .await,
+                Err(cirrove_core::upload::UploadError::Uncertain)
+            ),
+            "restored native factory must retain the same exhausted staging budget"
+        );
+        assert_eq!(counts(&server), (1, 1, 1, 0, 0));
+        drop(held_staging);
         // A fresh operation cannot use an absent parent, but a continuation must
         // restore its captured parent through the normal factory before binding TLS.
         assert!(matches!(

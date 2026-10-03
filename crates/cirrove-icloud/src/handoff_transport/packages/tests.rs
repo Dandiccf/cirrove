@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
 use base64::Engine as _;
+use std::os::unix::fs::PermissionsExt;
 use std::{
     io::Write,
     sync::{Arc, Mutex},

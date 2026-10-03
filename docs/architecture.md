@@ -117,6 +117,21 @@ aggregate private staging quota and native editing remain open. See the
 [normal package adapter validation](benchmarks/icloud-native-package-adapter-2026-09-30.md)
 for format/resource limits, failed hypotheses and live evidence.
 
+Native iCloud WRITE staging has a separate four-file lifetime budget per account
+`Engine`, retained by its `WriteContext`. Fresh and restored import/replacement
+adapters, native removal adapters, replacement-admission Original verification
+and their native handoff sessions share it. Explicit restore adapters share their
+source pool and can accept the runtime budget. Each upload copy or
+Original/Current/Trash verification archive is limited to 64 MiB, so their combined
+logical payload capacity is at most 256 MiB within that runtime. Anonymous files,
+detached blocking operations and HTTP body readers retain the reservation until
+the last file owner closes. Pressure refuses immediately; package allocation
+holds a reservation before its first mutation. The journal spool, local source
+archive capture, read-artifact cache, filesystem overhead and kernel page cache
+remain separate. Independent Engines, standalone sessions and processes have
+separate budgets; this is not an aggregate account or host disk quota. See the
+[native write staging ownership evidence](benchmarks/icloud-native-write-staging-budget-2026-10-03.json).
+
 Generated package snapshots can also retain the exact source metadata that
 produced them. For providers opting into source-change retry, cached listing and
 child lookup compare that binding with locally observed source changes. A changed

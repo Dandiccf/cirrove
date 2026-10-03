@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
 use serde_json::json;
+use std::io::Write;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 fn fixture() -> (
@@ -9,7 +10,10 @@ fn fixture() -> (
     UploadRequest,
     Checkpoint,
 ) {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let scope = Scope {
         account: Uuid::new_v4().to_string(),
         provider: "icloud".into(),
@@ -33,6 +37,7 @@ fn fixture() -> (
         scope: scope.clone(),
         parent: parent.clone(),
         staging: dir.path().into(),
+        staging_budget: ICloudWriteStagingBudget::default(),
         body_dispatch_probe: None,
         session: Mutex::new(Session::Ready(Box::new(session))),
     };
@@ -245,9 +250,11 @@ async fn valid_archive_snapshot_checks_exact_root_and_semantics() {
         expected_root: "Source.pages".into(),
         semantic,
     };
-    let mut snapshot = provider.payload(source, &request, &cancel).await.unwrap();
-    let mut actual = Vec::new();
-    snapshot.read_to_end(&mut actual).unwrap();
+    let snapshot = provider.payload(source, &request, &cancel).await.unwrap();
+    let actual = snapshot
+        .read_at(0, request.size.try_into().unwrap())
+        .await
+        .unwrap();
     assert_eq!(actual, bytes);
 }
 #[tokio::test]

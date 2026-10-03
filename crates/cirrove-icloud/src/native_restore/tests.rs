@@ -541,3 +541,79 @@ fn native_restore_internal_formats_require_original_package_and_plain_route() {
         assert!(selected.validate().is_err());
     }
 }
+
+#[tokio::test]
+async fn native_restore_default_source_and_restore_share_staging_pressure() {
+    let dir = private();
+    let server = Server::start(false, false).await;
+    let request = request();
+    let adapter = fixture(
+        &server,
+        request.clone(),
+        dir.path(),
+        authority(&request),
+        Arc::new(Vault::default()),
+    );
+    let mut held = Vec::new();
+    for _ in 0..4 {
+        held.push(adapter.source.staging().await.unwrap());
+    }
+    assert!(adapter.staging_budget.create(dir.path()).await.is_err());
+    assert!(matches!(
+        adapter
+            .prepare(Uuid::new_v4(), &CancellationToken::new())
+            .await,
+        Err(MutationError::Uncertain)
+    ));
+    assert_eq!(server.state.lock().unwrap().reads, 0);
+    assert_eq!(server.state.lock().unwrap().restore_calls, 0);
+    held.pop();
+    adapter
+        .prepare(Uuid::new_v4(), &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(server.state.lock().unwrap().restore_calls, 0);
+    held.push(adapter.staging_budget.create(dir.path()).await.unwrap());
+    assert!(adapter.source.staging().await.is_err());
+}
+
+#[tokio::test]
+async fn native_restore_bound_staging_pressure_refuses_active_readback_before_http() {
+    let dir = private();
+    let server = Server::start(false, false).await;
+    let request = request();
+    let budget = crate::ICloudWriteStagingBudget::new();
+    let adapter = fixture(
+        &server,
+        request.clone(),
+        dir.path(),
+        authority(&request),
+        Arc::new(Vault::default()),
+    )
+    .with_write_staging_budget(budget.clone());
+    let operation = Uuid::new_v4();
+    let cancel = CancellationToken::new();
+    adapter.prepare(operation, &cancel).await.unwrap();
+    adapter.execute(operation, &cancel).await.unwrap();
+    assert_eq!(server.state.lock().unwrap().restore_calls, 1);
+    let mut held = Vec::new();
+    for _ in 0..4 {
+        held.push(budget.create(dir.path()).await.unwrap());
+    }
+    assert!(adapter.source.staging().await.is_err());
+    let reads = server.state.lock().unwrap().reads;
+    assert!(matches!(
+        adapter.reconcile(operation, &cancel).await.unwrap(),
+        MutationReconciliation::Indeterminate
+    ));
+    assert_eq!(server.state.lock().unwrap().reads, reads);
+    assert_eq!(server.state.lock().unwrap().restore_calls, 1);
+    held.pop();
+    assert!(
+        matches!(adapter.reconcile(operation, &cancel).await.unwrap(),
+        MutationReconciliation::Applied(MutationReceipt::Upsert(node)) if node.id == ID)
+    );
+    assert_eq!(server.state.lock().unwrap().restore_calls, 1);
+    held.push(budget.create(dir.path()).await.unwrap());
+    assert!(budget.create(dir.path()).await.is_err());
+}

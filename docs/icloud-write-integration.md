@@ -1631,9 +1631,59 @@ aggregate 30-minute job budget during `cargo doc`. The terminal cancellation,
 explicit GitHub annotation and completed scopes are retained in the
 [budget record](benchmarks/icloud-ci-completion-budget-2026-10-03.json). Linux's
 aggregate budget is now 40 minutes; every test-group timeout, scenario and
-command remains unchanged. A subsequent complete source CI is still required;
-this correction does not relabel the cancelled run or prove repeatable timing.
+command remains unchanged. Subsequent source `b5136fd` completed all seven jobs
+in CI `37148483127`, with matching head/merge trees and the full test scopes
+recorded in the account-router artifact. That single candidate run does not
+relabel the earlier cancellation or prove repeatable timing.
 The final complete `scripts/check.sh` passed after this workflow change, again
 executing all four native FUSE/HTTPS, 55 writable and 39 installer cases.
 Executable source, including the corrected workflow, was unchanged throughout
-that check; the shared-runner completion hypothesis remains open.
+that check. The subsequent remote run completed; timing repeatability remains
+open and its evidence excludes the later staging correction below.
+
+### Shared native write staging survives cancelled waiters
+
+The [native WRITE staging record](benchmarks/icloud-native-write-staging-budget-2026-10-03.json)
+addresses an additional resource boundary beyond the read-artifact cache and journal
+quota. Two transfer pumps bounded active futures, but an aborted waiter could leave
+an unreserved upload copy or verification archive in a running blocking task.
+Actual unbounded host growth was not measured.
+
+One four-file budget belongs to the account's `Engine` and is retained by its
+`WriteContext`. Fresh and restored package adapters, native removal adapters,
+replacement-admission Original verification and every native handoff session
+share it. Explicit restore adapters share their source pool and accept the runtime
+budget through their builder. Each anonymous upload or Original/Current/Trash
+verification file has a 64 MiB limit; positioned I/O uses at most 64 KiB per chunk.
+The file, HTTP body and detached blocking owners retain the same reservation.
+Package allocation holds a reservation before dispatch; full admission refuses
+without waiting or deleting retained journal bytes.
+
+Seven local omission controls separately remove file-owner retention, package
+factory or handoff-session binding, allocation admission, native removal factory
+binding, restore-source binding and replacement-admission binding. Each fails its
+corresponding regression; exact source restoration is recorded in the artifact.
+Additional TLS pressure arms cover native removal Original/Trash proof and restore
+preflight/current proof, including one-slot recovery without replay. The normal
+account-router fixture exercises exhausted fresh/restore/removal/admission
+verification and subsequent lost-registration recovery without repeated mutations.
+These fixtures do not establish live Apple quota behavior, native application
+fidelity, installed acceptance or a global account/host storage ceiling. Reader
+cache, journal, local source capture, filesystem overhead and independently opened
+Engines remain separate. All six full-iCloud release criteria remain open.
+
+The previous published source `b5136fd` subsequently passed all seven jobs in
+CI run `37148483127`, including four native FUSE/HTTPS, 55 writable kernel,
+39 installer and 22 supported-floor window tests. Its tested merge tree equals
+the branch tree. That run does not cover this newer staging correction.
+
+The complete `scripts/check.sh` passed on the final corrected source, including
+247 default iCloud tests, 362 `write-probe` iCloud tests, all four native
+FUSE/HTTPS scenarios, 55 writable kernel cases and 39 installer tests. Executable
+source was unchanged throughout. Its first attempt exposed a feature-only owned
+import caller still supplying a raw upload file; that caller now uses the same
+guarded transport. All direct probe fixtures explicitly declare private staging;
+the corrected 18-test owned-import group passes and the full command was rerun
+from the beginning. Initial authoring failures remain in the evidence artifact.
+Desktop display scenarios were not repeated locally; this source's remote CI is
+pending. No full-iCloud release criterion is closed.

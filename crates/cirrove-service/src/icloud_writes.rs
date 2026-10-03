@@ -37,6 +37,7 @@ pub struct ICloudWriteProvider {
     metadata: PathBuf,
     journal: Arc<Mutex<UploadJournal>>,
     folder_vault: Arc<dyn CredentialVault>,
+    package_staging_budget: cirrove_icloud::ICloudWriteStagingBudget,
     #[cfg(test)]
     folder_create_test_adapter: Option<Arc<dyn MutationProvider>>,
     #[cfg(test)]
@@ -92,6 +93,9 @@ impl ICloudWriteProvider {
             state: context.state().to_owned(),
             metadata: context.metadata_db().to_owned(),
             journal: context.journal(),
+            package_staging_budget: context
+                .icloud_staging_budget()
+                .ok_or_else(|| anyhow::anyhow!("missing iCloud staging budget"))?,
             folder_vault: Arc::new(SealedFolderCheckpointVault::new(
                 context.state(),
                 &account.id,
@@ -577,6 +581,7 @@ mod tests {
             metadata,
             journal: Arc::new(Mutex::new(journal)),
             folder_vault: Arc::new(folders::tests::MemoryVault::default()),
+            package_staging_budget: cirrove_icloud::ICloudWriteStagingBudget::default(),
         };
         (temp, provider)
     }

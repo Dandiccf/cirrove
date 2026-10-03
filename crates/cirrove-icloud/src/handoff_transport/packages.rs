@@ -4,13 +4,9 @@
 //! if the outcome is uncertain. Ordinary HandoffComplete receipts remain closed.
 use super::*;
 use crate::package_trash::OwnedPackageTrashRequest;
+use crate::write_staging::WriteStagingFile;
 use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, reads::ReadWindowSink};
-use std::{
-    fs::File,
-    os::unix::fs::{MetadataExt, PermissionsExt},
-    path::Path,
-};
-use tokio::io::AsyncWriteExt;
+use std::{path::Path, sync::Arc};
 const ARCHIVE_LIMIT: u64 = 64 * 1024 * 1024;
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -52,36 +48,31 @@ fn proof<'a>(session: &ICloudReadSession, plan: &'a HandoffPlan) -> Result<&'a N
     }
     Ok(proof)
 }
-fn staging(directory: &Path) -> Result<File> {
-    let uid = std::fs::metadata("/proc/self")?.uid();
-    let meta = std::fs::symlink_metadata(directory)
-        .map_err(|_| anyhow!("native handoff staging unavailable"))?;
-    if !directory.is_absolute()
-        || !meta.is_dir()
-        || meta.file_type().is_symlink()
-        || meta.mode() & 0o077 != 0
-        || meta.uid() != uid
-    {
-        bail!("native handoff requires private owned staging");
-    }
-    let file = tempfile::tempfile_in(directory)
-        .map_err(|_| anyhow!("native handoff staging unavailable"))?;
-    file.set_permissions(std::fs::Permissions::from_mode(0o600))
-        .map_err(|_| anyhow!("native handoff staging unavailable"))?;
-    let meta = file.metadata()?;
-    if !meta.is_file() || meta.nlink() != 0 || meta.len() != 0 || meta.uid() != uid {
-        bail!("native handoff requires anonymous staging");
-    }
-    Ok(file)
+async fn staging(session: &ICloudReadSession, directory: &Path) -> Result<Arc<WriteStagingFile>> {
+    session
+        .write_staging_budget
+        .create(directory)
+        .await
+        .map_err(|_| anyhow!("native handoff staging unavailable"))
 }
-struct Sink(tokio::fs::File);
+struct Sink {
+    file: Arc<WriteStagingFile>,
+    offset: u64,
+}
 #[async_trait::async_trait]
 impl ReadWindowSink for Sink {
     async fn write_chunk(&mut self, bytes: &[u8]) -> std::result::Result<(), ProviderError> {
-        self.0
-            .write_all(bytes)
+        if bytes.len() > 64 * 1024 {
+            return Err(ProviderError::Protocol(
+                "native handoff chunk exceeds bound",
+            ));
+        }
+        self.file
+            .write_at(self.offset, bytes.to_vec())
             .await
-            .map_err(|_| ProviderError::Protocol("native handoff staging unavailable"))
+            .map_err(|_| ProviderError::Protocol("native handoff staging unavailable"))?;
+        self.offset += bytes.len() as u64;
+        Ok(())
     }
 }
 fn active(entry: &DriveEntry, plan: &HandoffPlan, original: bool, complete: bool) -> bool {
@@ -160,7 +151,7 @@ impl ICloudReadSession {
         directory: &Path,
         cancel: &CancellationToken,
     ) -> Result<()> {
-        drop(staging(directory)?);
+        drop(staging(self, directory).await?);
         let folder = self.active_folder_metadata(&parent.id).await?;
         if folder.drivewsid != parent.id
             || folder.kind != "FOLDER"
@@ -207,15 +198,14 @@ impl ICloudReadSession {
         {
             return Err(StaleRead.into());
         }
-        let file = staging(directory)?;
-        let mut sink = Sink(tokio::fs::File::from_std(file.try_clone()?));
+        let file = staging(self, directory).await?;
+        let mut sink = Sink {
+            file: file.clone(),
+            offset: 0,
+        };
         let archive = self
             .download_package(&entry.parent_id, entry, ARCHIVE_LIMIT, &mut sink, cancel)
             .await?;
-        sink.0
-            .flush()
-            .await
-            .map_err(|_| anyhow!("native handoff staging unavailable"))?;
         drop(sink);
         let after = self.item_details(&entry.drivewsid).await?;
         let observed: DriveEntry = serde_json::from_value(after.clone())
@@ -228,7 +218,7 @@ impl ICloudReadSession {
         let expected = expected.clone();
         tokio::task::spawn_blocking(move || {
             let actual = crate::package_archive_semantic_identity_versioned(
-                &file,
+                file.borrowed_file(),
                 &archive,
                 &root,
                 expected.version,
@@ -253,7 +243,7 @@ impl ICloudReadSession {
     ) -> Result<(HandoffObserved, Option<(Node, Node)>)> {
         let p = proof(self, plan)?.clone();
         // Validate disk destination before any provider request.
-        drop(staging(directory)?);
+        drop(staging(self, directory).await?);
         let Some(items) = self.handoff_items(plan).await? else {
             return Ok((HandoffObserved::Diverged, None));
         };
@@ -304,7 +294,7 @@ impl ICloudReadSession {
         self.verify_package_in_trash_for_account_hash(
             request(),
             &p.account_hash,
-            staging(directory)?,
+            staging(self, directory).await?,
             cancel,
         )
         .await?;

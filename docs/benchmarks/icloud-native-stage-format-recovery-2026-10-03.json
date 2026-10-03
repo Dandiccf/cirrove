@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "unchanged-source-red-corrected-green-full-contributor-check-passed-source-CI-tests-passed-overall-cancelled-at-doc-job-timeout",
+  "status": "format-correction-full-check-and-subsequent-b513-source-CI-passed-original-0e-timeout-retained",
   "registered_at": "2026-10-03T18:30:47.748113+00:00",
   "source_head": "378a96d5ab1dc9c4e40abdd384019c1312f31a59",
   "question": "Can explicit observation-only native Stage abandonment accept the already allocated exact Numbers/Keynote staging names while preserving original content, operation identity and refusal of foreign stage names?",
@@ -496,5 +496,18 @@
       ]
     },
     "claim_limit": "Prior checks executed successfully; Linux overall cancelled at final documentation, six other jobs successful. Not seven green; excludes new account-router fixture and job-budget correction."
+  },
+  "subsequent_remote_ci": {
+    "run": 37148483127,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37148483127",
+    "requested_head": "b5136fd3dcde3ec3e86f088b8b13796266c0e87c",
+    "actual_pull_request_merge_checkout": "07f58b45f3b1ca7e4601d4e9de4e5ac94c71a8b0",
+    "status": "completed",
+    "conclusion": "success",
+    "linux_elapsed_seconds": 1776.0,
+    "scope": "Exact b5136fd source only. Later native WRITE staging correction, installed transitions, live Apple/application fidelity and repeatability remain unproven.",
+    "public_scope_evidence": "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json",
+    "seven_jobs_success": true,
+    "original_0e_run_remains_cancelled": true
   }
 }

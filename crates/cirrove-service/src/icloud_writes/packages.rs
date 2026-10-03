@@ -87,6 +87,7 @@ impl ICloudWriteProvider {
                     &staging,
                 )?
             };
+            let adapter = adapter.with_write_staging_budget(self.package_staging_budget.clone())?;
             #[cfg(test)]
             let adapter = if let Some(client) = &self.package_test_transport {
                 adapter.with_synthetic_native_transport(client.clone())?
@@ -107,21 +108,25 @@ impl ICloudWriteProvider {
                     operation,
                     request,
                     checkpoint,
-                )?,
+                )?
+                .with_write_staging_budget(self.package_staging_budget.clone()),
             ));
         }
         let UploadIntent::Create { parent, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
         let parent = self.parent(parent).await?;
-        Ok(Arc::new(ICloudPackageCreate::from_sealed_session(
-            self.scope.clone(),
-            self.apple_id.clone(),
-            self.credential_id.clone(),
-            &self.state,
-            parent,
-            &staging,
-        )?))
+        Ok(Arc::new(
+            ICloudPackageCreate::from_sealed_session(
+                self.scope.clone(),
+                self.apple_id.clone(),
+                self.credential_id.clone(),
+                &self.state,
+                parent,
+                &staging,
+            )?
+            .with_write_staging_budget(self.package_staging_budget.clone()),
+        ))
     }
 }
 #[cfg(test)]

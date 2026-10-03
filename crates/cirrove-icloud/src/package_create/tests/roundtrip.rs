@@ -230,6 +230,7 @@ async fn arm(
             scope: provider.scope.clone(),
             parent: provider.parent.clone(),
             staging: provider.staging.clone(),
+            staging_budget: provider.staging_budget.clone(),
             body_dispatch_probe: None,
             session: Mutex::new(Session::Ready(Box::new(restored_session))),
         };
@@ -320,6 +321,66 @@ async fn arm(
             .filter(|(_, path)| path == "/signed-download")
             .count(),
         if cfg!(feature = "write-probe") { 2 } else { 1 }
+    );
+}
+
+#[tokio::test]
+async fn exhausted_staging_budget_refuses_package_allocation_before_any_http() {
+    let (dir, provider, mut request, mut saved) = fixture();
+    let source = archive("Source.pages", false, false);
+    request.size = source.len() as u64;
+    request.sha256 = hex::encode(Sha256::digest(&source));
+    saved.request = request.clone();
+    let checkpoint = ICloudPackageCreate::encode(&saved).unwrap();
+    let server = Server::start(source, archive("Target.pages", false, false), false).await;
+    {
+        let mut state = provider.session.lock().await;
+        let Session::Ready(session) = &mut *state else {
+            panic!("ready")
+        };
+        session.http = server.client.clone();
+        session.drive_endpoint = Some(format!("{ORIGIN}/").parse().unwrap());
+        session.docs_endpoint = session.drive_endpoint.clone();
+    }
+    let mut held = Vec::new();
+    for _ in 0..4 {
+        held.push(provider.staging_budget.create(dir.path()).await.unwrap());
+    }
+    assert!(
+        matches!(
+            provider
+                .allocate_upload_for_operation(
+                    &saved.operation,
+                    &request,
+                    &checkpoint,
+                    &CancellationToken::new()
+                )
+                .await,
+            Err(UploadError::Uncertain)
+        ),
+        "allocation must refuse exhausted staging before provider dispatch"
+    );
+    assert!(server.state.lock().unwrap().calls.is_empty());
+    drop(held);
+    assert!(matches!(
+        provider
+            .allocate_upload_for_operation(
+                &saved.operation,
+                &request,
+                &checkpoint,
+                &CancellationToken::new()
+            )
+            .await
+            .unwrap(),
+        UploadStep::Stream(_)
+    ));
+    let calls = server.finish().await;
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|(_, path)| path.starts_with("/ws/com.apple.CloudDocs/upload/web"))
+            .count(),
+        1
     );
 }
 #[tokio::test]

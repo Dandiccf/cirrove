@@ -3,6 +3,25 @@ use super::*;
 use crate::native_import::NativeReplaceInput;
 use cirrove_core::upload::PackageSemanticIdentity;
 impl Manager {
+    pub(crate) fn native_original_capture_adapter(
+        engine: &Engine,
+        node: cirrove_core::Node,
+        staging: PathBuf,
+    ) -> Result<cirrove_icloud::ICloudNativeTrash> {
+        Ok(cirrove_icloud::ICloudNativeTrash::from_sealed_session(
+            engine.scope(&engine.account.drive.id),
+            engine.account.identity.username.clone(),
+            engine.account.credential_id.clone(),
+            &state_root(engine)?,
+            node,
+            staging,
+        )?
+        .with_write_staging_budget(
+            engine
+                .icloud_write_staging_budget()
+                .context("native original staging budget unavailable")?,
+        ))
+    }
     pub async fn enqueue_native_replacement(
         self: &Arc<Self>,
         engine: Arc<Engine>,
@@ -44,14 +63,7 @@ impl Manager {
             input,
             cancel,
             move |node, stage, token| async move {
-                let adapter = cirrove_icloud::ICloudNativeTrash::from_sealed_session(
-                    capture_engine.scope(&capture_engine.account.drive.id),
-                    capture_engine.account.identity.username.clone(),
-                    capture_engine.account.credential_id.clone(),
-                    &state_root(&capture_engine)?,
-                    node,
-                    stage,
-                )?;
+                let adapter = Self::native_original_capture_adapter(&capture_engine, node, stage)?;
                 Ok(adapter.capture_active_semantic(&token).await?)
             },
         )

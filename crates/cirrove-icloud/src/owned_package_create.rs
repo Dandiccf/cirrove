@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{File, OpenOptions},
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom},
     os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::Arc,
@@ -246,15 +246,18 @@ impl OwnedPackageCreate {
         // Copy into a private anonymous descriptor: callers cannot replace bytes
         // between hashing and HTTP streaming by changing the supplied pathname.
         let token = cancel.clone();
-        let staging = self.staging.clone();
-        let file = tokio::task::spawn_blocking(move || -> Result<File> {
+        let private = self
+            .session
+            .write_staging_budget
+            .create(&self.staging)
+            .await?;
+        let file = tokio::task::spawn_blocking(move || -> Result<_> {
             let mut source = source;
             ensure!(
                 source.metadata()?.is_file() && source.metadata()?.len() == size,
                 "package source size changed"
             );
             source.seek(SeekFrom::Start(0))?;
-            let mut private = tempfile::tempfile_in(staging)?;
             let mut hash = Sha256::new();
             let mut count = 0u64;
             let mut buffer = [0; 64 * 1024];
@@ -264,12 +267,13 @@ impl OwnedPackageCreate {
                 if n == 0 {
                     break;
                 }
+                let offset = count;
                 count = count
                     .checked_add(n as u64)
                     .context("package size overflow")?;
                 ensure!(count <= size, "package source grew");
                 hash.update(&buffer[..n]);
-                private.write_all(&buffer[..n])?;
+                private.write_chunk_at(offset, &buffer[..n])?;
             }
             ensure!(
                 count == size && hex::encode(hash.finalize()) == expected,
@@ -281,8 +285,13 @@ impl OwnedPackageCreate {
             };
             // Enforce the archive contract here too: callers cannot bypass ZIP
             // safety/expansion validation by supplying a correct hash of junk.
-            crate::compare_package_archives(&private, &receipt, &private, &receipt, &token)?;
-            private.seek(SeekFrom::Start(0))?;
+            crate::compare_package_archives(
+                private.borrowed_file(),
+                &receipt,
+                private.borrowed_file(),
+                &receipt,
+                &token,
+            )?;
             Ok(private)
         })
         .await

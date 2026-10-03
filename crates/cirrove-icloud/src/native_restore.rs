@@ -3,6 +3,7 @@
 //! Callers must also bind a durable Applied Trash receipt before admission.
 use crate::native_trash::Session;
 use crate::sealed_session::SealedNativeRestoreCheckpointVault;
+use crate::write_staging::WriteStagingFile;
 use crate::{ICloudNativeTrash, ICloudReadSession, PackageSemanticIdentity};
 use cirrove_auth::CredentialVault;
 use cirrove_core::mutation::{MutationError, MutationReceipt, MutationReconciliation, Result};
@@ -119,6 +120,7 @@ pub struct ICloudNativeRestore {
     request: NativeRestoreRequest,
     apple_id: String,
     source: ICloudNativeTrash,
+    staging_budget: crate::ICloudWriteStagingBudget,
     session: Mutex<Session>,
     checkpoint: Arc<dyn CredentialVault>,
     operation_lock: Mutex<()>,
@@ -144,10 +146,12 @@ impl ICloudNativeRestore {
             .map_err(|_| MutationError::Invalid)?;
         let checkpoint = SealedNativeRestoreCheckpointVault::new(state, &request.scope.account)
             .map_err(|_| MutationError::Invalid)?;
+        let staging_budget = source.staging_budget.clone();
         Ok(Self {
             request,
             apple_id: apple_id.clone(),
             source,
+            staging_budget,
             session: Mutex::new(Session::Vault {
                 apple_id,
                 credential_id,
@@ -156,6 +160,12 @@ impl ICloudNativeRestore {
             checkpoint: Arc::new(checkpoint),
             operation_lock: Mutex::new(()),
         })
+    }
+    /// Source removal and restore verification retain the same account pool.
+    pub fn with_write_staging_budget(mut self, budget: crate::ICloudWriteStagingBudget) -> Self {
+        self.source = self.source.with_write_staging_budget(budget.clone());
+        self.staging_budget = budget;
+        self
     }
     fn key(&self, id: Uuid) -> String {
         SealedNativeRestoreCheckpointVault::key(&self.request.scope.account, id)
@@ -217,6 +227,7 @@ impl ICloudNativeRestore {
         {
             return Err(MutationError::Invalid);
         }
+        session.write_staging_budget = self.staging_budget.clone();
         Ok(session)
     }
     /// Local persistence and read-only verification only; never sends restore.
@@ -357,6 +368,9 @@ impl ICloudNativeRestore {
         semantic: &PackageSemanticIdentity,
         cancel: &CancellationToken,
     ) -> Result<(String, String)> {
+        let staging = self.source.staging().await?;
+        let expected_account =
+            crate::account_hash(&self.apple_id).map_err(crate::mutation_error)?;
         let item = session
             .item_details(&self.request.before.id)
             .await
@@ -371,9 +385,10 @@ impl ICloudNativeRestore {
             .map_err(crate::mutation_error)?;
         let inventory = self.parent_inventory(session, None).await?;
         let proof = session
-            .verify_owned_package_in_trash(
+            .verify_package_in_trash_for_account_hash(
                 self.trash_request(semantic)?,
-                self.source.staging()?,
+                &expected_account,
+                staging,
                 cancel,
             )
             .await
@@ -399,6 +414,7 @@ impl ICloudNativeRestore {
         saved: &Checkpoint,
         cancel: &CancellationToken,
     ) -> Result<Node> {
+        let file = self.source.staging().await?;
         let item = session
             .item_details(&self.request.before.id)
             .await
@@ -427,10 +443,10 @@ impl ICloudNativeRestore {
         if self.parent_inventory(session, Some(&before)).await? != saved.inventory_sha256 {
             return Err(MutationError::Conflict);
         }
-        let file = self.source.staging()?;
-        let mut sink = Sink(tokio::fs::File::from_std(
-            file.try_clone().map_err(|_| MutationError::Uncertain)?,
-        ));
+        let mut sink = Sink {
+            file: file.clone(),
+            offset: 0,
+        };
         let receipt = session
             .download_package(
                 self.parent_id()?,
@@ -441,16 +457,17 @@ impl ICloudNativeRestore {
             )
             .await
             .map_err(crate::mutation_error)?;
-        tokio::io::AsyncWriteExt::flush(&mut sink.0)
-            .await
-            .map_err(|_| MutationError::Uncertain)?;
         drop(sink);
         let version = saved.semantic.version;
         let root = before.display_name();
         let token = cancel.clone();
         let semantic = tokio::task::spawn_blocking(move || {
             crate::package_archive_semantic_identity_versioned(
-                &file, &receipt, &root, version, &token,
+                file.borrowed_file(),
+                &receipt,
+                &root,
+                version,
+                &token,
             )
         })
         .await
@@ -504,18 +521,21 @@ fn identity_fields(entry: &crate::DriveEntry) -> String {
     ])
     .to_string()
 }
-struct Sink(tokio::fs::File);
+struct Sink {
+    file: Arc<WriteStagingFile>,
+    offset: u64,
+}
 #[async_trait::async_trait]
 impl cirrove_core::reads::ReadWindowSink for Sink {
     async fn write_chunk(
         &mut self,
         bytes: &[u8],
     ) -> std::result::Result<(), cirrove_core::ProviderError> {
-        tokio::io::AsyncWriteExt::write_all(&mut self.0, bytes)
-            .await
-            .map_err(|_| {
-                cirrove_core::ProviderError::Protocol("native restore staging unavailable")
-            })
+        for chunk in bytes.chunks(64 * 1024) {
+            self.file.write_at(self.offset, chunk.to_vec()).await?;
+            self.offset += chunk.len() as u64;
+        }
+        Ok(())
     }
 }
 #[cfg(test)]

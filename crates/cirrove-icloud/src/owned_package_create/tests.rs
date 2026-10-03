@@ -2,6 +2,7 @@
 use super::*;
 use anyhow::bail;
 use serde_json::json;
+use std::io::Write;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -178,7 +179,10 @@ fn package_create_plan_refuses_unowned_native_sources_and_cross_scope() {
 }
 #[tokio::test]
 async fn package_create_reused_operation_marker_refuses_before_keyring_or_network() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     File::create(
         dir.path()
@@ -226,7 +230,10 @@ impl CredentialVault for MemoryVault {
 }
 #[tokio::test]
 async fn package_create_durable_phase_precedes_lost_http_and_is_not_replayable() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let vault = Arc::new(MemoryVault::default());
     let (session, request) = server(None).await;
     let mut saved = checkpoint();
@@ -269,7 +276,10 @@ async fn package_create_durable_phase_precedes_lost_http_and_is_not_replayable()
 }
 #[tokio::test]
 async fn package_create_failed_checkpoint_save_cannot_leave_executable_prepared_owner() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let vault = Arc::new(MemoryVault {
         fail: true,
         ..Default::default()
@@ -412,7 +422,11 @@ async fn preflight_server(
 #[tokio::test]
 async fn package_create_cancellation_during_started_vault_save_sends_no_mutation() {
     tokio::time::timeout(std::time::Duration::from_secs(5), async {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()
+            .unwrap();
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
         let bytes = valid_zip();
         let mut saved = checkpoint();
         saved.phase = Phase::Prepared;
@@ -455,7 +469,10 @@ async fn package_create_each_started_phase_rechecks_cancel_after_persistence() {
         Phase::BodyStarted,
         Phase::RegistrationStarted,
     ] {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()
+            .unwrap();
         let vault = Arc::new(PausedVault::default());
         let mut owner = OwnedPackageCreate {
             session: ICloudReadSession::new().unwrap(),
@@ -491,7 +508,10 @@ fn package_create_duplicate_exact_document_readback_is_refused() {
 }
 #[tokio::test]
 async fn package_create_invalid_zip_is_refused_before_metadata_or_allocation() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()
+        .unwrap();
     let mut saved = checkpoint();
     saved.phase = Phase::Prepared;
     saved.slot = None;
@@ -625,7 +645,7 @@ async fn package_create_malformed_allocation_shape_and_count_remain_refused() {
 #[tokio::test]
 async fn package_create_refused_allocation_retains_started_without_body_or_registration() {
     tokio::time::timeout(std::time::Duration::from_secs(5),async {
-        let dir=tempfile::tempdir().unwrap();let bytes=valid_zip();let mut saved=checkpoint();saved.phase=Phase::Prepared;saved.slot=None;saved.registration=None;saved.plan.archive_size=bytes.len() as u64;saved.plan.archive_sha256=hex::encode(Sha256::digest(&bytes));
+        let dir=tempfile::Builder::new().permissions(std::fs::Permissions::from_mode(0o700)).tempdir().unwrap();let bytes=valid_zip();let mut saved=checkpoint();saved.phase=Phase::Prepared;saved.slot=None;saved.registration=None;saved.plan.archive_size=bytes.len() as u64;saved.plan.archive_sha256=hex::encode(Sha256::digest(&bytes));
         let (session,stop,server)=preflight_server(&saved.plan,Some(json!([{"url":"https://fixture.icloud-content.com/PRIVATE","document_id":"","owner_id":"","owner":"allowed-owner-metadata"}]))).await;
         let vault=Arc::new(MemoryVault::default());let owner=OwnedPackageCreate {session,saved,vault:vault.clone(),staging:dir.path().into(),_marker:tempfile::tempfile_in(dir.path()).unwrap()};
         let mut source=tempfile::tempfile_in(dir.path()).unwrap();source.write_all(&bytes).unwrap();
