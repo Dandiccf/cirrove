@@ -82,5 +82,17 @@
     }
   },
   "source_clean": true,
-  "independent_local_preparation_review": "Exactone account, credential binding unchanged, A/B hashes and private modes, ext4temp, no existingjournal/socket/mount; observer schema supports this newUUID."
+  "independent_local_preparation_review": "Exactone account, credential binding unchanged, A/B hashes and private modes, ext4temp, no existingjournal/socket/mount; observer schema supports this newUUID.",
+  "controller_preparation": {
+    "reviewed_at": "2026-10-03T13:02:16.200555+00:00",
+    "reviewer": "/root/regression_review",
+    "controller_sha256": "c1a0569dc36945ac6059b03f06bf4e58cc4f1727287ef832335d5c497b8c8594",
+    "blocking_findings": [],
+    "limits": [
+      "Root-supervised overall1800s deadline and exact recorded-process stop required; not autonomous teardown.",
+      "ImportCLI remains label-only, fenced by frozenoneaccount settings and exactstatus/typedinventory.",
+      "No new authorization or authenticatedphase executed."
+    ],
+    "cloud_phases_executed": []
+  }
 }

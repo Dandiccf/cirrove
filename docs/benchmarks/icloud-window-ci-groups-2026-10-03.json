@@ -1,6 +1,6 @@
 {
   "registered_at": "2026-10-03T10:43:48.653943+00:00",
-  "status": "controlled-local-and-remote-CI-validation-complete-live-acceptance-open",
+  "status": "controlled-validation-complete-subsequent-shared-folder-race-and-live-acceptance-open",
   "question": "Can all 21 custom GTK window scenarios remain covered with unchanged 30-second limits by splitting the expensive read-only receipt scenario from the remaining20?",
   "prior_CI": {
     "run": 37103660055,
@@ -571,5 +571,21 @@
       ]
     }
   },
-  "remote_ci_limits": "One completed shared-runner CI run proves the selected checks passed on this source. It does not establish repeated timing reliability, Apple application fidelity, installed compatibility or completion of full-iCloud acceptance."
+  "remote_ci_limits": "One completed shared-runner CI run proves the selected checks passed on this source. It does not establish repeated timing reliability, Apple application fidelity, installed compatibility or completion of full-iCloud acceptance.",
+  "subsequent_ci_observation": {
+    "observed_at": "2026-10-03T13:13:56.867812+00:00",
+    "run": 37123619790,
+    "source_head": "f9a4ee939d0e0553710464d6a6729e184e41b50b",
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37123619790",
+    "change_since_green658d8d6": "Documentation and preregistration only; production/test source unchanged.",
+    "failed_job": "linux",
+    "failed_step": "Automatic writable-session uploads and draining",
+    "result": "54 passed,1 failed,1 filtered,109.34s",
+    "failed_test": "real_a_directory_created_and_removed_again_is_gone_from_the_provider",
+    "failure_site": "writable_session.rs3191 applied helper rejects Failed/Conflict/NeedsReview state; final provider absence assertion not reached.",
+    "log_sha256": "594fab9a2f565b0d56ab18ae6051cf842f3ce05401d7abe6f3e58fa0725b0752",
+    "status": "investigating-stale-local-folder-view-after-settled-handoff-race",
+    "not_an_observation_timeout": true,
+    "not_caused_by_new_uncertain_chain_test": "This new fixture was not in f9a4ee9."
+  }
 }

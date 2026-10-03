@@ -1375,3 +1375,37 @@ The module audit also rejects an unrelated ignored canary that the earlier
 empty-suffix comparison incorrectly counted as covered. Final command, source
 hashes and results are retained in the three registered artifacts above.
 No full-iCloud gate closed and the installed daemon remains unchanged.
+
+### Unconfirmed predecessor with a newer save and unfinished local edit
+
+The [registered coupled recovery trial](benchmarks/icloud-native-uncertain-chain-2026-10-03.json)
+promotes native A and B through actual FUSE, then leaves an incomplete C edit
+dirty after its rejected fsync. The synthetic HTTPS server processes A's Trash
+request but holds its response; cancelling the worker retains an encrypted
+`move_old` checkpoint and no confirmed replacement receipt. B remains unclaimed
+and unchanged, with zero requests to its server.
+
+After unmount and journal/vault reopen, the read-only recovery owner exports exact
+sealed A/B bytes and C's unfinished bytes without changing recovery inventories.
+An explicit A continuation inspects the completed Trash step and finishes without
+another allocation, upload, registration or Trash request. B then uses A's exact
+confirmed identity, revision and v2 semantic proof. Both acknowledgements,
+publication and a final remount preserve C's working identity, generation and
+dirty bytes; an idle worker does not replay either completed operation.
+
+The scoped test passed. Omitting only the existing predecessor semantic assignment
+made it fail before B's HTTPS request; the production source was restored byte for
+byte and all three FUSE-to-HTTPS tests passed together. This demonstrates coverage
+sensitivity, not a newly discovered product defect. Metadata and package content
+remain synthetic, and standalone adapters use the internal resolver seam. The
+trial does not establish Apple application fidelity, default account routing,
+live-provider reliability or installed acceptance; all six release gates stay open.
+
+A subsequent documentation-only CI publication
+[exposed a folder create/remove race](https://github.com/Dandiccf/cirrove/actions/runs/37123619790):
+the writable group passed 54 cases and failed the created-then-removed directory
+case at its no-failed-mutations check. The provider-absence assertion was not
+reached. This predates the new coupled fixture and is under investigation; the
+prior green run is retained as one observation, not proof of repeatable success.
+The complete local `scripts/check.sh` passed with the new fixture, all three
+native FUSE-to-HTTPS cases and all 55 writable scenarios.
