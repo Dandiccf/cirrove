@@ -1687,3 +1687,27 @@ the corrected 18-test owned-import group passes and the full command was rerun
 from the beginning. Initial authoring failures remain in the evidence artifact.
 Desktop display scenarios were not repeated locally; this source's remote CI is
 pending. No full-iCloud release criterion is closed.
+
+The pending [fresh Numbers confirmation](benchmarks/icloud-numbers-confirmation-2026-10-03.json)
+is now prepared from validated source `04dc9e1`, replacing its earlier `658d8d6`
+binary pins before any cloud phase. Three binaries were built in a clean detached
+checkout with a separate Cargo target. Its import now explicitly binds the frozen
+account UUID as well as its label; the finite controller scope and no-replay
+guards are unchanged. Independent review and versioned local-only records pass,
+and the initial controller refuses the refreshed plan hash. The owned A/B
+archives, account/settings/session hashes and fresh target remain unchanged.
+Authorization remains absent: no daemon, provider request, mutation or Apple
+Numbers confirmation was performed. This preparation closes no release gate.
+The complete `scripts/check.sh` passed again before publishing this refreshed
+preparation, including 247 default/362 feature iCloud tests, four native
+FUSE/HTTPS, 55 writable and 39 installer cases. Production code remained exact
+`04dc9e1`; only the preparation/integration documentation changed.
+
+The staging correction's exact commit `04dc9e1` subsequently passed all seven
+jobs in [CI37153730851](https://github.com/Dandiccf/cirrove/actions/runs/37153730851).
+Its actual PR merge tree equals the branch tree. The same staging artifact now
+records 247 default/362 feature iCloud tests, 13 staging controls in both builds,
+four native FUSE/HTTPS, 55 writable, 39 installer, 22 supported-floor windows and
+one chooser case. This source validation includes the staging correction but
+excludes later documentation changes; it supplies no live Apple, installed or
+timing-repeatability acceptance. All six full-iCloud release criteria stay open.

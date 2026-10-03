@@ -3,7 +3,7 @@
   "date": "2026-10-03",
   "registered_at": "2026-10-03T19:57:13.792486+00:00",
   "source_head": "b5136fd3dcde3ec3e86f088b8b13796266c0e87c",
-  "status": "corrected-final-complete-contributor-check-passed-remote-source-ci-pending",
+  "status": "corrected-source04dc9e1-passed-complete-local-and-all-seven-remote-jobs",
   "question": "Do immutable native upload copies and original/current/Trash verification files retain one shared runtime account staging reservation through cancelled waiters, HTTP body reads and semantic blocking tasks, including fresh/restored account adapters?",
   "prediction": "Four 64MiB-capacity anonymous file reservations exhaust the shared budget; a fifth is refused before creation. Cancelling a blocking waiter does not release its reservation until the actual file owner exits. Fresh/restored native adapters and rebuilt routers from one WriteContext share the same pool. Positional chunks above 64KiB or writes beyond64MiB are rejected before disk growth. Omitting owner-bound reservation or shared router binding makes the corresponding assertions fail.",
   "arms": [
@@ -1867,5 +1867,268 @@
     },
     "desktop_display_scenarios": "Not repeated locally for this non-UI correction. Prior b5136fd CI windows do not validate this later source.",
     "release_scope": "No live Apple, application fidelity or installed acceptance; all six full-iCloud gates remain open."
+  },
+  "remote_ci": {
+    "recorded_at": "2026-10-03T21:33:00.489436+00:00",
+    "run": 37153730851,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37153730851",
+    "requested_head": "04dc9e129c9e50649eb95bb88e72fd506c7cfe45",
+    "actual_pull_request_merge_checkout": "0eb0747b0b1f31159bb0cc0964d65a393909eb02",
+    "head_merge_exact_tree_equality": {
+      "tree": "94f2698e4ccf839bb8c31af7bbd47c669aa777ef",
+      "head": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-04dc9e1-agent/20261003T213136223514Z-git-commit-04dc9e129c9e50649eb95bb88e72fd506c7cfe45.json",
+        "sha256": "feb0a2fbd577e5ac329c926c180208aba052e021b6883ba70d81b70a7432c54b",
+        "parents": [
+          "b5136fd3dcde3ec3e86f088b8b13796266c0e87c"
+        ]
+      },
+      "merge": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-04dc9e1-agent/20261003T213136223514Z-git-commit-0eb0747b0b1f31159bb0cc0964d65a393909eb02.json",
+        "sha256": "80db5418c8de26bdbd777e933f0949325e37024f055e79550aa971bc8cf05d22",
+        "parents": [
+          "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+          "04dc9e129c9e50649eb95bb88e72fd506c7cfe45"
+        ]
+      }
+    },
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 111292702222,
+        "name": "mounted-read-workloads",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T21:03:09Z",
+        "completed_at": "2026-10-03T21:15:06Z"
+      },
+      {
+        "id": 111292702348,
+        "name": "deb-package",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T21:03:09Z",
+        "completed_at": "2026-10-03T21:14:42Z"
+      },
+      {
+        "id": 111292702370,
+        "name": "dependency-audit",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T21:03:09Z",
+        "completed_at": "2026-10-03T21:06:14Z"
+      },
+      {
+        "id": 111292702418,
+        "name": "rpm-package",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T21:03:09Z",
+        "completed_at": "2026-10-03T21:15:27Z"
+      },
+      {
+        "id": 111292702420,
+        "name": "arch-package",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T21:03:10Z",
+        "completed_at": "2026-10-03T21:21:13Z"
+      },
+      {
+        "id": 111292702558,
+        "name": "linux",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T21:03:09Z",
+        "completed_at": "2026-10-03T21:30:16Z"
+      },
+      {
+        "id": 111294738550,
+        "name": "headless-package-install",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-03T21:14:44Z",
+        "completed_at": "2026-10-03T21:16:30Z"
+      }
+    ],
+    "linux_log": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-04dc9e1-agent/20261003T213050655124Z-linux-job-111292702558.log",
+      "sha256": "7caa52c8fa93c0ea271b539710686f88083642cd1603594d7e545095017a4d02",
+      "bytes": 592327
+    },
+    "terminal_run_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-04dc9e1-agent/20261003T213025317774Z-run.json",
+      "sha256": "8a2d4d4b09cb91faa0a68908291df11ef6ab01edadc5ef00c9f029cefb6bd225"
+    },
+    "terminal_jobs_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-04dc9e1-agent/20261003T213025317774Z-jobs.json",
+      "sha256": "a61dbbca1d148ba7caffc731626bbd70b801a2903a383e846c710aaa761818cc"
+    },
+    "linux_check_annotations": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-04dc9e1-agent/20261003T213136223514Z-linux-check-annotations.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "count": 0
+    },
+    "linux_elapsed_seconds": 1627.0,
+    "ubuntu_package_floor": {
+      "gtk_runtime": "4.14.5+ds-0ubuntu0.10",
+      "libadwaita_runtime": "1.5.0-1ubuntu2",
+      "evidence": [
+        {
+          "line": 988,
+          "text": "2026-10-03T21:03:37.9825154Z Setting up libgtk-4-1:amd64 (4.14.5+ds-0ubuntu0.10) ..."
+        },
+        {
+          "line": 1012,
+          "text": "2026-10-03T21:03:39.1667337Z Setting up libadwaita-1-0:amd64 (1.5.0-1ubuntu2) ..."
+        }
+      ]
+    },
+    "audit": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-04dc9e1-agent/20261003T213300493967Z-completed-scope-audit.json",
+      "sha256": "9a0e3ac9fb41a032a45cd39add9ac182be4c13ce05395377c9c06eaa787f8bb0"
+    },
+    "executed": {
+      "default_icloud": 247,
+      "write_probe_icloud": 362,
+      "native_fuse_https": 4,
+      "writable_kernel": 55,
+      "installer": 39,
+      "desktop_windows": [
+        1,
+        1,
+        20
+      ],
+      "chooser": 1,
+      "staging_controls_unique": 13,
+      "staging_controls_pass_occurrences": 26
+    },
+    "staging_controls": {
+      "unique_test_names": [
+        "native_restore::tests::native_restore_bound_staging_pressure_refuses_active_readback_before_http",
+        "native_restore::tests::native_restore_default_source_and_restore_share_staging_pressure",
+        "native_trash::tests::native_trash_shared_staging_pressure_refuses_capture_before_http",
+        "native_trash::tests::native_trash_shared_staging_pressure_refuses_recovery_without_replay",
+        "native_trash::tests::native_trash_staging_requires_owned_private_directory_without_symlink",
+        "package_create::tests::roundtrip::exhausted_staging_budget_refuses_package_allocation_before_any_http",
+        "provider::packages::tests::staging_reservation_outlives_cache_eviction_and_cancelled_waiters",
+        "write_staging::tests::aborted_body_reader_keeps_reservation_in_detached_blocking_read",
+        "write_staging::tests::aborted_semantic_waiter_keeps_file_reservation_until_blocking_owner_finishes",
+        "write_staging::tests::body_reader_preserves_multiple_chunks_and_small_consumer_buffers",
+        "write_staging::tests::chunk_and_archive_limits_refuse_before_writing_and_body_checks_exact_size",
+        "write_staging::tests::shared_budget_refuses_fifth_file_until_final_owner_closes",
+        "write_staging::tests::symlink_directory_named_nonempty_and_nonprivate_adoptions_are_refused"
+      ],
+      "unique_tests": 13,
+      "default_and_feature_pass_occurrences": 26,
+      "evidence": [
+        {
+          "line": 2693,
+          "text": "2026-10-03T21:12:48.1387722Z test native_restore::tests::native_restore_bound_staging_pressure_refuses_active_readback_before_http ... ok"
+        },
+        {
+          "line": 2695,
+          "text": "2026-10-03T21:12:48.3265682Z test native_restore::tests::native_restore_default_source_and_restore_share_staging_pressure ... ok"
+        },
+        {
+          "line": 2714,
+          "text": "2026-10-03T21:12:49.2377917Z test native_trash::tests::native_trash_shared_staging_pressure_refuses_capture_before_http ... ok"
+        },
+        {
+          "line": 2715,
+          "text": "2026-10-03T21:12:49.2978593Z test native_trash::tests::native_trash_staging_requires_owned_private_directory_without_symlink ... ok"
+        },
+        {
+          "line": 2717,
+          "text": "2026-10-03T21:12:49.4015204Z test native_trash::tests::native_trash_shared_staging_pressure_refuses_recovery_without_replay ... ok"
+        },
+        {
+          "line": 2755,
+          "text": "2026-10-03T21:12:51.5254884Z test package_create::tests::roundtrip::exhausted_staging_budget_refuses_package_allocation_before_any_http ... ok"
+        },
+        {
+          "line": 2831,
+          "text": "2026-10-03T21:12:53.9814969Z test provider::packages::tests::staging_reservation_outlives_cache_eviction_and_cancelled_waiters ... ok"
+        },
+        {
+          "line": 2879,
+          "text": "2026-10-03T21:12:55.3136428Z test write_staging::tests::aborted_body_reader_keeps_reservation_in_detached_blocking_read ... ok"
+        },
+        {
+          "line": 2880,
+          "text": "2026-10-03T21:12:55.3195293Z test write_staging::tests::aborted_semantic_waiter_keeps_file_reservation_until_blocking_owner_finishes ... ok"
+        },
+        {
+          "line": 2881,
+          "text": "2026-10-03T21:12:55.3244482Z test write_staging::tests::body_reader_preserves_multiple_chunks_and_small_consumer_buffers ... ok"
+        },
+        {
+          "line": 2882,
+          "text": "2026-10-03T21:12:55.3274578Z test write_staging::tests::chunk_and_archive_limits_refuse_before_writing_and_body_checks_exact_size ... ok"
+        },
+        {
+          "line": 2883,
+          "text": "2026-10-03T21:12:55.3277976Z test write_staging::tests::shared_budget_refuses_fifth_file_until_final_owner_closes ... ok"
+        },
+        {
+          "line": 2884,
+          "text": "2026-10-03T21:12:55.3281015Z test write_staging::tests::symlink_directory_named_nonempty_and_nonprivate_adoptions_are_refused ... ok"
+        },
+        {
+          "line": 4289,
+          "text": "2026-10-03T21:15:48.9915211Z test native_restore::tests::native_restore_bound_staging_pressure_refuses_active_readback_before_http ... ok"
+        },
+        {
+          "line": 4292,
+          "text": "2026-10-03T21:15:49.1731446Z test native_restore::tests::native_restore_default_source_and_restore_share_staging_pressure ... ok"
+        },
+        {
+          "line": 4310,
+          "text": "2026-10-03T21:15:49.7645046Z test native_trash::tests::native_trash_shared_staging_pressure_refuses_capture_before_http ... ok"
+        },
+        {
+          "line": 4311,
+          "text": "2026-10-03T21:15:49.8094895Z test native_trash::tests::native_trash_shared_staging_pressure_refuses_recovery_without_replay ... ok"
+        },
+        {
+          "line": 4312,
+          "text": "2026-10-03T21:15:49.8244785Z test native_trash::tests::native_trash_staging_requires_owned_private_directory_without_symlink ... ok"
+        },
+        {
+          "line": 4425,
+          "text": "2026-10-03T21:15:53.9395165Z test package_create::tests::roundtrip::exhausted_staging_budget_refuses_package_allocation_before_any_http ... ok"
+        },
+        {
+          "line": 4527,
+          "text": "2026-10-03T21:16:00.0784839Z test provider::packages::tests::staging_reservation_outlives_cache_eviction_and_cancelled_waiters ... ok"
+        },
+        {
+          "line": 4589,
+          "text": "2026-10-03T21:16:02.0751949Z test write_staging::tests::aborted_body_reader_keeps_reservation_in_detached_blocking_read ... ok"
+        },
+        {
+          "line": 4590,
+          "text": "2026-10-03T21:16:02.0771167Z test write_staging::tests::aborted_semantic_waiter_keeps_file_reservation_until_blocking_owner_finishes ... ok"
+        },
+        {
+          "line": 4591,
+          "text": "2026-10-03T21:16:02.0807466Z test write_staging::tests::chunk_and_archive_limits_refuse_before_writing_and_body_checks_exact_size ... ok"
+        },
+        {
+          "line": 4592,
+          "text": "2026-10-03T21:16:02.0823544Z test write_staging::tests::shared_budget_refuses_fifth_file_until_final_owner_closes ... ok"
+        },
+        {
+          "line": 4593,
+          "text": "2026-10-03T21:16:02.0847893Z test write_staging::tests::symlink_directory_named_nonempty_and_nonprivate_adoptions_are_refused ... ok"
+        },
+        {
+          "line": 4599,
+          "text": "2026-10-03T21:16:02.0876247Z test write_staging::tests::body_reader_preserves_multiple_chunks_and_small_consumer_buffers ... ok"
+        }
+      ]
+    },
+    "scope": "Exact04dc9e1 source only; controlled tests do not establish Apple/application/installed acceptance or timing repeatability. Subsequent preparation/evidence documentation changes are separate."
   }
 }
