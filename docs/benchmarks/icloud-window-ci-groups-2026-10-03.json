@@ -433,5 +433,72 @@
       "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
       "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb"
     }
+  },
+  "workflow_syntax_followup": {
+    "registered_at": "2026-10-03T11:20:21.879674+00:00",
+    "source_head": "cff2a4b1056439c65b724df9a8abb444b2f00a62",
+    "GitHub_run": 37119077659,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37119077659",
+    "result": "Immediate workflow validation failure,0 jobs; public annotation identifies YAML syntax line120. No native test ran.",
+    "question": "Does quoting only the two trailing-colon module-selector arguments restore valid workflow YAML while preserving exact shell arguments and coverage?",
+    "prediction": "Unchanged workflow fails YAML scanner at120. Quote both selector arguments; YAML loads all7 jobs, shell argument identity remains exact, ignored coverage remains143 and window groups1+20.",
+    "old_workflow_sha256": "ca2220c9e039225fe22155a20d8d99c2141284375483ee8c1086eaf36e81d86a",
+    "parser": "existing /usr/bin/python3 PyYAML6.0.3; syntax/job/argv validation only, no new project dependency",
+    "results": {
+      "old_negative": {
+        "exit_code": 1,
+        "error": "ScannerError",
+        "line": 120,
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/workflow-yaml-unquoted-negative.json",
+          "sha256": "91e703c87f49c1a8ae46e21f7ddffb28a489c8bc2ec9a9bc60d2e5654abb334a"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/workflow-yaml-unquoted-negative.log",
+          "sha256": "2a1927a934bd62ecbca3892c387aabf74532a1c8140b87807b8ed76fabaf5db2"
+        }
+      },
+      "quoted_positive": {
+        "exit_code": 0,
+        "parsed_jobs": 7,
+        "exact_selector_arguments_preserved": 2,
+        "manifest": {
+          "path": ".local-state/icloud-full-integration-20261003/workflow-yaml-quoted-positive.json",
+          "sha256": "b62b89a798eb5e71409064333453f91ae090d2d71ae6ea91db5cbad99844619e"
+        },
+        "log": {
+          "path": ".local-state/icloud-full-integration-20261003/workflow-yaml-quoted-positive.log",
+          "sha256": "b6a436b543316479eb2e89b850f5ba981a85c2bad04a7c522aef3579a6d13115"
+        }
+      },
+      "coverage_audit": {
+        "ignored_tests": 143,
+        "window_groups": [
+          1,
+          20
+        ],
+        "unchanged": true
+      },
+      "new_workflow_sha256": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+    },
+    "final_combined_check": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "status": "passed",
+      "manifest": {
+        "path": ".local-state/icloud-full-integration-20261003/native-workflow-yaml-full-check.json",
+        "sha256": "35992dfec64d85ad38189b410464bd02c6ac8419dd0c8d9f4cad5a92f9d52be6"
+      },
+      "log": {
+        "path": ".local-state/icloud-full-integration-20261003/native-workflow-yaml-full-check.log",
+        "sha256": "1acda9e1dd755e5ee7be3f43ba43c60c5d71ca359bd7cf0bce85ff597f6d45fc"
+      },
+      "completed_at": "2026-10-03T11:26:38.892830+00:00",
+      "warnings": 0,
+      "native_FUSE_HTTPS_actual_tests": 2,
+      "writable_kernel_actual_tests": 55,
+      "writable_kernel_seconds": 104.68
+    }
   }
 }

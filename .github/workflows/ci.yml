@@ -117,10 +117,10 @@ jobs:
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
       - name: Build native FUSE HTTPS integration test
-        run: cargo test -p cirrove-service --lib --locked journal::package_replacement::worker_transport::fuse_https:: --no-run
+        run: cargo test -p cirrove-service --lib --locked 'journal::package_replacement::worker_transport::fuse_https::' --no-run
       - name: Native kernel saves through the actual synthetic HTTPS package worker
         # Same loopback fixture protocol as coordinator tests, fed by real FUSE bytes.
-        run: timeout 90s cargo test -p cirrove-service --lib --locked journal::package_replacement::worker_transport::fuse_https:: -- --ignored --test-threads=1
+        run: timeout 90s cargo test -p cirrove-service --lib --locked 'journal::package_replacement::worker_transport::fuse_https::' -- --ignored --test-threads=1
       - name: Google Drive through the shared kernel mount (synthetic)
         run: timeout 60s cargo test -p cirrove-service --test google_drive --locked real_ -- --ignored --nocapture --test-threads=1
       - name: Namespace reclamation, deep-alias churn and held file versions
