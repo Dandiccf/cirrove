@@ -447,3 +447,14 @@ impl RecoveryJournal {
         self.journal.native_stage_abandonment(id)
     }
 }
+
+impl RecoveryJournal {
+    pub(crate) fn native_import_list(
+        &self,
+        scope: &Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<NativeImportListing> {
+        self.journal.native_import_list(scope, after, limit)
+    }
+}

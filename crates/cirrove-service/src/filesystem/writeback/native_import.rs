@@ -62,3 +62,15 @@ impl Writeback {
             .map_err(error)
     }
 }
+
+impl Writeback {
+    pub(in crate::filesystem) async fn native_import_list(
+        &self,
+        scope: Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> Result<crate::journal::NativeImportListing> {
+        self.local(move |j| j.native_import_list(&scope, after, limit))
+            .await
+    }
+}

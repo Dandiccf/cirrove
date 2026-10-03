@@ -19,12 +19,14 @@ mod identity_handoff;
 mod mutations;
 mod namespace;
 mod native_abandon;
+mod native_import_list;
 mod native_replacement_list;
 mod native_trash_publication;
 mod owner;
 mod package_publication;
 mod package_replacement;
 pub use native_abandon::NativeAbandonPreparation;
+pub use native_import_list::{NativeImportListing, NativeImportSelection};
 pub use native_replacement_list::{
     NativeReplacementIdentity, NativeReplacementListing, NativeReplacementSelection,
 };
@@ -384,6 +386,7 @@ impl UploadJournal {
         package_publication::migrate(&mut db)?;
         native_trash_publication::migrate(&mut db)?;
         native_replacement_list::migrate(&db)?;
+        native_import_list::migrate(&db)?;
         working::native::migrate(&mut db)?;
         native_abandon::migrate(&db)?;
         // Never infer that a transfer failed just because its process died.

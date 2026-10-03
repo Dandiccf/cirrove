@@ -761,6 +761,39 @@ pub async fn watch_native_trash(
     .await
 }
 
+/// Discover saved explicit imports without capture, upload, retry or provider IO.
+/// Completion evidence is historical; current availability requires explicit watch.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListNativeImportsRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    #[serde(default)]
+    pub after: Option<u64>,
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ListNativeImportsReply {
+    #[serde(default)]
+    pub operations: Vec<journal::NativeImportSelection>,
+    #[serde(default)]
+    pub next: Option<u64>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn list_native_imports(
+    socket: &Path,
+    body: &ListNativeImportsRequest,
+) -> Result<ListNativeImportsReply> {
+    request(
+        socket,
+        "list-native-imports",
+        Some(body),
+        "Cirrove saved native imports",
+    )
+    .await
+}
+
 /// Attach an observer to an existing durable native import, never enqueue again.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1189,6 +1222,7 @@ impl Capabilities {
                 ("export-save".to_string(), 1),
                 ("import-native-package".to_string(), 1),
                 ("watch-native-import".to_string(), 1),
+                ("list-native-imports".to_string(), 1),
                 ("trash-native-document".to_string(), 1),
                 ("watch-native-trash".to_string(), 1),
                 ("list-native-trash".to_string(), 1),
@@ -1490,6 +1524,22 @@ pub async fn serve_managed(
                                 _=>NativeTrashReply{job:None,refusal:Some("native Trash watch request or account service is unavailable".into())},
                             };
                             return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb == "list-native-imports" {
+                            let reply = match (serde_json::from_str::<ListNativeImportsRequest>(body), &manager) {
+                                (Ok(r), Some(m)) if !r.label.is_empty()
+                                    && (1..=100).contains(&r.limit)
+                                    && r.after.is_none_or(|n| n <= i64::MAX as u64) => match m.engine(&r.label).await {
+                                        Ok(engine) if engine.account.id == r.expected_account_id
+                                            && uuid::Uuid::parse_str(&r.expected_account_id).is_ok() => match m.list_native_imports(&engine, &r.expected_account_id, r.after, r.limit).await {
+                                                Ok(page) => ListNativeImportsReply { operations: page.operations, next: page.next, refusal: None },
+                                                Err(_) => ListNativeImportsReply { refusal: Some("saved native imports unavailable for selected account".into()), ..Default::default() },
+                                            },
+                                        _ => ListNativeImportsReply { refusal: Some("selected import account changed or is unavailable".into()), ..Default::default() },
+                                    },
+                                _ => ListNativeImportsReply { refusal: Some("import listing requires an exact account and bounded page".into()), ..Default::default() },
+                            };
+                            return write_reply(&mut stream, &reply).await;
                         }
                         if verb=="watch-native-import" {
                             let reply=match (serde_json::from_str::<WatchNativeImportRequest>(body),&manager) {

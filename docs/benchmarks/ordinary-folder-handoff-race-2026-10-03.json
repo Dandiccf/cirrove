@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "controlled-local-correction-complete-remote-CI-and-live-acceptance-open",
+  "status": "controlled-local-and-exact-source-remote-CI-passed-live-acceptance-open",
   "registered_at": "2026-10-03T13:18:58.193840+00:00",
   "source_head_before_application": "88258f31bf6a3d23a25e81868cff3c41ec22c500",
   "question": "Can an ordinary created-directory rmdir view captured with creation ETag E1 before independently observed handoff E2 overwrite that settled journal revision and strand a conditional removal in Conflict? Does narrow folder-only adoption retain E2 while refusing changed path/identity/shape and keeping file/content behavior unchanged?",
@@ -467,6 +467,63 @@
       "contributor_stages": "format, clippy and isolated probes, workspace tests, kernel groups, script tests, coverage, ledger and documentation all passed",
       "warnings": 0,
       "desktop_display_scenarios": "not run by scripts/check.sh; remote CI required"
+    },
+    "remote_ci": {
+      "run_id": 37129401664,
+      "head_sha": "176bd0978715ecee506b63f0979aebebd1a55ceb",
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37129401664",
+      "all_seven_jobs_success": true,
+      "coverage_artifact": ".local-state/icloud-full-integration-20261003/remote-ci-176bd09-independent-coverage-v1.json",
+      "coverage_artifact_sha256": "1d7fa919c7f0b1a23c3bf640025027b06546b3ce1ebd6e4f92de3a50cfb5d180",
+      "metadata": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-176bd09-independent-metadata-v1.json",
+        "sha256": "c62447f8cc579f0a5713aaa4d719295b0fd582192fc5778086d84fd1275fa289"
+      },
+      "full_linux_log": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-176bd09-independent-linux-v1.log",
+        "bytes": 867061,
+        "sha256": "e884879a92787147842bb8e1385779e3709aa9c7b7fc071775043279f320e606"
+      },
+      "execution_excerpt": {
+        "path": ".local-state/icloud-full-integration-20261003/remote-ci-176bd09-independent-executed-excerpt-v1.log",
+        "bytes": 16053,
+        "sha256": "df3b65842e3e5b73f9c625a48722c9721fccb89e8332fce4ab28eba245366c63"
+      },
+      "executed_groups": {
+        "Read-only recovery verifies exact saved and working receipts": {
+          "command": "timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked readonly_recovery_requires_exact_saved_and_working_receipts -- --ignored --exact --test-threads=1",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": null
+        },
+        "Native desktop with isolated account settings and status service": {
+          "command": "timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --skip readonly_recovery_requires_exact_saved_and_working_receipts --test-threads=1",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": null
+        },
+        "Native kernel saves through the actual synthetic HTTPS package worker": {
+          "command": "timeout 90s cargo test -p cirrove-service --lib --locked 'journal::package_replacement::worker_transport::fuse_https::' -- --ignored --test-threads=1",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 4.68
+        },
+        "Automatic writable-session uploads and draining": {
+          "command": "timeout 150s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture --test-threads=1 --skip real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget",
+          "passed": 55,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 108.08
+        }
+      },
+      "scope_limits": [
+        "Exact 176bd09 commit snapshot only; later CLI binding work is not in this CI run.",
+        "Synthetic transport, isolated kernel mount and Xvfb window coverage; no live-provider reliability or Numbers replacement acceptance claim.",
+        "CI package install coverage is not delivery to the installed local daemon."
+      ]
     }
   },
   "gate_closure": false,

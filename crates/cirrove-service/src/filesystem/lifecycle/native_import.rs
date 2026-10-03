@@ -153,3 +153,17 @@ impl WriteControl {
             .map_err(|_| unavailable())
     }
 }
+
+impl WriteControl {
+    pub(crate) async fn native_import_list(
+        &self,
+        scope: Scope,
+        after: Option<u64>,
+        limit: u32,
+    ) -> std::io::Result<crate::journal::NativeImportListing> {
+        self.writer
+            .native_import_list(scope, after, limit)
+            .await
+            .map_err(|_| unavailable())
+    }
+}

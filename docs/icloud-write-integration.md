@@ -1416,7 +1416,7 @@ A subsequent documentation-only CI publication
 [exposed a folder create/remove race](https://github.com/Dandiccf/cirrove/actions/runs/37123619790):
 the writable group passed 54 cases and failed the created-then-removed directory
 case at its no-failed-mutations check. The provider-absence assertion was not
-reached. This predates the new coupled fixture and is under investigation; the
+reached. This predates the new coupled fixture; the matching controlled correction is recorded below. The
 prior green run is retained as one observation, not proof of repeatable success.
 The complete local `scripts/check.sh` passed with the new fixture, all three
 native FUSE-to-HTTPS cases and all 55 writable scenarios.
@@ -1446,7 +1446,34 @@ missing/wrong-kind cache refusal without provider fallback, a bound-snapshot
 drift refusal and an external move through distinct local/provider parent IDs.
 The cancellation and snapshot-drift controls exercise source preparation/recheck,
 not an instrumented wallclock concurrent-removal race. The complete contributor
-check passed for final source, including all three native FUSE/HTTPS and55
-writable kernel scenarios with the original create/remove regression. Remote CI
-is still required. These tests do not establish the uninstrumented CI failure's unique
-cause, current remote freshness or live-provider reliability.
+check passed for final source, including all three native FUSE/HTTPS and 55
+writable kernel scenarios with the original create/remove regression.
+[CI for the exact corrected commit 176bd09](https://github.com/Dandiccf/cirrove/actions/runs/37129401664)
+then passed all seven jobs. Its Linux log confirms actual execution of the
+1+20 desktop window scenarios, all three native FUSE/HTTPS cases and all 55
+writable kernel cases. This validates that source snapshot; newer CLI/API work
+requires its own CI. These tests do not establish the uninstrumented CI failure's
+unique cause, current remote freshness or live-provider reliability.
+
+
+### Saved native import discovery after restart
+
+The development service advertises `list-native-imports` version 1 and exposes
+`list_native_imports` with a required selected account UUID, label, bounded limit
+(1–100), and optional sequence cursor. It lists explicit native archive imports
+from the retained journal, including when ephemeral transfer jobs have disappeared
+or the connection is read-only. Empty legacy pages can still have a next cursor.
+Discovery does not capture a source, contact Apple, submit an upload or retry work.
+
+Each result contains the operation UUID, sequence, state, destination parent/name,
+and historical completion identity. A recorded completion receipt does not prove
+that the document is still present or published now. The existing explicit
+`watch-native-import` action checks the exact saved operation on an active writable
+connection; listing does not enable writes or mount an account. Desktop discovery
+and reconnect controls are a separate implementation step.
+
+The [registered discovery checks](benchmarks/icloud-saved-native-import-discovery-2026-10-03.json)
+cover exact-account scope, malformed ownership/receipts, bounded indexed and legacy
+paging, read-only journal preservation, a real Engine restart with no jobs, and
+account withdrawal during a journal wait. They use synthetic retained operations
+and do not establish Apple application acceptance or complete recovery UX.
