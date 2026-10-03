@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "status": "ready-awaiting-explicit-new-cloud-authorization",
+  "run": "f7e33734-347e-46ba-ae79-1fc631958fac",
+  "registered_at": "2026-10-03T11:31:11.265525+00:00",
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "label": "iCloudNumbersParentValidation",
+  "root": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac",
+  "state": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/state",
+  "mount": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/mount",
+  "socket": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/control.sock",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-rev-f7e33734",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/np-rev-f7e33734",
+  "temp_filesystem": "ext4",
+  "root_filesystem": "btrfs",
+  "settings_sha256": "2cc703f0f5ea7bc901a2755c660866b6da35f036a7526665970da882e560bc17",
+  "source_state_unchanged": true,
+  "source_semantics": {
+    "A": {
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133089,
+      "version": 2,
+      "sha256": "67e0f4d4ed8a098959e7a32630dede70bd726b75fc7dd45414e726014658646b"
+    },
+    "B": {
+      "entries": 46,
+      "expanded_bytes": 133151,
+      "files": 42,
+      "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+      "version": 2
+    },
+    "Apple_B_values": [
+      7,
+      3,
+      10
+    ],
+    "Apple_B_formula": "SUM(A2:B2)",
+    "provenance": "docs/benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json"
+  },
+  "archive_sha256": {
+    "source-a.numbers": "add6c6f634ab18e792c3ec15b892da895d323661df29c8cef2f9fc639d9adf18",
+    "source-b.numbers": "d0a1b35bd5b7c32c5c1831a59729bbfff8ab7445e0dd74c8821f09578f9bda66"
+  },
+  "source_head": "658d8d608cf283e11db8c0d79689986219181df4",
+  "source_checkout": "/home/dandiccf/Storage/.cirrove-validation/icloud-numbers-confirmation-20261003/source",
+  "cargo_target": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target",
+  "folder": "Cirrove-Native-f7e33734-347e-46ba-ae79-1fc631958fac",
+  "document": "Cirrove-Numbers-Parent-f7e33734-347e-46ba-ae79-1fc631958fac.numbers",
+  "scope": "One fresh UUID-owned folder, one ownA Numbers import, one B replacement, independent exact currentB/originalA Trash proofs, subsequent exact Apple Numbers open if existing authenticated session available. No ambiguous automatic retry, restore, delete or prior-run replay.",
+  "cloud_requests": 0,
+  "cloud_mutations": 0,
+  "authorization": null,
+  "installed_state_changed": false,
+  "installed_service_restarted": false,
+  "old_live_run": "91a58b61-a31a-4348-811a-e11c9904d709",
+  "expected_duration_seconds": 1800,
+  "guards": "Before each dispatch persist attempted flag; exact one-account ID/label/capabilities; soleApplied folder with stableprovider binding and0 unfinished queue; import soleUploaded with complete publication; daemon stopped by recordedPID before digest-pinnedreceipt observer; A exact selectedid/etag from preflight; replacement singleUUID\u2260import; no replay on ambiguity; source/settings hashes unchanged; session rejection stops without automatic login.",
+  "question": "Does the reviewed clean-parent folder ETag correction enable one fresh owned Numbers replacement with complete B and recoverableA proofs?",
+  "prediction": "The previous exact parent metadata mismatch is now accepted only on cleanfollowing ancestors; new importA and single replacementB complete with full currentB/TrashA semantic and exactrevision proof. Apple open remains separate.",
+  "binaries": "All3 pinned from separate clean658d8d6 checkout with dedicatedtarget; no daemon orcloudrequest started.",
+  "results": null,
+  "full_iCloud_gates_closed": false,
+  "pinned_binaries": {
+    "cirroved": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target/debug/cirroved",
+      "sha256": "203bfd9ad63f742dc7ba76a5307ae21b07e57006e8816ce9fdd857f7eea13d9e",
+      "bytes": 487890192,
+      "source_head": "658d8d608cf283e11db8c0d79689986219181df4"
+    },
+    "cirrove": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target/debug/cirrove",
+      "sha256": "280d2fdc8a1645ebb78047db4f5c637e91fa1558d51fdad3adc8bdf6f14a3796",
+      "bytes": 487991792,
+      "source_head": "658d8d608cf283e11db8c0d79689986219181df4"
+    },
+    "cirrove-icloud-mounted-write-probe": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/icloud-numbers-confirmation-20261003/target/debug/cirrove-icloud-mounted-write-probe",
+      "sha256": "c57ef5e10c3a566042fd618b88d718452e1456710a206b2a1374dd6afdd3693a",
+      "bytes": 465738824,
+      "source_head": "658d8d608cf283e11db8c0d79689986219181df4"
+    }
+  },
+  "source_clean": true,
+  "independent_local_preparation_review": "Exactone account, credential binding unchanged, A/B hashes and private modes, ext4temp, no existingjournal/socket/mount; observer schema supports this newUUID."
+}

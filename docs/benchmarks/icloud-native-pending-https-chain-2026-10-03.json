@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "controlled-local-validation-complete-remote-CI-and-live-acceptance-open",
+  "status": "controlled-local-and-remote-CI-validation-complete-live-acceptance-open",
   "question": "Do three genuinely FUSE-promoted pending native generations rebase original identity/revision/v2 proof through three actual HTTPS package handoffs, while retaining unread O/A/B descriptors and newest local C across intermediate completion/publication and final restart without replay?",
   "arms": [
     "Positive: atomic O->A->B->C all3 Pending before first worker; actual successive HTTPS workers and final remount.",
@@ -205,5 +205,76 @@
       "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "71239af9755ade81aadf817ba6d5ec19852184d7d6244a388b2c675d020b6de6",
       "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb"
     }
-  }
+  },
+  "final_remote_ci": {
+    "recorded_at": "2026-10-03T12:29:50.213089+00:00",
+    "run": 37119742211,
+    "source_head": "658d8d608cf283e11db8c0d79689986219181df4",
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37119742211",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "rpm-package",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "arch-package",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "linux",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "dependency-audit",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "deb-package",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "mounted-read-workloads",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "headless-package-install",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "full_icloud_gates_closed": false,
+    "installed_state_changed": false,
+    "selected_execution_evidence": {
+      "recorded_at": "2026-10-03T12:38:59.165751+00:00",
+      "run": 37119742211,
+      "job_id": 111193387113,
+      "log_sha256": "612bf7e45d3dc3836a698bba246040a424ced85801c19fd175e63de75241d51c",
+      "results": [
+        {
+          "step": "Read-only recovery verifies exact saved and working receipts",
+          "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out"
+        },
+        {
+          "step": "Native desktop with isolated account settings and status service",
+          "result": "test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out"
+        },
+        {
+          "step": "Native kernel saves through the actual synthetic HTTPS package worker",
+          "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 484 filtered out; finished in 2.45s"
+        },
+        {
+          "step": "Automatic writable-session uploads and draining",
+          "result": "test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 105.92s"
+        }
+      ]
+    }
+  },
+  "remote_ci_limits": "One completed shared-runner CI run proves the selected checks passed on this source. It does not establish repeated timing reliability, Apple application fidelity, installed compatibility or completion of full-iCloud acceptance."
 }

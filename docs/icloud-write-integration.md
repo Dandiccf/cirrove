@@ -1362,7 +1362,11 @@ removing the dedicated scenario or selecting only a prefix correctly fails it.
 The supported Ubuntu 24.04 / GTK 4.14.5 / libadwaita 1.5.0 environment ran one
 and twenty scenarios successfully in separate groups. No scenario, warning,
 renderer or library floor was suppressed or changed. One local run per group
-does not establish shared-runner timing reliability; final remote CI is required.
+does not establish repeated shared-runner timing reliability. The final source
+`658d8d6` subsequently passed all seven jobs in
+[shared-runner CI](https://github.com/Dandiccf/cirrove/actions/runs/37119742211),
+including the desktop groups and mounted writable scenarios; this remains
+separate from live Apple and installed acceptance.
 
 The complete `scripts/check.sh` passed for these final corrections, including
 formatting, all clippy/probe checks, workspace and script tests, two native
