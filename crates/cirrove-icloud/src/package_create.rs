@@ -72,6 +72,33 @@ pub struct ICloudPackageCreate {
     body_dispatch_probe: Option<Arc<std::sync::atomic::AtomicUsize>>,
 }
 impl ICloudPackageCreate {
+    /// Bind an already constructed provider to credential-free synthetic HTTPS.
+    /// Identity and retained checkpoint validation remain on their normal paths.
+    #[cfg(feature = "test-support")]
+    pub(crate) fn bind_synthetic_package_transport(
+        &mut self,
+        client: reqwest::Client,
+    ) -> Result<()> {
+        let account_hash = match self.session.get_mut() {
+            Session::Sealed { apple_id, .. } => {
+                crate::account_hash(apple_id).map_err(|_| UploadError::Invalid)?
+            }
+            Session::Ready(session) => session.account_hash.clone().ok_or(UploadError::Invalid)?,
+        };
+        let endpoint: url::Url = "https://fixture.icloud-content.com/"
+            .parse()
+            .map_err(|_| UploadError::Invalid)?;
+        let mut session = ICloudReadSession::new().map_err(map_session_error)?;
+        // A fresh session never carries cookies or authentication headers from
+        // the original provider, and no credential vault is consulted.
+        session.account_hash = Some(account_hash);
+        session.http = client;
+        session.drive_endpoint = Some(endpoint.clone());
+        session.docs_endpoint = Some(endpoint);
+        *self.session.get_mut() = Session::Ready(Box::new(session));
+        Ok(())
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn native_handoff_test_provider(
         scope: Scope,

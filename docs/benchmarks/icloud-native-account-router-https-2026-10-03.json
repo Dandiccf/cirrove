@@ -1,0 +1,477 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "status": "new-coupled-acceptance-sensitive-control-and-final-full-contributor-check-passed-source-CI-pending",
+  "registered_at": "2026-10-03T19:06:24.458947+00:00",
+  "source_head": "0e48e13ad84af25534abc020df8b9fa17213e5bc",
+  "question": "Does a real native kernel FUSE save flow through normal ICloudWriteProvider account admission, shared WriteContext journal, private staging, current-parent lookup and captured-parent restore to actual native HTTPS completion without repeated mutations?",
+  "prediction": "The new normal-router arm passes with one allocation/body/registration/Trash/rename each. Unsafe intermediate staging refuses before any HTTP request. A lost registration reply retains sealed checkpoint and payload. Hiding the scoped current parent makes fresh begin refuse but explicit recovery completes from its captured parent. Forcing checkpoint-bearing calls through fresh lookup fails completion before any repeated mutation.",
+  "arms": [
+    {
+      "name": "new-coupled-acceptance",
+      "expected": "One new ignored FUSE test passes with exact normal account/context/router factory and lost-reply recovery."
+    },
+    {
+      "name": "omit-captured-parent-restore",
+      "expected": "Same new test fails completion when package_adapter forces checkpoint-bearing native requests through fresh parent lookup, because current parent is absent. No duplicate allocation/body/registration or Trash/rename follows."
+    },
+    {
+      "name": "restored-complete-native-group",
+      "expected": "All four native FUSE/HTTPS tests pass after exact code restoration."
+    },
+    {
+      "name": "full-contributor-check",
+      "expected": "scripts/check.sh passes before committing; all four native FUSE/HTTPS and 55 writable tests execute."
+    }
+  ],
+  "endpoint": {
+    "new_test": "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_uses_account_router_and_recovers_without_current_parent",
+    "native_group": "journal::package_replacement::worker_transport::fuse_https::",
+    "native_group_tests": 4,
+    "lost_reply_counts": [
+      1,
+      1,
+      1,
+      0,
+      0
+    ],
+    "completed_counts": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "count_order": [
+      "allocate",
+      "body",
+      "register",
+      "Trash",
+      "rename"
+    ],
+    "fresh_parent_missing_error": "Conflict",
+    "unsafe_accounts_mode_error": "Invalid",
+    "retained_checkpoint_phase": "Stage.RegistrationArmed",
+    "completion": "Uploaded with original/new/Trash receipt, semantic-v2 completion, unchanged sealed payload, exact publication, old reader and remount bytes; clean remount fsync creates no new operation or request"
+  },
+  "runner": {
+    "path": ".local-state/icloud-full-integration-20261003/run-native-account-router-v1.py",
+    "sha256": "c1f256ba44b430e7c554dce3c00f49033bb78c8f6d5e9ef40b69588fe239fb1b"
+  },
+  "invariants": [
+    "Normal constructors/restore validate before cfg(test) transport binding; existing early package_test_adapter remains None.",
+    "Only a fresh credential-free session is bound to fixed fixture.icloud-content.com and a client resolving it to loopback TLS; original cookies/auth headers are not copied.",
+    "Use account root ROOT_ID, normal WriteContext::open and the same journal for FUSE and router; no second routing journal.",
+    "Synthetic metadata/resolver/hydration and wrapping keys remain explicit fixtures.",
+    "One controlled local run at a time; disk-backed TMPDIR/SQLITE_TMPDIR and separate Cargo target recorded."
+  ],
+  "claim_limits": [
+    "No actual Apple sign-in, sealed-session decryption/renewal, Apple endpoint, application-format fidelity, live normal-account behavior or installed transition.",
+    "Dummy Pages PACKAGE arm only; Numbers/Keynote/DATA acceptance remains separate.",
+    "No new product defect claimed by the omission control; it measures sensitivity of existing captured-parent recovery.",
+    "No full-iCloud release gate closes; all six release criteria remain open."
+  ],
+  "fixture_filesystem": {
+    "path": "/var/tmp",
+    "fstype": "btrfs",
+    "tmpdir_fstype": "ext4",
+    "no_memory_or_timing_reliability_claim": true
+  },
+  "launcher": {
+    "path": ".local-state/icloud-full-integration-20261003/run-native-account-router-from-build.py",
+    "sha256": "67525e8394a66869112e6e5cc8a8429a264aca9e6caf2ecd767a5fa8c6d7f3f0",
+    "binding": "Use exact executable from successful compiler-artifact JSON, require current Rust source SHA matches build, record executable SHA before runtime."
+  },
+  "results": {
+    "native-account-router-initial-build": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--lib",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:06:45.594535+00:00",
+      "finished_at": "2026-10-03T19:07:11.765813+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "ad284947df08766de050399563fbec886405d839db0489ea52daae3cbd7c1ab1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {},
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-initial-build.json",
+      "manifest_sha256": "c963ba1eb4e8716d6bb0fef7372df1562217fee63103eca9ca1cef26fb075ec3",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-initial-build.log",
+      "log_sha256": "b4209c47becda05f29e2098703b9494d9153438d1a980ba08a68a632107a4be4",
+      "elapsed_seconds": 26.171278
+    },
+    "native-account-router-initial-runtime": {
+      "command": [
+        "/usr/bin/timeout",
+        "90s",
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_uses_account_router_and_recovers_without_current_parent",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "started_at": "2026-10-03T19:07:56.123487+00:00",
+      "finished_at": "2026-10-03T19:07:56.401309+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "ad284947df08766de050399563fbec886405d839db0489ea52daae3cbd7c1ab1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05": "1a5cbfc1508966de0a3486a82fea4837080fc082d3a369d206efde07888ec009"
+      },
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-initial-runtime.json",
+      "manifest_sha256": "9bbaa2adc085a7cbb6d054de3f5881c25d66d271a60fa5b2f06a27c4a6937a13",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-initial-runtime.log",
+      "log_sha256": "62f45530154d6ce331ec4e944cec87e150ddcce2a3965f3b247d003dc3694e07",
+      "elapsed_seconds": 0.277822,
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "filtered": 499,
+      "reported_test_seconds": 0.05,
+      "interpretation": "Fixture setup failed before file open: full-root metadata feed omitted its parent folder. Retained as failed setup, not product defect or behavioral counterfactual."
+    },
+    "native-account-router-fixture-corrected-build": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--lib",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:09:21.578816+00:00",
+      "finished_at": "2026-10-03T19:09:28.132925+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {},
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-fixture-corrected-build.json",
+      "manifest_sha256": "da4b3ecd07154d4845181e6dca78d78e3cab4fafccd4cf3d866f91a01926ce42",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-fixture-corrected-build.log",
+      "log_sha256": "d1d4a89bc324aeaa64c597906dbff15c2875ee0f486cdebf686cbc7464a96249",
+      "elapsed_seconds": 6.554109
+    },
+    "native-account-router-fixture-corrected-runtime": {
+      "command": [
+        "/usr/bin/timeout",
+        "90s",
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_uses_account_router_and_recovers_without_current_parent",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:10:21.817056+00:00",
+      "finished_at": "2026-10-03T19:10:22.863697+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05": "1556269b05514160d78d3259f0d27faa7abf583bfdaa5ca7f6aa5a49196e244c"
+      },
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-fixture-corrected-runtime.json",
+      "manifest_sha256": "3c12ee3981c185b05b790cff1f9a3e0f6bdd029b49981fefaa6dee4e8a3410cb",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-fixture-corrected-runtime.log",
+      "log_sha256": "9f346b7e6f593b9f28d84b4ff7aa15daf6e8ce5a79e1178a075f0abcb0a6ce71",
+      "elapsed_seconds": 1.046641,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 499,
+      "reported_test_seconds": 0.81,
+      "interpretation": "Normal root account/context/journal/factory, unsafe accounts refusal, lost registration, captured-parent restore, exact receipt/publication and unchanged old reader/remount pass."
+    },
+    "native-account-router-omit-restore-build": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--lib",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:10:57.553187+00:00",
+      "finished_at": "2026-10-03T19:11:07.903356+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "8e804c8d848184e681e6516bd4b9e7371de6ddffc49913da0b7f5e499a159544",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {},
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-omit-restore-build.json",
+      "manifest_sha256": "0077396ec4004c89a6a95a883508f1c7d7439b44cafb28272d618a2245214a60",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-omit-restore-build.log",
+      "log_sha256": "5660f6a20912057eb543b4846a8c4931eec871abb68b4387715c813d4484e866",
+      "elapsed_seconds": 10.350169
+    },
+    "native-account-router-omit-restore-runtime": {
+      "command": [
+        "/usr/bin/timeout",
+        "90s",
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_uses_account_router_and_recovers_without_current_parent",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 101,
+      "started_at": "2026-10-03T19:11:40.151141+00:00",
+      "finished_at": "2026-10-03T19:11:40.731882+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "8e804c8d848184e681e6516bd4b9e7371de6ddffc49913da0b7f5e499a159544",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05": "6bfb6b5f73b1a7c04b43d6aea76368d537ff42f1b0a21562c4ba005696508e6a"
+      },
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-omit-restore-runtime.json",
+      "manifest_sha256": "4d205fbb4de5438e04688327e3920f1270b739c995b7e15fb8a2e637d733903c",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-omit-restore-runtime.log",
+      "log_sha256": "5e023d8c8cbbce2675cd607578b47e5a03452a265598a7d07211afe566069827",
+      "elapsed_seconds": 0.580741,
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "filtered": 499,
+      "reported_test_seconds": 0.36,
+      "interpretation": "Normal recovery refuses as Conflict instead of Uploaded. Before expected final assertion, the test asserts exact mutation counts(1,1,1,0,0): no registration replay or handoff."
+    },
+    "native-account-router-restored-build": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--lib",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:11:52.786778+00:00",
+      "finished_at": "2026-10-03T19:12:03.006814+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {},
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-restored-build.json",
+      "manifest_sha256": "79082ee5745a324558d7f0e067ffa4c9f069e6441c138193f2565b6e3b44660a",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-restored-build.log",
+      "log_sha256": "dee539c06fea71075b0b13ffce9eddd15d40007c94760b2f5f29b729e4c6962d",
+      "elapsed_seconds": 10.220036
+    },
+    "native-account-router-restored-native-group": {
+      "command": [
+        "/usr/bin/timeout",
+        "90s",
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "journal::package_replacement::worker_transport::fuse_https::",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:12:20.006718+00:00",
+      "finished_at": "2026-10-03T19:12:24.432555+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "a6e7f27beae71f471713456deb8d520016b85b2c7834a3046d8875384832bc6c",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05": "1556269b05514160d78d3259f0d27faa7abf583bfdaa5ca7f6aa5a49196e244c"
+      },
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-restored-native-group.json",
+      "manifest_sha256": "0011c16448c631a07cf0a949644515c1300aab05c453b9ca9562297931fd0c42",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-restored-native-group.log",
+      "log_sha256": "d3d1701c58ec87ae245fdf273c3d52eb1798f609606f007c2b0b3027aa6fb08b",
+      "elapsed_seconds": 4.425837,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 496,
+      "reported_test_seconds": 4.19,
+      "executed_tests": [
+        "journal::package_replacement::worker_transport::fuse_https::chain::real_native_fuse_pending_atomic_chain_rebases_https_proofs_and_preserves_unread_readers",
+        "journal::package_replacement::worker_transport::fuse_https::chain::real_native_fuse_uncertain_predecessor_reopens_sealed_chain_and_preserves_dirty_successor",
+        "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_executes_https_package_worker_and_reopens_confirmed_bytes",
+        "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_uses_account_router_and_recovers_without_current_parent"
+      ]
+    },
+    "native-account-router-combined-full-check": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:14:03.555457+00:00",
+      "finished_at": "2026-10-03T19:22:31.834573+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/acceptance-ledger.json": "834e639c879f2f043bb76acf90fa9e1a0a2949489e2169c042d045b6115a8e28",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "3b3eaba3a8ee429e9124f5793557f4bad91ac92cc893b2a89f7d067e40633ad5",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {},
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-combined-full-check.json",
+      "manifest_sha256": "098403d2341460098608c987108b19cf70bccbfee1c80372c241736aef6b4806",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-combined-full-check.log",
+      "log_sha256": "319b573ccc022828bce8628987acdc94e5523de55a5dc913fd739a7342119cb5",
+      "elapsed_seconds": 508.279116,
+      "executable_source_unchanged": true,
+      "scope": "Complete scripts/check.sh: fmt/clippy/probes, workspace/features, four native FUSE/HTTPS, 55 writable kernel, 39 installer tests, scripts/coverage/ledger/docs. Desktop display scenarios not repeated locally."
+    },
+    "native-account-router-final-budget-full-check": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T19:26:17.257736+00:00",
+      "finished_at": "2026-10-03T19:32:46.473479+00:00",
+      "source_sha256": {
+        ".github/workflows/ci.yml": "207ba6cafc4d90801b0fa1fd88045b4f916bdfa2c7d633224886221f27b80f0b",
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+        "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+        "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+        "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+        "docs/acceptance-ledger.json": "e61ad0d1f515414f9cf910ab9dd3467e220cdeb75daec7dce0009278f1710eb7",
+        "docs/benchmarks/icloud-ci-completion-budget-2026-10-03.json": "d758cb9a180c9cf585d2dae77eac13e20784310b8065844b32e7600b6a47d8e2",
+        "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "b02b6abbff9f9fcb8f9a7e091e4a3333b5481fe969b5c3ce4be9bdc8e441dba7",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {},
+      "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-final-budget-full-check.json",
+      "manifest_sha256": "e1b991f3425fc421a72e3ab8495fd05a5110d2d603b792538524934d48986d49",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-final-budget-full-check.log",
+      "log_sha256": "cd581f5d7349e18ba428f9001b7fc008d880850baba2c4e1287ea3b955743e85",
+      "elapsed_seconds": 389.215743,
+      "executable_source_unchanged": true,
+      "native_fuse_https_tests": [
+        "journal::package_replacement::worker_transport::fuse_https::chain::real_native_fuse_pending_atomic_chain_rebases_https_proofs_and_preserves_unread_readers",
+        "journal::package_replacement::worker_transport::fuse_https::chain::real_native_fuse_uncertain_predecessor_reopens_sealed_chain_and_preserves_dirty_successor",
+        "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_executes_https_package_worker_and_reopens_confirmed_bytes",
+        "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_uses_account_router_and_recovers_without_current_parent"
+      ],
+      "writable_tests": 55,
+      "installer_tests": 39,
+      "scope": "Full scripts/check.sh after only Linux global CI budget30-to40 correction; formatting, clippy/probes, workspace/features, kernel/scripts/coverage/ledger/docs all passed. Display not repeated locally."
+    }
+  },
+  "control_source_restoration": {
+    "registered_at": "2026-10-03T19:10:57.459858+00:00",
+    "source_path": "crates/cirrove-service/src/icloud_writes/packages.rs",
+    "restored_source_sha256": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+    "control_source_sha256": "8e804c8d848184e681e6516bd4b9e7371de6ddffc49913da0b7f5e499a159544",
+    "backup": ".local-state/icloud-full-integration-20261003/native-account-router-restored-packages.rs",
+    "omission": "Ignore a supplied native checkpoint at factory selection, requiring fresh mutable parent lookup.",
+    "actual_restored_source_sha256": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+    "control_manifest": ".local-state/icloud-full-integration-20261003/native-account-router-control-pins.json",
+    "control_manifest_sha256": "6c865be212da4cd9bf7dc47715278b940b62be5e52769c93c03f25bba67ec0eb"
+  },
+  "final_ci_budget_record": "docs/benchmarks/icloud-ci-completion-budget-2026-10-03.json"
+}

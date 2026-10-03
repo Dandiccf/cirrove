@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-03",
-  "status": "unchanged-source-red-corrected-green-complete-contributor-check-passed-source-CI-pending",
+  "status": "unchanged-source-red-corrected-green-full-contributor-check-passed-source-CI-tests-passed-overall-cancelled-at-doc-job-timeout",
   "registered_at": "2026-10-03T18:30:47.748113+00:00",
   "source_head": "378a96d5ab1dc9c4e40abdd384019c1312f31a59",
   "question": "Can explicit observation-only native Stage abandonment accept the already allocated exact Numbers/Keynote staging names while preserving original content, operation identity and refusal of foreign stage names?",
@@ -313,5 +313,188 @@
     "one_local_controlled_arm_at_a_time": true,
     "performance_claim": false
   },
-  "decision": "Correct exact-format Stage abandonment is demonstrated by unchanged production failures and corrected local HTTPS passes with source/original preservation. Complete contributor check passed. No live Numbers/Keynote or installed/application/full-iCloud gate closure."
+  "decision": "Correct exact-format Stage abandonment is demonstrated by unchanged production failures and corrected local HTTPS passes with source/original preservation. Complete contributor check passed. No live Numbers/Keynote or installed/application/full-iCloud gate closure.",
+  "remote_ci": {
+    "run": 37145716828,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37145716828",
+    "requested_head": "0e48e13ad84af25534abc020df8b9fa17213e5bc",
+    "actual_pull_request_merge_checkout": "24d624c3d1a5a28bbb641748fac0e2b771fc3f99",
+    "head_merge_exact_tree_equality": {
+      "0e48e13ad84af25534abc020df8b9fa17213e5bc": {
+        "tree": "feb40d67aac983f1001b303c9b6236b1e3d1edd3",
+        "parents": [
+          "378a96d5ab1dc9c4e40abdd384019c1312f31a59"
+        ],
+        "raw": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192217356582Z-git-commit-0e48e13ad84af25534abc020df8b9fa17213e5bc.json",
+        "raw_sha256": "b3a0db59fbe89fc81c5217a41fd38d10442ab3670676296efd7c1c8720feca13"
+      },
+      "24d624c3d1a5a28bbb641748fac0e2b771fc3f99": {
+        "tree": "feb40d67aac983f1001b303c9b6236b1e3d1edd3",
+        "parents": [
+          "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+          "0e48e13ad84af25534abc020df8b9fa17213e5bc"
+        ],
+        "raw": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192217356582Z-git-commit-24d624c3d1a5a28bbb641748fac0e2b771fc3f99.json",
+        "raw_sha256": "873b86bb5f6755e79b963639605991a730bc731b0a2bbb1167be68b85fba6aff"
+      }
+    },
+    "status": "completed",
+    "conclusion": "cancelled",
+    "jobs": [
+      {
+        "id": 111269105297,
+        "name": "linux",
+        "conclusion": "cancelled"
+      },
+      {
+        "id": 111269105429,
+        "name": "arch-package",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105437,
+        "name": "deb-package",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105464,
+        "name": "dependency-audit",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105469,
+        "name": "rpm-package",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105497,
+        "name": "mounted-read-workloads",
+        "conclusion": "success"
+      },
+      {
+        "id": 111271442371,
+        "name": "headless-package-install",
+        "conclusion": "success"
+      }
+    ],
+    "linux_log": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192142940986Z-linux-job-111269105297-cancelled.log",
+    "linux_log_sha256": "2d509f435d110acac154175e3721a31d9e895c5838a77451cb9f33c86298a4b7",
+    "terminal_run_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192120491858Z-run.json",
+      "sha256": "02272c8cdbe9d2e657a8c5064d8d6e3f817cae4600452360f5790143556c16d8"
+    },
+    "terminal_jobs_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192120491858Z-jobs.json",
+      "sha256": "0fbd0cf513838a5114ea027e842be929b8d968879d578e1b81d5c3b5c1979928"
+    },
+    "new_abandonment_format_tests": {
+      "unique_tests": 3,
+      "workspace_occurrences": 3,
+      "feature_adapter_occurrences": 3,
+      "evidence": [
+        {
+          "line": 2731,
+          "text": "2026-10-03T19:01:19.5155642Z test owned_mounted_replace::native::tests::native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 2732,
+          "text": "2026-10-03T19:01:19.8815448Z test owned_mounted_replace::native::tests::native_stage_abandonment_keynote_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 2733,
+          "text": "2026-10-03T19:01:20.4845626Z test owned_mounted_replace::native::tests::native_stage_abandonment_numbers_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 4343,
+          "text": "2026-10-03T19:05:06.3985748Z test owned_mounted_replace::native::tests::native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 4344,
+          "text": "2026-10-03T19:05:06.7800947Z test owned_mounted_replace::native::tests::native_stage_abandonment_keynote_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 4345,
+          "text": "2026-10-03T19:05:07.1960534Z test owned_mounted_replace::native::tests::native_stage_abandonment_numbers_keeps_exact_operation_and_original ... ok"
+        }
+      ]
+    },
+    "original_pages_exact_metadata_and_current_vault_proof": {
+      "workspace_and_feature_occurrences": 2,
+      "evidence": [
+        {
+          "line": 2735,
+          "text": "2026-10-03T19:01:20.5779484Z test owned_mounted_replace::native::tests::native_stage_abandonment_proof_is_exact_and_only_reads_metadata ... ok"
+        },
+        {
+          "line": 4347,
+          "text": "2026-10-03T19:05:07.2895551Z test owned_mounted_replace::native::tests::native_stage_abandonment_proof_is_exact_and_only_reads_metadata ... ok"
+        }
+      ],
+      "scope": "Original Pages proof test contains current vault state refusal controls; this is synthetic code coverage, not live recovery."
+    },
+    "chooser_1": {
+      "command_line": 4760,
+      "result_line": 4772,
+      "result": "2026-10-03T19:09:41.5605442Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.05s"
+    },
+    "window_1_1_20": [
+      {
+        "command_line": 4774,
+        "result_line": 4806,
+        "result": "2026-10-03T19:09:52.6836557Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out"
+      },
+      {
+        "command_line": 4808,
+        "result_line": 4822,
+        "result": "2026-10-03T19:10:00.1387429Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out"
+      },
+      {
+        "command_line": 4824,
+        "result_line": 4877,
+        "result": "2026-10-03T19:10:22.6173519Z test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out"
+      }
+    ],
+    "native_fuse_https_3": {
+      "command_line": 5013,
+      "result_line": 5025,
+      "result": "2026-10-03T19:14:23.7410434Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 496 filtered out; finished in 4.40s"
+    },
+    "writable_session_55": {
+      "command_line": 5134,
+      "result_line": 5198,
+      "result": "2026-10-03T19:18:17.3089576Z test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 108.38s"
+    },
+    "installer_preflight_39": {
+      "step_number": 44,
+      "command_line": 5381,
+      "count_line": 5387,
+      "ok_line": 5389,
+      "summary": "2026-10-03T19:18:42.7643740Z Ran 39 tests in 10.610s",
+      "outcome": "2026-10-03T19:18:42.7643981Z OK"
+    },
+    "scope_audit": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192340926614Z-cancelled-scope-audit.json",
+      "sha256": "59a734cde8abc1a34e3f7e08e04c906feaa1e7a31b3e4f83f56b05a697f310ae"
+    },
+    "cause_audit": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192637946660Z-cancellation-cause-audit.json",
+      "sha256": "9e34e59f74467da996db478c4fa54e5b63f146244321b097cb271773d3a54ee0"
+    },
+    "explicit_cause": "GitHub check annotation explicitly reports maximum job execution time of 30m0s exceeded. Linux aggregate job budget exhausted; cargo doc step49 cancelled, all steps1\u201348 succeeded.",
+    "raw_annotation": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192637946660Z-annotations.json",
+      "sha256": "bd4979890a23d4351ed3be16de9e737199105304d76e69b15dbf5f36c51efbf4",
+      "messages": [
+        {
+          "annotation_level": "failure",
+          "message": "The job has exceeded the maximum execution time of 30m0s"
+        },
+        {
+          "annotation_level": "failure",
+          "message": "The operation was canceled."
+        }
+      ]
+    },
+    "claim_limit": "Prior checks executed successfully; Linux overall cancelled at final documentation, six other jobs successful. Not seven green; excludes new account-router fixture and job-budget correction."
+  }
 }

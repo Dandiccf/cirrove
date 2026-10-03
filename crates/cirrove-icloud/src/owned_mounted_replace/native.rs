@@ -82,6 +82,25 @@ fn unpack(mut inner: Value) -> UploadResult<SecretString> {
     Ok(text.into())
 }
 impl ICloudFileReplace {
+    /// Replace only transport/session access after normal construction or restore.
+    /// The fixed synthetic origin uses no account credentials or live endpoints.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn with_synthetic_native_transport(
+        mut self,
+        client: reqwest::Client,
+    ) -> UploadResult<Self> {
+        let endpoint: url::Url = "https://fixture.icloud-content.com/"
+            .parse()
+            .map_err(|_| UploadError::Invalid)?;
+        let context = self.native.as_mut().ok_or(UploadError::Invalid)?;
+        context
+            .provider
+            .bind_synthetic_package_transport(client.clone())?;
+        context.fixture_transport = Some((client, endpoint));
+        Ok(self)
+    }
+
     /// Synthetic HTTPS only, absent from default/release builds. The fixed
     /// fixture origin carries no account credentials; caller maps it to loopback.
     #[cfg(feature = "test-support")]

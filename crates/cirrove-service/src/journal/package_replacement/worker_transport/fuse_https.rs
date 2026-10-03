@@ -3,6 +3,7 @@
 use super::*;
 use crate::{accounts::Account, engine::Engine, filesystem::CloudFs};
 use cirrove_auth::{AccessMode, AppRegistration, Identity};
+use cirrove_core::upload::UploadProvider;
 use cirrove_core::{
     Change, ChangePage, Checkpoint, Cursor, DirectoryPage, MetadataProvider, ProviderError,
     ReadProvider,
@@ -79,11 +80,15 @@ impl MetadataProvider for MountedArchive {
         Ok(ChangePage {
             changes: if self.installed() {
                 vec![
+                    Change::Upsert(parent()),
                     Change::Delete { id: OLD.into() },
                     Change::Upsert(self.committed.source.clone()),
                 ]
             } else {
-                vec![Change::Upsert(self.initial.source.clone())]
+                vec![
+                    Change::Upsert(parent()),
+                    Change::Upsert(self.initial.source.clone()),
+                ]
             },
             checkpoint: Checkpoint::Complete(Cursor("synthetic-native-fuse-baseline".into())),
         })
@@ -125,7 +130,9 @@ impl ReadProvider for MountedArchive {
             return Err(ProviderError::NotFound);
         }
         let current = self.current();
-        let nodes = if parent_id == FOLDER {
+        let nodes = if parent_id == ROOT_ID {
+            vec![parent()]
+        } else if parent_id == FOLDER {
             vec![current.source.clone()]
         } else if parent_id == current.source.id {
             vec![current.archive.clone()]
@@ -241,12 +248,25 @@ fn account(mount: &Path) -> Account {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE and loopback TLS; no Apple credentials"]
 async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirmed_bytes() {
+    save_and_reopen(false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE and loopback TLS; no Apple credentials"]
+async fn real_native_fuse_save_uses_account_router_and_recovers_without_current_parent() {
+    save_and_reopen(true).await;
+}
+
+async fn save_and_reopen(account_router: bool) {
     let root = directory();
     let staging = directory();
     let state = directory();
     let mount = root.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
-    let account = account(&mount);
+    let mut account = account(&mount);
+    if account_router {
+        account.root_id = ROOT_ID.into();
+    }
     let scope = Scope {
         account: account.id.clone(),
         provider: "icloud".into(),
@@ -269,10 +289,6 @@ async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirm
         server: Mutex::new(None),
         resolutions: AtomicUsize::new(0),
     });
-    let journal_root = root.path().join("journal");
-    let journal = Arc::new(Mutex::new(
-        UploadJournal::open(&journal_root, &account.id, 8 * 1024 * 1024).unwrap(),
-    ));
     let engine = Engine::new(
         account.clone(),
         metadata.clone(),
@@ -281,6 +297,31 @@ async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirm
     .await
     .unwrap();
     engine.start().await.unwrap();
+    let context = if account_router {
+        Some(
+            crate::manager::WriteContext::open(&engine, state.path())
+                .await
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+    let journal_root = if account_router {
+        state
+            .path()
+            .join("accounts")
+            .join(&account.id)
+            .join("journal")
+    } else {
+        root.path().join("journal")
+    };
+    let journal = if let Some(context) = &context {
+        context.journal()
+    } else {
+        Arc::new(Mutex::new(
+            UploadJournal::open(&journal_root, &account.id, 8 * 1024 * 1024).unwrap(),
+        ))
+    };
     // No background transfer pump: observe the exact FUSE-created Pending row first.
     let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
         .await
@@ -293,7 +334,14 @@ async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirm
     .await
     .unwrap()
     .unwrap();
-    let path = mount.join("Target.pages").join("Target.pages");
+    let path = if account_router {
+        mount
+            .join("Owned")
+            .join("Target.pages")
+            .join("Target.pages")
+    } else {
+        mount.join("Target.pages").join("Target.pages")
+    };
     let (held, edit) = tokio::task::spawn_blocking({
         let path = path.clone();
         let bytes = new_bytes.clone();
@@ -346,7 +394,7 @@ async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirm
             staged_name: format!("staged-by-cirrove-{}.pages", queued.id),
         },
         new_bytes.clone(),
-        false,
+        account_router,
         false,
         false,
         None,
@@ -358,21 +406,117 @@ async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirm
     let vault = Arc::new(
         SealedUploadCheckpointVault::with_test_key_vault(state.path(), &account.id, keys).unwrap(),
     );
+    let upload: Arc<dyn cirrove_core::upload::UploadProvider> = if let Some(context) = &context {
+        assert!(Arc::ptr_eq(&context.journal(), &journal));
+        let mut read_only = account.clone();
+        read_only.access = AccessMode::ReadOnly;
+        assert!(crate::icloud_writes::ICloudWriteProvider::new(&read_only, context).is_err());
+        let router = crate::icloud_writes::ICloudWriteProvider::new(&account, context)
+            .unwrap()
+            .synthetic_native_transport(server.client.clone());
+        let accounts = state.path().join("accounts");
+        let permissions = std::fs::metadata(&accounts).unwrap().permissions();
+        std::fs::set_permissions(&accounts, std::fs::Permissions::from_mode(0o777)).unwrap();
+        assert!(matches!(
+            router
+                .begin_upload_for_operation(
+                    &queued.id.to_string(),
+                    &request(&queued),
+                    &CancellationToken::new()
+                )
+                .await,
+            Err(cirrove_core::upload::UploadError::Invalid)
+        ));
+        std::fs::set_permissions(&accounts, permissions).unwrap();
+        assert_eq!(counts(&server), (0, 0, 0, 0, 0));
+        Arc::new(router)
+    } else {
+        provider(&server, staging.path(), &queued)
+    };
     let worker = TransferWorker::new(
         journal.clone(),
-        provider(&server, staging.path(), &queued),
-        vault,
+        upload,
+        vault.clone(),
         CancellationToken::new(),
     );
-    let result = tokio::time::timeout(Duration::from_secs(30), worker.run_once())
+    let mut result = tokio::time::timeout(Duration::from_secs(30), worker.run_once())
         .await
         .unwrap()
         .unwrap()
         .unwrap();
-    assert_eq!(result.id, queued.id);
-    assert_eq!(result.state, UploadState::Uploaded);
-    assert!(result.issue.is_none());
     drop(worker);
+    if let Some(context) = &context {
+        assert_eq!(result.state, UploadState::VerifyRequired);
+        assert_eq!(counts(&server), (1, 1, 1, 0, 0));
+        let saved = vault
+            .load(&format!("upload/{}", queued.id))
+            .await
+            .unwrap()
+            .unwrap();
+        let checkpoint: serde_json::Value = serde_json::from_str(saved.expose_secret()).unwrap();
+        assert_eq!(checkpoint["operation"], queued.id.to_string());
+        assert_eq!(checkpoint["parent"]["id"], FOLDER);
+        assert_eq!(
+            checkpoint["phase"]["Stage"]["inner"]["phase"],
+            "RegistrationArmed"
+        );
+        let mut store = cirrove_store::Store::open(context.metadata_db()).unwrap();
+        store.observe_directory(&scope, ROOT_ID, &[]).unwrap();
+        assert!(
+            store
+                .node_chain_to_root(&scope, FOLDER, ROOT_ID)
+                .unwrap()
+                .is_none()
+        );
+        drop(store);
+        let router = crate::icloud_writes::ICloudWriteProvider::new(&account, context)
+            .unwrap()
+            .synthetic_native_transport(server.client.clone());
+        // A fresh operation cannot use an absent parent, but a continuation must
+        // restore its captured parent through the normal factory before binding TLS.
+        assert!(matches!(
+            router
+                .begin_upload_for_operation(
+                    &queued.id.to_string(),
+                    &request(&queued),
+                    &CancellationToken::new()
+                )
+                .await,
+            Err(cirrove_core::upload::UploadError::Conflict)
+        ));
+        assert_eq!(counts(&server), (1, 1, 1, 0, 0));
+        journal.lock().unwrap().request_retry(queued.id).unwrap();
+        let worker = TransferWorker::new(
+            journal.clone(),
+            Arc::new(router),
+            vault,
+            CancellationToken::new(),
+        );
+        result = tokio::time::timeout(Duration::from_secs(30), worker.run_once())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        drop(worker);
+        cirrove_store::Store::open(context.metadata_db())
+            .unwrap()
+            .observe_directory(&scope, ROOT_ID, &[parent()])
+            .unwrap();
+    }
+    assert_eq!(result.id, queued.id);
+    if account_router && result.state != UploadState::Uploaded {
+        assert_eq!(
+            counts(&server),
+            (1, 1, 1, 0, 0),
+            "failed recovery must not replay registration or begin a handoff"
+        );
+    }
+    assert_eq!(
+        result.state,
+        UploadState::Uploaded,
+        "captured-parent recovery must complete through the normal account router"
+    );
+    assert!(result.issue.is_none());
     {
         let j = journal.lock().unwrap();
         let rows = j.list(0, 10).unwrap();
@@ -441,6 +585,7 @@ async fn real_native_fuse_save_executes_https_package_worker_and_reopens_confirm
         .unwrap();
     drop(control);
     drop(engine);
+    drop(context);
     drop(journal);
     let journal = Arc::new(Mutex::new(
         UploadJournal::open(&journal_root, &account.id, 8 * 1024 * 1024).unwrap(),

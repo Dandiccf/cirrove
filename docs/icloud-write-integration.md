@@ -1582,5 +1582,58 @@ The corrected source passes all four selected tests, including five new format
 arms and 15 exact-name tamper refusals. The complete contributor check also
 passed, including the new tests, existing provider/service/journal abandonment
 coverage, all three native FUSE/HTTPS scenarios, all 55 writable kernel cases
-and 39 installer tests. Source CI for this format correction remains separate;
-all six live/application/installed release gates remain open.
+and 39 installer tests. Exact source `0e48e13` CI37145716828 executed the new
+format tests in both workspace and feature runs, existing abandonment recovery,
+chooser, all 22 windows, three native FUSE/HTTPS, 55 writable and 39 installer
+cases successfully. Six other jobs succeeded, but Linux was cancelled during
+final documentation generation after its global 30-minute budget expired. The
+GitHub check annotation states that limit explicitly. This is not a seven-job
+green conclusion; the tested PR merge has the exact same source tree. All six
+live/application/installed release gates remain open.
+
+### Native kernel save through the normal account router
+
+The [registered local HTTPS acceptance](benchmarks/icloud-native-account-router-https-2026-10-03.json)
+adds a fourth native FUSE/HTTPS scenario. A real kernel Pages archive save now
+also uses a valid root iCloud account, `WriteContext::open`, its shared journal
+and the normal `ICloudWriteProvider` constructor and native factory. An unsafe
+intermediate staging directory refuses before any provider request. After a
+lost registration reply, the worker retains its encrypted checkpoint and local
+payload. Hiding the current parent in the scoped metadata index refuses a fresh
+begin; an explicit retry with a newly constructed router restores the captured
+parent and completes with one allocation, body upload, registration, Trash and
+rename. Exact old/new/Trash receipts, semantic-v2 completion, publication, an
+old open reader and remount bytes remain checked.
+
+A controlled omission of captured-parent restore makes that same test finish
+in `Conflict` rather than `Uploaded`, with no repeated registration or handoff.
+The exact factory source was restored and all four native FUSE/HTTPS cases
+passed. This is sensitivity of the new coupled coverage, not a new product
+fix. The first setup run failed because the synthetic full-root change feed
+omitted its parent folder; that failure and fixture correction are retained.
+
+The test transport is bound only after normal factory/restore validation. It
+uses a fresh credential-free session and a fixed loopback HTTPS fixture origin.
+Metadata, archive resolution, hydration and checkpoint wrapping keys remain
+synthetic; sealed-session decryption/renewal, real Apple behavior, Numbers,
+Keynote, DATA application saves and installed deployment are not established.
+The complete `scripts/check.sh` passed, including all four native FUSE/HTTPS,
+55 writable kernel and 39 installer cases. Desktop display scenarios were not
+repeated locally; source CI remains pending. No full-iCloud release criterion
+is closed.
+
+
+### Complete CI job budget
+
+[CI37145716828](https://github.com/Dandiccf/cirrove/actions/runs/37145716828)
+passed all Linux steps through icon/translation checks, then exhausted the
+aggregate 30-minute job budget during `cargo doc`. The terminal cancellation,
+explicit GitHub annotation and completed scopes are retained in the
+[budget record](benchmarks/icloud-ci-completion-budget-2026-10-03.json). Linux's
+aggregate budget is now 40 minutes; every test-group timeout, scenario and
+command remains unchanged. A subsequent complete source CI is still required;
+this correction does not relabel the cancelled run or prove repeatable timing.
+The final complete `scripts/check.sh` passed after this workflow change, again
+executing all four native FUSE/HTTPS, 55 writable and 39 installer cases.
+Executable source, including the corrected workflow, was unchanged throughout
+that check; the shared-runner completion hypothesis remains open.

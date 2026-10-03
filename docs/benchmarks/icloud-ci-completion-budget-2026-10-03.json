@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "status": "terminal-timeout-verified-40-minute-budget-and-final-local-full-check-passed-source-CI-pending",
+  "registered_at": "2026-10-03T19:26:17.176751+00:00",
+  "question": "Can the complete Linux contributor CI finish all existing checks including documentation within a job budget that exceeds the observed cold-build total, without relaxing any individual test-group endpoint?",
+  "incident": {
+    "run": 37145716828,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37145716828",
+    "source_head": "0e48e13ad84af25534abc020df8b9fa17213e5bc",
+    "status": "completed",
+    "conclusion": "cancelled",
+    "linux_job": 111269105297,
+    "linux_started_at": "2026-10-03T18:50:36Z",
+    "linux_completed_at": "2026-10-03T19:20:45Z",
+    "other_jobs_success": 6,
+    "explicit_annotation": "The job has exceeded the maximum execution time of 30m0s",
+    "annotation_file": ".local-state/icloud-full-integration-20261003/native-account-router-ci0e-timeout-annotations.json",
+    "annotation_sha256": "bd4979890a23d4351ed3be16de9e737199105304d76e69b15dbf5f36c51efbf4",
+    "prior_steps": "All through step48 succeeded. Final cargo doc step49 cancelled; not a seven-job success.",
+    "linux_elapsed_seconds": 1809,
+    "immutable_cause_audit": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192637946660Z-cancellation-cause-audit.json",
+      "sha256": "9e34e59f74467da996db478c4fa54e5b63f146244321b097cb271773d3a54ee0"
+    },
+    "verified_scope_record": "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json#remote_ci"
+  },
+  "prediction": "Forty minutes allows the observed approximately thirty-minute cold pipeline plus final documentation to finish. This is a testable budget hypothesis, not a timing-repeatability or provider-latency claim.",
+  "arms": [
+    {
+      "name": "observed-30-minute-job",
+      "kind": "incident evidence, not pre-registered performance comparison",
+      "endpoint": "GitHub terminal cancelled and explicit 30m0s maximum-execution annotation."
+    },
+    {
+      "name": "40-minute-complete-job",
+      "kind": "registered subsequent source CI",
+      "endpoint": "Exact published candidate CI reaches terminal success for all jobs, with all existing Linux groups and final cargo doc explicitly passed."
+    },
+    {
+      "name": "final-local-contributor-check",
+      "kind": "local required validation",
+      "endpoint": "Full scripts/check.sh after workflow budget correction; verify four native FUSE/HTTPS,55 writable,39 installer cases and source pins."
+    }
+  ],
+  "correction": {
+    "file": ".github/workflows/ci.yml",
+    "source_before_sha256": "1b57b55f5d4c0afbfecd585308c262f1adccb08bf424e600b7c0a5d29fcc97df",
+    "source_after_sha256": "207ba6cafc4d90801b0fa1fd88045b4f916bdfa2c7d633224886221f27b80f0b",
+    "linux_job_minutes_before": 30,
+    "linux_job_minutes_after": 40,
+    "only_change": "Linux aggregate job budget and explanatory comment; all run commands, group timeouts, scenarios, package jobs and required checks byte-for-byte unchanged."
+  },
+  "claim_limits": [
+    "No previous cancelled source CI is relabeled successful.",
+    "Local warm completion does not prove shared-runner cold completion or repeated timing.",
+    "No production provider deadline, retry, data validation, installed daemon or real-account state changes.",
+    "Full-iCloud release acceptance remains open."
+  ],
+  "final_local_check": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "exit_code": 0,
+    "started_at": "2026-10-03T19:26:17.257736+00:00",
+    "finished_at": "2026-10-03T19:32:46.473479+00:00",
+    "source_sha256": {
+      ".github/workflows/ci.yml": "207ba6cafc4d90801b0fa1fd88045b4f916bdfa2c7d633224886221f27b80f0b",
+      "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+      "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "e9417521d4af0ca7cbd70750ee738156529b523cbb2635c3d6ba2962338ade4a",
+      "crates/cirrove-icloud/src/package_create.rs": "899d8c62ca0718d3190d0ea43284880b799b277fa4b0eb963efff99821ae6670",
+      "crates/cirrove-service/src/icloud_writes.rs": "eb7c1536bbfb0638017fa23d24cc9487541cf2dffc200ce3261a02321c909a44",
+      "crates/cirrove-service/src/icloud_writes/packages.rs": "e677b0dab8f212c5ca334a0f9578fa55a51ca73753f118a3bcaf65f84db008a4",
+      "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "6d7898c53b2da2fa6d54a3677fa82be2d9157db28754edae3e5c9ce2f305a2e1",
+      "docs/acceptance-ledger.json": "e61ad0d1f515414f9cf910ab9dd3467e220cdeb75daec7dce0009278f1710eb7",
+      "docs/benchmarks/icloud-ci-completion-budget-2026-10-03.json": "d758cb9a180c9cf585d2dae77eac13e20784310b8065844b32e7600b6a47d8e2",
+      "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json": "b02b6abbff9f9fcb8f9a7e091e4a3333b5481fe969b5c3ce4be9bdc8e441dba7",
+      "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+      "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+      "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+      "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+    },
+    "nested_executable_sha256": {},
+    "manifest": ".local-state/icloud-full-integration-20261003/native-account-router-final-budget-full-check.json",
+    "manifest_sha256": "e1b991f3425fc421a72e3ab8495fd05a5110d2d603b792538524934d48986d49",
+    "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/native-account-router-final-budget-full-check.log",
+    "log_sha256": "cd581f5d7349e18ba428f9001b7fc008d880850baba2c4e1287ea3b955743e85",
+    "elapsed_seconds": 389.215743,
+    "executable_source_unchanged": true,
+    "native_fuse_https_tests": [
+      "journal::package_replacement::worker_transport::fuse_https::chain::real_native_fuse_pending_atomic_chain_rebases_https_proofs_and_preserves_unread_readers",
+      "journal::package_replacement::worker_transport::fuse_https::chain::real_native_fuse_uncertain_predecessor_reopens_sealed_chain_and_preserves_dirty_successor",
+      "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_executes_https_package_worker_and_reopens_confirmed_bytes",
+      "journal::package_replacement::worker_transport::fuse_https::real_native_fuse_save_uses_account_router_and_recovers_without_current_parent"
+    ],
+    "writable_tests": 55,
+    "installer_tests": 39,
+    "scope": "Full scripts/check.sh after only Linux global CI budget30-to40 correction; formatting, clippy/probes, workspace/features, kernel/scripts/coverage/ledger/docs all passed. Display not repeated locally."
+  }
+}

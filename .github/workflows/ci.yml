@@ -23,8 +23,10 @@ concurrency:
 jobs:
   linux:
     runs-on: ubuntu-24.04
-    # Cold builds and slow package mirrors must leave time for every test group.
-    timeout-minutes: 30
+    # Run37145716828 exhausted 30 minutes in the final cargo doc step after
+    # every preceding check passed. Leave cold builds time to finish the whole
+    # job; the individual test-group timeout commands remain unchanged.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

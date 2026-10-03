@@ -61,26 +61,23 @@ impl ICloudWriteProvider {
                 apple_id: self.apple_id.clone(),
                 credential_id: self.credential_id.clone(),
             };
-            if let Some(saved) = checkpoint {
+            let adapter = if let Some(saved) = checkpoint {
                 // The original may already be in Trash. Restore only the exact
                 // captured operation/request/parent, never today's path index.
-                return Ok(Arc::new(
-                    ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
-                        request.clone(),
-                        operation_id,
-                        sign_in,
-                        &self.state,
-                        &staging,
-                        saved,
-                    )?,
-                ));
-            }
-            let parent = self
-                .parent(original.parent_id.as_deref().ok_or(UploadError::Invalid)?)
-                .await?;
-            // Construction performs no provider I/O; begin/allocation verify
-            // the selected original's actual representation and semantic bytes.
-            return Ok(Arc::new(
+                ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
+                    request.clone(),
+                    operation_id,
+                    sign_in,
+                    &self.state,
+                    &staging,
+                    saved,
+                )?
+            } else {
+                let parent = self
+                    .parent(original.parent_id.as_deref().ok_or(UploadError::Invalid)?)
+                    .await?;
+                // Construction performs no provider I/O; begin/allocation verify
+                // the selected original's actual representation and semantic bytes.
                 ICloudFileReplace::native_package_from_sealed_session(
                     request.clone(),
                     parent,
@@ -88,8 +85,15 @@ impl ICloudWriteProvider {
                     sign_in,
                     &self.state,
                     &staging,
-                )?,
-            ));
+                )?
+            };
+            #[cfg(test)]
+            let adapter = if let Some(client) = &self.package_test_transport {
+                adapter.with_synthetic_native_transport(client.clone())?
+            } else {
+                adapter
+            };
+            return Ok(Arc::new(adapter));
         }
 
         if let Some(checkpoint) = checkpoint {
