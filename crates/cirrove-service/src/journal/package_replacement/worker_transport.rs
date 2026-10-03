@@ -80,6 +80,8 @@ struct State {
     trash_calls: usize,
     rename_calls: usize,
     requests: usize,
+    package_507_after_trash_once: bool,
+    package_507_responses: usize,
 }
 struct Server {
     state: Arc<Mutex<State>>,
@@ -166,6 +168,7 @@ impl Server {
                     let size=head.lines().find_map(|v|v.to_ascii_lowercase().strip_prefix("content-length: ").map(str::to_owned)).map(|v|v.parse::<usize>().unwrap()).unwrap_or(0);
                     if raw.len()>=end+4+size {break(head.lines().next().unwrap().split_whitespace().nth(1).unwrap().to_owned(),raw[end+4..end+4+size].to_vec())}
                 };
+                let mut status = "200 Fixture";
                 let mut reply={let mut s=observed.lock().unwrap();s.requests+=1;let url=reqwest::Url::parse(&format!("{ORIGIN}{path}")).unwrap();match url.path(){
                     "/retrieveItemDetailsInFolders"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request[0]["drivewsid"],FOLDER);let mut items=if s.registered{vec![entry(&plan,&s,false)]}else{vec![]};if !s.trashed&&!s.moved&&!s.deleted{items.push(entry(&plan,&s,true));}
                     if s.collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");other["name"]=json!("Target");items.push(other);}Some(json!([{"drivewsid":FOLDER,"parentId":ROOT_ID,"name":"Owned","zone":"com.apple.CloudDocs","type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())},
@@ -174,13 +177,24 @@ impl Server {
                     "/ws/com.apple.CloudDocs/update/documents"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["command"],"add_package");assert_eq!(r["document_id"],"new");assert_eq!(r["path"]["path"],plan.staged_name);assert_eq!(r["path"]["starting_document_id"],"owned");assert_eq!(r["allow_conflict"],false);assert_eq!(s.body_calls,1);s.registrations+=1;assert_eq!(s.registrations,1);s.registered=true;if lost_registration{None}else{Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":"new","item_id":"new-item","etag":"new-v1","size":17,"name":plan.staged_name}}]}).to_string().into_bytes())}},
                     "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==OLD;assert!(old||request["items"][0]["drivewsid"]==NEW);Some(json!({"items":if old&&s.deleted{vec![]}else{vec![entry(&plan,&s,old)]}}).to_string().into_bytes())},
                     "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id=="old"||id=="new");Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},
-                    "/archive/old"|"/archive/new"=>{let old=url.path().ends_with("old");let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};Some(archive(name,old,s.corrupt))},
+                    "/archive/old"|"/archive/new"=>{
+                        let old=url.path().ends_with("old");
+                        if !old && s.trashed && !s.installed && s.package_507_after_trash_once {
+                            s.package_507_after_trash_once=false;
+                            s.package_507_responses+=1;
+                            status="507 Insufficient Storage";
+                            Some(b"PRIVATE PACKAGE PROVIDER BODY auth-secret".to_vec())
+                        } else {
+                            let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};
+                            Some(archive(name,old,s.corrupt))
+                        }
+                    },
                     "/moveItemsToTrash"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],OLD);assert_eq!(request["items"][0]["etag"],"old-v1");s.trash_calls+=1;assert_eq!(s.trash_calls,1);assert!(!s.changed&&!s.moved&&!s.deleted);s.trashed=true;if lost_trash{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
                     "/renameItems"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],NEW);assert_eq!(request["items"][0]["etag"],"new-v1");assert_eq!(request["items"][0]["name"],"Target.pages");s.rename_calls+=1;assert_eq!(s.rename_calls,1);assert!(s.trashed);s.installed=true;if lost_rename{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
                     _=>panic!("unexpected synthetic native handoff route"),
                 }};
                 if pause.is_some_and(|route|path.split('?').next()==Some(route)) {reached.notify_one();resume.notified().await;reply=None;}
-                if let Some(reply)=reply{stream.write_all(format!("HTTP/1.1 200 Fixture\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",reply.len()).as_bytes()).await.unwrap();stream.write_all(&reply).await.unwrap();stream.shutdown().await.unwrap();}
+                if let Some(reply)=reply{stream.write_all(format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",reply.len()).as_bytes()).await.unwrap();stream.write_all(&reply).await.unwrap();stream.shutdown().await.unwrap();}
             }).await.unwrap();
             }
         });
@@ -539,6 +553,118 @@ async fn native_coordinator_worker_abort_and_cancellation_keep_armed_checkpoint_
         arm.complete();
         assert_eq!(counts(&server), (1, 1, 1, 1, 1));
     }
+}
+
+#[tokio::test]
+async fn native_coordinator_worker_package_readback_storage_refusal_requires_explicit_retry() {
+    let arm = Arm::create();
+    let server = Server::start(arm.plan(), arm.bytes.clone(), false, false, false, None).await;
+    server.state.lock().unwrap().package_507_after_trash_once = true;
+    let journal = Arc::new(Mutex::new(arm.journal()));
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider(&server, arm.staging.path(), &arm.row),
+        arm.vault(),
+        CancellationToken::new(),
+    );
+    let result = tokio::time::timeout(Duration::from_secs(30), worker.run_once())
+        .await
+        .unwrap()
+        .unwrap()
+        .expect("registered native replacement must run once");
+    assert_eq!(result.id, arm.row.id);
+    assert_eq!(counts(&server), (1, 1, 1, 1, 0));
+    {
+        let state = server.state.lock().unwrap();
+        assert!(state.trashed);
+        assert!(!state.installed);
+        assert_eq!(state.package_507_responses, 1);
+        assert!(!state.package_507_after_trash_once);
+    }
+    assert_eq!(result.state, UploadState::Failed);
+    let expected_issue = cirrove_core::upload::UploadError::InsufficientStorage.to_string();
+    assert_eq!(result.issue.as_deref(), Some(expected_issue.as_str()));
+    let issue = result.issue.as_deref().unwrap();
+    for forbidden in [
+        "PRIVATE",
+        "auth-secret",
+        "fixture.icloud-content.com",
+        "/archive/new",
+    ] {
+        assert!(
+            !issue.contains(forbidden),
+            "worker issue exposed response details"
+        );
+    }
+    let retained_row = journal.lock().unwrap().get(arm.row.id).unwrap();
+    assert!(retained_row.remote.is_none());
+    assert!(retained_row.package_completion.is_none());
+    assert!(retained_row.native_replacement_receipt().is_none());
+    let reservation = serde_json::to_value(
+        retained_row
+            .identity_handoff
+            .as_ref()
+            .expect("reserved original identity"),
+    )
+    .unwrap();
+    let recovery_name = format!("recovery-by-cirrove-{}.pages", arm.row.id);
+    assert_eq!(reservation["old_item"], OLD);
+    assert_eq!(reservation["recovery_name"], recovery_name);
+    assert_eq!(reservation["trash_parent"], TRASH_ROOT);
+    assert!(reservation["backup"].is_null());
+    let recovery_id = Uuid::parse_str(reservation["recovery_object"].as_str().unwrap()).unwrap();
+    let recovery = journal
+        .lock()
+        .unwrap()
+        .namespace_object(recovery_id)
+        .unwrap();
+    assert_eq!(recovery.id, recovery_id);
+    assert_eq!(recovery.scope, arm.row.scope);
+    assert!(recovery.unlinked);
+    assert!(!recovery.remote_owned);
+    assert_eq!(recovery.remote.as_ref(), Some(&original()));
+    assert_eq!(recovery.node.id, format!("local-recovery-{recovery_id}"));
+    assert_eq!(recovery.node.name, recovery_name);
+    assert!(recovery.latest.is_none());
+    assert!(recovery.working_file.is_none());
+    let retained_recovery = serde_json::to_value(recovery).unwrap();
+    let retained = serde_json::to_value(retained_row).unwrap();
+    let requests = server.state.lock().unwrap().requests;
+    // Storage has already recovered because the injected refusal fires once.
+    // A failed operation must still require the explicit user retry below.
+    let idle = tokio::time::timeout(Duration::from_secs(2), worker.run_once())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        idle.is_none(),
+        "storage recovery silently restarted native work"
+    );
+    assert_eq!(server.state.lock().unwrap().requests, requests);
+    assert_eq!(counts(&server), (1, 1, 1, 1, 0));
+    assert_eq!(
+        serde_json::to_value(journal.lock().unwrap().get(arm.row.id).unwrap()).unwrap(),
+        retained
+    );
+    assert_eq!(
+        serde_json::to_value(
+            journal
+                .lock()
+                .unwrap()
+                .namespace_object(recovery_id)
+                .unwrap()
+        )
+        .unwrap(),
+        retained_recovery
+    );
+    drop(worker);
+    drop(journal);
+    arm.sealed_checkpoint("move_old").await;
+    arm.retained_export(507);
+    assert_eq!(pass(&arm, &server, true).await, UploadState::Uploaded);
+    arm.complete();
+    assert_eq!(counts(&server), (1, 1, 1, 1, 1));
+    assert_eq!(server.state.lock().unwrap().package_507_responses, 1);
 }
 
 #[path = "worker_transport/fuse_https.rs"]

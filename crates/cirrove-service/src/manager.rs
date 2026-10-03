@@ -470,8 +470,8 @@ impl Manager {
         let discarded = control.discard_stuck().await?;
         Ok((discarded, control.stuck_changes().await.unwrap_or(0)))
     }
-    /// Queue the stuck changes that can sensibly be tried again, and say how
-    /// many will not be. See [`crate::filesystem::writeback::Writeback::retry_stuck`].
+    /// Queue eligible stuck changes for another attempt.
+    /// Returns `(queued, conflicts)`: changes queued again and conflicts kept for review.
     pub async fn retry_stuck(&self, label: &str) -> Result<(u64, u64)> {
         let id = self.account_id(label).await?;
         let control = self

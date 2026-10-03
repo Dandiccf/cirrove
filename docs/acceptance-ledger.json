@@ -726,7 +726,7 @@
       "blocker": "needs-live-account",
       "blocks_release": "yes",
       "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
-      "evidence": "docs/icloud-write-integration.md records unresolved in-flight/retained-fixture/session/capacity boundaries. docs/benchmarks/icloud-full-device-export-2026-10-01.md proves bounded local ENOSPC recovery, not live Apple quota or arbitrary-size reliability.",
+      "evidence": "docs/icloud-write-integration.md records unresolved in-flight/retained-fixture/session/capacity boundaries. docs/benchmarks/icloud-full-device-export-2026-10-01.md proves bounded local ENOSPC recovery, not live Apple quota or arbitrary-size reliability. docs/benchmarks/icloud-package-readback-storage-2026-10-03.json records two actual failing controls for signed PACKAGE507 classification and post-Trash VerifyRequired state, corrected unit/worker behavior, retained identity/checkpoint/source, no automatic requests after the one-shot fault clears and explicit retry without repeating earlier mutations. Eight package and three native coordinator controls passed; the complete scripts/check.sh passed for the correction, including the regressions and mounted scenarios; other desktop window scenarios were not run locally. Live Apple quota, account-session, dirty-successor and installed requirements remain open.",
       "asserted_by": null
     }
   ],

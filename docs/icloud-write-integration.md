@@ -1261,3 +1261,30 @@ Pages ZIP generation is not an Apple application document or save. The normal
 account router, multiple pending generations, lost-response recovery and live
 Apple behavior remain separate requirements. No provider account or installed
 service was touched, and no full-iCloud release gate closed.
+
+
+### Native package storage refusal after Trash
+
+The [registered storage-refusal regression](benchmarks/icloud-package-readback-storage-2026-10-03.json)
+reproduced a signed PACKAGE HTTP507 losing its typed storage error. One exact
+unit test failed at the missing storage type. A separate actual HTTPS worker
+trial confirmed one refusal after the original reached Trash and failed because
+the worker returned `VerifyRequired` instead of `Failed`. Signed401/403 controls
+already remained uncertain before correction.
+
+Package staging now reuses the existing signed-content error classifier before
+its unchanged representation, range, encoding, budget, cancellation and identity
+checks. Both original regressions passed after correction. All eight package
+controls and three native coordinator controls passed, including existing
+lost-reply and cancellation scenarios. In the post-Trash trial, the failed row
+retained its exact identity reservation, hidden recovery object, encrypted
+`move_old` checkpoint and independently exportable source. The one-shot fault
+had cleared, yet an idle worker sent no requests. Explicit retry completed
+without repeating allocation, upload, registration or Trash; only the remaining
+rename ran. Error diagnostics exposed neither response bodies nor signed URLs.
+
+These are bounded synthetic protocol checks. They do not establish live Apple
+quota behavior, account reauthentication, dirty-successor reliability or installed
+acceptance. The complete `scripts/check.sh` passed for this correction, including the
+regressions and mounted scenarios. Other desktop window scenarios were not run
+locally. All six full-iCloud gates remain open.

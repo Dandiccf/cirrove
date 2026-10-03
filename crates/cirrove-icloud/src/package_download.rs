@@ -33,8 +33,10 @@ pub(super) async fn stage_response(
     tokio::select! { biased;
         _ = cancel.cancelled() => Err(ProviderError::Cancelled.into()),
         result = async {
-            if response.status() != StatusCode::OK
-                || response.headers().contains_key(CONTENT_RANGE)
+            if response.status() != StatusCode::OK {
+                return Err(crate::content_request_failure(response.status(), "iCloud package request"));
+            }
+            if response.headers().contains_key(CONTENT_RANGE)
                 || response.headers().get(reqwest::header::CONTENT_ENCODING).is_some_and(|v| v != "identity")
             {
                 bail!("iCloud package response is not a complete identity representation");
@@ -150,6 +152,96 @@ mod tests {
             .send()
             .await?)
     }
+    #[tokio::test]
+    async fn package_signed_storage_refusal_is_typed_without_response_leakage() -> Result<()> {
+        let reply = response(
+            "507 Insufficient Storage",
+            "X-Private-Token: private-header\r\n",
+            b"PRIVATE PROVIDER BODY auth-secret".len(),
+            b"PRIVATE PROVIDER BODY auth-secret",
+        )
+        .await?;
+        let request_url = reply.url().to_string();
+        let mut sink = Sink::default();
+        let Err(error) = stage_response(reply, &mut sink, 100, &CancellationToken::new()).await
+        else {
+            panic!("storage-refused package produced a publication receipt");
+        };
+        assert!(sink.bytes.is_empty());
+        assert_eq!(sink.chunks, 0);
+        assert!(
+            error.downcast_ref::<crate::StorageRefused>().is_some(),
+            "native package readback lost typed storage refusal"
+        );
+        let message = error.to_string();
+        assert!(
+            !message.contains(&request_url),
+            "storage refusal exposed request URL"
+        );
+        for forbidden in [
+            "PRIVATE",
+            "private-header",
+            "auth-secret",
+            "http://",
+            "https://",
+        ] {
+            assert!(
+                !message.contains(forbidden),
+                "storage refusal exposed response data"
+            );
+        }
+        assert!(matches!(
+            crate::file_create::map_session_error(error),
+            cirrove_core::upload::UploadError::InsufficientStorage
+        ));
+        Ok(())
+    }
+    #[tokio::test]
+    async fn package_signed_authentication_expiry_stays_uncertain_without_partial_publication()
+    -> Result<()> {
+        for status in ["401 Unauthorized", "403 Forbidden"] {
+            let reply = response(
+                status,
+                "X-Private-Token: private-header\r\n",
+                b"PRIVATE PROVIDER BODY auth-secret".len(),
+                b"PRIVATE PROVIDER BODY auth-secret",
+            )
+            .await?;
+            let request_url = reply.url().to_string();
+            let mut sink = Sink::default();
+            let Err(error) = stage_response(reply, &mut sink, 100, &CancellationToken::new()).await
+            else {
+                panic!("expired signed package URL produced a publication receipt");
+            };
+            assert!(sink.bytes.is_empty());
+            assert_eq!(sink.chunks, 0);
+            assert!(error.downcast_ref::<crate::StorageRefused>().is_none());
+            assert!(error.downcast_ref::<crate::SessionRejected>().is_none());
+            let message = error.to_string();
+            assert!(
+                !message.contains(&request_url),
+                "signed failure exposed request URL"
+            );
+            for forbidden in [
+                "PRIVATE",
+                "private-header",
+                "auth-secret",
+                "http://",
+                "https://",
+            ] {
+                assert!(
+                    !message.contains(forbidden),
+                    "signed failure exposed response data"
+                );
+            }
+            assert!(matches!(
+                crate::file_create::map_session_error(error),
+                cirrove_core::upload::UploadError::Uncertain
+            ));
+        }
+        Ok(())
+    }
+
     #[tokio::test]
     async fn complete_package_stages_actual_size_and_bounded_chunks() -> Result<()> {
         let bytes = vec![0x35; 131_091];
