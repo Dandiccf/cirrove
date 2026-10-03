@@ -60,7 +60,6 @@ impl Window {
                 "Choose a ZIP archive containing one Pages, Numbers or Keynote document folder. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document.",
             )),
         );
-        dialog.set_content_width(520);
         let group = adw::PreferencesGroup::new();
         let source = adw::ActionRow::builder()
             .title(gettext("Local archive"))
@@ -170,6 +169,9 @@ impl Window {
             }
         });
         dialog.present(Some(&window));
+        // libadwaita 1.5 measures AlertDialog contents in this setter. Present
+        // first so the contents can find their dialog ancestor during layout.
+        dialog.set_content_width(520);
     }
 
     pub fn submit_native_import(

@@ -1288,3 +1288,22 @@ quota behavior, account reauthentication, dirty-successor reliability or install
 acceptance. The complete `scripts/check.sh` passed for this correction, including the
 regressions and mounted scenarios. Other desktop window scenarios were not run
 locally. All six full-iCloud gates remain open.
+
+### Native import dialog on the declared desktop library floor
+
+The [registered desktop crash comparison](benchmarks/icloud-native-window-crash-2026-10-03.json)
+reproduced the CI segmentation fault with the native import scenario alone on
+Ubuntu 24.04, GTK 4.14.5 and libadwaita 1.5.0. A debugger traced the failure to
+setting the AlertDialog's content width before presentation. GNOME's
+[libadwaita release notes](https://raw.githubusercontent.com/GNOME/libadwaita/main/NEWS)
+identify a fix for that sequence in 1.7.alpha; the same unchanged scenarios
+passed on this development machine's newer libraries.
+
+Cirrove now presents the dialog before applying its width. The exact scenario
+then passed on the older libraries, followed by all 21 synthetic desktop window
+scenarios within the existing 30-second deadline. The renderer, scenario
+selection and library floor were unchanged, and EGL warnings remained in the
+passing runs. This validates the compatibility correction, not live Apple
+imports or installed-account transitions. The complete `scripts/check.sh`
+passed for this correction, including all 55 writable kernel tests; its result
+is recorded in the same artifact. All six full-iCloud release gates remain open.
