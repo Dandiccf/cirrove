@@ -1,0 +1,175 @@
+{
+  "registered_at": "2026-10-03T05:31:24.292794+00:00",
+  "objective": "Full iCloud integration; all six full-icloud acceptance requirements remain in scope.",
+  "source_head": "621a5768875588d956222fb8223a70fc161d51e4",
+  "questions": [
+    "Does CI ignored-test accounting correctly recognize the synthetic allocation/interruption subprocess entry points driven by its selected parent suites, and does the full contributor command catch future accounting omissions?",
+    "Does the actual native archive chooser accept mixed-case Pages/Numbers/Keynote/ZIP suffixes already supported by daemon and form validation?"
+  ],
+  "predictions": [
+    "Current coverage audit refuses the two known child entry points. Naming their verified parent selection explicitly and adding the audit to scripts/check.sh makes accounting pass without masking unselected ordinary tests.",
+    "Existing chooser patterns reject mixed-case suffixes. A case-insensitive GTK suffix filter accepts every supported case while continuing to refuse unrelated files."
+  ],
+  "arms": [
+    "Current real coverage audit before its narrow accounting correction.",
+    "Corrected audit with exact parent provenance, retained non-coverage omissions unchanged.",
+    "Actual GTK filter regression before and after chooser correction.",
+    "Full scripts/check.sh plus required synthetic display scenario after both changes."
+  ],
+  "endpoint": "Actual checks execute; intended red assertions fail and corrected checks pass; full contributor command exits 0. No real-provider release gate closes from these synthetic checks.",
+  "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "temp_filesystem": "Assert ext4 before each run.",
+  "status": "all-targeted-controls-and-full-contributor-command-passed",
+  "cloud_requests": 0,
+  "cloud_mutations": 0,
+  "installed_daemon_restarted": false,
+  "installed_state_migrated": false,
+  "full_icloud_gates_closed": false,
+  "results": {
+    "ci_coverage_red": {
+      "manifest": ".local-state/icloud-full-integration-20261003/ci-coverage-red.json",
+      "exit_code": 1,
+      "started_at": "2026-10-03T05:31:24.323632+00:00",
+      "finished_at": "2026-10-03T05:31:24.370394+00:00",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "scripts/ci-coverage.py": "395d176200d93f662c20b5148d9b243a767c04c884f9bcfcb02f3a7dcbc8b542",
+        "scripts/check.sh": "e084e78d24a5449802f710d188bcf38b4a95e34db2987fec2bc726d1112bc09b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "53e71d6bd7f40da5505d520777c924ad5710071b4a4f08188955154a5c6e806b"
+      },
+      "failure": "Coverage audit refused allocation_crash_child and interruption_child."
+    },
+    "ci_coverage_green": {
+      "manifest": ".local-state/icloud-full-integration-20261003/ci-coverage-green.json",
+      "exit_code": 0,
+      "started_at": "2026-10-03T05:31:56.056597+00:00",
+      "finished_at": "2026-10-03T05:31:56.106013+00:00",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "scripts/ci-coverage.py": "f568df41a179fecaa5ada6277a4df908f9d682ddd3cb1ccc4740268df9fc5bcc",
+        "scripts/check.sh": "02b3d2c92d4ea7224349db9f578a5991ad71085240db4d6106433b16d7c8122a",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "53e71d6bd7f40da5505d520777c924ad5710071b4a4f08188955154a5c6e806b"
+      },
+      "classification": "Verified named subprocess parents; no broad coverage exclusion. Contributor command now includes audit."
+    },
+    "native_chooser_red": {
+      "manifest": ".local-state/icloud-full-integration-20261003/native-chooser-red.json",
+      "exit_code": 101,
+      "started_at": "2026-10-03T05:33:21.365960+00:00",
+      "finished_at": "2026-10-03T05:33:53.237315+00:00",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "scripts/ci-coverage.py": "f568df41a179fecaa5ada6277a4df908f9d682ddd3cb1ccc4740268df9fc5bcc",
+        "scripts/check.sh": "02b3d2c92d4ea7224349db9f578a5991ad71085240db4d6106433b16d7c8122a",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "044e216a69a2924b28330403c1761085e98d67f3c773fec10b1f38186fb1a592"
+      },
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "executed": 1,
+      "failure": "Actual GTK picker filter excluded Owned.NuMbErS, Owned.PaGeS, Owned.KeY and Owned.ZiP."
+    },
+    "native_chooser_green": {
+      "manifest": ".local-state/icloud-full-integration-20261003/native-chooser-green.json",
+      "exit_code": 0,
+      "started_at": "2026-10-03T05:34:38.219969+00:00",
+      "finished_at": "2026-10-03T05:34:39.686697+00:00",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "scripts/ci-coverage.py": "f568df41a179fecaa5ada6277a4df908f9d682ddd3cb1ccc4740268df9fc5bcc",
+        "scripts/check.sh": "02b3d2c92d4ea7224349db9f578a5991ad71085240db4d6106433b16d7c8122a",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "e5710c778ff41d6dbaf17a38a436e04ffbeecf8653bedb918f330026a788bebf"
+      },
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "executed": 1,
+      "accepted_names": 12,
+      "refused_names": 9,
+      "display": "Existing Wayland/X11 display with private D-Bus session; no Xvfb installed locally. No chooser window opened.",
+      "runtime_warning": "Private D-Bus portal/GVFS teardown warnings occurred after both test outcomes; the expected red assertion and green test result are recorded independently."
+    },
+    "full_contributor_command": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "exit_code": 0,
+      "started_at": "2026-10-03T05:43:06.812977+00:00",
+      "finished_at": "2026-10-03T05:49:30.520303+00:00",
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/integration-full-check.json",
+      "log_sha256": "841c42e640c1974b26a649c9d959bf9589617055e676666854c51eceed3c1a99",
+      "combined_writable_kernel_group": {
+        "passed": 55,
+        "failed": 0,
+        "ignored": 0,
+        "seconds": 103.91
+      },
+      "unchanged_ci_group_deadline_seconds": 150,
+      "ci_coverage": "141 ignored tests, 10 name filters, 4 unfiltered targets, 25 excused",
+      "all_nine_native_archive_tests_executed": true,
+      "desktop_window_scenarios": "Not run locally; exact GTK chooser test ran separately, and CI selects both display scenarios.",
+      "source_sha256_after_format": {
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "8e013718da6a7103bf2d135b09cf0ae1dca6737c4f6f67f3186f60f3cbd3e442",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "scripts/ci-coverage.py": "f568df41a179fecaa5ada6277a4df908f9d682ddd3cb1ccc4740268df9fc5bcc",
+        "scripts/check.sh": "3b403ce298bc0d86ce7dbb722477d0593e432c2a4d55fc041510d4ac9a66a019",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "e5710c778ff41d6dbaf17a38a436e04ffbeecf8653bedb918f330026a788bebf",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "4487972a49f0f9fc56dadb5588856c669013cf2a309b9ad9d96cf6917f392a7f"
+      }
+    }
+  },
+  "historical_ci_failure": {
+    "run": "https://github.com/Dandiccf/cirrove/actions/runs/37069681342",
+    "head": "621a5768875588d956222fb8223a70fc161d51e4",
+    "linux": "failed ignored-test accounting before later suites",
+    "other_six_jobs": "passed",
+    "evidence": ".local-state/icloud-full-integration-20261003/ci-audit.json"
+  },
+  "limits": [
+    "Chooser validation cannot prove Apple application fidelity or the live chooser-to-publication endpoint.",
+    "Provider DATA is already a guarded ordinary FILE transport; package admission must continue refusing DATA as PACKAGE.",
+    "Numbers live trial authorization remains pending; previously prepared isolated state stays dormant."
+  ],
+  "primary_sources": [
+    "https://docs.gtk.org/gtk4/method.FileFilter.add_suffix.html",
+    "https://docs.gtk.org/gtk4/method.FileFilter.add_pattern.html"
+  ],
+  "native_iwork_kernel_extension": {
+    "status": "passed",
+    "source_sha256": "b81d0d109519492f42c44283730c28f7890db8c6940293df8cac077722892412",
+    "expected_test_functions": 9,
+    "scenario_arms": 12,
+    "new_format_arms": 6,
+    "claim": "Additional controlled synthetic coverage of existing implementation, not proof of a new production fix or Apple fidelity.",
+    "manifest": ".local-state/icloud-full-integration-20261003/native-iwork-kernel.json",
+    "executed": 9,
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0,
+    "reported_fixture_seconds": 10.28,
+    "synthetic_mount_lifetimes": 24,
+    "provenance_note": "Run manifest captures selected production/chooser/CI source hashes; unchanged kernel-source SHA registered before reading the result. Test executable path is in retained log; no competing compile or source edit occurred during execution."
+  },
+  "actual_canary_compatibility": "docs/benchmarks/icloud-canary-state-compatibility-2026-10-03.json"
+}

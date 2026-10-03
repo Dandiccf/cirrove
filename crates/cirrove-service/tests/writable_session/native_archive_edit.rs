@@ -9,8 +9,9 @@ use cirrove_core::upload::{
 use std::io::Read;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
-fn archive(body: &[u8]) -> Vec<u8> {
-    let name = b"Owned.pages/Document";
+fn archive(root: &str, body: &[u8]) -> Vec<u8> {
+    let member = format!("{root}/Document");
+    let name = member.as_bytes();
     let mut crc = !0u32;
     for byte in body {
         crc ^= u32::from(*byte);
@@ -161,17 +162,48 @@ fn publication_done(db: &Path, operation: uuid::Uuid) -> bool {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE"]
 async fn real_native_archive_first_open_in_place_fsync_retains_old_reader_and_reopens_local() {
-    native_archive_edit(FirstEdit::Handle).await;
+    native_archive_edit(FirstEdit::Handle, "Owned.pages").await;
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE"]
 async fn real_native_archive_pathname_truncate_fsync_retains_old_reader() {
-    native_archive_edit(FirstEdit::Path).await;
+    native_archive_edit(FirstEdit::Path, "Owned.pages").await;
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE"]
 async fn real_native_archive_open_truncate_fsync_retains_old_reader() {
-    native_archive_edit(FirstEdit::Open).await;
+    native_archive_edit(FirstEdit::Open, "Owned.pages").await;
+}
+// These archives are synthetic ZIPs, not valid Numbers/Keynote application documents.
+// Reuse the exact receipt, held-reader and RO invariants from the Pages fixture.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE"]
+async fn real_native_archive_numbers_and_keynote_in_place_save_retains_old_reader() {
+    for name in ["Owned.numbers", "Owned.key"] {
+        native_archive_edit(FirstEdit::Handle, name).await;
+    }
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE"]
+async fn real_native_archive_numbers_and_keynote_atomic_save_keeps_descriptors_local() {
+    for name in ["Owned.numbers", "Owned.key"] {
+        native_archive_edit(FirstEdit::Atomic, name).await;
+    }
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE"]
+async fn real_native_archive_numbers_and_keynote_backup_first_save_reopens_pending_chain() {
+    for name in ["Owned.numbers", "Owned.key"] {
+        native_pending_chain(true, name).await;
+    }
+}
+fn wrong_format_archive(name: &str) -> Vec<u8> {
+    let other_root = if name.ends_with(".pages") {
+        "Owned.numbers"
+    } else {
+        "Owned.pages"
+    };
+    archive(other_root, b"complete ZIP for a different native format")
 }
 #[derive(Clone, Copy)]
 enum FirstEdit {
@@ -180,7 +212,7 @@ enum FirstEdit {
     Path,
     Open,
 }
-async fn native_archive_edit(first: FirstEdit) {
+async fn native_archive_edit(first: FirstEdit, name: &'static str) {
     let temp = tempfile::tempdir().unwrap();
     std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     let mount = temp.path().join("mount");
@@ -196,7 +228,7 @@ async fn native_archive_edit(first: FirstEdit) {
     let original = Node {
         id: "FILE::com.apple.CloudDocs::owned-native".into(),
         parent_id: Some(account.root_id.clone()),
-        name: "Owned.pages".into(),
+        name: name.into(),
         kind: NodeKind::Folder,
         size: 17,
         modified_unix: 1,
@@ -205,8 +237,8 @@ async fn native_archive_edit(first: FirstEdit) {
         target: None,
         package: true,
     };
-    let oldbytes = archive(&vec![17u8; 128 * 1024]);
-    let newbytes = archive(&vec![29u8; 96 * 1024]);
+    let oldbytes = archive(name, &vec![17u8; 128 * 1024]);
+    let newbytes = archive(name, &vec![29u8; 96 * 1024]);
     let disk = temp.path().join("original.zip");
     std::fs::write(&disk, &oldbytes).unwrap();
     let raw = cirrove_icloud::PackageDownload {
@@ -216,7 +248,7 @@ async fn native_archive_edit(first: FirstEdit) {
     let semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
         &std::fs::File::open(&disk).unwrap(),
         &raw,
-        "Owned.pages",
+        name,
         2,
         &CancellationToken::new(),
     )
@@ -278,10 +310,11 @@ async fn native_archive_edit(first: FirstEdit) {
     )
     .await
     .unwrap();
-    let path = mount.join("Owned.pages/Owned.pages");
+    let path = mount.join(name).join(name);
     let (held, mut edit, old_writer) = tokio::task::spawn_blocking({
         let path = path.clone();
         let bytes = newbytes.clone();
+        let original = oldbytes.clone();
         let journal = journal.clone();
         move || {
             // Hold without reading: content cache must not mask missing snapshot retention.
@@ -318,6 +351,20 @@ async fn native_archive_edit(first: FirstEdit) {
                 reopen.sync_all().unwrap();
                 drop(reopen);
                 temporary.set_len(0).unwrap();
+                temporary.rewind().unwrap();
+                let wrong = wrong_format_archive(name);
+                temporary.write_all(&wrong).unwrap();
+                temporary
+                    .sync_all()
+                    .expect("wrong-format temporary fsync stays local");
+                assert!(
+                    std::fs::rename(&temp_path, &path).is_err(),
+                    "valid ZIP for a different native format replaced the canonical archive"
+                );
+                assert_eq!(std::fs::read(&temp_path).unwrap(), wrong);
+                assert_eq!(std::fs::read(&path).unwrap(), original);
+                assert!(journal.lock().unwrap().list(0, 10).unwrap().is_empty());
+                temporary.set_len(0).unwrap();
                 temporary.seek(SeekFrom::Start(0)).unwrap();
                 temporary.write_all(&bytes).unwrap();
                 temporary
@@ -338,7 +385,8 @@ async fn native_archive_edit(first: FirstEdit) {
                 assert_ne!(std::fs::metadata(&path).unwrap().ino(), old_inode);
                 assert_eq!(old.metadata().unwrap().nlink(), 0);
                 old.set_len(0).unwrap();
-                old.write_all(&archive(b"detached late edit")).unwrap();
+                old.write_all(&archive(name, b"detached late edit"))
+                    .unwrap();
                 old.sync_all().expect("detached old fd fsync stays local");
                 assert_eq!(std::fs::read(&path).unwrap(), bytes);
                 assert_eq!(journal.lock().unwrap().list(0, 10).unwrap().len(), 1);
@@ -374,6 +422,16 @@ async fn native_archive_edit(first: FirstEdit) {
                 0,
                 "truncate did not affect the admitted local native stream"
             );
+            let wrong = wrong_format_archive(name);
+            edit.write_all(&wrong).unwrap();
+            assert!(
+                edit.sync_all().is_err(),
+                "valid ZIP for a different native format was admitted as a typed save"
+            );
+            assert!(journal.lock().unwrap().list(0, 10).unwrap().is_empty());
+            assert_eq!(std::fs::read(&path).unwrap(), wrong);
+            edit.set_len(0).unwrap();
+            edit.rewind().unwrap();
             edit.write_all(&bytes).unwrap();
             edit.sync_all().expect("typed native fsync");
             (held, edit, None)
@@ -414,7 +472,10 @@ async fn native_archive_edit(first: FirstEdit) {
             attempt,
             RecoveryLocation::Trash {
                 parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
-                local_name: format!("recovery-by-cirrove-{id}.pages"),
+                local_name: format!(
+                    "recovery-by-cirrove-{id}.{}",
+                    name.strip_prefix("Owned.").unwrap()
+                ),
             },
         )
         .unwrap();
@@ -504,7 +565,7 @@ async fn native_archive_edit(first: FirstEdit) {
             old.seek(std::io::SeekFrom::Start(0)).unwrap();
             let mut bytes = Vec::new();
             old.read_to_end(&mut bytes).unwrap();
-            assert_eq!(bytes, archive(b"detached late edit"));
+            assert_eq!(bytes, archive(name, b"detached late edit"));
         })
         .await
         .unwrap();
@@ -539,7 +600,7 @@ async fn native_archive_edit(first: FirstEdit) {
     .unwrap()
     .unwrap();
     tokio::task::spawn_blocking(move || {
-        let path = romount.join("Owned.pages/Owned.pages");
+        let path = romount.join(name).join(name);
         assert!(std::fs::metadata(&path).unwrap().is_file());
         if matches!(first,FirstEdit::Path) {
             let status=std::process::Command::new("python3")
@@ -567,7 +628,7 @@ async fn native_archive_edit(first: FirstEdit) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires /dev/fuse"]
 async fn real_native_archive_atomic_temp_fsync_rename_keeps_old_descriptors_local() {
-    native_archive_edit(FirstEdit::Atomic).await;
+    native_archive_edit(FirstEdit::Atomic, "Owned.pages").await;
 }
 
 /// Kernel namespace/durable queue boundary only: no upload worker is started.
@@ -575,14 +636,14 @@ async fn real_native_archive_atomic_temp_fsync_rename_keeps_old_descriptors_loca
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires /dev/fuse"]
 async fn real_native_atomic_pending_chain_reopens_mount_without_submission() {
-    native_pending_chain(false).await;
+    native_pending_chain(false, "Owned.pages").await;
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires /dev/fuse"]
 async fn real_native_backup_first_gap_rollback_promote_reopen_and_suffix_reuse() {
-    native_pending_chain(true).await;
+    native_pending_chain(true, "Owned.pages").await;
 }
-async fn native_pending_chain(backup_first: bool) {
+async fn native_pending_chain(backup_first: bool, name: &'static str) {
     let temp = tempfile::tempdir().unwrap();
     std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
     let mount = temp.path().join("mount");
@@ -598,7 +659,7 @@ async fn native_pending_chain(backup_first: bool) {
     let original = Node {
         id: "FILE::com.apple.CloudDocs::owned-native".into(),
         parent_id: Some(account.root_id.clone()),
-        name: "Owned.pages".into(),
+        name: name.into(),
         kind: NodeKind::Folder,
         size: 17,
         modified_unix: 1,
@@ -607,7 +668,7 @@ async fn native_pending_chain(backup_first: bool) {
         target: None,
         package: true,
     };
-    let oldbytes = archive(&vec![17u8; 128 * 1024]);
+    let oldbytes = archive(name, &vec![17u8; 128 * 1024]);
     let disk = temp.path().join("original.zip");
     std::fs::write(&disk, &oldbytes).unwrap();
     let raw = cirrove_icloud::PackageDownload {
@@ -617,7 +678,7 @@ async fn native_pending_chain(backup_first: bool) {
     let semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
         &std::fs::File::open(&disk).unwrap(),
         &raw,
-        "Owned.pages",
+        name,
         2,
         &CancellationToken::new(),
     )
@@ -680,8 +741,8 @@ async fn native_pending_chain(backup_first: bool) {
     .unwrap()
     .mount(&mount)
     .unwrap();
-    let path = mount.join("Owned.pages/Owned.pages");
-    let final_bytes = archive(b"C retained after restart");
+    let path = mount.join(name).join(name);
+    let final_bytes = archive(name, b"C retained after restart");
     tokio::task::spawn_blocking({
         let path = path.clone();
         let journal = journal.clone();
@@ -689,10 +750,10 @@ async fn native_pending_chain(backup_first: bool) {
         let original = oldbytes.clone();
         move || {
             let mut held = std::fs::File::open(&path).unwrap();
-            let backup = path.with_file_name("Owned.pages~");
+            let backup = path.with_file_name(format!("{name}~"));
             if backup_first {
                 assert!(
-                    std::fs::rename(&path, path.with_file_name("owned.PAGES")).is_err(),
+                    std::fs::rename(&path, path.with_file_name(name.to_ascii_uppercase())).is_err(),
                     "case-only alias is not a separate backup slot"
                 );
                 assert_eq!(std::fs::read(&path).unwrap(), original);
@@ -709,6 +770,27 @@ async fn native_pending_chain(backup_first: bool) {
                 assert_eq!(std::fs::read(&path).unwrap(), original);
                 assert_eq!(journal.lock().unwrap().list(0, 10).unwrap().len(), 0);
             }
+            let mismatch = path.parent().unwrap().join(".wrong-format-save");
+            let mut wrong_file = std::fs::OpenOptions::new()
+                .create_new(true)
+                .read(true)
+                .write(true)
+                .open(&mismatch)
+                .unwrap();
+            let wrong = wrong_format_archive(name);
+            wrong_file.write_all(&wrong).unwrap();
+            wrong_file
+                .sync_all()
+                .expect("wrong-format temporary fsync stays local");
+            assert!(
+                std::fs::rename(&mismatch, &path).is_err(),
+                "wrong-format ZIP bypassed native promotion guards"
+            );
+            assert_eq!(std::fs::read(&mismatch).unwrap(), wrong);
+            assert_eq!(std::fs::read(&path).unwrap(), original);
+            assert_eq!(journal.lock().unwrap().list(0, 10).unwrap().len(), 0);
+            drop(wrong_file);
+            std::fs::remove_file(&mismatch).unwrap();
             // Real local-only abort-save lifecycle before the pending A/B/C chain.
             let scratch = path.parent().unwrap().join(".aborted-save");
             let renamed = path.parent().unwrap().join(".aborted-renamed");
@@ -759,8 +841,8 @@ async fn native_pending_chain(backup_first: bool) {
             assert_eq!(journal.lock().unwrap().list(0, 10).unwrap().len(), 0);
             assert_eq!(std::fs::read(&path).unwrap(), original);
             for (index, bytes) in [
-                archive(b"A pending"),
-                archive(b"B pending"),
+                archive(name, b"A pending"),
+                archive(name, b"B pending"),
                 final_bytes.clone(),
             ]
             .into_iter()
@@ -798,7 +880,7 @@ async fn native_pending_chain(backup_first: bool) {
                 if let Some(mut old) = old_writer.take() {
                     old.set_len(0).unwrap();
                     old.seek(SeekFrom::Start(0)).unwrap();
-                    let late = archive(b"late backup descriptor bytes");
+                    let late = archive(name, b"late backup descriptor bytes");
                     old.write_all(&late).unwrap();
                     old.sync_all().unwrap();
                     assert_eq!(std::fs::read(&backup).unwrap(), late);

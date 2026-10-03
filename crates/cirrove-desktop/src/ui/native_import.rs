@@ -2,6 +2,16 @@
 use super::*;
 use cirrove_service::ImportNativePackageRequest;
 
+/// The chooser and its GTK regression use the same concrete filter.
+fn native_import_filter() -> gtk::FileFilter {
+    let filter = gtk::FileFilter::new();
+    filter.set_name(Some(&gettext("Pages, Numbers, Keynote and ZIP archives")));
+    for suffix in ["zip", "pages", "numbers", "key"] {
+        filter.add_suffix(suffix);
+    }
+    filter
+}
+
 impl Window {
     pub fn choose_native_import(self: &Rc<Self>, id: &str) {
         let Some(card) = self.card(id).filter(AccountCard::can_import_native_package) else {
@@ -14,15 +24,7 @@ impl Window {
             .title(gettext("Choose a local iWork archive"))
             .modal(true)
             .build();
-        let filter = gtk::FileFilter::new();
-        filter.set_name(Some(&gettext("Pages, Numbers, Keynote and ZIP archives")));
-        filter.add_pattern("*.zip");
-        filter.add_pattern("*.ZIP");
-        filter.add_pattern("*.pages");
-        filter.add_pattern("*.PAGES");
-        for pattern in ["*.numbers", "*.NUMBERS", "*.key", "*.KEY"] {
-            filter.add_pattern(pattern);
-        }
+        let filter = native_import_filter();
         chooser.set_default_filter(Some(&filter));
         let window = self.window.upgrade();
         let weak = Rc::downgrade(self);
@@ -227,5 +229,57 @@ impl Window {
             }
             ui.refresh();
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "needs a display; run this exact GTK test under Xvfb on one thread"]
+    fn native_import_chooser_filter_accepts_case_variants_only() {
+        assert!(gtk::init().is_ok(), "the GTK filter test needs a display");
+        let filter = native_import_filter();
+        let matches = |name: &str| {
+            let info = gio::FileInfo::new();
+            info.set_name(name);
+            info.set_display_name(name);
+            filter.match_(&info)
+        };
+        for name in [
+            "Owned.docx",
+            "Owned.numbers.bak",
+            "Owned.pages.bak",
+            "Owned.key.bak",
+            "Owned.zip.bak",
+            "Ownednumbers",
+            "Ownedpages",
+            "Ownedkey",
+            "Ownedzip",
+        ] {
+            assert!(!matches(name), "chooser unexpectedly admitted {name}");
+        }
+        let excluded: Vec<_> = [
+            "Owned.numbers",
+            "Owned.NUMBERS",
+            "Owned.NuMbErS",
+            "Owned.pages",
+            "Owned.PAGES",
+            "Owned.PaGeS",
+            "Owned.key",
+            "Owned.KEY",
+            "Owned.KeY",
+            "Owned.zip",
+            "Owned.ZIP",
+            "Owned.ZiP",
+        ]
+        .into_iter()
+        .filter(|name| !matches(name))
+        .collect();
+        assert!(
+            excluded.is_empty(),
+            "chooser excluded valid archives: {excluded:?}"
+        );
     }
 }

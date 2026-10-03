@@ -68,6 +68,14 @@ EXCUSED = {
     "unlinked_crash_child": "subprocess entry point, driven by its parent test",
     "directories_crash_child": "subprocess entry point, driven by its parent test",
     "ancestry_crash_child": "subprocess entry point, driven by its parent test",
+    "allocation_crash_child": (
+        "subprocess entry point, driven by "
+        "process_death_after_allocation_leaves_saved_uncertainty_without_replay"
+    ),
+    "interruption_child": (
+        "subprocess entry point, driven by "
+        "process_exit_records_the_boundary_without_returning_the_next_checkpoint"
+    ),
     # Capacity benchmarks. Minutes to hours, and their memory numbers are only
     # comparable on a quiet machine, which a shared runner is not.
     "namespace_capacity_baseline": "capacity benchmark; run deliberately, not on a shared runner",

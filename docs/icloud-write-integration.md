@@ -1106,7 +1106,10 @@ with replacement and safety regressions passing. That result does not confirm
 the original failure phase or a live Numbers replacement. The correction is
 committed at `cc1470f`; its complete `scripts/check.sh` passed, including the new
 regressions and actual kernel fixtures. Desktop window scenarios were not run.
-Main reconciliation and the new observer below still require a final full check.
+Main reconciliation and observer integration were committed at `621a576` after
+the complete contributor check passed, as recorded in the
+[observer artifact](benchmarks/icloud-owned-receipt-observer-2026-10-02.json).
+The later 3 October checks below also passed their combined full check.
 Ordinary application saves, broader recovery and installed acceptance remain
 open. Full-iCloud acceptance row 486 remains unchecked.
 
@@ -1170,3 +1173,69 @@ controls, held descriptors and pending-save reconstruction after remount.
 These fixtures use synthetic receipts and do not verify Apple transport.
 Apple-backed mounted saves and installed lifecycle acceptance remain open.
 No regular account or installed service was upgraded for these tests.
+
+
+### Synthetic integration checks on 3 October 2026
+
+The [registered development record](benchmarks/icloud-integration-development-2026-10-03.json)
+keeps all six full-iCloud requirements open. It records two narrow CI accounting
+corrections for `allocation_crash_child` and `interruption_child`: each is an
+ignored subprocess entry point driven by its explicitly named, selected parent
+test. The actual coverage audit refused those entries before correction and
+passed afterward. The complete contributor command now runs the audit too;
+ordinary unselected tests gain no broad exemption. The earlier Linux CI failure
+at `621a576` is retained in that record; the other six jobs passed. Targeted local
+audit success does not turn that historical CI run green.
+
+The concrete GTK archive chooser filter previously excluded mixed-case Pages,
+Numbers, Keynote and ZIP suffixes that the form and daemon already accepted.
+One actual GTK regression failed with four excluded mixed-case filenames.
+After the suffix-filter correction, the same test accepted twelve supported
+case variants and refused nine unrelated or misleading names. CI selects this
+exact ignored library test under a display with one test thread. This validates
+the chooser filter, not the live portal-to-import/publication workflow or Apple
+application fidelity.
+
+Nine actual FUSE native archive tests passed across twelve scenario arms and
+24 synthetic mount lifetimes, including six new Numbers/Keynote arms. They
+exercise matching archive roots, in-place saves, atomic replacement and
+backup-first rollback/promotion, held readers/descriptors, wrong-format refusal,
+read-only protection and retained pending saves after remount. These are added
+coverage of the existing generic implementation, not proof of a new production
+fix. Typed receipts and provider behavior remain synthetic; the archives are
+not Apple Numbers/Keynote application documents.
+
+These targeted checks and the complete `scripts/check.sh` passed for the new
+3 October source. All 55 writable kernel tests executed within the unchanged
+150-second CI group deadline; exact timing is retained in the development record.
+The GTK chooser regression ran separately; other desktop window scenarios were
+not run locally. No cloud request, live replacement,
+installed daemon restart or state migration was performed. The prepared Numbers
+live arm remains separately subject to explicit scoped authorization, and
+schema19 validation remains isolated from installed schema14 state.
+
+
+### Actual Canary state compatibility, 3 October 2026
+
+The [controlled compatibility record](benchmarks/icloud-canary-state-compatibility-2026-10-03.json)
+uses journal schema14 and metadata schema7 genuinely produced by the exact Canary
+commit `a9e2429`, rather than changing current database headers to imitate older
+state. Current code exported two pending snapshots and one dirty successor
+without modifying those databases, then migrated to schema19/8 while retaining
+operation identities, bytes, generations, visible metadata and the interrupted
+refresh continuation. The exact Canary code subsequently refused both newer
+schemas; independent complete file and logical snapshots remained identical,
+including SQLite sidecars. Current read-only recovery exported the same three
+byte streams again, and completing the saved refresh published its retained
+staged node with the completed checkpoint.
+
+The record includes source and binary digests, the isolated harness sources,
+phase receipts and unchanged-state comparisons. A deliberately incorrect producer
+manifest digest was refused before exports or state changes. The first current
+helper build had a SQL count deserialization error, corrected before fixture
+execution; that harness error is retained in the same artifact.
+
+This is one controlled synthetic ordinary-file compatibility trial. It does not
+prove installed package rollback, credentials, real-provider pending work or
+native Apple application fidelity. It does not remove the schema19 installation
+hold or close full-iCloud lifecycle requirement 488.

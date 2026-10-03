@@ -97,6 +97,7 @@ scripts/check-dolphin.sh
 "$python" scripts/test-icon-geometry.py
 "$python" scripts/test-translations.py
 "$python" scripts/test-acceptance-ledger.py
+"$python" scripts/ci-coverage.py
 "$python" scripts/acceptance-ledger.py
 
 step "docs"
@@ -110,5 +111,6 @@ if [[ $fast == --fast ]]; then
   printf '\033[1mNOT RUN: the workspace test suite, nor the tests that mount.\033[0m --fast skipped both.\n'
   echo "  Run scripts/check.sh with no arguments before pushing."
 fi
-echo "Not covered here: the window scenarios, which need a display --"
+echo "Not covered here: desktop display scenarios --"
 echo "  cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads=1"
+echo "  cargo test -p cirrove-desktop --lib --locked ui::native_import::tests::native_import_chooser_filter_accepts_case_variants_only -- --ignored --exact --test-threads=1"
