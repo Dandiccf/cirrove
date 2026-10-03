@@ -1,0 +1,531 @@
+{
+  "version": 1,
+  "status": "controlled-local-correction-complete-remote-CI-and-live-acceptance-open",
+  "registered_at": "2026-10-03T13:18:58.193840+00:00",
+  "source_head_before_application": "88258f31bf6a3d23a25e81868cff3c41ec22c500",
+  "question": "Can an ordinary created-directory rmdir view captured with creation ETag E1 before independently observed handoff E2 overwrite that settled journal revision and strand a conditional removal in Conflict? Does narrow folder-only adoption retain E2 while refusing changed path/identity/shape and keeping file/content behavior unchanged?",
+  "authoritative_remote_failure": {
+    "ci_run": 37123619790,
+    "head": "f9a4ee939d0e0553710464d6a6729e184e41b50b",
+    "log_path": ".local-state/icloud-full-integration-20261003/remote-ci-f9a4ee9-failure.log",
+    "log_sha256": "594fab9a2f565b0d56ab18ae6051cf842f3ce05401d7abe6f3e58fa0725b0752",
+    "stage": "applied() helper writable_session.rs3191 rejects Failed/Conflict/NeedsReview; final provider absence assertion was not reached",
+    "counts": {
+      "passed": 54,
+      "failed": 1,
+      "seconds": 109.34
+    },
+    "test": "real_a_directory_created_and_removed_again_is_gone_from_the_provider",
+    "interpretation": "Static code proves a matching stale re-adoption interleaving; controlled reproducer must establish exact cause, not assume remote refusal state from an uninstrumented assertion."
+  },
+  "arms": [
+    {
+      "name": "red-current-production",
+      "description": "Tests only: capture actual writable filesystem View at E1 before independently refreshing folder and handing it off at E2; invoke actual Writeback::rmdir, run actual MutationWorker against a conditional synthetic provider retaining E2. Expect mutation Conflict and one attempted stale E1 deletion; provider folder retained."
+    },
+    {
+      "name": "green-narrow-folder-fix",
+      "description": "Same unchanged test with ordinary Folder local-following materialize branch corrected; full identity/name/parent/kind/size/package/target remain exact, only version/time metadata can lag. Expect one attempted exact settled Node E2 removal, provider removed, two Applied mutations/no base."
+    },
+    {
+      "name": "refusal-controls",
+      "description": "Seven arms alter selected name, parent, kind, package, size, empty-invalid identity or target. Every adoption must refuse before queue mutation and preserve current namespace exact JSON plus one prior creation row."
+    },
+    {
+      "name": "existing-genuine-FUSE-case",
+      "description": "Run original created-and-removed kernel test and relevant folder handoff/refusal tests with final production source; retain original EBUSY retry and final provider absence assertions unchanged."
+    }
+  ],
+  "prediction": "Red sends stale E1 after handoff despite latest=None; conditional provider returns Conflict and exact test fails at Applied assertion. Green retains independently observed E2 and records exact settled Node in request, then provider removes exactly once. Refusal controls preserve fresh journal identity and metadata and do not queue removal.",
+  "endpoints": [
+    "New red exact selector executes1 actual test, failing for conditional Conflict after E1 attempted deletion, not compiler/panic/timeout or zero selection.",
+    "Production fix is narrow ordinary Folder local-following adoption; no provider rewrite, network calls or awaits inside journal lock; file and native-package paths retain existing behavior.",
+    "Green exact selector executes1 and refusal selector executes1 with7 cases, full Node request equality with settled E2 and exact mutation count/state/base.",
+    "Existing real kernel created/remove test must execute1 and finish2 Applied mutations plus no provider folder; relevant folder handoff tests and full scripts/check.sh afterward."
+  ],
+  "scope": "General filesystem/journal folder create-remove race relevant to iCloud ordinary folder workflow; synthetic metadata/conditional provider and unit filesystem View plus existing genuine FUSE confirmation. No claim native Apple fidelity/live reliability, no cloud mutation, daemon/install/account change. All full iCloud gates485\u2013490 remain unchecked; installed schema14 hold/development19 isolation unchanged.",
+  "private_proposals": {
+    "tests": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/tests.v1.patch",
+      "sha256": "c3b4c10461011653c07fa98cfb01f22cbc0eba567e809c076c558038a97bc424"
+    },
+    "production": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/production.v1.patch",
+      "sha256": "7058ea6cc05b5448e76c76e0055a072f92b392469ad442bd76463affc095a742"
+    },
+    "production_v2": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/production.v2.patch",
+      "sha256": "e59649424949c7c6ae139e7842d36590abff84f1fa5de2b9f0d9ad1a85a94e77"
+    },
+    "external_rename_test_v3": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/fresh-renamed-tests.v3.patch",
+      "sha256": "b3e09aa9c1fba8e237729ea12ff4ec79bef80c8cbc8985e50a571037f4f68be8"
+    },
+    "production_v3": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/production.v3.patch",
+      "sha256": "cdbc684c2028c9e77439cbd6b4a3e131b7758c634db515aacde0e50c3ad9d950"
+    },
+    "operation_guards_v3": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/guards.v3.patch",
+      "sha256": "c5efb22183b0e42e99323b8ddfb32ecf55a06138ce69f440d014d4fbda57ac6c"
+    },
+    "move_parent_alias_v3": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/move-parent-alias.v3.patch",
+      "sha256": "fbaee55e56f7aa5fa834e1632fe5b1ddb293b8a134026d7e1e3a0bfca2e11f30"
+    }
+  },
+  "source_pins": {
+    "crates/cirrove-service/src/filesystem/writeback.rs": "f7594b6166bd252d92cd4155a7d6a6feb18bdbe697cd3dae5dc4060c06280b52",
+    "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "26aaa01f0d24584cc86793e8f7948835107f43e630c5ad6968577b513da65891",
+    "crates/cirrove-service/tests/writable_session.rs": "7b2203c6fceaf5257c599676c9ae72f3bd73386d18f6bbcea30d9b08cf7803eb",
+    "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0"
+  },
+  "selectors": {
+    "red_green": "filesystem::writeback::handoff::tests::stale_created_folder_view_cannot_restore_creation_etag_after_settled_handoff",
+    "refusal_controls": "filesystem::writeback::handoff::tests::settled_folder_readoption_refuses_changed_path_kind_shape_and_invalid_identity",
+    "original_kernel": "real_a_directory_created_and_removed_again_is_gone_from_the_provider"
+  },
+  "execution": {
+    "owner": "Root sole builder/controller; agents read/write private proposals only",
+    "new_tests": 2,
+    "refusal_arms": 7,
+    "worker_endpoint_seconds": 5,
+    "runtime_supervisor_seconds": 30,
+    "build_outside_runtime": true,
+    "environment": "Register disk-backed TMPDIR/SQLITE_TMPDIR filesystem, dedicated target, exact binary/source/command SHA manifests before each run; one run/no simultaneous builds.",
+    "initial_authoring_note": "Root may replace [f.settled.clone()] with std::slice::from_ref(&f.settled) for clippy before compiling; no semantic change; record final actual source/binary pins. Initial proposals remain immutable."
+  },
+  "results": {
+    "red": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-race-red-runtime.json",
+      "manifest_sha256": "696a72face9c6c8a7324bdb29452f46f7d4cb09a4b693ebbee3f63dc098bea83",
+      "log_sha256": "1455cfa387c0ec0afda10e0bd507644e8189ffd0abf10746babd6b0fff075759",
+      "binary_sha256": "e81a4aab4aea53d80d27d849c45c1b055cdc5d6cb5733931f845f2d27106acf8",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "f7594b6166bd252d92cd4155a7d6a6feb18bdbe697cd3dae5dc4060c06280b52",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "68d08e4a3d8c6b363a564ed203227b406b7e71734b8c6a1eac4426b13f35e140",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0"
+      },
+      "exit_code": 101,
+      "result": "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 488 filtered out; finished in 0.07s",
+      "observed_failure": "ActualMutationWorker returned Conflict, exactly one attempted create-receipt ETag; all other Node fields matched settled Node. Failure at Applied assertion, no timeout/compiler failure/zero selector."
+    },
+    "green": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-race-green-exact-runtime.json",
+      "manifest_sha256": "3cab354470bb37ae2a43fb00f1e890486ec4727c87911762da11450f443440d2",
+      "log_sha256": "fc09bde1317841ad2de1556fac80160b44b5dda10eb121d78b732bfa6bc02052",
+      "binary_sha256": "d6f769117fedad7e0fcd55913f7069d62a6dae8928624400b602c3fd48168758",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "cee0bfd0cf885bd5384c3d84b5311dddffe80e7709cfae2c18cfa5e03abf7076",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "68d08e4a3d8c6b363a564ed203227b406b7e71734b8c6a1eac4426b13f35e140",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 488 filtered out; finished in 0.06s"
+    },
+    "refusal_controls": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-race-refusal-exact-runtime.json",
+      "manifest_sha256": "f9f37083f71cad6da055fdd2eebb497691d0b5a0a2241b15726ddffa1a7b450a",
+      "log_sha256": "91ed59619bdc42eaa32fa97a138f3fe1638a02ac2cf71baed92d3c9a6fb4fe91",
+      "binary_sha256": "d6f769117fedad7e0fcd55913f7069d62a6dae8928624400b602c3fd48168758",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "cee0bfd0cf885bd5384c3d84b5311dddffe80e7709cfae2c18cfa5e03abf7076",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "68d08e4a3d8c6b363a564ed203227b406b7e71734b8c6a1eac4426b13f35e140",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 488 filtered out; finished in 0.37s",
+      "arms": 7
+    },
+    "handoff_module": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-race-green-module-runtime.json",
+      "manifest_sha256": "c8d80bfef5afde755f7972cf49eba62c6cecdb72e8b10b15037a1c32feec91c1",
+      "log_sha256": "fbb9443e6a83d3310ddeaac5cdf3fe017566a3051ab40e3613d23db459d64db9",
+      "binary_sha256": "d6f769117fedad7e0fcd55913f7069d62a6dae8928624400b602c3fd48168758",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "cee0bfd0cf885bd5384c3d84b5311dddffe80e7709cfae2c18cfa5e03abf7076",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "68d08e4a3d8c6b363a564ed203227b406b7e71734b8c6a1eac4426b13f35e140",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 481 filtered out; finished in 3.14s"
+    },
+    "original_kernel": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-race-kernel-runtime.json",
+      "manifest_sha256": "1eb56e536f848298e1049e45b46c9dbbcd2933c6fd0350af5e581a35cd6a6848",
+      "log_sha256": "451b268c2bb2bc5c57af2f2a4fe3ba63b13bc26cd87c1ed7c8dee5394aa72554",
+      "binary_sha256": "874255b3ff71a70f7db9c0ed75f4bdcc0eedeabb61888a548ca317e924114818",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "cee0bfd0cf885bd5384c3d84b5311dddffe80e7709cfae2c18cfa5e03abf7076",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "68d08e4a3d8c6b363a564ed203227b406b7e71734b8c6a1eac4426b13f35e140",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 0.12s",
+      "assertions": "Original EBUSY retry, two Applied mutations and provider folder absence retained unchanged."
+    },
+    "initial_full_check": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-race-full-check.json",
+      "manifest_sha256": "4d7e41d2ead0b491c8744ac65592452defd9ea5a606b8f2e67718bd6b6837e0f",
+      "log_sha256": "b52c8662b56c62c40b9bb3fe8aa79a1e03ad150d4781cf539e2b91332d2ad372",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "cee0bfd0cf885bd5384c3d84b5311dddffe80e7709cfae2c18cfa5e03abf7076",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "68d08e4a3d8c6b363a564ed203227b406b7e71734b8c6a1eac4426b13f35e140",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "native_https_tests": 3,
+      "writable_kernel_tests": 55,
+      "desktop_display_scenarios": "not run by scripts/check.sh",
+      "started_at": "2026-10-03T13:29:06.538855+00:00",
+      "finished_at": "2026-10-03T13:36:43.271933+00:00"
+    },
+    "fresh_alias_initial_fix_red": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-fresh-alias-v1-red-runtime.json",
+      "manifest_sha256": "cd41bcd77086bbc173b2f1eb79901e92a02062696ba046154afe3dcac3a468ed",
+      "log_sha256": "de63b02976fabd15afcd76422d636507e317e52eb728fec21fb4b85b1b7905fc",
+      "binary_sha256": "d4846efcceb7c5075b3c5640e76417ae1b8514b6405f2283796f17e77cbf65d5",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "cee0bfd0cf885bd5384c3d84b5311dddffe80e7709cfae2c18cfa5e03abf7076",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "2eae199b206b5cbce0e16a8c13533276372c03e21bf372caf2dede1d09401cd5",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "494dcd672fe6b077a4845e998621ec1df635174cada643d82bb16ae22ed9334b",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 101,
+      "result": "0 passed; 1 failed; 489 filtered; 0.07s",
+      "observed_failure": "Actual overlay preserved local alias with freshE5; journal remainedE2; actual removal worker attemptedE2 and returnedConflict; expectedApplied assertion failed."
+    },
+    "cache_bound_v2_module": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-fresh-alias-v2-green-runtime.json",
+      "manifest_sha256": "f91643bc7383104e209fb269bcae03f0ba59d3cfb678639f949abaa4fa553996",
+      "log_sha256": "7450bcd79ba921dce27fb498ddb40e76811cf649893e7c559630b371830a6f2a",
+      "binary_sha256": "29d8ee607b5c5d382471726794f72ad7281deeac549bb35ea499bb94748048f6",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "c95a8ea6604d577861818e6b1c3db0de40c614b8b728b61fc2176a3195abd0f7",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "2eae199b206b5cbce0e16a8c13533276372c03e21bf372caf2dede1d09401cd5",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "result": "9 passed; 481 filtered; 3.20s",
+      "limitation": "Historical immutable pathname comparison remains too strict for legitimate external rename/move; v2 is an intermediate arm, not accepted final correction."
+    },
+    "external_rename_v2_red": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-renamed-alias-v2-red-runtime.json",
+      "manifest_sha256": "3ceed6984617fd807402b3ad51242f39b81c72a8d3f8dbf0433fef590770400c",
+      "log_sha256": "31427687cac68a891614d8ade6b99ef7b0e91d63fc55e0e733d038e8cd284f4d",
+      "binary_sha256": "8a888eb1c9fd32e00d5d68bba758899f162da3c200889c39cedcb278c3c9ded1",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "c95a8ea6604d577861818e6b1c3db0de40c614b8b728b61fc2176a3195abd0f7",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "89cd3e76e56ccc98a1c36b2dbe8913ee501d9f5dcb07931f33affabf9da3e6d7",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 101,
+      "result": "0 passed; 1 failed; 490 filtered; 0.06s",
+      "observed_failure": "Fresh externally renamed same-identity folder published and projected under local alias; rmdir returnedESTALE before conditionalworker; expected successfulrmdir unwrap failed."
+    },
+    "final_renamed_exact": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-renamed-alias-v3-green-runtime.json",
+      "manifest_sha256": "9f79897edeacd8fdfa1aa39870b3b2f111d96feac2d2cbed7238c129dec077eb",
+      "log_sha256": "a68b3ef94dc2f68eb7b87d17fa72b7d8928bdd6e1f79ff8f99146b0eb6a4cec9",
+      "binary_sha256": "c0490b40619d4f10b9eb9303f9812363d49ee1b66d44a56296b529719b3e3afe",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "240033ac5dddcb368f1ba0653ff983c43d2e933fbbebe9b9254e45d576fdcc64",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "89cd3e76e56ccc98a1c36b2dbe8913ee501d9f5dcb07931f33affabf9da3e6d7",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.06s"
+    },
+    "final_stale_exact": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-original-stale-v3-green-runtime.json",
+      "manifest_sha256": "55a62f85f23f217e904f693935f1ee48cbbe5cc4a2f6f744b42dd4d921d37294",
+      "log_sha256": "bbd727db39ef89f0cd0e8960a94c5f3f3b65204377fda54d170179672c4163f8",
+      "binary_sha256": "c0490b40619d4f10b9eb9303f9812363d49ee1b66d44a56296b529719b3e3afe",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "240033ac5dddcb368f1ba0653ff983c43d2e933fbbebe9b9254e45d576fdcc64",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "89cd3e76e56ccc98a1c36b2dbe8913ee501d9f5dcb07931f33affabf9da3e6d7",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.07s"
+    },
+    "final_fresh_exact": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-fresh-alias-v3-green-runtime.json",
+      "manifest_sha256": "217fcdc4cf36f9e2521ab106e2d5652966cc63dab071637f68cfdab110c72f98",
+      "log_sha256": "e7d9e0a874506d172d354ff22685fb4b639897840b90a6d293cc6f3b42e88570",
+      "binary_sha256": "c0490b40619d4f10b9eb9303f9812363d49ee1b66d44a56296b529719b3e3afe",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "240033ac5dddcb368f1ba0653ff983c43d2e933fbbebe9b9254e45d576fdcc64",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "89cd3e76e56ccc98a1c36b2dbe8913ee501d9f5dcb07931f33affabf9da3e6d7",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.07s"
+    },
+    "operation_guards_module": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-observed-source-v3-guards-runtime.json",
+      "manifest_sha256": "fe7fbc3af537191136d28d554c2f2b475b131cb19b0daed79c59465b5c0ccaba",
+      "log_sha256": "c358b339181e58838cecc1f1e1bcab288e2a45dcd1944fab9bff29e654baf1f2",
+      "binary_sha256": "13ee267f56164b72f06eba0d025926632c00a0ecad79baedb612653fa682a2da",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "240033ac5dddcb368f1ba0653ff983c43d2e933fbbebe9b9254e45d576fdcc64",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "10c8bf37e06a3b31a4ea68f76cf8bd2f456b563f70182e274bd759b4978d2751",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "result": "12 passed; 481 filtered; 3.52s",
+      "actual_operation_controls": "7 altered-selection rmdir arms; absent scoped cache and wrong-kind cache rmdir; stale external move route refusal plus current route actual conditional removal. Provider metadata call count unchanged across4 source refusal arms proves no fallback.",
+      "helper_stage_controls": "Cancellation source preparation and explicit post-preparation namespace snapshot drift recheck; no claim of a wallclock concurrent rmdir race."
+    },
+    "final_module": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-observed-source-final-module-runtime.json",
+      "manifest_sha256": "4c693e21eb30aec27d9d6b8d57dade8781656269db14ce9852876b9e80ed034e",
+      "log_sha256": "f8d5e9bf3b47f7eec0a76095ee5d00b336bb673b32752a49376048acfe9200ca",
+      "binary_sha256": "a3c36467215e81648656323a55f220689a2fee91510c9f81064558ad48cad8db",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "240033ac5dddcb368f1ba0653ff983c43d2e933fbbebe9b9254e45d576fdcc64",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "490b9d67ea633a10b35c4b53ee6683773f2e3f565c644d176b04c8eb0eaf01a5",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "result": "12 passed; 481 filtered; 3.51s",
+      "parent_alias_extension": "Actual moved folder old route refused with unchanged namespace/2 acknowledged creates; current local-parent-alias route canonicalized to distinct remote parent, exact provider Node removed once,3 Applied rows/no base."
+    },
+    "final_full_check": {
+      "manifest": ".local-state/icloud-full-integration-20261003/folder-handoff-observed-source-final-full-check.json",
+      "manifest_sha256": "f336b33db92894f60e178cd42e6dc92f0b3f5fab29d33561ebe3ec6e1520eea4",
+      "log_sha256": "cffaf24feab39c41f0ccd498fd7ed58e75f18acfd04ac9eceb95cd9ec5d6860d",
+      "source_sha256": {
+        "crates/cirrove-service/src/filesystem/writeback.rs": "240033ac5dddcb368f1ba0653ff983c43d2e933fbbebe9b9254e45d576fdcc64",
+        "crates/cirrove-service/src/filesystem/writeback/handoff.rs": "490b9d67ea633a10b35c4b53ee6683773f2e3f565c644d176b04c8eb0eaf01a5",
+        "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "61fd9b61536644b397966a6a8739ea27c65dcaaa565108c4fb1b5cd52475fec1",
+        "crates/cirrove-service/src/journal/namespace.rs": "ec424985bf2bbe03c380bf2aedc26eb2e9f7b38deb904975aefc5f5b4f3cc2d0",
+        "crates/cirrove-service/src/filesystem/lifecycle/native_trash.rs": "e6f745a3c35b920d32d596124cb6ac1dc1a474bbaa0e83d4d97adbd9be893db0",
+        "crates/cirrove-service/src/manager/native_import/native_replace_tests.rs": "ca1a38ef784460f602274ffa4095fc4a2fe6ef64879a211c2694d9599ee21b02",
+        "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "29d4067844fd03ef539452e6e3a21297ab95a3e5b75db50f110a18db1f7e9ca7",
+        "crates/cirrove-service/src/journal/export.rs": "d355f6b4d8ea51f15a15b48acc772b4fd74d864df082b63155d3cfad0b896d76",
+        "crates/cirrove-service/src/journal/native_trash_admission.rs": "4a8107e19a9879a6e273a238313e2c5872050f099924b0ee28d2a1c13acaefe1",
+        "scripts/ci-coverage.py": "e51e8c2c92206a1a8a847337e777ce069e5c47e821d0991f1f9b3163f41929f8",
+        "scripts/check.sh": "2ec8fc255707d9af4376c5f07f78159f16c10c6c085727ca14c37edb5abd0f2b",
+        "crates/cirrove-desktop/src/ui/native_import.rs": "13eac39c631e792bf0eeee1c637d517b9c20fcaee8444b2bea94a030e1c433c6",
+        "crates/cirrove-desktop/tests/window.rs": "a639cbf308992e9ca0fbed36f5c793c0657e6965b449dd75390b73b9441bfacb",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport.rs": "88b34dc786f5f308d01e20bec2dfc83ae5363841008df1ae0105e8c0df5fadea",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https.rs": "c49ed6cfd7e13b55216d8b693eb3c82e3dfd9e7f42b3a50d6f030939e3143b73",
+        "crates/cirrove-service/src/journal/package_replacement/worker_transport/fuse_https/chain.rs": "582e49794adc7d0b4357a1b623349379e0a1f54e799a8395f92f61feae5e6dfe",
+        "crates/cirrove-service/src/journal/working/native/successors.rs": "048f676b8ca3bf37491b6308ad28a975df1e0b30be442306d9365e235f816bf1",
+        "crates/cirrove-service/tests/writable_session/native_archive_edit.rs": "76ff8b94e34bcef37cef8a2200edbb65d1653465ed4094799f568a9755016072",
+        ".github/workflows/ci.yml": "db18d069868612faeed9128ab32f2f2f4b900946b0263e29fb47b82b9fac4df9"
+      },
+      "exit_code": 0,
+      "started_at": "2026-10-03T14:12:48.691280+00:00",
+      "finished_at": "2026-10-03T14:20:34.135846+00:00",
+      "native_fuse_https": "3 passed; 490 filtered; 3.40s",
+      "writable_kernel": "55 passed; 1 filtered; 104.10s",
+      "original_created_removed_test": "executed and passed within writable suite",
+      "contributor_stages": "format, clippy and isolated probes, workspace tests, kernel groups, script tests, coverage, ledger and documentation all passed",
+      "warnings": 0,
+      "desktop_display_scenarios": "not run by scripts/check.sh; remote CI required"
+    }
+  },
+  "gate_closure": false,
+  "proposed_public_destination": "docs/benchmarks/ordinary-folder-handoff-race-2026-10-03.json",
+  "registered_locally_at": "2026-10-03T13:21:29.694260+00:00",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "temp_filesystem": "ext4",
+  "authoring_corrections_before_red_runtime": [
+    "Assert exactly one provider attempt and all non-ETag Node fields before Applied-state assertion; print only known fixture ETag at red failure.",
+    "Use std::slice::from_ref for clippy without changing expected request.",
+    "Initial compile-only used earlier generic runner; dedicated folder runner hashes all changed production/test sources before runtime."
+  ],
+  "corrections": [
+    {
+      "finding": "Initial settled-node-only materialization passes the stale E1 regression and complete checks, but following fresh folder projections retain local aliases too. A later independently observed E5 can therefore be replaced by journal E2, causing legitimate subsequent mutation to conflict.",
+      "source_evidence": [
+        "filesystem.rs:974-990 resolves remote then restores local identity",
+        "journal/namespace.rs:913-918 and975-977 retain local aliases in fresh directory listing"
+      ],
+      "interpretation": "Initial tests establish stale E1 failure sensitivity, but do not prove adoption of later legitimate provider observations. Do not publish the initial production fix as sufficient; add preregistered E5 regression before correction."
+    }
+  ],
+  "fresh_alias_followup": {
+    "registered_at": "2026-10-03T13:49:27.129978+00:00",
+    "baseline_production_sha256": "cee0bfd0cf885bd5384c3d84b5311dddffe80e7709cfae2c18cfa5e03abf7076",
+    "question": "Can fresh provider E5 from the scoped metadata store, projected under a retained local folder alias, be adopted after the original independently settled handoff E2 without either restoring stale E1 or pinning E2?",
+    "prediction": "The initial settled-node-only fix passes staleE1 but fails freshE5 conditional mutation with E2. A cache-bound ordinary-folder admission outside journal/projection locks, with journal snapshot recheck, uses current observedE5 and passes both. No new network under filesystem leases.",
+    "arms": [
+      "Fresh scoped providerE5 observation after handoffE2; actual overlay must retain localaliasE5, actualrmdir/worker must condition on fullE5 and apply once. Red against initialv1 required before correction.",
+      "StaleE1 selected before handoff still uses independently observedE2 and applies once.",
+      "Altered source identity/path/kind/package/size/target refuses, no namespace rewrite or operation.",
+      "Concurrent namespace change after folder snapshot refuses commit without overwriting changed state; cached observation absence/refusal cannot silently fall back to stale selected revision."
+    ],
+    "endpoint": "Exact red selector must execute and fail conditional Conflict or staleE2 assertion, not compiler/timeout/zero-selection; corrected tests must execute actual adoption, original kerneltest/module and complete scripts/check.sh.",
+    "interpretation": "Scoped stored metadata is latest locally observed state, not proof of newest remote state; provider conditional mutation still enforces external concurrency. No live claims or gate closure.",
+    "test_selector": "filesystem::writeback::handoff::tests::fresh_scoped_cached_folder_alias_keeps_its_observed_revision_for_rmdir",
+    "test_proposal": {
+      "path": ".local-state/icloud-full-integration-20261003/folder-handoff-race/fresh-alias-tests.v2.patch",
+      "sha256": "70dd1b9bd2d1d7b39ebfe59a8184ac90bd4ee5f5c5abaec0fcbde124428b529e"
+    },
+    "external_path_followup": {
+      "registered_at": "2026-10-03T13:58:19.045181+00:00",
+      "question": "Does binding to the old journal pathname block a genuine later external folder rename/move even when fresh selected alias and independently published scoped cached observation agree?",
+      "prediction": "Cache-boundv2 still refuses fresh externally renamed alias withESTALE because it compares name/parent against handoff journal. Normalizing selected alias to provider identity/parent then comparing only against actual cached observation will accept fresh observed pathname, but reject stale or altered selection.",
+      "arms": [
+        "One fresh externalrename (sameprovideridentity) publishes cache and projects localalias; actualrmdir must apply with fullfreshNode. First run againstv2 must refuseESTALE.",
+        "One fresh externalmove with providerparent normalization; actualsourceadoption/relocation must preserve fullcachedsourceidentity and conditionalrevision.",
+        "Stalepre-rename selection and tampered identity/path/shape must refuse before namespace mutation."
+      ],
+      "scope": "Externalname/parent usability for independently observed localaliases; metadata fixtureonly, providerconditional protects changes afterselection. No live cloud or installed state.",
+      "test_selector": "filesystem::writeback::handoff::tests::fresh_scoped_cached_renamed_folder_alias_remains_removable",
+      "parent_alias_extension": {
+        "registered_at": "2026-10-03T14:09:58.633885+00:00",
+        "question": "Does an actual externalmove rmdir path canonicalize a journal-created destination local parent alias to its distinct provider parent ID, then preserve that local parent in namespace adoption?",
+        "prediction": "Create/ack the new parent without provider refresh; scoped moved child metadata uses providerparent, projection useslocalparent, observed_folder_source resolves canonicalparent, actualconditionalremoval usesfullmovedproviderNode and appliesonce. Oldsourceview refuses/noqueue. Three Applied rows (childcreate,parentcreate,childremove).",
+        "interpretation": "Strengthens earlier unaliased destinationparent arm; synthetic metadata/actualworker, not new live Apple acceptance."
+      }
+    },
+    "independent_review": "No blocking finding in finalv3: scoped selected/cache identity/path/shape comparison, canonical parent, full namespace CAS, cancellation, no provider fallback or new network under filesystem locks; existing file/package materialization restored. Runtime and remaining refusal controls remain required."
+  }
+}

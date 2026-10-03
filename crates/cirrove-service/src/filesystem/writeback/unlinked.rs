@@ -167,8 +167,22 @@ impl Writeback {
         let writer = self.clone();
         let scope = view.scope.as_ref().clone();
         let source = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
+        let (source, folder_snapshot) = self
+            .observed_folder_source(&inner.engine, &scope, &source, &inner.cancel)
+            .await?;
+        let source_cancel = inner.cancel.clone();
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
+            if source_cancel.is_cancelled() {
+                return Err(Errno::ENODEV);
+            }
+            Self::recheck_folder_source(&j, folder_snapshot.as_ref()).map_err(|e| {
+                if matches!(e, JournalError::Stale) {
+                    Errno::EBUSY
+                } else {
+                    error(e)
+                }
+            })?;
             let object = Self::materialize(&mut j, scope, source).map_err(error)?;
             if object.unlinked {
                 return Err(Errno::ENOENT);

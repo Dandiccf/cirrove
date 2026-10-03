@@ -215,8 +215,9 @@
     "failed_test": "real_a_directory_created_and_removed_again_is_gone_from_the_provider",
     "failure_site": "writable_session.rs3191 applied helper rejects Failed/Conflict/NeedsReview state; final provider absence assertion not reached.",
     "log_sha256": "594fab9a2f565b0d56ab18ae6051cf842f3ce05401d7abe6f3e58fa0725b0752",
-    "status": "investigating-stale-local-folder-view-after-settled-handoff-race",
+    "status": "controlled-local-correction-complete-remote-CI-open",
     "not_an_observation_timeout": true,
-    "not_caused_by_new_uncertain_chain_test": "This new fixture was not in f9a4ee9."
+    "not_caused_by_new_uncertain_chain_test": "This new fixture was not in f9a4ee9.",
+    "controlled_matching_race": "docs/benchmarks/ordinary-folder-handoff-race-2026-10-03.json: actual stale E1 view restored creation metadata over settled E2 and the conditional worker returned Conflict. Final removal/relocation source uses current scoped cached ordinary-folder metadata, selected identity/path/shape validation and full journal snapshot recheck. Intermediate settled-only and historical-path corrections failed newer revision and fresh external-rename controls. Final12 handoff tests passed, including the external move through distinct local/provider parent IDs. Complete scripts/check.sh passed with3 native FUSE/HTTPS tests and55 writable kernel tests, including the original create/remove case, without warnings. Remote CI remains pending; the previous remote helper had no exact mutation-row detail, so this proves a matching interleaving rather than its unique remote cause. Real/installed acceptance remains open."
   }
 }

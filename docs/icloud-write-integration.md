@@ -1409,3 +1409,33 @@ reached. This predates the new coupled fixture and is under investigation; the
 prior green run is retained as one observation, not proof of repeatable success.
 The complete local `scripts/check.sh` passed with the new fixture, all three
 native FUSE-to-HTTPS cases and all 55 writable scenarios.
+
+The [controlled folder regression](benchmarks/ordinary-folder-handoff-race-2026-10-03.json)
+reproduces a matching interleaving: a local view captured before handoff can
+restore the creation ETag over the independently observed settled folder node.
+The actual mutation worker then receives conditional refusal. Two intermediate
+corrections also had demonstrated limits: retaining only the settled journal node
+lost a later observed revision, and comparison with the historical pathname
+refused a genuinely renamed folder.
+
+The final correction obtains the ordinary folder's current scoped metadata from
+the local index outside journal and projection locks, without a provider fallback.
+It compares the selected identity, canonical parent, pathname and shape with that
+observation, allowing only revision/time metadata to lag. Before adoption,
+removal and relocation recheck the complete bound journal snapshot and
+cancellation. A fresh observed external pathname can therefore be used, while an
+old or altered pathname is refused. Conditional provider mutation still protects
+changes occurring after the local observation. File and native-package
+materialization retain their prior behavior.
+
+The original stale-view test failed against unchanged production; the newer
+revision and external-rename tests failed against their respective intermediate
+corrections. All three exact cases now pass. All 12 handoff tests pass, including seven altered-selection removal arms,
+missing/wrong-kind cache refusal without provider fallback, a bound-snapshot
+drift refusal and an external move through distinct local/provider parent IDs.
+The cancellation and snapshot-drift controls exercise source preparation/recheck,
+not an instrumented wallclock concurrent-removal race. The complete contributor
+check passed for final source, including all three native FUSE/HTTPS and55
+writable kernel scenarios with the original create/remove regression. Remote CI
+is still required. These tests do not establish the uninstrumented CI failure's unique
+cause, current remote freshness or live-provider reliability.

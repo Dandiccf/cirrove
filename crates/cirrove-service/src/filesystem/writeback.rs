@@ -785,6 +785,104 @@ impl Writeback {
         }
         Ok(listing.nodes)
     }
+    async fn observed_folder_source(
+        &self,
+        engine: &Engine,
+        scope: &Scope,
+        selected: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<(Node, Option<NamespaceObject>)> {
+        if cancel.is_cancelled() {
+            return Err(Errno::ENODEV);
+        }
+        let lookup_scope = scope.clone();
+        let lookup_node = selected.clone();
+        let (known, canonical) = self
+            .local(move |j| {
+                let known = j.namespace_by_local(&lookup_scope, &lookup_node.id)?;
+                let mut canonical = lookup_node;
+                if let Some(known) = &known
+                    && known.node.kind == NodeKind::Folder
+                    && !known.node.package
+                    && known.follows_remote
+                {
+                    canonical.id = known
+                        .remote
+                        .as_ref()
+                        .ok_or(JournalError::Corrupt)?
+                        .id
+                        .clone();
+                    canonical.parent_id = canonical
+                        .parent_id
+                        .as_ref()
+                        .map(|parent| j.provider_parent(&lookup_scope, parent))
+                        .transpose()?;
+                }
+                Ok((known, canonical))
+            })
+            .await?;
+        let Some(known) = known.filter(|o| o.node.kind == NodeKind::Folder && !o.node.package)
+        else {
+            return Ok((selected.clone(), None));
+        };
+        if !known.follows_remote {
+            // Bind pending creation as well, so a concurrent handoff cannot
+            // legitimize an old receipt view without a new source observation.
+            return Ok((selected.clone(), Some(known)));
+        }
+        if known.scope != *scope
+            || known.unlinked
+            || !known.remote_owned
+            || known.latest.is_some()
+            || known.working_file.is_some()
+        {
+            return Err(Errno::ESTALE);
+        }
+        let expected = known.remote.as_ref().ok_or(Errno::EIO)?;
+        let db = engine.db.clone();
+        let read_scope = scope.clone();
+        let item = expected.id.clone();
+        // Existing filesystem activity leases may be held by the caller.
+        // Read only scoped metadata already observed; no provider IO fallback.
+        let cached = tokio::select! { biased;
+            _ = cancel.cancelled() => return Err(Errno::ENODEV),
+            result = tokio::task::spawn_blocking(move || Store::open(db)?.node(&read_scope, &item)) =>
+                result.map_err(|_| Errno::EIO)?.map_err(|_| Errno::EIO)?.ok_or(Errno::ESTALE)?,
+        };
+        let observed = self.present_observation(expected, cached)?;
+        if observed.id != expected.id
+            || observed.kind != NodeKind::Folder
+            || observed.package
+            || observed.target.is_some()
+        {
+            return Err(Errno::ESTALE);
+        }
+        // The cache may contain a genuine external rename/move. Validate the
+        // selected path/shape against that observation, never the old receipt.
+        let mut shape = canonical;
+        shape.etag = observed.etag.clone();
+        shape.content_version = observed.content_version.clone();
+        shape.modified_unix = observed.modified_unix;
+        if shape != observed {
+            return Err(Errno::ESTALE);
+        }
+        if cancel.is_cancelled() {
+            return Err(Errno::ENODEV);
+        }
+        Ok((observed, Some(known)))
+    }
+    fn recheck_folder_source(
+        journal: &UploadJournal,
+        snapshot: Option<&NamespaceObject>,
+    ) -> crate::journal::Result<()> {
+        if let Some(snapshot) = snapshot {
+            let current = journal.namespace_object(snapshot.id)?;
+            if serde_json::to_value(&current)? != serde_json::to_value(snapshot)? {
+                return Err(JournalError::Stale);
+            }
+        }
+        Ok(())
+    }
     fn materialize(
         j: &mut UploadJournal,
         scope: Scope,
@@ -814,9 +912,17 @@ impl Writeback {
         let admission = self
             .admit_write(engine, &scope, &node, &engine.cancel)
             .await?;
+        let (node, folder_snapshot) = self
+            .observed_folder_source(engine, &scope, &node, &engine.cancel)
+            .await?;
+        let source_cancel = engine.cancel.clone();
         let object = self
             .local(move |j| {
+                if source_cancel.is_cancelled() {
+                    return Err(JournalError::Stale);
+                }
                 admission.recheck(j)?;
+                Self::recheck_folder_source(j, folder_snapshot.as_ref())?;
                 let object = Self::materialize(j, scope, node)?;
                 // Recheck the source at the journal's serialization point. Another
                 // rename may have completed after the cached directory was read.
