@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "run": "0803e72b-bba6-4f25-acb1-2b407b1befc4",
+  "base": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4",
+  "registered_at": "2026-10-04T19:25:20.941919+00:00",
+  "status": "Narrow retired receipt-alias correction verified: service12/controller20 controls and complete contributor check passed. Fresh live arm not yet executed.",
+  "question": "Does an unchanged owned Apple Numbers export create as actual DATA through ordinary FUSE, then permit one replacement whose current raw B and original raw A in Trash are independently verified?",
+  "prediction": "A confirms DATA and raw A before B; after one ordinary truncate save B, typed handoff and independent reads confirm raw B and Trash raw A. If Apple classifies A as PACKAGE or any result is uncertain, stop without B or replay.",
+  "mutations": [
+    "one new Cirrove-Native-RUN folder",
+    "one O_EXCL raw A Numbers file create",
+    "one descriptor-bound ordinary in-place truncate/full raw B save, only following stopped independent actual DATA/raw A proof"
+  ],
+  "max_seconds": 1800,
+  "ordinary_held_descriptor": "No immutable A snapshot claimed for in-place writes; immutable pre-B capture and exact Trash proof preserve A endpoint.",
+  "scope_limits": [
+    "owned fresh fixture only",
+    "no delete/restore/share/automatic replay",
+    "no installed service or package changes",
+    "not genuine native editor save evidence",
+    "all full integration gates remain open"
+  ],
+  "temp_filesystem": "ext4",
+  "pre_live_protocol_correction": {
+    "at": "2026-10-04T17:31:50.917837+00:00",
+    "previous": "O_WRONLY|O_TRUNC mutates before descriptor identity can be inspected",
+    "registered": "O_WRONLY|O_NOFOLLOW, exact fstat identity/size check, then one ftruncate and full write/fsync",
+    "reason": "Refuse descriptor mismatch before truncation; this is still an ordinary in-place save, not an atomic or native-editor acceptance arm.",
+    "cloud_dispatch_before_correction": false
+  },
+  "prior_run": "3af6fdd2-3178-43fb-818f-d0902182704a",
+  "prior_run_replay": false,
+  "association_guard": "Exact folder mutation->folder owner plus exact upload operation->stable file owner; refuse all unknown/foreign pairs; no uncertain state relaxation.",
+  "retired_content_version_guard": "Only clean retired following receipt Some(its ETag) to observed None omission; all other Node fields exact; active exact; typed receipts immutable.",
+  "local_evidence": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4",
+  "live_executed": false,
+  "registered_endpoints": {
+    "created_a": {
+      "applied_mutations": 1,
+      "uploaded_FileBytes": 1,
+      "complete_queue": 2,
+      "namespace_objects": 2,
+      "native_associations": 0,
+      "package_publications": 0,
+      "atomic_replacements": 0,
+      "independent_actual_DATA": true,
+      "raw_source_a_hash_exact": true,
+      "namespace_operation_associations": 2,
+      "exact_folder_and_upload_owner_pairs": true
+    },
+    "saved_b": {
+      "applied_mutations": 1,
+      "uploaded_FileBytes": 2,
+      "complete_queue": 3,
+      "namespace_objects": 3,
+      "native_associations": 0,
+      "package_publications": 0,
+      "atomic_replacements": 0,
+      "same_stable_owner": true,
+      "new_current_identity": true,
+      "backup_identity_equals_original_a": true,
+      "current_raw_b_hash_exact": true,
+      "Trash_original_raw_a_hash_exact": true,
+      "namespace_operation_associations": 3,
+      "exact_folder_and_upload_owner_pairs": true
+    }
+  },
+  "acceptance_limits": [
+    "This is an ordinary FUSE raw-file copy and overwrite, not a real native-editor save.",
+    "Source is an Apple export; its .numbers extension or ZIP shape does not establish actual DATA representation.",
+    "Local hidden recovery alias basename is not a Trash basename.",
+    "One bounded run does not establish repeated reliability, restart uncertainty recovery or installed acceptance."
+  ],
+  "prior_aborted_arm": "icloud-numbers-data-confirmation-2026-10-04.json",
+  "observer_revision_preregistration": {
+    "question": "Does normal retired receipt ETag-alias omission preserve strict ordinary DATA identity/revision/content acceptance?",
+    "prediction": "Original observer rejects genuine retired A/B with receiptSome(itsETag)->observedNone. Narrow correction permits only that omission on completely retired clean objects; otherNode/token/revision tampering remains refused.",
+    "exact_test": "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_retired_etag_token_omission_preserves_exact_revision",
+    "source_callpath": [
+      "ICloudFileCreate::node aliases content_version to ETag",
+      "ICloudDrive directory_nodes reports content_version None",
+      "normal maintenance handoff refreshes metadata and retains observedNode; immutableuploadreceipt remains unchanged"
+    ],
+    "production_write_behavior_changed": false,
+    "cloud_dispatch_before_correction": false,
+    "registered_at": "2026-10-04T19:26:36.572354+00:00",
+    "baseline_actual_expected_accepted": [
+      false,
+      false
+    ],
+    "corrected_expected_accepted": [
+      true,
+      true
+    ],
+    "positive_arms": [
+      "genuine retiredA receiptSome(itsETag)->observedNone",
+      "genuine retiredsavedB receiptSome(itsETag)->observedNone"
+    ],
+    "negative_arms": [
+      "present different content_version token",
+      "changed ETag",
+      "changed size",
+      "changed modified time",
+      "changed parent",
+      "changed name",
+      "active working-owner omission",
+      "hidden backup omission"
+    ]
+  },
+  "controller_correction_results": {
+    "version": 1,
+    "verified_at": "2026-10-04T19:31:15.725086+00:00",
+    "handoff_sha256": "e0c07fde2cce7d1884e4870844b93b39155d87253ab5eb50b7f918211ea4d85d",
+    "baseline": {
+      "executed": 1,
+      "failed": 1,
+      "terminal_chunk": "704142",
+      "both_A_B_omission_refusals_confirmed": true
+    },
+    "corrected": {
+      "executed": 20,
+      "passed": 20,
+      "terminal_chunk": "4a0724"
+    },
+    "manifest_log_source_pins_verified": true,
+    "cloud_mutated": false,
+    "negative_revision_metadata_lifecycle_arms": 12,
+    "scope": "Private trial control only, no production write or live DATA acceptance."
+  },
+  "service_revision_results": {
+    "summary": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/observer-retired-token-verification-summary.json",
+    "summary_sha256": "02ec7c60a5b975c44baca47cab5d941d6ba9b7b49abe54a3405bf9e1ff569db2",
+    "root_audit": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/root-service-revision-audit.json",
+    "baseline_executed": 1,
+    "baseline_failed": 1,
+    "baseline_A_B_accepted": [
+      false,
+      false
+    ],
+    "baseline_terminal": "0e0cad",
+    "corrected_executed": 12,
+    "corrected_passed": 12,
+    "corrected_terminal": "bf0f71",
+    "negative_arms": 8,
+    "final_source_sha256": {
+      "crates/cirrove-service/src/journal/export.rs": "b7cc0fddbf9ea87a7416c769b0b11e4bd807e7ddd0ccf88d3a015a6642598400",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/numbers_data.rs": "d624ffd177956b7ac5733a302011e60dfe58367ff295ef4ed0a6f4f5843fd7f6",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/numbers_data/tests.rs": "95a463ffc3c02965c483acdd7c2465cb43d336c2a84e0aee54d35c0ad27e695b"
+    },
+    "providers_called": false,
+    "authoring_corrections": []
+  },
+  "full_contributor_check": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "status": "passed-whole-command",
+    "exit_code": 0,
+    "terminal_chunk": "9e6f79",
+    "log_sha256": "4cb83bf885c0b81e7713fd4df1907fb4c89d8e3c8df48d4d724c6b3bea84c8b1",
+    "result": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/full-check-v1-result.json",
+    "source_files_verified": 452,
+    "DATA_service_tests_executed": 12,
+    "DATA_library_tests_executed": 4,
+    "desktop_display_scenarios_rerun": false,
+    "full_integration_gates_closed": 0,
+    "cloud_mutated": false
+  }
+}

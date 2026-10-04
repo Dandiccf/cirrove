@@ -3,7 +3,7 @@
   "run": "3af6fdd2-3178-43fb-818f-d0902182704a",
   "base": ".local-state/icloud-numbers-data-3af6fdd2-3178-43fb-818f-d0902182704a",
   "registered_at": "2026-10-04T18:49:24.994500+00:00",
-  "status": "Corrected service observer11 controls and private controller18 controls verified; complete contributor check passed. Fresh live arm not yet executed.",
+  "status": "Stopped after owned A upload and exact daemon shutdown; stopped preflight refused benign retired content-version omission before observer dispatch; B not written.",
   "question": "Does an unchanged owned Apple Numbers export create as actual DATA through ordinary FUSE, then permit one replacement whose current raw B and original raw A in Trash are independently verified?",
   "prediction": "A confirms DATA and raw A before B; after one ordinary truncate save B, typed handoff and independent reads confirm raw B and Trash raw A. If Apple classifies A as PACKAGE or any result is uncertain, stop without B or replay.",
   "mutations": [
@@ -32,7 +32,7 @@
   "prior_run_replay": false,
   "association_guard": "Exact folder mutation->folder owner plus exact upload operation->stable file owner; refuse all unknown/foreign pairs; no uncertain state relaxation.",
   "local_evidence": ".local-state/icloud-numbers-data-3af6fdd2-3178-43fb-818f-d0902182704a",
-  "live_executed": false,
+  "live_executed": true,
   "registered_endpoints": {
     "created_a": {
       "applied_mutations": 1,
@@ -207,5 +207,69 @@
     "desktop_display_scenarios_rerun": false,
     "full_integration_gates_closed": 0,
     "cloud_mutated": false
+  },
+  "actual_live_outcome": {
+    "recorded_at": "2026-10-04T19:28:06.951465+00:00",
+    "source_head": "5270218e9945d2eecbafb91a37c38247baf5da91",
+    "observer_sha256": "98abf16bad46ff7aa58ee8f6f91a62eb4da76c5196408d0a14a600e4c5481243",
+    "runtime_sha256": "0f8a2d67c2753484397c24807c8bdce238037ca9b37dad5031fb52d31b9f6fc8",
+    "start_a": {
+      "tool_chunk": "bb7f0d",
+      "pid": 2719566
+    },
+    "readiness_a": "3ca1e4",
+    "folder_dispatch": "3f4568",
+    "folder_confirmation": "39e994",
+    "folder_polls_pending_without_resubmission": [
+      "929889",
+      "f61ba7"
+    ],
+    "a_dispatch": "35303a",
+    "a_upload_and_mounted_capture_confirmed": "360ec9",
+    "stop_a": "e4575c",
+    "stopped_a": "46e985",
+    "preflight_dispatch": "3ecb91",
+    "preflight_refusal": "f45b6d",
+    "abort": "f0a92c",
+    "all_known_owners_gone_and_unmounted": true,
+    "fresh_dispatch_disabled": true,
+    "overall_arm_success": false,
+    "numbers_creates": 1,
+    "numbers_saves": 0,
+    "independent_observer_dispatches": 0,
+    "independent_actual_DATA_representation_observed": false,
+    "stopped_frontier": {
+      "mutations_applied": 1,
+      "uploads_uploaded": 1,
+      "complete_queue": 2,
+      "namespace_operation_associations": 2,
+      "working_files": 0,
+      "follows_remote": true,
+      "only_receipt_observed_Node_difference": "content_version",
+      "receipt_content_version_equals_its_ETag": true,
+      "observed_content_version_is_None": true,
+      "all_other_Node_fields_exact": true,
+      "remote_sequence_exact": true,
+      "artifact": ".local-state/icloud-numbers-data-3af6fdd2-3178-43fb-818f-d0902182704a/stopped-content-version-frontier.json",
+      "artifact_sha256": "ce232dc492694b9126f3f8c5fd67e5012dc0538d58027d93a2d4cc45722834f3",
+      "tool_chunk": "302eb1"
+    },
+    "root_post_abort_audit": {
+      "path": ".local-state/icloud-numbers-data-3af6fdd2-3178-43fb-818f-d0902182704a/root-post-abort-audit.json",
+      "sha256": "0b7879e5983096be1186301db5bab82b1ccd0d00603d6997ef6bb4a7256af469",
+      "tool_chunk": "2b5937",
+      "installed_daemon_identity_unchanged": true,
+      "packaged_files_unchanged": 19
+    },
+    "provider_operation_replayed": false,
+    "next_distinct_arm": "0803e72b-bba6-4f25-acb1-2b407b1befc4",
+    "next_preregistration": "icloud-numbers-data-revision-confirmation-2026-10-04.json",
+    "full_icloud_gates_closed": 0
+  },
+  "retired_receipt_projection_correction": {
+    "source": "ICloudFileCreate::node Some(ETag), ICloudDrive directory_nodes None; normal metadata refresh/handoff preserves fresh Node and retires working object, leaving immutable upload receipt untouched.",
+    "narrow_policy": "Only clean retired following owner with no latest/working rows: receipt Some(its unchanged ETag)->observed None, every other Node field exact. Active and hiddenbackup comparisons remain exact.",
+    "first_live_snapshot_limit": "The exact failed preflight snapshot was not separately retained; the stopped local deterministic refusal and exact retained Node comparison demonstrate the defect.",
+    "production_write_transactions_changed": false
   }
 }

@@ -585,3 +585,74 @@ fn owned_numbers_data_actual_namespace_operation_inventory_refuses_substitution(
         "complete namespace operation inventory accepted malformed pairs"
     );
 }
+
+#[test]
+fn owned_numbers_data_retired_etag_token_omission_preserves_exact_revision() {
+    let mut accepted = Vec::new();
+    for saved in [false, true] {
+        let mut actual = actual();
+        if saved {
+            actual.save(false);
+        }
+        actual.check().unwrap();
+        let current = {
+            let journal = actual.writer();
+            journal
+                .get(actual.plan.save.unwrap_or(actual.plan.create))
+                .unwrap()
+                .remote
+                .unwrap()
+        };
+        assert_eq!(current.content_version, current.etag);
+        let observed = Node {
+            content_version: None,
+            ..current
+        };
+        // Genuine clean handoff stores the metadata observation, not the receipt.
+        actual.retire(observed);
+        accepted.push(actual.check().is_ok());
+    }
+    assert_eq!(
+        accepted,
+        vec![true; 2],
+        "retired DATA A/B metadata token omission refused"
+    );
+    for arm in 0..8 {
+        let mut actual = actual();
+        if arm == 7 {
+            actual.save(false);
+        }
+        actual.check().unwrap();
+        if arm >= 6 {
+            let changed = actual.db().execute(
+                "UPDATE namespace_objects SET body=json_set(body,'$.remote.content_version',NULL) WHERE id=?1",
+                [if arm == 6 {
+                    actual.plan.owner.to_string()
+                } else {
+                    let journal = actual.writer();
+                    journal.get(actual.plan.save.unwrap()).unwrap()
+                        .ordinary_validation_recovery_owner().unwrap().to_string()
+                }],
+            ).unwrap();
+            assert_eq!(changed, 1);
+        } else {
+            let mut observed = Node {
+                content_version: None,
+                ..actual.original.clone()
+            };
+            match arm {
+                0 => observed.content_version = Some("different-content-token".into()),
+                1 => observed.etag = Some("different-revision".into()),
+                2 => observed.size += 1,
+                3 => observed.modified_unix += 1,
+                4 => observed.parent_id = Some("FOLDER::com.apple.CloudDocs::other-parent".into()),
+                _ => observed.name = "other.numbers".into(),
+            }
+            actual.retire(observed);
+        }
+        assert!(
+            actual.check().is_err(),
+            "token omission guard arm {arm} accepted"
+        );
+    }
+}

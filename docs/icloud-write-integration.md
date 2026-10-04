@@ -1973,3 +1973,30 @@ all upload pairs in the before/after snapshot. The complete `scripts/check.sh`
 passed with these 11 controls and all four DATA Trash-reader controls. These
 are observer corrections; the fresh live DATA arm remains pending at this
 source-validation endpoint, and all six full-iCloud gates remain open.
+
+That fresh arm subsequently completed one folder and one ordinary FileBytes A
+upload, including a hash-exact original-mount capture. After the exact daemon
+shutdown, its local preflight refused before launching the independent provider
+observer: normal metadata handoff retained `content_version=None`, whereas the
+immutable upload receipt contained `content_version=Some(its ETag)`. Every other
+Node field and the remote sequence remained identical. This follows the existing
+create-receipt and directory-metadata projections, not a changed content revision.
+The stopped journal retained one Applied mutation, one Uploaded record, two
+completed queue entries, two exact owner associations and no working files.
+
+The arm remains unsuccessful: no B was saved and no independent actual-DATA
+representation was observed. All known owners stopped, the mount disappeared,
+and the installed daemon and all 19 artifacts remained unchanged. A separate
+[revision-confirmation arm](benchmarks/icloud-numbers-data-revision-confirmation-2026-10-04.json)
+preregisters a narrowly bounded correction for this one-way ETag-alias omission
+on fully retired clean objects. Active owners, unrelated tokens, all other Node
+fields and hidden backups remain exact. The old cloud operation is not replayed.
+
+The retired-token correction first reproduced both A/B refusals against the
+unchanged observer, then passed all 12 service controls including eight strict
+negative arms. Its private controller likewise first refused both genuine
+read-only SQL frontiers, then passed all 20 controls, including 12 metadata and
+lifecycle refusals. The complete `scripts/check.sh` passed with all 12 DATA
+service controls and four DATA Trash-reader controls, with all 452 source hashes
+verified. This source-validation endpoint supplies no new live DATA acceptance;
+the separately registered fresh arm remains unexecuted at this endpoint.

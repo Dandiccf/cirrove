@@ -500,12 +500,28 @@ fn admitted(
                 && serde_json::to_value(o).ok() == serde_json::to_value(owner).ok()),
         "owned DATA actual working association changed"
     );
+    let mut expected_remote = current.clone();
+    // Ordinary metadata omits the redundant content token set by the upload
+    // receipt. Only a fully retired remote-following owner may adopt that
+    // omission; all other fields, including the ETag, remain exact below.
+    if owner.follows_remote
+        && owner
+            .remote
+            .as_ref()
+            .is_some_and(|remote| remote.content_version.is_none())
+        && current
+            .content_version
+            .as_ref()
+            .is_some_and(|version| current.etag.as_ref() == Some(version))
+    {
+        expected_remote.content_version = None;
+    }
     ensure!(
         owner.scope == plan.scope()
             && owner.remote_owned
             && !owner.unlinked
             && owner.native_archive.is_none()
-            && owner.remote.as_ref() == Some(current)
+            && owner.remote.as_ref() == Some(&expected_remote)
             && owner.remote_sequence == latest.sequence
             && owner.node.kind == NodeKind::File
             && !owner.node.package
@@ -523,7 +539,7 @@ fn admitted(
                 && frontier.working_digest.is_none(),
             "owned DATA retired working frontier changed"
         );
-        let mut expected = current.clone();
+        let mut expected = expected_remote;
         expected.id.clone_from(&owner.node.id);
         expected.parent_id = Some(parent_object.node.id.clone());
         ensure!(
