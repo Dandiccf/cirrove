@@ -41,7 +41,7 @@
     "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-final-870991a9-95ab-4f8f-bbf3-0c6f25097971/source-registration-v1.json",
     "sha256": "d1d01fc23707f0c5a7105c3b5ce401daa916eb8347bbde8439d73b2811653d9f"
   },
-  "implementation_status": "Integrated feature-only loss/recovery and typed preflight/postflight observer passed complete scripts/check.sh with unchanged515executable files and all8metadata+5native controls. Real-provider runtime/controller/ELF freeze remains pending.",
+  "implementation_status": "Integrated probes and YAML-corrected CI passed entire scripts/check.sh with all515executable source files unchanged and exact8metadata+5native tests. Controller cleanup binding and frozen live runtime still under preparation; no provider dispatch.",
   "registered_before_live": true,
   "source_semantics": {
     "source_a": {
@@ -142,7 +142,7 @@
       "scope": "Same final lib test ELF as five metadata-helper tests; no live process-crash/provider acceptance."
     }
   },
-  "status_updated_at": "2026-10-04T22:12:22.891315+00:00",
+  "status_updated_at": "2026-10-04T22:26:05.687222+00:00",
   "execution_scope": "Top-level executed/cloud_mutated describe the LIVE arm only. Synthetic validation results are separately recorded.",
   "postflight_helper_preregistration": {
     "registered_at": "2026-10-04T21:49:39.885150+00:00",
@@ -320,6 +320,66 @@
       "actual_helper_tests": 8,
       "actual_native_recovery_tests": 5,
       "scope": "Complete scripts/check.sh from beginning; includes formatting, warnings-as-errors Clippy, workspace and feature tests, synthetic actual-kernel mounts, scripts, ledger and docs. No desktop display or live-provider acceptance."
+    },
+    "attempt_v4_preregistration": {
+      "registered_at": "2026-10-04T22:18:28.432741+00:00",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "driver_sha256": "39d1336a68244e0b692540c44b0f54684025ded1b09fb81fb0d59da3aaaa1682",
+      "executed": true,
+      "prediction": "Entire check again passes after syntax-only workflow correction; unchanged Rust source and exact native test shell command preserve behavior.",
+      "expected_duration_seconds": 1800
+    },
+    "attempt_v4_result": {
+      "exit_code": 0,
+      "all_checks_passed": true,
+      "sources_unchanged": true,
+      "frozen_executable_source_files": 515,
+      "duration_seconds": 402.076218281989,
+      "log_sha256": "31c1dfb1ef39d740b1f50827a5bd6b6ea552ba667c1f9958c7d610171ab68659",
+      "actual_helper_and_native_test_names": [
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_actual_entries_reject_identity_and_revision_changes",
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_postflight_trash_binding_rejects_revision_and_semantic_substitution",
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_registration_rejects_expired_or_excessive_window",
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_actual_entries_preserve_optional_metadata",
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_postflight_source_a_scanner_rejects_raw_or_semantic_tamper",
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_registration_binds_two_owned_arm_shapes",
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_source_and_settings_guards_refuse_changed_bytes",
+        "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_postflight_requires_two_exact_owned_source_and_receipt_shapes",
+        "journal::package_replacement::worker_transport::native_final_tests::native_final_actual_completed_frontier_binds_queue_pairs_receipts_and_publication",
+        "journal::package_replacement::worker_transport::native_final_tests::native_final_actual_receipt_marker_is_fsynced_before_owned_process_exit",
+        "journal::package_replacement::worker_transport::native_final_tests::native_final_real_tls_receipt_is_withheld_then_same_checkpoint_recovers_without_mutation",
+        "journal::package_replacement::worker_transport::native_final_tests::native_final_recovery_refuses_foreign_scope_operation_checkpoint_and_receipt_before_ack",
+        "journal::package_replacement::worker_transport::native_final_tests::native_final_recovery_vetoes_all_upload_and_namespace_mutation_entrypoints_before_http"
+      ],
+      "actual_helper_tests": 8,
+      "actual_native_recovery_tests": 5,
+      "scope": "Complete scripts/check.sh from beginning after YAML-only correction; synthetic actual-kernel and script groups included. Display, installed and live-provider acceptance remain open."
     }
+  },
+  "ci_yaml_correction": {
+    "registered_at": "2026-10-04T22:18:28.432567+00:00",
+    "failed_source": "ba140777a48df6488a9e67ea50aeec06365d5b76",
+    "failed_ci_run": 37239198919,
+    "jobs_started": 0,
+    "finding": "New unquoted run scalar ended a Rust path with :: followed by space; YAML parser interprets the terminal colon as mapping syntax.",
+    "before_parser": {
+      "exit_code": 1,
+      "log_sha256": "00ed3e25529fc924f2e9ff0fb83c2128666d40f2d82d40e8672e8b78519ee44d",
+      "source_unchanged": true
+    },
+    "after_parser": {
+      "exit_code": 0,
+      "log_sha256": "21e6ca911b51ea972ae866391a385d3507020cbf1a900f787fa91057d9a017c4",
+      "source_unchanged": true,
+      "command_string_unchanged": true
+    },
+    "correction": "Folded block scalar preserves exact shell command; no Rust/Cargo/runtime change.",
+    "artifact_correction": "After-parser pre-manifest named parse-only; actual command additionally printed parsed run string and is recorded in active artifact after spawn. Exact preregistration mismatch disclosed in same manifest; actual exit0/output prove parser acceptance and command equivalence.",
+    "whole_check_rerun_required": false,
+    "new_ci_pending": true,
+    "all_icloud_gates_closed": false,
+    "whole_check_passed": true
   }
 }

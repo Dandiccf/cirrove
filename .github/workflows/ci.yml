@@ -67,7 +67,10 @@ jobs:
       - name: iCloud account-router validator guards
         run: cargo test -p cirrove-service --features icloud-write-probe --lib validation::icloud_account --locked
       - name: Native final-confirmation loss and inspection-only recovery
-        run: cargo test -p cirrove-service --features icloud-write-probe --lib journal::package_replacement::worker_transport::native_final_tests:: --locked -- --test-threads=1
+        run: >-
+          cargo test -p cirrove-service --features icloud-write-probe --lib
+          journal::package_replacement::worker_transport::native_final_tests::
+          --locked -- --test-threads=1
       # Package-specific feature resolution can rebuild dependencies. Keep that
       # compilation outside the native window's unchanged runtime deadline.
       - name: Build native desktop test
