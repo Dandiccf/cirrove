@@ -775,3 +775,6 @@ pub use fuse::{
     icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,
     icloud_owned_fuse_source_verify,
 };
+
+mod keynote;
+pub use keynote::{icloud_owned_keynote_import_receipt_verify, icloud_owned_keynote_source_verify};

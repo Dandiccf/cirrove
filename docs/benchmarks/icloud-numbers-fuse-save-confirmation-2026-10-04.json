@@ -275,7 +275,53 @@
       "restore_rw": "67cfe4",
       "root_final_audit": "41e27b"
     },
-    "retained_verifier_authoring_correction": "First final audit used a private-owner/non-executable hash guard on root-owned package icons and refused locally; corrected artifact hashing passed. No cloud action or trial replay."
+    "retained_verifier_authoring_correction": "First final audit used a private-owner/non-executable hash guard on root-owned package icons and refused locally; corrected artifact hashing passed. No cloud action or trial replay.",
+    "published_evidence_ci": {
+      "verified_at": "2026-10-04T16:18:54.176364+00:00",
+      "head_sha": "0a2ec8af5e5a1af2701b8237ae4cefb61f214c34",
+      "run": 37213621767,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "dependency-audit",
+          "conclusion": "success",
+          "completed_at": "2026-10-04T15:39:09Z"
+        },
+        {
+          "name": "mounted-read-workloads",
+          "conclusion": "success",
+          "completed_at": "2026-10-04T15:48:48Z"
+        },
+        {
+          "name": "linux",
+          "conclusion": "success",
+          "completed_at": "2026-10-04T16:06:14Z"
+        },
+        {
+          "name": "deb-package",
+          "conclusion": "success",
+          "completed_at": "2026-10-04T15:45:14Z"
+        },
+        {
+          "name": "rpm-package",
+          "conclusion": "success",
+          "completed_at": "2026-10-04T15:49:41Z"
+        },
+        {
+          "name": "arch-package",
+          "conclusion": "success",
+          "completed_at": "2026-10-04T15:54:21Z"
+        },
+        {
+          "name": "headless-package-install",
+          "conclusion": "success",
+          "completed_at": "2026-10-04T15:47:18Z"
+        }
+      ],
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37213621767",
+      "scope": "Published Numbers acceptance source/evidence commit; does not cover the subsequent uncommitted Keynote observer."
+    }
   },
   "full_iCloud_gates_closed": 0,
   "installed_state_changed": false,

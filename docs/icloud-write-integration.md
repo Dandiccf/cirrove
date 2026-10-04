@@ -1848,3 +1848,37 @@ This is one bounded canonical archive-copy save, not ordinary or atomic saves
 from a real editor, genuine DATA acceptance, Keynote fidelity, long-session
 reliability or installed access-transition acceptance. All six full-iCloud
 requirements remain unchecked; the schema19/metadata8 deployment hold remains.
+
+### Genuine Keynote source and import observer on 4 October 2026
+
+The [registered source preparation](benchmarks/icloud-keynote-source-2026-10-04.json)
+created one personally owned Basic White presentation in Apple Keynote, with a
+unique run title and synthetic slide title/subtitle. Its single native export
+completed; the embedded export preview independently shows the registered text.
+The import archive preserves all 54 native ZIP members and their metadata under
+`Source.key/`. Its semantic-v2 identity has 58 entries, including implied
+directories. Neither the extension nor the ZIP layout proves CloudDocs DATA
+or PACKAGE classification.
+
+A separate feature-gated, read-only
+[Keynote import observer](benchmarks/icloud-keynote-import-observer-2026-10-04.json)
+binds the source, exact account/collection/item, one completed import, its owned
+parent and completed metadata publication. It requires exactly two queue rows,
+one parent namespace and no working/native association, and fences source,
+settings, journal and remote revisions around independent semantic readback.
+Nine focused tests passed. Omitting either the sole-upload guard or total queue
+guard made the exact registered control fail; restored source passed all nine.
+The genuine Apple export also passed the production offline source scanner.
+Independent asset and static source reviews found no blocker. The complete
+`scripts/check.sh` passed from the beginning with unchanged executable source,
+including all nine registered Keynote controls. The first full-check arm stopped
+in the script smoke test because the root-selected temporary directory made its
+Unix socket path exceed `SUN_LEN`; a shorter private ext4 path corrected only
+the test setup. Both runs are preserved. Desktop display scenarios were not
+repeated locally. Source CI and the subsequent live import remain separate
+endpoints.
+
+No Keynote import through Cirrove or imported-document Apple open has yet run.
+These source and observer checks establish neither editor saves, replacement,
+Trash, DATA acceptance nor installed transitions. All six full-iCloud
+requirements remain unchecked.

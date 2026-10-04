@@ -656,8 +656,9 @@ mod owned_package;
 pub use owned_package::{
     icloud_native_v2_baseline, icloud_native_v2_preflight, icloud_native_v2_verify,
     icloud_owned_fixture_verify, icloud_owned_fuse_capture_verify,
-    icloud_owned_fuse_receipt_verify, icloud_owned_fuse_source_verify, icloud_owned_package_import,
-    icloud_owned_package_mounted, icloud_owned_package_restore,
+    icloud_owned_fuse_receipt_verify, icloud_owned_fuse_source_verify,
+    icloud_owned_keynote_import_receipt_verify, icloud_owned_keynote_source_verify,
+    icloud_owned_package_import, icloud_owned_package_mounted, icloud_owned_package_restore,
     icloud_owned_package_restore_inspect, icloud_owned_package_restore_shape,
     icloud_owned_package_source, icloud_owned_package_trash, icloud_owned_package_trash_inspect,
     icloud_owned_package_verify, icloud_owned_receipt_verify, icloud_public_native_manifest,

@@ -431,6 +431,13 @@ impl RecoveryJournal {
             [], |row| Ok((row.get(0)?, row.get(1)?)),
         )?)
     }
+    /// Import-only validation: one owned folder and no native-save association.
+    pub(crate) fn native_validation_import_auxiliary_inventory(&self) -> Result<(i64, i64, i64)> {
+        Ok(self.journal.db.query_row(
+            "SELECT (SELECT count(*) FROM namespace_objects),(SELECT count(*) FROM native_working_operations),(SELECT count(*) FROM write_queue)",
+            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?)
+    }
     /// Indexed read-only native source/byte-stream association. Existing shape
     /// validation binds either live working bytes or an exact dormant slot.
     #[allow(clippy::type_complexity)]

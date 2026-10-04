@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-04T15:54:19.721159+00:00",
+  "question": "Does a distinct read-only Keynote import observer bind one exact owned public PACKAGE import and independent semantic readback without weakening Numbers observers or permitting an extra operation?",
+  "prediction": "All eight named controls pass with strict scope/source/parent/publication/queue/namespace/association checks. Omitting only the sole-upload guard makes the unchanged extra-completed-upload refusal assertion fail.",
+  "scope": "Feature-gated read-only verifier and offline source scanner using production semantic reader/RecoveryJournal. No new write path, provider-source identity fabrication, cloud mutation or installed transition.",
+  "owned_source_registration": "docs/benchmarks/icloud-keynote-source-2026-10-04.json",
+  "source_import_run": "de9eb662-5df7-489e-b6c5-978abeb8f4c8",
+  "source_root": "/var/tmp/cirrove-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8",
+  "expected_source_semantic": {
+    "version": 2,
+    "sha256": "5ab225f68d164e6369cab5bfc6667cced06b77fdb57b65cfb43e55e722c01fb9",
+    "entries": 58,
+    "files": 54,
+    "expanded_bytes": 516253
+  },
+  "tests": [
+    "owned_keynote_registration_binds_exact_import_scope",
+    "owned_keynote_actual_journal_binds_import_and_read_only_inventory",
+    "owned_keynote_import_refuses_extra_completed_upload",
+    "owned_keynote_import_refuses_scope_owner_receipt_and_publication_tampering",
+    "owned_keynote_import_refuses_extra_namespace_association_and_dirty_frontier",
+    "owned_keynote_source_scan_refuses_raw_and_semantic_tampering",
+    "owned_keynote_source_scan_refuses_wrong_format_and_root",
+    "owned_keynote_registration_refuses_digest_schema_and_wrong_run"
+  ],
+  "omission_control": {
+    "remove_only": "ensure rows.len()==1 in imported_keynote",
+    "test": "owned_keynote_import_refuses_extra_completed_upload",
+    "expected_failure": "unregistered completed upload accepted",
+    "interpretation": "Sensitivity of new contract coverage; not a newly demonstrated production import defect."
+  },
+  "endpoint": [
+    "Eight exact named controls execute and pass",
+    "The isolated omission fails the unchanged registered extra-upload refusal assertion",
+    "Restored source executes the original eight again",
+    "Production offline scanner verifies the genuine Apple source identity with no cloud session",
+    "No full gate closes from these synthetic/offline controls"
+  ],
+  "status": "focused-9-controls-genuine-source-scan-and-complete-project-check-passed-live-import-pending",
+  "results": {
+    "source_summary_sha256": "cab902863e357b1ac6b66ff23de92a7c93b2ed067d4178a651e4fa6a8c5ee35a",
+    "arms": {
+      "focused-8-v1": {
+        "manifest": ".local-state/icloud-keynote-observer-20261004/focused-8-v1.json",
+        "manifest_sha256": "e74f2896c1329206e7d02bf969ed80644c3f31081d2905d92e2cf77643702ace",
+        "log_sha256": "463e58c687c7ab05b08e0d702b10b542189c7e46650cb46993cf1e964e535949",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "exit_code": 0
+      },
+      "sole-upload-guard-omitted-v1": {
+        "manifest": ".local-state/icloud-keynote-observer-20261004/sole-upload-guard-omitted-v1.json",
+        "manifest_sha256": "b3eeb61a1152f473c6ec95def987105dc013f6d0a177b1338103362207009163",
+        "log_sha256": "c1c9c3131a2075611e4e973884821f0db365b5c60c29b2f9937899e25a7d1376",
+        "passed": 0,
+        "failed": 1,
+        "ignored": 0,
+        "exit_code": 101
+      },
+      "focused-9-v2": {
+        "manifest": ".local-state/icloud-keynote-observer-20261004/focused-9-v2.json",
+        "manifest_sha256": "200c64438d29daaf5a01f866e560962ca9fdf9b2c2cf252ab07be51808fe43e0",
+        "log_sha256": "c6cd36481bf989dd128453f09a0be2d62de679117c2560520477fbf83050ac0f",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "exit_code": 0
+      },
+      "total-queue-guard-omitted-v2": {
+        "manifest": ".local-state/icloud-keynote-observer-20261004/total-queue-guard-omitted-v2.json",
+        "manifest_sha256": "1f70d5d404f4394dad6f2b7e57a6782671dfb8e1bb1d94de8c8cf871a7b72104",
+        "log_sha256": "3c0b911d3b74dfd08772f16c8ffc19c2c5de6792114d464edb95772dc65c55c4",
+        "passed": 0,
+        "failed": 1,
+        "ignored": 0,
+        "exit_code": 101
+      },
+      "restored-focused-9-v2": {
+        "manifest": ".local-state/icloud-keynote-observer-20261004/restored-focused-9-v2.json",
+        "manifest_sha256": "b6a89c96a708201cc1b950239d514971064d8138eac04c509435d0224651100c",
+        "log_sha256": "6e4b62f533cd3e22a01e50c1bc0c2fe4e55222898ea488f269e3100434d3b159",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "exit_code": 0
+      }
+    },
+    "execution_tool_results": {
+      "first8": {
+        "session": 99472,
+        "chunk": "029c96",
+        "exit_code": 0
+      },
+      "sole_guard_omission": {
+        "session": 73804,
+        "chunk": "40be25",
+        "exit_code": 101
+      },
+      "canonical9": {
+        "session": 31088,
+        "chunk": "dbc753",
+        "exit_code": 0
+      },
+      "totalqueue_omission": {
+        "session": 69121,
+        "chunk": "1572d8",
+        "exit_code": 101
+      },
+      "restored9": {
+        "session": 2673,
+        "chunk": "c0b306",
+        "exit_code": 0
+      },
+      "observer_build": {
+        "session": 83783,
+        "chunk": "77df4f",
+        "exit_code": 0
+      },
+      "offline_scan": {
+        "chunk": "76bb56",
+        "exit_code": 0
+      }
+    },
+    "source_registration_sha256": "bdaf54928faa9dd2a64cc678c7d6ecc96885ad484eb98b1b0d0de3003fb7bf70",
+    "source_proof_sha256": "440f05f2080368f3849bc1ec73e5956b852425cb0f11c028356f4322dad516a7",
+    "source": {
+      "path": "/var/tmp/cirrove-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8/source-a.key",
+      "root": "Source.key",
+      "semantic": {
+        "entries": 58,
+        "expanded_bytes": 516253,
+        "files": 54,
+        "sha256": "5ab225f68d164e6369cab5bfc6667cced06b77fdb57b65cfb43e55e722c01fb9",
+        "version": 2
+      },
+      "sha256": "9d84e1c4bd7fba71cff73d863810b9fd2093d286814dd47ad98b059760308965",
+      "size": 525581
+    },
+    "scanner_binary_sha256": "c45b0ad18fe0a12f431dc33bdf2062146b60b62b03a369130517fe0fe5b5ea04",
+    "test_binary_sha256": "5480db360d1affa7cddbd803981ed8ccfd6115f30b46a7fd30f3bac19b353b7c",
+    "byte_exact_restoration": true,
+    "local_control_authoring_failures": 0,
+    "root_proof_verification": {
+      "all_source_files_verified": 449,
+      "all5_execution_manifests_logs_counts_checked": true,
+      "both_exact_failure_assertions_present": true,
+      "registered_genuine_source_proof_verified": true,
+      "current_scanner_and_test_binary_hashes_match": true,
+      "root_and_peer_assets_review_clear": true,
+      "source_summary_sha256": "cab902863e357b1ac6b66ff23de92a7c93b2ed067d4178a651e4fa6a8c5ee35a",
+      "full_check_not_yet_run": true,
+      "cloud_import_started": false
+    },
+    "source_ci": "New feature-only observer source not yet in remote CI",
+    "live_import_or_receipt_readback_verified": false,
+    "scope_limits": [
+      "No Keynote cloud import/receipt/readback/reopen executed by this agent.",
+      "No editor save, replacement, Trash or general provider reliability established.",
+      "All six full integration gates remain open.",
+      "Root owns review/full check/commit/future finite provider execution."
+    ],
+    "independent_static_review": {
+      "result": "pass-no-blocker",
+      "canonical_keynote_source_sha256": "41274277f8fab8ea0815e9c2291cb3eadb26202c0919f12fd9e7461f78aef709",
+      "executions_or_edits": false
+    },
+    "full_check_first_arm": {
+      "pid": 2426901,
+      "start_ticks": "15520322",
+      "started_at": "2026-10-04T16:16:16.106304+00:00",
+      "registration_sha256": "d7012da39e7bd4e7de7c170c07ed493b596b9c4d54dafb0c921bc21386344399",
+      "exit_code": 1,
+      "finished_at": "2026-10-04T16:23:23.995310+00:00",
+      "log_sha256": "d85a1d58213cacdbe71bd272dc3ebd0568d743d62787b0177e8574eb28a472f5",
+      "log_bytes": 236232,
+      "failure": "scripts/smoke.py Unix-domain socket path exceeds SUN_LEN under root-selected long TMPDIR",
+      "product_source_correction": false,
+      "workspace_and_kernel_groups_passed": true
+    },
+    "full_check_second_arm_registered": {
+      "version": 1,
+      "registered_at": "2026-10-04T16:25:00.808686+00:00",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "expected_duration_seconds": 1200,
+      "private_tmpdir": "/var/tmp/cirrove-keynote-check2",
+      "sqlite_tmpdir": "/var/tmp/cirrove-keynote-check2",
+      "filesystem": "btrfs",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+      "script_sha256": "2163a31145e39faf8d6ba5b5c370033a7373e4e0a35bca6bcda15ae7bc6da621",
+      "exclusive": true,
+      "cloud_or_installed_actions": false,
+      "previous_arm": "full-check-registration.json",
+      "correction": "Shorter private on-disk TMPDIR avoids smoke Unix socket SUN_LEN limit; no product source change."
+    },
+    "full_check": {
+      "verified_at": "2026-10-04T16:33:01.280220+00:00",
+      "result": {
+        "pid": 2451757,
+        "start_ticks": "15572800",
+        "started_at": "2026-10-04T16:25:00.882493+00:00",
+        "registration_sha256": "26f8ecf2a05159c098c8f348a498be614ed4104c1b36c642e2889be9f69977eb",
+        "exit_code": 0,
+        "finished_at": "2026-10-04T16:31:47.540017+00:00",
+        "log_sha256": "c69bace448036c2a3f280ac0fd13491680b14f8e4aed0ab3a36c6acadb804b65",
+        "log_bytes": 248815
+      },
+      "source_files_verified": 449,
+      "all_nine_registered_controls_executed_and_passed": true,
+      "scanner_binary_unchanged": true,
+      "scanner_binary_sha256": "c45b0ad18fe0a12f431dc33bdf2062146b60b62b03a369130517fe0fe5b5ea04",
+      "desktop_display_scenarios_repeated": false,
+      "cloud_or_installed_actions": false
+    },
+    "root_full_check_verification_sha256": "39d92079bb70f96f04bb94900be01db51f0e069e16e7a85ca056de63af9e50a6"
+  },
+  "full_icloud_gates_closed": 0,
+  "installed_changes": false,
+  "additional_registered_queue_arm": {
+    "registered_at": "2026-10-04T15:57:08.828494+00:00",
+    "question": "Does the Keynote import-only frontier also refuse an extra completed orphan operation_queue row, with no extra upload/mutation or incomplete entry?",
+    "prediction": "The initial incomplete-only queue check is insufficient for exact total inventory. Exact total count2 must refuse a third completed row; the existing broad dirty-frontier control will cover it.",
+    "test": "owned_keynote_import_refuses_extra_namespace_association_and_dirty_frontier",
+    "required_auxiliary_inventory": {
+      "namespace_objects": 1,
+      "native_working_operations": 0,
+      "operation_queue_total": 2
+    },
+    "scope": "Additional local observer-contract case registered after initial8 started and before the corrected extra-queue case executes. Preserve initial invocation separately; no cloud/live cause claim.",
+    "actual_table": "write_queue",
+    "distinct_test": "owned_keynote_import_refuses_extra_completed_queue_entry",
+    "distinct_test_registered_at": "2026-10-04T16:00:52.777423+00:00",
+    "fixture": "Genuine completed local import journal, add exactly one completed orphan write_queue entry after all writers close; actual RO accessor sees namespace1/association0/totalqueue3 and incomplete0, unchanged imports/mutations and byte-unchanged DB after observation.",
+    "omission_control": {
+      "remove_only": "frontier.auxiliary.2 == 2 totalqueue predicate",
+      "expected_failure": "extra completed queue entry accepted",
+      "interpretation": "New observer contract sensitivity, not a production mutation defect."
+    }
+  },
+  "final_registered_tests": [
+    "owned_keynote_registration_binds_exact_import_scope",
+    "owned_keynote_actual_journal_binds_import_and_read_only_inventory",
+    "owned_keynote_import_refuses_extra_completed_upload",
+    "owned_keynote_import_refuses_scope_owner_receipt_and_publication_tampering",
+    "owned_keynote_import_refuses_extra_namespace_association_and_dirty_frontier",
+    "owned_keynote_source_scan_refuses_raw_and_semantic_tampering",
+    "owned_keynote_source_scan_refuses_wrong_format_and_root",
+    "owned_keynote_registration_refuses_digest_schema_and_wrong_run",
+    "owned_keynote_import_refuses_extra_completed_queue_entry"
+  ]
+}

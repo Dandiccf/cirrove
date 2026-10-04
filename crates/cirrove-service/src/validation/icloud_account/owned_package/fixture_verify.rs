@@ -269,7 +269,8 @@ pub async fn icloud_owned_fixture_verify(
 mod receipt_bound;
 pub use receipt_bound::{
     icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,
-    icloud_owned_fuse_source_verify, icloud_owned_receipt_verify,
+    icloud_owned_fuse_source_verify, icloud_owned_keynote_import_receipt_verify,
+    icloud_owned_keynote_source_verify, icloud_owned_receipt_verify,
 };
 
 #[cfg(test)]
