@@ -337,6 +337,7 @@ struct Frontier {
     other: (i64, i64),
     incomplete: i64,
     working_digest: Option<(u64, String)>,
+    namespace_operations: Vec<(String, String)>,
     #[allow(clippy::type_complexity)]
     columns: Vec<(String, String, u64, String, Option<u64>, Option<bool>)>,
 }
@@ -400,6 +401,19 @@ fn admitted(
         })
         .context("owned DATA parent namespace absent")?;
     let parent = parent_binding(plan, mutations, parent_object)?;
+    let mut expected_pairs = rows
+        .iter()
+        .map(|row| (row.id.to_string(), plan.owner.to_string()))
+        .chain(std::iter::once((
+            plan.parent_creation.to_string(),
+            parent_object.id.to_string(),
+        )))
+        .collect::<Vec<_>>();
+    expected_pairs.sort();
+    ensure!(
+        frontier.namespace_operations == expected_pairs,
+        "owned DATA complete namespace operation binding changed"
+    );
     let created = &rows[0];
     ensure!(
         created.id == plan.create
@@ -603,6 +617,7 @@ fn journal_binding(
         auxiliary: journal.native_validation_import_auxiliary_inventory()?,
         working_counts: journal.native_validation_working_inventory()?,
         incomplete: journal.native_validation_incomplete_queue()?,
+        namespace_operations: journal.ordinary_validation_namespace_operations()?,
         columns: journal.ordinary_validation_operation_columns()?,
     };
     let (parent, current, backup) = admitted(plan, &rows, &mutations, &associations, &frontier)?;

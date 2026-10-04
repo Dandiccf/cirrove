@@ -472,6 +472,17 @@ impl RecoveryJournal {
     ) -> Result<Option<NamespaceObject>> {
         self.journal.namespace_for_operation(operation)
     }
+    /// The owned DATA arm has at most three namespace operation pairs.
+    /// A fourth pair is a refusal witness, including unknown operations.
+    pub(crate) fn ordinary_validation_namespace_operations(&self) -> Result<Vec<(String, String)>> {
+        let mut query = self.journal.db.prepare(
+            "SELECT operation,object FROM namespace_operations ORDER BY operation LIMIT 4",
+        )?;
+        let pairs = query
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(pairs)
+    }
     /// Bind SQL identities/state to typed bodies and exact completed queue rows.
     /// The owned arm has at most three operations; a fourth is a refusal witness.
     #[allow(clippy::type_complexity)]

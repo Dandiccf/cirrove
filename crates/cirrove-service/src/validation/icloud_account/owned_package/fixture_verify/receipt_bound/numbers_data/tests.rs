@@ -549,3 +549,39 @@ fn owned_numbers_data_actual_queue_and_columns_refuse_substitution() {
         }
     }
 }
+
+#[test]
+fn owned_numbers_data_actual_namespace_operation_inventory_refuses_substitution() {
+    let mut rejected = Vec::new();
+    for arm in 0..3 {
+        let actual = actual();
+        actual.check().unwrap();
+        let db = actual.db();
+        let changed = match arm {
+            0 => db.execute(
+                "INSERT INTO namespace_operations(operation,object) VALUES(?1,?2)",
+                rusqlite::params![Uuid::new_v4().to_string(), actual.plan.owner.to_string()],
+            ),
+            1 => db.execute(
+                "DELETE FROM namespace_operations WHERE operation=?1",
+                [actual.plan.parent_creation.to_string()],
+            ),
+            _ => db.execute(
+                "UPDATE namespace_operations SET object=?2 WHERE operation=?1",
+                rusqlite::params![
+                    actual.plan.parent_creation.to_string(),
+                    actual.plan.owner.to_string()
+                ],
+            ),
+        }
+        .unwrap();
+        assert_eq!(changed, 1);
+        drop(db);
+        rejected.push(actual.check().is_err());
+    }
+    assert_eq!(
+        rejected,
+        vec![true; 3],
+        "complete namespace operation inventory accepted malformed pairs"
+    );
+}

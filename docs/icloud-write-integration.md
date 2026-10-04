@@ -1931,3 +1931,45 @@ does not establish installed migration or timing repeatability.
 A final complete `scripts/check.sh` after the README/live-evidence updates also
 passed, with all 449 Rust/Cargo source files unchanged and all nine Keynote
 controls executed. Desktop display scenarios were not repeated locally.
+
+### Ordinary Numbers DATA validation on 4 October 2026
+
+The separate [raw Numbers DATA arm](benchmarks/icloud-numbers-data-fuse-2026-10-04.json)
+uses unchanged owned Apple exports. Its source scanner verifies raw hashes and
+sizes offline; neither a filename extension nor an archive layout establishes
+the provider's representation. The feature-only receipt observer requires an
+independent actual-DATA/raw-A proof before B, then binds current raw B and the
+exact original A in Trash. Ten service controls and four Trash-reader controls
+passed in the complete contributor check at source `4f40cd2`; targeted guard
+omissions failed their expected assertions before byte-exact restoration.
+
+The first live arm stopped after one folder dispatch, before any Numbers file
+create or save. The private controller incorrectly expected no operation-to-owner
+association for a folder, although genuine namespace creation retains exactly
+that association. The stopped journal contains one Applied folder mutation, one
+completed queue entry, one folder owner association and no uploads or working
+files. The exact first refusal snapshot was not retained, so its individual
+fields are not reconstructed as evidence. Product source commits Applied state,
+attempt cleanup, queue completion and namespace confirmation together; no partial
+Applied/queue transaction is claimed.
+
+The isolated daemon and all known phase owners stopped, the mount disappeared,
+and the installed daemon identity and all 19 packaged artifacts remained
+unchanged. The run remains unsuccessful with replay disabled. A
+[fresh corrective arm](benchmarks/icloud-numbers-data-confirmation-2026-10-04.json)
+will bind the exact folder association and exact upload associations, refusing
+foreign or extra owners. It uses a new UUID, folder and journal; no prior cloud
+operation is resubmitted. This ordinary raw copy/overwrite arm does not establish
+native editor saves, immutable held-A snapshots or full iCloud acceptance.
+
+The correction now passes 18 private controller controls, including seven
+read-only SQL frontiers and eight malformed-association arms. Its regression
+first failed against the previous controller. Independent source review also
+found that the new DATA service observer omitted the complete association table
+from its otherwise receipt-bound snapshot. A real journal corruption test first
+showed all three malformed pair cases being accepted; the bounded exact pair
+fence then passed all 11 DATA observer controls. It includes the folder pair and
+all upload pairs in the before/after snapshot. The complete `scripts/check.sh`
+passed with these 11 controls and all four DATA Trash-reader controls. These
+are observer corrections; the fresh live DATA arm remains pending at this
+source-validation endpoint, and all six full-iCloud gates remain open.
