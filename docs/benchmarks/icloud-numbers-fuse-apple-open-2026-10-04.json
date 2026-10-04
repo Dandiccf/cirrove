@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-04T15:19:52.464166+00:00",
+  "source_completed_fuse_run": "3191493b-1427-4037-9a48-90e607ba714d",
+  "question": "Does Apple Numbers open and render the exact owned B after the completed FUSE archive save, and can the visible app URL be independently bound to typed CloudDocs current item identity?",
+  "prediction": "Opening the unique own new title renders7,3,10 and SUM(A2:B2); direct item-ID mapping must be observed rather than inferred.",
+  "scope": "Browser open/view only of the own completed test document; no edit submission, deletion, installed or mount action. New distinct application observation after the finite FUSE arm ended.",
+  "expected_current_item": "FILE::com.apple.CloudDocs::8C3473E4-7FE1-4C1F-BADA-0FA34BAA77E8",
+  "expected_current_etag_before_ui": "i1ac::i1ab",
+  "expected_source_semantic": {
+    "entries": 46,
+    "expanded_bytes": 133151,
+    "files": 42,
+    "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+    "version": 2
+  },
+  "proof_before_ui_sha256": "bed1c06b42ad5c2a0a17abcc82129a966919937ebd15ad606459ae7aeaf0f0e3",
+  "title": "Cirrove-Numbers-Parent-3191493b-1427-4037-9a48-90e607ba714d",
+  "browser_home_url": "https://www.icloud.com/numbers/",
+  "endpoint": [
+    "Observe own exact unique title and expected cells/formula without edit",
+    "Record whether app URL can be bound exactly to typed CloudDocs item ID",
+    "Preserve limitations if browser or mapping unavailable"
+  ],
+  "status": "completed-visible-title-values-and-formula-direct-item-mapping-unproven",
+  "edits_submitted": 0,
+  "full_icloud_gates_closed": 0,
+  "results": {
+    "observed_at": "2026-10-04T15:28:24.224495+00:00",
+    "unique_title_opened": true,
+    "visible_values": [
+      7,
+      3,
+      10
+    ],
+    "selected_cell": "C2",
+    "visible_formula": "SUM(A2:B2)",
+    "opaque_application_identifier": "070e7rMfc8ozi7RT0bxyUr0gw",
+    "direct_typed_cloud_docs_item_mapping_verified": false,
+    "edits_submitted": 0,
+    "exported_screenshot_artifact": false,
+    "evidence": "CUA tool observations: unique-run recent row, opened document title, rendered screenshot and selected-C2 AX formula. No hidden app state, raw provider body or guessed URL mapping.",
+    "limits": "Title/value/formula observation complements receipt-bound content proof; does not independently establish exact UI-to-CloudDocs identity, post-UI unchanged provider state, editor saves or full gates."
+  }
+}

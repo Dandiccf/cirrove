@@ -1774,8 +1774,9 @@ remain unchecked; installed schema14 state was not deployed or migrated.
 The [next preregistered owned Numbers arm](benchmarks/icloud-numbers-fuse-save-2026-10-04.json)
 targets one canonical archive save through a normal account mount, held-original
 reads, recoverable Trash and a read-only remount with no additional operation.
-It has not run against iCloud and needs new explicit authorization; the previous
-CLI trial's authorization is consumed.
+At registration it had not run against iCloud and needed new authorization; the
+previous CLI trial's authorization was consumed. The subsequent standing grant,
+stopped first arm and successful fresh arm are recorded below.
 
 Local preparation preserves the Apple-created A/B documents. Only B's ZIP root
 is renamed to the fresh document's canonical archive name. The production
@@ -1806,3 +1807,44 @@ passed all seven jobs, including the eight new source-exact FUSE receipt tests.
 This CI covers `ac1ee64`, separately from the later read-only corrections. These
 are local validation results, not a real FUSE save, editor acceptance or a closed
 release requirement.
+
+### Owned Numbers canonical FUSE save completed on 4 October 2026
+
+The user granted ongoing writable iCloud test authorization. Trials continue to
+use fresh, personally owned fixtures, finite registrations and no automatic
+mutation replay after ambiguity.
+
+The first arm stopped after one folder dispatch when its private controller
+refused an asynchronous confirmation frontier. Later read-only inspection found
+the folder Applied; no Numbers import or save had started. The exact initial
+frontier was not captured, so its unique cause remains unproven. A matching
+Pending/Applying timing defect was reproduced against the original controller.
+The corrected private copy observes the same bound operation until Applied
+without another dispatch; failed, foreign, expired or uncertain states still
+refuse. Eight correction controls passed after the original failed, and 38
+adapted controller/writer/process controls passed with fixture-authoring failures
+retained separately. This changes the private trial controller, not product code.
+
+The [fresh registered arm](benchmarks/icloud-numbers-fuse-save-confirmation-2026-10-04.json)
+completed one folder, one public CLI Numbers A import and one B canonical
+archive-copy save through the normal account FUSE mount. Its actual first folder
+poll returned confirmation-pending; the same operation later reached Applied.
+The writer, public watch and read-only receipt observer verified completed
+publication, held-original A, current B and original A in recoverable Trash,
+including exact account/collection/item/revision and native working ownership.
+Clean fsync added no operation. A genuine read-only remount returned B with an
+unchanged journal frontier and no replay. Independent review checked the saved
+proofs and SQLite receipts. All 18 recorded processes are gone, the mount is
+absent, and the isolated stopped settings are restored to their original RW
+bytes. The installed daemon and all 19 packaged artifacts remain unchanged.
+
+In a separate [registered Apple-open observation](benchmarks/icloud-numbers-fuse-apple-open-2026-10-04.json),
+Numbers opened the unique new title and rendered 7, 3 and 10, with SUM(A2:B2)
+visible after selecting C2. No edits were submitted. The visible application URL
+uses an opaque identifier; direct mapping to the typed CloudDocs item ID remains
+unproven, and no exported screenshot artifact is claimed.
+
+This is one bounded canonical archive-copy save, not ordinary or atomic saves
+from a real editor, genuine DATA acceptance, Keynote fidelity, long-session
+reliability or installed access-transition acceptance. All six full-iCloud
+requirements remain unchecked; the schema19/metadata8 deployment hold remains.

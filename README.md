@@ -61,7 +61,7 @@ filesystem operations have their own limits.
 | **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
 | **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
 | **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
-| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. A bounded Numbers import/replacement test independently verified the new version and the original in Trash; broader iWork saves and recovery remain under validation. This integration is not yet part of `main` or a release. |
+| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. Bounded Numbers CLI replacement and canonical archive saves through FUSE independently verified the new version and the original in Trash, including a read-only remount without replay; broader iWork editing and recovery remain under validation. This integration is not yet part of `main` or a release. |
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -211,13 +211,17 @@ replacement checks have passed on development-owned fixtures. Native
 Pages/Numbers/Keynote support is also in progress: package reading, import,
 replacement and local-save recovery paths are implemented in the development
 tree. Selected Pages checks include independent content verification and Apple
-reopen. The latest owned Numbers test imported one document and replaced it once:
-independent readers verified the new content and the original in Trash. Apple
-Numbers also displayed the expected replacement values and formula.
+reopen. The latest owned Numbers test imported one document and saved a new
+canonical archive through the normal FUSE mount. Independent readers verified
+the new content and original in Trash; a held reader retained the original, and
+a read-only remount read the new version without replay. Apple Numbers displayed
+the expected replacement values and formula. The
+[registered result](docs/benchmarks/icloud-numbers-fuse-save-confirmation-2026-10-04.json)
+records the precise scope and retained evidence.
 
 These are bounded development results. **Full iCloud support is still open:**
-the successful Numbers trial confirms a bounded CLI import/replacement workflow.
-Ordinary and atomic saves through mounted archives, broader Pages/Numbers/Keynote
+the successful Numbers trials confirm bounded CLI replacement and canonical
+archive-copy FUSE saves. Ordinary and atomic saves from real editors, broader Pages/Numbers/Keynote
 editing/reopen fidelity, DATA representations, session retention
 and renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;

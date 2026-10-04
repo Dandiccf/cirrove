@@ -531,5 +531,49 @@
     "canonical_controller_unchanged": true,
     "canonical_controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
     "scope": "Proposal safety sensitivity only: one daemon-abort omission and one late-scanner-refresh omission; each exact assertion failed, unchanged canonical controls passed. No actual process signals or cloud access."
+  },
+  "live_execution_20261004": {
+    "authorization": "Fresh direct standing user authorization for writable iCloud access and tests, recorded privately. Earlier closed CLI grant not reused.",
+    "run": "caebe595-3053-4c3f-8c90-0ebcfe2a8db4",
+    "result": "Stopped after first create-folder status guard refusal; no Numbers import or FUSE save attempted.",
+    "daemon_start": {
+      "pid": 2283190,
+      "start_ticks": 14845793,
+      "actual_tool_exit": 0,
+      "actual_tool_chunk": "aed406"
+    },
+    "readiness": "One exact isolated iCloud account, ready and mounted RW, validated.",
+    "folder_dispatches": 1,
+    "mkdir_child_exit_code": 0,
+    "first_status_poll": {
+      "exit_code": 1,
+      "actual_tool_chunk": "d4ae10",
+      "result": "finite-controller-refused-or-ambiguous"
+    },
+    "later_local_journal": {
+      "folder_operation": "27ef13d4-9f45-459d-92d0-7d068924fb1c",
+      "folder_state": "Applied",
+      "complete_queue_rows": 1,
+      "uploads": 0
+    },
+    "interpretation": "Remote-confirmation lag is a matching controller-interleaving hypothesis; no snapshot of the first failing frontier was retained, so its unique cause is unproven.",
+    "stop": {
+      "pid": 2283190,
+      "actual_signal_tool_exit": 0,
+      "actual_signal_tool_chunk": "92de08",
+      "actual_gone_unmounted_tool_exit": 0,
+      "actual_gone_unmounted_tool_chunk": "c0e02e"
+    },
+    "root_stopped_audit_sha256": "3a13d0b69861ff7c9fe92a841fa71e1c1b59dbf3d504fc4d3ac734db808369b6",
+    "original_plan_sha256": "58d9352a4180ad27a1ce72b08dbbde4ea5e7639e169dc58197747de1624bed92",
+    "original_public_preregistration_sha256": "99bf2fc6e103ac8bce4327056765d4260f0b25fda4a092dd4a1133d3a249a799",
+    "preserved_original_public_copy": ".local-state private retained original bytes",
+    "settings_and_sealed_ciphertext_unchanged": true,
+    "all_exact_owned_processes_gone": true,
+    "mount_absent": true,
+    "mutations_replayed": 0,
+    "new_arm_required_for_future_execution": true,
+    "installed_changes": false,
+    "full_icloud_gates_closed": 0
   }
 }
