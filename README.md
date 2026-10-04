@@ -63,6 +63,12 @@ filesystem operations have their own limits.
 | **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
 | **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. Bounded Numbers CLI replacement and canonical archive saves through FUSE independently verified the new version and the original in Trash, including a read-only remount without replay. A separate Numbers DATA trial verified ordinary FUSE creation and one in-place save, with exact new bytes and the original in Trash. One owned Keynote PACKAGE import also passed public completion, mounted access, independent content readback and Apple Keynote open; broader iWork editing and recovery remain under validation. This integration is not yet part of `main` or a release. |
 
+A further bounded Numbers trial recovered a lost final replacement confirmation
+through inspection of the same operation, with no repeated cloud write, and
+independently verified the new document and the original in Trash. See the
+[iCloud validation record](docs/icloud-write-integration.md). Desktop import,
+real editor saves, broader session recovery and installed upgrades remain open.
+
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
 Google's native documents. OneNote and other provider packages also retain their

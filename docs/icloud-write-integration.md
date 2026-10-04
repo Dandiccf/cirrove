@@ -2029,3 +2029,31 @@ GUI/reopen or export fidelity, a read-only remount, uncertain-outcome recovery,
 expired sessions, repeatability or installed transitions. The independent raw
 proofs deliberately carry no package semantics or GUI claim. Requirements
 485–490 all remain open, and the schema19/metadata8 deployment hold remains.
+
+### Owned Numbers final-confirmation loss and recovery on 5 October 2026
+
+The [registered final-confirmation arm](benchmarks/icloud-native-final-confirmation-2026-10-04.json)
+completed one fresh owned folder, one public CLI Numbers PACKAGE import A and
+one public CLI replacement B. Independent typed metadata and semantic-v2 checks
+verified A before replacement. A feature-only guard then durably recorded the
+actual final B/Trash-A receipt and exited with code86 before worker acknowledgement.
+The CLI disconnected with exit1; that disconnect alone was not accepted as proof.
+
+Before reopening the journal, read-only inspection found the same operation
+Uploading, with its attempt, encrypted checkpoint and sealed B retained, and
+without a completed receipt or publication. Recovery performed one terminal
+inspection, attempted zero upload or namespace mutation callbacks, and published
+the same operation through the normal metadata path. A separate read-only
+postflight independently verified current B and original A in Trash, with their
+exact identities, revisions and semantic-v2 content.
+
+All 18 owned process records were rechecked as gone and the mount was absent.
+The installed daemon retained its process identity; all 19 packaged files and
+the absent home shadow were unchanged. The source passed complete local
+`scripts/check.sh` and [all seven CI jobs at 5a89e04](https://github.com/Dandiccf/cirrove/actions/runs/37240005542).
+
+This proves one controlled loss of a genuine final receipt and inspection-only
+recovery for this Numbers PACKAGE fixture. It does not prove real session
+expiration, editor fidelity, repeated reliability or installed transitions.
+The three logical mutations were bounded; total HTTP mutations were not
+instrumented. All six full-iCloud requirements and the deployment hold remain open.
