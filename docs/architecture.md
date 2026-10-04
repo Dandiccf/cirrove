@@ -724,8 +724,9 @@ workers use that same journal; providers must not open a competing journal.
 Factory code resolves metadata in scoped snapshots and releases SQLite before
 network I/O. iCloud's selected upload vault seals per-operation checkpoints on
 disk; other providers retain the existing desktop keyring backend. Selecting
-storage does not enable iCloud writes: settings and its production factory still
-refuse them pending account-wide routing and acceptance.
+storage does not grant write consent: settings and the iCloud factory require an
+explicit read-write account. The adapter remains experimental, with application
+and installed-state acceptance separate from account-wide routing.
 
 The journal's pending-byte budget is the account's configured `cache_bytes`,
 read when this context is opened. It is separate from the evictable read cache's
@@ -742,6 +743,18 @@ control before rebuilding this context, so old references do not keep its journa
 lock alive. A provider-construction failure leaves the mount unavailable and
 retryable; it does not silently mount the account read-only and hide local edits.
 Successful remount publishes the new write control for service operations.
+
+Read-only connections inspect retained outcomes through the existing local
+recovery reader, without constructing upload workers or migrating the journal.
+Status counts use the journal's complete failure and uncertainty predicates;
+recent failure lists are bounded independently. An unavailable reader withdraws
+local-recovery availability and preserves the matching account's last known
+counts. Completed replacement activity uses the historical confirmed document
+name, preserving the operation UUID, original item and recorded collection.
+Ordinary two-identity handoffs validate their retained backup binding; native
+package replacements retain their stricter receipt validation. Later namespace
+changes do not rewrite this historical label. These paths perform no provider
+lookups, retries or journal writes.
 
 `WritableSession` owns a test engine, its FUSE session, two upload workers, one
 conditional namespace worker and one local-copy maintenance worker. Successful

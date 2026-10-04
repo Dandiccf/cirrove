@@ -829,6 +829,27 @@ workers. Desktop capability checks expose local copies separately from retry,
 discard and cloud mutation controls. Installed iCloud access-transition acceptance
 is still separate from the synthetic journal, service and window tests.
 
+The [4 October retained-outcome regression](benchmarks/icloud-readonly-retained-status-2026-10-04.json)
+found that the actual read-only manager reported zero warnings and omitted
+failure lists despite retained journal records. The corrected local reader
+reports complete counts and bounded failure names, and preserves last known
+counts while a genuine competing journal owner makes recovery unavailable.
+Four manager tests pass after two intended original failures; a targeted count
+preservation omission also failed its registered assertion. Settings, retained
+bytes and journal records remain unchanged, with no writer or retry.
+
+The [historical activity-name regression](benchmarks/icloud-readonly-recent-names-2026-10-04.json)
+also distinguishes downloaded files, whose original control passed, from locally
+created and acknowledged files later replaced through Trash, whose original
+activity displayed a hidden recovery alias. Completed replacement activity now
+uses its confirmed historical receipt name while keeping the original intent
+item, operation UUID and recorded collection. Seven tests covering 27 synthetic
+cases pass, including later renames, unconfirmed states, damaged receipts,
+linked collections and permitted Google filenames. Provider Trash names were
+already preserved; this is a local display correction, not DATA-format loss or
+Apple application acceptance. Installed transition and full-iCloud gates remain
+open.
+
 A [controlled full-device arm](benchmarks/icloud-full-device-export-2026-10-01.md)
 also recovered a saved and newer working version from a full ext4 fixture to a
 separate filesystem. This is local ENOSPC evidence, not a live Apple quota test.
@@ -1778,6 +1799,10 @@ the abort checks detect a blocked writer and an orphaned late scanner; their
 unchanged controls passed. These are proposal safety checks with simulated
 processes. The complete `scripts/check.sh` also passed after a Clippy
 correction. Preserved authoring failures and corrections remain in the artifact.
-Frozen runtime integration and its final review remain in preparation. These
+The clean `ac1ee64` runtime and private controller are now pinned and reviewed;
+local pin checks pass, and starting without fresh authorization refuses before
+dispatch. Its [CI run](https://github.com/Dandiccf/cirrove/actions/runs/37189036734)
+passed all seven jobs, including the eight new source-exact FUSE receipt tests.
+This CI covers `ac1ee64`, separately from the later read-only corrections. These
 are local validation results, not a real FUSE save, editor acceptance or a closed
 release requirement.

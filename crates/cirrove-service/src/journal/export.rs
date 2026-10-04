@@ -370,6 +370,21 @@ impl RecoveryJournal {
     pub fn recent_uploads(&self, limit: u32) -> Result<Vec<UploadRecord>> {
         self.journal.recent_uploads(limit.min(200))
     }
+    /// Inspect retained outcomes without opening a writer or changing records.
+    /// Counts use the writer's exact state predicates, independently of paging.
+    pub(crate) fn retained_outcome_counts(&self) -> Result<(u64, u64, u64)> {
+        Ok((
+            self.journal.stuck_mutations()?,
+            self.journal.unconfirmed_changes()?,
+            self.journal.failed_uploads()?,
+        ))
+    }
+    pub(crate) fn retained_failed_uploads(&self, limit: usize) -> Result<Vec<UploadRecord>> {
+        self.journal.failed_upload_list(limit.clamp(1, 200))
+    }
+    pub(crate) fn retained_stuck_mutations(&self, limit: usize) -> Result<Vec<MutationRecord>> {
+        self.journal.stuck_mutation_list(limit.clamp(1, 200))
+    }
     pub fn local_export_source(&self, id: Uuid) -> Result<LocalExportSource> {
         self.journal.local_export_source(id)
     }

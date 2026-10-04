@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "date": "2026-10-04",
+  "status": "local-source-validation-and-fullcheck-passed",
+  "source_base": "ac1ee641a9e74867fb14b9793da056cebb42600a",
+  "question": "Does a same-account read-only manager restart preserve actionable status and recent-history visibility for retained failed and unconfirmed operations without writer creation, journal migration, retry or byte changes?",
+  "concrete_gap": {
+    "manager_status": "crates/cirrove-service/src/manager.rs:1085-1096 assigns all three retained-outcome counts zero when the active account has no writers",
+    "manager_recent": "crates/cirrove-service/src/manager.rs read-only recent branch returns empty stuck and failed arrays",
+    "existing_ui": "The desktop already supports read-only retained-outcome notices, but its synthetic window fixture supplies nonzero counts that the production read-only manager never reports."
+  },
+  "fixture": {
+    "transport": "Pure LocalOnly ReadProvider returns typed Unavailable; it opens no sockets and contains no provider client or credential calls. Metadata callbacks are synthetic, not network requests. Content-read count must remain0.",
+    "lifecycle": "Normal RW WriteContext opens the private account journal, public journal enqueue/claim/defer methods retain the registered outcomes, then context and Engine close. Only access changes to read_only for the same settings identity. Actual Manager::start_with_provider executes its production status loop. A nonempty disposable mount directory refuses before FUSE mount/worker start; this tests an active unmounted read-only account, not an installed mount transition.",
+    "records": {
+      "uploads": {
+        "Failed": 1,
+        "Conflict": 1,
+        "VerifyRequired": 1,
+        "Pending": 1
+      },
+      "mutations": {
+        "Failed": 1,
+        "Conflict": 1,
+        "NeedsReview": 1,
+        "VerifyRequired": 1,
+        "Pending": 1
+      }
+    },
+    "expected_counts": {
+      "stuck_changes": 3,
+      "unconfirmed_changes": 2,
+      "failed_uploads": 2
+    },
+    "preservation": "Capture path/size/SHA256 of settings, local mount sentinel, journal main database/owner and immutable object/working bytes; compare after manager has stopped and released owners. SQLite SHM is coordination metadata; WAL must be absent or empty. Retry/discard must refuse and no writer may exist."
+  },
+  "arms": [
+    {
+      "id": "original-status",
+      "test": "readonly_retained_status_reports_failed_stuck_and_unconfirmed_without_replay",
+      "prediction": "Actual original manager counts are (0,0,0), so the exact (3,2,2) assertion fails after manager stop and preservation checks. Event priming must later carry the same corrected counts.",
+      "expected_failure_marker": "read-only retained outcomes must remain visible in actual manager status"
+    },
+    {
+      "id": "original-recent",
+      "test": "readonly_retained_status_recent_names_retained_failures_without_replay",
+      "prediction": "Original recent reply retains four local upload entries but stuck/failed arrays are (0,0), so exact (3,2) fails after preservation checks.",
+      "expected_failure_marker": "read-only retained failures must remain named in actual manager recent reply"
+    },
+    {
+      "id": "missing-journal-control",
+      "test": "readonly_retained_status_missing_journal_stays_empty_and_does_not_create_it",
+      "prediction": "Original and corrected implementations return zero counts/empty history without creating a journal or writer."
+    },
+    {
+      "id": "corrected-same-selector",
+      "prediction": "The identical three tests pass after a narrow read-only recovery-reader fix. No output yet; implementation follows observed original failure.",
+      "actual_result": "The original three tests passed; the separately preregistered busy-reader control also passed, for four focused tests total. See results.corrected and full_check."
+    }
+  ],
+  "expected_selected_tests": 3,
+  "predicted_original_result": {
+    "failed": 2,
+    "passed": 1,
+    "ignored": 0
+  },
+  "predicted_corrected_result": {
+    "failed": 0,
+    "passed": 3,
+    "ignored": 0
+  },
+  "execution": {
+    "coordination": "Root only; no Cargo, tests or formatting executed by author before the root build lease.",
+    "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-retained-status-20261004",
+    "sqlite_tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-retained-status-20261004",
+    "filesystem_requirement": "ext4 or another disk-backed filesystem; assert and record findmnt before execution. No tmpfs.",
+    "build": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "cirrove-service",
+      "--lib",
+      "manager::retained_status_tests::readonly_retained_status_",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "runtime": "Resolve the actual test executable from compiler JSON, pin its SHA/source/command, then run that exact binary with the same selector and --test-threads=1. Expected actual3 selected,0ignored; no assumed stale filename."
+  },
+  "limits": [
+    "Not a real-provider reliability measurement or installed read-only/read-write transition.",
+    "Synthetic Microsoft account exercises the provider-neutral manager/recovery path used by iCloud; no cloud/account authentication occurs.",
+    "No status-protocol change, upload retry, mutation dispatch, native-format acceptance or full-iCloud gate closure is implied.",
+    "Busy/corrupt existing journal must remain a refusal rather than be treated as missing; existing recovery-owner tests remain required controls."
+  ],
+  "results": {
+    "original": {
+      "executed": 3,
+      "passed": 1,
+      "failed": 2,
+      "ignored": 0,
+      "filtered_out": 500,
+      "seconds": 0.2,
+      "exit_code": 101,
+      "assertion_markers": [
+        "read-only retained outcomes must remain visible in actual manager status",
+        "read-only retained failures must remain named in actual manager recent reply"
+      ],
+      "actual_counts": [
+        0,
+        0,
+        0
+      ],
+      "expected_counts": [
+        3,
+        2,
+        2
+      ],
+      "actual_recent_lengths": [
+        0,
+        0
+      ],
+      "expected_recent_lengths": [
+        3,
+        2
+      ],
+      "preservation_checks_before_assertions": "passed",
+      "build_manifest_sha256": "6462f9c7c37183d0ec7969da6d55d030483250c4bd300e5e119974a02a4af9b6",
+      "build_log_sha256": "5de697234bcd0bd4d1e7fcdd269c7ad00effb7d745e8b8584afd6b655246d2af",
+      "runtime_manifest_sha256": "567b8ce5ca07d2a13db031f9a5d663da9f7b5563958e56355a67fbb6b1c59f01",
+      "runtime_log_sha256": "8c70e5ed149790f15b5b963363b91b6c81c73138ec21220afea69cb6d7291119",
+      "executable": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+      "executable_sha256": "2c4d764bff7c7c5e5c2d94c46b7b112cee590eb8fb0c61e4766b51a24671cafc",
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "f459488972197bea381e7f7108cd0c9567cc2f764353ddaeda252e48ab40ac51",
+        "crates/cirrove-service/src/manager.rs": "bb94a0f53326c81314d09afb1e5b8d02289c1e7af886fbc0da80cc0108dc3bf0",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "9c243acb28b91507c3e6d726f471b0d4d15eb044b8a817d7a271877e7cc4be8e",
+        "crates/cirrove-service/src/recovery.rs": "91f990571d6a801713e885ac0187d8e9bab74e8556efcf3745d98fda6ed957e8",
+        "docs/benchmarks/icloud-readonly-retained-status-2026-10-04.json": "5fe78241e69af229bc06945e53207551df21a29f5d7d2d1bc5977620d392a133"
+      },
+      "private_evidence_directory": ".local-state/icloud-readonly-retained-status-20261004"
+    },
+    "corrected": {
+      "manifest": ".local-state/icloud-readonly-retained-status-20261004/final-runtime.json",
+      "manifest_sha256": "fce551b3a7cd0dc852ce4cc6c7823d4d2dfd231d7e82b55cf6f5b1c14b1f0413",
+      "runtime_log_sha256": "a26e61d544e30a1d3d7d97561fe9769f0708cbe557353855543ca45ef71522ea",
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "manager::retained_status_tests::readonly_retained_status_",
+        "--test-threads=1"
+      ],
+      "executable_sha256": "6ac7e3971b9c9c97dbe442d3227c4583166dac09faf81a53d16aab12694847a0",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 500,
+      "seconds": 10.29,
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "83ccfe4ba1afa68efca50156366eac2989956b7b985c91611512ebc2e459cad3",
+        "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+        "docs/benchmarks/icloud-readonly-retained-status-2026-10-04.json": "ad49117717005434797bec5a1c636d43862e39dc8010217b7d1b967cd0057694"
+      }
+    },
+    "corrected_initial": {
+      "manifest": ".local-state/icloud-readonly-retained-status-20261004/corrected-runtime.json",
+      "manifest_sha256": "57dc66639e1ce1242d431c0c44b55d9a9c4d75fca951ee407cf5fad051cb34f2",
+      "runtime_log_sha256": "a26e61d544e30a1d3d7d97561fe9769f0708cbe557353855543ca45ef71522ea",
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "manager::retained_status_tests::readonly_retained_status_",
+        "--test-threads=1"
+      ],
+      "executable_sha256": "8c0aedde595569d9451c797f41c294d63bf63f6a76cdfc1bf668104801502e40",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 500,
+      "seconds": 10.29,
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "9dd76c929daebc2660dd0903bc5e50e5ac13966bee6975f5bc0aeb9bfd5aff76",
+        "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+        "docs/benchmarks/icloud-readonly-retained-status-2026-10-04.json": "ad49117717005434797bec5a1c636d43862e39dc8010217b7d1b967cd0057694"
+      }
+    },
+    "seed_retention_omission": {
+      "manifest": ".local-state/icloud-readonly-retained-status-20261004/seed-omission-runtime.json",
+      "manifest_sha256": "52a9fa0b5c724785b0b75650cd4211bd9fb7300347cf8f3a72d32e9ea8a42283",
+      "runtime_log_sha256": "07ff402d5dbe1bc5a6b3cb1d522359db5300a378945610b72a1a96d9dcb6cdc8",
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "manager::retained_status_tests::readonly_retained_status_busy_reader_preserves_counts_and_recovers_availability",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "executable_sha256": "e304fdba80e052e5de5901440272137e09142db63f2379bdb399934d246ca845",
+      "exit_code": 101,
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "filtered_out": 503,
+      "seconds": 10.1,
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/manager.rs": "aa6d01f709889efc2f3de83af6cc73a855038b1a25f36c76b68ca5c87af2e0f6",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "9dd76c929daebc2660dd0903bc5e50e5ac13966bee6975f5bc0aeb9bfd5aff76",
+        "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+        "docs/benchmarks/icloud-readonly-retained-status-2026-10-04.json": "ad49117717005434797bec5a1c636d43862e39dc8010217b7d1b967cd0057694"
+      },
+      "expected_failure_marker": "busy read-only inspection must preserve last known retained outcome counts",
+      "actual_counts": [
+        3,
+        2,
+        0
+      ],
+      "expected_counts": [
+        3,
+        2,
+        2
+      ],
+      "guard": "Only status.failed_uploads = old.failed_uploads removed from prior matched RO status seeding",
+      "restoration": "Canonical manager restored byte-exact against retained backup SHA from seed-omission-pins.json"
+    },
+    "restored_same_test_source": {
+      "manifest": ".local-state/icloud-readonly-retained-status-20261004/restored-runtime.json",
+      "manifest_sha256": "94a3c6efb952ac1f155a056603961f655c6b5a8045adc1001928ac7d8a064f56",
+      "runtime_log_sha256": "43a62987b3108ca80714b4b171fdfe690215c07f1af8a4db91fce9453ce6c53b",
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "manager::retained_status_tests::readonly_retained_status_",
+        "--test-threads=1"
+      ],
+      "executable_sha256": "8c0aedde595569d9451c797f41c294d63bf63f6a76cdfc1bf668104801502e40",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 500,
+      "seconds": 10.3,
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "9dd76c929daebc2660dd0903bc5e50e5ac13966bee6975f5bc0aeb9bfd5aff76",
+        "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+        "docs/benchmarks/icloud-readonly-retained-status-2026-10-04.json": "ad49117717005434797bec5a1c636d43862e39dc8010217b7d1b967cd0057694"
+      }
+    },
+    "existing_recovery_controls": {
+      "manifest": ".local-state/icloud-readonly-retained-status-20261004/existing-recovery-runtime.json",
+      "manifest_sha256": "c5fa258e93bfc02956a1845d57bba14a6df58f5923ade5eaab855d069772644e",
+      "runtime_log_sha256": "360cc332a051f132b39e6f5246b9dc74ae28910472186aafebff89e4b328bfda",
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "manager::recovery_tests::",
+        "--test-threads=1"
+      ],
+      "executable_sha256": "6ac7e3971b9c9c97dbe442d3227c4583166dac09faf81a53d16aab12694847a0",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 495,
+      "seconds": 1.41,
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "83ccfe4ba1afa68efca50156366eac2989956b7b985c91611512ebc2e459cad3",
+        "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+        "docs/benchmarks/icloud-readonly-retained-status-2026-10-04.json": "ad49117717005434797bec5a1c636d43862e39dc8010217b7d1b967cd0057694"
+      }
+    }
+  },
+  "authoring_corrections": [
+    {
+      "id": "sqlite-readonly-sidecars",
+      "initial_runtime": {
+        "selected": 3,
+        "passed": 1,
+        "failed": 2,
+        "exit_code": 101,
+        "manifest": "baseline-runtime.json",
+        "log_sha256": "c6be35e0ff5456c0618fc51ee18964a7f619012e6cf0332b0c2e3bbd8a58c021"
+      },
+      "disposition": "Status reached intended (0,0,0)!=(3,2,2) assertion. Recent instead failed earlier at the snapshot assertion because readonly SQLite created an empty WAL and SHM coordination file; this earlier failure does not prove the recent defect.",
+      "inspection": "After-only uploads.db-wal and uploads.db-shm; no preexisting captured file changed or disappeared.",
+      "correction": "Ignore SHM coordination metadata only; reject nonempty WAL and allow absent-or-empty WAL. Keep strict path/size/SHA256 preservation of the main database, settings, payloads and local sentinel. Snapshot assertion now reports digests rather than dumping full synthetic database bytes. No production source change.",
+      "followup_prediction": "Same3 tests:2 intended endpoint failures,1 missing-journal pass; no corrected-source outcome recorded yet."
+    },
+    {
+      "id": "test-slice-lint-precaution",
+      "change": "After restored4 passed, replaced events::prime(&[status.clone()]) with std::slice::from_ref(&status). No assertion or production behavior changed. Final rebuild and all4+9 controls passed.",
+      "historical_restored_result": "restored-runtime.json remains retained with its exact original test/source pins."
+    }
+  ],
+  "followup_preregistration": {
+    "expected_focused_tests": 4,
+    "predicted_corrected": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    "new_control": {
+      "test": "readonly_retained_status_busy_reader_preserves_counts_and_recovers_availability",
+      "question": "Can a transient genuine exclusive RO journal owner erase previously observed retained warnings or turn unavailable recovery into a successful empty recent reply?",
+      "prediction": "First actual manager status is3/2/2. An external RecoveryJournal owner causes the next5-second status poll to keep3/2/2 and withdraw local_recovery; recent refuses. Releasing the owner restores availability and3/2/2. No writer or changed retained bytes.",
+      "endpoint": "busy read-only inspection must preserve last known retained outcome counts",
+      "outer_bound": "Two12-second polling windows around normal5-second manager refresh; normal runtime approximately10seconds."
+    },
+    "sensitivity": {
+      "omission": "Omit ONLY status.failed_uploads = old.failed_uploads in the matched previous RO status seeding; keep the fresh RO counts, other two seed fields, capability refusal and all journal lease guards.",
+      "selected_test": "readonly_retained_status_busy_reader_preserves_counts_and_recovers_availability",
+      "prediction": "Exactly1 selected test fails at the busy-count assertion: observed(3,2,0) versus(3,2,2), after owner release, manager stop and byte preservation. Canonical restore passes. This tests preservation during failed inspection; it does not manufacture a provider failure."
+    },
+    "existing_controls": "Run manager::recovery_tests:: after corrected focused4; busy/corrupt, local export and cancellation-owner tests retain their existing endpoints."
+  },
+  "final_source_sha256": {
+    "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+    "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+    "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+    "crates/cirrove-service/src/manager/retained_status_tests.rs": "83ccfe4ba1afa68efca50156366eac2989956b7b985c91611512ebc2e459cad3"
+  },
+  "implementation": {
+    "counts": "RecoveryJournal delegates exact existing stuck_mutations/unconfirmed_changes/failed_uploads predicates; never derives total counts from a bounded recent page. Known absent journal returns0; failed/busy/corrupt inspection preserves matching previous account/provider/collection/root/username/mount counts and clears existing local_recovery availability.",
+    "history": "Read-only failed-upload and stuck-mutation readers cap each list at200; names come from retained intent/namespace or the owned local metadata index. No Engine.node/cloud lookup. retained_name and checkpoint code unchanged.",
+    "write_path": "Existing writer counts and request/retry/discard guards unchanged. ReadOnly leases still own account and journal through blocking reads; no writer/migration/seal/collection transition is introduced."
+  },
+  "full_check": {
+    "status": "passed",
+    "question": "Does the complete required local check pass with both reviewed read-only corrections?",
+    "command": [
+      "scripts/check.sh"
+    ],
+    "prediction": "Formatting, clippy, workspace and feature tests, available kernel fixtures, script tests, ledger and documentation pass in one uninterrupted command. No cloud or installed-state acceptance is implied.",
+    "expected_duration_seconds": 2400,
+    "private_manifest": ".local-state/icloud-readonly-consolidation-20261004/full-check-v1.json",
+    "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-consolidation-20261004",
+    "sqlite_tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-consolidation-20261004",
+    "filesystem": "ext4 verified before execution",
+    "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "exit_code": 0,
+    "manifest_sha256": "377dc49e7882e6921b57c2532d7c354bb5208c20911c37e6cd36613dfb8a8cea",
+    "log_sha256": "4e4cf45fa8b00602a1e2c3a3a69607219446fbdab02f6d6342aab1ada9e1f30b",
+    "source_before_after_equal": true,
+    "kernel_tests_executed": true,
+    "desktop_display_tests_executed": false,
+    "all_eleven_new_test_names_verified": true,
+    "scope": "Local synthetic/check validation; no installed delivery, cloud mutation or full-iCloud gate closure."
+  }
+}

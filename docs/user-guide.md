@@ -214,6 +214,12 @@ started, and files saved here with where they are -- waiting, uploading, in
 the cloud, or refused. The tray shows the last five under each connection;
 `cirrove recent` prints them.
 
+Switching a connection to read-only keeps earlier failed and unconfirmed changes
+visible. It does not retry them. Completed replacement activity keeps the
+document name recorded when that save finished, even if the file is later
+renamed. If local recovery is temporarily unavailable, previously known warning
+counts stay visible until Cirrove can inspect the journal again.
+
 The tray shows one icon for all connections: a cloud when everything is
 ready, transfer arrows while something is being fetched or sent, an
 exclamation mark when a person must act. Its menu opens each drive's folder,

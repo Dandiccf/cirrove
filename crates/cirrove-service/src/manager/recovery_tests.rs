@@ -530,3 +530,486 @@ async fn cancelled_recovery_opener_publishes_before_successor_can_open() -> Resu
     .await
     .context("bounded cancelled recovery opener fixture")?
 }
+
+/// Ordinary FileBytes with native-looking names are synthetic DATA-shaped
+/// metadata, not Apple archives or an application/export-fidelity acceptance.
+#[tokio::test]
+async fn read_only_recent_completed_trash_handoff_uses_document_name_not_hidden_alias() -> Result<()>
+{
+    let mut observed = Vec::new();
+    let expected = ["Report.txt", "Owned.pages", "Owned.numbers", "Owned.key"];
+    for name in expected {
+        let (_temp, manager, engine) = fixture().await?;
+        let root = engine
+            .db
+            .parent()
+            .context("account directory")?
+            .join("journal");
+        let scope = engine.scope("fixture");
+        let mut journal = UploadJournal::open(&root, &engine.account.id, 1024 * 1024)?;
+        let mut original = node();
+        original.name = name.into();
+        original.size = 3;
+        let working =
+            journal.create_working(scope.clone(), original.clone(), false, &b"old"[..])?;
+        journal.write_working(working.id, 0, b"new!")?;
+        let saved = journal
+            .seal_working(working.id)?
+            .context("sealed replacement")?;
+        let claimed = journal.claim_next()?.context("claimed replacement")?;
+        assert_eq!(claimed.id, saved.id);
+        let attempt = claimed.attempt.context("upload attempt")?;
+        let alias = format!("recovery-by-cirrove-{}.txt", saved.id);
+        let recovery_id = journal.reserve_identity_handoff(
+            saved.id,
+            attempt,
+            cirrove_core::upload::RecoveryLocation::Trash {
+                local_name: alias.clone(),
+                parent: "synthetic-trash-root".into(),
+            },
+        )?;
+        let mut current = original.clone();
+        current.id = "replacement-remote-id".into();
+        current.size = saved.size;
+        current.etag = Some("current-v2".into());
+        current.content_version = Some("current-v2".into());
+        let mut backup = original.clone();
+        backup.parent_id = Some("synthetic-trash-root".into());
+        backup.etag = Some("trash-v2".into());
+        backup.content_version = Some("trash-v2".into());
+        journal.acknowledge_identity_handoff(saved.id, attempt, current.clone(), backup.clone())?;
+        let recorded = journal.get(saved.id)?;
+        assert_eq!(recorded.state, crate::journal::UploadState::Uploaded);
+        assert_eq!(recorded.remote.as_ref(), Some(&current));
+        let owner = journal
+            .namespace_for_operation(saved.id)?
+            .context("operation owner")?;
+        assert_eq!(owner.scope, scope);
+        assert_eq!(owner.remote.as_ref(), Some(&current));
+        let recovery = journal.namespace_object(recovery_id)?;
+        assert_eq!(recovery.scope, scope);
+        assert!(recovery.unlinked && recovery.remote_owned);
+        assert_eq!(recovery.node.name, alias);
+        assert_eq!(recovery.remote.as_ref(), Some(&backup));
+        assert_eq!(backup.name, name);
+        let records_before = serde_json::to_value(journal.list(0, 200)?)?;
+        drop(journal);
+        let db_before = std::fs::read(root.join("uploads.db"))?;
+        let recent = manager.recent(&engine.account.label, 1).await?;
+        assert_eq!(recent.local.len(), 1);
+        assert_eq!(recent.local[0].operation, Some(saved.id));
+        assert_eq!(recent.local[0].item.as_deref(), Some(original.id.as_str()));
+        assert_eq!(recent.local[0].state, "uploaded");
+        observed.push(recent.local[0].name.clone());
+        assert!(manager.writers.read().await.is_empty());
+        assert_eq!(std::fs::read(root.join("uploads.db"))?, db_before);
+        let recovery = crate::journal::RecoveryJournal::open(&root, &engine.account.id)?;
+        assert_eq!(
+            serde_json::to_value(recovery.list(0, 200)?)?,
+            records_before
+        );
+    }
+    assert_eq!(
+        observed, expected,
+        "all four completed activities must name their documents, not hidden Trash aliases"
+    );
+    Ok(())
+}
+
+/// Ordinary FileBytes with native-looking names are synthetic DATA-shaped
+/// metadata, not Apple archives or an application/export-fidelity acceptance.
+#[tokio::test]
+async fn read_only_recent_locally_created_then_replaced_uses_receipt_name_not_hidden_alias()
+-> Result<()> {
+    let mut observed = Vec::new();
+    let expected = ["Report.txt", "Owned.pages", "Owned.numbers", "Owned.key"];
+    for name in expected {
+        let (_temp, manager, engine) = fixture().await?;
+        let root = engine
+            .db
+            .parent()
+            .context("account directory")?
+            .join("journal");
+        let scope = engine.scope("fixture");
+        let mut journal = UploadJournal::open(&root, &engine.account.id, 1024 * 1024)?;
+        let mut original = node();
+        original.name = name.into();
+        original.size = 3;
+        let mut local_create = original.clone();
+        local_create.size = 0;
+        local_create.etag = None;
+        local_create.content_version = None;
+        let working = journal.create_working(scope.clone(), local_create, true, &b""[..])?;
+        assert_ne!(working.node.id, original.id);
+        journal.write_working(working.id, 0, b"old")?;
+        let created = journal
+            .seal_working(working.id)?
+            .context("sealed local create")?;
+        assert!(
+            matches!(&created.intent, cirrove_core::upload::UploadIntent::Create { name: target, .. } if target == name)
+        );
+        let create_attempt = journal.claim_next()?.context("claimed local create")?;
+        assert_eq!(create_attempt.id, created.id);
+        journal.acknowledge(
+            created.id,
+            create_attempt.attempt.context("create attempt")?,
+            original.clone(),
+        )?;
+        let created_owner = journal
+            .namespace_for_operation(created.id)?
+            .context("created owner")?;
+        assert_eq!(created_owner.scope, scope);
+        assert_eq!(created_owner.node.id, working.node.id);
+        assert_eq!(created_owner.remote.as_ref(), Some(&original));
+        journal.write_working(working.id, 0, b"new!")?;
+        let saved = journal
+            .seal_working(working.id)?
+            .context("sealed replacement")?;
+        let claimed = journal.claim_next()?.context("claimed replacement")?;
+        assert_eq!(claimed.id, saved.id);
+        let attempt = claimed.attempt.context("upload attempt")?;
+        let alias = format!("recovery-by-cirrove-{}.txt", saved.id);
+        let recovery_id = journal.reserve_identity_handoff(
+            saved.id,
+            attempt,
+            cirrove_core::upload::RecoveryLocation::Trash {
+                local_name: alias.clone(),
+                parent: "synthetic-trash-root".into(),
+            },
+        )?;
+        let mut current = original.clone();
+        current.id = "replacement-remote-id".into();
+        current.size = saved.size;
+        current.etag = Some("current-v2".into());
+        current.content_version = Some("current-v2".into());
+        let mut backup = original.clone();
+        backup.parent_id = Some("synthetic-trash-root".into());
+        backup.etag = Some("trash-v2".into());
+        backup.content_version = Some("trash-v2".into());
+        journal.acknowledge_identity_handoff(saved.id, attempt, current.clone(), backup.clone())?;
+        let recorded = journal.get(saved.id)?;
+        assert_eq!(recorded.state, crate::journal::UploadState::Uploaded);
+        assert_eq!(recorded.remote.as_ref(), Some(&current));
+        let owner = journal
+            .namespace_for_operation(saved.id)?
+            .context("operation owner")?;
+        assert_eq!(owner.scope, scope);
+        assert_eq!(owner.remote.as_ref(), Some(&current));
+        assert_eq!(owner.node.id, working.node.id);
+        assert_ne!(owner.node.id, original.id);
+        assert!(journal.namespace_by_local(&scope, &original.id)?.is_none());
+        let recovery = journal.namespace_object(recovery_id)?;
+        assert_eq!(recovery.scope, scope);
+        assert!(recovery.unlinked && recovery.remote_owned);
+        assert_eq!(recovery.node.name, alias);
+        assert_eq!(recovery.remote.as_ref(), Some(&backup));
+        assert_eq!(backup.name, name);
+        let records_before = serde_json::to_value(journal.list(0, 200)?)?;
+        drop(journal);
+        let db_before = std::fs::read(root.join("uploads.db"))?;
+        let recent = manager.recent(&engine.account.label, 1).await?;
+        assert_eq!(recent.local.len(), 1);
+        assert_eq!(recent.local[0].operation, Some(saved.id));
+        assert_eq!(recent.local[0].item.as_deref(), Some(original.id.as_str()));
+        assert_eq!(recent.local[0].state, "uploaded");
+        observed.push(recent.local[0].name.clone());
+        assert!(manager.writers.read().await.is_empty());
+        assert_eq!(std::fs::read(root.join("uploads.db"))?, db_before);
+        let recovery = crate::journal::RecoveryJournal::open(&root, &engine.account.id)?;
+        assert_eq!(
+            serde_json::to_value(recovery.list(0, 200)?)?,
+            records_before
+        );
+    }
+    assert_eq!(
+        observed, expected,
+        "all four locally created replacement activities must name their documents, not hidden Trash aliases"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn read_only_recent_same_identity_receipt_keeps_historical_name_after_namespace_rename()
+-> Result<()> {
+    let (_temp, manager, engine) = fixture().await?;
+    let root = engine
+        .db
+        .parent()
+        .context("account directory")?
+        .join("journal");
+    let mut journal = UploadJournal::open(&root, &engine.account.id, 1024 * 1024)?;
+    let original = node();
+    let working = journal.create_working(
+        engine.scope("fixture"),
+        original.clone(),
+        false,
+        &b"sealed"[..],
+    )?;
+    journal.write_working(working.id, 0, b"edited")?;
+    let saved = journal.seal_working(working.id)?.context("sealed save")?;
+    let claimed = journal.claim_next()?.context("claimed save")?;
+    let mut current = original.clone();
+    current.etag = Some("same-item-v2".into());
+    current.content_version = Some("same-item-v2".into());
+    journal.acknowledge(
+        saved.id,
+        claimed.attempt.context("attempt")?,
+        current.clone(),
+    )?;
+    assert!(journal.get(saved.id)?.identity_handoff.is_none());
+    let owner = journal
+        .namespace_for_operation(saved.id)?
+        .context("save owner")?;
+    let mut observed_later = current.clone();
+    observed_later.name = "Renamed-later.txt".into();
+    observed_later.etag = Some("later-v3".into());
+    let following = journal.handoff_namespace(owner.id, owner.revision, observed_later.clone())?;
+    assert!(following.follows_remote);
+    assert_eq!(following.remote.as_ref(), Some(&observed_later));
+    assert_eq!(journal.get(saved.id)?.remote.as_ref(), Some(&current));
+    drop(journal);
+    let reply = manager.recent(&engine.account.label, 1).await?;
+    assert_eq!(reply.local[0].name, original.name);
+    assert_eq!(reply.local[0].item.as_deref(), Some(original.id.as_str()));
+    assert_eq!(reply.local[0].operation, Some(saved.id));
+    Ok(())
+}
+
+#[tokio::test]
+async fn read_only_recent_unconfirmed_saves_keep_document_name_and_state() -> Result<()> {
+    use crate::journal::UploadState;
+    for state in [
+        UploadState::Pending,
+        UploadState::Uploading,
+        UploadState::VerifyRequired,
+        UploadState::Conflict,
+        UploadState::Failed,
+    ] {
+        let (_temp, manager, engine) = fixture().await?;
+        let root = engine
+            .db
+            .parent()
+            .context("account directory")?
+            .join("journal");
+        let mut journal = UploadJournal::open(&root, &engine.account.id, 1024 * 1024)?;
+        let mut original = node();
+        original.name = "Unconfirmed.numbers".into();
+        let working = journal.create_working(
+            engine.scope("fixture"),
+            original.clone(),
+            false,
+            &b"sealed"[..],
+        )?;
+        journal.write_working(working.id, 0, b"edited")?;
+        let saved = journal.seal_working(working.id)?.context("sealed save")?;
+        if state != UploadState::Pending {
+            let claimed = journal.claim_next()?.context("claimed save")?;
+            if state != UploadState::Uploading {
+                journal.stop_attempt(saved.id, claimed.attempt.context("attempt")?, state)?;
+            }
+        }
+        assert!(journal.get(saved.id)?.remote.is_none());
+        drop(journal);
+        let before = std::fs::read(root.join("uploads.db"))?;
+        let reply = manager.recent(&engine.account.label, 1).await?;
+        assert_eq!(reply.local[0].name, original.name);
+        assert_eq!(reply.local[0].operation, Some(saved.id));
+        assert_eq!(
+            reply.local[0].state,
+            format!("{state:?}").to_ascii_lowercase()
+        );
+        assert_eq!(std::fs::read(root.join("uploads.db"))?, before);
+        assert!(manager.writers.read().await.is_empty());
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn read_only_recent_rejects_foreign_scope_and_invalid_completed_receipt_name() -> Result<()> {
+    for (path, value) in [
+        ("$.scope.account", serde_json::json!("another-account")),
+        ("$.scope.provider", serde_json::json!("another-provider")),
+        ("$.scope.collection", serde_json::json!("")),
+        ("$.remote.name", serde_json::json!("")),
+        ("$.remote.name", serde_json::json!("not/a/basename.numbers")),
+        ("$.remote.name", serde_json::json!("bad\0name.numbers")),
+        ("$.remote", serde_json::Value::Null),
+        (
+            "$.identity_handoff.old_item",
+            serde_json::json!("another-item"),
+        ),
+        ("$.identity_handoff.backup", serde_json::Value::Null),
+    ] {
+        let (_temp, manager, engine) = fixture().await?;
+        let root = engine
+            .db
+            .parent()
+            .context("account directory")?
+            .join("journal");
+        let mut journal = UploadJournal::open(&root, &engine.account.id, 1024 * 1024)?;
+        let original = node();
+        let working = journal.create_working(
+            engine.scope("fixture"),
+            original.clone(),
+            false,
+            &b"sealed"[..],
+        )?;
+        journal.write_working(working.id, 0, b"edited")?;
+        let saved = journal.seal_working(working.id)?.context("sealed save")?;
+        let claimed = journal.claim_next()?.context("claimed save")?;
+        let attempt = claimed.attempt.context("attempt")?;
+        journal.reserve_identity_handoff(
+            saved.id,
+            attempt,
+            cirrove_core::upload::RecoveryLocation::Trash {
+                local_name: format!("recovery-by-cirrove-{}.txt", saved.id),
+                parent: "synthetic-trash-root".into(),
+            },
+        )?;
+        let mut current = original.clone();
+        current.id = "replacement-remote-id".into();
+        current.etag = Some("current-v2".into());
+        let mut backup = original;
+        backup.parent_id = Some("synthetic-trash-root".into());
+        backup.etag = Some("trash-v2".into());
+        journal.acknowledge_identity_handoff(saved.id, attempt, current, backup)?;
+        drop(journal);
+        let db = rusqlite::Connection::open(root.join("uploads.db"))?;
+        db.execute(
+            "UPDATE uploads SET body=json_set(body,?2,json(?3)) WHERE id=?1",
+            rusqlite::params![saved.id.to_string(), path, serde_json::to_string(&value)?],
+        )?;
+        drop(db);
+        let before = std::fs::read(root.join("uploads.db"))?;
+        assert!(
+            manager.recent(&engine.account.label, 1).await.is_err(),
+            "invalid scope or completed historical receipt must be refused"
+        );
+        assert_eq!(std::fs::read(root.join("uploads.db"))?, before);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn read_only_recent_keeps_legitimate_linked_collection_receipts_distinct() -> Result<()> {
+    let (_temp, manager, engine) = fixture().await?;
+    let root = engine
+        .db
+        .parent()
+        .context("account directory")?
+        .join("journal");
+    let mut journal = UploadJournal::open(&root, &engine.account.id, 1024 * 1024)?;
+    let mut expected = Vec::new();
+    for (collection, name) in [
+        ("fixture", "Primary.txt"),
+        ("linked-drive", "Linked.numbers"),
+    ] {
+        let scope = engine.scope(collection);
+        let mut original = node();
+        // Item strings can coincide across collections; the durable scope is
+        // the identity, not the basename or the engine's primary drive.
+        original.name = name.into();
+        let working =
+            journal.create_working(scope.clone(), original.clone(), false, &b"sealed"[..])?;
+        journal.write_working(working.id, 0, b"edited")?;
+        let saved = journal.seal_working(working.id)?.context("sealed save")?;
+        let claimed = journal.claim_next()?.context("claimed save")?;
+        assert_eq!(claimed.id, saved.id);
+        let mut current = original.clone();
+        current.etag = Some("current-v2".into());
+        journal.acknowledge(
+            saved.id,
+            claimed.attempt.context("attempt")?,
+            current.clone(),
+        )?;
+        assert_eq!(journal.get(saved.id)?.scope, scope);
+        assert_eq!(journal.get(saved.id)?.remote.as_ref(), Some(&current));
+        expected.push((saved.id, original.id, name));
+    }
+    drop(journal);
+    let before = std::fs::read(root.join("uploads.db"))?;
+    let reply = manager.recent(&engine.account.label, 2).await?;
+    assert_eq!(reply.local.len(), 2);
+    for (operation, item, name) in expected {
+        let shown = reply
+            .local
+            .iter()
+            .find(|change| change.operation == Some(operation))
+            .context("exact scoped operation displayed")?;
+        assert_eq!(shown.name, name);
+        assert_eq!(shown.item.as_deref(), Some(item.as_str()));
+        assert_eq!(shown.state, "uploaded");
+    }
+    assert_eq!(std::fs::read(root.join("uploads.db"))?, before);
+    assert!(manager.writers.read().await.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn read_only_recent_google_receipt_keeps_permitted_lf_and_tab_basenames() -> Result<()> {
+    for name in ["Line\nBreak.txt", "Tab\tName.txt"] {
+        let temp = tempfile::tempdir()?;
+        let mut account = account(temp.path().join("mount"), 64 * 1024 * 1024);
+        account.registration = cirrove_auth::AppRegistration::Google {
+            client_id: uuid::Uuid::new_v4().to_string(),
+        };
+        account.access = cirrove_auth::AccessMode::ReadOnly;
+        account.enabled = true;
+        let provider = Arc::new(cirrove_googledrive::GoogleDrive::synthetic_loopback(
+            account.id.clone(),
+            account.drive.id.clone(),
+            "http://127.0.0.1:9/",
+        )?);
+        let engine = Engine::new(account.clone(), provider, temp.path().to_owned()).await?;
+        assert_eq!(engine.provider.provider_id(), "googledrive");
+        assert!(matches!(
+            engine.account.registration,
+            cirrove_auth::AppRegistration::Google { .. }
+        ));
+        let manager = Manager::default();
+        manager.status.write().await.push(AccountStatus {
+            account_id: account.id.clone(),
+            label: account.label.clone(),
+            enabled: true,
+            mount_path: account.mount_path,
+            ..Default::default()
+        });
+        manager
+            .engines
+            .write()
+            .await
+            .insert(account.id.clone(), engine.clone());
+        let root = engine
+            .db
+            .parent()
+            .context("account directory")?
+            .join("journal");
+        let mut journal = UploadJournal::open(&root, &engine.account.id, 1024 * 1024)?;
+        let mut original = node();
+        original.name = name.into();
+        let working = journal.create_working(
+            engine.scope("fixture"),
+            original.clone(),
+            false,
+            &b"sealed"[..],
+        )?;
+        journal.write_working(working.id, 0, b"edited")?;
+        let saved = journal
+            .seal_working(working.id)?
+            .context("sealed Google save")?;
+        let claimed = journal.claim_next()?.context("claimed Google save")?;
+        let mut current = original.clone();
+        current.etag = Some("google-current-v2".into());
+        journal.acknowledge(saved.id, claimed.attempt.context("attempt")?, current)?;
+        drop(journal);
+        let before = std::fs::read(root.join("uploads.db"))?;
+        let reply = manager.recent(&engine.account.label, 1).await?;
+        assert_eq!(reply.local[0].operation, Some(saved.id));
+        assert_eq!(reply.local[0].item.as_deref(), Some(original.id.as_str()));
+        assert_eq!(reply.local[0].name, name);
+        assert_eq!(reply.local[0].state, "uploaded");
+        assert_eq!(std::fs::read(root.join("uploads.db"))?, before);
+        assert!(manager.writers.read().await.is_empty());
+    }
+    Ok(())
+}

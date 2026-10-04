@@ -240,17 +240,63 @@ impl RecoveryControl {
                         .recent_uploads(limit.min(200) as u32)?
                         .into_iter()
                         .map(|record| {
+                            // One journal can retain linked collections. Keep
+                            // its recorded collection, not the primary drive.
+                            if record.scope.account != engine.account.id
+                                || record.scope.provider != engine.provider.provider_id()
+                                || record.scope.collection.is_empty()
+                            {
+                                return Err(JournalError::Corrupt);
+                            }
+                            let completed_name = if record.state == UploadState::Uploaded
+                                && let cirrove_core::upload::UploadIntent::Replace { item, .. } =
+                                    &record.intent
+                            {
+                                let current =
+                                    record.remote.as_ref().ok_or(JournalError::Corrupt)?;
+                                let ordinary = record.representation.is_file_bytes()
+                                    && current.kind == cirrove_core::NodeKind::File
+                                    && !current.package
+                                    && current.size == record.size
+                                    && if record.identity_handoff.is_some() {
+                                        record.ordinary_handoff_receipt().is_some()
+                                    } else {
+                                        current.id == *item
+                                    };
+                                if (!ordinary && record.native_replacement_receipt().is_none())
+                                    || current.id.is_empty()
+                                    || current.target.is_some()
+                                    || current.content_revision().is_none()
+                                    || current.parent_id.as_ref().is_none_or(|p| p.is_empty())
+                                    || current.name.is_empty()
+                                    || current.name.len() > 4096
+                                    || matches!(current.name.as_str(), "." | "..")
+                                    || current.name.contains(['\0', '/'])
+                                {
+                                    return Err(JournalError::Corrupt);
+                                }
+                                // Historical saved-document presentation, not
+                                // a lookup of its former item in hidden Trash.
+                                Some(current.name.clone())
+                            } else {
+                                None
+                            };
                             let (name, item) = match record.intent {
                                 cirrove_core::upload::UploadIntent::Create { name, .. } => {
                                     (name, None)
                                 }
                                 cirrove_core::upload::UploadIntent::Replace { item, .. } => {
-                                    let name = match journal.retained_name(&record.scope, &item)? {
+                                    let name = match completed_name {
                                         Some(name) => name,
-                                        None => engine
-                                            .cached_recovery_name(&record.scope, &item)
-                                            .map_err(|_| JournalError::Corrupt)?
-                                            .unwrap_or_else(|| item.clone()),
+                                        None => {
+                                            match journal.retained_name(&record.scope, &item)? {
+                                                Some(name) => name,
+                                                None => engine
+                                                    .cached_recovery_name(&record.scope, &item)
+                                                    .map_err(|_| JournalError::Corrupt)?
+                                                    .unwrap_or_else(|| item.clone()),
+                                            }
+                                        }
                                     };
                                     (name, Some(item))
                                 }
@@ -270,6 +316,89 @@ impl RecoveryControl {
                 })
                 .await
             }
+        }
+    }
+    /// An absent journal is known empty; a failed inspection is not. The caller
+    /// keeps its last published counts when this returns an error.
+    pub(crate) async fn retained_outcome_counts(&self) -> Result<(u64, u64, u64)> {
+        match &self.access {
+            Access::ReadOnly(None) => Ok((0, 0, 0)),
+            Access::ReadOnly(Some(_)) => self.local(|j| j.retained_outcome_counts()).await,
+            Access::Writer(_) => bail!("read-only retained inspection requires no writer"),
+        }
+    }
+    pub(crate) async fn retained_failure_history(
+        &self,
+        limit: usize,
+    ) -> Result<(
+        Vec<crate::recent::StuckChange>,
+        Vec<crate::recent::StuckChange>,
+    )> {
+        match &self.access {
+            Access::ReadOnly(None) => Ok((Vec::new(), Vec::new())),
+            Access::ReadOnly(Some(_)) => {
+                let engine = self.engine.clone();
+                self.local(move |journal| {
+                    use cirrove_core::{mutation::MutationIntent, upload::UploadIntent};
+                    let stuck = journal
+                        .retained_stuck_mutations(limit)?
+                        .into_iter()
+                        .map(|record| {
+                            let (what, name) = match record.request.intent {
+                                MutationIntent::CreateFolder { name, .. } => {
+                                    ("create folder", name)
+                                }
+                                MutationIntent::Relocate { name, .. } => ("move", name),
+                                MutationIntent::RemoveFile { before } => {
+                                    ("delete file", before.name)
+                                }
+                                MutationIntent::TrashNativeDocument { before } => {
+                                    ("trash native document", before.name)
+                                }
+                                MutationIntent::RemoveFolder { before } => {
+                                    ("delete folder", before.name)
+                                }
+                            };
+                            crate::recent::StuckChange {
+                                what: what.into(),
+                                name,
+                                path: None,
+                                state: format!("{:?}", record.state).to_ascii_lowercase(),
+                                instead: None,
+                            }
+                        })
+                        .collect();
+                    let failed = journal
+                        .retained_failed_uploads(limit)?
+                        .into_iter()
+                        .map(|record| {
+                            let (what, name) = match record.intent {
+                                UploadIntent::Create { name, .. } => ("save new file", name),
+                                UploadIntent::Replace { item, .. } => {
+                                    let name = match journal.retained_name(&record.scope, &item)? {
+                                        Some(name) => name,
+                                        None => engine
+                                            .cached_recovery_name(&record.scope, &item)
+                                            .map_err(|_| JournalError::Corrupt)?
+                                            .unwrap_or(item),
+                                    };
+                                    ("save", name)
+                                }
+                            };
+                            Ok(crate::recent::StuckChange {
+                                what: what.into(),
+                                name,
+                                path: None,
+                                state: format!("{:?}", record.state).to_ascii_lowercase(),
+                                instead: None,
+                            })
+                        })
+                        .collect::<crate::journal::Result<Vec<_>>>()?;
+                    Ok((stuck, failed))
+                })
+                .await
+            }
+            Access::Writer(_) => bail!("read-only retained inspection requires no writer"),
         }
     }
 }

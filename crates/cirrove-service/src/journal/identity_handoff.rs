@@ -441,6 +441,37 @@ fn backup_location_matches(
 }
 
 impl UploadRecord {
+    /// Historical ordinary two-identity acknowledgment, independent of later
+    /// namespace changes. This does not inspect or replay the provider.
+    pub(crate) fn ordinary_handoff_receipt(&self) -> Option<(&Node, &Node)> {
+        if self.state != UploadState::Uploaded || !self.representation.is_file_bytes() {
+            return None;
+        }
+        let UploadIntent::Replace { item, .. } = &self.intent else {
+            return None;
+        };
+        let reservation = self.identity_handoff.as_ref()?;
+        let current = self.remote.as_ref()?;
+        let backup = reservation.backup.as_ref()?;
+        let ordinary = |node: &Node| {
+            node.kind == NodeKind::File
+                && !node.package
+                && node.target.is_none()
+                && node.content_revision().is_some()
+        };
+        (reservation.old_item == *item
+            && !current.id.is_empty()
+            && current.id != *item
+            && ordinary(current)
+            && current.size == self.size
+            && backup.id == *item
+            && ordinary(backup)
+            && backup_location_matches(reservation, backup, current.parent_id.as_ref()))
+        .then_some((current, backup))
+    }
+}
+
+impl UploadRecord {
     /// Recorded typed acknowledgment only, not a fresh provider observation.
     pub(crate) fn native_replacement_receipt(&self) -> Option<(&Node, &Node, &Node)> {
         let UploadRepresentation::PackageReplacementArchive {

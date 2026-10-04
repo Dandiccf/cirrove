@@ -80,7 +80,7 @@ pub struct AccountStatus {
     /// Namespace changes the daemon has stopped trying to apply -- a conflict, a
     /// failure, or one held for review. Each is a change the mount already acted
     /// on locally that the provider never took, so the two disagree and nothing
-    /// retries. Zero for a read-only mount, which cannot make any.
+    /// retries. A read-only connection still reports earlier retained changes.
     ///
     /// This reports rather than resolves. It exists because the daemon could
     /// strand a change in silence: fourteen folder removals ended in `Conflict`
@@ -94,7 +94,8 @@ pub struct AccountStatus {
     #[serde(default)]
     pub stuck_changes: u64,
     /// Saves that did not reach the cloud -- uploads the provider refused or
-    /// that failed. Zero for a read-only mount. Older daemon responses omit it.
+    /// that failed, including retained saves after a read-only downgrade.
+    /// Older daemon responses omit it.
     #[serde(default)]
     pub failed_uploads: u64,
     /// Operations whose cloud outcome is being verified; never retry blindly.
@@ -585,16 +586,14 @@ impl Manager {
         let engine = self.engine(label).await?;
         let remote = engine.recent.list(limit);
         if engine.account.access == cirrove_auth::AccessMode::ReadOnly {
-            let local = self
-                .recovery_control(engine)
-                .await?
-                .recent_local(limit)
-                .await?;
+            let control = self.recovery_control(engine).await?;
+            let local = control.recent_local(limit).await?;
+            let (stuck, failed) = control.retained_failure_history(limit).await?;
             return Ok(crate::RecentReply {
                 remote,
                 local,
-                stuck: Vec::new(),
-                failed: Vec::new(),
+                stuck,
+                failed,
                 refusal: None,
             });
         }
@@ -951,6 +950,7 @@ impl Manager {
                     // Unknown mount state is not an empty mount list. Retain the
                     // session until a successful observation proves it was ejected.
                     let mounts = tokio::fs::read_to_string("/proc/self/mountinfo").await;
+                    let previous = self.status.read().await.clone();
                     let mut statuses = vec![];
                     for account in &settings.accounts {
                         let mut status = AccountStatus {
@@ -992,6 +992,22 @@ impl Manager {
                             indexed_items: 0,
                         };
                         if let Some(active) = running.get_mut(&account.id) {
+                            if account.access == cirrove_auth::AccessMode::ReadOnly
+                                && let Some(old) = previous.iter().find(|old| {
+                                    old.account_id == status.account_id
+                                        && old.provider == status.provider
+                                        && old.drive_id == status.drive_id
+                                        && old.root_id == status.root_id
+                                        && old.account == status.account
+                                        && old.mount_path == status.mount_path
+                                })
+                            {
+                                // Failure to inspect retained state must not
+                                // erase the last known actionable warnings.
+                                status.stuck_changes = old.stuck_changes;
+                                status.unconfirmed_changes = old.unconfirmed_changes;
+                                status.failed_uploads = old.failed_uploads;
+                            }
                             match &mounts {
                                 Ok(mounts) => {
                                     let source = format!("cirrove:{}", account.id);
@@ -1082,18 +1098,27 @@ impl Manager {
                             status.pins = active.engine.pin_status().await.unwrap_or_default();
                             status.kept_generation = active.engine.kept_generation();
                             status.save_refusal = active.engine.save_refusals.latest();
-                            status.stuck_changes = match &active.writers {
-                                Some(writers) => writers.stuck_changes().await,
-                                None => 0,
-                            };
-                            status.unconfirmed_changes = match &active.writers {
-                                Some(writers) => writers.unconfirmed_changes().await,
-                                None => 0,
-                            };
-                            status.failed_uploads = match &active.writers {
-                                Some(writers) => writers.failed_uploads().await,
-                                None => 0,
-                            };
+                            if let Some(writers) = &active.writers {
+                                status.stuck_changes = writers.stuck_changes().await;
+                                status.unconfirmed_changes = writers.unconfirmed_changes().await;
+                                status.failed_uploads = writers.failed_uploads().await;
+                            } else if account.access == cirrove_auth::AccessMode::ReadOnly {
+                                let inspected = async {
+                                    self.recovery_control(active.engine.clone())
+                                        .await?
+                                        .retained_outcome_counts()
+                                        .await
+                                }
+                                .await;
+                                match inspected {
+                                    Ok((stuck, unconfirmed, failed)) => {
+                                        status.stuck_changes = stuck;
+                                        status.unconfirmed_changes = unconfirmed;
+                                        status.failed_uploads = failed;
+                                    }
+                                    Err(_) => status.local_recovery = false,
+                                }
+                            }
                             status.pin_budget =
                                 active.engine.pin_budget().await.unwrap_or_default();
                             let db = active.engine.db.clone();
@@ -1488,3 +1513,6 @@ mod write_budget;
 
 #[cfg(test)]
 mod recovery_tests;
+
+#[cfg(test)]
+mod retained_status_tests;
