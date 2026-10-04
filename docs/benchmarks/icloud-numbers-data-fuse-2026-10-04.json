@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "run": "101a5a37-643d-4944-99cc-34d41536483c",
+  "registered_at": "2026-10-04T17:28:47.355449+00:00",
+  "status": "Local source, receipt, Trash and finite controller controls verified; full contributor check passed. Real source-only scanner build and bounded DATA live run pending.",
+  "question": "Does an unchanged owned Apple Numbers export create as actual DATA through ordinary FUSE, then permit one replacement whose current raw B and original raw A in Trash are independently verified?",
+  "prediction": "A confirms DATA and raw A before B; after one ordinary truncate save B, typed handoff and independent reads confirm raw B and Trash raw A. If Apple classifies A as PACKAGE or any result is uncertain, stop without B or replay.",
+  "mutations": [
+    "one new Cirrove-Native-RUN folder",
+    "one O_EXCL raw A Numbers file create",
+    "one descriptor-bound ordinary in-place truncate/full raw B save, only following stopped independent actual DATA/raw A proof"
+  ],
+  "max_seconds": 1800,
+  "ordinary_held_descriptor": "No immutable A snapshot claimed for in-place writes; immutable pre-B capture and exact Trash proof preserve A endpoint.",
+  "scope_limits": [
+    "owned fresh fixture only",
+    "no delete/restore/share/automatic replay",
+    "no installed service or package changes",
+    "not genuine native editor save evidence",
+    "all full integration gates remain open"
+  ],
+  "temp_filesystem": "ext4",
+  "local_evidence": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c",
+  "live_executed": false,
+  "registered_endpoints": {
+    "created_a": {
+      "applied_mutations": 1,
+      "uploaded_FileBytes": 1,
+      "complete_queue": 2,
+      "namespace_objects": 2,
+      "native_associations": 0,
+      "package_publications": 0,
+      "atomic_replacements": 0,
+      "independent_actual_DATA": true,
+      "raw_source_a_hash_exact": true
+    },
+    "saved_b": {
+      "applied_mutations": 1,
+      "uploaded_FileBytes": 2,
+      "complete_queue": 3,
+      "namespace_objects": 3,
+      "native_associations": 0,
+      "package_publications": 0,
+      "atomic_replacements": 0,
+      "same_stable_owner": true,
+      "new_current_identity": true,
+      "backup_identity_equals_original_a": true,
+      "current_raw_b_hash_exact": true,
+      "Trash_original_raw_a_hash_exact": true
+    }
+  },
+  "ordinary_working_state": "Zero or one working file is legitimate: exact clean ordinary working binding or retired follows_remote ownership. A/B working IDs may differ after retirement; stable namespace owner and B intent old ID/revision must bind A.",
+  "trash_read_scope": "Read-only exact backup ID, ordinary DATA shape, completed receipt name/size/revision and raw A bytes with before/after metadata guards. Non-null unchanged restorePath supplies a recovery marker, not proof of its destination or successful restore.",
+  "acceptance_limits": [
+    "This is an ordinary FUSE raw-file copy and overwrite, not a real native-editor save.",
+    "Source is an Apple export; its .numbers extension or ZIP shape does not establish actual DATA representation.",
+    "Local hidden recovery alias basename is not a Trash basename.",
+    "One bounded run does not establish repeated reliability, restart uncertainty recovery or installed acceptance."
+  ],
+  "pre_live_protocol_correction": {
+    "at": "2026-10-04T17:31:50.916780+00:00",
+    "previous": "O_WRONLY|O_TRUNC mutates before descriptor identity can be inspected",
+    "registered": "O_WRONLY|O_NOFOLLOW, exact fstat identity/size check, then one ftruncate and full write/fsync",
+    "reason": "Refuse descriptor mismatch before truncation; this is still an ordinary in-place save, not an atomic or native-editor acceptance arm.",
+    "cloud_dispatch_before_correction": false
+  },
+  "registered_trash_reader_controls": {
+    "registered_at": "2026-10-04T17:34:49.674733+00:00",
+    "scope": "Feature-only read-only exact completed ordinary DATA backup; shared legacy verifier factors only original IDs/hash, unchanged production contract.",
+    "tests": [
+      "handoff_transport::owned_data_tests::owned_data_trash_reader_accepts_full_and_empty_bytes",
+      "handoff_transport::owned_data_tests::owned_data_trash_reader_refuses_invalid_registered_nodes",
+      "handoff_transport::owned_data_tests::owned_data_trash_reader_refuses_changed_metadata_and_bytes",
+      "handoff_transport::owned_data_tests::owned_data_trash_reader_refuses_unbound_completed_backup"
+    ],
+    "arms": {
+      "happy": 2,
+      "invalid_registered_nodes": 17,
+      "changed_metadata_and_bytes": 12,
+      "unbound_completed_backup": 1
+    },
+    "omission": {
+      "remove_only": "final result != registered backup receipt guard in verify_owned_data_in_trash",
+      "exact_test": "handoff_transport::owned_data_tests::owned_data_trash_reader_refuses_unbound_completed_backup",
+      "prediction": "After exactly four synthetic TLS read requests, omitted guard wrongly accepts actual trash-v2 for registered unbound-v3 and the expected refusal assertion fails; byte-restored same test and four selected tests pass.",
+      "claim": "Control sensitivity of new observer, not historical production bug fix."
+    },
+    "executed": true,
+    "additional_pre_execution_arm": "Empty CloudDocs parent suffix refuses before any network request; original16 arms retained."
+  },
+  "registered_data_observer_controls": {
+    "registered_at": "2026-10-04T17:35:55.924460+00:00",
+    "scope": "Separate feature-only raw DATA source/receipt observer using genuine ordinary journal fixtures, no native PACKAGE semantic or StageETag fabrication.",
+    "tests": [
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_registration_binds_exact_phase_scope",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_create_active_and_retired",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_save_chained_and_rehydrated",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_association_refuses_foreign_owner",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_receipts_refuse_foreign_revision_representation_and_source",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_frontier_refuses_dirty_extra_and_unpublished",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_sources_refuse_raw_digest_size_and_private_path",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_readonly_observation_preserves_journal",
+      "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_prior_create_proof_refuses_absent_digest_identity_and_representation"
+    ],
+    "omission": {
+      "remove_only": "admitted() exact actual operation-to-stable-owner association guard",
+      "exact_test": "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_association_refuses_foreign_owner",
+      "prediction": "Actual create namespace_operations is altered to existing folder owner with all other receipts/inventory/raw bytes valid. Canonical refuses; omission wrongly accepts and exact test fails foreign ordinary create association accepted; byte-restored same test and all eight pass.",
+      "claim": "New observer sensitivity, not a historical production failure."
+    },
+    "executed": true,
+    "prior_phase_artifact": "SavedB requires exact prior created-verified proof SHA and binds run/account/create/owner/workingA/currentA identity+revision/rawhash+size/actualDATA before and after observation; CreatedA explicitly has no prior proof."
+  },
+  "trash_reader_results": {
+    "private_handoff": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-final-handoff.v1.json",
+    "handoff_sha256": "b3a2c751b41b165e66fb237bcedee15367b690009849d042bac0582e1f22cfc7",
+    "root_audit": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/root-trash-proof-audit.json",
+    "actual_executed": {
+      "canonical_pass": 4,
+      "omission_expected_failure": 1,
+      "restored_pass": 4,
+      "canonical_fixture_arms": {
+        "happy": 2,
+        "invalid_registered_nodes": 17,
+        "metadata_representation_content": 12,
+        "unbound_completed_backup": 1
+      }
+    },
+    "counterfactual": {
+      "omission": "only final full completed-backup Node equality guard",
+      "expected_endpoint": "completed backup revision was not bound",
+      "actual_endpoint_confirmed": true,
+      "four_read_requests_checked_before_expected_assertion": true,
+      "historical_product_defect_claim": false,
+      "source_restored_byte_exact": true
+    },
+    "authoring_correction": {
+      "artifact": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-authoring-correction.v1.json",
+      "classification": "compilev1 missing explicit CancellationToken import; zero tests executed, not behavioral red"
+    },
+    "receipts": {
+      "trash-compile-v1": {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-compile-v1.json",
+        "manifest_sha256": "28bec64eb59139f02fa6e52f3fb944c1d0cd10d0ae247b2dba147834397be0e0",
+        "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-compile-v1.log",
+        "log_sha256": "54046b439ba08b45fe544996180db92bec7dedc20ad3f75990677a84f92bb8fe",
+        "exit_code": 101,
+        "source_unchanged": true,
+        "duration_seconds": 11.477715542016085
+      },
+      "trash-compile-v2": {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-compile-v2.json",
+        "manifest_sha256": "323fe99ba09ac0a0534ba0ca5699baa055875114d03b106c0e8c52bacd009500",
+        "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-compile-v2.log",
+        "log_sha256": "159cff06b2aeb115b34448c74023a092c4be2be4ec73caef3dcf5fe26ce0e8d6",
+        "exit_code": 0,
+        "source_unchanged": true,
+        "duration_seconds": 6.821334173990181
+      },
+      "trash-canonical4-v1": {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-canonical4-v1.json",
+        "manifest_sha256": "aa2cc71b11cdf0ca8747a2614d0cd1935f20f6c72f9971cf7b54c7d1417b506d",
+        "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-canonical4-v1.log",
+        "log_sha256": "794654dc8b0d769e6f270ad0e855fa01b78c90eaa02f3ef7d3d1d21707649bda",
+        "exit_code": 0,
+        "source_unchanged": true,
+        "duration_seconds": 1.2448901049792767
+      },
+      "trash-omitted-compile-v1": {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-omitted-compile-v1.json",
+        "manifest_sha256": "5efa4f0052b6e1b5f4643ff4ff656882238968248f449899679c3f533b4a0c17",
+        "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-omitted-compile-v1.log",
+        "log_sha256": "4069b949fa4ac431a3a99c569e8df5a3cbe78834350b8a290f0ff425bea29bcf",
+        "exit_code": 0,
+        "source_unchanged": true,
+        "duration_seconds": 4.211435386998346
+      },
+      "trash-omitted-exact1-v1": {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-omitted-exact1-v1.json",
+        "manifest_sha256": "bc18e88c99c601e9e4d5cc68a0247fbc813b3f7d097c1c07af1831814f1fc8e6",
+        "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-omitted-exact1-v1.log",
+        "log_sha256": "027c28705d71ac495055d4deaedf7956e6f60d778ba51d9448f2171ce56f3f59",
+        "exit_code": 101,
+        "source_unchanged": true,
+        "duration_seconds": 0.311157698975876
+      },
+      "trash-restored-compile-v1": {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-restored-compile-v1.json",
+        "manifest_sha256": "5d82b6b56effe3830d6fa28186f286344af31a74ee28e39b72ee71d9b983fd33",
+        "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-restored-compile-v1.log",
+        "log_sha256": "2da70f0db58f65f0366666865030615b3aae95c554a0a7af1fd2dfaf6ecd7420",
+        "exit_code": 0,
+        "source_unchanged": true,
+        "duration_seconds": 4.296378337981878
+      },
+      "trash-restored4-v1": {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-restored4-v1.json",
+        "manifest_sha256": "73627c6eb298c85db43d3d405c207447352358ade44b44786be263273a6c6f1d",
+        "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/trash-restored4-v1.log",
+        "log_sha256": "0c290a534bd9a124dab9f8b558ab766ece700091da21df7721619bb3c7d9cfeb",
+        "exit_code": 0,
+        "source_unchanged": true,
+        "duration_seconds": 1.2620353050006088
+      }
+    },
+    "source_sha256_at_selected_tests": {
+      "crates/cirrove-icloud/src/handoff_transport.rs": "3ec08ba8cf95f505b3d73826f181471dddb1226312215bdb6bfd69d31653acb8",
+      "crates/cirrove-icloud/src/handoff_transport/owned_data_tests.rs": "cb255a4aaa60d7a7c4cd5229d06106cc9f3dbc502dd928a5f9ecb2fb0fc25f96"
+    },
+    "cloud_dispatch": false,
+    "full_contributor_check_pending": false
+  },
+  "data_observer_results": {
+    "handoff": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-local-verification-summary.json",
+    "handoff_sha256": "593311791c10779fd58b531d6e0cb6893fdfe6d02d9039c1ed668a3776943981",
+    "root_audit": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/root-observer-proof-audit.json",
+    "arms": [
+      {
+        "arm": "observer-canonical-nine-v4",
+        "actual_executed": 9,
+        "passed": 9,
+        "failed": 0,
+        "names": [
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_association_refuses_foreign_owner",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_create_active_and_retired",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_frontier_refuses_dirty_extra_and_unpublished",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_readonly_observation_preserves_journal",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_save_chained_and_rehydrated",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_prior_create_proof_refuses_absent_digest_identity_and_representation",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_receipts_refuse_foreign_revision_representation_and_source",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_registration_binds_exact_phase_scope",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_sources_refuse_raw_digest_size_and_private_path"
+        ],
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-canonical-nine-v4.json",
+        "manifest_sha256": "f91cd46289493c864e3e6f544db4a434ac97d8751ae4819f3139114a7d2b3c23",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-canonical-nine-v4.log",
+        "log_sha256": "b3378eb2d5cfc6fd2acb3eb68cdec25543cd7ab865267643cba527544ccf6646",
+        "test_artifact": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "sha256": "d8e7bd29639f0357c8616e17984489c31fdfb652c043c01b332fd10624aa3b5b"
+        },
+        "terminal_tool": {
+          "chunk_id": "f48cb0",
+          "exit_code": 0
+        }
+      },
+      {
+        "arm": "observer-omitted-one-v1",
+        "actual_executed": 1,
+        "passed": 0,
+        "failed": 1,
+        "names": [
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_association_refuses_foreign_owner"
+        ],
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-omitted-one-v1.json",
+        "manifest_sha256": "bce65c44bd14daa94e4d7c0d8dc3ee503771817888d0aa825ca1e2d31d8875a9",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-omitted-one-v1.log",
+        "log_sha256": "1c33b5bbe032a02853af4b8a3551aedb54bf5f79785542ecba91f552987d131b",
+        "test_artifact": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "sha256": "ba48d7b05830f44de1c09b12601f3134b9374a83e8dac8ee5528555fc0a38bec"
+        },
+        "terminal_tool": {
+          "chunk_id": "f303bf",
+          "exit_code": 101
+        }
+      },
+      {
+        "arm": "observer-restored-nine-v1",
+        "actual_executed": 9,
+        "passed": 9,
+        "failed": 0,
+        "names": [
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_association_refuses_foreign_owner",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_create_active_and_retired",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_frontier_refuses_dirty_extra_and_unpublished",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_readonly_observation_preserves_journal",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_save_chained_and_rehydrated",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_prior_create_proof_refuses_absent_digest_identity_and_representation",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_receipts_refuse_foreign_revision_representation_and_source",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_registration_binds_exact_phase_scope",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_sources_refuse_raw_digest_size_and_private_path"
+        ],
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-restored-nine-v1.json",
+        "manifest_sha256": "47342e80e59816fb3c9f0a7e4cbd98ba12ce05e3e6361819f114e2da14d4810d",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-restored-nine-v1.log",
+        "log_sha256": "ffa30f538ed84e210438331064598690a4de70986c9dfd630d7b6b1820530008",
+        "test_artifact": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "sha256": "d8e7bd29639f0357c8616e17984489c31fdfb652c043c01b332fd10624aa3b5b"
+        },
+        "terminal_tool": {
+          "chunk_id": "fe4df3",
+          "exit_code": 0
+        }
+      },
+      {
+        "arm": "observer-integrity-original-one-v1",
+        "actual_executed": 1,
+        "passed": 0,
+        "failed": 1,
+        "names": [
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_queue_and_columns_refuse_substitution"
+        ],
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-original-one-v1.json",
+        "manifest_sha256": "3dc696cf94b129d8ea9627df7417f143c2b3e6a94ddc45a1eb05fb05c76ecfee",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-original-one-v1.log",
+        "log_sha256": "7761edb3799af9a5daaf58aa2425a14606b244ea6500dff9cb4d05c0129d124b",
+        "test_artifact": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "sha256": "942421d48a191e42a290bf450c4b1911ebc77dd928ee9b19371980765eb5f314"
+        },
+        "terminal_tool": {
+          "chunk_id": "ca7c83",
+          "exit_code": 101
+        }
+      },
+      {
+        "arm": "observer-integrity-corrected-ten-v2",
+        "actual_executed": 10,
+        "passed": 10,
+        "failed": 0,
+        "names": [
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_association_refuses_foreign_owner",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_create_active_and_retired",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_frontier_refuses_dirty_extra_and_unpublished",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_queue_and_columns_refuse_substitution",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_readonly_observation_preserves_journal",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_save_chained_and_rehydrated",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_prior_create_proof_refuses_absent_digest_identity_and_representation",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_receipts_refuse_foreign_revision_representation_and_source",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_registration_binds_exact_phase_scope",
+          "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_sources_refuse_raw_digest_size_and_private_path"
+        ],
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-corrected-ten-v2.json",
+        "manifest_sha256": "4894b257dff16ec26cbc20057d04c9ba1551fe2b4f4c43fa5322feee573b32a5",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-corrected-ten-v2.log",
+        "log_sha256": "794846b7c47c65b92fbd12568da6dfd5d9f1d99761f6742904c8240bf28faec7",
+        "test_artifact": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "sha256": "711b0c0600b7304d16686fc2f035a69deeaf72238a2a3ebee450645597579502"
+        },
+        "terminal_tool": {
+          "chunk_id": "9fc343",
+          "exit_code": 0
+        }
+      }
+    ],
+    "restoration_scope": "Sole association guard counterfactual restored byte-exact before separately preregistered SQL/queue integrity enhancement. Final source contains both guards.",
+    "authoring_corrections": [
+      {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-canonical-build-v1.json",
+        "terminal_tool": {
+          "chunk_id": "ca1d33",
+          "exit_code": 101
+        },
+        "actual_tests_executed": 0,
+        "reason": "Test fixture attempted private UploadJournal.db; corrected to test-only explicit SQLite connection; no production database API exposed."
+      },
+      {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-canonical-nine-v2.json",
+        "terminal_tool": {
+          "chunk_id": "b5d91a",
+          "exit_code": 101
+        },
+        "actual_passed": 6,
+        "actual_failed": 3,
+        "reason": "New observer incorrectly demanded stable local parent for hidden recovery alias. Actual constructor keeps provider parent; corrected exact parent and full recovery Node formula. Not a provider write defect."
+      },
+      {
+        "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-corrected-build-v1.json",
+        "terminal_tool": {
+          "chunk_id": "2898bf",
+          "exit_code": 101
+        },
+        "actual_tests_executed": 0,
+        "reason": "New accessor attempted u64 FromSql; corrected signed reads plus checked unsigned conversion."
+      }
+    ],
+    "scanner_built": false,
+    "cloud_dispatch": false,
+    "full_contributor_check_pending": false
+  },
+  "prior_keynote_head_ci": {
+    "version": 1,
+    "observed_at": "2026-10-04T17:49:39.900671+00:00",
+    "run_id": 37219960754,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37219960754",
+    "headSha": "dae108e70297e70171281b19c0afd157340c3634",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "deb-package",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "arch-package",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "mounted-read-workloads",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "dependency-audit",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "linux",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "rpm-package",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "headless-package-install",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "observation": {
+      "tool_chunk": "88150d",
+      "exit_code": 0
+    },
+    "scope": "Previously published Keynote evidence/source snapshot only; excludes uncommitted DATA observer work.",
+    "installed_acceptance_closed": false
+  },
+  "full_contributor_check": {
+    "status": "PASS whole scripts/check.sh invocation",
+    "command": [
+      "scripts/check.sh"
+    ],
+    "registration": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2-registration.json",
+    "result": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2-result.json",
+    "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2.log",
+    "log_sha256": "0b16e848c085e01a5c71916786c9c8089f107df05cdd09c77ee96812958d7b7d",
+    "log_size": 252446,
+    "tool_completion": {
+      "session": 97871,
+      "chunk": "18d015",
+      "exit_code": 0
+    },
+    "source_file_count": 452,
+    "all_final_source_digests_match": true,
+    "new_service_tests_executed": 10,
+    "new_library_tests_executed": 4,
+    "all6_full_icloud_gates_done": false,
+    "desktop_display_scenarios_rerun": false,
+    "first_invocation_lint_correction": {
+      "at": "2026-10-04T18:16:53.415140+00:00",
+      "original_exit_code": 101,
+      "original_log_sha256": "3d27ff54c63cf54edcc03be75adeb92353f300e30087986749ab9586b4786911",
+      "original_terminal_chunk": "1ce527",
+      "classification": "Full contributor command stopped at new feature Clippy lints before workspace tests; not behavioral proof.",
+      "changes": [
+        "Remove unnecessary PathBuf allocation in exact source path comparison following Clippy; root early review had wrongly presumed direct String comparison unsupported.",
+        "Allow the concrete bounded SQL frontier tuple complexity at its field, matching existing accessor convention."
+      ],
+      "whole_command_rerun_required": true,
+      "cloud_mutated": false
+    },
+    "no_cloud_mutation": true,
+    "no_installed_acceptance": true
+  }
+}

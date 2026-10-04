@@ -430,6 +430,27 @@ async fn main() -> Result<()> {
     let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
     if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-numbers-data-source-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_numbers_data_source_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-numbers-data-receipt-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_numbers_data_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
         && flag == "--owned-keynote-source-verify"
     {
         let proof = cirrove_service::validation::icloud_owned_keynote_source_verify(

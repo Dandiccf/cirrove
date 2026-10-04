@@ -438,6 +438,120 @@ impl RecoveryJournal {
             [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
         )?)
     }
+    /// Ordinary DATA validation only: bounded exact namespace/working frontier.
+    /// No writer, checkpoint vault or provider is opened by these observations.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn ordinary_validation_inventory(
+        &self,
+    ) -> Result<(Vec<NamespaceObject>, Vec<WorkingFile>, (i64, i64))> {
+        let mut query = self
+            .journal
+            .db
+            .prepare("SELECT body FROM namespace_objects ORDER BY id LIMIT 4")?;
+        let objects = query
+            .query_map([], |r| r.get::<_, String>(0))?
+            .map(|r| Ok(serde_json::from_str(&r?)?))
+            .collect::<Result<Vec<_>>>()?;
+        let mut query = self
+            .journal
+            .db
+            .prepare("SELECT body FROM working_files ORDER BY id LIMIT 2")?;
+        let working = query
+            .query_map([], |r| r.get::<_, String>(0))?
+            .map(|r| Ok(serde_json::from_str(&r?)?))
+            .collect::<Result<Vec<_>>>()?;
+        let other = self.journal.db.query_row(
+            "SELECT (SELECT count(*) FROM package_metadata_publication),(SELECT count(*) FROM file_replacements)",
+            [], |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        Ok((objects, working, other))
+    }
+    pub(crate) fn ordinary_validation_namespace_for_operation(
+        &self,
+        operation: Uuid,
+    ) -> Result<Option<NamespaceObject>> {
+        self.journal.namespace_for_operation(operation)
+    }
+    /// Bind SQL identities/state to typed bodies and exact completed queue rows.
+    /// The owned arm has at most three operations; a fourth is a refusal witness.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn ordinary_validation_operation_columns(
+        &self,
+    ) -> Result<Vec<(String, String, u64, String, Option<u64>, Option<bool>)>> {
+        let mut query = self.journal.db.prepare(
+            "SELECT 'upload',u.id,u.sequence,u.state,q.sequence,q.complete FROM uploads u
+             LEFT JOIN write_queue q ON q.id=u.id
+             UNION ALL
+             SELECT 'mutation',m.id,m.sequence,m.state,q.sequence,q.complete FROM mutations m
+             LEFT JOIN write_queue q ON q.id=m.id
+             ORDER BY 3 LIMIT 4",
+        )?;
+        let rows = query
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, Option<i64>>(4)?,
+                    r.get::<_, Option<bool>>(5)?,
+                ))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        rows.into_iter()
+            .map(|(kind, id, sequence, state, queue, complete)| {
+                Ok((
+                    kind,
+                    id,
+                    u64::try_from(sequence).map_err(|_| JournalError::Corrupt)?,
+                    state,
+                    queue
+                        .map(u64::try_from)
+                        .transpose()
+                        .map_err(|_| JournalError::Corrupt)?,
+                    complete,
+                ))
+            })
+            .collect()
+    }
+    pub(crate) fn ordinary_validation_working_digest(&self, id: Uuid) -> Result<(u64, String)> {
+        use sha2::{Digest, Sha256};
+        use std::os::unix::fs::MetadataExt;
+        let mut file = self.journal.working_descriptor(id, false)?;
+        let before = file.metadata()?;
+        let size = before.len();
+        if size > 64 * 1024 * 1024 {
+            return Err(JournalError::Quota);
+        }
+        let mut hash = Sha256::new();
+        let mut buffer = [0; 64 * 1024];
+        let mut bounded = (&mut file).take(size + 1);
+        let mut received = 0u64;
+        loop {
+            let count = bounded.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            received += count as u64;
+            if received > size {
+                return Err(JournalError::Stale);
+            }
+            hash.update(&buffer[..count]);
+        }
+        let after = file.metadata()?;
+        if received != size
+            || after.len() != size
+            || after.dev() != before.dev()
+            || after.ino() != before.ino()
+            || after.mtime() != before.mtime()
+            || after.mtime_nsec() != before.mtime_nsec()
+            || after.ctime() != before.ctime()
+            || after.ctime_nsec() != before.ctime_nsec()
+        {
+            return Err(JournalError::Stale);
+        }
+        Ok((size, hex::encode(hash.finalize())))
+    }
     /// Indexed read-only native source/byte-stream association. Existing shape
     /// validation binds either live working bytes or an exact dormant slot.
     #[allow(clippy::type_complexity)]

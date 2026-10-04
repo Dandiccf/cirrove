@@ -469,6 +469,12 @@ impl UploadRecord {
             && backup_location_matches(reservation, backup, current.parent_id.as_ref()))
         .then_some((current, backup))
     }
+    /// Feature-only exact owner of a confirmed ordinary recovery identity.
+    #[cfg(feature = "icloud-write-probe")]
+    pub(crate) fn ordinary_validation_recovery_owner(&self) -> Option<Uuid> {
+        self.ordinary_handoff_receipt()?;
+        Some(self.identity_handoff.as_ref()?.recovery_object)
+    }
 }
 
 impl UploadRecord {

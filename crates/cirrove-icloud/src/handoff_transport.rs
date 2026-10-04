@@ -9,9 +9,13 @@ const PROBE_FILE: &str = "created-by-cirrove.txt";
 fn valid_etag(etag: &str) -> bool {
     !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\0', '\r', '\n'])
 }
-fn check_trash_identity(item: &serde_json::Value, plan: &HandoffPlan) -> Result<()> {
-    if item.get("drivewsid").and_then(serde_json::Value::as_str) != Some(&plan.original_id)
-        || item.get("docwsid").and_then(serde_json::Value::as_str) != Some(&plan.original_doc_id)
+fn check_trash_identity_ids(
+    item: &serde_json::Value,
+    original_id: &str,
+    original_doc_id: &str,
+) -> Result<()> {
+    if item.get("drivewsid").and_then(serde_json::Value::as_str) != Some(original_id)
+        || item.get("docwsid").and_then(serde_json::Value::as_str) != Some(original_doc_id)
         || item.get("type").and_then(serde_json::Value::as_str) != Some("FILE")
         || !matches!(
             item.get("parentId").and_then(serde_json::Value::as_str),
@@ -228,9 +232,89 @@ impl ICloudReadSession {
         &mut self,
         plan: &HandoffPlan,
     ) -> Result<cirrove_core::Node> {
+        self.verified_trash_backup_identity(
+            &plan.original_id,
+            &plan.original_doc_id,
+            &plan.original_sha256,
+        )
+        .await
+    }
+
+    /// Bounded, read-only presence and raw-content proof for an owned ordinary
+    /// DATA replacement. The caller must bind this session and both historical
+    /// receipts to the registered account before calling. This does not inspect
+    /// a complete Trash inventory or establish a restoration destination.
+    #[cfg(feature = "write-probe")]
+    pub async fn verify_owned_data_in_trash(
+        &mut self,
+        original: &cirrove_core::Node,
+        backup: &cirrove_core::Node,
+        source_sha256: &str,
+    ) -> Result<cirrove_core::Node> {
+        use cirrove_core::NodeKind;
+        let ordinary = |node: &cirrove_core::Node| {
+            node.kind == NodeKind::File
+                && !node.package
+                && node.target.is_none()
+                && node.etag.as_deref().is_some_and(valid_etag)
+                && node.content_revision().is_some()
+        };
+        let valid_name = |name: &str| {
+            !name.is_empty()
+                && name.len() <= 255
+                && !matches!(name, "." | "..")
+                && !name.contains(['/', '\\', '\0', '\r', '\n'])
+        };
+        if !ordinary(original)
+            || !ordinary(backup)
+            || original.id != backup.id
+            || original.parent_id.as_deref().is_none_or(|parent| {
+                parent
+                    .strip_prefix("FOLDER::com.apple.CloudDocs::")
+                    .is_none_or(|suffix| {
+                        suffix.is_empty()
+                            || suffix == "TRASH_ROOT"
+                            || suffix.len() > 4096
+                            || suffix.contains(['/', '\0', ':'])
+                    })
+            })
+            || backup.parent_id.as_deref() != Some(TRASH_ROOT)
+            || original.name != backup.name
+            || !valid_name(&original.name)
+            || original.size != backup.size
+            || original.size > crate::MAX_WRITE_FILE_SIZE
+            || source_sha256.len() != 64
+            || !source_sha256
+                .bytes()
+                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+        {
+            bail!("invalid owned ordinary DATA Trash binding");
+        }
+        let (zone, document) = split_file_id(&original.id)?;
+        if zone != "com.apple.CloudDocs" {
+            bail!("invalid owned ordinary DATA Trash binding");
+        }
+        let result = tokio::time::timeout(
+            VERIFICATION_TRANSFER_TIMEOUT,
+            self.verified_trash_backup_identity(&original.id, document, source_sha256),
+        )
+        .await
+        .map_err(|_| anyhow!("owned ordinary DATA Trash verification timed out"))??;
+        if &result != backup {
+            bail!("owned ordinary DATA Trash receipt differs from the completed backup");
+        }
+        Ok(result)
+    }
+
+    async fn verified_trash_backup_identity(
+        &mut self,
+        original_id: &str,
+        original_doc_id: &str,
+        source_sha256: &str,
+    ) -> Result<cirrove_core::Node> {
         use cirrove_core::{Node, NodeKind};
-        let item = self.item_details(&plan.original_id).await?;
-        check_trash_identity(&item, plan)?;
+        let item = self.item_details(original_id).await?;
+        check_trash_identity_ids(&item, original_id, original_doc_id)?;
         let etag = item
             .get("etag")
             .and_then(|value| value.as_str())
@@ -264,7 +348,7 @@ impl ICloudReadSession {
         // A zero-byte item has no content to download. It still needs the
         // exact-ID, ETag, size, recovery-path and digest checks on both sides.
         if size > 0 {
-            let signed_url = self.ordinary_download_url(&plan.original_id).await?;
+            let signed_url = self.ordinary_download_url(original_id).await?;
             let headers = crate::probe_timing::Timing::start("trash download headers");
             let mut response = self
                 .http
@@ -288,11 +372,11 @@ impl ICloudReadSession {
                 hash.update(&chunk);
             }
         }
-        if received != size || hex::encode(hash.finalize()) != plan.original_sha256 {
+        if received != size || hex::encode(hash.finalize()) != source_sha256 {
             bail!("iCloud Trash backup differs from the saved fixture bytes");
         }
-        let unchanged = self.item_details(&plan.original_id).await?;
-        check_trash_identity(&unchanged, plan)?;
+        let unchanged = self.item_details(original_id).await?;
+        check_trash_identity_ids(&unchanged, original_id, original_doc_id)?;
         if unchanged.get("etag").and_then(|value| value.as_str()) != Some(&etag)
             || unchanged.get("size").and_then(|value| value.as_u64()) != Some(size)
             || unchanged.get("name").and_then(|value| value.as_str()) != Some(base_name)
@@ -306,7 +390,7 @@ impl ICloudReadSession {
             bail!("iCloud Trash backup changed during exact-ID read");
         }
         Ok(Node {
-            id: plan.original_id.clone(),
+            id: original_id.into(),
             parent_id: Some(TRASH_ROOT.into()),
             name: actual_name,
             kind: NodeKind::File,
@@ -893,3 +977,6 @@ mod tests {
 mod folder_identity_tests;
 
 pub(crate) mod packages;
+
+#[cfg(all(test, feature = "write-probe"))]
+mod owned_data_tests;

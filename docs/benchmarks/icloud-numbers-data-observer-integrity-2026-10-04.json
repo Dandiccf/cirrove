@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-04T17:59:19.909706+00:00",
+  "status": "Original same-count queue substitution refused only after narrow correction; actual original1 expected failure, corrected10 pass and whole contributor check pass.",
+  "question": "Does the new raw DATA receipt observer reject same-count completed queue identity substitution and body/SQL-column disagreement in a genuine ordinary journal fixture?",
+  "prediction": "The original nine-control helper accepts queue ID substitution because only queue totals are checked; the new exact tenth test fails same-count queue substitution accepted. A bounded read-only queue/column binding correction should make the same test and all ten controls pass.",
+  "scope": "New feature-only observer malformed-state contract gap; no demonstrated production mutation defect or live failure.",
+  "exact_test": "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_queue_and_columns_refuse_substitution",
+  "original_arm": "Genuine ordinary A fixture; UPDATE write_queue id to fresh UUID for A create, preserve same count, all complete flags, actual upload bodies, associations and raw bytes. Assert observation refusal.",
+  "additional_corrected_arms": "Upload SQL state/id/sequence and mutation SQL state disagree with unchanged body; actual provider/network operations absent. Exact exercised arms will be recorded.",
+  "expected_original_endpoint": "same-count queue substitution accepted",
+  "correction_scope": "Minimal bounded read-only tuple accessor and exact queue/SQL columns versus decoded registered receipt guard. No production write path, new dependency or storage schema.",
+  "TMPDIR": "on-disk ext4 private nd-101a5a37",
+  "original_red_executed": true,
+  "cloud_mutated": false,
+  "full_icloud_gates_closed": false,
+  "results": {
+    "original": {
+      "arm": "observer-integrity-original-one-v1",
+      "actual_executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "names": [
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_queue_and_columns_refuse_substitution"
+      ],
+      "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-original-one-v1.json",
+      "manifest_sha256": "3dc696cf94b129d8ea9627df7417f143c2b3e6a94ddc45a1eb05fb05c76ecfee",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-original-one-v1.log",
+      "log_sha256": "7761edb3799af9a5daaf58aa2425a14606b244ea6500dff9cb4d05c0129d124b",
+      "test_artifact": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+        "sha256": "942421d48a191e42a290bf450c4b1911ebc77dd928ee9b19371980765eb5f314"
+      },
+      "terminal_tool": {
+        "chunk_id": "ca7c83",
+        "exit_code": 101
+      }
+    },
+    "corrected": {
+      "arm": "observer-integrity-corrected-ten-v2",
+      "actual_executed": 10,
+      "passed": 10,
+      "failed": 0,
+      "names": [
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_association_refuses_foreign_owner",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_create_active_and_retired",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_frontier_refuses_dirty_extra_and_unpublished",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_queue_and_columns_refuse_substitution",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_readonly_observation_preserves_journal",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_actual_save_chained_and_rehydrated",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_prior_create_proof_refuses_absent_digest_identity_and_representation",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_receipts_refuse_foreign_revision_representation_and_source",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_registration_binds_exact_phase_scope",
+        "validation::icloud_account::owned_package::fixture_verify::receipt_bound::numbers_data::tests::owned_numbers_data_sources_refuse_raw_digest_size_and_private_path"
+      ],
+      "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-corrected-ten-v2.json",
+      "manifest_sha256": "4894b257dff16ec26cbc20057d04c9ba1551fe2b4f4c43fa5322feee573b32a5",
+      "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-corrected-ten-v2.log",
+      "log_sha256": "794846b7c47c65b92fbd12568da6dfd5d9f1d99761f6742904c8240bf28faec7",
+      "test_artifact": {
+        "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+        "sha256": "711b0c0600b7304d16686fc2f035a69deeaf72238a2a3ebee450645597579502"
+      },
+      "terminal_tool": {
+        "chunk_id": "9fc343",
+        "exit_code": 0
+      }
+    },
+    "corrected_corruption_arms": 5,
+    "private_summary_sha256": "593311791c10779fd58b531d6e0cb6893fdfe6d02d9039c1ed668a3776943981",
+    "authoring_type_correction": {
+      "manifest": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/observer-integrity-corrected-build-v1.json",
+      "terminal_tool": {
+        "chunk_id": "2898bf",
+        "exit_code": 101
+      },
+      "actual_tests_executed": 0,
+      "reason": "New accessor attempted u64 FromSql; corrected signed reads plus checked unsigned conversion."
+    },
+    "peer_final_review_sha256": "a9214edd86abe37c4ee9020d26e0fd31b43eae502be8ca5311a891b96bd7adb2"
+  },
+  "full_contributor_check": {
+    "status": "PASS whole scripts/check.sh invocation",
+    "command": [
+      "scripts/check.sh"
+    ],
+    "registration": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2-registration.json",
+    "result": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2-result.json",
+    "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2.log",
+    "log_sha256": "0b16e848c085e01a5c71916786c9c8089f107df05cdd09c77ee96812958d7b7d",
+    "log_size": 252446,
+    "tool_completion": {
+      "session": 97871,
+      "chunk": "18d015",
+      "exit_code": 0
+    },
+    "source_file_count": 452,
+    "all_final_source_digests_match": true,
+    "new_service_tests_executed": 10,
+    "new_library_tests_executed": 4,
+    "all6_full_icloud_gates_done": false,
+    "desktop_display_scenarios_rerun": false,
+    "first_invocation_lint_correction": {
+      "at": "2026-10-04T18:16:53.415140+00:00",
+      "original_exit_code": 101,
+      "original_log_sha256": "3d27ff54c63cf54edcc03be75adeb92353f300e30087986749ab9586b4786911",
+      "original_terminal_chunk": "1ce527",
+      "classification": "Full contributor command stopped at new feature Clippy lints before workspace tests; not behavioral proof.",
+      "changes": [
+        "Remove unnecessary PathBuf allocation in exact source path comparison following Clippy; root early review had wrongly presumed direct String comparison unsupported.",
+        "Allow the concrete bounded SQL frontier tuple complexity at its field, matching existing accessor convention."
+      ],
+      "whole_command_rerun_required": true,
+      "cloud_mutated": false
+    },
+    "no_cloud_mutation": true,
+    "no_installed_acceptance": true
+  }
+}
