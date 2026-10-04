@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-04T16:41:13.115806+00:00",
+  "run": "de9eb662-5df7-489e-b6c5-978abeb8f4c8",
+  "question": "Can one owned Apple-created Keynote PACKAGE be imported via the account-bound public CLI and independently verified by exact journal receipt and semantic content?",
+  "prediction": "One folder creation and one import complete with two completed queue entries, one clean following folder, zero working/native-save associations; stopped read-only receipt observation confirms exact source semantics. No GUI/editor promise.",
+  "scope": "One new own UUID folder, one genuine Apple-created Keynote PACKAGE import via public account-bound CLI, exact public watch, optional original-mount raw read, stop/unmount and independent read-only receipt/content proof. No replacement, removal, restoration or installed actions.",
+  "authorization": "Standing explicit user grant for writable iCloud access and tests. Root binds this one fresh run and finite scope; unclear mutations stop without automatic replay.",
+  "expected_duration_seconds": 1800,
+  "source_registration": "docs/benchmarks/icloud-keynote-source-2026-10-04.json",
+  "observer_evidence": "docs/benchmarks/icloud-keynote-import-observer-2026-10-04.json",
+  "source_runtime": {
+    "normal_daemon_and_cli": "ac1ee641a9e74867fb14b9793da056cebb42600a",
+    "observer_source": "8f101af3c7bc79fe8b4f663cb3c537271e895855",
+    "observer_binary_sha256": "c45b0ad18fe0a12f431dc33bdf2062146b60b62b03a369130517fe0fe5b5ea04",
+    "observer_build_origin": "Prior0a2ec8a plus exact new feature-only Rust/Cargo code, unchanged in8f101af; no rebuilt-at-commit claim.",
+    "controller_draft_sha256": "550e37c66a04c8a8035c1e9b33807e07a61923532dc51eee94b554e478b65580",
+    "controller_final_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9"
+  },
+  "source": {
+    "size": 525581,
+    "sha256": "9d84e1c4bd7fba71cff73d863810b9fd2093d286814dd47ad98b059760308965",
+    "root": "Source.key",
+    "semantic": {
+      "version": 2,
+      "sha256": "5ab225f68d164e6369cab5bfc6667cced06b77fdb57b65cfb43e55e722c01fb9",
+      "entries": 58,
+      "files": 54,
+      "expanded_bytes": 516253
+    }
+  },
+  "endpoint": [
+    "One registered Applied parent and one Uploaded PACKAGE import with completed publication",
+    "Account/collection/item/revision and source semantic-v2 proof from stopped read-only receipt observer",
+    "Exactly two completed queue rows, one clean parent namespace, no native-save associations or working files",
+    "If selected, mounted raw read records its bytes/SHA and unchanged frontier without claiming semantic/editor proof",
+    "All exact recorded processes gone, mount absent, installed PID/start ticks and19 artifact hashes unchanged",
+    "Any unconfirmed or uncertain mutation stops without dispatch replay; all six full-iCloud gates remain open"
+  ],
+  "scope_limits": [
+    "No B fixture or replacement/Trash/save/restore/delete/remount/install operations.",
+    "No old target reuse, replay or automatic retries after attempted dispatch.",
+    "All six full integration gates remain open.",
+    "Mounted raw capture does not establish canonical semantic or editor fidelity; independent receipt observer supplies provider content proof.",
+    "Root supervises global deadline and invokes exact supervised-abort on ambiguity; abort never marks arm successful."
+  ],
+  "local_contract_tests": [
+    "test_registration_exact_run_and_scope",
+    "test_standing_authorization_requires_exact_scope",
+    "test_missing_authorization_precedes_operational_io",
+    "test_folder_pending_and_applying_never_allow_import",
+    "test_completed_package_import_exact_binding",
+    "test_wrong_account_and_completed_orphan_refused",
+    "test_uncertain_import_refused_without_replay",
+    "test_monotonic_deadline_refuses_new_dispatch_allows_stop",
+    "test_unknown_phase_owner_still_stops_only_known_daemon"
+  ],
+  "local_counterfactual": {
+    "question": "Is the exact standing authorization scope predicate independently necessary before any operational dispatch?",
+    "omission": "Remove only scope:SCOPE from approval_shape expected-fields dictionary; leave runtime scope/register/run/account/hash/deadline guards intact.",
+    "exact_test": "ControllerContracts.test_standing_authorization_requires_exact_scope",
+    "prediction": "Canonical9pass; omissionexact1fails foreign standing scope accepted; byteexactrestore9pass.",
+    "no_cloud_or_operational_actions": true
+  },
+  "local_tests_before_live": true,
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/keynote-import-de9eb662",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/keynote-import-de9eb662",
+  "temp_filesystem": "ext4",
+  "session_filesystem": "btrfs",
+  "maximum_archive_bytes": 67108864,
+  "maximum_expanded_bytes": 67108864,
+  "maximum_archive_entries": 10000,
+  "full_icloud_gates_closed": false,
+  "installed_actions": false,
+  "status": "one-owned-public-Keynote-package-import-watch-original-mount-read-and-stopped-independent-receipt-proof-passed",
+  "results": {
+    "recorded_at": "2026-10-04T17:02:12.245632+00:00",
+    "run": "de9eb662-5df7-489e-b6c5-978abeb8f4c8",
+    "overall_finite_arm_success": true,
+    "runtime_sha256": "71367c32a33d40385b518eca474d4a421a82e263ac304e2ac1f9e9a1aed31766",
+    "controller_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9",
+    "started_at": "2026-10-04T16:50:19.708589+00:00",
+    "deadline": "2026-10-04T17:20:19.145763+00:00",
+    "parent_creation": "af9fe050-7333-4785-9454-fad47be01c04",
+    "import": "8c12ba30-c25e-41a3-a1b7-0778a79c28cf",
+    "native_import_verified": true,
+    "independent_content_semantic": {
+      "entries": 58,
+      "expanded_bytes": 516253,
+      "files": 54,
+      "sha256": "5ab225f68d164e6369cab5bfc6667cced06b77fdb57b65cfb43e55e722c01fb9",
+      "version": 2
+    },
+    "proof_sha256": "cb83668a6437e0d162833bbd07d445715cb88b430c3285deb0fd8c1a8704a586",
+    "mounted_raw_read": {
+      "capture": {
+        "path": "/var/tmp/cirrove-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8/mounted-a.key",
+        "sha256": "6e0f96e16453b119f05030fe824198c7dcd3ed9e9cfab71d4f0a62fdd4c44edb",
+        "size": 461065
+      },
+      "frontier_unchanged": true,
+      "gui_fidelity_verified": false,
+      "kernel_read_completed": true,
+      "semantic_verified": false
+    },
+    "recorded_process_count": 11,
+    "exact_processes_gone": true,
+    "mount_absent": true,
+    "installed_pid_startticks_executable_unchanged": true,
+    "installed_19_package_artifact_hashes_unchanged": true,
+    "home_daemon_shadow_exists": false,
+    "cloud_mutation_replays": 0,
+    "logical_mutation_operations": 2,
+    "gui_or_editor_fidelity_claimed": false,
+    "full_icloud_gates_closed": false,
+    "root_live_audit_sha256": "bf556a4c26ab0b56fa77f78e29f660e1157e0056e679648f24817340cacbb8c5",
+    "all_two_queue_entries_complete": true,
+    "one_completed_package_publication": true,
+    "namespace_objects": 1,
+    "native_working_associations": 0,
+    "working_files": 0,
+    "independent_read_only_peer_review": {
+      "result": "pass",
+      "tool_chunk": "092cbb",
+      "exit_code": 0,
+      "source_mounted_and_independent_download_semantic_v2_recomputed": true,
+      "raw_zip_hashes_differ_semantic_identical": true,
+      "sqlite_db_wal_shm_bytes_and_inodes_unchanged": true,
+      "all11_processes_and_mount_absent": true
+    },
+    "terminal_tool_evidence": {
+      "check_local": {
+        "chunk": "a85070",
+        "exit_code": 0
+      },
+      "start": {
+        "chunk": "ffd3bc",
+        "exit_code": 0
+      },
+      "initial_readiness_refusal": {
+        "chunk": "816ec6",
+        "exit_code": 1,
+        "reason_observed": "mounted but initial metadata state updating_or_offline; no mutation dispatched"
+      },
+      "ready": {
+        "chunk": "beb2a7",
+        "exit_code": 0
+      },
+      "folder_pending": {
+        "chunk": "f48ca2",
+        "exit_code": 0
+      },
+      "folder_applied": {
+        "chunk": "fb6f48",
+        "exit_code": 0
+      },
+      "import_complete": {
+        "chunk": "660b3b",
+        "exit_code": 0
+      },
+      "watch_complete": {
+        "chunk": "ecd4c2",
+        "exit_code": 0
+      },
+      "mounted_read_complete": {
+        "chunk": "07e7bc",
+        "exit_code": 0
+      },
+      "stop_status": {
+        "chunk": "faa87a",
+        "exit_code": 0
+      },
+      "observer_complete": {
+        "chunk": "f7b590",
+        "exit_code": 0
+      },
+      "final_all_processes_absent": {
+        "chunk": "50db7e",
+        "exit_code": 0
+      },
+      "root_live_audit": {
+        "chunk": "de4029",
+        "exit_code": 0
+      }
+    },
+    "scope_limits": "One fresh PACKAGE import/read trial; no DATA, real-editor saves, Keynote replacement/Trash, long-session repeatability or installed transition acceptance. Separate unique-title Apple UI observation is in icloud-keynote-apple-open-2026-10-04.json.",
+    "final_documentation_full_check": {
+      "pid": 2514256,
+      "start_ticks": "15820287",
+      "started_at": "2026-10-04T17:06:15.749891+00:00",
+      "registration_sha256": "f5eca5f9bb76ffd2628f2676996a1f7e5adb8965af4b2fda592803b5463c3226",
+      "exit_code": 0,
+      "finished_at": "2026-10-04T17:12:43.655121+00:00",
+      "log_sha256": "39b00568ed161c43b803be1b00a9bc806bd0cca427104cd78e0f455338e34fe0",
+      "log_bytes": 248443,
+      "source449_byte_identical": true,
+      "all9_Keynote_controls_executed_and_passed": true,
+      "desktop_display_scenarios_repeated": false,
+      "fullsixgates_still_open": true
+    }
+  },
+  "registered_controller_serialization_arm": {
+    "registered_at": "2026-10-04T16:42:21.790581+00:00",
+    "question": "Does settled-parent inventory accept the actual serde ordinary Folder Node whose default-false package field is omitted, while refusing true?",
+    "prediction": "Original frozen550e controller raises KeyError(package) for real-serde shaped folder within existing completed-import fixture; only absent-to-false package comparison correction makes samefixture pass, true remains refused.",
+    "test": "ControllerContracts.test_completed_package_import_exact_binding",
+    "original_controller_sha256": "550e37c66a04c8a8035c1e9b33807e07a61923532dc51eee94b554e478b65580",
+    "evidence_source": "cirrove-core Node serde skip_serializing_if=not plus prior319 settledfolder receipt shape",
+    "scope": "Private controller correction, no production source/new cloud failure; no execution before registration."
+  },
+  "local_controller_results": {
+    "summary": {
+      "version": 1,
+      "run": "de9eb662-5df7-489e-b6c5-978abeb8f4c8",
+      "status": "privatecontrollercorrected/frozen/localcontractsverified;rootreviewandruntimefreezepending",
+      "controller_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9",
+      "tests_sha256": "5f06a124891091fd1fcbc69ac4030b4a2852e18c60cc2bc5861c248a89b45a91",
+      "plan_sha256": "9a196f080b9d95dc7a750a5c6f56f544e74b2b07a9c184adf16bc0e9e6d3b157",
+      "runtime_contract_sha256": "b3e1431f52a949c794018e1cbe09e8ce044a59b84f73f44b4ac1054ddb5b585e",
+      "arms": {
+        "controller-serde-baseline9-v1": {
+          "manifest": ".local-state/icloud-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8/controller-serde-baseline9-v1.json",
+          "manifest_sha256": "e8c40bb41590bb2891a7b241f14b8ff1901468200561dfbdd9964f689315739c",
+          "log_sha256": "c18278f6ab638e3a91d641eba6773f66e37224b610bf3e74f196a008ba1489d5",
+          "actual_tests": 9,
+          "exit_code": 1,
+          "started_at": "2026-10-04T16:42:50.356552+00:00",
+          "controller_sha256": "550e37c66a04c8a8035c1e9b33807e07a61923532dc51eee94b554e478b65580"
+        },
+        "controller-corrected9-v2": {
+          "manifest": ".local-state/icloud-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8/controller-corrected9-v2.json",
+          "manifest_sha256": "d686736072df4217fad0fc9978b1aca094be257cf09fc872079fe0b0a30bdf78",
+          "log_sha256": "90f377b48df16268a5e866fd54fd3380900d5e7ebb467ba066d7d0faa59b3f4e",
+          "actual_tests": 9,
+          "exit_code": 0,
+          "started_at": "2026-10-04T16:43:27.123504+00:00",
+          "controller_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9"
+        },
+        "controller-scope-omitted1-v2": {
+          "manifest": ".local-state/icloud-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8/controller-scope-omitted1-v2.json",
+          "manifest_sha256": "04cd933afa1b561d00b95e7e0228feb47a529dcfc72c8d6092c34dcec5348fe4",
+          "log_sha256": "4c2da0cf7e5d8370eb971195107e7c90288b6faf0352b5621ffd791edbe75662",
+          "actual_tests": 1,
+          "exit_code": 0,
+          "started_at": "2026-10-04T16:44:02.858885+00:00",
+          "controller_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9"
+        },
+        "controller-scope-omitted1-v3": {
+          "manifest": ".local-state/icloud-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8/controller-scope-omitted1-v3.json",
+          "manifest_sha256": "522b2565169aa46ecc83dc3abd255c7d40f68e5cb4bd301231af19788af3c8b5",
+          "log_sha256": "3aa0dde1e01ccb19867043496518a43a74e60592532cbd7d3210981e6bc0abf1",
+          "actual_tests": 1,
+          "exit_code": 1,
+          "started_at": "2026-10-04T16:45:17.975265+00:00",
+          "controller_sha256": "653d5c526aada1ae2ce4b9ced1c2190fbe53b36786b54c1ff846f170d9f3134b"
+        },
+        "controller-restored9-v3": {
+          "manifest": ".local-state/icloud-keynote-import-de9eb662-5df7-489e-b6c5-978abeb8f4c8/controller-restored9-v3.json",
+          "manifest_sha256": "f62278c32ca564b54ff554683b923ead4512aed45179a2f8145e363d6f81656d",
+          "log_sha256": "90f377b48df16268a5e866fd54fd3380900d5e7ebb467ba066d7d0faa59b3f4e",
+          "actual_tests": 9,
+          "exit_code": 0,
+          "started_at": "2026-10-04T16:45:41.343769+00:00",
+          "controller_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9"
+        }
+      },
+      "baseline_endpoint": "ordinary folder Node omits false package; baselineKeyErrorbeforeimport",
+      "fix_scope": "Only normalize absentfalse package for settledordinaryfolder comparison, preserve allpackage/current/identity guards.",
+      "sensitive_omission_endpoint": "Exact wrongstanding scope accepted assertion failure with onlygrant scope predicate absent.",
+      "restored_byte_exact": true,
+      "authoring_corrections": [
+        "Firstcopy script NameErrorbeforefilecreation, retainedfreeze description.",
+        "Firstscope omission script expectedtrailing space; refusedwithoutsource edit. Subsequent exact1 ran canonical and passed; retainedv2manifest+correctionJSON. Corrected v3 actuallyomitted predicate and failed."
+      ],
+      "execution_tool_results": {
+        "baseline9": {
+          "chunk": "149138",
+          "exit_code": 1
+        },
+        "corrected9": {
+          "chunk": "af3931",
+          "exit_code": 0
+        },
+        "unappliedcontrolcanonical1": {
+          "chunk": "2281f4",
+          "exit_code": 0
+        },
+        "actualscopeomitted1": {
+          "chunk": "3ade90",
+          "exit_code": 1
+        },
+        "restored9": {
+          "chunk": "61f262",
+          "exit_code": 0
+        }
+      },
+      "runtime_authorization_authored": false,
+      "operational_controller_phases_executed": false,
+      "cloud_mutated": false,
+      "installed_state_changed": false,
+      "local_test_lease_released": true,
+      "remaining_inputs": [
+        "rootstandinggrantrecord/finalruntime",
+        "root-token/rootpin",
+        "rootpeerreview of2linefix",
+        "optional actual mountedrawread notsemantic/editoracceptance"
+      ]
+    },
+    "root_verification": {
+      "verified_at": "2026-10-04T16:48:08.435974+00:00",
+      "summary_sha256": "a02f120be4a33641145b845385c00cf2d5defc1b20fab82c314e5a654d9b507c",
+      "final_controller_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9",
+      "all_five_arms_manifest_log_count_and_endpoint_verified": true,
+      "first_test_after_public_and_serde_registration": true,
+      "canonical_v2_scope_test_pass_not_negative_proof": true,
+      "byte_exact_restoration": true,
+      "operational_or_cloud_actions": false
+    }
+  },
+  "final_independent_controller_review": {
+    "result": "pass-no-blocker",
+    "controller_sha256": "1950be6babc577d703b4b584ead0633b645f07040247e44b9c99e1c6597ae4d9",
+    "serialization_fix": "Only omitted defaultfalse package normalization on ordinary folder comparison; packageTrue/nonbool still refused.",
+    "executions_or_edits": false
+  },
+  "pre_execution_registration_sha256": "6e535bf8f08c69d3907303b039d267836c34721dfead316c4ae25944bb46aecf"
+}

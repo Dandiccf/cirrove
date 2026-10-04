@@ -1878,7 +1878,56 @@ the test setup. Both runs are preserved. Desktop display scenarios were not
 repeated locally. Source CI and the subsequent live import remain separate
 endpoints.
 
-No Keynote import through Cirrove or imported-document Apple open has yet run.
-These source and observer checks establish neither editor saves, replacement,
+At this preparation endpoint, no Keynote import through Cirrove or imported-
+document Apple open had run. These source and observer checks establish neither
+editor saves, replacement,
 Trash, DATA acceptance nor installed transitions. All six full-iCloud
 requirements remain unchecked.
+
+### Owned Keynote PACKAGE import completed on 4 October 2026
+
+The [fresh registered Keynote arm](benchmarks/icloud-keynote-import-2026-10-04.json)
+completed one owned UUID folder, one account-bound public CLI import, public watch
+and archive access on the original mount. After exact-PID shutdown and unmount,
+the distinct receipt observer independently verified current content, source-v2
+identity, exact item/revision and completed metadata publication. The journal has
+one Applied folder, one Uploaded import, two completed queue rows, one parent
+namespace, no working files and no native-save association. Read-only peer review
+recomputed the same 58-entry/54-file/516253-byte semantic identity from source,
+mounted archive and independent download. Raw ZIP hashes differ; semantic content
+is identical. Read-only inspection preserved DB/WAL/SHM bytes and inodes. All
+11 recorded process identities are gone and the mount is absent. The installed
+daemon and all 19 packaged artifacts remain unchanged.
+
+Before this cloud run, independent controller review found a default-field
+serialization defect: Rust omits `package=false` on ordinary folders, while the
+private controller indexed it directly. The actual serialized fixture first
+failed with `KeyError`, then passed all nine controls after narrow absent-false
+normalization. The registered authorization-scope omission failed its exact
+control, and restored source passed all nine. An unapplied omission's canonical
+pass is retained as a fixture-authoring correction, not negative proof. These
+are private trial changes; the product source was unchanged. Initial daemon
+readiness briefly reported updating/offline, then became ready before any folder
+dispatch. The first folder poll was confirmation-pending; the same operation
+later reached Applied without resubmission.
+
+In the [separate registered Apple-open observation](benchmarks/icloud-keynote-apple-open-2026-10-04.json),
+Keynote opened the unique imported title and displayed one slide with the exact
+registered title/subtitle. The template's unfilled Author and Date placeholder
+was also visible. No edits were submitted and the two own browser tabs were
+closed. A conversation screenshot was observed; no filesystem screenshot
+artifact is claimed. Direct opaque UI-ID-to-CloudDocs mapping remains unproven.
+
+This single PACKAGE import/read/application-open arm is partial evidence for
+requirement487. It does not establish genuine DATA acceptance, ordinary/atomic
+editor saves, Keynote replacement/Trash, export fidelity, timing repeatability
+or installed transitions. All six full-iCloud requirements remain unchecked.
+
+The observer source `8f101af` subsequently passed all seven jobs in
+[CI37217220504](https://github.com/Dandiccf/cirrove/actions/runs/37217220504).
+That source snapshot is separate from the later live-evidence documentation and
+does not establish installed migration or timing repeatability.
+
+A final complete `scripts/check.sh` after the README/live-evidence updates also
+passed, with all 449 Rust/Cargo source files unchanged and all nine Keynote
+controls executed. Desktop display scenarios were not repeated locally.

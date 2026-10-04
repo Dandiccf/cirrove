@@ -37,7 +37,7 @@
     "Production offline scanner verifies the genuine Apple source identity with no cloud session",
     "No full gate closes from these synthetic/offline controls"
   ],
-  "status": "focused-9-controls-genuine-source-scan-and-complete-project-check-passed-live-import-pending",
+  "status": "local-project-check-and-subsequent-one-owned-live-Keynote-import-proof-passed",
   "results": {
     "source_summary_sha256": "cab902863e357b1ac6b66ff23de92a7c93b2ed067d4178a651e4fa6a8c5ee35a",
     "arms": {
@@ -153,8 +153,46 @@
       "full_check_not_yet_run": true,
       "cloud_import_started": false
     },
-    "source_ci": "New feature-only observer source not yet in remote CI",
-    "live_import_or_receipt_readback_verified": false,
+    "source_ci": {
+      "verified_at": "2026-10-04T17:06:15.693473+00:00",
+      "run": 37217220504,
+      "head_sha": "8f101af3c7bc79fe8b4f663cb3c537271e895855",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "dependency-audit",
+          "conclusion": "success"
+        },
+        {
+          "name": "rpm-package",
+          "conclusion": "success"
+        },
+        {
+          "name": "linux",
+          "conclusion": "success"
+        },
+        {
+          "name": "deb-package",
+          "conclusion": "success"
+        },
+        {
+          "name": "mounted-read-workloads",
+          "conclusion": "success"
+        },
+        {
+          "name": "arch-package",
+          "conclusion": "success"
+        },
+        {
+          "name": "headless-package-install",
+          "conclusion": "success"
+        }
+      ],
+      "url": "https://github.com/Dandiccf/cirrove/actions/runs/37217220504",
+      "scope": "Keynote observer source snapshot8f101af; separate from subsequent live evidence documentation."
+    },
+    "live_import_or_receipt_readback_verified": true,
     "scope_limits": [
       "No Keynote cloud import/receipt/readback/reopen executed by this agent.",
       "No editor save, replacement, Trash or general provider reliability established.",
@@ -215,7 +253,8 @@
       "desktop_display_scenarios_repeated": false,
       "cloud_or_installed_actions": false
     },
-    "root_full_check_verification_sha256": "39d92079bb70f96f04bb94900be01db51f0e069e16e7a85ca056de63af9e50a6"
+    "root_full_check_verification_sha256": "39d92079bb70f96f04bb94900be01db51f0e069e16e7a85ca056de63af9e50a6",
+    "subsequent_live_evidence": "docs/benchmarks/icloud-keynote-import-2026-10-04.json"
   },
   "full_icloud_gates_closed": 0,
   "installed_changes": false,

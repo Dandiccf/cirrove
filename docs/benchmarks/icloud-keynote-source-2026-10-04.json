@@ -14,7 +14,7 @@
   "maximum_expanded_bytes": 67108864,
   "maximum_archive_entries": 10000,
   "full_icloud_gates_closed": 0,
-  "status": "genuine-Apple-source-and-production-offline-semantic-proof-verified-import-pending",
+  "status": "genuine-Apple-source-offline-proof-and-subsequent-owned-Cirrove-import-verified",
   "results": {
     "recorded_at": "2026-10-04T15:44:26.749415+00:00",
     "download_event_observed": true,
@@ -51,7 +51,7 @@
     "slide_subtitle_observed": "Owned import acceptance A",
     "slides_observed": 1,
     "opaque_app_identifier": "02d37I-vBxIIIhtMN87Tw4I7w",
-    "public_cirrove_import_started": false,
+    "public_cirrove_import_started": true,
     "full_icloud_gates_closed": 0,
     "wrapped_import_source": {
       "registered_at": "2026-10-04T15:49:55.782951+00:00",
@@ -81,6 +81,7 @@
     "source_proof_sha256": "440f05f2080368f3849bc1ec73e5956b852425cb0f11c028356f4322dad516a7",
     "native_export_embedded_preview_sha256": "4ef2a79199c2c4ad08735b6b8f66e7528f8d01580ab14c95648eccdedd3470f8",
     "native_export_embedded_preview_title_and_subtitle_visually_verified": true,
-    "independent_asset_review": "PASS: all54 member contents/type/metadata/comment preserved, exact source/settings/ciphertext pins, private modes, actual ext4 temp, no journal/metadata copy. Semantic58 includes inferred directories; physical ZIP entries54."
+    "independent_asset_review": "PASS: all54 member contents/type/metadata/comment preserved, exact source/settings/ciphertext pins, private modes, actual ext4 temp, no journal/metadata copy. Semantic58 includes inferred directories; physical ZIP entries54.",
+    "subsequent_live_import_evidence": "docs/benchmarks/icloud-keynote-import-2026-10-04.json"
   }
 }
