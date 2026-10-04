@@ -40,7 +40,7 @@ impl ICloudWriteProvider {
         request: &UploadRequest,
         checkpoint: Option<&SecretString>,
     ) -> Result<Arc<dyn UploadProvider>> {
-        let operation_id = self.validate_operation(operation, request)?;
+        self.validate_operation(operation, request)?;
         match (&request.representation, &request.intent) {
             (UploadRepresentation::PackageArchive { .. }, UploadIntent::Create { .. }) => {}
             (
@@ -53,50 +53,17 @@ impl ICloudWriteProvider {
         if let Some(adapter) = &self.package_test_adapter {
             return Ok(adapter.clone());
         }
-        let staging = self.package_staging()?;
-        if let UploadRepresentation::PackageReplacementArchive { original, .. } =
-            &request.representation
-        {
-            let sign_in = ICloudSealedSignIn {
-                apple_id: self.apple_id.clone(),
-                credential_id: self.credential_id.clone(),
-            };
-            let adapter = if let Some(saved) = checkpoint {
-                // The original may already be in Trash. Restore only the exact
-                // captured operation/request/parent, never today's path index.
-                ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
-                    request.clone(),
-                    operation_id,
-                    sign_in,
-                    &self.state,
-                    &staging,
-                    saved,
-                )?
-            } else {
-                let parent = self
-                    .parent(original.parent_id.as_deref().ok_or(UploadError::Invalid)?)
-                    .await?;
-                // Construction performs no provider I/O; begin/allocation verify
-                // the selected original's actual representation and semantic bytes.
-                ICloudFileReplace::native_package_from_sealed_session(
-                    request.clone(),
-                    parent,
-                    operation_id,
-                    sign_in,
-                    &self.state,
-                    &staging,
-                )?
-            };
-            let adapter = adapter.with_write_staging_budget(self.package_staging_budget.clone())?;
-            #[cfg(test)]
-            let adapter = if let Some(client) = &self.package_test_transport {
-                adapter.with_synthetic_native_transport(client.clone())?
-            } else {
-                adapter
-            };
-            return Ok(Arc::new(adapter));
+        if matches!(
+            &request.representation,
+            UploadRepresentation::PackageReplacementArchive { .. }
+        ) {
+            return Ok(Arc::new(
+                self.native_package_adapter(operation, request, checkpoint)
+                    .await?,
+            ));
         }
 
+        let staging = self.package_staging()?;
         if let Some(checkpoint) = checkpoint {
             return Ok(Arc::new(
                 ICloudPackageCreate::restore_from_sealed_checkpoint(
@@ -127,6 +94,60 @@ impl ICloudWriteProvider {
             )?
             .with_write_staging_budget(self.package_staging_budget.clone()),
         ))
+    }
+    // Preserve the concrete native coordinator for feature-only checkpoint
+    // diagnostics. Normal routing still uses this same constructor/restore path.
+    pub(crate) async fn native_package_adapter(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: Option<&SecretString>,
+    ) -> Result<ICloudFileReplace> {
+        let operation_id = self.validate_operation(operation, request)?;
+        let UploadRepresentation::PackageReplacementArchive { original, .. } =
+            &request.representation
+        else {
+            return Err(UploadError::Invalid);
+        };
+        let staging = self.package_staging()?;
+        let sign_in = ICloudSealedSignIn {
+            apple_id: self.apple_id.clone(),
+            credential_id: self.credential_id.clone(),
+        };
+        let adapter = if let Some(saved) = checkpoint {
+            // The original may already be in Trash. Restore only the exact
+            // captured operation/request/parent, never today's path index.
+            ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
+                request.clone(),
+                operation_id,
+                sign_in,
+                &self.state,
+                &staging,
+                saved,
+            )?
+        } else {
+            let parent = self
+                .parent(original.parent_id.as_deref().ok_or(UploadError::Invalid)?)
+                .await?;
+            // Construction performs no provider I/O; begin/allocation verify
+            // the selected original's actual representation and semantic bytes.
+            ICloudFileReplace::native_package_from_sealed_session(
+                request.clone(),
+                parent,
+                operation_id,
+                sign_in,
+                &self.state,
+                &staging,
+            )?
+        };
+        let adapter = adapter.with_write_staging_budget(self.package_staging_budget.clone())?;
+        #[cfg(test)]
+        let adapter = if let Some(client) = &self.package_test_transport {
+            adapter.with_synthetic_native_transport(client.clone())?
+        } else {
+            adapter
+        };
+        Ok(adapter)
     }
 }
 #[cfg(test)]

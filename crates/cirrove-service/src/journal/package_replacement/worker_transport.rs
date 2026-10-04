@@ -129,7 +129,7 @@ fn entry(p: &Plan, s: &State, old: bool) -> serde_json::Value {
             &generation.staged_etag
         };
         return json!({"drivewsid":node.id,"docwsid":node.id.rsplit("::").next().unwrap(),"zone":"com.apple.CloudDocs","type":"FILE",
-            "name":name.strip_suffix(".pages").unwrap(),"extension":"pages","size":node.size,
+            "name":name.rsplit_once('.').unwrap().0,"extension":name.rsplit_once('.').unwrap().1,"size":node.size,
             "parentId":if old&&s.trashed{"TRASH_ROOT"}else if old&&s.moved{"FOLDER::com.apple.CloudDocs::elsewhere"}else{FOLDER},
             "restorePath":if old&&s.trashed{json!(["owned"])}else{json!(null)},"etag":etag});
     }
@@ -139,7 +139,7 @@ fn entry(p: &Plan, s: &State, old: bool) -> serde_json::Value {
         &p.staged_name
     };
     json!({"drivewsid":if old{OLD}else{NEW},"docwsid":if old{"old"}else{"new"},"zone":"com.apple.CloudDocs","type":"FILE",
-        "name":name.strip_suffix(".pages").unwrap(),"extension":"pages","size":17,
+        "name":name.rsplit_once('.').unwrap().0,"extension":name.rsplit_once('.').unwrap().1,"size":17,
         "parentId":if old&&s.trashed{"TRASH_ROOT"}else if old&&s.moved{"FOLDER::com.apple.CloudDocs::elsewhere"}else{FOLDER},
         "restorePath":if old&&s.trashed{json!(["owned"])}else{json!(null)},
         "etag":if old&&s.changed{"changed"}else if old&&s.trashed{"trash-v2"}else if old{"old-v1"}else if s.installed{"new-v2"}else{"new-v1"}})
@@ -744,3 +744,7 @@ async fn native_coordinator_worker_package_readback_storage_refusal_requires_exp
 
 #[path = "worker_transport/fuse_https.rs"]
 mod fuse_https;
+
+#[cfg(feature = "icloud-write-probe")]
+#[path = "../../validation/icloud_account/native_final_recovery/tls_tests.rs"]
+mod native_final_tests;

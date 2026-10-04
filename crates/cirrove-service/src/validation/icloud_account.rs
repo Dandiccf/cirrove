@@ -103,6 +103,7 @@ pub async fn icloud_account_uploads(run: Uuid) -> Result<()> {
 }
 
 mod mounted;
+pub(crate) mod native_final_recovery;
 pub use mounted::{
     icloud_account_empty_read, icloud_account_mounted, icloud_account_mounted_applications,
     icloud_account_mounted_atomic, icloud_account_mounted_competing,
@@ -658,8 +659,9 @@ pub use owned_package::{
     icloud_owned_fixture_verify, icloud_owned_fuse_capture_verify,
     icloud_owned_fuse_receipt_verify, icloud_owned_fuse_source_verify,
     icloud_owned_keynote_import_receipt_verify, icloud_owned_keynote_source_verify,
-    icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
-    icloud_owned_package_import, icloud_owned_package_mounted, icloud_owned_package_restore,
+    icloud_owned_native_import_fixture_verify, icloud_owned_numbers_data_receipt_verify,
+    icloud_owned_numbers_data_source_verify, icloud_owned_package_import,
+    icloud_owned_package_mounted, icloud_owned_package_restore,
     icloud_owned_package_restore_inspect, icloud_owned_package_restore_shape,
     icloud_owned_package_source, icloud_owned_package_trash, icloud_owned_package_trash_inspect,
     icloud_owned_package_verify, icloud_owned_receipt_verify, icloud_public_native_manifest,

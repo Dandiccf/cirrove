@@ -2,6 +2,12 @@
 //! checks create every target they change; read checks emit only aggregate data.
 #[cfg(feature = "icloud-write-probe")]
 mod icloud_account;
+#[cfg(all(test, feature = "icloud-write-probe"))]
+pub(crate) use icloud_account::native_final_recovery;
+#[cfg(feature = "icloud-write-probe")]
+pub use icloud_account::native_final_recovery::{
+    icloud_native_final_loss, icloud_native_final_recover,
+};
 #[cfg(feature = "icloud-write-probe")]
 pub use icloud_account::{
     icloud_account_cold_node, icloud_account_combined, icloud_account_combined_inspect,
@@ -26,9 +32,9 @@ pub use icloud_account::{
     icloud_native_v2_preflight, icloud_native_v2_verify, icloud_owned_fixture_verify,
     icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,
     icloud_owned_fuse_source_verify, icloud_owned_keynote_import_receipt_verify,
-    icloud_owned_keynote_source_verify, icloud_owned_numbers_data_receipt_verify,
-    icloud_owned_numbers_data_source_verify, icloud_owned_package_import,
-    icloud_owned_package_mounted, icloud_owned_package_restore,
+    icloud_owned_keynote_source_verify, icloud_owned_native_import_fixture_verify,
+    icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
+    icloud_owned_package_import, icloud_owned_package_mounted, icloud_owned_package_restore,
     icloud_owned_package_restore_inspect, icloud_owned_package_restore_shape,
     icloud_owned_package_source, icloud_owned_package_trash, icloud_owned_package_trash_inspect,
     icloud_owned_package_verify, icloud_owned_receipt_verify, icloud_public_native_bootstrap,

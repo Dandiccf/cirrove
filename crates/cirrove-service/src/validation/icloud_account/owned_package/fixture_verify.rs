@@ -266,6 +266,9 @@ pub async fn icloud_owned_fixture_verify(
     Ok(result)
 }
 
+mod native_import_fixture;
+pub use native_import_fixture::icloud_owned_native_import_fixture_verify;
+
 mod receipt_bound;
 pub use receipt_bound::{
     icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,

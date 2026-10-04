@@ -430,6 +430,24 @@ async fn main() -> Result<()> {
     let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
     if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-final-loss"
+    {
+        return cirrove_service::validation::icloud_native_final_loss(
+            Path::new(registration),
+            digest,
+        )
+        .await;
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-final-recover"
+    {
+        return cirrove_service::validation::icloud_native_final_recover(
+            Path::new(registration),
+            digest,
+        )
+        .await;
+    }
+    if let [flag, registration, digest] = args.as_slice()
         && flag == "--owned-numbers-data-source-verify"
     {
         let proof = cirrove_service::validation::icloud_owned_numbers_data_source_verify(
@@ -495,6 +513,17 @@ async fn main() -> Result<()> {
         && flag == "--owned-fuse-receipt-verify"
     {
         let proof = cirrove_service::validation::icloud_owned_fuse_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-import-fixture-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_native_import_fixture_verify(
             Path::new(registration),
             digest,
         )
