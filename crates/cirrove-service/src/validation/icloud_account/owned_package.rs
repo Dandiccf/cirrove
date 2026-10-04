@@ -452,4 +452,7 @@ pub use replacement_live::{
 };
 
 mod fixture_verify;
-pub use fixture_verify::{icloud_owned_fixture_verify, icloud_owned_receipt_verify};
+pub use fixture_verify::{
+    icloud_owned_fixture_verify, icloud_owned_fuse_capture_verify,
+    icloud_owned_fuse_receipt_verify, icloud_owned_fuse_source_verify, icloud_owned_receipt_verify,
+};

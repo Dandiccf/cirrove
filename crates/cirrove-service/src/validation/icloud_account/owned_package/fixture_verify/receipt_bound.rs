@@ -515,7 +515,7 @@ pub async fn icloud_owned_receipt_verify(path: &Path, digest: &str) -> Result<se
 mod tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
-    fn fixture() -> (
+    pub(super) fn fixture() -> (
         Registration,
         Node,
         MutationRecord,
@@ -769,3 +769,9 @@ mod tests {
         assert!(source_verified(&source).is_err());
     }
 }
+
+mod fuse;
+pub use fuse::{
+    icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,
+    icloud_owned_fuse_source_verify,
+};

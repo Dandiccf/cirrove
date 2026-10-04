@@ -1747,3 +1747,37 @@ This successful single PACKAGE CLI workflow is partial evidence for requirements
 Pages/Keynote application acceptance, reopen/remount/export fidelity, installed
 transitions and broader reliability remain open. All six full-iCloud requirements
 remain unchecked; installed schema14 state was not deployed or migrated.
+
+### Preparing a Numbers save through the normal mount on 4 October 2026
+
+The [next preregistered owned Numbers arm](benchmarks/icloud-numbers-fuse-save-2026-10-04.json)
+targets one canonical archive save through a normal account mount, held-original
+reads, recoverable Trash and a read-only remount with no additional operation.
+It has not run against iCloud and needs new explicit authorization; the previous
+CLI trial's authorization is consumed.
+
+Local preparation preserves the Apple-created A/B documents. Only B's ZIP root
+is renamed to the fresh document's canonical archive name. The production
+semantic-v2 scanner verified all three pinned sources and confirmed that this
+rewrite preserves B's content identity. Distinct offline source/capture modes
+and a read-only receipt observer bind the run, source, native working association,
+typed current/Trash receipts and completed publication. They keep the earlier
+CLI receipt observer's source scope unchanged.
+
+Eight new synthetic tests and four unchanged CLI-observer tests passed. Real
+local journal fixtures cover import, native hydration/sealing, acknowledgement,
+publication and active or retired working streams. A completed CLI replacement
+without a native working association is refused by the FUSE observer. Removing
+only the registered working-UUID guard caused its exact test to fail; restoring
+the source made all eight pass. Fixture-authoring corrections are recorded
+separately from that controlled failure. The private writer also passed eleven
+offline tests and a separate 30-minute-window omission control. Sixteen private
+controller contract tests and three local system-Python/process compatibility
+checks passed. Two private one-line omission controls also demonstrated that
+the abort checks detect a blocked writer and an orphaned late scanner; their
+unchanged controls passed. These are proposal safety checks with simulated
+processes. The complete `scripts/check.sh` also passed after a Clippy
+correction. Preserved authoring failures and corrections remain in the artifact.
+Frozen runtime integration and its final review remain in preparation. These
+are local validation results, not a real FUSE save, editor acceptance or a closed
+release requirement.

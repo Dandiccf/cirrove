@@ -429,6 +429,37 @@ async fn verify_large_bytes(
 async fn main() -> Result<()> {
     let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-fuse-capture-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_fuse_capture_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-fuse-source-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_fuse_source_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-fuse-receipt-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_fuse_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
     if let [flag, manifest, digest] = args.as_slice()
         && flag == "--owned-fixture-verify"
     {

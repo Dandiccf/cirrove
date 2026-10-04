@@ -410,6 +410,113 @@ impl RecoveryJournal {
             |row| row.get(0),
         )?)
     }
+    pub(crate) fn native_validation_working_inventory(&self) -> Result<(i64, i64)> {
+        Ok(self.journal.db.query_row(
+            "SELECT count(*),coalesce(sum(CASE WHEN json_extract(body,'$.dirty')=1 OR json_extract(body,'$.unlinked')=1 THEN 1 ELSE 0 END),0) FROM working_files",
+            [], |row| Ok((row.get(0)?, row.get(1)?)),
+        )?)
+    }
+    /// Indexed read-only native source/byte-stream association. Existing shape
+    /// validation binds either live working bytes or an exact dormant slot.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn native_validation_fuse_association(
+        &self,
+        operation: Uuid,
+    ) -> Result<
+        Option<(
+            Uuid,
+            Uuid,
+            NamespaceObject,
+            NamespaceObject,
+            Option<WorkingFile>,
+        )>,
+    > {
+        let association: Option<(String, String)> = self
+            .journal
+            .db
+            .query_row(
+                "SELECT working,owner FROM native_working_operations WHERE operation=?1",
+                [operation.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((working, owner)) = association else {
+            return Ok(None);
+        };
+        let working = Uuid::parse_str(&working).map_err(|_| JournalError::Corrupt)?;
+        let owner = Uuid::parse_str(&owner).map_err(|_| JournalError::Corrupt)?;
+        let source = self.journal.namespace_object(owner)?;
+        let child = self.journal.namespace_object(working)?;
+        super::working::native::projection::validate_child(&self.journal.db, &child)?;
+        if source.scope.account != self.journal.account
+            || source.scope != child.scope
+            || self
+                .journal
+                .namespace_for_operation(operation)?
+                .is_none_or(|object| object.id != owner)
+        {
+            return Err(JournalError::Corrupt);
+        }
+        let body: Option<String> = self
+            .journal
+            .db
+            .query_row(
+                "SELECT body FROM working_files WHERE id=?1",
+                [working.to_string()],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let file: Option<WorkingFile> = body.map(|body| serde_json::from_str(&body)).transpose()?;
+        let row = self.journal.get(operation)?;
+        let (original, current, _) = row
+            .native_replacement_receipt()
+            .ok_or(JournalError::Corrupt)?;
+        let UploadRepresentation::PackageReplacementArchive {
+            original_semantic,
+            semantic,
+            ..
+        } = &row.representation
+        else {
+            return Err(JournalError::Corrupt);
+        };
+        if source.remote.as_ref() != Some(current) || source.remote_sequence != row.sequence {
+            return Err(JournalError::Corrupt);
+        }
+        if file.is_some() {
+            let body: String = self.journal.db.query_row(
+                "SELECT body FROM native_working_bindings WHERE working=?1",
+                [working.to_string()],
+                |r| r.get(0),
+            )?;
+            let binding: serde_json::Value = serde_json::from_str(&body)?;
+            let body: String = self.journal.db.query_row(
+                "SELECT body FROM native_working_heads WHERE working=?1",
+                [working.to_string()],
+                |r| r.get(0),
+            )?;
+            let head: serde_json::Value = serde_json::from_str(&body)?;
+            if binding["scope"] != serde_json::to_value(&row.scope)?
+                || binding["source"] != serde_json::to_value(original)?
+                || binding["semantic"] != serde_json::to_value(original_semantic)?
+                || head["semantic"] != serde_json::to_value(semantic)?
+            {
+                return Err(JournalError::Corrupt);
+            }
+        } else {
+            let body: String = self.journal.db.query_row(
+                "SELECT body FROM native_retired_slots WHERE working=?1 AND owner=?2",
+                params![working.to_string(), owner.to_string()],
+                |r| r.get(0),
+            )?;
+            let slot: serde_json::Value = serde_json::from_str(&body)?;
+            if slot["current"] != serde_json::to_value(current)?
+                || slot["scope"] != serde_json::to_value(&row.scope)?
+            {
+                return Err(JournalError::Corrupt);
+            }
+        }
+        Ok(Some((working, owner, source, child, file)))
+    }
     pub(crate) fn native_validation_upload(&self, id: Uuid) -> Result<UploadRecord> {
         self.journal.get(id)
     }
