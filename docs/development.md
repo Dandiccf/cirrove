@@ -678,13 +678,24 @@ switching. Empty standard generator or transient search directories are allowed;
 a relevant unit there is refused. The current, live and packaged state routes must
 all be inspectable and empty of retained account, index or journal markers.
 
-Package presence, file identity and the source policy do not attest the target
-binary's journal schema. Consequently, **any retained state refuses package
-switching, even when the source policy is released**. This guard does not perform
-an installed transition or make a downgrade safe. Inaccessible state or benchmark
-directories also refuse inspection instead of being treated as empty. Portable
-script controls run in the normal check and CI; the actual switch proof uses an
-isolated filesystem namespace with unchanged HOME and inert mutation commands.
+For supported empty state routes, the package-switch preflight queries the exact
+selected `cirroved` with `--storage-format-json`.
+Its versioned declaration reports the journal and metadata writer formats from
+the compiled schema constants, without opening state, mounting accounts or
+starting the service. The preflight requires the exact supported JSON fields and
+integer schema versions to match the source policy. It binds the query to the
+selected executable's identity and bytes, repeats it, and rechecks service routes,
+policy, embargoes and retained-state markers after the queries. An old binary
+without this flag, a malformed or mismatched declaration, a timeout or a changed
+target refuses switching.
+
+**Any retained state still refuses package switching, even when the reported
+formats match and the source policy is released.** The declaration does not
+release the prerelease hold or establish package authenticity, read compatibility,
+migration safety or a safe downgrade. Inaccessible state or benchmark directories
+also refuse inspection instead of being treated as empty. Portable script controls
+run in the normal check and CI; the actual switch proof uses an isolated filesystem
+namespace with unchanged HOME and inert mutation commands.
 The [package switch evidence](benchmarks/package-switch-preflight-2026-10-04.json)
 and [developer installer evidence](benchmarks/icloud-installation-preflight-2026-10-03.json)
 establish guarded refusal, not installed iCloud transition acceptance.

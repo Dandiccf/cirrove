@@ -2057,3 +2057,23 @@ recovery for this Numbers PACKAGE fixture. It does not prove real session
 expiration, editor fidelity, repeated reliability or installed transitions.
 The three logical mutations were bounded; total HTTP mutations were not
 instrumented. All six full-iCloud requirements and the deployment hold remain open.
+
+### Compiled storage-format declaration on 5 October 2026
+
+The daemon now exposes `--storage-format-json` before opening local state or
+starting the service. It reports the compiled journal and metadata writer
+constants. The package-switch preflight queries the exact selected executable
+through a held descriptor, caps time and output, requires the supported schema
+pair, and rechecks service routes and retained-state markers after both queries.
+
+The [registered format validation](benchmarks/storage-format-attestation-2026-10-05.json)
+first demonstrated the missing report on the original executable. The corrected
+daemon tests, strict format and route-change controls, isolated package-switch
+scenarios and complete `scripts/check.sh` passed. Two queries of a derived,
+uninstalled copy of the actual new daemon also passed; that copy is not evidence
+of package signing or an installed transition.
+
+This supplies a concrete prerequisite for requirement488. Every retained state
+still refuses package switching, including matching formats under released
+policy. Existing held-policy restrictions remain. No installed account was
+migrated, no service restarted, and no full-iCloud requirement closed.

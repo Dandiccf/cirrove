@@ -36,6 +36,17 @@ use tokio::{
 
 pub const STATUS_PROTOCOL_VERSION: u32 = 1;
 
+/// The formats this executable writes. Reporting does not open local state,
+/// establish package authenticity, or authorize migration/downgrade.
+pub fn storage_format_attestation() -> serde_json::Value {
+    serde_json::json!({
+        "version": 1,
+        "product": "cirroved",
+        "journal_schema": journal::JOURNAL_SCHEMA,
+        "metadata_schema": cirrove_store::SCHEMA_VERSION,
+    })
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Status {
     /// Additive desktop control contract; legacy daemons deserialize as zero.

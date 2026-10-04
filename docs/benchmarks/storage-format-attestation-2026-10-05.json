@@ -1,0 +1,367 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-04T23:15:15.939702+00:00",
+  "status": "implemented and complete local contributor check passed; new sourceCI pending; no installed transition",
+  "question": "Can the exact selected cirroved executable declare its compiled journal/metadata writer formats without initializing state, and can package preflight require that bounded declaration while preserving every retained-state/HOLD refusal?",
+  "prediction": "Original executable rejects unknown flag before state init; corrected executable returns exact19/8 JSON without state init. Held-FD query rejects old/malformed/mismatched/changed targets and reaps timed-out owned children. New prototype query2 route-drift control fails before corrected ordering and passes after it.",
+  "source_head": "d7b193c43fad6a5167599e5fbe63dc9e6417d879",
+  "implementation_patch_sha256": "c81e8bfbe2a9557727e91d50e21289950993f67ddbab958f5b12b765fe92ebf6",
+  "tests_patch_sha256": "d57af07f63faaa8754d35985864e348608ce3dba99743ffaf9a87bd51e270413",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sf-20261005",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sf-20261005",
+  "temp_filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "arms": [
+    {
+      "name": "original_actual_daemon",
+      "selector": "daemon_storage_format_reports_compiled_constants_without_state_initialization",
+      "expected_tests": 1,
+      "prediction": "actual test fails compiled-format report unavailable after exit2 unknownflag and state preservation; compilation failure/zero testselection do not count"
+    },
+    {
+      "name": "implemented_actual_daemon",
+      "expected_tests": 2,
+      "prediction": "exact format report and state/socket-route conflict tests pass without state mutation"
+    },
+    {
+      "name": "private_prototype_query2_route_order",
+      "selector": "PackageSwitchPortable.test_second_format_query_route_drift_is_rechecked_before_mutation",
+      "expected_tests": 1,
+      "prediction": "v2 Refusal-not-raised failure then v3 pass with queries==2; unpublished prototype sensitivity, no historic product defect claim"
+    },
+    {
+      "name": "private_foreign_journal_omission",
+      "selector": "StorageFormatAttestation.test_storage_format_reply_requires_exact_policy_schema_pair",
+      "expected_tests": 1,
+      "prediction": "only journal-equality omitted accepts foreign14/currentmetadata8 and testfails; restored same1passes"
+    },
+    {
+      "name": "final_controls",
+      "expected_counts": {
+        "daemon": 2,
+        "portable_package": 21,
+        "isolated_namespace": 3,
+        "existing_developer_installer": 39
+      },
+      "prediction": "all pass; then entire scripts/check.sh"
+    }
+  ],
+  "limits": [
+    "Writer-format declaration is not signature/authenticity, read compatibility, migration/downgrade safety or a measurement lease.",
+    "Every retained state refuses package switching. Existing held-policy restrictions are preserved, including retained markers and held --no-build; empty supported routes are not subject to an unconditional held-state refusal. No installed service/state/credentials/provider mutation or release gate closure.",
+    "Synthetic local query executables are not actual installed binary provenance.",
+    "Path-substitution control can refuse before child dispatch on inode ctime change; no later-boundary proof assumed."
+  ],
+  "previous_goal_turn": "progress: actual native870 final-confirmation-loss recovery passed; source and docs committed; evidence changed next action",
+  "executed": true,
+  "cloud_mutated": false,
+  "installed_actions": false,
+  "authoring_corrections": [
+    {
+      "before_execution": true,
+      "reason": "Static author review clarified existing HOLD semantics: no unconditional refusal for every empty held-policy invocation. Registered claim corrected without code-policy change.",
+      "original_preregistration_sha256": "818fb9b80188a0c98ce85fefc9a4f5cb89cca1dadb00a5183bd8ef817aacc5b3"
+    },
+    {
+      "reason": "Namespace command also executes 15 portable/permission tests (14 existing plus the new route-change control): actual18 passed, including all3 namespace controls. Registration expected3 described the namespace subset, not total selector count. No rerun or narrower success claim.",
+      "namespace_tests": [
+        "test_active_embargo_refuses_before_stop_or_remove",
+        "test_empty_known_state_reaches_stubbed_switch",
+        "test_held_retained_state_refuses_before_stop_or_remove"
+      ]
+    },
+    {
+      "reason": "Peer clarified consumer bridge local sentinel was not routed via XDG to queried child. Its absence is not used as separate no-state evidence; direct actual-daemon XDG test supplies that endpoint. No code change or repeated execution."
+    }
+  ],
+  "baseline_result": {
+    "result": {
+      "exit_code": 101,
+      "duration_seconds": 0.004949673981172964,
+      "sources_unchanged": true,
+      "log_sha256": "dc7e13184d3030b7d06ff7c610a9f3e1fd07985b09694265be4bcfa316efe336",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "actual_tests_executed": 1,
+    "actual_failure": "compiled-format report is unavailable at final success assertion after original unknownflag2/message and no-state preservation assertions",
+    "registration": {
+      "path": ".local-state/icloud-storage-format-attestation-20261005/root-baseline-red-v1-registration.json",
+      "sha256": "8c4b3d2e4c23403e9bfc4cb8ad81ca93168c136a63e534f928d3e16187385135"
+    },
+    "compile_registration_sha256": "7cdabd20676e9c37ebb0b7bcb1d2a80c385b8809488fad3447ff9e66e58788a9",
+    "compile_result_sha256": "42fbf1d7eb99679981bffdffcedd1138b69034fbebe07ae55dd48c91087f1811"
+  },
+  "private_guard_controls_preregistration": {
+    "registered_before_execution": true,
+    "test_sha256": "e3000ff9e867ea9e725f77b4193c9034a99b5e5485d8e39368079cad31b0e57a",
+    "template_sha256": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+    "sources": {
+      "old-order": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-storage-format-attestation-20261005/controls/old-order/scripts/install-preflight.py",
+        "sha256": "7d2c197a0cce880ee458cf4b91451b15392d4d05934d10d9e88a24e8dadd3c68"
+      },
+      "corrected": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-storage-format-attestation-20261005/controls/corrected/scripts/install-preflight.py",
+        "sha256": "fca4172548dc8f729fca2f95341702984c99ff40dccaee94e170d5b48f3eadae"
+      },
+      "foreign-journal-omission": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-storage-format-attestation-20261005/controls/foreign-journal-omission/scripts/install-preflight.py",
+        "sha256": "c26e2a3144cd9753bac76774f51f8032e0191478d984fd5639058b2597f3b6c1"
+      }
+    },
+    "order": [
+      "old-order fail one",
+      "corrected pass sameone",
+      "foreign-journal-omission fail one",
+      "corrected pass sameone"
+    ],
+    "scope": "Copied scripts/template only; actual query on generated synthetic executables is separate; no user service/provider operations."
+  },
+  "focused_results": {
+    "root-implemented-compile-v1": {
+      "exit_code": 0,
+      "duration_seconds": 10.357397658983245,
+      "sources_unchanged": true,
+      "log_sha256": "040d481b2f90a06a7467dea93292b39d101ec5458e8785a00d1f62d3adc3f5d2",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "storage_format_attestation",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/storage_format_attestation-aea417cb627cae4d",
+          "size": 28262560,
+          "sha256": "df8df217cf9067ca9f3e02e7b8c1486be3f7cfa4295ac42fd8e25fb400ae4869",
+          "fresh": false,
+          "test": true
+        },
+        {
+          "target": "cirroved",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+          "size": 466880040,
+          "sha256": "44c2ad750db3b81269f38a6f4498fa0765c1304db06186dba37bcdbd873f5ded",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 466222784,
+          "sha256": "ba5e20cd0bea79329df49f83911ba1ce11ff38e9e77cd1ced4aa3ce8480f8fad",
+          "fresh": false,
+          "test": false
+        }
+      ],
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-implemented-compile-v1-registration.json",
+        "sha256": "4a238c0fb8a2c97a6b5c17e348b1fc094fa54b12d4696b1079dc76d50c6c22a6"
+      }
+    },
+    "root-implemented-daemon-two-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.012254092987859622,
+      "sources_unchanged": true,
+      "log_sha256": "e25fd0423d14054cbb201e732fe1decc023e58626322677083a930d3a708777d",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 2,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-implemented-daemon-two-v1-registration.json",
+        "sha256": "aec2257c2b0e8898ed9f14faee0472272225d42076645ba5147ad56237d54466"
+      }
+    },
+    "root-portable-twentyone-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.36639984199428,
+      "sources_unchanged": true,
+      "log_sha256": "58c1502da2bea9c8d245370562a402ce75e16f04e7b24937f1a534faed6d9d4b",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 21,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-portable-twentyone-v1-registration.json",
+        "sha256": "871c1c9f6d6d6fb8003b0da3b3aa68a88b59600b300a5580885ab305eb46db98"
+      }
+    },
+    "root-order-red-v1": {
+      "exit_code": 1,
+      "duration_seconds": 0.06799027899978682,
+      "sources_unchanged": true,
+      "log_sha256": "3b074ce8db928174b0065b1178a8f10f1983063d59aa80e54f851b567c46376a",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 1,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-order-red-v1-registration.json",
+        "sha256": "3ead4a07ec21dc7a978c6b9517841fbb14ae14a927107b857acbfeb7b04ef7a2"
+      }
+    },
+    "root-order-green-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.07237836200511083,
+      "sources_unchanged": true,
+      "log_sha256": "9aa8a3a74bae7bdc3abda2acf147dbf72fe1257a7a7b1a776ed5e0f34b4a136e",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 1,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-order-green-v1-registration.json",
+        "sha256": "587c429c27b9a6ac3e2beb3194a0cdea51aa33786b5e520b64166ee9c94da399"
+      }
+    },
+    "root-foreign-schema-red-v1": {
+      "exit_code": 1,
+      "duration_seconds": 0.06681861501419917,
+      "sources_unchanged": true,
+      "log_sha256": "22cf45a47c065b5706bbff4bbf96a8566aa07919ac907584198c32d0d325085f",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 1,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-foreign-schema-red-v1-registration.json",
+        "sha256": "a13e31437bafae76f50a017f2101681dcd10e79a396595a3ef73b1d94f33623a"
+      }
+    },
+    "root-foreign-schema-green-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.06797144800657406,
+      "sources_unchanged": true,
+      "log_sha256": "76103e9f7673b95535fbc21d62fff2a9d3dae2974511a1ec1c53ee0fba0d6e05",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 1,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-foreign-schema-green-v1-registration.json",
+        "sha256": "9ce7c1d0afc32c6fbe2a4d738b8e9ed8247fb8fb5021f57dd381059c65e97c4e"
+      }
+    },
+    "root-namespace-three-v1": {
+      "exit_code": 0,
+      "duration_seconds": 1.011115253000753,
+      "sources_unchanged": true,
+      "log_sha256": "1df613f315404c878859461562698f5a77aa90ec09670e1c02f646806fa556b7",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 18,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-namespace-three-v1-registration.json",
+        "sha256": "84b590005134134b077889c0423caa2341493df4fc5443751e77cdbb777af840"
+      }
+    },
+    "root-existing-installer-thirtynine-v1": {
+      "exit_code": 0,
+      "duration_seconds": 9.144766340003116,
+      "sources_unchanged": true,
+      "log_sha256": "86540cc06ab22fa5bcf7445e3ebb049d6d958e4d578ef746d582904350678f05",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "actual_tests_executed": 39,
+      "registration": {
+        "path": ".local-state/icloud-storage-format-attestation-20261005/root-existing-installer-thirtynine-v1-registration.json",
+        "sha256": "cf6e58de2934626d7d247565b871d1ae94f4b42b85187493835ea22a04925ba7"
+      }
+    }
+  },
+  "actual_binary_consumer_preregistration": {
+    "question": "Does the implemented bounded held-FD consumer accept the actual new daemon format report without state/service/provider startup?",
+    "prediction": "Strip only debug info from a hash-bound ownedcopy of actual compiledcirroved, then strict actualquery twice returns exact19/8, closesFD/child and leaves isolated XDG sentinel uncreated.",
+    "source_elf": {
+      "target": "cirroved",
+      "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+      "size": 466880040,
+      "sha256": "44c2ad750db3b81269f38a6f4498fa0765c1304db06186dba37bcdbd873f5ded",
+      "fresh": false,
+      "test": false
+    },
+    "derivation": "objcopy --strip-debug into new private file; actual product code, not signed/package-manager provenance",
+    "reason": "DebugsourceELF466880040bytes exceeds intentional128MiB packagedtargetinspectionbound; do not relax productbound to accommodate debugtest."
+  },
+  "actual_binary_consumer_result": {
+    "result": {
+      "exit_code": 0,
+      "duration_seconds": 0.29876689400407486,
+      "sources_unchanged": true,
+      "log_sha256": "3ea9f6d9f249fa0476afb462ae56527cfd748b00fe7a5bb73949ba27f3af3d6b",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "actual_queries": 2,
+    "reply": {
+      "version": 1,
+      "product": "cirroved",
+      "journal_schema": 19,
+      "metadata_schema": 8
+    },
+    "all_owned_children_reaped": true,
+    "all_descriptors_closed": true,
+    "derived_elf_binding": {
+      "version": 1,
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-storage-format-attestation-20261005/actual-daemon-consumer/cirroved",
+      "sha256": "444e6a391af48157f92b3f41acdb0d3e10c56e51cea350f3e09b12d52dcc5f9c",
+      "size": 105946888,
+      "source_elf": {
+        "target": "cirroved",
+        "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+        "size": 466880040,
+        "sha256": "44c2ad750db3b81269f38a6f4498fa0765c1304db06186dba37bcdbd873f5ded",
+        "fresh": false,
+        "test": false
+      },
+      "derivation_result_sha256": "871bb466c92b9af36c550d0f9c10dd9e6fb8df1a1be9d408988223434a298096",
+      "package_provenance_claim": false
+    },
+    "registration": {
+      "path": ".local-state/icloud-storage-format-attestation-20261005/root-actual-consumer-v1-registration.json",
+      "sha256": "a09384643f4d14d642a07a04b83f677219f02551329f038f36525de00cd4fe09"
+    },
+    "scope": "Actual uninstalled derived daemon executable through actual bounded held-FD consumer; no packaged signature/provenance or installed transition claim.",
+    "state_preservation_evidence": "The direct actual-daemon test maps XDG_STATE_HOME to an unused route and proves no state creation. The consumer bridge intentionally strips HOME/XDG; its unrouted local sentinel absence is not a separate routed-state proof."
+  },
+  "full_check_preregistration": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "expected_duration_seconds": 1800,
+    "prediction": "Complete formatting/clippy/workspace/default+feature/kernel/script/ledger/doc checks pass with unchanged516executable source files. Actual daemon integration2, packageportable21 and developer39 present; display-only window scenarios are CI responsibility.",
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sf-20261005",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sf-20261005",
+    "temp_filesystem": "ext4",
+    "cloud_mutated": false,
+    "installed_actions": false
+  },
+  "full_check_result": {
+    "result": {
+      "exit_code": 0,
+      "duration_seconds": 530.1376880360185,
+      "sources_unchanged": true,
+      "log_sha256": "ff8ddfaed9e87a5176f4196049f0f36619bc2e19c596a88b299642c9c224708c",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "registration": {
+      "path": ".local-state/icloud-storage-format-attestation-20261005/root-full-check-v1-registration.json",
+      "sha256": "f51a2c139fecb00137c41c777729d7a6bddd7780dafab18e851e90a7cfefa156"
+    },
+    "all_516_executable_sources_unchanged": true,
+    "actual_daemon_two_tests_found": true,
+    "actual_portable_21_and_installer_39_found": true,
+    "display_only_window_scenarios_not_run_locally": true
+  },
+  "status_updated_at": "2026-10-04T23:37:22.610734+00:00",
+  "installed_preservation": {
+    "daemon_pid": 1243,
+    "daemon_start_ticks": "2318",
+    "unit_executable_identity_unchanged": true,
+    "all_19_packaged_files_unchanged": true,
+    "home_daemon_shadow_absent": true
+  },
+  "remaining_release_gates_open": [
+    485,
+    486,
+    487,
+    488,
+    489,
+    490
+  ]
+}

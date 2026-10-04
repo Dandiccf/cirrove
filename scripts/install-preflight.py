@@ -8,6 +8,8 @@ windows, reserve a concurrent measurement lease, or authorize deployment.
 import argparse
 import hashlib
 import stat
+import selectors
+import time
 from datetime import datetime
 import json
 import os
@@ -329,6 +331,106 @@ def file_identity(path, maximum, executable=False):
     return {"stat": stamp(after), "sha256": digest.hexdigest()}
 
 
+STORAGE_FORMAT_OUTPUT_MAX = 4096
+STORAGE_FORMAT_QUERY_SECONDS = 3
+
+
+def storage_format_reply(data, policy):
+    """Strict finite declaration, not proof of downgrade/migration safety."""
+    def unique_fields(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate field")
+            result[key] = value
+        return result
+    try:
+        if len(data) > STORAGE_FORMAT_OUTPUT_MAX:
+            raise ValueError("oversized reply")
+        value = json.loads(data.decode("utf-8"), object_pairs_hook=unique_fields)
+    except (ValueError, UnicodeError):
+        raise Refusal("package target storage-format declaration is invalid") from None
+    if (not isinstance(value, dict)
+            or set(value) != {"version", "product", "journal_schema", "metadata_schema"}
+            or type(value["version"]) is not int or value["version"] != 1
+            or value["product"] != "cirroved"
+            or not integer(value["journal_schema"], 2**32 - 1) or value["journal_schema"] == 0
+            or not integer(value["metadata_schema"], 2**32 - 1) or value["metadata_schema"] == 0
+            or value["journal_schema"] != policy["journal_schema"]
+            or value["metadata_schema"] != policy["metadata_schema"]):
+        raise Refusal("package target storage-format declaration is unsupported")
+    return value
+
+
+def package_storage_format(path, pin, policy):
+    """Execute only the held exact target inode; no state/socket arguments."""
+    if file_identity(path, 128 * 1024 * 1024, True) != pin:
+        raise Refusal("package target changed before storage-format query")
+    descriptor = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    child = None
+    try:
+        def stamp(value):
+            return (value.st_dev, value.st_ino, value.st_mode, value.st_uid,
+                    value.st_gid, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+        if stamp(os.fstat(descriptor)) != pin["stat"]:
+            raise Refusal("package target inode changed before storage-format query")
+        digest = hashlib.sha256()
+        observed = 0
+        while chunk := os.read(descriptor, 64 * 1024):
+            observed += len(chunk)
+            if observed > 128 * 1024 * 1024:
+                raise Refusal("package target exceeds its inspection bound")
+            digest.update(chunk)
+        if digest.hexdigest() != pin["sha256"] or stamp(os.fstat(descriptor)) != pin["stat"]:
+            raise Refusal("package target bytes changed before storage-format query")
+        deadline = time.monotonic() + STORAGE_FORMAT_QUERY_SECONDS
+        child = subprocess.Popen([f"/proc/self/fd/{descriptor}", "--storage-format-json"],
+            pass_fds=(descriptor,), close_fds=True, stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd="/",
+            env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"})
+        data = bytearray()
+        with selectors.DefaultSelector() as selector:
+            selector.register(child.stdout, selectors.EVENT_READ)
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not selector.select(remaining):
+                    raise Refusal("package target storage-format query timed out")
+                chunk = os.read(child.stdout.fileno(), STORAGE_FORMAT_OUTPUT_MAX + 1 - len(data))
+                if not chunk:
+                    break
+                data.extend(chunk)
+                if len(data) > STORAGE_FORMAT_OUTPUT_MAX:
+                    raise Refusal("package target storage-format reply exceeds bound")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise Refusal("package target storage-format query timed out")
+        try:
+            code = child.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            raise Refusal("package target storage-format query timed out") from None
+        if code != 0:
+            raise Refusal("package target storage-format query is unsupported")
+        value = storage_format_reply(bytes(data), policy)
+        if stamp(os.fstat(descriptor)) != pin["stat"] or file_identity(path, 128 * 1024 * 1024, True) != pin:
+            raise Refusal("package target changed during storage-format query")
+        return value
+    finally:
+        try:
+            if child is not None:
+                try:
+                    if child.poll() is None:
+                        child.kill()
+                        try:
+                            child.wait(timeout=3)
+                        except subprocess.TimeoutExpired:
+                            raise Refusal("package target storage-format query could not be stopped") from None
+                finally:
+                    if child.stdout is not None:
+                        child.stdout.close()
+        finally:
+            os.close(descriptor)
+
+
 # All non-comment directives of the known packaged service, including commands
 # that could otherwise run before/after ExecStart. Source comments may evolve;
 # additional execution/environment/root routing is not silently accepted.
@@ -424,12 +526,19 @@ def package_preflight(repo):
         states.add(Path(before["process"]["state"]))
     if any(retained_state(path) for path in sorted(states)):
         raise Refusal("installation refused: package schema provenance does not attest retained local state")
+    daemon = Path("/usr/bin/cirroved")
+    storage_format = package_storage_format(daemon, target["binaries"][str(daemon)], policy)
+    if storage_format != package_storage_format(daemon, target["binaries"][str(daemon)], policy):
+        raise Refusal("package target storage-format changed during preflight")
+    # Final service/routes/policy observations follow both potentially blocking
+    # target queries, so a route change during the second query cannot hide
+    # behind an earlier retained-state union.
     if before != service_snapshot() or target != package_routing(repo, home):
         raise Refusal("package service ownership, routing or target changed during preflight")
     if source_policy(repo) != policy:
         raise Refusal("source installation policy changed during preflight")
     embargo(repo)
-    # No target schema attestation exists, even when source policy is released.
+    # A format declaration is not retained-state migration/downgrade acceptance.
     # Recheck markers after all target reads; concurrent launch afterward still
     # requires the documented exclusive deployment window, not this snapshot.
     if any(retained_state(path) for path in sorted(states)):

@@ -8,6 +8,9 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(version, about = "Cirrove user service — pre-release preview")]
 struct Args {
+    /// Report compiled storage formats without opening state or starting service.
+    #[arg(long, conflicts_with_all = ["state_dir", "socket"])]
+    storage_format_json: bool,
     #[arg(long)]
     state_dir: Option<PathBuf>,
     #[arg(long)]
@@ -15,6 +18,11 @@ struct Args {
 }
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args = Args::parse();
+    if args.storage_format_json {
+        println!("{}", cirrove_service::storage_format_attestation());
+        return Ok(());
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -24,7 +32,6 @@ async fn main() -> Result<()> {
                 .add_directive("tokio_tungstenite=off".parse()?),
         )
         .init();
-    let args = Args::parse();
     let state = match args.state_dir {
         Some(p) => p,
         None => state_dir()?,

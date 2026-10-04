@@ -68,6 +68,9 @@ if NAMESPACE:
                 path = self.bin / name
                 path.write_text('#!/usr/bin/python3\nimport json,os,sys\nwith open("/var/tmp/mutations.jsonl","a") as f: f.write(json.dumps({"command":os.path.basename(sys.argv[0]),"argv":sys.argv[1:]})+"\\n")\nsys.exit(97)\n')
                 path.chmod(0o700)
+            daemon = self.bin / "cirroved"
+            daemon.write_text('#!/usr/bin/python3\nimport json,sys\nif sys.argv[1:] == ["--storage-format-json"]:\n print(json.dumps({"version":1,"product":"cirroved","journal_schema":19,"metadata_schema":8})); sys.exit(0)\nsys.exit(97)\n')
+            daemon.chmod(0o700)
             bus = self.bin / "busctl"
             bus.write_text('''#!/usr/bin/python3
 import json,sys
@@ -218,7 +221,7 @@ class PackageSwitchPortable(unittest.TestCase):
         self.symlinks = set()
         self.details = {"UnitPath": list(map(str, self.roots)), "FragmentPath": str(self.removable),
                         "DropInPaths": [], "Transient": False}
-        self.policy = {"state": "held"}
+        self.policy = {"state": "held", "journal_schema": 19, "metadata_schema": 8}
         self.snapshot = {"effective_state": str(self.home / ".local/state/cirrove"), "process": None}
         self.retained = set()
         self.epoch = 0
@@ -264,6 +267,10 @@ class PackageSwitchPortable(unittest.TestCase):
                 stack.enter_context(patch.object(obj, name, side))
             stack.enter_context(patch.object(self.guard, "source_policy", return_value=self.policy))
             stack.enter_context(patch.object(self.guard, "embargo"))
+            # Only executable observation is synthetic here; strict parser/FD
+            # query have separate actual local child fixtures below.
+            stack.enter_context(patch.object(self.guard, "package_storage_format",
+                return_value={"version": 1, "product": "cirroved", "journal_schema": 19, "metadata_schema": 8}))
             stack.enter_context(patch.object(self.guard, "service_snapshot", return_value=self.snapshot))
             stack.enter_context(patch.object(self.guard, "retained_state", side_effect=lambda p: str(p) in self.retained))
             return (function or (lambda: self.guard.package_preflight(ROOT)))()
@@ -367,6 +374,26 @@ class PackageSwitchPortable(unittest.TestCase):
                 with self.assertRaisesRegex(self.guard.Refusal, reason):
                     self.guard_call(call)
 
+    def test_second_format_query_route_drift_is_rechecked_before_mutation(self):
+        current = dict(self.snapshot)
+        queries = 0
+        declaration = {"version": 1, "product": "cirroved", "journal_schema": 19, "metadata_schema": 8}
+        def query(*_args):
+            nonlocal current, queries
+            queries += 1
+            if queries == 2:
+                # The former order already finished all service/route rereads.
+                # Replace the observation, do not mutate the captured before.
+                current = {"effective_state": "/var/lib/new-during-second-query", "process": None}
+            return declaration
+        def call():
+            with patch.object(self.guard, "package_storage_format", side_effect=query), \
+                    patch.object(self.guard, "service_snapshot", side_effect=lambda: current):
+                self.guard.package_preflight(ROOT)
+        with self.assertRaisesRegex(self.guard.Refusal, "changed during preflight"):
+            self.guard_call(call)
+        self.assertEqual(queries, 2, "did not observe the registered second-query boundary")
+
     def test_real_local_file_identity_checks_type_owner_mode_and_bytes(self):
         fixture = Path(tempfile.mkdtemp(prefix="package-file-pin-", dir=os.environ.get("TMPDIR", "/var/tmp")))
         path = fixture / "binary"
@@ -384,6 +411,109 @@ class PackageSwitchPortable(unittest.TestCase):
         alias = fixture / "alias"; alias.symlink_to(path)
         with self.assertRaisesRegex(self.guard.Refusal, "unsafe"):
             self.guard.file_identity(alias, 1024)
+
+
+if not NAMESPACE:
+    class StorageFormatAttestation(unittest.TestCase):
+        """Only generated local executables; no installed daemon or HOME edits."""
+        def setUp(self):
+            spec = importlib.util.spec_from_file_location("format_attestation_guard", ROOT / "scripts/install-preflight.py")
+            self.guard = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(self.guard)
+            self.policy = {"journal_schema": 19, "metadata_schema": 8}
+            self.value = {"version": 1, "product": "cirroved", **self.policy}
+            self.fixture = Path(tempfile.mkdtemp(prefix="storage-format-", dir=os.environ.get("TMPDIR", "/var/tmp")))
+            self.fixture.chmod(0o700)
+            self.child_records = []
+
+        def executable(self, body):
+            path = self.fixture / ("query-" + str(len(list(self.fixture.iterdir()))))
+            path.write_text("#!/usr/bin/python3\n" + body)
+            path.chmod(0o700)
+            return path, self.guard.file_identity(path, 128 * 1024 * 1024, True)
+
+        def query(self, path, pin):
+            actual = self.guard.subprocess.Popen
+            def observe(*args, **kwargs):
+                child = actual(*args, **kwargs)
+                self.child_records.append((child, args[0], kwargs["pass_fds"]))
+                return child
+            with patch.object(self.guard.subprocess, "Popen", side_effect=observe):
+                return self.guard.package_storage_format(path, pin, self.policy)
+
+        def assert_closed(self):
+            for child, argv, descriptors in self.child_records:
+                self.assertIsNotNone(child.poll(), "owned query child left alive")
+                self.assertEqual(argv[1:], ["--storage-format-json"])
+                self.assertEqual(argv[0], f"/proc/self/fd/{descriptors[0]}")
+                for descriptor in descriptors:
+                    with self.assertRaises(OSError):
+                        os.fstat(descriptor)
+
+        def test_storage_format_reply_requires_exact_policy_schema_pair(self):
+            self.assertEqual(self.guard.storage_format_reply(json.dumps(self.value).encode(), self.policy), self.value)
+            for field, replacement in [("journal_schema",14),("metadata_schema",7),
+                    ("version",0),("version",True),("product","cirrove"),
+                    ("journal_schema",True),("metadata_schema",True),
+                    ("journal_schema",0),("metadata_schema",2**32),
+                    ("journal_schema",{}),("metadata_schema","8")]:
+                with self.subTest(field=field,replacement=replacement):
+                    bad={**self.value,field:replacement}
+                    with self.assertRaises(self.guard.Refusal):
+                        self.guard.storage_format_reply(json.dumps(bad).encode(),self.policy)
+
+        def test_storage_format_reply_rejects_malformed_duplicate_extra_and_oversize(self):
+            raw=json.dumps(self.value).encode()
+            cases=[b"",b"\xff",b"[]",raw+b"{}",b"x"*4097,
+                b'{"version":1,"version":1,"product":"cirroved","journal_schema":19,"metadata_schema":8}',
+                json.dumps({**self.value,"extra":True}).encode()]
+            cases.extend(json.dumps({k:v for k,v in self.value.items() if k!=field}).encode() for field in self.value)
+            for data in cases:
+                with self.subTest(size=len(data)):
+                    with self.assertRaises(self.guard.Refusal):
+                        self.guard.storage_format_reply(data,self.policy)
+
+        def test_storage_format_query_executes_exact_held_inode_with_clean_environment(self):
+            body="import json,os,sys\nassert sys.argv[1:]==['--storage-format-json']\nassert not any(k in os.environ for k in ['HOME','XDG_STATE_HOME','XDG_RUNTIME_DIR','LD_PRELOAD','LD_LIBRARY_PATH'])\nprint("+repr(json.dumps(self.value))+")\n"
+            path,pin=self.executable(body)
+            self.assertEqual(self.query(path,pin),self.value)
+            self.assert_closed()
+
+        def test_storage_format_query_refuses_old_timeout_and_oversize_then_reaps_owned_child(self):
+            for body,reason in [("raise SystemExit(2)\n","unsupported"),
+                    ("import time\ntime.sleep(30)\n","timed out"),
+                    ("print('x'*4097)\n","exceeds bound")]:
+                with self.subTest(reason=reason):
+                    path,pin=self.executable(body)
+                    with patch.object(self.guard,"STORAGE_FORMAT_QUERY_SECONDS",0.2):
+                        with self.assertRaisesRegex(self.guard.Refusal,reason):
+                            self.query(path,pin)
+                    self.assert_closed()
+
+        def test_storage_format_query_refuses_path_substitution_even_when_original_fd_reply_is_valid(self):
+            path,pin=self.executable("print("+repr(json.dumps(self.value))+")\n")
+            replacement,_=self.executable("raise SystemExit(2)\n")
+            actual=os.open
+            swapped=False
+            def swapped_open(candidate,*args,**kwargs):
+                nonlocal swapped
+                descriptor=actual(candidate,*args,**kwargs)
+                if Path(candidate)==path and not swapped:
+                    swapped=True
+                    os.replace(replacement,path)
+                return descriptor
+            with patch.object(self.guard.os,"open",side_effect=swapped_open):
+                with self.assertRaisesRegex(self.guard.Refusal,"changed (before|during) storage-format query"):
+                    self.query(path,pin)
+            self.assertTrue(swapped)
+            self.assert_closed()
+
+        def test_storage_format_query_invalid_reply_closes_descriptor_without_logging_output(self):
+            path,pin=self.executable("print('invalid synthetic declaration')\n")
+            with self.assertRaisesRegex(self.guard.Refusal,"declaration is invalid") as error:
+                self.query(path,pin)
+            self.assertNotIn("invalid synthetic declaration",str(error.exception))
+            self.assert_closed()
 
 
 if __name__ == "__main__":
