@@ -669,10 +669,28 @@ The second preflight catches changes declared while the build ran.
 This is a bounded guard, not a measurement lease: it neither discovers every
 legacy window nor excludes a concurrent launch after the final check. Continue
 the manual measurement audit and prohibit concurrent measurement starts during
-deployment. Package switching, package-manager actions and reboot need their own
-checks; this helper does not intercept them. The
-[controlled preflight evidence](benchmarks/icloud-installation-preflight-2026-10-03.json)
-establishes guarded refusal, not installed iCloud transition acceptance. Releasing
+deployment. The package switch script also runs this helper before its first stop
+or removal. Its separate mode inspects the user manager's authoritative unit search
+path, current fragment and overrides, the exact supported packaged unit, and the
+identity and bytes of the four packaged binaries. Additional unit candidates,
+unit or service-wide drop-ins, unsupported routes and changing observations refuse
+switching. Empty standard generator or transient search directories are allowed;
+a relevant unit there is refused. The current, live and packaged state routes must
+all be inspectable and empty of retained account, index or journal markers.
+
+Package presence, file identity and the source policy do not attest the target
+binary's journal schema. Consequently, **any retained state refuses package
+switching, even when the source policy is released**. This guard does not perform
+an installed transition or make a downgrade safe. Inaccessible state or benchmark
+directories also refuse inspection instead of being treated as empty. Portable
+script controls run in the normal check and CI; the actual switch proof uses an
+isolated filesystem namespace with unchanged HOME and inert mutation commands.
+The [package switch evidence](benchmarks/package-switch-preflight-2026-10-04.json)
+and [developer installer evidence](benchmarks/icloud-installation-preflight-2026-10-03.json)
+establish guarded refusal, not installed iCloud transition acceptance.
+
+Arbitrary package-manager actions and reboot still need their own checks; the
+helper does not intercept them or reserve a concurrent measurement lease. Releasing
 the source hold still requires the recovery and application acceptance above.
 
 Before any later authorized deployment, identify the actual installed version,

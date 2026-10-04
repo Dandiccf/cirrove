@@ -6,6 +6,7 @@ use cirrove_service::journal::{
     JournalError, NamespaceObject, UploadIntent, UploadJournal, UploadState, WorkingFile,
 };
 use std::{
+    io::Write,
     path::Path,
     process::{Command, Stdio},
     time::{Duration, Instant},
@@ -666,6 +667,42 @@ fn already_cached_source_and_target_need_no_synthetic_predecessor_operation() {
     assert_eq!(j.read_working(new.id, 0, 100).unwrap(), b"new");
 }
 
+// Publish the signal only after its complete UUID has been written and closed.
+// The callback exposes the post-create/pre-write boundary deterministically.
+fn publish_replacement_ready(
+    ready: &Path,
+    victim: uuid::Uuid,
+    after_create: impl FnOnce(),
+) -> std::io::Result<()> {
+    let staging = ready.with_extension("tmp");
+    let mut file = std::fs::File::create(&staging)?;
+    after_create();
+    file.write_all(victim.to_string().as_bytes())?;
+    drop(file);
+    std::fs::rename(staging, ready)
+}
+
+#[test]
+fn replacement_readiness_is_visible_only_after_complete_uuid_publication() {
+    let temp = tempfile::tempdir().unwrap();
+    let ready = temp.path().join("ready");
+    let victim = uuid::Uuid::new_v4();
+    let mut observed_before_write = None;
+    publish_replacement_ready(&ready, victim, || {
+        observed_before_write = std::fs::read(&ready).ok();
+    })
+    .unwrap();
+    let published: uuid::Uuid = std::fs::read_to_string(&ready).unwrap().parse().unwrap();
+    assert_eq!(
+        published, victim,
+        "completed publisher must preserve the exact UUID"
+    );
+    assert_eq!(
+        observed_before_write, None,
+        "final readiness must stay absent at the post-create/pre-write boundary"
+    );
+}
+
 /// Child for the crash test: performs a local replacement, stops at the requested
 /// durable transition, then waits to be killed.
 #[test]
@@ -689,7 +726,7 @@ fn replacement_crash_child() {
         cirrove_service::journal::durable::reached().join("\n"),
     )
     .unwrap();
-    std::fs::write(root.join("ready"), old.id.to_string()).unwrap();
+    publish_replacement_ready(&root.join("ready"), old.id, || {}).unwrap();
     loop {
         std::thread::sleep(Duration::from_secs(1));
     }

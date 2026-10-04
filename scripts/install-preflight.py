@@ -6,6 +6,8 @@ This does not attest arbitrary build artifacts, discover undeclared historical
 windows, reserve a concurrent measurement lease, or authorize deployment.
 """
 import argparse
+import hashlib
+import stat
 from datetime import datetime
 import json
 import os
@@ -199,9 +201,15 @@ def service_snapshot():
 
 def embargo(repo):
     directory = repo / "docs/benchmarks"
-    if not directory.is_dir() or directory.is_symlink():
-        raise Refusal("restart embargo declarations are unavailable")
-    for path in sorted(directory.glob("*.json")):
+    meta = strict_status(directory, "restart embargo")
+    if (meta is None or not stat.S_ISDIR(meta.st_mode)
+            or (meta.st_uid == os.getuid() and meta.st_mode & 0o500 != 0o500)):
+        raise Refusal("restart embargo inspection is unsafe")
+    try:
+        declarations = sorted(path for path in directory.iterdir() if path.name.endswith(".json"))
+    except OSError:
+        raise Refusal("restart embargo inspection is unsafe") from None
+    for path in declarations:
         record = document(path)
         if "restart_embargo" not in record:
             continue
@@ -242,17 +250,28 @@ def source_policy(repo):
     return value
 
 
+def strict_status(path, description="installed path"):
+    # Path.exists/is_dir/glob may suppress PermissionError (notably Python3.14).
+    # Only a genuinely missing path is empty; unknown inspection must refuse.
+    try:
+        return path.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError:
+        raise Refusal(description + " inspection is unsafe") from None
+
+
 def retained_state(state):
     safe_path(state)
-    if not state.exists():
+    meta = strict_status(state, "installed state")
+    if meta is None:
         return False
-    if not state.is_dir():
-        raise Refusal("installed state location is invalid")
-    # Presence suffices under the hold; no settings parsing, SQLite open or
-    # credential/spool contents are needed to protect every retained provider.
+    if (not stat.S_ISDIR(meta.st_mode) or meta.st_uid != os.getuid()
+            or meta.st_mode & 0o500 != 0o500):
+        raise Refusal("installed state inspection is unsafe")
     names = ["accounts.json", "accounts", "metadata.db", "metadata.db-wal", "metadata.db-shm",
              "journal", "uploads.db", "objects", "working"]
-    return any((state / name).exists() or (state / name).is_symlink() for name in names)
+    return any(strict_status(state / name, "installed state") is not None for name in names)
 
 
 def preflight(repo, no_build):
@@ -285,13 +304,150 @@ def preflight(repo, no_build):
     embargo(repo)
 
 
+def file_identity(path, maximum, executable=False):
+    """Bounded exact bytes/owner identity; this is not package provenance."""
+    safe_path(path)
+    before = path.stat()
+    if (not stat.S_ISREG(before.st_mode) or before.st_size > maximum
+            or before.st_uid not in {0, os.getuid()} or before.st_mode & 0o022
+            or (executable and not before.st_mode & 0o111)):
+        raise Refusal("package target file ownership or type is unsupported")
+    digest = hashlib.sha256()
+    observed = 0
+    with path.open("rb") as source:
+        while chunk := source.read(64 * 1024):
+            observed += len(chunk)
+            if observed > maximum:
+                raise Refusal("package target exceeds its inspection bound")
+            digest.update(chunk)
+    after = path.stat()
+    def stamp(value):
+        return (value.st_dev, value.st_ino, value.st_mode, value.st_uid,
+                value.st_gid, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+    if stamp(before) != stamp(after):
+        raise Refusal("package target changed while being inspected")
+    return {"stat": stamp(after), "sha256": digest.hexdigest()}
+
+
+# All non-comment directives of the known packaged service, including commands
+# that could otherwise run before/after ExecStart. Source comments may evolve;
+# additional execution/environment/root routing is not silently accepted.
+PACKAGE_DIRECTIVES = (
+    "[Unit]", "Description=Cirrove cloud filesystem service",
+    "Documentation=https://github.com/Dandiccf/cirrove", "StartLimitIntervalSec=60",
+    "StartLimitBurst=5", "[Service]", "Type=exec",
+    "ExecStart=/usr/bin/cirroved --state-dir %h/.local/state/cirrove --socket %t/cirrove/control.sock",
+    "Environment=MALLOC_ARENA_MAX=1", "RuntimeDirectory=cirrove",
+    "RuntimeDirectoryMode=0700", "UMask=0077", "Restart=on-failure",
+    "RestartSec=5", "TimeoutStopSec=30", "[Install]", "WantedBy=default.target",
+)
+
+
+def package_routing(repo, home):
+    runtime = Path("/run/user") / str(os.getuid())
+    # These are the standard user-manager search roots. Empty control/generator
+    # roots are normal; any relevant candidate there is conservatively refused.
+    allowed = {
+        home / ".config/systemd/user.control", runtime / "systemd/user.control",
+        runtime / "systemd/transient", runtime / "systemd/generator.early",
+        home / ".config/systemd/user", Path("/etc/xdg/systemd/user"),
+        Path("/etc/systemd/user"), runtime / "systemd/user", Path("/run/systemd/user"),
+        runtime / "systemd/generator", home / ".local/share/systemd/user",
+        Path("/usr/local/share/systemd/user"), Path("/usr/share/systemd/user"),
+        Path("/usr/local/lib/systemd/user"), Path("/usr/lib/systemd/user"),
+        runtime / "systemd/generator.late",
+    }
+    roots = property_value(MANAGER_PATH, "org.freedesktop.systemd1.Manager", "UnitPath", "as")
+    fragment = property_value(UNIT_PATH, "org.freedesktop.systemd1.Unit", "FragmentPath", "s")
+    dropins = property_value(UNIT_PATH, "org.freedesktop.systemd1.Unit", "DropInPaths", "as")
+    transient = property_value(UNIT_PATH, "org.freedesktop.systemd1.Unit", "Transient", "b")
+    if (not isinstance(roots, list) or not 1 <= len(roots) <= 32
+            or not all(text(root) for root in roots) or len(set(roots)) != len(roots)
+            or not text(fragment) or dropins != [] or type(transient) is not bool or transient):
+        raise Refusal("package service search path or overrides are unsupported")
+    paths = [safe_path(Path(root)) for root in roots]
+    if any(path not in allowed for path in paths) or Path("/usr/lib/systemd/user") not in paths:
+        raise Refusal("package service search path or overrides are unsupported")
+    target = Path("/usr/lib/systemd/user/cirroved.service")
+    removable = home / ".config/systemd/user/cirroved.service"
+    if fragment not in {"", str(target), str(removable)}:
+        raise Refusal("package service current fragment is unsupported")
+    if removable.parent in paths and paths.index(removable.parent) > paths.index(target.parent):
+        raise Refusal("package service search priority is unsupported")
+    inventory = {}
+    for root in paths:
+        root_meta = strict_status(root, "package service route")
+        if root_meta is not None and not stat.S_ISDIR(root_meta.st_mode):
+            raise Refusal("package service search root is unsupported")
+        candidate = root / UNIT
+        if strict_status(candidate, "package service route") is not None:
+            if candidate not in {target, removable}:
+                raise Refusal("package service has another winning unit candidate")
+            inventory[str(candidate)] = file_identity(candidate, 64 * 1024)
+        for name in (UNIT + ".d", "service.d"):
+            directory = safe_path(root / name)
+            meta = strict_status(directory, "package service route")
+            if meta is not None:
+                if not stat.S_ISDIR(meta.st_mode) or list(directory.iterdir()):
+                    raise Refusal("package service has unit or type-wide drop-ins")
+                inventory[str(directory)] = {"empty_directory": (meta.st_dev, meta.st_ino, meta.st_mode, meta.st_uid)}
+    if str(target) not in inventory or (fragment and fragment not in inventory):
+        raise Refusal("package service fragment is unavailable")
+    template = safe_path(repo / "packaging/systemd/cirroved.service")
+    template_pin = file_identity(template, 64 * 1024)
+    expected = template.read_bytes().replace(b"%h/.local/bin/cirroved", b"/usr/bin/cirroved")
+    directives = tuple(line.strip() for line in expected.decode().splitlines()
+                       if line.strip() and not line.strip().startswith(("#", ";")))
+    if directives != PACKAGE_DIRECTIVES or target.read_bytes() != expected:
+        raise Refusal("package service template is not the supported exact target")
+    # Pin every binary whose presence the switch relies on, including the tray
+    # it would launch. Identity/bytes alone cannot attest a journal schema.
+    binaries = {str(Path("/usr/bin") / name): file_identity(Path("/usr/bin") / name, 128 * 1024 * 1024, True)
+                for name in ("cirroved", "cirrove", "cirrove-tray", "cirrove-desktop")}
+    return {"roots": roots, "fragment": fragment, "dropins": dropins,
+            "transient": transient, "inventory": inventory, "binaries": binaries,
+            "template": template_pin, "future_state": str(safe_path(home / ".local/state/cirrove"))}
+
+
+def package_preflight(repo):
+    policy = source_policy(repo)
+    embargo(repo)
+    home = safe_path(service_home())
+    if "HOME" not in os.environ or safe_path(Path(os.environ["HOME"])) != home:
+        raise Refusal("installer home differs from the service owner home")
+    before = service_snapshot()
+    target = package_routing(repo, home)
+    states = {Path(target["future_state"])}
+    if before["effective_state"]:
+        states.add(Path(before["effective_state"]))
+    if before["process"]:
+        states.add(Path(before["process"]["state"]))
+    if any(retained_state(path) for path in sorted(states)):
+        raise Refusal("installation refused: package schema provenance does not attest retained local state")
+    if before != service_snapshot() or target != package_routing(repo, home):
+        raise Refusal("package service ownership, routing or target changed during preflight")
+    if source_policy(repo) != policy:
+        raise Refusal("source installation policy changed during preflight")
+    embargo(repo)
+    # No target schema attestation exists, even when source policy is released.
+    # Recheck markers after all target reads; concurrent launch afterward still
+    # requires the documented exclusive deployment window, not this snapshot.
+    if any(retained_state(path) for path in sorted(states)):
+        raise Refusal("installation refused: package schema provenance does not attest retained local state")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, required=True)
-    parser.add_argument("--no-build", action="store_true")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--no-build", action="store_true")
+    modes.add_argument("--package-switch", action="store_true")
     args = parser.parse_args(argv)
     try:
-        preflight(args.repo, args.no_build)
+        if args.package_switch:
+            package_preflight(args.repo)
+        else:
+            preflight(args.repo, args.no_build)
     except Refusal as error:
         print(str(error), file=sys.stderr)
         return 1

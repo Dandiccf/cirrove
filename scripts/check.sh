@@ -89,6 +89,7 @@ python=$(command -v /usr/bin/python3 || command -v python3)
 "$python" scripts/test-install-tray-autostart.py
 "$python" scripts/test-install-scripts.py
 "$python" scripts/test-installer-preflight.py
+"$python" scripts/test-package-switch-preflight.py
 "$python" scripts/test-package-versions.py
 "$python" scripts/test-nautilus-extension.py
 "$python" scripts/test-strata-provider.py
