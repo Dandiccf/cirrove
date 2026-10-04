@@ -1688,7 +1688,7 @@ from the beginning. Initial authoring failures remain in the evidence artifact.
 Desktop display scenarios were not repeated locally; this source's remote CI is
 pending. No full-iCloud release criterion is closed.
 
-The pending [fresh Numbers confirmation](benchmarks/icloud-numbers-confirmation-2026-10-03.json)
+The preregistered [fresh Numbers confirmation](benchmarks/icloud-numbers-confirmation-2026-10-03.json)
 is now prepared from validated source `04dc9e1`, replacing its earlier `658d8d6`
 binary pins before any cloud phase. Three binaries were built in a clean detached
 checkout with a separate Cargo target. Its import now explicitly binds the frozen
@@ -1697,7 +1697,8 @@ guards are unchanged. Independent review and versioned local-only records pass,
 and the initial controller refuses the refreshed plan hash. The owned A/B
 archives, account/settings/session hashes and fresh target remain unchanged.
 Authorization remains absent: no daemon, provider request, mutation or Apple
-Numbers confirmation was performed. This preparation closes no release gate.
+Numbers confirmation was performed at that preparation stage. The subsequent
+4 October live result below is separate; preparation alone closes no release gate.
 The complete `scripts/check.sh` passed again before publishing this refreshed
 preparation, including 247 default/362 feature iCloud tests, four native
 FUSE/HTTPS, 55 writable and 39 installer cases. Production code remained exact
@@ -1711,3 +1712,38 @@ four native FUSE/HTTPS, 55 writable, 39 installer, 22 supported-floor windows an
 one chooser case. This source validation includes the staging correction but
 excludes later documentation changes; it supplies no live Apple, installed or
 timing-repeatability acceptance. All six full-iCloud release criteria stay open.
+
+
+### Fresh owned Numbers confirmation on 4 October 2026
+
+The [preregistered Numbers run](benchmarks/icloud-numbers-confirmation-2026-10-03.json)
+received new explicit authorization and completed once from validated source
+`04dc9e1`: one new UUID-owned folder, one public CLI PACKAGE import of A and
+one replacement with B. Independent receipt-bound readers verified the complete
+semantic-v2 content of current B and original A in recoverable Trash, with exact
+account, operation, item and revision bindings. The peer audit confirmed one
+Applied folder, two Uploaded operations, two completed metadata publications,
+zero unfinished queue rows and zero failed upload attempts. Both isolated
+daemons were stopped by their recorded PIDs and their mount was released.
+No restore, deletion, prior-run replay or repeated mutation dispatch followed.
+
+Before any mutation, the private controller's status reader exposed an EOF
+framing error: it required a newline although the daemon closes after one JSON
+reply. The original helper failed against the same synthetic JSON/EOF fixture
+that the corrected helper passed. An independent review confirmed that socket
+ownership, timeout, size, source, authorization and no-replay guards remained
+intact. This was a validation-controller correction, not a daemon change.
+
+In an already authenticated Chrome session, Apple Numbers opened the unique
+new run title and rendered B's values 7, 3 and 10 with `SUM(A2:B2)`. No document
+edits were submitted. This UI observation binds the unique title and expected
+content; it does not establish a direct URL-to-CloudDocs item-ID mapping. A
+conversation screenshot was viewed, but a filesystem screenshot/export artifact
+was not recorded because Chrome content export was unavailable. The independent
+content verifier continues to report GUI fidelity as unverified.
+
+This successful single PACKAGE CLI workflow is partial evidence for requirements
+486 and 487. Ordinary and atomic editor saves, actual DATA representations,
+Pages/Keynote application acceptance, reopen/remount/export fidelity, installed
+transitions and broader reliability remain open. All six full-iCloud requirements
+remain unchecked; installed schema14 state was not deployed or migrated.
