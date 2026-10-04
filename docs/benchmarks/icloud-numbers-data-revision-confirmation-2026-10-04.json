@@ -3,7 +3,7 @@
   "run": "0803e72b-bba6-4f25-acb1-2b407b1befc4",
   "base": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4",
   "registered_at": "2026-10-04T19:25:20.941919+00:00",
-  "status": "Narrow retired receipt-alias correction verified: service12/controller20 controls and complete contributor check passed. Fresh live arm not yet executed.",
+  "status": "Passed one bounded live ordinary Numbers DATA create and in-place save; exact current raw B and original raw A in Trash independently verified. Full integration gates remain open.",
   "question": "Does an unchanged owned Apple Numbers export create as actual DATA through ordinary FUSE, then permit one replacement whose current raw B and original raw A in Trash are independently verified?",
   "prediction": "A confirms DATA and raw A before B; after one ordinary truncate save B, typed handoff and independent reads confirm raw B and Trash raw A. If Apple classifies A as PACKAGE or any result is uncertain, stop without B or replay.",
   "mutations": [
@@ -33,7 +33,7 @@
   "association_guard": "Exact folder mutation->folder owner plus exact upload operation->stable file owner; refuse all unknown/foreign pairs; no uncertain state relaxation.",
   "retired_content_version_guard": "Only clean retired following receipt Some(its ETag) to observed None omission; all other Node fields exact; active exact; typed receipts immutable.",
   "local_evidence": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4",
-  "live_executed": false,
+  "live_executed": true,
   "registered_endpoints": {
     "created_a": {
       "applied_mutations": 1,
@@ -165,5 +165,119 @@
     "desktop_display_scenarios_rerun": false,
     "full_integration_gates_closed": 0,
     "cloud_mutated": false
+  },
+  "pre_live_status_history": {
+    "status": "Narrow retired receipt-alias correction verified: service12/controller20 controls and complete contributor check passed. Fresh live arm not yet executed.",
+    "live_executed": false,
+    "original_public_preregistration_sha256": "b81fade7f9623a92444f6ef0e7d51d5c318bb659c01100d83da91bf9b21d1796",
+    "retained_original": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/public-preregistration-before-live.json"
+  },
+  "live_result": {
+    "started_at": "2026-10-04T19:50:21.008017+00:00",
+    "completed_at": "2026-10-04T19:58:18.493031+00:00",
+    "root_audit_elapsed_seconds": 477.485014,
+    "status": "passed-bounded-arm",
+    "logical_completed_operations": {
+      "Applied_owned_folder": 1,
+      "Uploaded_FileBytes": 2,
+      "each_explicit_dispatch_once": true
+    },
+    "http_mutation_count_instrumented": false,
+    "runtime_registration_sha256": "596344fdd12adaa9bda32f2d4564ae57dafafd2a67ddb1b562757dac763ff7c1",
+    "normal_daemon_sha256": "dbc65b196283ff2fdddb2874acd86bb7eab03fce84c4632b7a862f711780a919",
+    "observer_sha256": "d2ae8a2afb1040d1384ddd5c4d70d573c342e57201d1597665cacf989106ae40",
+    "observer_source_commit": "16ae7e0219c671bb9542a87a7d326968184a0abe",
+    "created_a": {
+      "actual_representation": "data",
+      "raw_size": 138881,
+      "raw_sha256": "543d4e32c3488f75b63a530d635910b54bc22536e1c97b4d1981e8fc15aaf140",
+      "independent_readonly_proof_sha256": "861e683e4dfc3c714a2e58c5f368b3f40f8e5605f9ac99c6497b4dc7c3bffc03",
+      "verified_before_B": true
+    },
+    "saved_b": {
+      "actual_representation": "data",
+      "current_raw_size": 138943,
+      "current_raw_sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+      "Trash_original_raw_size": 138881,
+      "Trash_original_raw_sha256": "543d4e32c3488f75b63a530d635910b54bc22536e1c97b4d1981e8fc15aaf140",
+      "independent_readonly_proof_sha256": "c7e4032b6277c077b7c8df7d6603522889a5f04db7be46da9bedebca37bd1a30",
+      "new_current_identity": true,
+      "typed_Trash_identity_equals_A": true,
+      "same_stable_owner": true,
+      "clean_fsync_added_no_operation": true
+    },
+    "final_journal": {
+      "Applied_mutations": 1,
+      "Uploaded_FileBytes": 2,
+      "complete_queue": 3,
+      "namespace_operation_associations": 3,
+      "exact_folder_and_upload_owner_pairs": true,
+      "working_files": 0,
+      "native_associations": 0,
+      "package_publications": 0,
+      "atomic_replacements": 0
+    },
+    "original_A_capture_and_pre_B_capture_exact": true,
+    "all_12_recorded_process_identities_gone": true,
+    "test_mount_absent": true,
+    "installed_daemon_identity_unchanged": true,
+    "installed_packaged_files_unchanged": 19,
+    "home_daemon_shadow_absent": true,
+    "automatic_retry": false,
+    "prior_run_replay": false,
+    "Apple_GUI_fidelity_verified": false,
+    "native_editor_save_verified": false,
+    "atomic_save_verified": false,
+    "RO_remount_verified_in_this_arm": false,
+    "uncertainty_or_session_expiry_tested": false,
+    "repeated_reliability_established": false,
+    "full_integration_gates_closed": 0,
+    "schema_deployment_hold_lifted": false,
+    "root_audit": {
+      "path": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/root-live-outcome-audit.json",
+      "sha256": "aceb4f736b5b89774b6871e1f0e57a3e9f1671bd5d2fb9c6e1533247b3a95dd9"
+    },
+    "independent_audit": {
+      "path": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/regression-review-live-audit.v1.json",
+      "sha256": "71c7e90155d134eb690808e842871260ab5e30ef0eb4f17723ee68fa7422cfeb"
+    }
+  },
+  "source_CI_history": {
+    "earlier_4f40cd2": {
+      "run": 37224686955,
+      "status": "success",
+      "successful_jobs": 7
+    },
+    "intermediate_5270218": {
+      "run": 37227268965,
+      "status": "cancelled",
+      "successful_jobs": 6,
+      "cancelled_job": "linux",
+      "reason": "Annotation confirms higher-priority superseding ci-CI-refs/pull/86/merge run; not a test failure or timeout."
+    },
+    "current_16ae7e0": {
+      "run": 37229187465,
+      "status": "success",
+      "head": "16ae7e0219c671bb9542a87a7d326968184a0abe",
+      "successful_jobs": 7,
+      "completed_snapshot_sha256": "5ccb01ae1e19099b1513518b2c973bbff2b729324fa137bba6a0532cc173c63f"
+    }
+  },
+  "post_live_full_contributor_check": {
+    "verified_at": "2026-10-04T20:14:51.204577+00:00",
+    "exit_code": 0,
+    "terminal_chunk": "707795",
+    "whole_command_completed": true,
+    "source_files_unchanged": 452,
+    "DATA_service_controls_executed": 12,
+    "DATA_Trash_controls_executed": 4,
+    "log_sha256": "509916bb143fc4c7652dd387b1a77d93fce2ab786ff7e2cda3fce52277e5743d",
+    "source_code_changed": false,
+    "desktop_display_scenarios_rerun": false,
+    "cloud_mutated": false,
+    "command": [
+      "scripts/check.sh"
+    ],
+    "result": ".local-state/icloud-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/full-check-v2-result.json"
   }
 }

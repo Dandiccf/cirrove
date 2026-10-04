@@ -2000,3 +2000,32 @@ lifecycle refusals. The complete `scripts/check.sh` passed with all 12 DATA
 service controls and four DATA Trash-reader controls, with all 452 source hashes
 verified. This source-validation endpoint supplies no new live DATA acceptance;
 the separately registered fresh arm remains unexecuted at this endpoint.
+
+
+### Owned Numbers DATA create and in-place save completed on 4 October 2026
+
+The [fresh revision-confirmation arm](benchmarks/icloud-numbers-data-revision-confirmation-2026-10-04.json)
+subsequently completed its three registered mutations: one fresh owned folder,
+one ordinary FUSE create of raw Apple Numbers export A, and one in-place save
+of raw export B. After stopping the first isolated daemon, an independent reader
+confirmed actual CloudDocs DATA representation and the exact 138,881-byte A
+SHA-256 before B was permitted. The save opened without truncation, checked the
+actual descriptor identity and size, then truncated and wrote B once.
+
+After stopping the second isolated daemon, independent read-only checks verified
+current DATA B (138,943 bytes) and the typed original A in Trash, with exact
+provider identities, revisions and raw SHA-256 values. Current identity changed,
+the stable local owner stayed the same, and a clean fsync added no operation.
+The final journal contained one Applied folder mutation, two Uploaded FileBytes
+operations and three completed queue/namespace associations; there were no
+native package publications or atomic replacements. No earlier arm was replayed.
+All owned processes were gone and the mount absent. The installed daemon kept
+its exact process identity; all 19 packaged files and the absent home shadow
+were unchanged.
+
+This one successful run establishes bounded ordinary DATA copy/overwrite for
+this Numbers fixture. It does not exercise a real editor, atomic save, Apple
+GUI/reopen or export fidelity, a read-only remount, uncertain-outcome recovery,
+expired sessions, repeatability or installed transitions. The independent raw
+proofs deliberately carry no package semantics or GUI claim. Requirements
+485–490 all remain open, and the schema19/metadata8 deployment hold remains.
