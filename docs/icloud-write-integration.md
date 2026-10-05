@@ -2396,5 +2396,117 @@ tests also passed, covering 38 hostile admission arms, indexed metadata and
 ancestry conflicts, ordinary indexed relocation routing, and eight real
 preparation deferrals with newer unlinked bytes preserved through exclusive
 journal reopening. The independent content/revision checks remain mandatory.
-This correction still needs a fresh real-provider cleanup and complete editor
-trial; it closes none of the six full-integration acceptance criteria.
+The subsequent real-provider cleanup result is recorded below. A complete editor
+trial remains open; this correction closes none of the six full-integration
+acceptance criteria.
+
+### Fresh Calc cleanup and metadata registration refusal
+
+The [fresh receipt-source arm](benchmarks/icloud-calc-after-receipt-source-2026-10-05.json)
+used the exact corrected source and four frozen test binaries. Actual Calc
+stored and reopened its own 5285-byte XLSX with 7/3/SUM=10. All four ordinary
+uploads reached Uploaded without a recorded failed attempt; both the temporary
+file and lock-file removals reached Applied. All seven journal queue entries
+completed. This is real evidence that the previously blocked cleanup progressed.
+
+The independent metadata helper then stopped before saved-session or provider
+access: the controller emitted fractional wall-clock seconds, while the Rust
+registration schema requires integer seconds. No metadata attempt or independent
+DATA proof was produced. The second save and read-only remount were therefore
+not admitted. The stopped writer was not reopened or replayed, all five original
+child handles were reaped, and the mount and control socket were absent. The
+installed daemon and all 19 packaged artifacts remained unchanged.
+
+Journal acknowledgement is distinct from independent current-content verification.
+This result does not prove exact cloud bytes, a complete two-save editor workflow,
+native iWork editing, installed upgrade acceptance or general provider reliability.
+All six full-iCloud criteria remain open. The next separately registered fresh
+arm will project only the metadata registration's original wall-clock values to
+integer seconds, preserving the controller's original deadline and cleanup reserve.
+
+The [next fresh arm](benchmarks/icloud-calc-after-metadata-clock-2026-10-05.json)
+used that narrow controller correction. Before cloud dispatch, the actual old
+boundary's registration failed a privately extracted, byte-exact Rust parser;
+the same parser accepted both corrected phase registrations and ten refusal
+guards. All five existing Rust metadata tests also passed. The initial parser
+slice-hash guard refused a trailing-newline scope mismatch before compilation;
+the corrected source map and unchanged consumer remain retained. These controls
+prove local registration compatibility, not cloud content.
+
+Actual Calc again stored and reopened its own XLSX with 7/3/SUM=10. This arm
+stopped earlier: its restarted Office process failed the exact argv/executable
+identity check while the original Child was not yet terminal. The controller
+sent no signal after that refusal and did not reach metadata, a second save or
+read-only remount. The later stopped journal retained uncertain first-upload
+checkpoints; these shutdown states do not establish a provider failure. Three
+original child handles were recorded as reaped, while the restarted Office
+handle remained unresolved in the original closure. Its later PID absence does
+not retrospectively prove that handle was reaped. All recorded PIDs, mount and
+socket were subsequently absent; the installed baseline remained unchanged.
+
+A separate real-child control then reproduced the original controller's refusal
+before its desired natural-termination endpoint. A corrected fallback passed that
+same endpoint and three guards for a still-live child, an expired cutoff and
+supervisory cancellation. It waits only on the retained original handle, with a
+timeout allowance of up to one second within the original cutoff, and never
+signals an unconfirmed process. All five control children were reaped through their original handles,
+with zero signals. This does not prove which identity component differed in the
+cloud arm or that its historical failure was a natural-exit race. Complete cloud
+editor and full native-iWork acceptance remain open.
+
+### First independently verified Calc save and the second-save source boundary
+
+The [fresh A/B arm](benchmarks/icloud-calc-after-natural-exit-2026-10-06.json)
+used the unchanged corrected service binaries and the locally tested controller.
+Actual Calc stored and reopened its own 5283-byte XLSX with 7/3/SUM=10. All seven
+first-save journal entries completed, including both temporary and lock-file
+removals. The independent generic verifier read the exact current DATA item from
+iCloud; its size and SHA-256 matched the actual saved file. This is the first
+complete independent first-save readback in this Calc sequence.
+
+Only after that verification, Calc saved and reopened a second 5610-byte version
+with 11/3/SUM=14. Its sealed temporary-file upload reached VerifyRequired before
+the second cloud-content check or read-only remount could start. The stopped
+journal shows that the queued atomic replacement had already renamed the same
+source owner and become its latest operation while its prerequisite content
+upload still awaited completion. Both reservation guards in that arm's source
+reject that ordering before provider delegation. The exact runtime exception was
+not retained; the source-derived boundary therefore needed the controlled
+synthetic reproduction recorded below.
+
+The bounded arm stopped without repeating either save. All ten original child
+handles were reaped; the mount and control socket were absent. The installed
+daemon and all 19 packaged artifacts remained unchanged. The fixture and uncertain
+operations stay retained. The first version's verified bytes do not prove the
+second version, native iWork editing, installed upgrades or general reliability;
+all six full-iCloud acceptance criteria remain open.
+
+The [controlled source regression](benchmarks/icloud-atomic-source-handoff-2026-10-06.json)
+then reproduced the source-prerequisite refusal in two actual worker sequences,
+within one directory and across two directories. Both first failed on the original
+guard before the source's provider begin callback, with original and sealed bytes
+preserved. The unchanged tests passed after binding the earlier source upload to
+its exact pending atomic replacement, prerequisite and cleanup. A private optional
+reservation field retains that target across restart; existing reservation bodies
+deserialize without a schema migration. The captured original source parent is
+verified separately from the final destination, and the upload's new temporary
+receipt supplies the subsequent cleanup identity.
+
+Nine focused tests passed, including 47 hostile authority arms across fresh
+reservation, saved reservation and acknowledgement, recovery of the same saved
+reservation after exclusive journal reopening, and ordinary newer-save parity.
+Later unsealed descriptor writes also survived both handoffs, cleanup and reopening,
+while the original sealed bytes stayed unchanged. An initial control run had six
+passing tests and three fixture-inspection failures: its snapshot reader correctly
+rejected deliberately corrupted digest metadata before the intended authority
+check. Reading the owned fixture's raw sealed bytes independently fixed that
+inspection; production remained unchanged, and the subsequent nine tests passed.
+These are local synthetic results. The retained cloud writer is not replayed,
+and a fresh real-provider two-save/remount trial remains necessary.
+
+The complete `scripts/check.sh` then passed in 674.461 seconds, including every
+Clippy variant, workspace and feature tests, kernel FUSE scenarios, script checks,
+documentation and the acceptance ledger. All 477 recorded Rust/Cargo source pins
+remained unchanged. Desktop display scenarios were not run. The installed daemon,
+unit and all 19 packaged artifacts remained unchanged; this is source validation,
+not installed delivery or closure of a full-iCloud release criterion.

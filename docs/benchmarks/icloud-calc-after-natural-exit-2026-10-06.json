@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-06",
+  "registered_at": "2026-10-06T00:08:02.084348+02:00",
+  "timezone": "Europe/Vienna",
+  "run": "28a274e6-8017-4b9d-becb-462f0b28b1f1",
+  "status": "a-independent-data-confirmed-b-journal-verify-required",
+  "source_head": "b144846a85ec82582f8512702120b5a63b77267a",
+  "question": "Do corrected metadata clock serialization and bounded original-child termination observation permit a fresh actual Calc A save, independent DATA A readback, one conditional B save, DATA B readback and distinct read-only remount?",
+  "prediction": "The fully closed436 arm passed all seven journal entries and both removals. V10 metadata wire compatibility and V11 original-handle terminal fallback now have local RED/GREEN controls. These should permit the fresh full A/B endpoint, but actual provider content, B replacement and remount remain unproven. Stop on uncertainty without repeating a save.",
+  "arms": [
+    {
+      "name": "fresh-owned-calc-a-then-conditionally-b",
+      "maximum_seconds": 600,
+      "cleanup_reserve_seconds": 45,
+      "store_as_a_count_max": 1,
+      "store_b_count_max": 1,
+      "b_admission": "stopped exact journal completion and independent generic current DATA A verification",
+      "automatic_save_retry": false
+    }
+  ],
+  "scope": {
+    "folder": "Cirrove-Native-28a274e6-8017-4b9d-becb-462f0b28b1f1",
+    "document": "Cirrove-Calc-28a274e6-8017-4b9d-becb-462f0b28b1f1.xlsx",
+    "native_iwork_editing": false,
+    "installed_delivery": false,
+    "full_release_gate_closed": false
+  },
+  "execution_policy": {
+    "provider_mutations_authorized": true,
+    "closed_donor": "43690a69-ebe4-4727-93cb-8f5fcfcc7aba",
+    "unresolved7e_used_as_donor": false,
+    "old_writer_reopened": false,
+    "old_fixture_mutation_replayed": false,
+    "compile_during_cloud_arm": false,
+    "installed_actions": false,
+    "stop_on_uncertainty": true
+  },
+  "inputs": {
+    "runtime_binding_sha256": "84ca7cd12ee8c145b9d4e617d1044e3bcfa1dbf49c3f7669602df4ebdeb83174",
+    "source_count": 476,
+    "exact_prior_four_b144_roles_reused": true,
+    "controller_sha256": "890c7383b89b8ae7c833d63b5d9bcb235563b6b5ec039739b89859a51246161c",
+    "worker_sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106",
+    "preparation_script_sha256": "3f6d4b27c7ea9453f5f92c54b818342836ce25d302ec97af1fccdbc7c9a32b4c",
+    "metadata_schema_control_audit_sha256": "a6c179d84d600a5bd32f115bc5c29a8d26e4adfa6e2f369f9699207898598c03",
+    "original_child_control_audit_sha256": "f6f8fbdd4727a6b62f91c08d23b1655bf681f518cdf61403f9206697fc0f9e83",
+    "peer_preparer_review_sha256": "cadfd54bff56f7976dfcb399b95f792806ddae82a09a66ce3e3294522ab2f41c"
+  },
+  "controller_scope": "Only integer metadata wire clock projection plus a timeout allowance up to min(1 second, original cutoff remaining) on the retained original Child after identity-check failure. No unknown-process signals, original clock extension or supervised-stop masking.",
+  "local_controls": {
+    "original_metadata_desired_endpoint_exit": 1,
+    "corrected_metadata_phases_accepted": 2,
+    "metadata_guards": 10,
+    "existing_actual_rust_controls_passed": 5,
+    "original_natural_terminal_endpoint_exit": 1,
+    "corrected_original_child_controls_passed": 4,
+    "original_real_control_children_reaped": 5,
+    "signals": 0,
+    "historical7e_identity_component_or_race_proven": false,
+    "hard_elapsed_wait_limit_claimed": false
+  },
+  "limits": [
+    "Older failed writers and pending/uncertain mutations stay retained and are not replayed.",
+    "The7e original closure remains false; later PID absence does not prove original-handle reap.",
+    "UNO actions and visible-window API checks are not human GUI clickthrough.",
+    "XLSX evidence does not establish native iWork editing, installed transition/Strata acceptance or general provider reliability. All six full-scope rows remain open."
+  ],
+  "outcome": {
+    "overall_success": false,
+    "a_local_save_reopened": {
+      "A2": 7.0,
+      "B2": 3.0,
+      "C2": 10.0,
+      "formula": "=SUM(A2:B2)"
+    },
+    "a_independent_data": {
+      "current_identity_matches_journal": true,
+      "size": 5283,
+      "sha256": "d732a160b672b83a868fcadefc219b8492b0669a76a5c63c2176985747d53cdd",
+      "representation": "data",
+      "format": "xlsx",
+      "independently_read_back": true,
+      "bytes_match_source": true,
+      "cloud_mutated_by_verifier": false
+    },
+    "a_journal": {
+      "queue_count": 7,
+      "unfinished_queue_count": 0,
+      "uploaded_count": 4,
+      "applied_mutation_count": 3
+    },
+    "b_local_save_reopened": {
+      "A2": 11.0,
+      "B2": 3.0,
+      "C2": 14.0,
+      "formula": "=SUM(A2:B2)"
+    },
+    "b_local_source_size": 5610,
+    "b_local_source_sha256": "bfe18b5fd00fc4e98383ec04feffd2ce30ccb0113cdceb9487c3d85c7214c105",
+    "b_first_refusal": {
+      "file": "cloud-controller-natural-child-wait-v11.py",
+      "function": "wait_complete",
+      "line": 512,
+      "pre_cleanup_seq12_attempt_present": false,
+      "pre_cleanup_seq12_checkpoint_reference_present": false,
+      "pre_cleanup_seq12_failed_attempts": 1,
+      "pre_cleanup_seq12_state": "verify_required",
+      "pre_cleanup_seq12_transferred_bytes": 0,
+      "predicate": "all rows outside failed/conflict/needs_review/verify_required/verifying"
+    },
+    "b_source_derived_boundary": {
+      "exact_runtime_exception_retained": false,
+      "ordinary_temporary_upload_sequence": 12,
+      "durable_atomic_replacement_sequence": 13,
+      "replacement_requires_upload12": true,
+      "replacement_already_renamed_same_source_owner": true,
+      "owner_latest_is_replacement13": true,
+      "reservation_latest_and_visible_name_guards_reject": true,
+      "local_controlled_reproduction_required": true,
+      "provider_failure_proven": false
+    },
+    "b_independent_data_verified": false,
+    "readonly_remount_started": false,
+    "original_children_reaped": 10,
+    "owned_closure_complete": true,
+    "mounted_or_socket_present_after_cleanup": false,
+    "installed_artifacts_unchanged": 19,
+    "runtime_sources_unchanged": 476,
+    "runtime_roles_unchanged": 4,
+    "native_iwork_editing_verified": false,
+    "full_release_gate_closed": false
+  },
+  "outcome_evidence": [
+    {
+      "artifact": "root-terminal-audit-v2.json",
+      "size": 14266,
+      "sha256": "05d456833790c08c0c1ff33827928dd39f9785a475e7beadec50d34209898f85"
+    },
+    {
+      "artifact": "audit-admission-first-b-refusal-v1.json",
+      "size": 7687,
+      "sha256": "77f87f1aaf3727def24b2c463267d5e54862ff2cae2070f35bdb2812cd09ac99"
+    },
+    {
+      "artifact": "owned-closure.json",
+      "size": 7385,
+      "sha256": "d42c62de44488956e6ad92bddf883f0b3c917a4cfd62bb9abd6130baf968072d"
+    },
+    {
+      "artifact": "failure-diagnostic.json",
+      "size": 4971,
+      "sha256": "e10eb15536aff8e2dbaa4321b1fedccdac670c6bb10dc6cfe5be35af23226094"
+    },
+    {
+      "artifact": "root-frozen-prereg-before-cloud-v1.json",
+      "size": 3909,
+      "sha256": "874a2e331fb93d967db3bada99827d2530b0ec4be2474d7f495abb52162ea851"
+    }
+  ],
+  "inspection_correction": {
+    "initial_root_audit_completed": false,
+    "initial_root_guard_failure": "raw frontier queue tuple inspected as dictionary",
+    "corrected_root_audit": "v2 explicitly validates sequence/id/complete tuple shape",
+    "initial_audit_retained": true
+  },
+  "follow_up_local_source_evidence": {
+    "artifact": "icloud-atomic-source-handoff-2026-10-06.json",
+    "actual_baseline_red": 2,
+    "same_endpoint_green": 2,
+    "actual_follow_up_controls_passed": 9,
+    "hostile_arms": 47,
+    "cloud_b_success_claimed": false,
+    "exact_historical_runtime_exception_proven": false
+  }
+}

@@ -68,10 +68,14 @@ through inspection of the same operation, with no repeated cloud write, and
 independently verified the new document and the original in Trash. See the
 [iCloud validation record](docs/icloud-write-integration.md). Desktop import,
 real editor saves, broader session recovery and installed upgrades remain open.
-A fresh Linux Calc trial confirmed all four file uploads, including a temporary
-file replacement, but stopped before cleanup and independent readback completed.
-The guarded cleanup correction has synthetic regression coverage; a complete
-second-save and remount trial still needs real-provider acceptance.
+A fresh Linux Calc trial completed the first save, all uploads and temporary-file
+and lock-file removal. Independent iCloud DATA readback matched the saved XLSX
+byte for byte. Calc then saved and reopened a second version locally, but its
+cloud confirmation remained unresolved during atomic replacement.
+A guarded correction now passes synthetic same-directory and cross-directory
+replacement sequences, restart recovery and preservation of newer working bytes.
+The complete two-save workflow and read-only remount still need real-provider
+acceptance. XLSX results do not establish native iWork editing support.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to

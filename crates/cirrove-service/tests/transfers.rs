@@ -27,6 +27,8 @@ use tokio::sync::Notify;
 
 const DATA: &[u8] = b"abcdefghij";
 const SECRET: &str = "https://fixture.invalid/session?PRIVATE-CHECKPOINT";
+#[path = "transfers/atomic_staged_prerequisite.rs"]
+mod atomic_staged_prerequisite;
 #[path = "transfers/unlinked_staged_successor.rs"]
 mod unlinked_staged_successor;
 #[derive(Default)]
