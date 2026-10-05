@@ -2,6 +2,7 @@
 //! share a provider client but never hold SQLite locks across network awaits.
 mod cached_status;
 mod changes;
+mod control_identity;
 
 /// An item's mount-relative path, by walking parents up to the drive root.
 ///
@@ -239,6 +240,7 @@ pub struct Engine {
     health: RwLock<HashMap<String, FeedHealth>>,
     directories: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     package_rechecks: StdMutex<HashSet<String>>,
+    control_incarnation: StdMutex<String>,
     tasks: TaskTracker,
     directory_publications: Arc<tokio::sync::Semaphore>,
     discovery: Notify,
@@ -322,6 +324,7 @@ impl Engine {
             health: RwLock::new(HashMap::new()),
             directories: StdMutex::new(HashMap::new()),
             package_rechecks: StdMutex::new(HashSet::new()),
+            control_incarnation: StdMutex::new(uuid::Uuid::new_v4().to_string()),
             tasks: TaskTracker::new(),
             directory_publications: Arc::new(tokio::sync::Semaphore::new(2)),
             discovery: Notify::new(),
@@ -914,6 +917,7 @@ impl Engine {
             };
             states.push(crate::PathState {
                 path,
+                identity: Some(self.control_identity(&scope, &node)),
                 item: node.id.clone(),
                 kind: if folder { "folder" } else { "file" }.into(),
                 pinned,
@@ -1000,6 +1004,12 @@ impl Engine {
         scope: Scope,
         node: Node,
     ) -> Result<crate::PinReply> {
+        if !self.matches_control_identity(request.expected.as_ref(), &scope, &node) {
+            return Ok(crate::PinReply {
+                refusal: Some("the selected object or mount changed; reopen the menu".into()),
+                ..Default::default()
+            });
+        }
         if request.recursive {
             return Ok(match self.plan_folder_pin(&scope, &node).await? {
                 Ok(planned) => {
@@ -1122,7 +1132,8 @@ impl Engine {
         self: &Arc<Self>,
         request: &crate::PinRequest,
     ) -> Result<crate::PinReply> {
-        if let Some(item) = &request.item
+        if request.expected.is_none()
+            && let Some(item) = &request.item
             && self.release_recorded_pin(item).await? > 0
         {
             // Unreserving is not freeing; the same reclaim the resolved path does.
@@ -1143,14 +1154,22 @@ impl Engine {
                 });
             }
         };
-        self.apply_unpin_resolved(scope, node).await
+        self.apply_unpin_resolved(scope, node, request.expected.as_ref())
+            .await
     }
 
     pub(crate) async fn apply_unpin_resolved(
         self: &Arc<Self>,
         scope: Scope,
         node: Node,
+        expected: Option<&crate::PathIdentity>,
     ) -> Result<crate::PinReply> {
+        if !self.matches_control_identity(expected, &scope, &node) {
+            return Ok(crate::PinReply {
+                refusal: Some("the selected object or mount changed; reopen the menu".into()),
+                ..Default::default()
+            });
+        }
         let removed = self.unpin(scope, node.id.clone()).await?;
         if !removed {
             return Ok(crate::PinReply {

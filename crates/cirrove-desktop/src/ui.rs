@@ -1433,6 +1433,7 @@ impl Window {
             path: None,
             recursive: false,
             bytes: None,
+            expected: None,
         };
         let shown = name.to_owned();
         let (send, receive) = tokio::sync::oneshot::channel();
@@ -1687,6 +1688,7 @@ impl Window {
             path: Some(relative.clone()),
             recursive,
             bytes: None,
+            expected: None,
         };
         let (send, receive) = tokio::sync::oneshot::channel();
         runtime.spawn(async move {

@@ -542,7 +542,11 @@ impl Manager {
             let control = { self.writers.read().await.get(&engine.account.id).cloned() };
             if let Some(control) = control {
                 return match control.resolve_visible_path(&engine, path).await {
-                    Ok((scope, node)) => engine.apply_unpin_resolved(scope, node).await,
+                    Ok((scope, node)) => {
+                        engine
+                            .apply_unpin_resolved(scope, node, request.expected.as_ref())
+                            .await
+                    }
                     Err(error) => Ok(crate::PinReply {
                         refusal: Some(error.to_string()),
                         ..Default::default()
@@ -964,6 +968,7 @@ async fn mount_checked(
     state: &Path,
     writable: Option<Arc<dyn WriteProvider>>,
 ) -> Result<(CloudSession, Option<crate::writable::WriteWorkers>)> {
+    engine.renew_control_incarnation();
     let path = engine.account.mount_path.clone();
     recover_disconnected_mount(&engine.account).await?;
     // CloudFs captures this async runtime, while filesystem checks and the FUSE

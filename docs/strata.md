@@ -42,13 +42,32 @@ older daemon it draws nothing, rather than falling back to a status lookup that
 might hydrate a Google export. Normal file-manager thumbnails/previews are
 separate and may still read content according to Strata's settings.
 
-The helper batches at most 200 paths, uses one-second bounded socket exchanges,
+The daemon must also advertise `pin-identity`. Each menu leaf carries a bounded
+opaque context for the exact selection and its account/collection/item identities
+and mount incarnation. Activation rechecks that context; pin/unpin then send the
+daemon's `expected` identity with the literal path. The service compares it with
+the resolved target before mutation and operates on that resolved identity.
+Replacing an object, account or mount invalidates old contexts. A bounded cache
+retains at most 32 menu contexts; evicted contexts require reopening the
+menu. Legacy control clients can omit `expected`, but Strata never does.
+
+The helper accepts at most 200 paths and splits metadata queries to fit the
+daemon's 8 KiB request limit, counting JSON escaping. Menu eligibility still
+covers the whole selection. A metadata query has a four-second dispatch budget;
+an individual path too large for the daemon is refused without fallback.
+The helper uses one-second bounded socket exchanges,
 a two-second mount cache, generation checks across responses, and the daemon's
 `subscribe` stream with reconnect backoff. It performs no filesystem stat, content
 read, symlink resolution or shell interpolation on selected paths. Non-UTF-8
 names are unsupported by this JSON API and are left undecorated. Selections above
 200 are deliberately not offered actions. A large/slow explicit pin batch can be
 partially accepted; the result says how many. Its remaining items are not retried.
+Activation outcomes distinguish confirmed acceptance, rejection and partial
+acceptance from a lost reply. A lost reply retains the confirmed acceptance lower
+bound and never causes automatic replay. Explicit service refusals show their
+reason; failed connections report the unsent remainder without obscuring any
+confirmed acceptance. A single submitted job includes its reference. Messages
+are bounded by UTF-8 bytes to fit the host protocol.
 
 ## Install and remove
 

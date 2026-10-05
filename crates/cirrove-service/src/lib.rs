@@ -153,6 +153,16 @@ pub struct PinRequest {
     /// which is the only figure that agrees with the walk.
     #[serde(default)]
     pub bytes: Option<u64>,
+    /// Identity returned by cached presentation; a mismatch refuses the action.
+    #[serde(default)]
+    pub expected: Option<PathIdentity>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PathIdentity {
+    pub mount: String,
+    pub scope: cirrove_core::Scope,
+    pub item: String,
 }
 /// What the daemon actually did, as opposed to what was asked for.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -432,6 +442,8 @@ pub const PATHS_PER_REQUEST: usize = 200;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PathState {
     pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<PathIdentity>,
     /// Whether indexed metadata supports a pin; false when unknown.
     #[serde(default)]
     pub can_pin: bool,
@@ -857,6 +869,7 @@ impl Capabilities {
                 ("discard-stuck".to_string(), 1),
                 ("paths".to_string(), 1),
                 ("paths-cached".to_string(), 1),
+                ("pin-identity".to_string(), 1),
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
                 ("keep-both".to_string(), 1),

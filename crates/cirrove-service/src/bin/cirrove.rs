@@ -915,6 +915,7 @@ async fn main() -> Result<()> {
                 path,
                 recursive,
                 bytes,
+                expected: None,
             };
             let label = request.label.clone();
             let reply = cirrove_service::pin(&socket, &request).await?;
