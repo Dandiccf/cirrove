@@ -453,7 +453,7 @@ pub use replacement_live::{
 
 mod fixture_verify;
 pub use fixture_verify::{
-    icloud_owned_fixture_verify, icloud_owned_fuse_capture_verify,
+    icloud_owned_editor_metadata, icloud_owned_fixture_verify, icloud_owned_fuse_capture_verify,
     icloud_owned_fuse_receipt_verify, icloud_owned_fuse_source_verify,
     icloud_owned_keynote_import_receipt_verify, icloud_owned_keynote_source_verify,
     icloud_owned_native_import_fixture_verify, icloud_owned_numbers_data_receipt_verify,

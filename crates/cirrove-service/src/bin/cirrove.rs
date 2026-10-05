@@ -478,6 +478,14 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Capture read-only metadata for a registered fresh browser Numbers document.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudEditorMetadata {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
     /// Compare bounded Google adapter reads with the mount and classify shortcuts (GET-only).
     ValidateGoogleRead {
         #[arg(long)]
@@ -1186,6 +1194,16 @@ async fn main() -> Result<()> {
     let command = Args::parse().command;
     let validate_session = matches!(&command, Command::ValidateOnedriveReadSession { .. });
     match command {
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudEditorMetadata {
+            registration,
+            sha256,
+        } => {
+            let proof =
+                cirrove_service::validation::icloud_owned_editor_metadata(&registration, &sha256)
+                    .await?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
         Command::ValidateGoogleRead {
             label,
             files,

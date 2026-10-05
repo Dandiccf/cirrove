@@ -41,6 +41,8 @@ jobs:
         run: cargo clippy -p cirrove-service --features icloud-probe --bin cirrove-icloud-mount-probe --locked -- -D warnings
       - name: Check the isolated iCloud write probe
         run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-write-probe --locked -- -D warnings
+      - name: Check the feature-gated iCloud editor metadata CLI
+        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove --test owned_icloud_editor_metadata_cli --locked -- -D warnings
       - name: Check the isolated mounted iCloud write probe
         run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-mounted-write-probe --locked -- -D warnings
       - name: Credential round trip against a throwaway Secret Service
@@ -66,6 +68,8 @@ jobs:
         run: cargo test -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-mounted-write-probe --locked
       - name: iCloud account-router validator guards
         run: cargo test -p cirrove-service --features icloud-write-probe --lib validation::icloud_account --locked
+      - name: iCloud editor metadata CLI refuses before state access
+        run: cargo test -p cirrove-service --features icloud-write-probe --test owned_icloud_editor_metadata_cli --locked
       - name: Native final-confirmation loss and inspection-only recovery
         run: >-
           cargo test -p cirrove-service --features icloud-write-probe --lib

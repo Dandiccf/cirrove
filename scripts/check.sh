@@ -36,6 +36,9 @@ cargo clippy -p cirrove-service --features icloud-probe \
 step "iCloud isolated write probe"
 cargo clippy -p cirrove-service --features icloud-write-probe \
   --bin cirrove-icloud-write-probe --locked -- -D warnings
+step "iCloud editor metadata CLI"
+cargo clippy -p cirrove-service --features icloud-write-probe \
+  --bin cirrove --test owned_icloud_editor_metadata_cli --locked -- -D warnings
 step "iCloud isolated mounted write probe"
 cargo clippy -p cirrove-service --features icloud-write-probe \
   --bin cirrove-icloud-mounted-write-probe --locked -- -D warnings
@@ -48,6 +51,8 @@ if [[ $fast != --fast ]]; then
     --bin cirrove-icloud-mounted-write-probe --locked
   cargo test -p cirrove-service --features icloud-write-probe \
     --lib validation::icloud_account --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --test owned_icloud_editor_metadata_cli --locked
   cargo test -p cirrove-service --features icloud-write-probe \
     --lib journal::package_replacement::worker_transport::native_final_tests:: --locked \
     -- --test-threads=1

@@ -266,6 +266,9 @@ pub async fn icloud_owned_fixture_verify(
     Ok(result)
 }
 
+mod editor_metadata;
+pub use editor_metadata::icloud_owned_editor_metadata;
+
 mod native_import_fixture;
 pub use native_import_fixture::icloud_owned_native_import_fixture_verify;
 
