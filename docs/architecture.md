@@ -995,6 +995,20 @@ bytes, dirty state and generation survive completion and journal reopening.
 Synthetic regression and hostile-lineage checks cover this sequence. They do
 not establish real-provider application acceptance or general successor support.
 
+An ordinary sealed source save may also precede a pending atomic path takeover.
+The handoff guard checks that exact source, destination victim, working stream,
+sealed bytes, prerequisite and reserved cleanup at reservation and confirmation.
+If takeover captured an empty temporary file before its Create acknowledgement,
+the replacement transaction records the exact unconfirmed creation UUID in an
+optional JSON field. Its later completed receipt can authorize the otherwise
+empty cleanup reservation only with the full same-owner/working/scope/queue
+lineage and zero-Create identity. Older bodies without that capture marker do
+not gain this exception. The destination receipt still fills the cleanup with
+the current temporary identity; path names alone authorize nothing. This adds
+no schema migration and does not relax native or detached-stream rules.
+Synthetic failure-before-fix, hostile authority and existing-route parity
+checks support the correction; complete real-editor acceptance remains open.
+
 Source planning for that resolved ordinary Remove checks indexed metadata first.
 If the item is not indexed yet, only its exact completed FileBytes predecessor,
 direct dependency and current unlinked owner/working-stream binding can supply

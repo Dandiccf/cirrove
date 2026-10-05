@@ -2510,3 +2510,47 @@ documentation and the acceptance ledger. All 477 recorded Rust/Cargo source pins
 remained unchanged. Desktop display scenarios were not run. The installed daemon,
 unit and all 19 packaged artifacts remained unchanged; this is source validation,
 not installed delivery or closure of a full-iCloud release criterion.
+
+### Delayed temporary-file creation and atomic takeover on 6 October 2026
+
+The [fresh Calc trial](benchmarks/icloud-calc-after-atomic-source-handoff-2026-10-06.json)
+on `abc6d73` again completed its first save and independent DATA readback: all
+5280 bytes matched the source digest, with 7/3/SUM=10 after local reopening.
+Its second 5612-byte version reopened locally with 11/3/SUM=14, but source upload
+12 reached VerifyRequired before independent second-save readback or remount.
+All ten original children were reaped, the owned mount and socket were closed,
+and the installed daemon and 19 packaged files remained unchanged.
+
+The stopped source audit found the missed ordering. Atomic acceptance clones its
+source into a reserved cleanup object before the empty temporary Create is
+acknowledged. The later acknowledgement advances the source receipt, while the
+cleanup retains `remote=None`, sequence 0 and revision 0. The previous guard
+required that shadow to hold the already acknowledged receipt. No exact original
+transfer exception was retained; this is a source-derived mismatch, not proof of
+a provider transport failure.
+
+The [controlled correction](benchmarks/icloud-atomic-source-delayed-create-2026-10-06.json)
+first reproduced two actual same-directory/cross-directory failures on the old
+code. The same byte-exact tests then passed with a creation-origin UUID captured
+inside the original replacement transaction. An empty cleanup shadow requires
+that marker and the exact later zero-Create receipt; missing historical evidence
+is not promoted. All 14 module tests passed, including 30 new hostile saved
+reservation/confirmation arms and 47 existing authority arms. Both original
+Relocate-based parity arms also passed. A private initial marker draft failed
+that same parity test at its first arm with Storage; optional upload lookups
+corrected it without granting creation authority to mutation-based topology.
+No SQL schema migration or installed change was made. A new actual two-save
+cloud trial remains required; no full-iCloud acceptance criterion closes here.
+
+The [separate public Pages chooser preflight](benchmarks/icloud-pages-public-chooser-preflight-2026-10-06.json)
+stopped before its first UI action because the Python accessibility client
+aborted in libatspi after the existing accessibility-bus socket refused its
+connection. The coredump confirms SIGABRT and the GLib/libatspi/GI stack. No
+import RPC was recorded. The outer original Python handle was reaped; the
+crashed harness never wrote its original Desktop-child reap receipt. Root
+revalidated that exact Desktop PID, birth ticks, executable digest and argv,
+observed terminal state after a pidfd signal, and confirmed later process
+absence. This does not recreate the missing original handle proof. Its stale
+owned socket and fixture remain retained. No global accessibility repair or
+installed activation was performed. The next isolated accessibility session
+must be verified before another fresh actual public chooser trial.

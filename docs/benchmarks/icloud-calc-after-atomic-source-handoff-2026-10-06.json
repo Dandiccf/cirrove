@@ -1,0 +1,134 @@
+{
+  "arms": [
+    {
+      "endpoint": "A real Calc storeAs once, local close/reopen semantic proof, full journal completion and independent DATA bytes; only then B real Calc store once, local close/reopen, full journal completion and independent DATA bytes, followed by read-only remount and byte/semantic verification",
+      "name": "fresh-corrected-calc-two-save"
+    }
+  ],
+  "execution_policy": {
+    "SQLITE_TMPDIR_filesystem": "ext4",
+    "TMPDIR_filesystem": "ext4",
+    "cleanup_reserve_seconds": 45,
+    "explicit_user_authorization": "Standing user authorization for iCloud writes and tests",
+    "installed_actions": false,
+    "one_runtime_lane_no_compilation": true,
+    "one_trial_no_automatic_retry": true,
+    "original_wall_monotonic_boot_window": true,
+    "preserve_all_original_child_handles_and_evidence": true,
+    "stop_on_uncertain_result": true,
+    "window_seconds": 600
+  },
+  "follow_up_stopped_source_audit": {
+    "audit_sha256": "57174eadce28c2b17b32902592798b523fabbc5e2b9d3932f0c7bc62d58a84aa",
+    "exact_historical_transfer_exception_proven": false,
+    "next_controlled_source_regression": "icloud-atomic-source-delayed-create-2026-10-06.json",
+    "other_checked_source_identity_stream_scope_receipt_edges_and_nodes_match": true,
+    "provider_failure_cause_claimed": false,
+    "source_based_boundary": "Current handoff guard requires the cleanup shadow to retain the confirmed source receipt. Actual stopped shadow has remote=None, remote_sequence0, revision0 while the source owner carries the exact completed empty-Create receipt at sequence10. Replacement commit clones source before its local acknowledgement; later Create confirmation advances the source only."
+  },
+  "inputs": {
+    "controller_sha256": "890c7383b89b8ae7c833d63b5d9bcb235563b6b5ec039739b89859a51246161c",
+    "full_check_exit_code": 0,
+    "local_source_regression": "icloud-atomic-source-handoff-2026-10-06.json",
+    "production_source_sha256": "2db90b821f4c853c78afd47e20b979568eb6345b21ed7ad00cf717b6f9b9c522",
+    "runtime_binding_sha256": "e26bc5a65cd6fb14f89b1373f388a6be74b9282bc6ade9c2a0c7ca56f3e11f72",
+    "source_count": 477,
+    "worker_sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106"
+  },
+  "limits": [
+    "One scoped XLSX trial cannot establish native Pages/Numbers/Keynote editing, long-session reliability, all recovery topologies or installed deployment.",
+    "Retained uncertain prior writers remain untouched; this trial never confirms or repairs their outcomes.",
+    "A completed local save is not cloud acknowledgement; independent content verification is required."
+  ],
+  "outcome": {
+    "all_477_sources_and_four_role_binaries_unchanged": true,
+    "all_ten_original_children_reaped": true,
+    "audited_at": "2026-10-05T23:17:04.932020+00:00",
+    "automatic_retry": false,
+    "duration_seconds": 223.33253400900867,
+    "exit_code": 1,
+    "first_save": {
+      "independent_data_identity_verified": true,
+      "independent_metadata_and_content_child_exit_codes": [
+        0,
+        0
+      ],
+      "local_semantics": {
+        "A2": 7.0,
+        "B2": 3.0,
+        "C2": 10.0,
+        "formula": "=SUM(A2:B2)"
+      },
+      "sha256": "4e51c4d4a789a9619b1d33a16e3255562051296aadebc66c290465a7177b3e8d",
+      "size": 5280
+    },
+    "full_icloud_release_criteria_closed": false,
+    "installed_19_files_unit_and_daemon_identity_unchanged": true,
+    "native_iwork_editing_verified": false,
+    "overall_success": false,
+    "owned_mount_and_socket_absent": true,
+    "second_save": {
+      "failed_controller_positions": [
+        {
+          "basename": "cloud-controller-natural-child-wait-v11.py",
+          "function": "execute",
+          "line": 848
+        },
+        {
+          "basename": "cloud-controller-natural-child-wait-v11.py",
+          "function": "wait_complete",
+          "line": 512
+        },
+        {
+          "basename": "cloud-controller-natural-child-wait-v11.py",
+          "function": "require",
+          "line": 33
+        }
+      ],
+      "historical_provider_exception_cause_proven": false,
+      "independent_cloud_proof_present": false,
+      "local_semantics": {
+        "A2": 11.0,
+        "B2": 3.0,
+        "C2": 14.0,
+        "formula": "=SUM(A2:B2)"
+      },
+      "read_only_remount_proof_present": false,
+      "sha256": "ad129c9caa8492432f28c155fe4bc95afcdbc523f6790514dd385c487b35243a",
+      "size": 5612,
+      "source_upload_before_cleanup": {
+        "sequence": 12,
+        "state": "verify_required",
+        "transferred_bytes": 0
+      }
+    },
+    "unfinished_queue_before_cleanup": 6
+  },
+  "outcome_evidence": {
+    "closure_sha256": "ef43701cf52eec82f94eda27d32e7f7504a9d3d7f303635c26e5dc6c4bc15052",
+    "failure_diagnostic_sha256": "401fc65843a9cab01779e957236aeedc7ce6f285888b7c595c8b9986c93432e1",
+    "first_independent_data_proof_sha256": "fa8ff8494ffd24361bf7a0c1126a4ab1ccb31ba6ff57d1428166fba74092aa95",
+    "immutable_preregistration_sha256": "0ad47c2e8f8cb4977eb6c79703aab8208d5921ec294eadc457de9b3f0ef73893",
+    "launch_result_sha256": "27f84c4a70db818100495d1235caf78d9f0783be95d1f71e05cf3eb43600bccb",
+    "second_local_proof_sha256": "a8feb82dfd25dcf87d01e3a257a5e5e135002febdabcfb6930b59e1511af3f6a",
+    "terminal_audit_sha256": "8bb004cf9637b015cbb10ac04e5be25aa03d76e09c8c8f86467c41c60f853993"
+  },
+  "prediction": "The first save should settle as in the prior independently verified trial. The exact second-save prerequisite should now finish despite its pending atomic replacement owning the final name and latest working identity; cleanup should settle and independent readers should match A then B. Any new refusal is retained and stops this one-shot arm.",
+  "question": "Does the corrected sealed atomic-source handoff permit one fresh real Calc XLSX creation and one atomic editor replacement through ordinary iCloud FUSE, with complete journal settlement, independent byte-for-byte cloud readback of each saved version and a fresh read-only remount?",
+  "registered_at": "2026-10-05T23:08:26.483241+00:00",
+  "registered_date": "2026-10-06",
+  "run": "fe940038-50f9-4a8b-8fc0-39fb2f3529f6",
+  "scope": {
+    "full_icloud_gate_closed": false,
+    "installed_delivery": false,
+    "native_iwork_editing": false,
+    "old_mutation_replayed": false,
+    "old_writer_reopened": false,
+    "ordinary_xlsx": true,
+    "owned_new_folder_and_document_only": true
+  },
+  "source_head": "abc6d73b272981aaf98902b7cb69f5531d8985c4",
+  "status": "first-save-independently-verified-second-save-unresolved",
+  "timezone": "Europe/Vienna",
+  "version": 1
+}

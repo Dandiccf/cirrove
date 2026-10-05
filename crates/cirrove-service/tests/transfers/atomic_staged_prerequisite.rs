@@ -320,7 +320,18 @@ async fn atomic_source_prerequisite_handoff_preserves_final_name_and_cleans_curr
 async fn atomic_source_prerequisite_cross_directory_preserves_both_parent_routes() {
     run_atomic_source("destination-parent").await;
 }
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn atomic_source_takeover_before_empty_create_ack_completes_current_temp_cleanup() {
+    run_atomic_source_ordered("source-parent", true).await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn atomic_source_cross_directory_takeover_before_empty_create_ack_preserves_routes() {
+    run_atomic_source_ordered("destination-parent", true).await;
+}
 async fn run_atomic_source(destination: &str) {
+    run_atomic_source_ordered(destination, false).await;
+}
+async fn run_atomic_source_ordered(destination: &str, takeover_before_create_ack: bool) {
     let root = tempfile::Builder::new()
         .prefix("cirrove-atomic-source-")
         .tempdir()
@@ -392,10 +403,12 @@ async fn run_atomic_source(destination: &str) {
             .unwrap();
         (file.id, j.seal_working(file.id).unwrap().unwrap().id)
     };
-    let empty_result = worker.run_once().await.unwrap().unwrap();
-    assert_eq!(empty_result.id, empty);
-    assert_eq!(empty_result.state, UploadState::Uploaded);
-    assert!(empty_result.issue.is_none());
+    if !takeover_before_create_ack {
+        let empty_result = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(empty_result.id, empty);
+        assert_eq!(empty_result.state, UploadState::Uploaded);
+        assert!(empty_result.issue.is_none());
+    }
     let (successor, owner, replacement, target_before) = {
         let mut j = journal.lock().unwrap();
         j.write_working(working, 0, CONTENT).unwrap();
@@ -425,7 +438,19 @@ async fn run_atomic_source(destination: &str) {
         assert_eq!(source.latest, Some(replacement.id));
         assert_eq!(source.node.name, "final.xlsx");
         assert_eq!(source.node.parent_id.as_deref(), Some(destination));
-        assert_eq!(source.remote, Some(old_temp()));
+        if takeover_before_create_ack {
+            assert!(source.remote.is_none());
+            assert_eq!(source.remote_sequence, 0);
+            let create = j.get(empty).unwrap();
+            assert_eq!(create.state, UploadState::Pending);
+            assert!(create.attempt.is_none());
+            assert!(
+                matches!(&create.intent, UploadIntent::Create { parent, name }
+                if parent == "source-parent" && name == "editor.tmp")
+            );
+        } else {
+            assert_eq!(source.remote, Some(old_temp()));
+        }
         assert!(j.replacement(upload.id).is_err());
         let cleanup = j.mutation(replacement.cleanup).unwrap();
         assert_eq!(cleanup.state, MutationState::Pending);
@@ -443,6 +468,44 @@ async fn run_atomic_source(destination: &str) {
             serde_json::to_value(target).unwrap(),
         )
     };
+    if takeover_before_create_ack {
+        let shadow_before = {
+            let j = journal.lock().unwrap();
+            let shadow = j.namespace_object(replacement.cleanup_object).unwrap();
+            assert!(shadow.unlinked && !shadow.remote_owned);
+            assert!(shadow.remote.is_none());
+            assert_eq!(shadow.remote_sequence, 0);
+            assert_eq!(shadow.latest, Some(replacement.cleanup));
+            assert!(shadow.working_file.is_none());
+            assert_eq!(shadow.node.name, "editor.tmp");
+            assert_eq!(shadow.node.parent_id.as_deref(), Some("source-parent"));
+            serde_json::to_value(shadow).unwrap()
+        };
+        // This real worker acknowledges the original empty Create AFTER the
+        // atomic commit cloned its still-unconfirmed source into the shadow.
+        let created = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(created.id, empty);
+        assert_eq!(created.state, UploadState::Uploaded);
+        assert!(created.issue.is_none());
+        let j = journal.lock().unwrap();
+        let source = j.namespace_object(owner).unwrap();
+        assert_eq!(source.remote, Some(old_temp()));
+        assert_eq!(source.remote_sequence, j.get(empty).unwrap().sequence);
+        assert_eq!(source.latest, Some(replacement.id));
+        assert_eq!(source.node.name, "final.xlsx");
+        assert_eq!(source.node.parent_id.as_deref(), Some(destination));
+        assert_eq!(
+            serde_json::to_value(j.namespace_object(replacement.cleanup_object).unwrap()).unwrap(),
+            shadow_before,
+            "Create acknowledgement advances the live source, not the historical cleanup shadow"
+        );
+        assert_eq!(payload(&j, successor), CONTENT);
+        assert_eq!(payload(&j, replacement.id), CONTENT);
+        assert_eq!(
+            serde_json::to_value(j.get(replacement.id).unwrap()).unwrap(),
+            target_before
+        );
+    }
     // Read-only SQL confirms the actual API committed BOTH distinct dependencies.
     {
         let db = Connection::open_with_flags(
@@ -594,6 +657,17 @@ impl AtomicPending {
         Self::with_reservation(reserve_before_takeover, !reserve_before_takeover)
     }
     fn with_reservation(reserve_before_takeover: bool, reserve_after_takeover: bool) -> Self {
+        Self::with_ordering(reserve_before_takeover, reserve_after_takeover, false)
+    }
+    fn delayed_create() -> Self {
+        Self::with_ordering(false, true, true)
+    }
+    fn with_ordering(
+        reserve_before_takeover: bool,
+        reserve_after_takeover: bool,
+        takeover_before_create_ack: bool,
+    ) -> Self {
+        assert!(!takeover_before_create_ack || !reserve_before_takeover);
         let root = tempfile::Builder::new()
             .prefix("cirrove-atomic-authority-")
             .tempdir()
@@ -632,12 +706,20 @@ impl AtomicPending {
             .unwrap();
         j.seal_working(working.id).unwrap().unwrap();
         let empty = j.claim_next().unwrap().unwrap();
-        j.acknowledge(empty.id, empty.attempt.unwrap(), old_temp())
-            .unwrap();
+        if !takeover_before_create_ack {
+            j.acknowledge(empty.id, empty.attempt.unwrap(), old_temp())
+                .unwrap();
+        }
         j.write_working(working.id, 0, CONTENT).unwrap();
-        j.seal_working(working.id).unwrap().unwrap();
-        let upload = j.claim_next().unwrap().unwrap();
-        assert!(upload.base.as_ref().unwrap().resolved);
+        let pending = j.seal_working(working.id).unwrap().unwrap();
+        let mut upload = if takeover_before_create_ack {
+            pending
+        } else {
+            j.claim_next().unwrap().unwrap()
+        };
+        if !takeover_before_create_ack {
+            assert!(upload.base.as_ref().unwrap().resolved);
+        }
         if reserve_before_takeover {
             j.reserve_identity_handoff(
                 upload.id,
@@ -650,6 +732,26 @@ impl AtomicPending {
         let r = j
             .replace_namespace_file(owner.id, owner.revision, victim.id, victim.revision, false)
             .unwrap();
+        if takeover_before_create_ack {
+            let shadow = j.namespace_object(r.cleanup_object).unwrap();
+            assert!(shadow.remote.is_none());
+            assert_eq!(shadow.remote_sequence, 0);
+            j.acknowledge(empty.id, empty.attempt.unwrap(), old_temp())
+                .unwrap();
+            upload = j.claim_next().unwrap().unwrap();
+            assert!(upload.base.as_ref().unwrap().resolved);
+            assert_eq!(
+                j.namespace_object(owner.id).unwrap().remote,
+                Some(old_temp())
+            );
+            assert_eq!(j.namespace_object(r.cleanup_object).unwrap().remote, None);
+            assert_eq!(
+                j.namespace_object(r.cleanup_object)
+                    .unwrap()
+                    .remote_sequence,
+                0
+            );
+        }
         if reserve_after_takeover {
             j.reserve_identity_handoff(
                 upload.id,
@@ -1108,4 +1210,245 @@ fn atomic_source_and_target_handoffs_preserve_later_dirty_descriptor_bytes() {
     let later = j.seal_working(f.working).unwrap().unwrap();
     assert_eq!(later.base.as_ref().unwrap().predecessor, f.target);
     assert_eq!(payload(&j, later.id), dirty);
+}
+
+const DELAYED_CREATE_HOSTILE: &[&str] = &[
+    "missing_capture_marker",
+    "wrong_capture_marker",
+    "prior_replace_not_create",
+    "prior_create_name",
+    "prior_create_parent",
+    "prior_create_nonempty",
+    "prior_foreign_receipt",
+    "prior_foreign_scope",
+    "prior_queue_incomplete",
+    "missing_creation_edge",
+    "wrong_creation_owner",
+    "shadow_none_nonzero_sequence",
+    "shadow_some_zero_sequence",
+    "shadow_captured_name",
+    "shadow_captured_parent",
+];
+impl AtomicPending {
+    fn corrupt_delayed_create(&self, arm: &str) {
+        use serde_json::json;
+        let shadow = self
+            .journal
+            .replacement(self.target)
+            .unwrap()
+            .cleanup_object;
+        match arm {
+            "missing_capture_marker" => self.edit("file_replacements", self.target, |b| {
+                b.as_object_mut()
+                    .unwrap()
+                    .remove("source_unconfirmed_create");
+            }),
+            "wrong_capture_marker" => self.edit("file_replacements", self.target, |b| {
+                b["source_unconfirmed_create"] = json!(uuid::Uuid::new_v4())
+            }),
+            "prior_replace_not_create" => self.edit("uploads", self.empty, |b| {
+                b["intent"] = serde_json::to_value(UploadIntent::Replace {
+                    item: old_temp().id,
+                    expected_etag: old_temp().etag.unwrap(),
+                })
+                .unwrap();
+            }),
+            "prior_create_name" => self.edit("uploads", self.empty, |b| {
+                b["intent"]["name"] = json!("foreign.tmp")
+            }),
+            "prior_create_parent" => self.edit("uploads", self.empty, |b| {
+                b["intent"]["parent"] = json!("foreign-parent")
+            }),
+            "prior_create_nonempty" => self.edit("uploads", self.empty, |b| b["size"] = json!(1)),
+            "prior_foreign_receipt" => self.edit("uploads", self.empty, |b| {
+                b["remote"]["id"] = json!("foreign-old-temp")
+            }),
+            "prior_foreign_scope" => self.edit("uploads", self.empty, |b| {
+                b["scope"]["collection"] = json!("foreign-drive")
+            }),
+            "prior_queue_incomplete" => {
+                self.db()
+                    .execute(
+                        "UPDATE write_queue SET complete=0 WHERE id=?1",
+                        [self.empty.to_string()],
+                    )
+                    .unwrap();
+            }
+            "missing_creation_edge" => {
+                self.db()
+                    .execute(
+                        "DELETE FROM write_successors WHERE predecessor=?1",
+                        [self.empty.to_string()],
+                    )
+                    .unwrap();
+            }
+            "wrong_creation_owner" => {
+                self.db()
+                    .execute(
+                        "UPDATE namespace_operations SET object=?2 WHERE operation=?1",
+                        params![self.empty.to_string(), uuid::Uuid::new_v4().to_string()],
+                    )
+                    .unwrap();
+            }
+            "shadow_none_nonzero_sequence" => self.edit("namespace_objects", shadow, |b| {
+                b["remote_sequence"] = json!(1)
+            }),
+            "shadow_some_zero_sequence" => self.edit("namespace_objects", shadow, |b| {
+                b["remote"] = serde_json::to_value(old_temp()).unwrap()
+            }),
+            "shadow_captured_name" => self.edit("namespace_objects", shadow, |b| {
+                b["node"]["name"] = json!("foreign.tmp")
+            }),
+            "shadow_captured_parent" => self.edit("namespace_objects", shadow, |b| {
+                b["node"]["parent_id"] = json!("foreign-parent")
+            }),
+            _ => panic!("unregistered delayed Create hostile arm"),
+        }
+    }
+}
+#[test]
+fn delayed_create_shadow_absence_requires_creation_authority_at_reserved_reuse() {
+    for arm in DELAYED_CREATE_HOSTILE {
+        let mut f = AtomicPending::delayed_create();
+        f.corrupt_delayed_create(arm);
+        let before = f.snapshot();
+        let result = f.journal.reserve_identity_handoff(
+            f.upload.id,
+            f.upload.attempt.unwrap(),
+            control_location(f.upload.id),
+        );
+        assert!(
+            result.is_err(),
+            "None/0 shadow accepted hostile Create proof {arm}"
+        );
+        assert_eq!(
+            f.snapshot(),
+            before,
+            "delayed Create reuse changed hostile fixture {arm}"
+        );
+    }
+}
+#[test]
+fn delayed_create_shadow_absence_requires_creation_authority_at_confirmation() {
+    for arm in DELAYED_CREATE_HOSTILE {
+        let mut f = AtomicPending::delayed_create();
+        f.corrupt_delayed_create(arm);
+        let before = f.snapshot();
+        let result = f.journal.acknowledge_identity_handoff(
+            f.upload.id,
+            f.upload.attempt.unwrap(),
+            current_temp(),
+            backup(old_temp()),
+        );
+        assert!(
+            result.is_err(),
+            "None/0 shadow confirmed hostile Create proof {arm}"
+        );
+        assert_eq!(
+            f.snapshot(),
+            before,
+            "delayed Create confirmation changed hostile fixture {arm}"
+        );
+    }
+}
+
+/// A queued ordinary Relocate is not an empty-Create capture authority. Both
+/// already-supported source topologies must retain their normal admission.
+#[test]
+fn atomic_takeover_after_unacknowledged_create_and_queued_relocate_keeps_normal_parity() {
+    for seal_after_relocate in [false, true] {
+        let root = tempfile::Builder::new()
+            .prefix("cirrove-unack-relocate-parity-")
+            .tempdir()
+            .unwrap()
+            .keep()
+            .join("journal");
+        let mut j = UploadJournal::open(&root, "fixture", 1024 * 1024).unwrap();
+        let victim = j
+            .observe_namespace_file(scope(), old_final("source-parent"))
+            .unwrap();
+        let working = j
+            .create_working(scope(), old_temp(), true, &b""[..])
+            .unwrap();
+        j.write_working(working.id, 0, CONTENT).unwrap();
+        let create = j.seal_working(working.id).unwrap().unwrap();
+        assert!(
+            matches!(&create.intent, UploadIntent::Create { parent, name }
+            if parent == "source-parent" && name == "editor.tmp")
+        );
+        assert_eq!(create.state, UploadState::Pending);
+        let source = j.namespace_for_operation(create.id).unwrap().unwrap();
+        assert!(source.remote.is_none());
+        let relocated = j
+            .relocate_namespace_item(
+                source.id,
+                source.revision,
+                "source-parent".into(),
+                "relocated.tmp".into(),
+            )
+            .unwrap();
+        assert_eq!(relocated.state, MutationState::Pending);
+        assert_eq!(relocated.base.as_ref().unwrap().predecessor, create.id);
+        assert!(!relocated.base.as_ref().unwrap().resolved);
+        assert!(j.seal_working(working.id).unwrap().is_none());
+        let later_bytes = b"newer-sealed-save-after-relocation";
+        let expected: &[u8] = if seal_after_relocate {
+            later_bytes
+        } else {
+            CONTENT
+        };
+        let latest = if seal_after_relocate {
+            j.write_working(working.id, 0, later_bytes).unwrap();
+            j.truncate_working(working.id, later_bytes.len() as u64)
+                .unwrap();
+            let later = j.seal_working(working.id).unwrap().unwrap();
+            assert_eq!(later.base.as_ref().unwrap().predecessor, relocated.id);
+            assert!(!later.base.as_ref().unwrap().resolved);
+            later.id
+        } else {
+            relocated.id
+        };
+        let source = j.namespace_object(source.id).unwrap();
+        assert!(source.remote.is_none());
+        assert_eq!(source.latest, Some(latest));
+        let file = j.working_file(working.id).unwrap();
+        assert!(!file.dirty);
+        assert_eq!(file.latest, Some(latest));
+        assert_eq!(file.node, source.node);
+        let replacement = j
+            .replace_namespace_file(
+                source.id,
+                source.revision,
+                victim.id,
+                victim.revision,
+                false,
+            )
+            .unwrap();
+        let body = serde_json::to_value(&replacement).unwrap();
+        assert!(
+            body["source_unconfirmed_create"].is_null(),
+            "Relocate topology fabricated Create capture authority"
+        );
+        assert_eq!(replacement.source, source.id);
+        assert!(replacement.local_ready && !replacement.remote_applied);
+        let target = j.get(replacement.id).unwrap();
+        assert!(target.base.is_none());
+        assert_eq!(target.size, expected.len() as u64);
+        assert_eq!(payload(&j, create.id), CONTENT);
+        assert_eq!(payload(&j, target.id), expected);
+        assert_eq!(
+            j.read_working(working.id, 0, expected.len() as u32)
+                .unwrap(),
+            expected
+        );
+        let cleanup = j.mutation(replacement.cleanup).unwrap();
+        assert_eq!(cleanup.base.as_ref().unwrap().predecessor, latest);
+        assert!(!cleanup.base.as_ref().unwrap().resolved);
+        assert_eq!(j.get(create.id).unwrap().state, UploadState::Pending);
+        assert_eq!(
+            j.mutation(relocated.id).unwrap().state,
+            MutationState::Pending
+        );
+        assert!(j.namespace_object(source.id).unwrap().remote.is_none());
+    }
 }

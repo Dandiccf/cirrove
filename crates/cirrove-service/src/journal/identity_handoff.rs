@@ -805,8 +805,18 @@ fn ordinary_atomic_source_prerequisite(
         || cleanup.native_archive.is_some()
         || cleanup.working_file.is_some()
         || cleanup.latest != Some(replacement.cleanup)
-        || cleanup.remote.as_ref() != Some(old)
-        || cleanup.remote_sequence != owner.remote_sequence
+        || match cleanup.remote.as_ref() {
+            Some(captured) => {
+                captured != old
+                    || cleanup.remote_sequence != owner.remote_sequence
+                    || replacement.source_unconfirmed_create.is_some()
+            }
+            None => {
+                cleanup.remote_sequence != 0
+                    || cleanup.revision != 0
+                    || replacement.source_unconfirmed_create != Some(base.predecessor)
+            }
+        }
     {
         return Ok(None);
     }
@@ -942,6 +952,15 @@ fn ordinary_atomic_source_prerequisite(
         || prior.working_file != Some(working_id)
         || prior.remote.as_ref() != Some(old)
         || owner.remote_sequence != prior.sequence
+        || (cleanup.remote.is_none()
+            && (prior.base.is_some()
+                || prior.identity_handoff.is_some()
+                || prior.package_completion.is_some()
+                || prior.size != 0
+                || prior.transferred_bytes != 0
+                || old.size != 0
+                || !matches!(&prior.intent, UploadIntent::Create { parent, name }
+                    if Some(parent) == old.parent_id.as_ref() && name == &old.name)))
     {
         return Ok(None);
     }

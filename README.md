@@ -72,10 +72,14 @@ A fresh Linux Calc trial completed the first save, all uploads and temporary-fil
 and lock-file removal. Independent iCloud DATA readback matched the saved XLSX
 byte for byte. Calc then saved and reopened a second version locally, but its
 cloud confirmation remained unresolved during atomic replacement.
-A guarded correction now passes synthetic same-directory and cross-directory
+Guarded corrections now pass synthetic same-directory and cross-directory
 replacement sequences, restart recovery and preservation of newer working bytes.
-The complete two-save workflow and read-only remount still need real-provider
-acceptance. XLSX results do not establish native iWork editing support.
+The latest live trial again verified the first save, but exposed an additional
+ordering case: the editor can prepare replacement before iCloud acknowledges its
+temporary file. That case now passes tests that first failed on the original code,
+with identity and receipt refusal controls. The complete two-save workflow and
+read-only remount still need real-provider acceptance. XLSX results do not
+establish native iWork editing support.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -211,7 +215,7 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Development update, 5 October 2026:** iCloud has moved beyond a feasibility
+**Development update, 6 October 2026:** iCloud has moved beyond a feasibility
 study. Cirrove has its own native adapter using Apple's undocumented web
 transport, with no rclone or Stratosync runtime, configuration or credential
 import. Live checks have covered sign-in, directory browsing, on-demand and
