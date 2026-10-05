@@ -2107,3 +2107,52 @@ This supplies a concrete prerequisite for requirement488. Every retained state
 still refuses package switching, including matching formats under released
 policy. Existing held-policy restrictions remain. No installed account was
 migrated, no service restarted, and no full-iCloud requirement closed.
+
+
+### Derived compatibility and fresh Numbers preparation on 5 October 2026
+
+The [ordinary derived-state compatibility trial](benchmarks/icloud-derived-state-compatibility-2026-10-05.json)
+completed all eight child commands and the final preservation checks. An exact
+older build produced genuine journal14/metadata7 state with an interrupted
+cursor, two sealed ordinary file versions and a dirty successor. Independent
+copies retained those contents through read-only inspection, migration to19/8,
+a second opaque snapshot and completion of the interrupted cursor. The unchanged
+old writer refused the newer formats. Both source inventories and both opaque
+images remained unchanged; the entire old-refusal copy also remained unchanged.
+No native-document checkpoint, installed upgrade or full requirement488 closure
+is claimed.
+
+A [new bounded Numbers trial](benchmarks/icloud-numbers-browser-editor-fresh-2026-10-05.json)
+passed40 source-bound local controls and the actual local readiness check,
+created one fresh owned folder and publicly imported one test document. The
+writable producer then stopped and unmounted. Switching the isolated settings
+to read-only refused because the private preparer had created the immutable
+settings snapshot with0600 while its controller required0400. Active settings
+were not changed. The trial aborted without replay; the watcher settled all
+recorded owners and the mount, and its parent retained exit0 after reaping it.
+No independent A read, browser edit, B verification or remount was performed in
+this successor. This is a local test-preparation mismatch, not a provider write
+failure. The existing document and evidence remain retained. All six full-iCloud
+requirements and the installed deployment hold remain open.
+
+
+A separate local regression check reproduced that exact preparation failure:
+the actual settings-producing code reached the unchanged operational RO reader
+and failed its desired-success assertion after confirming that source snapshots
+and active settings were preserved. The same endpoint passed with the narrow
+producer correction: immutable RW/RO snapshots0400, mutable account settings0600.
+The consumer guard was retained. This corrected local contract does not reopen
+the closed trial or supply the missing live A/B/remount evidence.
+
+A [fresh successor](benchmarks/icloud-numbers-browser-editor-successor-2026-10-05.json)
+then passed38 selected source-bound controls and the actual immutable-settings
+reader. Its live arm created a fresh owned folder, publicly imported one Numbers
+document, stopped the writer, switched the isolated settings to read-only, and
+independently verified the imported content. The initial browser screenshot
+showed7/3/10. After an intended read-only selection of C2, the browser instead
+showed text `us` in that cell with Undo enabled, before the planned A2 edit or
+browser-edit permit. The cause is unknown. The arm stopped without a corrective
+write, native export or automatic retry. The controller and watcher settled
+the exact owned processes and mount; the watcher was externally reaped with
+exit0. This establishes imported A content, not browser fidelity, current B,
+read-only remount B or full requirement487 closure.
