@@ -98,6 +98,12 @@ def locate(accounts, path):
     return account, relative
 
 
+def overlaps(root, path):
+    root = root.rstrip("/") or "/"
+    path = path.rstrip("/") or "/"
+    return root == path or path.startswith(root.rstrip("/") + "/") or root.startswith(path.rstrip("/") + "/")
+
+
 def describe(state):
     inherited = state.get("pinned") == "inherited"
     if not state.get("pinned"):
@@ -141,16 +147,73 @@ class Provider:
         self.emit = emit or (lambda _: None)
         self.lock = threading.Lock()
         self.generation = 0
+        self.global_generation = 0
+        self.scopes = {}
         self.cached = None
         self.cached_at = 0
         self.contexts = {}
+        self.event_levels = {}
+        self.event_mounts = {}
+        self.subscription_ready = False
         self.stop = threading.Event()
 
-    def invalidate(self):
+    def invalidate(self, paths=None):
+        if paths is not None:
+            paths = list(dict.fromkeys(paths))
+            if (not paths or len(paths) > LIMIT or any(not valid_path(p) for p in paths)
+                    or any(len(p.encode("utf-8")) > 16384 for p in paths)
+                    or sum(len(p.encode("utf-8")) for p in paths) > 65536):
+                paths = None
         with self.lock:
             self.generation += 1
             self.cached = None
-        self.emit({"version": 1, "event": "invalidate"})
+            if paths is not None:
+                self.scopes.update((path, self.generation) for path in paths)
+                if len(self.scopes) > LIMIT or sum(len(p.encode("utf-8")) for p in self.scopes) > 65536:
+                    paths = None
+            if paths is None:
+                self.global_generation = self.generation
+                self.scopes.clear()
+        event = {"version": 1, "event": "invalidate"}
+        if paths is not None:
+            event["paths"] = paths
+        self.emit(event)
+
+    def observe_event(self, event):
+        kind = event.get("event")
+        key = event.get("account_id")
+        if kind == "ready":
+            self.subscription_ready = True
+            self.invalidate()
+        elif kind == "account":
+            level = (event.get("mounted"), event.get("kept_generation"), event.get("state"))
+            if self.subscription_ready and self.event_levels.get(key) != level:
+                root = self.event_mounts.get(key)
+                self.invalidate([root] if root else None)
+            self.event_levels[key] = level
+        elif kind == "mount":
+            previous = self.event_mounts.get(key)
+            root = event.get("mount_path")
+            if valid_path(root):
+                self.event_mounts[key] = root
+            else:
+                self.event_mounts.pop(key, None)
+            if self.subscription_ready:
+                self.invalidate([p for p in (previous, root) if p] if valid_path(root) else None)
+        elif kind == "account_removed":
+            root = self.event_mounts.pop(key, None)
+            self.event_levels.pop(key, None)
+            if self.subscription_ready:
+                self.invalidate([root] if root else None)
+        elif kind == "lagged":
+            self.subscription_ready = False
+            self.event_levels.clear()
+            self.event_mounts.clear()
+            self.invalidate()
+        if len(self.event_levels) > 256 or len(self.event_mounts) > 256:
+            self.event_levels.clear()
+            self.event_mounts.clear()
+            self.invalidate()
 
     def mounts(self, fresh=False):
         with self.lock:
@@ -166,10 +229,9 @@ class Provider:
             return [], generation
         accounts = status.get("accounts", [])
         with self.lock:
-            if generation != self.generation:
-                return [], self.generation
-            self.cached = accounts
-            self.cached_at = time.monotonic()
+            if generation == self.generation:
+                self.cached = accounts
+                self.cached_at = time.monotonic()
         return accounts, generation
 
     def states(self, paths, fresh=False):
@@ -200,7 +262,10 @@ class Provider:
                             and identity["scope"].get("account") == account["account_id"]):
                         entries.append((path, account, relative, state))
         with self.lock:
-            return entries if generation == self.generation else []
+            current = (generation >= self.global_generation and not any(
+                changed > generation and any(overlaps(root, path) for path in paths)
+                for root, changed in self.scopes.items()))
+            return entries if current else []
 
     def selection_identity(self, entries, request):
         return {"paths": request["paths"], "background": request["background"],
@@ -278,7 +343,7 @@ class Provider:
                     if job and len(job.encode("utf-8")) <= 128 and not any(ord(c) < 32 or ord(c) == 127 for c in job):
                         reply["outcome"]["job"] = job
                     reply["message"] = "Cirrove accepted {} of {} requests. {}".format(accepted, len(entries), reason or ("Downloads continue in Cirrove." if action == "pin" else "Inherited folder pins still apply."))
-                    self.invalidate()
+                    self.invalidate([a["mount_path"] for _, a, _, _ in entries])
         except (OSError, ValueError, TypeError, KeyError):
             with self.lock:
                 self.cached = None
@@ -301,8 +366,9 @@ class Provider:
                     stream.connect(self.address)
                     stream.sendall(b"subscribe\n")
                     data = bytearray()
-                    levels = {}
-                    ready = False
+                    self.event_levels.clear()
+                    self.event_mounts.clear()
+                    self.subscription_ready = False
                     while not self.stop.is_set():
                         try:
                             part = stream.recv(65536)
@@ -317,21 +383,9 @@ class Provider:
                             line, _, rest = data.partition(b"\n")
                             data = bytearray(rest)
                             event = json.loads(line)
-                            kind = event.get("event")
-                            if kind == "ready":
-                                ready = True
+                            self.observe_event(event)
+                            if event.get("event") == "ready":
                                 delay = 1
-                                self.invalidate()
-                            elif kind == "account":
-                                key = event.get("account_id")
-                                level = (event.get("mounted"), event.get("kept_generation"), event.get("state"))
-                                if ready and levels.get(key) != level:
-                                    self.invalidate()
-                                if len(levels) > 256:
-                                    levels.clear()
-                                levels[key] = level
-                            elif ready and kind in ("mount", "account_removed", "lagged"):
-                                self.invalidate()
             except (OSError, ValueError, TypeError):
                 pass
             self.invalidate()

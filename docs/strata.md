@@ -56,9 +56,15 @@ daemon's 8 KiB request limit, counting JSON escaping. Menu eligibility still
 covers the whole selection. A metadata query has a four-second dispatch budget;
 an individual path too large for the daemon is refused without fallback.
 The helper uses one-second bounded socket exchanges,
-a two-second mount cache, generation checks across responses, and the daemon's
-`subscribe` stream with reconnect backoff. It performs no filesystem stat, content
-read, symlink resolution or shell interpolation on selected paths. Non-UTF-8
+a two-second mount cache, scoped generation checks across responses, and the
+daemon's `subscribe` stream with reconnect backoff. Account changes invalidate
+their mount roots, so activity in another account does not discard a coherent
+selected account's reply. Mount moves invalidate both old and new roots, including
+overlapping nested selections. Changes affecting the selection still reject
+crossing replies; reconnects, unknown roots and lost event history invalidate all
+state. Scope history is bounded and promotes to global invalidation at capacity.
+It performs no filesystem stat, content read, symlink resolution or shell
+interpolation on selected paths. Non-UTF-8
 names are unsupported by this JSON API and are left undecorated. Selections above
 200 are deliberately not offered actions. A large/slow explicit pin batch can be
 partially accepted; the result says how many. Its remaining items are not retried.

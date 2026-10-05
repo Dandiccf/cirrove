@@ -140,6 +140,72 @@ class Protocol(unittest.TestCase):
             return result
         with patch.object(provider,"exchange",during):
             self.assertEqual(self.ask("query")["decorations"],[])
+
+    def prime_subscription(self):
+        for account in self.daemon.accounts:
+            self.client.observe_event(dict(account, event="account", kept_generation=0, state="ready"))
+            self.client.observe_event(dict(account, event="mount"))
+        self.client.observe_event({"event": "ready"})
+        self.emitted.clear()
+
+    def test_unrelated_account_events_during_each_reply_preserve_menu_and_badge(self):
+        self.daemon.accounts.append({"account_id": "two", "label": "Other", "mounted": True, "mount_path": "/other"})
+        self.daemon.rows["file"] = self.state(pinned="direct", resident=10)
+        self.prime_subscription()
+        original = provider.exchange
+        generation = 0
+        def during(address, verb, body=None, **kwargs):
+            nonlocal generation
+            result = original(address, verb, body, **kwargs)
+            if verb in ("status", "paths-cached"):
+                generation += 1
+                self.client.observe_event({"event": "account", "account_id": "two", "mounted": True,
+                                           "kept_generation": generation, "state": "ready"})
+            return result
+        with patch.object(provider, "exchange", during):
+            for _ in range(10):
+                self.assertEqual(self.ids(), ["unpin", "availability"])
+                self.assertEqual(self.ask("query")["decorations"][0]["badge"], "kept")
+        self.assertTrue(self.emitted)
+        self.assertTrue(all(event.get("paths") == ["/other"] for event in self.emitted))
+
+    def test_relevant_account_mount_and_lost_history_events_reject_crossing_replies(self):
+        for event, roots in [
+            ({"event": "account", "account_id": "one", "mounted": True, "kept_generation": 1, "state": "ready"}, ["/cloud"]),
+            ({"event": "mount", "account_id": "one", "mounted": True, "mount_path": "/moved"}, ["/cloud", "/moved"]),
+            ({"event": "account_removed", "account_id": "one"}, ["/cloud"]),
+            ({"event": "account", "account_id": "unknown", "mounted": True, "kept_generation": 1}, None),
+            ({"event": "lagged"}, None),
+        ]:
+            with self.subTest(event=event):
+                self.client = provider.Provider(self.daemon.path, self.emitted.append)
+                self.prime_subscription()
+                original = provider.exchange
+                def during(address, verb, body=None, **kwargs):
+                    result = original(address, verb, body, **kwargs)
+                    if verb == "paths-cached":
+                        self.client.observe_event(event)
+                    return result
+                with patch.object(provider, "exchange", during):
+                    self.assertEqual(self.ask("query")["decorations"], [])
+                self.assertEqual(self.emitted[-1].get("paths"), roots)
+
+    def test_scoped_invalidation_covers_nested_mounts_and_promotes_bounded_history(self):
+        original = provider.exchange
+        for root, expected in [("/cloud/nested", []), ("/cloudish", ["pin", "availability"])]:
+            with self.subTest(root=root):
+                def during(address, verb, body=None, **kwargs):
+                    result = original(address, verb, body, **kwargs)
+                    if verb == "paths-cached":
+                        self.client.invalidate([root])
+                    return result
+                with patch.object(provider, "exchange", during):
+                    self.assertEqual(self.ids(paths=["/cloud"]), expected)
+        self.emitted.clear()
+        for index in range(provider.LIMIT + 1):
+            self.client.invalidate([f"/account-{index}"])
+        self.assertTrue(any("paths" not in event for event in self.emitted))
+        self.assertEqual(self.ids(), ["pin", "availability"])
     def test_selection_bound_and_daemon_absence_fail_closed(self):
         self.assertEqual(self.ids(paths=[f"/cloud/{i}" for i in range(201)]),[])
         self.client.address += "-missing"
