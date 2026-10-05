@@ -478,6 +478,14 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Offline semantic-v2 proof for one registered native Numbers export.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudEditorSourceProof {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
     /// Capture read-only metadata for a registered fresh browser Numbers document.
     #[cfg(feature = "icloud-write-probe")]
     OwnedIcloudEditorMetadata {
@@ -1194,6 +1202,17 @@ async fn main() -> Result<()> {
     let command = Args::parse().command;
     let validate_session = matches!(&command, Command::ValidateOnedriveReadSession { .. });
     match command {
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudEditorSourceProof {
+            registration,
+            sha256,
+        } => {
+            let proof = cirrove_service::validation::icloud_owned_editor_source_proof(
+                &registration,
+                &sha256,
+            )?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
         #[cfg(feature = "icloud-write-probe")]
         Command::OwnedIcloudEditorMetadata {
             registration,
