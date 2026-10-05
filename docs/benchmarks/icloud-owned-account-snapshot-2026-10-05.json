@@ -1,0 +1,447 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-05T01:16:00.213827+00:00",
+  "source_base": "88eb0ce35fedbf926ca8c1c280d685de4bba2ebf",
+  "question": "Can a stopped owned native-account fixture be copied as a complete opaque bounded byte tree while preserving source bytes and refusing busy/missing locks, live producers, unsafe paths and changed context?",
+  "status": "offline implementation and complete local check passed; all full-iCloud gates remain open",
+  "proposal_sha256": "b4953ed19fd0119ae297d7f4eec575ac0b124fe3d3993a1e24b9db0d367edbe3",
+  "patch_sha256": {
+    "account_snapshot.rs.proposed": "cc9a181390ca650b9d92d7e175bbf6f23016a9e93a6295bf5200b07df5dafd47",
+    "owned_account_snapshot.rs.proposed": "9bb2b75e8372f1f21c4e28a1b10671e2dd8c69a5cc7da35515274139c455fe61",
+    "tests.patch": "3043c6c45cf37378b70b4602287a5e5a317e2f8519d0866fd36e474a8dff8105",
+    "account-owner-omission.patch": "5b87befbf8df3fd4ab27a10cd0d4e2adaf5848ddf5e30569068e9b1eca40b325",
+    "production.patch": "c7cb1913ac9c0a11c78252010e0c4951b054c20ff7a2411ec4ee7b3663effde9",
+    "v4-to-v5-context-only.patch.diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "context-rebase-proof.json": "e1d35a00ad7fe05060c5c6d48e262a9b6e2ec41ff6b56b4d23913cab126877a8"
+  },
+  "baseline": {
+    "actual_parent": "owned_account_snapshot_actual_cli_preserves_full_native_opaque_tree",
+    "count": 1,
+    "prediction": "Fixture creates genuine journal19/metadata8+WAL/native predecessor B/C/dirty generation and actual synthetic-key cipher; baseline actual Clap unknown command2 after source invariance assertions, desired success assertion fails101. Not migration bug/API absence."
+  },
+  "corrected": {
+    "meaningful_parents": 5,
+    "child_entry": 1,
+    "prediction": "Five parent contracts plus no-op direct child entry pass; full copied source file-set/hash/modes equality independent of collector manifest. Real child producers invoked by parents create WAL before exit without SQLite Drop.",
+    "actual_meaningful_parents": 6,
+    "actual_selected_total": 7
+  },
+  "sensitivity": {
+    "arm": "Omit only account-owner exclusive flock acquisition; retain other4locks and all byte/frontier checks",
+    "actual_test": "owned_account_snapshot_busy_account_owner_refuses",
+    "count": 1,
+    "prediction": "Unexpected CLI success on busy account causes same exact parent test fail101; restore byteexact source and same test passes.",
+    "actual_omission_endpoint": "busy account owner must refuse before snapshot publication; omitted acquisition incorrectly completed actual copy; test failed101",
+    "source_restored_byteexact": true,
+    "test_elf_restored_byteexact": true
+  },
+  "runtime": {
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "filesystem": "ext4",
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "owner": "root",
+    "expected_compile_max_seconds": 1800
+  },
+  "limits": [
+    "Fixture-only /var/tmp UUID roots; no installed/default real user state or cloud access.",
+    "Collector does not open SQLite/schema/ZIP/vault/key/provider APIs; fixture producers do use real current journal/store/vault with synthetic key/content.",
+    "Complete bounded opaque selected account tree incl WAL/temp/unreferencedcipher/emptydir. Settings copy is context only; root globalmetadata/otheraccounts/restoremarkers/reservations omitted and remain requirements.",
+    "Per-file64MiB, entries512, depth32, aggregate1GiB are explicit refusal limits, not universal actual account backup support.",
+    "No genuine old14/7 producer, migration/copied-reader/cursor-export/realkey/auth/installed upgrade/downgrade/restorability proof yet.",
+    "Source atime and copied mtime/ctime restoration not promised; source data/stamps and destination data/modes verified.",
+    "All six full iCloud gates and retained-state installation hold remain open."
+  ],
+  "full_icloud_gate_status": {
+    "485": false,
+    "486": false,
+    "487": false,
+    "488": false,
+    "489": false,
+    "490": false
+  },
+  "unexpected_initial_corrected_run": {
+    "actual_target_count": 6,
+    "actual_pass": 5,
+    "actual_fail": 1,
+    "positive_test_failed": true,
+    "result": {
+      "exit_code": 101,
+      "duration_seconds": 55.54335974299465,
+      "sources_unchanged": true,
+      "log_sha256": "0126d691e5e4c4adfe841dbc8ef3f939c6f9007eebfd6c9a663f2d0c39f9258f",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "findings": {
+      "version": 1,
+      "recorded_at": "2026-10-05T01:24:02.974403+00:00",
+      "test": "owned_account_snapshot_actual_cli_preserves_full_native_opaque_tree",
+      "failed_result_sha256": "aca7a1875e9e0df79fdc62ef09a39169a1ca2e5a29b5ae3397d375d5e21e23fc",
+      "fixture_root": "/var/tmp/cirrove-owned-snapshot-13154307-4637-4785-be6d-b2bbe77050b7",
+      "phase": "Before snapshot dir creation; complete manifest absent",
+      "actual_Metadata_Store_modes": {
+        "metadata.db": "0o644",
+        "metadata.db-wal": "0o644",
+        "metadata.db-shm": "0o644"
+      },
+      "cause": "inventory existing regular file uses owned_private requiring mode&077==0, rejecting genuine current Store0644 under owned private700 ancestors. Journal entries are600/400.",
+      "fix_requirement": "Preserve genuine data/SQLite modes through dedicated descriptor-relative owned bounded nofollow tree reader, retain strict registry/context/locks and no source chmod.",
+      "prediction": "Same exact fresh positive contract passes after scoped opener fix; all five parent controls then functional and account-owner-only omission must fail exact busy-account test.",
+      "limits": "Five initial negative/no-op passes do not prove guards while genuine positive blanket-refuses; no source or installed changes/cloud dispatch occurred."
+    },
+    "findings_sha256": "39a1013431d9b429ac4e295c002b60b268cb6cd8018982d3b36feea63bde7df3",
+    "status": "Retained failure; scoped opener fix not yet applied/tested; no genuine data/source mode modification allowed"
+  },
+  "data_mode_correction_preregistration": {
+    "status": "registered-before-fix-execution",
+    "proposal": "7e5ed7c26031eb24c5e5f187f7fca7d796395fe686e19e3e8b6089e5edb43c8b",
+    "prediction": "Fresh positive retains genuine SQLite0644 modes and all bytes; strict controls and locks remain private. One additional permission matrix refuses unsafe data and readable controls.",
+    "new_selected_total": 7,
+    "meaningful_parents": 6,
+    "child_entry_noop": 1,
+    "old_failure_retained": true,
+    "source_chmod": false,
+    "provider_calls": false
+  },
+  "actual_execution": {
+    "root-testonly-baseline-compile-v1": {
+      "result_sha256": "f206b0177b792a72aa7f0525721892b699ae14f38bdba4316036c9d463c31e57",
+      "exit_code": 0,
+      "duration_seconds": 1.0657565369911026,
+      "sources_unchanged": true,
+      "log_sha256": "8cfa33cb8d1fde878865f793a3d2b4ea8203af86f83b7b33f66974a23dbdc068",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove-icloud-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-write-probe",
+          "size": 429860632,
+          "sha256": "e36cfbf95d8ccdd7975cfa67f27f0efe2a04b4ded5b5ce03629ecf2ebef7b9e7",
+          "fresh": true,
+          "test": false
+        },
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 499241064,
+          "sha256": "62c1c61bcac70203c07914903cce6207f1df4c31887ce0ce0d13a9f4fd9b06e5",
+          "fresh": true,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-mounted-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+          "size": 497620040,
+          "sha256": "b0df3825f34122547c5a3d901cbc13559d2d56cf2af71370c1ee3c667c6afc5b",
+          "fresh": true,
+          "test": false
+        },
+        {
+          "target": "cirroved",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+          "size": 499506064,
+          "sha256": "5127e59d531a3558c3acdd06b86e033d2179565f5f4cc4c193aeaafec575822e",
+          "fresh": true,
+          "test": false
+        },
+        {
+          "target": "owned_account_snapshot",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/owned_account_snapshot-223d6049f64c4994",
+          "size": 400864912,
+          "sha256": "7919cfc9505411346fdb65f3ed59d6eb63566c1f96b5ab92a53b8ecc26bc018f",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    "root-baseline-one-v1": {
+      "result_sha256": "08117d4cac1daf8a12eb8d846990b0c27b8255b01815b9eb8f55f85cb08ecb6c",
+      "exit_code": 101,
+      "duration_seconds": 4.203575189021649,
+      "sources_unchanged": true,
+      "log_sha256": "5032edf9c33491f4c1463cd72e7a5abcf495c5c994cc2c0819928c0340bb9f34",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-corrected-compile-v1": {
+      "result_sha256": "abf4f9b47680b13091be724056971906830693d97a62c8db15482bf1f007180c",
+      "exit_code": 0,
+      "duration_seconds": 23.176173521991586,
+      "sources_unchanged": true,
+      "log_sha256": "fc71d2afb6701c1ac492e38bbb12dab351bf9240d522f85e15683f739ee538a7",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "owned_account_snapshot",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/owned_account_snapshot-223d6049f64c4994",
+          "size": 402028872,
+          "sha256": "84c59f89670efade0c5228a03a2aaf9b37c481dcfe74ff0b31184946fe5e7596",
+          "fresh": false,
+          "test": true
+        },
+        {
+          "target": "cirroved",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+          "size": 500687400,
+          "sha256": "9317db3fa49ec16b19c7ef1f84dd60c83c74927fa4b32b730eff56a9644d0c0f",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-write-probe",
+          "size": 431042552,
+          "sha256": "6e58da333152e08e06116813cdc63df0409c327ee1e42934438a39e6655c8397",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-mounted-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+          "size": 498802032,
+          "sha256": "984a6d17b49c80522491bf5586f2dc0929c6d229c6c5a6501f4ecf05cf9d9a89",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 501502272,
+          "sha256": "bdaf1bdb4a97494a424120a27a63ed1d1fe730b352653d39681b4c859fa9b026",
+          "fresh": false,
+          "test": false
+        }
+      ]
+    },
+    "root-corrected-six-v1": {
+      "result_sha256": "aca7a1875e9e0df79fdc62ef09a39169a1ca2e5a29b5ae3397d375d5e21e23fc",
+      "exit_code": 101,
+      "duration_seconds": 55.54335974299465,
+      "sources_unchanged": true,
+      "log_sha256": "0126d691e5e4c4adfe841dbc8ef3f939c6f9007eebfd6c9a663f2d0c39f9258f",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-modefix-compile-v1": {
+      "result_sha256": "a6552b9290b50bb13d924a548bbb85a5eb9a7a2dfd8103530d46802ffa243964",
+      "exit_code": 0,
+      "duration_seconds": 5.681192939024186,
+      "sources_unchanged": true,
+      "log_sha256": "d6d925966d29216bfdc62645d72531a3ca62b93d59a87ccefc8743d06e6d2b88",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "owned_account_snapshot",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/owned_account_snapshot-223d6049f64c4994",
+          "size": 402062464,
+          "sha256": "667e5ef8dbf18229a93fe8ef9afcb12b9a307ce25d9afab4d2b83b60618fe5f5",
+          "fresh": false,
+          "test": true
+        },
+        {
+          "target": "cirroved",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+          "size": 500688696,
+          "sha256": "4c95fb2b053435e2361d7b3160d1fe48affa884420b482cc6e192a0524689bf7",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-mounted-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+          "size": 498803256,
+          "sha256": "b4665d3949c72e05cd1497a6f551289bfef5a1c49750c15dd2f06b908811e8f8",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-write-probe",
+          "size": 431043776,
+          "sha256": "43f9e47c3fff9f0e4b9060ece381727f2c823a24f7dea8fe635374bbcdc3acdf",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 501505112,
+          "sha256": "721e0485aba13390ffb1749be0501af88342c85b3cb4509ca449d1b10af0ff0e",
+          "fresh": false,
+          "test": false
+        }
+      ]
+    },
+    "root-modefix-positive-v1": {
+      "result_sha256": "bae6dc33caf47711f9a91850df9fbcd436942e66a77509352afcd52ea9d932c6",
+      "exit_code": 0,
+      "duration_seconds": 4.470517159003066,
+      "sources_unchanged": true,
+      "log_sha256": "4b70c4f51d5cdb3fd681f744d29f574786e23cd836b409f439a7240cef134ff7",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-modefix-seven-v1": {
+      "result_sha256": "81c70fe4b1774a4cd6e644c66abc8380c1e2cae1599a2b9aa44769dc7dc4a68e",
+      "exit_code": 0,
+      "duration_seconds": 110.74106880699401,
+      "sources_unchanged": true,
+      "log_sha256": "56996a936bf1cbd06cc252e08ba98eb17ac2aa70a7a8782404d44ff7ab2f3ef4",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-owner-omission-compile-v1": {
+      "result_sha256": "2af1989c799b352fa6c524cc7c0ee6afd26a39b49c2a6212bdd5fc9cb0e284dd",
+      "exit_code": 0,
+      "duration_seconds": 8.129212744999677,
+      "sources_unchanged": true,
+      "log_sha256": "d95d46f56a55081be43b1c16269ee4b8ad3fd0067801987215c1db657ab20491",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "owned_account_snapshot",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/owned_account_snapshot-223d6049f64c4994",
+          "size": 401901936,
+          "sha256": "74ef21157da3fc2146ba8afff4a0624d4c965836bae4e87f45f8edbad283ac4f",
+          "fresh": false,
+          "test": true
+        },
+        {
+          "target": "cirroved",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+          "size": 500528160,
+          "sha256": "0411862eb557816b546c29337db2425759b53d60b9723cc9c5f7715b23a7ce44",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 501346832,
+          "sha256": "aee76c8a47bbac17e8e7659f362f59df5baee51fa79761cf841b835f2ad0c6b2",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-mounted-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+          "size": 498642656,
+          "sha256": "c727db8f050800accb27a673317c92d6cb85202e97183d1f266b4ede261169e5",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-write-probe",
+          "size": 430883176,
+          "sha256": "1b484584ab350126bfb921c75d0582ed461621e3563bc8c143b65d980fed16fc",
+          "fresh": false,
+          "test": false
+        }
+      ]
+    },
+    "root-owner-omission-one-v1": {
+      "result_sha256": "a0aca6c027b882fd9c91fea234211208d47fcf613b77c052e9b7c8795f2e3f7d",
+      "exit_code": 101,
+      "duration_seconds": 4.436690821981756,
+      "sources_unchanged": true,
+      "log_sha256": "32d747cd98175e0bb5795a18a4023482a44c406085f470a2a64ef5bde1fa5aae",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-owner-restored-compile-v1": {
+      "result_sha256": "001f8494b42d15164dbf76def3e13c65ae48da8cb3a9eeb338d8536b38a90881",
+      "exit_code": 0,
+      "duration_seconds": 7.780280495993793,
+      "sources_unchanged": true,
+      "log_sha256": "ac1139b16ac9a527b11fc5408c793e3b93cd5d6435dbf4d74c643a9f87b3a03a",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "owned_account_snapshot",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/owned_account_snapshot-223d6049f64c4994",
+          "size": 402062464,
+          "sha256": "667e5ef8dbf18229a93fe8ef9afcb12b9a307ce25d9afab4d2b83b60618fe5f5",
+          "fresh": false,
+          "test": true
+        },
+        {
+          "target": "cirroved",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+          "size": 500688696,
+          "sha256": "4c95fb2b053435e2361d7b3160d1fe48affa884420b482cc6e192a0524689bf7",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-mounted-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+          "size": 498803256,
+          "sha256": "b4665d3949c72e05cd1497a6f551289bfef5a1c49750c15dd2f06b908811e8f8",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-write-probe",
+          "size": 431043776,
+          "sha256": "43f9e47c3fff9f0e4b9060ece381727f2c823a24f7dea8fe635374bbcdc3acdf",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 501505112,
+          "sha256": "721e0485aba13390ffb1749be0501af88342c85b3cb4509ca449d1b10af0ff0e",
+          "fresh": false,
+          "test": false
+        }
+      ]
+    },
+    "root-owner-restored-one-v1": {
+      "result_sha256": "83c28a8e34cb92b66a016ac53179ec219deceef4e6a60cda5d8e1ff428219d65",
+      "exit_code": 0,
+      "duration_seconds": 4.271592245990178,
+      "sources_unchanged": true,
+      "log_sha256": "bd00f6e3a782cacec98e2f91e7765a8798ed29d1ed9910235ac45650d2acc1be",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  },
+  "first_whole_check": {
+    "exit_code": 101,
+    "duration_seconds": 18.897389154997654,
+    "sources_unchanged": true,
+    "log_sha256": "a8ce8d565365be099ed9e4fd0604ed8a9d0ea6c0064ac8705877648d688ffd5d",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "endpoint": "clippy collapsible_if; only parent manifest nested condition rewritten equivalently; complete rerun required",
+    "scope": "authoring lint failure; focused controls retained; no provider/install proof"
+  },
+  "second_whole_check": {
+    "exit_code": 101,
+    "duration_seconds": 21.73617775598541,
+    "sources_unchanged": true,
+    "log_sha256": "74227542558f2a1cab1cc77830e9f9bf0205d450db32229d6ec7e6cf09afff0c",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "endpoint": "clippy collapsible_if in exact child RAII test helper; condition rewritten equivalently; complete rerun required"
+  },
+  "full_check": {
+    "result_sha256": "0741528f6aaa89eb60fea88688251c7068805ff7b5c722a88d926dd01fc90aab",
+    "exit_code": 0,
+    "duration_seconds": 570.4878871890251,
+    "sources_unchanged": true,
+    "log_sha256": "3b22fcdfa7f141965d4d7a761b9273fe08263365386de08b640acc0ed4b01f28",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "display_scenarios": "not covered; native GTK acceptance remains open"
+  }
+}

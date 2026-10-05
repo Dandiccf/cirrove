@@ -53,7 +53,7 @@ fn registered(bytes: &[u8], digest: &str) -> Result<Registration> {
     ensure!(
         r.version == 1
             && !r.run.is_nil()
-            && matches!(r.phase.as_str(), "a" | "b")
+            && matches!(r.phase.as_str(), "a" | "b" | "remount-b")
             && r.session_directory.as_path()
                 == Path::new(&format!(
                     "/var/tmp/cirrove-numbers-browser-editor-{}",

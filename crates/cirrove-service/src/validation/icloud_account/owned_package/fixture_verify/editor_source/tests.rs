@@ -201,3 +201,82 @@ fn editor_source_proof_registration_refuses_changed_scope_and_expected_semantics
     );
     Ok(())
 }
+
+#[test]
+fn editor_source_proof_computes_separate_remount_b_and_refuses_foreign_path() -> Result<()> {
+    let run = Uuid::new_v4();
+    let root = PathBuf::from(format!("/var/tmp/cirrove-numbers-browser-editor-{run}"));
+    std::fs::DirBuilder::new().mode(0o700).create(&root)?;
+    let export = source(
+        root.join("source-b.numbers"),
+        "Actual Export B.numbers",
+        b"edited beta",
+    )?;
+    let capture = source(
+        root.join("source-remount-b.numbers"),
+        "Actual Mounted Wrapper.numbers",
+        b"edited beta",
+    )?;
+    let m = std::fs::metadata(&root)?;
+    let r = Registration {
+        version: 1,
+        run,
+        phase: "remount-b".into(),
+        session_directory: root.clone(),
+        root_dev: m.dev(),
+        root_ino: m.ino(),
+        source: capture.clone(),
+    };
+    let bytes = serde_json::to_vec(&r)?;
+    let path = root.join("editor-remount-b-source-registration.json");
+    std::fs::write(&path, &bytes)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let raw_before = std::fs::read(&capture.path)?;
+    let export_before = std::fs::read(&export.path)?;
+    let result = icloud_owned_editor_source_proof(&path, &hex::encode(Sha256::digest(&bytes)));
+    assert_eq!(std::fs::read(&capture.path)?, raw_before);
+    assert_eq!(std::fs::read(&export.path)?, export_before);
+    assert_eq!(std::fs::read(&path)?, bytes);
+    assert!(!root.join("state").exists());
+    let proof = result.expect("remount-b phase rejected before computing actual archive semantic");
+    assert_eq!(proof["phase"], "remount-b");
+    assert_eq!(
+        proof["source"]["path"],
+        capture.path.to_string_lossy().as_ref()
+    );
+    assert_eq!(proof["source"]["root"], capture.root);
+    assert_eq!(proof["source"]["sha256"], capture.sha256);
+    assert_ne!(
+        capture.sha256, export.sha256,
+        "different wrappers must retain distinct raw identity"
+    );
+    assert_eq!(
+        proof["source"]["semantic"],
+        serde_json::to_value(scan(&export)?)?
+    );
+    assert_eq!(proof["provider_representation_verified"], false);
+    assert_eq!(proof["cloud_mutated"], false);
+    for phase in ["a", "b", "remount-c"] {
+        let mut bad = r.clone();
+        bad.phase = phase.into();
+        let b = serde_json::to_vec(&bad)?;
+        assert!(
+            registered(&b, &hex::encode(Sha256::digest(&b))).is_err(),
+            "foreign phase/path accepted"
+        );
+    }
+    for name in [
+        "source-b.numbers",
+        "source-a.numbers",
+        "another-capture.numbers",
+    ] {
+        let mut bad = r.clone();
+        bad.source.path = root.join(name);
+        let b = serde_json::to_vec(&bad)?;
+        assert!(
+            registered(&b, &hex::encode(Sha256::digest(&b))).is_err(),
+            "remount masquerading as export accepted"
+        );
+    }
+    Ok(())
+}

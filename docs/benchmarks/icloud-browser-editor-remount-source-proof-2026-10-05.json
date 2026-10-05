@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "created_utc": "2026-10-05T01:31:37.921034+00:00",
+  "status": "offline implementation and complete local check passed; all full-iCloud gates remain open",
+  "question": "Can the existing offline Numbers archive scanner compute a separately captured remount-B identity with a different ZIP wrapper while retaining exact registered source path/root/raw identity and refusing foreign phase/path substitutions?",
+  "scope": "Offline feature-only scanner extension; no provider, state, credentials, mount, runtime, browser/editor or cloud action",
+  "source_base": {
+    "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/editor_source.rs": "89d7b4fabeb5bc47e5a79163326f27251ce6abb64d289e53e41bb9ecc6213496",
+    "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/editor_source/tests.rs": "06c55a4653a41d9862f6fd7703b0e1298aa92fe9f4410398514466ab0253f180"
+  },
+  "private_patches": {
+    ".local-state/icloud-numbers-browser-editor-20261005/operative-proposal-v2/scanner-tests-first.patch": "daf7cec9617cf71ffbb6ad1b4ca68c01416a446cca23b6275739f68ea437d637",
+    ".local-state/icloud-numbers-browser-editor-20261005/operative-proposal-v2/scanner-production.patch": "d30be0f64e0e1f7cd9566dd919fd0c38d26e2337baaadc8cf1132dd01123a295"
+  },
+  "frozen_patch_changes": false,
+  "source_extension": "Exactly one matches! arm adds remount-b alongside a/b; dynamic source-<phase>.numbers and editor-<phase>-source-registration.json guards remain unchanged",
+  "arms": [
+    {
+      "name": "baseline-remount-exact-one",
+      "setup": "Apply tests-first.patch only; original scanner still accepts only a/b",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--lib",
+        "--locked",
+        "validation::icloud_account::owned_package::fixture_verify::editor_source::tests::editor_source_proof_computes_separate_remount_b_and_refuses_foreign_path",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "prediction": "FAIL at expect message remount-b phase rejected before computing actual archive semantic",
+      "required_prior_endpoint": "Actual public scanner call returned Err, after assertions that capture/export/registration bytes are unchanged and no state directory exists. Compile/import/type/setup errors or zero tests are not this expected RED."
+    },
+    {
+      "name": "corrected-remount-exact-one",
+      "setup": "Apply scanner-production.patch to same test/source base",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--lib",
+        "--locked",
+        "validation::icloud_account::owned_package::fixture_verify::editor_source::tests::editor_source_proof_computes_separate_remount_b_and_refuses_foreign_path",
+        "--",
+        "--exact",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "prediction": "PASS: computed semantic v2 matches actual B export despite distinct wrapper/raw SHA; all three foreign phases and all three foreign source paths refuse"
+    },
+    {
+      "name": "corrected-all-four-scanner-units",
+      "setup": "Same corrected source without additional behavior changes",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--lib",
+        "--locked",
+        "validation::icloud_account::owned_package::fixture_verify::editor_source::tests::",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "expected_tests": 4,
+      "prediction": "All four named scanner units PASS; original a/b, raw/root/symlink/mode and registration/semantic-injection controls remain green"
+    }
+  ],
+  "exact_four_names": [
+    "validation::icloud_account::owned_package::fixture_verify::editor_source::tests::editor_source_proof_computes_actual_distinct_a_and_b_without_state",
+    "validation::icloud_account::owned_package::fixture_verify::editor_source::tests::editor_source_proof_refuses_wrong_raw_root_and_all_symlink_components",
+    "validation::icloud_account::owned_package::fixture_verify::editor_source::tests::editor_source_proof_registration_refuses_changed_scope_and_expected_semantics",
+    "validation::icloud_account::owned_package::fixture_verify::editor_source::tests::editor_source_proof_computes_separate_remount_b_and_refuses_foreign_path"
+  ],
+  "fresh_synthetic_inputs": {
+    "root": "/var/tmp/cirrove-numbers-browser-editor-<fresh UUID per test>",
+    "capture": "source-remount-b.numbers, 0400, synthetic Actual Mounted Wrapper.numbers/Document with edited beta",
+    "export": "source-b.numbers, 0400, synthetic Actual Export B.numbers/Document with same content",
+    "registration": "editor-remount-b-source-registration.json, 0600, strict existing Registration schema and actual ROOT dev/ino",
+    "input_semantic": "Absent; archive scanner computes it, no semantic supplied by caller"
+  },
+  "execution_admission": {
+    "owner": "root exclusively",
+    "commands_executed": false,
+    "canonical_edits": false,
+    "target": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "proposed_tmpdir": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "tmpdir_requires": "root creates private disk directory and asserts actual non-tmpfs filesystem; same SQLITE_TMPDIR",
+    "maximum_seconds_per_command": 900,
+    "manifest_before_each_command": [
+      "written question/prediction public artifact SHA",
+      "source/Cargo/runner and invoked executable SHA",
+      "exact argv",
+      "TMPDIR/SQLITE_TMPDIR filesystem",
+      "PID/startticks",
+      "expected duration/count",
+      "private log path"
+    ],
+    "terminal_evidence": [
+      "actual executable/source binding",
+      "exact test names and counts",
+      "exit code and endpoint",
+      "log SHA",
+      "source hashes before/after",
+      "retained authoring failures separately"
+    ]
+  },
+  "interpretation": [
+    "Baseline is an actual unsupported registered scanner phase, not a cloud reliability or production write defect.",
+    "Corrected success validates offline remount capture scanning, not browser edit acceptance, actual DATA/PACKAGE provider representation, remount freshness or current item revision.",
+    "Different wrappers retain their distinct raw hashes; semantic equality is computed using existing scanner over both actual synthetic archives.",
+    "Same baseline failure proves sensitivity to the added phase acceptance. No extra omission build is needed for this narrow extension.",
+    "Full check and final binary freeze remain root-owned prerequisites before eventual runtime use; six release gates remain open."
+  ],
+  "registered_at": "2026-10-05T01:34:13.303521+00:00",
+  "full_icloud_gate_status": {
+    "485": {
+      "passed": false,
+      "evidence": null
+    },
+    "486": {
+      "passed": false,
+      "evidence": null
+    },
+    "487": {
+      "passed": false,
+      "evidence": null
+    },
+    "488": {
+      "passed": false,
+      "evidence": null
+    },
+    "489": {
+      "passed": false,
+      "evidence": null
+    },
+    "490": {
+      "passed": false,
+      "evidence": null
+    }
+  },
+  "actual_execution": {
+    "root-remount-baseline-compile-v1": {
+      "result_sha256": "f64e89293c564ae8e87a6b53061a640f7e838232b1948c98a6690de6478a47db",
+      "exit_code": 0,
+      "duration_seconds": 27.913543453993043,
+      "sources_unchanged": true,
+      "log_sha256": "9f8931a7ffc878d16f799557cec300eeff5b0a2a354a7649bf436f49ed3d25fe",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove_service",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 610049392,
+          "sha256": "b8841b1f7a25fffbbdef87a277e174b66e7c721bd51ce03de25f2a983c77d0b2",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    "root-remount-baseline-one-v1": {
+      "result_sha256": "700967d7647ca4d0f2ecb11c038b9bf42c6abe7ca629b952b1f29604205bfabe",
+      "exit_code": 101,
+      "duration_seconds": 0.00438966101501137,
+      "sources_unchanged": true,
+      "log_sha256": "b25345946d4c10c68404f13f1739f71f5bc9d1cceb76c0eaaad8d580bfcf713d",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-remount-corrected-compile-v1": {
+      "result_sha256": "6fe91fd7b5cd8948fe7c56b89063980e6c5d9184c3f7d9e2d599f578714b4195",
+      "exit_code": 0,
+      "duration_seconds": 10.787905362987658,
+      "sources_unchanged": true,
+      "log_sha256": "98a0878b1cd286cc836894b3cd830552272a3591d7c7630fadd0e144e50ab8b8",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove_service",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 610015808,
+          "sha256": "ce38b970b8b3cbd6d6b99b8494f262f81b3986db50634d12ab6dd62fe09950fb",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    "root-remount-corrected-one-v1": {
+      "result_sha256": "b034b0fdd90a956f7a6c0767b2b846d45bdb1dda0ebe58bfde5d5170cf65d407",
+      "exit_code": 0,
+      "duration_seconds": 0.005531997012440115,
+      "sources_unchanged": true,
+      "log_sha256": "a246e31ebbb9ef1fb2759d82fc48f73c1d012b63f6cb1c2dfccf57fb7772347c",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-remount-corrected-four-v1": {
+      "result_sha256": "e5ac387e942db1bbbaf96d3ce75da3e43d007ed7e10bbe84f62073fa95566289",
+      "exit_code": 0,
+      "duration_seconds": 0.007350854022661224,
+      "sources_unchanged": true,
+      "log_sha256": "03d34fb9da4f8d3eeda729bb163e4aee5cb96cdbc54075f3499745c912bee8b6",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  },
+  "actual_counts": {
+    "baseline": {
+      "selected": 1,
+      "failed": 1
+    },
+    "corrected_new": {
+      "selected": 1,
+      "passed": 1
+    },
+    "corrected_module": {
+      "selected": 4,
+      "passed": 4
+    }
+  },
+  "full_check": {
+    "result_sha256": "0741528f6aaa89eb60fea88688251c7068805ff7b5c722a88d926dd01fc90aab",
+    "exit_code": 0,
+    "duration_seconds": 570.4878871890251,
+    "sources_unchanged": true,
+    "log_sha256": "3b22fcdfa7f141965d4d7a761b9273fe08263365386de08b640acc0ed4b01f28",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "display_scenarios": "not covered; native GTK acceptance remains open"
+  }
+}

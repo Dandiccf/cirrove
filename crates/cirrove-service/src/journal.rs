@@ -7,6 +7,8 @@ mod ancestry;
 mod barriers;
 mod directories;
 mod export;
+#[cfg(feature = "icloud-write-probe")]
+pub use export::owned_account_snapshot;
 mod generations;
 #[cfg(test)]
 mod owner_inheritance_tests;

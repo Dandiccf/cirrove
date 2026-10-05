@@ -478,6 +478,14 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Copy one registered stopped synthetic account; opaque bytes only, no replay.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedAccountSnapshot {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
     /// Offline semantic-v2 proof for one registered native Numbers export.
     #[cfg(feature = "icloud-write-probe")]
     OwnedIcloudEditorSourceProof {
@@ -1202,6 +1210,24 @@ async fn main() -> Result<()> {
     let command = Args::parse().command;
     let validate_session = matches!(&command, Command::ValidateOnedriveReadSession { .. });
     match command {
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedAccountSnapshot {
+            registration,
+            sha256,
+        } => {
+            let manifest = tokio::task::spawn_blocking(move || {
+                cirrove_service::journal::owned_account_snapshot(
+                    &registration, &sha256, &cirrove_core::CancellationToken::new(),
+                )
+            })
+            .await
+            .map_err(|_| anyhow::anyhow!("owned account snapshot worker unavailable"))?
+            .map_err(|_| anyhow::anyhow!("owned account snapshot refused; inspect retained incomplete output before another attempt"))?;
+            println!(
+                "{}",
+                serde_json::json!({"manifest": manifest, "restorability_verified": false})
+            );
+        }
         #[cfg(feature = "icloud-write-probe")]
         Command::OwnedIcloudEditorSourceProof {
             registration,

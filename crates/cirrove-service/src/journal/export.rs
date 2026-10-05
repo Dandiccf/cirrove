@@ -1,5 +1,9 @@
 //! Local recovery without replay: pinned immutable saves and offline working bytes.
 use super::*;
+#[cfg(feature = "icloud-write-probe")]
+mod account_snapshot;
+#[cfg(feature = "icloud-write-probe")]
+pub use account_snapshot::owned_account_snapshot;
 mod active;
 mod working;
 pub use active::{PreparedWorkingExport, VerifiedWorkingExport, WorkingExportSource};
