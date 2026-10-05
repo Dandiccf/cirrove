@@ -3,15 +3,15 @@
   "run": "ac218c35-1985-4dbd-a844-55a9e175756a",
   "registered_at": "2026-10-04T21:26:01.489216+00:00",
   "question": "Does the actual Pages desktop import publish on its original warm public mount and retain matching mounted/cloud V2 contents, with exact Apple Pages open?",
-  "status": "Private controller/source preparation; no live arm runtime, authorization, GUI, daemon or cloud dispatch",
+  "status": "Final private runtime locally checked; human chooser availability and fresh finite live window still pending; no GUI, daemon or cloud dispatch",
   "live_executed": false,
   "cloud_mutated": false,
   "all_full_icloud_gates_open": true,
   "max_live_seconds": 1800,
   "live_readiness_blockers": [
-    "final-source typed metadata binder and observer binary binding",
-    "controller review/offline controls and final registration",
-    "human actual native GTK chooser availability and Apple Pages open evidence"
+    "Human actual GTK chooser availability",
+    "Fresh finite grant and independent freshness/installed identity checks immediately before first dispatch",
+    "Actual public job, original warm mount and typed independent cloud readback plus Apple Pages open"
   ],
   "source_semantic_v2": {
     "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
@@ -237,10 +237,121 @@
             "test_same_directory_on_remounted_mount_is_refused",
             "test_warm_directory_replacement_refuses"
           ],
-          "actual_tests": 17
+          "actual_tests": 17,
+          "source_binding_correction": "Historical manifest pinned V4 but omitted the test loader environment; its default loader selects V3. Preserve the passing17 as historical evidence without claiming an attested V4 import. A fresh explicitly bound V4 invocation is recorded below."
         }
       },
       "scope": "Private mocked controller controls only; no cloud/GUI/mount/provider/process action; runtime still not ready."
     }
+  },
+  "local_readiness_2026_10_05": {
+    "recorded_at": "2026-10-04T23:52:01.081453+00:00",
+    "status": "Private final local preparation; no live dispatch, no GUI or provider acceptance",
+    "observer_copy_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-freeze-observer-v1-result.json",
+      "size": 423,
+      "sha256": "301aa0b5d076f0cf7e9073558defe8f75434f16b333e5b41e333c75de76dde22"
+    },
+    "observer_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/metadata-observer-frozen-binding-v1.json",
+      "size": 3069,
+      "sha256": "d5b7e6d39e6361364bab9df6ef9b115bd6dd4be668869e4a5898b8746ceb9345"
+    },
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/controller-draft-v4.py",
+      "size": 62567,
+      "sha256": "80d908a6a6baffa8dd8a0de62819827f1c492132fb5467e4da00a90b6afc988b"
+    },
+    "explicit_v4_lifecycle_controls": {
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-v4-lifecycle-bound-v1-registration.json",
+        "size": 1961,
+        "sha256": "c69de8e254ff06bd794c09dac6ea708dcf0506e86778da3a60f6bbcffa271026"
+      },
+      "attempt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-v4-lifecycle-bound-v1-attempt.json",
+        "size": 688,
+        "sha256": "9d68648b6667bc34ab2271b0e8a249706c706eb149012677f705f79836ae4b21"
+      },
+      "result": {
+        "exit_code": 0,
+        "actual_tests": 17,
+        "actual_controller": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/controller-draft-v4.py",
+        "actual_controller_sha256": "80d908a6a6baffa8dd8a0de62819827f1c492132fb5467e4da00a90b6afc988b",
+        "source_unchanged": true,
+        "duration_seconds": 0.005959528993116692,
+        "log_sha256": "9d5578273224ee4684a16cbbfd3200deb14b70630d35a29f67099d352764f53b",
+        "cloud_dispatched": false,
+        "installed_actions": false,
+        "observations": "synthetic mocks only"
+      },
+      "result_pin": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-v4-lifecycle-bound-v1-result.json",
+        "size": 546,
+        "sha256": "f8e753b04e06fc473d6db680d0ae0a3524257856381d99c5d49f430008d53d72"
+      },
+      "endpoint": "Actual imported controller path and SHA equal V4 under explicitly recorded loader environment; all17 mocks pass.",
+      "reason": "Resolve historical loader binding uncertainty; no repeatability claim."
+    },
+    "installed_baseline": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-installed-baseline-before-pages-v1.json",
+      "size": 5248,
+      "sha256": "93bd076401c37469ec26b37a1ef52fdfc348e85e9021e398271ad44ebb0d998b"
+    },
+    "all_full_icloud_gates_open": true,
+    "cloud_dispatched": false,
+    "live_ready": false,
+    "reporting_correction": "First summary writer expected plural results instead of actual result key; failed before any artifact write or execution. Corrected reporting only, no test/provider replay.",
+    "peer_review": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/regression-review-pages-v4-local-readiness-v1.json",
+      "size": 5178,
+      "sha256": "9ad964506529bf85ea0f4c24a83c96bfa7ccd134af653f1d5416cd9288261a6f"
+    },
+    "runtime": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/runtime-registration.json",
+      "size": 6894,
+      "sha256": "42dfcbf8d9f12ad872b6d4c974a4e80b416ce08e0a17fa0ba033938bfd04273d"
+    },
+    "check_local": {
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-check-local-v1-registration.json",
+        "size": 1659,
+        "sha256": "f5baf405a08f36bab2586a3abf774df6cbcecbd63c28afc67388ce599c2f10e3"
+      },
+      "attempt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-check-local-v1-attempt.json",
+        "size": 195,
+        "sha256": "979c217ab7aa751a88707e7de82de22a3d52006c25852436c8a6404754f8ee55"
+      },
+      "result_pin": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-check-local-v1-result.json",
+        "size": 309,
+        "sha256": "212a968a70fd244218330a85dab27f71fab6a4f172f4ec374bd23358924fd6b2"
+      },
+      "result": {
+        "exit_code": 0,
+        "timed_out": false,
+        "duration_seconds": 0.5192687670059968,
+        "log_sha256": "27ed65a513ae09fd81ef9aaf41d1ff1cba96248749cff9169ef2e93e6b1cbe6d",
+        "inputs_unchanged": true,
+        "child_reaped": true,
+        "cloud_dispatched": false,
+        "installed_actions": false,
+        "live_arm_started": false
+      },
+      "actual_output": {
+        "cloud_dispatched": false,
+        "provider_readiness_verified": false,
+        "run": "ac218c35-1985-4dbd-a844-55a9e175756a",
+        "status": "local-pins-valid"
+      },
+      "limits": "Local integrity only; no account freshness, fresh-run proof, provider or native chooser dispatch."
+    },
+    "local_pins_ready": true,
+    "remaining_live_dependencies": [
+      "Human actual GTK chooser availability",
+      "Fresh finite grant and independent freshness/installed identity checks immediately before first dispatch",
+      "Actual public job, original warm mount and typed independent cloud readback plus Apple Pages open"
+    ]
   }
 }
