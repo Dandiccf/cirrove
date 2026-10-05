@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-05T06:23:27.250303+00:00",
+  "status": "Build-only preregistration for a new, separately owned Numbers browser acceptance arm. No runtime or provider readiness yet.",
+  "head": "a297cdb2c50864701f175d5562e5b68d06abf36a",
+  "question": "Can current exact-source metadata/source-proof CLI, independent verifier and normal CLI/daemon be freshly built and frozen for a new finite browser acceptance arm?",
+  "prediction": "Sequential locked compiler-JSON builds produce exact current Rust/Cargo source maps and ELF byte identities; no cloud, session/key read, daemon launch or installed action. Main/generic common executable source maps agree. New current-format checkpoint tests remain test-only.",
+  "arms": [
+    {
+      "phase": "root-next-numbers-feature-cli-build-v1",
+      "command": [
+        "/home/dandiccf/.cargo/bin/cargo",
+        "build",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--bin",
+        "cirrove",
+        "--locked",
+        "--message-format=json"
+      ]
+    },
+    {
+      "phase": "root-next-numbers-generic-build-v1",
+      "command": [
+        "/home/dandiccf/.cargo/bin/cargo",
+        "build",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--bin",
+        "cirrove-icloud-mounted-write-probe",
+        "--locked",
+        "--message-format=json"
+      ]
+    },
+    {
+      "phase": "root-next-numbers-normal-build-v1",
+      "command": [
+        "/home/dandiccf/.cargo/bin/cargo",
+        "build",
+        "-p",
+        "cirrove-service",
+        "--bin",
+        "cirrove",
+        "--bin",
+        "cirroved",
+        "--locked",
+        "--message-format=json"
+      ]
+    }
+  ],
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "filesystem": "ext4",
+  "expected_duration_seconds": 120,
+  "cloud_requests": 0,
+  "installed_actions": false,
+  "full_gates_closed": 0,
+  "actual_results": {
+    "feature-cli": {
+      "exit_code": 0,
+      "duration_seconds": 0.15756057601538487,
+      "sources_unchanged": true,
+      "log_sha256": "d2b212675fecc4206b67f96431f75681d312afbff21ee0f33a3ff01374a92263",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 500911608,
+          "sha256": "ef15786b77991cdc0fae0a75de2b0693986f7848258f6654f90a793885278075",
+          "fresh": true,
+          "test": false
+        }
+      ]
+    },
+    "generic": {
+      "exit_code": 0,
+      "duration_seconds": 0.15685046699945815,
+      "sources_unchanged": true,
+      "log_sha256": "80a6bb40b8a2d733b6605f8abfa36a3095db10ca729f8b0ef4b9aed8742a1cd0",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove-icloud-mounted-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+          "size": 498164584,
+          "sha256": "7192ceec69e77048e0136685c9de82dc96c09ba8369d1cb612d18e6bceeb71ff",
+          "fresh": true,
+          "test": false
+        }
+      ]
+    },
+    "normal": {
+      "exit_code": 0,
+      "duration_seconds": 0.1529305989970453,
+      "sources_unchanged": true,
+      "log_sha256": "f129fa6edb1a352b08f6d93659bbde6169d2caf7b047fe1c3202f07d77d5669f",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 465405656,
+          "sha256": "27a4016b86b3bcf761b7815668dce89cab21e1f712f8e06e750f78c28991cb35",
+          "fresh": true,
+          "test": false
+        },
+        {
+          "target": "cirroved",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+          "size": 466043400,
+          "sha256": "8f059b3c76cce55677cc57880eca4b645ad95bbde245af481cb75588191e9641",
+          "fresh": true,
+          "test": false
+        }
+      ]
+    }
+  },
+  "source_count": 469,
+  "all_four_role_executable_source_maps_equal": true,
+  "cached_artifacts_cargo_validated": true,
+  "forced_recompile": false,
+  "consolidation_full_check_preregistration": {
+    "registered_at": "2026-10-05T07:01:33.036803+00:00",
+    "question": "Does the complete repository check pass with the retained current-source build proofs and candid partial real Numbers outcomes?",
+    "command": [
+      "/bin/bash",
+      "scripts/check.sh"
+    ],
+    "expected_duration_seconds": 900,
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "prediction": "Full formatting/clippy/workspace/feature/kernel/script/ledger/docs checks pass; no real provider operation or installed change; no full gate closure from tests.",
+    "all_live_owned_cloud_arms_terminal": true
+  },
+  "consolidation_full_check_actual_result": {
+    "exit_code": 0,
+    "duration_seconds": 523.6658925439988,
+    "sources_unchanged": true,
+    "log_sha256": "286378117ebf053641ca947a8f57683fcc8504541f9d965c4d0ec839982032b7",
+    "cloud_mutated": false,
+    "installed_actions": false
+  },
+  "committed_executable_sources_unchanged_after_check": 469,
+  "cargo_fresh_definition": "Cargo JSON fresh:true means validated cached artifact, not newly recompiled"
+}

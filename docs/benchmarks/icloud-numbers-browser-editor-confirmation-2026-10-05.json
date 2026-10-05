@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "status": "preregistered-before-local-assets-and-cloud",
+  "run": "4cc6b93a-362f-48bf-bdf2-dcc7d4e5ca06",
+  "root": "/var/tmp/cirrove-numbers-browser-editor-4cc6b93a-362f-48bf-bdf2-dcc7d4e5ca06",
+  "base": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-4cc6b93a-362f-48bf-bdf2-dcc7d4e5ca06",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/ne-4cc6b93a",
+  "question": "Can one genuine Numbers browser save/export be bound to independently read currentB and a distinct remounted B without losing the owned A identity?",
+  "prediction": "A2=11, B2=3, C2=14 after browser save and reopening; a fresh exported B semantic matches independently read current and remounted archive; retained A stays unchanged. Any uncertainty aborts without replay.",
+  "arms": [
+    "one fresh folder and public PACKAGE import A",
+    "stop RW daemon and independently read A",
+    "own browser edit A2 only, explicit save, reopen exact same document and verify A2/B2/C2",
+    "fresh B export via Apple browser, no wrapping or byte rewriting",
+    "offline flat/wrapped source proof",
+    "independent actual currentB representation+semantic readback",
+    "distinct RO remount B capture and offline proof",
+    "finish and exact owned process/mount closure, installed audit"
+  ],
+  "maximum_seconds": 1800,
+  "no_replay": true,
+  "prior_trial_status": "49eb aborted-unresolved; unexpected C2 us cause unknown, inadvertent input cannot be excluded; no currentB/remount acceptance",
+  "user_notice": "Announce browser-edit phase before entering A2; change only A2, verify B2=3 and C2=14 before save and after reopening.",
+  "source_b": "MUST be a fresh export from this new document; never use prior B",
+  "capability_scope": "Owned browser editor + existing importer/read-only verifier; does not close all six gates or assert Linux native editor acceptance",
+  "standing_cloud_write_authorization": true,
+  "runtime_provider_readiness": false,
+  "source_asset_created": false,
+  "runtime_auth_or_attempts_created": false,
+  "source_head": "a297cdb2c50864701f175d5562e5b68d06abf36a",
+  "user_answer_unexpected_input": "Website open; no conscious edit; inadvertent input cannot be excluded; cause unknown",
+  "build_roles": "Four current-source Cargo validated cached ELFs; no forced rebuild; not provider acceptance",
+  "actual_outcome": {
+    "status": "aborted-before-any-operational-phase",
+    "attempted_phases": {},
+    "cloud_requests": 0,
+    "root_operator_error": "Explicit TMPDIR/SQLITE_TMPDIR and registered Python omitted from direct invocation; guard refused before attempt marker. Exact original env not separately retained; subsequent inherited env null and read-only corrected local PASS recorded.",
+    "watcher_externally_reaped": true,
+    "watcher_exit": 0,
+    "outer_exit": 0,
+    "outer_duration_seconds": 6.859972034988459,
+    "all_owned_mounts_absent": true,
+    "provider_acceptance": false,
+    "local_source_bound_controls": 38,
+    "actual_produced_ro_reader_passed": true,
+    "authoring_refusals": [
+      {
+        "phase": "A source proof v1",
+        "cause": "Root added unsupported metadata field; no proof/side effect; corrected v2 passed"
+      },
+      {
+        "phase": "runtime assembly v1",
+        "cause": "Root had not yet archived actual scanner stdout; no runtime/auth; actual stdout archived; assembly v2 passed"
+      }
+    ]
+  },
+  "preregistration_scope": "Top-level status and false readiness/asset/auth fields retain their historical pre-execution meaning. Current observed outcome is actual_outcome; no readiness assertion should be inferred from the preregistration snapshot.",
+  "current_status": "aborted-before-any-operational-phase",
+  "consolidation_full_check": {
+    "exit_code": 0,
+    "duration_seconds": 523.6658925439988,
+    "sources_unchanged": true,
+    "log_sha256": "286378117ebf053641ca947a8f57683fcc8504541f9d965c4d0ec839982032b7",
+    "cloud_mutated": false,
+    "installed_actions": false
+  }
+}

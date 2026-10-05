@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "status": "preregistered-before-local-assets-and-cloud",
+  "run": "fd3c3384-8450-4e2b-b7a6-d0f152a280bb",
+  "root": "/var/tmp/cirrove-numbers-browser-editor-fd3c3384-8450-4e2b-b7a6-d0f152a280bb",
+  "base": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-fd3c3384-8450-4e2b-b7a6-d0f152a280bb",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/ne-fd3c3384",
+  "question": "Can one genuine Numbers browser save/export be bound to independently read currentB and a distinct remounted B without losing the owned A identity?",
+  "prediction": "A2=11, B2=3, C2=14 after browser save and reopening; a fresh exported B semantic matches independently read current and remounted archive; retained A stays unchanged. Any uncertainty aborts without replay.",
+  "arms": [
+    "one fresh folder and public PACKAGE import A",
+    "stop RW daemon and independently read A",
+    "own browser edit A2 only, explicit save, reopen exact same document and verify A2/B2/C2",
+    "fresh B export via Apple browser, no wrapping or byte rewriting",
+    "offline flat/wrapped source proof",
+    "independent actual currentB representation+semantic readback",
+    "distinct RO remount B capture and offline proof",
+    "finish and exact owned process/mount closure, installed audit"
+  ],
+  "maximum_seconds": 1800,
+  "no_replay": true,
+  "prior_trial_status": "49eb unknown browser input aborted; 4cc6 Root local operator refused before any phase or cloud request, watcher/outer reaped0. Cause explicit environment omitted and unregistered Python; standalone read-only corrected local fence passed; no provider uncertainty or repeated mutation.",
+  "user_notice": "Announce browser-edit phase before entering A2; change only A2, verify B2=3 and C2=14 before save and after reopening.",
+  "source_b": "MUST be a fresh export from this new document; never use prior B",
+  "capability_scope": "Owned browser editor + existing importer/read-only verifier; does not close all six gates or assert Linux native editor acceptance",
+  "standing_cloud_write_authorization": true,
+  "runtime_provider_readiness": false,
+  "source_asset_created": false,
+  "runtime_auth_or_attempts_created": false,
+  "source_head": "a297cdb2c50864701f175d5562e5b68d06abf36a",
+  "user_answer_unexpected_input": "Website open; no conscious edit; inadvertent input cannot be excluded; cause unknown",
+  "build_roles": "Four current-source Cargo validated cached ELFs; no forced rebuild; not provider acceptance",
+  "operator_invocation_contract": {
+    "python": "/usr/bin/python3.14",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-fd3c3384",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-fd3c3384",
+    "dispatch_only_after_external_watch_record": true
+  },
+  "actual_outcome": {
+    "status": "aborted-before-folder-and-import",
+    "attempted": {
+      "start-rw": true,
+      "abort": true
+    },
+    "confirmed": {},
+    "folder_create_dispatched": false,
+    "import_dispatched": false,
+    "root_operator_error": "Dependent create-folder dispatch attempted after ready guard refusal, instead of waiting for ready. Prereq refused before attempt marker; no cloud mutation.",
+    "ready_failure_exact_cause": "Not isolated before abort; startup readiness latency plausible, not established.",
+    "watcher_exit": 0,
+    "outer_exit": 0,
+    "outer_duration_seconds": 50.0968470480002,
+    "all_owned_processes_gone_and_unmounted": true
+  },
+  "preregistration_scope": "Top-level status and false readiness/asset/auth fields retain their historical pre-execution meaning. Current observed outcome is actual_outcome; no readiness assertion should be inferred from the preregistration snapshot.",
+  "current_status": "aborted-before-folder-and-import",
+  "consolidation_full_check": {
+    "exit_code": 0,
+    "duration_seconds": 523.6658925439988,
+    "sources_unchanged": true,
+    "log_sha256": "286378117ebf053641ca947a8f57683fcc8504541f9d965c4d0ec839982032b7",
+    "cloud_mutated": false,
+    "installed_actions": false
+  }
+}

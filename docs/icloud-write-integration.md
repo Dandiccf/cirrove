@@ -2174,3 +2174,32 @@ state. The genuine older14/7 build has no native iCloud checkpoint API, so the
 ordinary migration arm above covers that historical source separately. Neither
 arm proves desktop keyring availability, an installed transition or downgrade,
 an abrupt native Uploading crash, or full requirement488 acceptance.
+
+### Fresh browser save confirmation on 5 October 2026
+
+The [current-source executable bindings](benchmarks/icloud-numbers-editor-revalidation-builds-2026-10-05.json)
+validate four uninstalled programs against the committed Rust/Cargo sources.
+Cargo reused its validated cached artifacts; no forced recompilation is claimed.
+Two [local invocation](benchmarks/icloud-numbers-browser-editor-confirmation-2026-10-05.json)
+and [startup ordering](benchmarks/icloud-numbers-browser-editor-confirmation-fresh-2026-10-05.json)
+mistakes by the test operator stopped before any folder/import dispatch. Their
+closed owners and evidence remain retained. These are test execution failures,
+not evidence of an Apple write failure.
+
+A [separate fresh trial](benchmarks/icloud-numbers-browser-editor-confirmation-completion-2026-10-05.json)
+passed38 source-bound controls and the actual produced-settings reader, created
+one owned folder, imported one Numbers document and independently verified A.
+After stopping the writable producer, the browser showed7/3/10 and
+`SUM(A2:B2)`. One change to A2 produced11/3/14. The Saving indicator appeared and
+disappeared; an actual server reload retained those values and the formula.
+The prior successor's unexpected `us` input did not recur in this trial. Its
+original cause remains unknown; the user reports no conscious edit but cannot
+exclude inadvertent input while the website was open.
+
+One native Numbers export was requested. The browser showed export preparation,
+then an export-frame error page, and no matching file appeared in the expected
+download directory. The cause was not isolated. The arm stopped without another
+export or mutation; its watcher and outer runner were reaped with exit0. No B
+archive, independent current-B proof or read-only remount-B proof is claimed.
+The saved document remains available for inspection. All six full-integration
+requirements and the installed deployment hold remain open.
