@@ -287,6 +287,9 @@ pub async fn icloud_owned_fixture_verify(
     Ok(result)
 }
 
+mod retained_numbers_read;
+pub use retained_numbers_read::icloud_owned_retained_numbers_read;
+
 mod editor_metadata;
 pub use editor_metadata::icloud_owned_editor_metadata;
 

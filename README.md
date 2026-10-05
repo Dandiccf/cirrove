@@ -242,6 +242,13 @@ version and its remount still need acceptance. The
 separates those completed observations from the remaining checks. This browser
 workflow does not establish saves from a Linux editor through the mount.
 
+A later fresh browser trial again confirmed the saved Numbers values and formula
+after reloading the document. Its native export could not be acquired, so the
+trial stopped with partial evidence. A separate read-only observation is being
+prepared to compare the saved provider content with an independent reader and
+a fresh mount. The [latest trial record](docs/benchmarks/icloud-numbers-browser-editor-confirmation-completion-2026-10-05.json)
+keeps that export gap explicit.
+
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic

@@ -494,6 +494,14 @@ enum Command {
         #[arg(long)]
         sha256: String,
     },
+    /// Read one registered retained Numbers item into a fresh read-only reference.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudRetainedNumbersRead {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
     /// Capture read-only metadata for a registered fresh browser Numbers document.
     #[cfg(feature = "icloud-write-probe")]
     OwnedIcloudEditorMetadata {
@@ -1237,6 +1245,18 @@ async fn main() -> Result<()> {
                 &registration,
                 &sha256,
             )?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudRetainedNumbersRead {
+            registration,
+            sha256,
+        } => {
+            let proof = cirrove_service::validation::icloud_owned_retained_numbers_read(
+                &registration,
+                &sha256,
+            )
+            .await?;
             println!("{}", serde_json::to_string(&proof)?);
         }
         #[cfg(feature = "icloud-write-probe")]

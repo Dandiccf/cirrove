@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "local-validation-passed-live-observation-pending",
+  "question": "Can a fresh read-only observation capture the retained Numbers document after the confirmed browser save, with exact account/collection/item identity and revision fences, then verify its content through separate read paths?",
+  "prediction": "The current item should have a revision different from the imported original. A direct PACKAGE read and an independent reader should agree on semantic version 2; a fresh normal read-only mount should expose the same content tree. Any identity, revision, representation or local admission mismatch must refuse and preserve partial evidence.",
+  "subject_run": "85afb1fd-d236-41a9-b9bf-fc620512fc3b",
+  "source_base": "b5866b77a1f498a186a7f64712fa19ee64576152",
+  "arms": [
+    {
+      "name": "feature-build-and-admission",
+      "endpoint": "Compile the feature-only retained-read CLI. Exercise its actual admission with isolated synthetic settings/context and incorrect routes or expired deadlines, preserving inputs and refusing before provider dispatch."
+    },
+    {
+      "name": "existing-https-read-fences",
+      "endpoint": "Run the five owned_fixture_https tests. Happy DATA and PACKAGE use seven requests each; representation flip uses five, item revision race six, post-transfer parent change seven, and six pre-transfer parent faults one request each. These exercise the existing library reader, not the new CLI/keyring end to end."
+    },
+    {
+      "name": "new-read-only-current-reference",
+      "endpoint": "Use a fresh observation UUID, private on-disk root and same-account opaque session copy. Record one durable attempt before network access; capture unchanged raw current PACKAGE bytes, typed metadata and semantic v2. Stop on ambiguity; do not resume the closed browser controller."
+    },
+    {
+      "name": "independent-read-and-normal-remount",
+      "endpoint": "Compare an independent revision-fenced read and a guarded fresh normal read-only FUSE capture with the current reference. Record exact process ownership, finite deadline, mount closure and installed baseline preservation."
+    }
+  ],
+  "execution_policy": {
+    "root_execution_lanes": 1,
+    "cargo_target_directory": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "temporary_filesystem_required": "disk-backed; not tmpfs",
+    "live_observation_maximum_seconds": 1800,
+    "provider_mutations": 0,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "full_check_before_commit": "scripts/check.sh"
+  },
+  "limits": [
+    "Current-provider readback is not a browser export and cannot independently decode the displayed cell values.",
+    "The previous browser export remains unresolved. The confirmed browser values 11/3/14 are separate UI evidence.",
+    "Matching read paths establish scoped content-tree consistency, not general iWork editor fidelity or complete iCloud acceptance.",
+    "All six full iCloud acceptance gates remain open. Installed Canary state remains on hold."
+  ],
+  "actual_outcome": {
+    "scope": "Local validation only. No retained current-provider observation has executed yet.",
+    "phases": {
+      "root-retained-numbers-feature-build-v1": {
+        "exit_code": 101,
+        "duration_seconds": 5.963770728005329,
+        "sources_unchanged": true,
+        "log_sha256": "c4492303af44288496f358647465c952031489b17c0ccaddeaf1da60139473f1",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-feature-build-v2": {
+        "exit_code": 0,
+        "duration_seconds": 18.854862966982182,
+        "sources_unchanged": true,
+        "log_sha256": "b2cda4e5ad4aed00d0d634d23376b324b1aebbddae1a659da4c5bb692a934b49",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 501642880,
+            "sha256": "f12bfacdb0efa3992842fad141759562683270936955131d6150e1e303e3da69",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-generic-build-v1": {
+        "exit_code": 0,
+        "duration_seconds": 2.1123920629906934,
+        "sources_unchanged": true,
+        "log_sha256": "777ab23b34f1000805b65d0c1ee59c6205dd63e388d80b82467fea41796bc356",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirrove-icloud-mounted-write-probe",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+            "size": 498183184,
+            "sha256": "24d911fae41c6c763e595656cb0dbde54ca5ab9f0cd070a4e484b3402536c052",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-normal-build-v1": {
+        "exit_code": 0,
+        "duration_seconds": 7.693236924998928,
+        "sources_unchanged": true,
+        "log_sha256": "e7cf0bcfbfb3095175c0a236f4b5a2626dd061d7a3c028a644859882ea881f35",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirroved",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+            "size": 466043400,
+            "sha256": "8f059b3c76cce55677cc57880eca4b645ad95bbde245af481cb75588191e9641",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 465405688,
+            "sha256": "bd149bb604d704ef9e933897a2c1eca74d944d9b4a5d076283bb25cc4138a6ba",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-https-fences-v1": {
+        "exit_code": 0,
+        "duration_seconds": 17.218103459017584,
+        "sources_unchanged": true,
+        "log_sha256": "f2534481615444c7d1ca4e4347836bce6528f4b054b53f68231e3e24df800cbe",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-https-fences-v2": {
+        "exit_code": 0,
+        "duration_seconds": 0.4097917329927441,
+        "sources_unchanged": true,
+        "log_sha256": "1ef80563edc7ad87b4514d81e80011ff12a3f6b04a0cdb671422d4c14e5de075",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-admission-tests-v1": {
+        "exit_code": 0,
+        "duration_seconds": 31.412100643006852,
+        "sources_unchanged": true,
+        "log_sha256": "ea4cd673d193af6ead8e5222a24b4236ad68865da39095d6988dea47acce729e",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-full-check-v1": {
+        "exit_code": 0,
+        "duration_seconds": 612.4720305320225,
+        "sources_unchanged": true,
+        "log_sha256": "93ad89e9c1421a1ef861d4e096a9bf4bce6f04198061555a49c1b618afec43cb",
+        "cloud_mutated": false,
+        "installed_actions": false
+      }
+    },
+    "admission_tests": {
+      "executed_tests": 2,
+      "route_arms": 6,
+      "expired_window_arms": 1,
+      "all_passed": true,
+      "attempt_and_session_boundary_not_crossed": true,
+      "fixture_bytes_and_modes_preserved": true
+    },
+    "https_tests": {
+      "executed_tests": 5,
+      "all_passed": true,
+      "new_facade_keyring_cli_end_to_end_claimed": false
+    },
+    "corrections": [
+      "The initial feature build failed because the Context struct shadowed the imported anyhow Context trait; an explicit trait import fixed compilation. This was an authoring failure, not a provider failure.",
+      "The initial HTTPS filter omitted the write-probe feature and executed zero tests. It is not test evidence; the corrected command executed five passing tests.",
+      "The initial admission run passed with three redundant-import warnings. Those imports were removed before the complete check, which passed with unchanged source inputs.",
+      "Private unexecuted runner drafts had startup/active-mount, repeated exclusive output and child-tracking errors. These were detected before live dispatch and corrected in a separately reviewed draft; its controls and live execution remain pending."
+    ],
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "browser_native_export_obtained": false,
+    "full_icloud_gates_closed": false
+  }
+}
