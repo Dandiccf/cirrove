@@ -244,9 +244,11 @@ workflow does not establish saves from a Linux editor through the mount.
 
 A later fresh browser trial again confirmed the saved Numbers values and formula
 after reloading the document. Its native export could not be acquired, so the
-trial stopped with partial evidence. A separate read-only observation is being
-prepared to compare the saved provider content with an independent reader and
-a fresh mount. The [latest trial record](docs/benchmarks/icloud-numbers-browser-editor-confirmation-completion-2026-10-05.json)
+trial stopped with partial evidence. A [separate read-only observation](docs/benchmarks/icloud-retained-numbers-read-2026-10-05.json)
+has now verified changed provider content through a direct read, a separate
+reader and a fresh mount, with matching content-tree identities. This does not
+independently decode the displayed cell values or prove browser export fidelity.
+The [browser trial record](docs/benchmarks/icloud-numbers-browser-editor-confirmation-completion-2026-10-05.json)
 keeps that export gap explicit.
 
 These are bounded development results. **Full iCloud support is still open:**

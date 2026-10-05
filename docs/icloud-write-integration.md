@@ -2135,7 +2135,6 @@ this successor. This is a local test-preparation mismatch, not a provider write
 failure. The existing document and evidence remain retained. All six full-iCloud
 requirements and the installed deployment hold remain open.
 
-
 A separate local regression check reproduced that exact preparation failure:
 the actual settings-producing code reached the unchanged operational RO reader
 and failed its desired-success assertion after confirming that source snapshots
@@ -2203,3 +2202,36 @@ export or mutation; its watcher and outer runner were reaped with exit0. No B
 archive, independent current-B proof or read-only remount-B proof is claimed.
 The saved document remains available for inspection. All six full-integration
 requirements and the installed deployment hold remain open.
+
+### Retained Numbers current read and fresh mount on 5 October 2026
+
+A [new read-only observation](benchmarks/icloud-retained-numbers-read-2026-10-05.json)
+verified the retained document from the browser trial above. Its fresh local
+state copied only the same-account opaque saved session; it did not resume the
+closed browser controller or repeat any folder, import, edit or export operation.
+The feature-only reader selected the exact account/collection/parent/item,
+required a revision different from imported A, and captured its actual current
+PACKAGE bytes with pre/post-transfer metadata and representation fences.
+
+A second generic reader independently fetched and verified that revision. A
+fresh normal read-only FUSE mount then supplied a distinct archive capture,
+guarded by its mount identity, open descriptor and account-scoped source metadata.
+After closing the mount, the existing offline scanner verified that capture.
+All three acquisitions matched semantic version 2: ten entries, seven files,
+138,899 expanded bytes and digest `7ff32522e4eadd67b22c69a0a761c1fe709358259294837ef37b2f51650cb043`.
+This differs from A. Both direct and mounted archives were 64,903 bytes, but
+their raw hashes differed; raw archive equality is not claimed.
+
+The bounded run completed in 65.6 seconds. The independent closure audit found
+all seven recorded process identities absent, the mount and socket absent,
+registered inputs and opaque session unchanged, and the installed daemon and
+all nineteen package files unchanged. No cloud mutation or automatic retry
+occurred in this observation. The complete local `scripts/check.sh` also passed
+for the new feature and admission tests before the source commit.
+
+These are separate read acquisitions using Cirrove's existing implementation,
+not independent provider implementations. They establish scoped content-tree
+consistency, not independently decoded cell values, browser export fidelity,
+Linux editor saves or full iWork reliability. The earlier browser arm remains
+closed with its unresolved export. All six full-integration requirements and
+the installed deployment hold remain open.
