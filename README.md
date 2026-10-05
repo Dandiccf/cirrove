@@ -68,6 +68,10 @@ through inspection of the same operation, with no repeated cloud write, and
 independently verified the new document and the original in Trash. See the
 [iCloud validation record](docs/icloud-write-integration.md). Desktop import,
 real editor saves, broader session recovery and installed upgrades remain open.
+A fresh Linux Calc trial confirmed all four file uploads, including a temporary
+file replacement, but stopped before cleanup and independent readback completed.
+The guarded cleanup correction has synthetic regression coverage; a complete
+second-save and remount trial still needs real-provider acceptance.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to

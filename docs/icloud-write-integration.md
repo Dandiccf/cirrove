@@ -2367,5 +2367,34 @@ The failed fixtures and results remain retained.
 The original cloud trials remain unconfirmed. These tests prove the local
 sequence and its guarded correction; they do not prove any retained trial's
 exact first transfer exception, a successful real-provider Calc save, native iWork editing or
-full iCloud acceptance. A fresh actual cloud arm with newly built binaries is
-still required. All six full-iCloud release criteria remain open.
+full iCloud acceptance. The fresh arm using newly built binaries is recorded
+below. All six full-iCloud release criteria remain open.
+
+### Fresh Calc uploads and the metadata-index cleanup boundary
+
+The [fresh follow-up arm](benchmarks/icloud-calc-after-unlink-2026-10-05.json)
+used the successor correction and new frozen binaries. Actual Calc saved and
+reopened its own XLSX with 7/3/SUM=10. All four ordinary upload records reached
+Uploaded, including the previously refused temporary file's staged identity
+handoff. The lock-file removal completed; the temporary file's resolved Remove
+remained Pending. The bounded arm stopped and reaped all four owned children,
+unmounted cleanly and preserved the fixture. The installed daemon and its 19
+artifacts remained unchanged. No old writer or pending mutation was replayed.
+
+This confirms the upload endpoint, not a complete cloud editor save: independent
+generic DATA readback, the second editor save and fresh read-only remount were
+not admitted. The first temporary-removal exception was not historically logged.
+The stopped state showed its new item ID absent from all metadata presence and
+absence tables while its parent was indexed; source planning required the
+missing item-to-root chain before independent cloud verification could start.
+
+The [controlled source regression](benchmarks/icloud-receipt-remove-source-2026-10-05.json)
+then reproduced this refusal using real journal handoff and resolution APIs,
+before any network call. The same positive passed after adding exact
+operation-bound receipt authority for a completely unindexed leaf. Six service
+tests also passed, covering 38 hostile admission arms, indexed metadata and
+ancestry conflicts, ordinary indexed relocation routing, and eight real
+preparation deferrals with newer unlinked bytes preserved through exclusive
+journal reopening. The independent content/revision checks remain mandatory.
+This correction still needs a fresh real-provider cleanup and complete editor
+trial; it closes none of the six full-integration acceptance criteria.

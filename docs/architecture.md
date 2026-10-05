@@ -995,6 +995,17 @@ bytes, dirty state and generation survive completion and journal reopening.
 Synthetic regression and hostile-lineage checks cover this sequence. They do
 not establish real-provider application acceptance or general successor support.
 
+Source planning for that resolved ordinary Remove checks indexed metadata first.
+If the item is not indexed yet, only its exact completed FileBytes predecessor,
+direct dependency and current unlinked owner/working-stream binding can supply
+the full source node. One metadata snapshot permits this leaf only when its
+scoped ID is absent from both presence tables and the explicit absence table;
+all non-root parents must still be indexed, ordinary folders rooted in the account.
+Present changed metadata, explicit absence and broken ancestry remain conflicts.
+Independent remote digest/revision verification still precedes the Trash request.
+Retry counters and newer local descriptor bytes do not change the sealed receipt.
+See the [controlled source regression](benchmarks/icloud-receipt-remove-source-2026-10-05.json).
+
 The normal-build iCloud file-create adapter's `begin_upload` only returns a
 prepared checkpoint; it sends no Apple request. The shared worker may return
 such a create to Pending after a missing checkpoint only if SQLite never

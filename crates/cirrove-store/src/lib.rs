@@ -731,6 +731,27 @@ impl Store {
         item: &str,
         root: &str,
     ) -> Result<Option<Vec<Node>>> {
+        self.node_chain_to_root_impl(scope, item, root, None)
+    }
+    /// Resolve indexed ancestry with a supplied leaf only when that exact
+    /// scoped item has no indexed presence or absence. The leaf is an ancestry
+    /// hint, not proof of a completed write or provider content. Callers must
+    /// independently bind its durable receipt and provider revision/content.
+    pub fn node_chain_to_root_with_unindexed_leaf(
+        &self,
+        scope: &Scope,
+        leaf: &Node,
+        root: &str,
+    ) -> Result<Option<Vec<Node>>> {
+        self.node_chain_to_root_impl(scope, &leaf.id, root, Some(leaf))
+    }
+    fn node_chain_to_root_impl(
+        &self,
+        scope: &Scope,
+        item: &str,
+        root: &str,
+        unindexed_leaf: Option<&Node>,
+    ) -> Result<Option<Vec<Node>>> {
         if item.is_empty() || root.is_empty() || item == root {
             return Ok(None);
         }
@@ -738,12 +759,30 @@ impl Store {
         let mut chain = Vec::new();
         let mut seen = HashSet::new();
         let mut id = item.to_string();
-        for _ in 0..128 {
+        for depth in 0..128 {
             if !seen.insert(id.clone()) {
                 return Ok(None);
             }
-            let Some(node) = Self::node_on(&tx, scope, &id)? else {
-                return Ok(None);
+            let node = match Self::node_on(&tx, scope, &id)? {
+                Some(node) => node,
+                None if depth == 0 => {
+                    let Some(leaf) = unindexed_leaf else {
+                        return Ok(None);
+                    };
+                    let indexed: bool = tx.query_row(
+                        "SELECT EXISTS(
+                            SELECT 1 FROM nodes WHERE scope=?1 AND id=?2
+                            UNION ALL SELECT 1 FROM observed WHERE scope=?1 AND id=?2
+                            UNION ALL SELECT 1 FROM observed_absent WHERE scope=?1 AND id=?2)",
+                        params![Self::key(scope)?, id],
+                        |row| row.get(0),
+                    )?;
+                    if indexed {
+                        return Ok(None);
+                    }
+                    leaf.clone()
+                }
+                None => return Ok(None),
             };
             if node.id != id {
                 return Ok(None);
@@ -1102,6 +1141,180 @@ mod tests {
         };
         db.observe_node(&s, &cycle).unwrap();
         assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
+    }
+    fn ancestry_node(id: &str, parent: &str) -> Node {
+        match node(id) {
+            Change::Upsert(mut node) => {
+                node.parent_id = Some(parent.into());
+                if id != "file" {
+                    node.kind = NodeKind::Folder;
+                }
+                node
+            }
+            _ => unreachable!(),
+        }
+    }
+    #[test]
+    fn unindexed_leaf_chain_uses_only_scoped_indexed_parent() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let parent = ancestry_node("folder", "root");
+        let leaf = ancestry_node("file", "folder");
+        db.observe_node(&s, &parent).unwrap();
+        let foreign_leaf = ancestry_node("file", "foreign-root");
+        db.observe_node(&scope("other"), &foreign_leaf).unwrap();
+        assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
+        assert_eq!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &leaf, "root")
+                .unwrap(),
+            Some(vec![leaf, parent])
+        );
+    }
+    #[test]
+    fn unindexed_leaf_chain_preserves_explicit_absence() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let leaf = ancestry_node("file", "folder");
+        db.observe_node(&s, &ancestry_node("folder", "root"))
+            .unwrap();
+        let ticket = db.node_observation(&s, &leaf.id).unwrap();
+        db.publish_absence(&ticket).unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &leaf, "root")
+                .unwrap()
+                .is_none()
+        );
+        assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
+    }
+    #[test]
+    fn unindexed_leaf_chain_keeps_actual_indexed_metadata() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let parent = ancestry_node("folder", "root");
+        let hint = ancestry_node("file", "folder");
+        let indexed = Node {
+            name: "Saved document".into(),
+            size: 17,
+            etag: Some("indexed-v2".into()),
+            ..hint.clone()
+        };
+        db.begin(&s, false).unwrap();
+        db.stage(
+            &s,
+            None,
+            &page(
+                vec![
+                    Change::Upsert(parent.clone()),
+                    Change::Upsert(indexed.clone()),
+                ],
+                true,
+                "complete",
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap(),
+            Some(vec![indexed, parent.clone()])
+        );
+        let observed = Node {
+            name: "Observed document".into(),
+            etag: Some("observed-v3".into()),
+            ..hint.clone()
+        };
+        db.observe_node(&s, &observed).unwrap();
+        let expected = Some(vec![observed, parent]);
+        assert_eq!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap(),
+            expected
+        );
+        assert_eq!(db.node_chain_to_root(&s, "file", "root").unwrap(), expected);
+    }
+    #[test]
+    fn unindexed_leaf_chain_never_replaces_invalid_indexed_ancestry() {
+        let s = scope("owner");
+        let hint = ancestry_node("file", "folder");
+        let invalid = [
+            "{}".to_string(),
+            serde_json::to_string(&Node {
+                id: "different-item".into(),
+                ..hint.clone()
+            })
+            .unwrap(),
+            serde_json::to_string(&Node {
+                parent_id: None,
+                ..hint.clone()
+            })
+            .unwrap(),
+            serde_json::to_string(&ancestry_node("file", "missing")).unwrap(),
+            serde_json::to_string(&ancestry_node("file", "file")).unwrap(),
+        ];
+        for (arm, body) in invalid.into_iter().enumerate() {
+            let mut db = Store::open(":memory:").unwrap();
+            db.observe_node(&s, &ancestry_node("folder", "root"))
+                .unwrap();
+            db.db
+                .execute(
+                    "INSERT INTO observed(scope,id,body,seen,source_revision) VALUES(?1,'file',?2,0,0)",
+                    params![Store::key(&s).unwrap(), body],
+                )
+                .unwrap();
+            let result = db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root");
+            if arm == 0 {
+                assert!(result.is_err());
+            } else {
+                assert!(result.unwrap().is_none());
+            }
+        }
+        let mut db = Store::open(":memory:").unwrap();
+        db.observe_node(&scope("other"), &ancestry_node("folder", "root"))
+            .unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap()
+                .is_none()
+        );
+        db.observe_node(&s, &ancestry_node("folder", "missing"))
+            .unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap()
+                .is_none()
+        );
+        db.observe_node(&s, &ancestry_node("folder", "file"))
+            .unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap()
+                .is_none()
+        );
+    }
+    #[test]
+    fn unindexed_leaf_chain_shares_indexed_depth_limit() {
+        for depth in [128, 129] {
+            let mut db = Store::open(":memory:").unwrap();
+            let s = scope("owner");
+            let leaf = ancestry_node("file", "ancestor-0");
+            for index in 0..depth - 1 {
+                let parent = if index == depth - 2 {
+                    "root".to_string()
+                } else {
+                    format!("ancestor-{}", index + 1)
+                };
+                db.observe_node(&s, &ancestry_node(&format!("ancestor-{index}"), &parent))
+                    .unwrap();
+            }
+            let hinted = db
+                .node_chain_to_root_with_unindexed_leaf(&s, &leaf, "root")
+                .unwrap();
+            assert_eq!(
+                hinted.as_ref().map(Vec::len),
+                (depth == 128).then_some(depth)
+            );
+            db.observe_node(&s, &leaf).unwrap();
+            assert_eq!(db.node_chain_to_root(&s, "file", "root").unwrap(), hinted);
+        }
     }
     #[test]
     fn interrupted_pages_resume_without_exposing_partial_tree() {

@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(test)]
+mod receipt_sources;
 mod relocations;
 use crate::journal::MutationState;
 use cirrove_core::mutation::{MutationIntent, Result as MutationResult, VerifiedMutationContent};
@@ -45,7 +47,12 @@ fn local_error(error: UploadError) -> MutationError {
 }
 
 impl ICloudWriteProvider {
-    async fn mutation_source(&self, before: &Node) -> MutationResult<Node> {
+    async fn mutation_source(
+        &self,
+        before: &Node,
+        request: &MutationRequest,
+        operation: Option<Uuid>,
+    ) -> MutationResult<Node> {
         if before.kind == NodeKind::Folder {
             return self.parent(&before.id).await.map_err(local_error);
         }
@@ -57,12 +64,29 @@ impl ICloudWriteProvider {
             return Err(MutationError::Unsupported("iCloud file verification limit"));
         }
         let (metadata, scope, id) = (self.metadata.clone(), self.scope.clone(), before.id.clone());
+        let authority = operation.map(|id| (id, request.clone()));
+        let journal = self.journal.clone();
         tokio::task::spawn_blocking(move || {
             let store = Store::open(&metadata).map_err(|_| MutationError::Uncertain)?;
-            let chain = store
+            let chain = match store
                 .node_chain_to_root(&scope, &id, ROOT_ID)
                 .map_err(|_| MutationError::Uncertain)?
-                .ok_or(MutationError::Conflict)?;
+            {
+                Some(chain) => chain,
+                None => {
+                    let (operation, request) = authority.ok_or(MutationError::Conflict)?;
+                    let confirmed = journal
+                        .lock()
+                        .map_err(|_| MutationError::Uncertain)?
+                        .confirmed_remove_base(operation, &request)
+                        .map_err(|_| MutationError::Conflict)?
+                        .ok_or(MutationError::Conflict)?;
+                    store
+                        .node_chain_to_root_with_unindexed_leaf(&scope, &confirmed, ROOT_ID)
+                        .map_err(|_| MutationError::Uncertain)?
+                        .ok_or(MutationError::Conflict)?
+                }
+            };
             if chain
                 .iter()
                 .skip(1)
@@ -124,6 +148,14 @@ impl ICloudWriteProvider {
     }
 
     async fn folder_plan(&self, request: &MutationRequest) -> MutationResult<FolderPlan> {
+        self.folder_plan_with_operation(request, None).await
+    }
+
+    async fn folder_plan_with_operation(
+        &self,
+        request: &MutationRequest,
+        operation: Option<Uuid>,
+    ) -> MutationResult<FolderPlan> {
         request.validate()?;
         if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
             return Err(MutationError::Unsupported(
@@ -141,7 +173,7 @@ impl ICloudWriteProvider {
             {
                 return Err(MutationError::Invalid);
             }
-            let mut current = self.mutation_source(before).await?;
+            let mut current = self.mutation_source(before, request, operation).await?;
             let mut expected = before.clone();
             if before.kind == NodeKind::File {
                 // Listings and upload receipts use different local content
@@ -193,6 +225,19 @@ impl ICloudWriteProvider {
             self.folder_adapter(&plan)?;
         }
         Ok(plan)
+    }
+
+    async fn folder_plan_for_operation(
+        &self,
+        operation: Uuid,
+        request: &MutationRequest,
+    ) -> MutationResult<FolderPlan> {
+        let operation = self.mutation_operation(&operation.to_string(), request)?;
+        // A completed predecessor can assign a new ID before listings index it.
+        // Only this exact resolved ordinary Remove may supply the missing leaf;
+        // indexed changes and independent cloud content/revision checks still win.
+        self.folder_plan_with_operation(request, Some(operation))
+            .await
     }
 
     fn folder_adapter(&self, plan: &FolderPlan) -> MutationResult<Arc<dyn MutationProvider>> {
@@ -442,7 +487,7 @@ impl MutationProvider for ICloudWriteProvider {
             Some(saved) if saved.phase == PlanPhase::Prepared => saved,
             Some(_) => return Err(MutationError::Uncertain),
             None => {
-                let mut plan = self.folder_plan(request).await?;
+                let mut plan = self.folder_plan_for_operation(operation, request).await?;
                 if let Some(before) = request
                     .intent
                     .before()

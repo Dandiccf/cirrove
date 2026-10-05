@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "run": "e044c01a-01d8-4acb-8ec5-3cd840464e33",
+  "status": "stopped-pending-temporary-remove",
+  "source_head": "587c55727587f13214a5085c2a2db8cedec077ca",
+  "question": "Does the corrected ordinary upload-to-Remove handoff permit a fresh actual Calc XLSX A save and one conditional B update, each with independent generic DATA current readback and final read-only remount?",
+  "prediction": "The exact local guard reproduced by the baseline test should no longer refuse a valid unlinked temporary stream. Actual provider completion and editor update/remount remain unproven until this fresh arm completes. Any uncertainty stops without an automatic repeat.",
+  "arms": [
+    {
+      "name": "fresh-owned-calc-a-then-conditionally-b",
+      "maximum_seconds": 600,
+      "cleanup_reserve_seconds": 45,
+      "store_as_a_count_max": 1,
+      "store_b_count_max": 1,
+      "b_admission": "exact stopped journal completion and independent current generic DATA A verification",
+      "automatic_save_retry": false
+    }
+  ],
+  "scope": {
+    "folder": "Cirrove-Native-e044c01a-01d8-4acb-8ec5-3cd840464e33",
+    "document": "Cirrove-Calc-e044c01a-01d8-4acb-8ec5-3cd840464e33.xlsx",
+    "native_iwork_editing": false,
+    "installed_delivery": false,
+    "full_release_gate_closed": false
+  },
+  "execution_policy": {
+    "provider_mutations_authorized": true,
+    "old_writer_reopened": false,
+    "old_fixture_mutation_replayed": false,
+    "compile_during_cloud_arm": false,
+    "installed_actions": false,
+    "stop_on_uncertainty": true
+  },
+  "inputs": {
+    "runtime_binding_sha256": "8b9b1f9012af7885547a4744ec7ffc51d61fe356fdef565bd945cb49286ad443",
+    "source_count": 475,
+    "controller_sha256": "509a43bdf32e8d84b74aac8aec26d66d8894a8d2797ee37cf2d51031117c1fe5",
+    "worker_sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106",
+    "preparation_script_sha256": "cb207434fbd7db24c1016141a08e82fe8aebfa2ae34b3be8592fe0b31080931e"
+  },
+  "limits": [
+    "Original retained fixtures remain closed and unconfirmed.",
+    "No exact first live transfer exception is inferred from prior journal field shapes.",
+    "UNO operations do not establish human GUI acceptance.",
+    "XLSX success does not establish native Pages/Numbers/Keynote editing or installed upgrade/Strata acceptance."
+  ],
+  "outcome": {
+    "original_registered_status": "preregistered-not-dispatched",
+    "registration_correction": "Top-level status now records the completed arm's outcome. All other original registration fields, including the question and prediction, remain equal to the immutable pre-cloud registration.",
+    "status": "stopped_partial_local_a_without_independent_provider_confirmation",
+    "run": "e044c01a-01d8-4acb-8ec5-3cd840464e33",
+    "immutable_pre_cloud_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-e044c01a-01d8-4acb-8ec5-3cd840464e33/root-frozen-prereg-before-cloud-v1.json",
+      "sha256": "b6a25aa3d8e27b9b78423696f73e4a5e24588642beb9be0d3100aa2a2ee943b1",
+      "question_prediction_unchanged": true
+    },
+    "terminal_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-e044c01a-01d8-4acb-8ec5-3cd840464e33/terminal-audit-v2.json",
+      "sha256": "054e5d5c7ebeb39523a4d42a42dd12a915374d8de062ae10c86f0501a0c96f16",
+      "mode": "0400"
+    },
+    "actual_local_a": {
+      "source_size": 5281,
+      "source_sha256": "a13a929767385937783949e163cd63028904c0f5961e8d1c8b9569c8dd384c7e",
+      "mounted_store_close_reopen": {
+        "A2": 7,
+        "B2": 3,
+        "C2": 10,
+        "formula": "=SUM(A2:B2)"
+      },
+      "visible_window_api_checked": true,
+      "human_gui_witness_recorded": false,
+      "provider_receipt_verified": false
+    },
+    "stopped_journal": {
+      "mode": "read_only + query_only; no UploadJournal.open",
+      "ordinary_uploaded_sequences": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "sequence4_ordinary_identity_handoff_present": true,
+      "applied_mutation_sequences": [
+        1,
+        7
+      ],
+      "pending_remove": {
+        "sequence": 6,
+        "failed_attempts": 8,
+        "retry_at": 1791231988
+      },
+      "queue_complete_sequences": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7
+      ],
+      "queue_incomplete_sequences": [
+        6
+      ],
+      "file_replacements": 0,
+      "upload_record_counts_are_not_http_request_counts": true,
+      "journal_bytes_unchanged_during_audit": true
+    },
+    "cause_limits": {
+      "parent_indexed_and_new_item_cache_absent": "later stopped-state observation; precise predicate at first refusal was not historically logged",
+      "pending_remove_or_provider_failure_cause_proven": false,
+      "later_checkout_equals_frozen_arm_source_claimed": false
+    },
+    "not_executed_or_not_accepted": {
+      "independent_a_data_readback": true,
+      "a_provider_acceptance": true,
+      "second_b_editor_save": true,
+      "b_provider_readback": true,
+      "atomic_application_replacement_acceptance": true,
+      "fresh_readonly_remount_comparison": true,
+      "release_gate_closure": true
+    },
+    "closure": {
+      "original_popen_children_reaped": 4,
+      "exit_codes": [
+        0,
+        0,
+        81,
+        0
+      ],
+      "controller_pid632926_absent": true,
+      "owned_mount_absent": true,
+      "socket_absent": true,
+      "cleanup_errors": 0,
+      "all19_installed_files_unchanged": true,
+      "installed_pid": 1243,
+      "installed_start_ticks": 2318,
+      "home_developer_shadow_absent": true
+    },
+    "source_provenance": {
+      "compiled_source_head": "587c55727587f13214a5085c2a2db8cedec077ca",
+      "frozen_role_binding": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-editor-bin-after-unlink-20261005/runtime-binding.json",
+        "sha256": "8b9b1f9012af7885547a4744ec7ffc51d61fe356fdef565bd945cb49286ad443",
+        "size": 63920
+      },
+      "controller": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2/cloud-controller-draft-v9.py",
+        "sha256": "509a43bdf32e8d84b74aac8aec26d66d8894a8d2797ee37cf2d51031117c1fe5",
+        "size": 53729
+      },
+      "worker": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2/mounted-calc-worker-draft-v4.py",
+        "sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106",
+        "size": 12550
+      },
+      "current_checkout_source_equality_claimed": false,
+      "note": "Root began separate source correction after arm closure; old arm is bound to immutable frozen build roles, not later checkout."
+    },
+    "safety": {
+      "automatic_retry": false,
+      "closed_trial_replayed": false,
+      "installed_actions": false,
+      "all_six_full_integration_gates_remain_open": true
+    }
+  }
+}
