@@ -110,6 +110,32 @@ pub fn package_archive_semantic_identity_versioned(
         expanded_bytes: content.expanded,
     })
 }
+/// Explicit flat ZIP content identity. Every relative entry is significant;
+/// no wrapper is inferred, removed, inserted or rewritten. This computes the
+/// same v2 content-tree identity as the strict wrapped API for equal trees.
+/// It does not classify provider DATA/PACKAGE or validate native editor fidelity.
+/// Accepts only redundant local ZIP64 size pairs that exactly mirror bounded
+/// classic sizes in Stored/flags0 entries. Genuine ZIP64 remains unsupported.
+#[cfg(feature = "write-probe")]
+pub fn package_flat_archive_semantic_identity_v2(
+    archive: &File,
+    receipt: &PackageDownload,
+    cancel: &CancellationToken,
+) -> Result<PackageSemanticIdentity> {
+    let content = fingerprint_with_local_size_mirror(archive, receipt, cancel, MAX_EXPANDED, true)?;
+    if content.files == 0 {
+        return Err(invalid());
+    }
+    let content = directory_closure(content, cancel)?;
+    Ok(PackageSemanticIdentity {
+        version: 2,
+        sha256: identity_digest(&content, IDENTITY_DOMAIN, 2, cancel)?,
+        entries: u32::try_from(content.entries.len()).map_err(|_| invalid())?,
+        files: u32::try_from(content.files).map_err(|_| invalid())?,
+        expanded_bytes: content.expanded,
+    })
+}
+
 fn directory_closure(mut content: Fingerprint, cancel: &CancellationToken) -> Result<Fingerprint> {
     fn include(content: &mut Fingerprint, path: &str, empty_hash: &str) -> Result<()> {
         if let Some(entry) = content.entries.get(path) {
@@ -348,9 +374,51 @@ fn extras(bytes: &[u8]) -> Result<()> {
     }
     Ok(())
 }
+// Only the explicit flat-source scanner allows this observed Apple export
+// redundancy. Central/global ZIP64 and every strict wrapped entrance still use
+// extras(). This is not ZIP64 offset or size-sentinel support.
+fn local_extras(
+    bytes: &[u8],
+    uncompressed: usize,
+    compressed: usize,
+    allow_size_mirror: bool,
+) -> Result<()> {
+    if !allow_size_mirror {
+        return extras(bytes);
+    }
+    let mut at = 0;
+    let mut seen = false;
+    while at < bytes.len() {
+        let kind = u16_at(bytes, at)?;
+        let len = u16_at(bytes, at + 2)?;
+        let end = at.checked_add(4 + len).ok_or_else(invalid)?;
+        let field = bytes.get(at..end).ok_or_else(invalid)?;
+        if kind == 1 {
+            if seen || len != 16 {
+                return Err(invalid());
+            }
+            let sizes = field.get(4..20).ok_or_else(invalid)?;
+            let us = u64::from_le_bytes(sizes[..8].try_into().map_err(|_| invalid())?);
+            let cs = u64::from_le_bytes(sizes[8..].try_into().map_err(|_| invalid())?);
+            if us != uncompressed as u64 || cs != compressed as u64 {
+                return Err(invalid());
+            }
+            seen = true;
+        } else {
+            extras(field)?;
+        }
+        at = end;
+    }
+    Ok(())
+}
 // Validate every central entry before the ZIP library can coalesce duplicate
 // names or allocate metadata. Classic, single-disk archives only; no ZIP64.
-fn layout(bytes: &[u8], cancel: &CancellationToken, expanded_limit: u64) -> Result<usize> {
+fn layout(
+    bytes: &[u8],
+    cancel: &CancellationToken,
+    expanded_limit: u64,
+    allow_local_size_mirror: bool,
+) -> Result<usize> {
     if bytes.len() < 22 {
         return Err(invalid());
     }
@@ -443,7 +511,16 @@ fn layout(bytes: &[u8], cancel: &CancellationToken, expanded_limit: u64) -> Resu
         if finish > start || bytes.get(local + 30..local + 30 + name_len) != Some(raw) {
             return Err(invalid());
         }
-        extras(bytes.get(local + 30 + name_len..data).ok_or_else(invalid)?)?;
+        local_extras(
+            bytes.get(local + 30 + name_len..data).ok_or_else(invalid)?,
+            uncompressed,
+            compressed,
+            allow_local_size_mirror
+                && flags == 0
+                && method == 0
+                && uncompressed != u32::MAX as usize
+                && compressed != u32::MAX as usize,
+        )?;
         if flags & 8 == 0
             && (u32_at(bytes, local + 14)? != u32_at(bytes, at + 16)?
                 || u32_at(bytes, local + 18)? != compressed
@@ -494,8 +571,17 @@ fn fingerprint(
     cancel: &CancellationToken,
     expanded_limit: u64,
 ) -> Result<Fingerprint> {
+    fingerprint_with_local_size_mirror(file, receipt, cancel, expanded_limit, false)
+}
+fn fingerprint_with_local_size_mirror(
+    file: &File,
+    receipt: &PackageDownload,
+    cancel: &CancellationToken,
+    expanded_limit: u64,
+    allow_local_size_mirror: bool,
+) -> Result<Fingerprint> {
     let bytes = snapshot(file, receipt, cancel)?;
-    let count = layout(&bytes, cancel, expanded_limit)?;
+    let count = layout(&bytes, cancel, expanded_limit, allow_local_size_mirror)?;
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| invalid())?;
     if archive.len() != count {
         return Err(invalid());
@@ -602,3 +688,6 @@ pub(crate) fn diagnostic_archive_comparison(
         "directory_only_delta":files_equal && !all_equal
     }))
 }
+
+#[cfg(all(test, feature = "write-probe"))]
+mod flat_local_extra_tests;

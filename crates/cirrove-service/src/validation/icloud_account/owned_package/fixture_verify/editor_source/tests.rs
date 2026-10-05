@@ -61,7 +61,7 @@ fn source(path: PathBuf, root: &str, body: &[u8]) -> Result<Source> {
         path,
         size: bytes.len() as u64,
         sha256: hex::encode(Sha256::digest(&bytes)),
-        root: root.into(),
+        root: Some(root.into()),
     })
 }
 #[test]
@@ -101,7 +101,7 @@ fn editor_source_proof_computes_actual_distinct_a_and_b_without_state() -> Resul
         assert_eq!(std::fs::read(&s.path)?, before);
         assert_eq!(std::fs::read(&path)?, bytes);
         assert_eq!(proof["phase"], phase);
-        assert_eq!(proof["source"]["root"], s.root);
+        assert_eq!(proof["source"]["root"], serde_json::to_value(&s.root)?);
         assert_eq!(proof["source"]["size"], s.size);
         assert_eq!(proof["source"]["sha256"], s.sha256);
         assert_eq!(proof["source"]["semantic"]["version"], 2);
@@ -140,7 +140,7 @@ fn editor_source_proof_refuses_wrong_raw_root_and_all_symlink_components() -> Re
         match arm {
             0 => bad.sha256 = "a".repeat(64),
             1 => bad.size += 1,
-            _ => bad.root = "Assumed Root.numbers".into(),
+            _ => bad.root = Some("Assumed Root.numbers".into()),
         }
         assert!(scan(&bad).is_err(), "raw/root arm {arm}");
     }
@@ -171,7 +171,7 @@ fn editor_source_proof_registration_refuses_changed_scope_and_expected_semantics
             path: root.join("source-b.numbers"),
             size: 123,
             sha256: "a".repeat(64),
-            root: "Actual B Name.numbers".into(),
+            root: Some("Actual B Name.numbers".into()),
         },
     };
     let bytes = serde_json::to_vec(&r)?;
@@ -183,7 +183,7 @@ fn editor_source_proof_registration_refuses_changed_scope_and_expected_semantics
             0 => bad.run = Uuid::nil(),
             1 => bad.phase = "a".into(),
             2 => bad.session_directory = PathBuf::from("/var/tmp/other"),
-            3 => bad.source.root = "nested/source.numbers".into(),
+            3 => bad.source.root = Some("nested/source.numbers".into()),
             _ => bad.source.size = LIMIT + 1,
         }
         let b = serde_json::to_vec(&bad)?;
@@ -244,7 +244,10 @@ fn editor_source_proof_computes_separate_remount_b_and_refuses_foreign_path() ->
         proof["source"]["path"],
         capture.path.to_string_lossy().as_ref()
     );
-    assert_eq!(proof["source"]["root"], capture.root);
+    assert_eq!(
+        proof["source"]["root"],
+        serde_json::to_value(&capture.root)?
+    );
     assert_eq!(proof["source"]["sha256"], capture.sha256);
     assert_ne!(
         capture.sha256, export.sha256,
@@ -276,6 +279,79 @@ fn editor_source_proof_computes_separate_remount_b_and_refuses_foreign_path() ->
         assert!(
             registered(&b, &hex::encode(Sha256::digest(&b))).is_err(),
             "remount masquerading as export accepted"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn editor_source_proof_scans_unmodified_flat_numbers_with_explicit_null_root() -> Result<()> {
+    let run = Uuid::new_v4();
+    let root = PathBuf::from(format!("/var/tmp/cirrove-numbers-browser-editor-{run}"));
+    std::fs::DirBuilder::new().mode(0o700).create(&root)?;
+    let path = root.join("source-b.numbers");
+    let flat = archive("Index", b"actual edited bytes");
+    std::fs::write(&path, &flat)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o400))?;
+    let m = std::fs::metadata(&root)?;
+    let registration = serde_json::json!({"version":1,"run":run,"phase":"b",
+        "session_directory":root,"root_dev":m.dev(),"root_ino":m.ino(),
+        "source":{"path":path,"size":flat.len(),"sha256":hex::encode(Sha256::digest(&flat)),"root":null}});
+    let bytes = serde_json::to_vec(&registration)?;
+    let control = root.join("editor-b-source-registration.json");
+    std::fs::write(&control, &bytes)?;
+    std::fs::set_permissions(&control, std::fs::Permissions::from_mode(0o400))?;
+    let result = icloud_owned_editor_source_proof(&control, &hex::encode(Sha256::digest(&bytes)));
+    assert_eq!(std::fs::read(&path)?, flat);
+    assert_eq!(std::fs::read(&control)?, bytes);
+    assert_eq!(
+        std::fs::metadata(&path)?.permissions().mode() & 0o777,
+        0o400
+    );
+    assert!(!root.join("state").exists());
+    let proof = result.expect("flat Numbers source rejected at actual offline scanner");
+    assert_eq!(proof["source"]["root"], serde_json::Value::Null);
+    assert_eq!(proof["source"]["semantic"]["version"], 2);
+    assert_eq!(proof["source"]["semantic"]["entries"], 3);
+    assert_eq!(proof["source"]["semantic"]["files"], 1);
+    assert_eq!(proof["source"]["semantic"]["expanded_bytes"], 19);
+    assert_eq!(proof["offline_only"], true);
+    assert_eq!(proof["provider_representation_verified"], false);
+    assert_eq!(proof["current_content_verified"], false);
+    assert_eq!(proof["cloud_mutated"], false);
+    let wrapped_path = root.join("comparison-only.numbers");
+    let wrapped = archive("Observed.numbers/Index", b"actual edited bytes");
+    std::fs::write(&wrapped_path, &wrapped)?;
+    std::fs::set_permissions(&wrapped_path, std::fs::Permissions::from_mode(0o400))?;
+    let wrapped_source: Source = serde_json::from_value(serde_json::json!({"path":wrapped_path,
+        "size":wrapped.len(),"sha256":hex::encode(Sha256::digest(&wrapped)),"root":"Observed.numbers"}))?;
+    assert_eq!(
+        proof["source"]["semantic"],
+        serde_json::to_value(scan(&wrapped_source)?)?
+    );
+    assert_ne!(proof["source"]["sha256"], wrapped_source.sha256);
+    for arm in 0..6 {
+        let mut bad = registration.clone();
+        match arm {
+            0 => {
+                bad["source"].as_object_mut().unwrap().remove("root");
+            }
+            1 => bad["source"]["root"] = "".into(),
+            2 => bad["source"]["root"] = "wrong/Root.numbers".into(),
+            3 => bad["source"]["semantic"] = proof["source"]["semantic"].clone(),
+            4 => {
+                bad["source"]["path"] = root
+                    .join("source-a.numbers")
+                    .to_string_lossy()
+                    .as_ref()
+                    .into()
+            }
+            _ => bad["phase"] = "foreign".into(),
+        }
+        let raw = serde_json::to_vec(&bad)?;
+        assert!(
+            registered(&raw, &hex::encode(Sha256::digest(&raw))).is_err(),
+            "flat schema arm {arm}"
         );
     }
     Ok(())

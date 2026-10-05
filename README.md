@@ -203,7 +203,7 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Development update, 4 October 2026:** iCloud has moved beyond a feasibility
+**Development update, 5 October 2026:** iCloud has moved beyond a feasibility
 study. Cirrove has its own native adapter using Apple's undocumented web
 transport, with no rclone or Stratosync runtime, configuration or credential
 import. Live checks have covered sign-in, directory browsing, on-demand and
@@ -231,6 +231,16 @@ reader confirmed its actual DATA representation and exact original bytes before
 one in-place save. Further independent reads verified the exact replacement
 bytes and the original in Trash. This was a file copy and overwrite; it did not
 exercise a real editor or Apple Numbers reopen.
+
+A fresh Numbers browser trial also confirmed that an edit and its formula
+survived closing and reopening in Apple's editor, and produced a native export.
+The trial stopped at an export-format verification gap. A
+[subsequent offline fix](docs/benchmarks/icloud-flat-native-source-proof-2026-10-05.json)
+now verifies the unchanged native export; independent readback of the edited
+version and its remount still need acceptance. The
+[browser trial record](docs/benchmarks/icloud-numbers-browser-editor-2026-10-05.json)
+separates those completed observations from the remaining checks. This browser
+workflow does not establish saves from a Linux editor through the mount.
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical

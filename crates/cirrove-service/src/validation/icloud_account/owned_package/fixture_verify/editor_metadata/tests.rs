@@ -18,7 +18,7 @@ fn plan() -> Registration {
             path: root.join("source-a.numbers"),
             size: 3,
             sha256: hex::encode(Sha256::digest(b"abc")),
-            root: "ActualExport.numbers".into(),
+            root: Some("ActualExport.numbers".into()),
             semantic: None,
         },
         expected_parent_id: None,
@@ -51,7 +51,7 @@ fn editor_metadata_registration_scope_window_and_phase_are_exact() -> Result<()>
             1 => bad.account = Uuid::nil(),
             2 => bad.session_directory = PathBuf::from("/var/tmp/foreign"),
             3 => bad.source.path = bad.session_directory.join("source-b.numbers"),
-            4 => bad.source.root = "unregistered/export.numbers".into(),
+            4 => bad.source.root = Some("unregistered/export.numbers".into()),
             5 => bad.deadline_unix_seconds = 2801,
             6 => bad.started_unix_seconds = 1002,
             7 => bad.representation = FixtureRepresentation::Package,
@@ -210,6 +210,34 @@ fn editor_metadata_source_proof_refuses_changed_raw_or_invalid_package_without_r
     assert_eq!(
         std::fs::metadata(&path)?.permissions().mode() & 0o777,
         0o400
+    );
+    Ok(())
+}
+
+#[test]
+fn editor_metadata_explicit_flat_source_preserves_expected_representation_only() -> Result<()> {
+    let r = plan();
+    let mut value = serde_json::to_value(&r)?;
+    value["source"]["root"] = serde_json::Value::Null;
+    let bytes = serde_json::to_vec(&value)?;
+    let result = registered(&bytes, &hex::encode(Sha256::digest(&bytes)), 1001);
+    assert_eq!(r.source.size, 3);
+    assert_eq!(r.source.sha256, hex::encode(Sha256::digest(b"abc")));
+    let flat = result.expect("metadata registration refuses explicit flat source layout");
+    assert!(matches!(flat.representation, FixtureRepresentation::Data));
+    assert!(flat.source.semantic.is_none());
+    value["representation"] = "package".into();
+    let raw = serde_json::to_vec(&value)?;
+    assert!(
+        registered(&raw, &hex::encode(Sha256::digest(&raw)), 1001).is_err(),
+        "flat does not manufacture package semantics"
+    );
+    value["representation"] = "data".into();
+    value["source"].as_object_mut().unwrap().remove("root");
+    let raw = serde_json::to_vec(&value)?;
+    assert!(
+        registered(&raw, &hex::encode(Sha256::digest(&raw)), 1001).is_err(),
+        "missing layout is not explicit flat"
     );
     Ok(())
 }

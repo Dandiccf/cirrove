@@ -9,7 +9,8 @@ struct Source {
     path: PathBuf,
     size: u64,
     sha256: String,
-    root: String,
+    #[serde(deserialize_with = "super::required_source_root")]
+    root: Option<String>,
     semantic: Option<PackageSemanticIdentity>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -97,10 +98,13 @@ fn registered(bytes: &[u8], digest: &str, now: u64) -> Result<Registration> {
             && r.source.size > 0
             && r.source.size <= LIMIT
             && hex_digest(&r.source.sha256)
-            && r.source.root.ends_with(".numbers")
-            && r.source.root.len() <= 255
-            && !r.source.root.contains(['/', '\\'])
-            && !r.source.root.chars().any(char::is_control)
+            && r.source
+                .root
+                .as_ref()
+                .is_none_or(|root| root.ends_with(".numbers")
+                    && root.len() <= 255
+                    && !root.contains(['/', '\\'])
+                    && !root.chars().any(char::is_control))
             && r.expected_parent_id
                 .as_ref()
                 .is_none_or(|v| id(v, "FOLDER::com.apple.CloudDocs::")
@@ -177,16 +181,21 @@ fn source_verified(r: &Registration) -> Result<()> {
         "editor source changed"
     );
     if let Some(expected) = &r.source.semantic {
-        ensure!(
-            cirrove_icloud::package_archive_semantic_identity_versioned(
+        let actual = match r.source.root.as_deref() {
+            Some(root) => cirrove_icloud::package_archive_semantic_identity_versioned(
                 &file,
                 &receipt,
-                &r.source.root,
+                root,
                 2,
-                &CancellationToken::new()
-            )? == *expected,
-            "editor source semantics refused"
-        );
+                &CancellationToken::new(),
+            )?,
+            None => cirrove_icloud::package_flat_archive_semantic_identity_v2(
+                &file,
+                &receipt,
+                &CancellationToken::new(),
+            )?,
+        };
+        ensure!(actual == *expected, "editor source semantics refused");
     }
     Ok(())
 }

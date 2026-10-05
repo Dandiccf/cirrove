@@ -1,0 +1,502 @@
+{
+  "version": 1,
+  "status": "Actual unchanged native export source-only proof, synthetic regressions and complete local scripts/check.sh pass; provider current-B and remount-B remain unproved.",
+  "registered_at": "2026-10-05T03:06:44.488324+00:00",
+  "question": "Can an explicitly flat, unchanged Apple Numbers source be compared by semantic-v2 to an exact wrapped provider archive without weakening provider representation or root checks?",
+  "prediction": "Three existing endpoint controls compile on unchanged source with tests only and fail at explicit-null root admission. After the narrow source-only change, all three and existing wrapped/metadata/source controls pass. Missing layout, path traversal, semantic injection, wrong content, Pages flat source and flat remote PACKAGE remain refused.",
+  "proposal_contract": {
+    "path": ".local-state/icloud-flat-native-source-proposal-20261005/proposal-contract-v1.json",
+    "sha256": "e5ac3be91848d91f2ed0bfc1040bc3f26cd905fd49cdb4fccd417a27cf8cf33c"
+  },
+  "arms": [
+    "Preserved original production plus tests-first",
+    "Same controls after narrow explicit flat API and required nullable source root"
+  ],
+  "endpoint": "Actual test executable hash and actual selected counts retained; no missing-API/compiler failure offered as behavioral RED.",
+  "commands": [
+    [
+      "cargo",
+      "test",
+      "-p",
+      "cirrove-service",
+      "--features",
+      "icloud-write-probe",
+      "--locked",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    [
+      "<actually built and pinned lib test executable>",
+      "flat_",
+      "--nocapture",
+      "--test-threads=1"
+    ]
+  ],
+  "expected_selected_baseline_count": 3,
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+  "filesystem": "ext4 asserted before dispatch",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "execution_owner": "root; one run at a time, no compilation during live windows",
+  "limits": [
+    "Synthetic content-tree proof is not Apple document parsing or GUI fidelity.",
+    "Actual retained export may be scanned offline only after corrected controls; closed3db never resumed or replayed.",
+    "No provider/session/daemon/mount/installed actions and no DATA/PACKAGE inference from flat export layout.",
+    "All six full-iCloud gates remain open."
+  ],
+  "actual_results": [
+    {
+      "phase": "root-flat-source-baseline-build-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-baseline-build-v1-result.json",
+      "result_sha256": "f8cc6d9c6f3de3b7d1b2ca214acdb196be47bc93161aa55963ec6fc747dfbe87",
+      "exit_code": 0,
+      "duration_seconds": 16.582298047986114,
+      "sources_unchanged": true,
+      "log_sha256": "f8d167b14d07b43fc7375d1694c4eff53e9d2230994cf9e29f4dc89dd15d8819",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove_service",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 610018240,
+          "sha256": "445b6c55440fd687ff24ce15c626f84a4b968df44222b9e6603b97f455f2d61d",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    {
+      "phase": "root-flat-source-original-three-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-original-three-v1-result.json",
+      "result_sha256": "3e1ec98dbf2c99ad4f6900bb6de79715dfb5e67ffeb74bfd8d1c356666d07ef9",
+      "exit_code": 101,
+      "duration_seconds": 0.006470533000538126,
+      "sources_unchanged": true,
+      "log_sha256": "517eca57a59693ffdb1c89be06794290a46e11d99f122d5a200e1f381af9f9b1",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-corrected-build-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-corrected-build-v1-result.json",
+      "result_sha256": "c3c1d1382f9807b86d7bc7771ca3e0a3ecdadd701e161c090f836c79fc028181",
+      "exit_code": 0,
+      "duration_seconds": 36.141664277005475,
+      "sources_unchanged": true,
+      "log_sha256": "43494b5bebe62782957814056f6e48f0de94f2e0f75e1d8332abc721ec77c0a6",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove_service",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 609980312,
+          "sha256": "c428276373ef0309d7eff74202300847693fedf2d0789ebfffcb24b288426e3c",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    {
+      "phase": "root-flat-source-corrected-three-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-corrected-three-v1-result.json",
+      "result_sha256": "50303b7e8f64e68bc23809ef547d5bf1df49f31cc15d45618370258244897367",
+      "exit_code": 0,
+      "duration_seconds": 0.008470622997265309,
+      "sources_unchanged": true,
+      "log_sha256": "dddff3a5b23ae32b0111d2b0e97c3e84474f2e739409dcc04ed917b89037e50c",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-existing-fixture-controls-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-existing-fixture-controls-v1-result.json",
+      "result_sha256": "3290754304dd359b86d76f8192fd8b3a7d7697a930eaf682e3052779eb97fe9e",
+      "exit_code": 0,
+      "duration_seconds": 2.8436273370170966,
+      "sources_unchanged": true,
+      "log_sha256": "d2563410c4ee20b5c4d67b063865f73d37d99ad2c1b49dbc2bc0b959d748c2d2",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-python-original-admission-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-python-original-admission-v1-result.json",
+      "exit_code": 1,
+      "duration_seconds": 0.08345222799107432,
+      "sources_unchanged": true,
+      "log_sha256": "eb22116b45afaeb65f6454a683a227007990dfef9f3646dd229c92eb5f4817c9",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-python-original-launcher-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-python-original-launcher-v1-result.json",
+      "exit_code": 1,
+      "duration_seconds": 0.07891871299943887,
+      "sources_unchanged": true,
+      "log_sha256": "f8dcf9ae1abf6db8ca63b93e816c3b1b9d4d62f6fb365402fb831338ddcab94b",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-python-corrected-six-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-python-corrected-six-v1-result.json",
+      "exit_code": 0,
+      "duration_seconds": 0.08278035302646458,
+      "sources_unchanged": true,
+      "log_sha256": "ccebfc2d72acd6817027aef0e55fa52cc30af196f7e67052e46ff4c6e9f3f9ed",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-cli-build-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-cli-build-v1-result.json",
+      "exit_code": 0,
+      "duration_seconds": 18.51003064098768,
+      "sources_unchanged": true,
+      "log_sha256": "795577c9af4ac64b359984e2cb805079c55810915f3225cc45051312d929f56d",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 500900096,
+          "sha256": "edf8590355e1e0a8fe99cf46b26c03a6d079a3471637c025be0bba4351f6ff1b",
+          "fresh": false,
+          "test": false
+        }
+      ]
+    },
+    {
+      "phase": "root-flat-source-actual-export-offline-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-actual-export-offline-v1-result.json",
+      "exit_code": 1,
+      "duration_seconds": 0.010975904006045312,
+      "sources_unchanged": true,
+      "log_sha256": "24341aa665384ddbe95b16ced26e3ecac5d20faa6818018386be8f6938b7ec0e",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-direct-diagnostic-build-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-direct-diagnostic-build-v1-result.json",
+      "exit_code": 0,
+      "duration_seconds": 0.34797625499777496,
+      "sources_unchanged": true,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-direct-diagnostic-once-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-direct-diagnostic-once-v1-result.json",
+      "exit_code": 1,
+      "duration_seconds": 0.0043638659990392625,
+      "sources_unchanged": true,
+      "log_sha256": "3216feee38d408b79265b16563ad81b48334b37a8cac3bea958bb7e2f9e3e239",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-python-existing-twentythree-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-python-existing-twentythree-v1-result.json",
+      "exit_code": 0,
+      "duration_seconds": 0.19453523101401515,
+      "sources_unchanged": true,
+      "log_sha256": "b84450b36c5141e2b3c89555e1be0d563d2192ab48497aaba384324b828cfcb7",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-instrumented-diagnostic-build-v2",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-instrumented-diagnostic-build-v2-result.json",
+      "exit_code": 0,
+      "duration_seconds": 0.40835032900213264,
+      "sources_unchanged": true,
+      "log_sha256": "c88793d6c53d668aac6416b0af6eaec6007657999ced2538b85cdc60ba18ae09",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-instrumented-diagnostic-once-v2",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-instrumented-diagnostic-once-v2-result.json",
+      "exit_code": 1,
+      "duration_seconds": 0.004683759994804859,
+      "sources_unchanged": true,
+      "log_sha256": "0422c854f3132371090379885a21f913880d62bd560bb5d54b224e4a83aa61c8",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-mirror-baseline-build-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-mirror-baseline-build-v1-result.json",
+      "exit_code": 0,
+      "duration_seconds": 7.2759599660057575,
+      "sources_unchanged": true,
+      "log_sha256": "30169d4bf6e50693ece6c90704406d7e50a2728be472a776af81fe486f2fd2f3",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove_icloud",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-791224230ce68978",
+          "size": 280802200,
+          "sha256": "4aa64fb16a59bb8adc6490e6b5ba335744705abed813550c9ed3f4f0d4182d13",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    {
+      "phase": "root-flat-mirror-original-three-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-mirror-original-three-v1-result.json",
+      "exit_code": 101,
+      "duration_seconds": 0.006459666008595377,
+      "sources_unchanged": true,
+      "log_sha256": "89249eeac302d006b842abc174804dfdf912c1c6304cc526d3dd25a5b9a1b576",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-mirror-corrected-build-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-mirror-corrected-build-v1-result.json",
+      "result_sha256": "c174e6c50c90440d608af36a84eedc6b95d68602c13528b96b17fd1f569be2e1",
+      "exit_code": 0,
+      "duration_seconds": 3.031354998005554,
+      "sources_unchanged": true,
+      "log_sha256": "c3a438b87ea9c32b748b23b44d0a04d9c540927b6980e00a220647a63c02302e",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove_icloud",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-791224230ce68978",
+          "size": 280841312,
+          "sha256": "acf968d5fb449e62869b108c36a2994d6fbec85a02a80ec653a0acb561afdf28",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    {
+      "phase": "root-flat-mirror-corrected-three-v1",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-mirror-corrected-three-v1-result.json",
+      "result_sha256": "646476d3a6a3f14cf25b6af42a186ddfe45f03ebf8694a684cfa8c976d869f99",
+      "exit_code": 0,
+      "duration_seconds": 0.00644783498137258,
+      "sources_unchanged": true,
+      "log_sha256": "7b1e1b88f5c8b40462676fd57e566766c66799e4168b3c8bedab0c52649ee32b",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-flat-source-final-cli-build-v2",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-final-cli-build-v2-result.json",
+      "result_sha256": "1b7181851dfe94ef3ad50be4cd148a9871cedba70c2bb1d3e0daa661b3c95557",
+      "exit_code": 0,
+      "duration_seconds": 9.402040393004427,
+      "sources_unchanged": true,
+      "log_sha256": "217bfa29cf84d25902f65b3f5e0522548d573d4f7d63b9452d6731d27de1283e",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 500911608,
+          "sha256": "ef15786b77991cdc0fae0a75de2b0693986f7848258f6654f90a793885278075",
+          "fresh": false,
+          "test": false
+        }
+      ]
+    },
+    {
+      "phase": "root-flat-source-actual-export-corrected-v2",
+      "result_path": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-actual-export-corrected-v2-result.json",
+      "result_sha256": "c7bfe9c8fe9240c7016a8e9f3105d7afe5396d649d9ac81b2b46dced3f708c59",
+      "exit_code": 0,
+      "duration_seconds": 0.01946777498233132,
+      "sources_unchanged": true,
+      "log_sha256": "651a554cded507a99762d62c4dbafc97c2129e2fcf4d67a2929a45668961faed",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  ],
+  "actual_original_endpoint": "Actual compile succeeded; pinned executable ran exactly3 tests, each failed at intended null-root admission endpoint;0passed/3failed/638filtered, no compiler/missing-API failure.",
+  "updated_at": "2026-10-05T03:58:52.935694+00:00",
+  "actual_corrected_endpoint": "Same three tests actualPASS,0failed/638filtered; existing fixture/source/metadata/receipt controls56PASS,0failed/585filtered.",
+  "python_control_preregistration": {
+    "registered_at": "2026-10-05T03:10:58.831145+00:00",
+    "question": "Does explicit flat-root observation preserve raw archives/witness guards, and does exact post-wait process absence retain the launcher result while arbitrary inspection errors remain refused?",
+    "prediction": "Preserved V6 selected flat admission and original LauncherV1 post-wait AST each execute1 and fail at desired assertion. CorrectedV7/LauncherV2 all6 pass; no missingAPI/fixture errors are behavioralRED.",
+    "controls": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/flat-export-controller-proposal-v7/test_flat_export_and_launcher_v7-v2.py",
+      "sha256": "b6e0d6942b8b11d449da458dfb999ea7ab007a9c201b1dc4cee9f04ec9074c9e",
+      "size": 7873
+    },
+    "control_authoring_correction": "Unexecuted V1 pure source-registration fixture omitted required root_dev/root_ino. Preserved V2 supplies exact synthetic pair and assertion; no product red claimed for fixture omission.",
+    "runner": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/root-run-flat-python-controls-v1.py",
+      "sha256": "df53664ab6ce7bf9c6336301a387348a57f6b711fbbf00d2cf2ca80a84d5ca11",
+      "size": 1617
+    },
+    "original_controller": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/controller-draft-v6.py",
+      "sha256": "43d653de2872ae45790351825bd02d1060a8a776097f18267daec7c58b078b0d",
+      "size": 72511
+    },
+    "original_launcher": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/root-launch-supervisor-v1.py",
+      "sha256": "ba5c3f314a11d8a064bbe0eaf68b38ea9c4a253264b73de3c07240a892360963",
+      "size": 5959
+    },
+    "corrected_controller": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/flat-export-controller-proposal-v7/controller-draft-v7.py",
+      "sha256": "b9d293ab08e0248806981e23b972d2bf0e2fce47b41a51c9cb6342fa30d66f9f",
+      "size": 73604
+    },
+    "corrected_launcher": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/flat-export-controller-proposal-v7/root-launch-supervisor-v2.py",
+      "sha256": "1df42153c0355f32dabf41ea2c291ca8285937135e50712a53683fced95a5096",
+      "size": 6292
+    },
+    "selectors": [
+      "FlatControls.test_actual_flat_layout_admission_preserves_archive",
+      "LauncherControls.test_reaped_supervisor_absence_and_other_inspection_errors",
+      "all"
+    ],
+    "limits": "Pure/mock controls, no operational launcher top-level, child processes/real signals/runtime/grant/provider or mounted state. Actual live process timing/deadline and existing23-controller suite are separate."
+  },
+  "actual_export_offline_preregistration": {
+    "registered_at": "2026-10-05T03:10:58.831359+00:00",
+    "question": "Does corrected source-only scanner compute actual semantic-v2 from unchanged138945-byte Apple export with rootnull in a fresh offline-only input directory?",
+    "prediction": "RawSHA b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae and bytes/modes unchanged; actual semantic computed independently, not guessed from originalA. Source-proof flags offline/current/provider/cloud false as appropriate. No original3db grant/state/phase reopened.",
+    "source_size": 138945,
+    "source_sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "input_layout": "required root:null",
+    "endpoint": "Pinned actual CLI and fresh400 source-only registration; retained actual output/proof SHA and source before/after.",
+    "limits": "Offline export content identity only; no current provider B or normal remount B evidence."
+  },
+  "actual_export_offline_result": "FAIL exit1 generic refusal; unchanged source and correct source-only scope retained. Synthetic3+56 and purePython6 passing does not establish real export acceptance.",
+  "actual_python_endpoints": "Original V6 flat refusal1FAIL/0ERROR and original LauncherV1 post-wait absence1FAIL/0ERROR; corrected V7/LauncherV2 all6PASS/0ERROR.",
+  "diagnostic_preregistration": {
+    "registered_at": "2026-10-05T03:16:22.326184+00:00",
+    "question": "Is the actual unchanged source rejected by the direct flat semantic API or only by the offline observation wrapper?",
+    "prediction": "Structural metadata checks are consistent with bounded classic ZIP; direct actual flat API should clarify whether underlying archive reader rejects a specific Apple serialization. No semantic value guessed; no acceptance if rejected.",
+    "endpoint": "Private standalone rustc-linked driver calls existing public flat API exactly once using the actually CLI-built RLIBs; captures generic stage result and file identity only. No operational/source observer error redaction changed.",
+    "limits": "Local diagnostic only, no provider, archive rewrite, replay, installed changes or live acceptance."
+  },
+  "existing_controller_controls_preregistration": {
+    "registered_at": "2026-10-05T03:20:37.582307+00:00",
+    "question": "Do the unchanged23 lifecycle/raw/mode/publication/phase controls remain valid on V7 with the exact new source layout contract declared?",
+    "prediction": "All23 PASS with actual absoluteV7 module asserted; only assetsfixture contract field changed, no behavioralRED claim.",
+    "source_sha256": "b9d293ab08e0248806981e23b972d2bf0e2fce47b41a51c9cb6342fa30d66f9f",
+    "tests_sha256": "45c750b0e2105840a81a70e8c8b4318991e89669d326cc6e7244853a911732c5",
+    "exact_count": 23,
+    "limits": "Mocks only; not actual new runtime/binary/source or Cloud acceptance."
+  },
+  "direct_flat_stage_result": "Actual same-linked flat API refused unchanged source too. Thus failure is inside semantic scanner, not only registration/observation wrapper; still no specific guard inferred.",
+  "diagnostic_stage2_preregistration": {
+    "registered_at": "2026-10-05T03:22:56.071581+00:00",
+    "question": "Which unchanged semantic parser guard rejects the actual flat ZIP?",
+    "prediction": "Private byte-equivalent module with only caller-line marker will refuse at the same endpoint and reveal a numeric guard line; outside-module marker or no marker remains inconclusive.",
+    "module_sha256": "cb1cb0b9a6e535d0a06d55389421be666ce664ad5793225022a8c7bcc87c02e4",
+    "driver_sha256": "64097b4d4f14556d86aefd3eafe207a9330d8cd92463e35f96a85f4041accef4",
+    "manifest_sha256": "7f66ca53e996a4a25b4c25e3f3dea7fc06d40d192e7123a3369e25e4f2a6b6f1",
+    "limits": "No guard relaxed; no raw errors/member names/content, archive rewriting or provider/session/state. A source diagnostic is not release/provider acceptance."
+  },
+  "actual_parser_guard_diagnosis": {
+    "observed_at": "2026-10-05T03:25:29.786832+00:00",
+    "diagnostic_output": "stage_guard_line=372; diagnostic_status=guard_or_local_refusal",
+    "canonical_source_sha256": "0a1d0706b016c7e53b30b6be54c18a70856f00bad7e54156b896639648f907bc",
+    "canonical_line": 370,
+    "guard": "extras rejects kind1 ZIP64 unconditionally, including redundant local size fields in a classic ZIP",
+    "actual_structural_metadata": {
+      "central_entries": 42,
+      "methods": [
+        0
+      ],
+      "flags": [
+        0
+      ],
+      "central_extra_lengths": [
+        0
+      ],
+      "local_zip64_size_pairs": 2,
+      "local_zip64_extra_length": 16,
+      "local_zip64_pairs_match_classic_central_sizes": 2,
+      "local_32bit_sentinel_count": 0,
+      "central_expanded_bytes": 133153
+    },
+    "layout_and_zip_reader_previous_static_claim_correction": "Earlier central extra_lengths0 summary did not inspect local extras and was insufficient to establish custom parser acceptance. Both source/driver failures and original diagnosis are retained. No ZIP metadata/version guard was relaxed."
+  },
+  "local_size_mirror_correction_preregistration": {
+    "registered_at": "2026-10-05T03:25:29.786845+00:00",
+    "question": "Can explicit flat-source scanning accept only redundant local ZIP64 sizes which exactly agree with bounded classic headers, while strict wrapped/provider APIs and malformed/nonclassic archives remain refused?",
+    "prediction": "New synthetic test on existing flat API fails at intended local-extra guard before correction, compiles without missingAPI. Narrow flat-only support then passes matching pair and refuses mismatch, duplicate, truncated/wronglength, centralZIP64, sentinels, descriptor/compressed modes. Existing rooted/strict behavior unchanged. A new offline scan of unchanged actualexport succeeds only after actual controls.",
+    "scope": "Source-only, stored/flags0 classic ZIP, exactly one optional localkind1 sizepair perentry, len16, both u64 sizes match alreadybounded local+central32bit sizes. No central ZIP64, offset/sentinel/multidisk/generalZIP64 or provider classification support.",
+    "limits": "No archive modification, Cloud/native editor/session/mount/installed action or fullgate closure.",
+    "proposal_contract": {
+      "path": ".local-state/icloud-flat-native-local-extra-proposal-20261005/proposal-contract-v1.json",
+      "sha256": "42420b59cff889213b89e638a2f67fcbc5ab25f2e652972385d774f69af7f7e4"
+    },
+    "selected_filter": "flat_native_local_size_mirror_",
+    "expected_original": "Exact3:1 intended failure/2pass, after independent ZIP reads/raw-preservation, no missingAPI",
+    "expected_corrected": "Same3 allPASS"
+  },
+  "local_size_mirror_actual_original_endpoint": "Actual compile0, executed3:2PASS/1 intended FAIL at exact positive mirror-admission after independent ZIP payload reads/fullraw preservation.0ignored/366filtered. No missingAPI/compiler/fixture error.",
+  "actual_corrected_real_export": {
+    "proof_log": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-actual-export-corrected-v2.log",
+    "proof_log_sha256": "651a554cded507a99762d62c4dbafc97c2129e2fcf4d67a2929a45668961faed",
+    "source": {
+      "path": "/var/tmp/cirrove-numbers-browser-editor-f81b461a-729c-4676-9ca7-168f814d0937/source-b.numbers",
+      "root": null,
+      "semantic": {
+        "entries": 46,
+        "expanded_bytes": 133153,
+        "files": 42,
+        "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+        "version": 2
+      },
+      "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+      "size": 138945
+    },
+    "source_original_and_fresh_offline_copy_bytes_equal": true,
+    "original_and_copy_mode": 256,
+    "source_semantic_distinct_from_original_a": true,
+    "source_only": true,
+    "current_provider_b_or_remount_b_verified": false,
+    "closed_cloud_trial_reopened": false
+  },
+  "local_size_mirror_actual_corrected_endpoint": "Same3 allPASS,0failed/366filtered; actual unchanged138945-byte source now computes46entries/42files/133153expanded bytes, semantic-v2 independently.",
+  "complete_local_check_preregistration": {
+    "registered_at": "2026-10-05T03:39:10.351268+00:00",
+    "command": [
+      "/usr/bin/bash",
+      "scripts/check.sh"
+    ],
+    "expected_duration_seconds": 900,
+    "prediction": "Formatting, all required Clippy targets, workspace/feature tests, synthetic kernel mounts, script tests, coverage/ledger and docs pass with registered executable sources unchanged. Display scenarios remain separate.",
+    "endpoint": "One complete scripts/check.sh command, actual terminal exit+retainedlog, source invariance. No partial/--fast result as fullproof."
+  },
+  "complete_local_check_actual_result": {
+    "record": ".local-state/icloud-owned-account-snapshot-20261005/root-flat-source-complete-check-v1-result.json",
+    "record_sha256": "7eacee07b5387db9333ee29c1afbed4a9a0bbf3333e18d6aa1569c6ad2e1dc9e",
+    "exit_code": 0,
+    "duration_seconds": 659.2067921429989,
+    "sources_unchanged": true,
+    "log_sha256": "16a9d189f7e8b08481f7c1459753931bb1fd295464de5bcaa0ed35105d6d4452",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "command": [
+      "/usr/bin/bash",
+      "scripts/check.sh"
+    ],
+    "display_window_scenarios_executed": false,
+    "full_iCloud_criteria_closed": 0
+  }
+}

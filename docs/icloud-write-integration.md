@@ -2058,6 +2058,36 @@ expiration, editor fidelity, repeated reliability or installed transitions.
 The three logical mutations were bounded; total HTTP mutations were not
 instrumented. All six full-iCloud requirements and the deployment hold remain open.
 
+### Owned Numbers browser edit and native export on 5 October 2026
+
+A [fresh registered browser trial](benchmarks/icloud-numbers-browser-editor-2026-10-05.json)
+completed one owned folder creation and one public Numbers PACKAGE import.
+After stopping and unmounting the writable producer, read-only metadata and an
+independent native reader verified the imported document. Apple Numbers then
+displayed 7, 3 and 10 with `SUM(A2:B2)`. One browser edit changed A2 to 11;
+after the Saving indicator disappeared, closing and reopening the document
+preserved 11, 3 and 14 and the formula. One native Numbers export was retained
+without modifying its bytes.
+
+The actual export is a flat ZIP containing Index, Metadata and previews, with
+no enclosing `.numbers` directory. The wrapped-source proof could not accept
+that layout, so the trial stopped without repeating a cloud operation or
+repackaging the export. Independent current-B and normal remount-B proofs were
+not executed. All owned processes and the mount were gone; the journal frontier
+and installed daemon, unit and 19 packaged files remained unchanged. The
+supervisor reported settlement, but its launcher lost its terminal report when
+it inspected an already-reaped process; no retained watcher exit code is claimed.
+
+The [separate offline correction record](benchmarks/icloud-flat-native-source-proof-2026-10-05.json)
+keeps synthetic controls apart from the actual export scan. The corrected
+feature-only scanner accepted an unchanged copy of the genuine export with an
+explicit `root: null` and independently computed semantic-v2 for all 42 files.
+It permits only redundant local size fields that exactly match bounded classic
+headers; strict wrapped-package checks retain their previous rules. This is an
+offline source proof, not readback of the edited provider version. Browser editing is
+not an ordinary or atomic save from a Linux editor through FUSE, and this partial
+trial does not close the native application acceptance gate.
+
 ### Compiled storage-format declaration on 5 October 2026
 
 The daemon now exposes `--storage-format-json` before opening local state or

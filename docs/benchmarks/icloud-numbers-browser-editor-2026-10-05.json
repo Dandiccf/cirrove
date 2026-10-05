@@ -1,0 +1,389 @@
+{
+  "version": 1,
+  "status": "Actual fresh live trial stopped without retry after edit/save/reopen/native export: flat Apple archive unsupported by current wrapped-source proof. Independent current/remount B acceptance remains unproved.",
+  "run": "3db3179c-a492-462c-a4c6-344158ca7b8f",
+  "question": "After one public Cirrove Numbers PACKAGE A import, does one real Apple browser edit/save/reopen/native export B match independent native current read and normal read-only remount by semantic-v2?",
+  "prediction": "Actual A7+3=10 and SUM(A2:B2) survive reopen; one A2 change7->11 yields14. Actual unchanged exportedB and provider/current/remount PACKAGE v2 should agree; unsupported export root/representation change is an honest refusal, not conversion/repack.",
+  "logical_limits": {
+    "create_folder": 1,
+    "cirrove_import_a": 1,
+    "browser_cell_change": 1,
+    "native_export_b": 1,
+    "cirrove_write_b": 0
+  },
+  "window": "Single <=1800s first RW start; shared epoch+monotonic+boot across browser and RO remount; no clock reset.",
+  "arms": [
+    "One fresh owned run, no replay after uncertainty.",
+    "Separately retained synthetic controls/baselines and source-only scans are not live/provider acceptance."
+  ],
+  "ordered_sequence": [
+    "root local freeze/check then finite exact grant; no source-only A scanner replay",
+    "dispatch start-rw -> ready start-rw",
+    "dispatch create-folder -> terminal0 -> confirm-folder until SAME UUID clean Applied (no replay)",
+    "dispatch import-a once -> terminal0 -> confirm-a until SAME UUID Uploaded+typed semantic+publication",
+    "stop start-rw -> confirm-stop start-rw -> install-ro-settings",
+    "dispatch metadata-a -> confirm-output metadata-a -> dispatch read-a -> confirm-output read-a",
+    "root CUA initial title7/3/10+SUM witness; browser-permit --witness-pin private witness pin file",
+    "root CUA only A2=11/save/reopen11/3/14+SUM/native export once; actual export source-b0400/root observed; accept-export --witness-pin",
+    "dispatch scan-b-offline -> confirm-output -> dispatch metadata-b -> confirm-output -> dispatch read-b -> confirm-output",
+    "dispatch start-ro -> ready start-ro -> dispatch read-remounted-b -> confirm-output read-remounted-b",
+    "dispatch scan-remount-b -> confirm-output scan-remount-b -> stop start-ro -> confirm-stop start-ro -> finish",
+    "uncertainty/expiry: manual abort independently exact owneddaemon even blockedFD; unknown owner never killed or declared gone; optional explicit exact mount cleanup after all owners gone; no retry/new successful proof"
+  ],
+  "endpoints": [
+    "Exact Applied/upsert fresh folder and Uploaded PACKAGE A with typed semantic/publication, actual folder-owner pair only; total2completequeue and no hidden/native/working association fabricated.",
+    "RW allownersgone/unmounted then access-only immutable ROsettings switch; actual metadata A and generic currentA proof before browser permit.",
+    "Root CUA observes unique title7/3/10+SUM; edits onlyA2=11, saves/closes/reopens11/3/14+SUM and native exports once to actualsourceB; opaqueGUIIDmapping false unlessdirectlyproved.",
+    "Actual offline scanner computes B raw/root/v2 (never Asemanticcopy); metadataB exact sameitem/parent/docwsid and changedETag; independent generic native read matchesB.",
+    "Normal ROremount descriptor capture sameitem/ETag, pinned mount ID and FDbeforeafter, observed actual archive root; separately computed remount-b semV2 equals actualB. Different rawZIP serialization retained honestly, not a rawidentity claim.",
+    "Exact whole journal operation frontier unchanged after browser/remount; allownedprocessesgone/unmounted; installedbaseline unchanged."
+  ],
+  "counts": "2 logical Cirrove operations; browser/autosave/provider HTTP mutation count uninstrumented.",
+  "limits": [
+    "Browser edit is remote Apple save, not ordinary or atomic local Linux editor/FUSE save.",
+    "No Trash/restore/B upload or replacement; no invented B journal receipt, working association or GUI-provideropaque URL mapping.",
+    "Source-only preflight is not current/provider representation proof. Metadata is not contentproof.",
+    "One sequence supports bounded partial acceptance, not repeatability/reliability/full487 or installed19/8 migration; all full gates remain open."
+  ],
+  "candidate": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/runtime-candidate-private-v1.json",
+    "size": 9996,
+    "sha256": "db360b740efadcdc1f8eb7b10adf2a083ab79170a4814f80b856f2c7c5458494"
+  },
+  "source_and_binaries": {
+    "cirrove": {
+      "path": "/var/tmp/cirrove-numbers-browser-editor-3db3179c-a492-462c-a4c6-344158ca7b8f/bin/cirrove",
+      "sha256": "8a9c0f2ca345e77006f9ed3fba2f73abb6db18a70c10e0a0968f376aeb6d5178",
+      "size": 464393616
+    },
+    "cirroved": {
+      "path": "/var/tmp/cirrove-numbers-browser-editor-3db3179c-a492-462c-a4c6-344158ca7b8f/bin/cirroved",
+      "sha256": "dbc65b196283ff2fdddb2874acd86bb7eab03fce84c4632b7a862f711780a919",
+      "size": 464523600
+    },
+    "generic-fixture-verifier": {
+      "path": "/var/tmp/cirrove-numbers-browser-editor-3db3179c-a492-462c-a4c6-344158ca7b8f/bin/generic-fixture-verifier",
+      "sha256": "b3622cb5aed7b9743c289cc0fbc121e532c5da64a74f73d1da974dd0a66d639d",
+      "size": 495961856
+    },
+    "editor-metadata-cli": {
+      "path": "/var/tmp/cirrove-numbers-browser-editor-3db3179c-a492-462c-a4c6-344158ca7b8f/bin/editor-validation-cli",
+      "sha256": "62c1c61bcac70203c07914903cce6207f1df4c31887ce0ce0d13a9f4fd9b06e5",
+      "size": 499241064
+    },
+    "offline-b-scanner": {
+      "path": "/var/tmp/cirrove-numbers-browser-editor-3db3179c-a492-462c-a4c6-344158ca7b8f/bin/editor-remount-validation-cli",
+      "sha256": "3fde0c0648dd7bb12d83d2e121bce93243bfe4e509a0bc9fa9a2f64c9013e19b",
+      "size": 501055896
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+      "size": 14424
+    },
+    "fusermount": {
+      "path": "/usr/bin/fusermount3",
+      "sha256": "a5d1d1e9eac4012cf1567c34a256d28913afa75d0f1f48c628d2ec162067865a",
+      "size": 39016
+    }
+  },
+  "registered_at": "2026-10-05T02:09:23.437319+00:00",
+  "local_preflight_prediction": "Immutable RW bytes equal prepared accounts; RO variant differs only access. Exact finalV6 check-local validates all frozen assets without session/provider use or state/grant creation.",
+  "full_icloud_gate_status": {
+    "485": {
+      "passed": false,
+      "evidence": null
+    },
+    "486": {
+      "passed": false,
+      "evidence": null
+    },
+    "487": {
+      "passed": false,
+      "evidence": null
+    },
+    "488": {
+      "passed": false,
+      "evidence": null
+    },
+    "489": {
+      "passed": false,
+      "evidence": null
+    },
+    "490": {
+      "passed": false,
+      "evidence": null
+    }
+  },
+  "actual_local_preflight": {
+    "witness": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/root-local-readiness-witness-v1.json",
+      "size": 2523,
+      "sha256": "8acf54f5d272d4acae0faa881cf8fecc83e23f8d9f8b04dfad4d132405ed4f25"
+    },
+    "runtime": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/runtime-registration.json",
+      "size": 9151,
+      "sha256": "aac75bd920bf2ea1a15d21fcb63f767e5212cab9a288b138312df06a031d2941"
+    },
+    "results": {
+      "root-browser-runtime-inputs-v1": {
+        "result": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-browser-runtime-inputs-v1-result.json",
+          "size": 232,
+          "sha256": "f1287de80da6b0a62fc655f03da2ef968644c92f4b7a7647b4bd1b3e10ab392d"
+        },
+        "registration": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-browser-runtime-inputs-v1-registration.json",
+          "size": 68663,
+          "sha256": "8baa613ffb754a15a67aa63f958c38cf86063c5c6334bafe113253cd1ec3ed74"
+        },
+        "exit_code": 0,
+        "duration_seconds": 1.0675469379930291,
+        "sources_unchanged": true,
+        "log_sha256": "dd8b4ef2e1f4c4aed3f3b0689c61a7051cca7fcc9352330657df575578b38026"
+      },
+      "root-browser-check-local-v1": {
+        "result": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-browser-check-local-v1-result.json",
+          "size": 232,
+          "sha256": "97761826539e7f2a65e49ff96cca222a22efd714f860cc99e9f8ca07b07ad61e"
+        },
+        "registration": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-browser-check-local-v1-registration.json",
+          "size": 68657,
+          "sha256": "353cb0042898b9c9dece0ff7456b046a35e5c25b2b617872693b682ff2a893b8"
+        },
+        "exit_code": 0,
+        "duration_seconds": 0.7792941270163283,
+        "sources_unchanged": true,
+        "log_sha256": "b2d406408c31ed8dfc89f844e6327a8ea833e735e1f1d344ed0fc202f7da66e6"
+      }
+    },
+    "provider_readiness_verified": false,
+    "cloud_dispatched": false,
+    "authorization_created": false,
+    "controller_state_created": false,
+    "live_window_started": false,
+    "installed_baseline_rechecked": true,
+    "all_full_icloud_gates_still_open": true
+  },
+  "supervisor_correction": {
+    "observed_statically_before_execution": true,
+    "finding": "Two retained stage producers can each receive a20+20s cleanup wait; cumulative80s exceeds45s reserve. Must correct and run actual bounded mock control before live launch.",
+    "private_original_preserved": true,
+    "actual_baseline_or_corrected_control_executed": true,
+    "control_registered_at": "2026-10-05T02:25:35.960178+00:00",
+    "controlled_question": "With both historical RW and RO producer records, a residual mount and unresolved child, does one shared cleanup wait remain inside the original45-second reserve?",
+    "controlled_prediction": "The preserved V1 resets20+20 seconds per producer and fails the cumulative budget assertion. Corrected shared-cutoff wiring should retain exact process fences and finish mocked waits within40 seconds; unknown owner or residual mount remains unresolved.",
+    "controlled_endpoint": "Run the same narrowly selected pure/mock budget control against the actual preserved V1 and corrected source, then run the complete corrected watcher controls. No real signals, runtime/grant/state, processes, mounts or provider activity.",
+    "controlled_limits": "Mock elapsed time is cancellation control evidence, not real uninterruptible-process disappearance, actual provider acceptance or full iCloud readiness.",
+    "actual_controls": [
+      {
+        "phase": "root-supervisor-v1-budget-one-v1",
+        "endpoint": "Preserved V1 actual desired assertion: mock cumulative80 > shared40;1FAIL/0ERROR.",
+        "result": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v1-budget-one-v1-result.json",
+          "size": 233,
+          "sha256": "787a3e3aa11ea59577fc493372bccb47013dd52700b49002b29f2475a17079d0"
+        },
+        "registration": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v1-budget-one-v1-registration.json",
+          "size": 69467,
+          "sha256": "1f73dda042a38813d5056923675dec0a3f1a12136eaad0e7a16f411978acd15b"
+        },
+        "exit_code": 1,
+        "duration_seconds": 0.06012457198812626,
+        "log_sha256": "0e4924bba6ac9392da40c33136939cfd9bd22e708e029ac7ab48733d54024bd9",
+        "sources_unchanged": true
+      },
+      {
+        "phase": "root-supervisor-v2-corrected-five-v2",
+        "endpoint": "Actual byte-identical root400 frozen V2 all5PASS; includes shared40 case, no late/expired clamp claim.",
+        "result": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v2-corrected-five-v2-result.json",
+          "size": 233,
+          "sha256": "07e6c275bffa3e8270cfe4ccb1b46a56953a9e21ed37e7ba8e8f79b02b2ecb68"
+        },
+        "registration": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v2-corrected-five-v2-registration.json",
+          "size": 69415,
+          "sha256": "5ad3fb2b826d7f8ef88c98c34254ca41e7e4494433f7b55067d0b09e37443bcb"
+        },
+        "exit_code": 0,
+        "duration_seconds": 0.05921816799673252,
+        "log_sha256": "f612e9a9de4aa0812355d69fdff6aeee72d36a886fb3e06a0cf54662cb773a91",
+        "sources_unchanged": true
+      },
+      {
+        "phase": "root-supervisor-v2-late-one-v1",
+        "endpoint": "Actual V2 selected late/expired control1FAIL/0ERROR at desired final assertion; both20+20 observations collected before assertion.",
+        "result": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v2-late-one-v1-result.json",
+          "size": 234,
+          "sha256": "cba2bfbc3444204e734f1876a34794168a83e9733a06bbb30ae3a9fc1399849e"
+        },
+        "registration": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v2-late-one-v1-registration.json",
+          "size": 69493,
+          "sha256": "69462330cc755641c84e15ad0dc7a1cd46ed18f8bb5a1e5200d933c67b253677"
+        },
+        "exit_code": 1,
+        "duration_seconds": 0.058336073998361826,
+        "log_sha256": "e817b99efd5d2cfbb93ec2a0097dc0aa9e381fc70c26a14188cc927f2948d9c4",
+        "sources_unchanged": true
+      },
+      {
+        "phase": "root-supervisor-v3-corrected-six-v1",
+        "endpoint": "Actual frozen V3 full6PASS; late23remaining\u219220+3, expired\u21920+0, shared lifecycle, exact signals and unresolved mount preserved.",
+        "result": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v3-corrected-six-v1-result.json",
+          "size": 233,
+          "sha256": "495a051de4cfd23eabf368786cde00ab90bc3c3fae481e8504269ee534ca4f47"
+        },
+        "registration": {
+          "path": ".local-state/icloud-owned-account-snapshot-20261005/root-supervisor-v3-corrected-six-v1-registration.json",
+          "size": 69412,
+          "sha256": "580fc82e636ff4324693b5d31b0d408f5021d398202a76fd5c894a669e77121d"
+        },
+        "exit_code": 0,
+        "duration_seconds": 0.05944382099551149,
+        "log_sha256": "2df402d897142167145393acb850741815e1e304dfcafa6df4f1067772afc34a",
+        "sources_unchanged": true
+      }
+    ],
+    "local_preparation_fence_correction": "An initial V2 registration preparation required0400 but author proposal was0600. It refused before any registration/test child; requesting that nonexistent registration also failed before runner attempt/Popen. Root preserved proposal and made separate byte-identical0400 executable copy; only subsequently registered five-control run actually executed.",
+    "remaining_before_live": "Historical preparation statement superseded: actual V3 launched and self-recorded before live phases. Actual trial subsequently stopped after the export layout gap; watcher settled, but launcher post-wait exception prevented its terminal manifest.",
+    "late_expired_control_preregistration": {
+      "registered_at": "2026-10-05T02:33:55.109797+00:00",
+      "question": "Does a late or expired observation preserve exact own-daemon signals while limiting requested active waits to remaining original monotonic time?",
+      "prediction": "Same pure control reaches preserved V2 with20+20 in both arms and fails desired final assertion without errors. Actual V3 should yield20+3 with23remaining and0+0 expired, preserve signals, and leave residual mount unresolved. Full corrected6 controls should pass.",
+      "endpoint": "Run selected late/expired control on actualV2 then full6 on frozenV3; both arms collected before final desired assertion. Source bytes unchanged. No real signals/Cloud/Grant/State.",
+      "source_v3": {
+        "path": ".local-state/icloud-numbers-browser-editor-20261005/external-supervisor-proposal-v3.py",
+        "size": 12370,
+        "sha256": "38437367c37d9c815620859cf2bc5f87a02ed210d7bf42cedebdcf8bcbe2c40e"
+      },
+      "test_v3": {
+        "path": ".local-state/icloud-numbers-browser-editor-20261005/test_external_supervisor_proposal-v3.py",
+        "size": 7646,
+        "sha256": "12eb883062a8fe0859f694bc685b8a080c12fbe0e51a74121a0a9eda220f6f49"
+      },
+      "limits": "Wait allowance/mock wiring proof only; no kernel/IO-time disappearance guarantee or provider acceptance.",
+      "actual_controls_now_retained": true
+    },
+    "final_static_review": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/operative-proposal-v2/audit-admission-root-external-supervisor-v3.json",
+      "size": 4777,
+      "sha256": "e8380d6c92464e43fbba0777500f4d8ce3de98bf41b439766643fd88430b6b9f"
+    },
+    "limits": "These actual controlled runs prove pure/mock cancellation wiring and allowance budgets, not actual kernel/IO disappearance or provider reliability. No cloud, finite grant, controller state, daemon or mount created."
+  },
+  "public_preregistration_created": true,
+  "finite_grant_created": true,
+  "updated_at": "2026-10-05T03:05:25.967644+00:00",
+  "actual_supervisor_launch_preregistration": {
+    "registered_at": "2026-10-05T02:42:47.113736+00:00",
+    "command": [
+      "/usr/bin/python3.14",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/root-launch-supervisor-v1.py"
+    ],
+    "source_sha256": "ba5c3f314a11d8a064bbe0eaf68b38ea9c4a253264b73de3c07240a892360963",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-3db3179c",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-3db3179c",
+    "filesystem": "ext4",
+    "expected_duration_seconds": 1800,
+    "prediction": "Root launch will reverify final runtime/local pins, actual installed19 files/unit/PID and no owned attempt/state/mount; then create exact once-only finite authorization/registration, launch finalV3 with original clock and retain actual self record before any daemon phase. Parent will externally wait and record watcher disappearance, no successful arm inferred.",
+    "window_reference": "Conservative planned first RW start5 seconds after registration; original1800 includes any later launch delay and is never reset. Cleanup may still report unresolved; no hard kernel/IO completion guarantee.",
+    "live_provider_dispatch_from_launcher": false,
+    "grant_will_be_created_by_launcher": true,
+    "automatic_retry": false
+  },
+  "actual_live_results": {
+    "closed_run": "3db3179c-a492-462c-a4c6-344158ca7b8f",
+    "whole_arm_completed": false,
+    "fresh_dispatch_disabled": true,
+    "automatic_retry": false,
+    "folder_creation_applied": true,
+    "sole_public_import_a_uploaded_and_published": true,
+    "metadata_a_and_independent_current_native_a_verified": true,
+    "browser_initial_values": [
+      7,
+      3,
+      10
+    ],
+    "browser_reopened_values": [
+      11,
+      3,
+      14
+    ],
+    "formula_preserved": "SUM(A2:B2)",
+    "browser_cell_edit_dispatches": 1,
+    "native_export_dispatches": 1,
+    "explicit_saved_label_observed": false,
+    "saving_indicator_appeared_and_disappeared": true,
+    "actual_export": {
+      "path": "/var/tmp/cirrove-numbers-browser-editor-3db3179c-a492-462c-a4c6-344158ca7b8f/source-b.numbers",
+      "size": 138945,
+      "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+      "layout": "flat native Numbers ZIP",
+      "entries": 42,
+      "files": 42,
+      "named_numbers_wrapper_present": false
+    },
+    "source_b_semantic_computed": false,
+    "metadata_b_current_b_or_remount_b_verified": false,
+    "whole_journal_frontier_unchanged_after_browser_edit": true,
+    "owned_phase_processes_gone": true,
+    "owned_mount_absent": true,
+    "watcher_launcher_and_runner_proc_entries_absent": true,
+    "installed_unit_pid_ticks_executable_and_all19_packaged_files_unchanged": true,
+    "partial_browser_witness": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/browser-partial-live-witness-v1.json",
+      "size": 1924,
+      "sha256": "e514ac580edf412a0339bc7c7656402dcf3f999135c036aaf8928480ef779501"
+    },
+    "independent_stopped_audit": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/root-live-stopped-audit-v1.json",
+      "size": 1718,
+      "sha256": "be1a60a7c7a759e6df83673d1c335b497227b21fb5d4f474254f249eeefeac8c"
+    },
+    "limitations": [
+      "Real Apple browser save is not a Linux local editor/FUSE write proof.",
+      "No provider representation or GUI opaque-ID correspondence inferred from the exported ZIP.",
+      "No B metadata/current/remount call; export not repacked and no root or semantic value injected.",
+      "Two logical Cirrove operations; provider HTTP mutation count uninstrumented.",
+      "Closed trial cannot be resumed or replayed. A future live acceptance arm requires a fresh namespace and registration."
+    ]
+  },
+  "actual_launcher_terminal_limitation": {
+    "post_wait_exception": "FileNotFoundError reading already-reaped owned watcher /proc entry",
+    "watcher_result_reported": "supervision-settled",
+    "watcher_exit_code_retained": null,
+    "root_launcher_result_manifest_written": false,
+    "outer_runner_result_manifest_written": false,
+    "tool_session_exit_code": 143,
+    "tool_session_exit_cause": "unknown",
+    "all_owned_process_entries_and_mount_absent": true,
+    "evidence": {
+      "path": ".local-state/icloud-numbers-browser-editor-20261005/root-live-stopped-audit-v1.json",
+      "size": 1718,
+      "sha256": "be1a60a7c7a759e6df83673d1c335b497227b21fb5d4f474254f249eeefeac8c"
+    }
+  },
+  "subsequent_offline_export_proof": {
+    "evidence": "icloud-flat-native-source-proof-2026-10-05.json",
+    "source_original_preserved": true,
+    "separate_fresh_offline_input": true,
+    "semantic_v2": {
+      "entries": 46,
+      "expanded_bytes": 133153,
+      "files": 42,
+      "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+      "version": 2
+    },
+    "current_provider_b_or_remount_b_verified": false,
+    "original_cloud_arm_completed": false,
+    "original_cloud_arm_reopened": false
+  }
+}

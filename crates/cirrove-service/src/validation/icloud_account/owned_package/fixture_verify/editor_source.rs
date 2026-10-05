@@ -18,7 +18,8 @@ struct Source {
     path: PathBuf,
     size: u64,
     sha256: String,
-    root: String,
+    #[serde(deserialize_with = "super::required_source_root")]
+    root: Option<String>,
 }
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -67,10 +68,13 @@ fn registered(bytes: &[u8], digest: &str) -> Result<Registration> {
             && r.source.size > 0
             && r.source.size <= LIMIT
             && hex_digest(&r.source.sha256)
-            && r.source.root.ends_with(".numbers")
-            && r.source.root.len() <= 255
-            && !r.source.root.contains(['/', '\\'])
-            && !r.source.root.chars().any(char::is_control),
+            && r.source
+                .root
+                .as_ref()
+                .is_none_or(|root| root.ends_with(".numbers")
+                    && root.len() <= 255
+                    && !root.contains(['/', '\\'])
+                    && !root.chars().any(char::is_control)),
         "editor source registration scope refused"
     );
     Ok(r)
@@ -111,13 +115,20 @@ fn scan(source: &Source) -> Result<PackageSemanticIdentity> {
         size: source.size,
         sha256: source.sha256.clone(),
     };
-    let semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
-        &held,
-        &receipt,
-        &source.root,
-        2,
-        &CancellationToken::new(),
-    )?;
+    let semantic = match source.root.as_deref() {
+        Some(root) => cirrove_icloud::package_archive_semantic_identity_versioned(
+            &held,
+            &receipt,
+            root,
+            2,
+            &CancellationToken::new(),
+        )?,
+        None => cirrove_icloud::package_flat_archive_semantic_identity_v2(
+            &held,
+            &receipt,
+            &CancellationToken::new(),
+        )?,
+    };
     semantic.validate()?;
     ensure!(
         semantic.version == 2,

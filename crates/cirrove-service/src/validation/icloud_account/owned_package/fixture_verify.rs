@@ -19,9 +19,16 @@ struct Fixture {
     source: PathBuf,
     source_size: u64,
     source_sha256: String,
-    source_root: String,
+    #[serde(deserialize_with = "required_source_root")]
+    source_root: Option<String>,
     expected_root: String,
     semantic: Option<PackageSemanticIdentity>,
+}
+fn required_source_root<'de, D>(deserializer: D) -> std::result::Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde::Deserialize::deserialize(deserializer)
 }
 fn hex_digest(value: &str) -> bool {
     value.len() == 64
@@ -117,9 +124,13 @@ fn validate(f: &Fixture) -> Result<()> {
             && !f.document.etag.contains('*')
             && f.document.extension == extension
             && f.document.name.contains(&f.run.to_string())
-            && f.source_root.ends_with(&format!(".{extension}"))
-            && !f.source_root.contains(['/', '\\'])
-            && f.source_root.len() <= 255
+            && f.source_root
+                .as_ref()
+                .map_or(f.format == "numbers", |root| root
+                    .ends_with(&format!(".{extension}"))
+                    && !root.contains(['/', '\\'])
+                    && !root.chars().any(char::is_control)
+                    && root.len() <= 255)
             && f.expected_root.ends_with(&format!(".{extension}"))
             && f.expected_root == format!("{}.{}", f.document.name, extension)
             && !f.expected_root.contains(['/', '\\'])
@@ -170,17 +181,27 @@ fn proof(f: &Fixture, file: &File, receipt: &PackageDownload, source: bool) -> R
         );
     }
     if let Some(expected) = &f.semantic {
-        let actual = cirrove_icloud::package_archive_semantic_identity_versioned(
-            file,
-            receipt,
-            if source {
-                &f.source_root
-            } else {
-                &f.expected_root
-            },
-            expected.version,
-            &CancellationToken::new(),
-        )?;
+        let actual = if source && f.source_root.is_none() {
+            cirrove_icloud::package_flat_archive_semantic_identity_v2(
+                file,
+                receipt,
+                &CancellationToken::new(),
+            )?
+        } else {
+            cirrove_icloud::package_archive_semantic_identity_versioned(
+                file,
+                receipt,
+                if source {
+                    f.source_root
+                        .as_deref()
+                        .context("fixture source root absent")?
+                } else {
+                    &f.expected_root
+                },
+                expected.version,
+                &CancellationToken::new(),
+            )?
+        };
         ensure!(&actual == expected, "fixture semantic content differs");
     }
     Ok(())
@@ -415,7 +436,7 @@ mod tests {
         let source_path = root.path().join("source");
         let remote_path = root.path().join("remote");
         let source = zip_archive(
-            &format!("{}/Index/Document.iwa", f.source_root),
+            &format!("{}/Index/Document.iwa", f.source_root.as_deref().unwrap()),
             b"fixed own content",
         );
         let remote = zip_archive(
@@ -440,7 +461,7 @@ mod tests {
         f.semantic = Some(cirrove_icloud::package_archive_semantic_identity_versioned(
             &a,
             &ar,
-            &f.source_root,
+            f.source_root.as_deref().unwrap(),
             2,
             &CancellationToken::new(),
         )?);
@@ -460,10 +481,98 @@ mod tests {
             sha256: hex::encode(Sha256::digest(&changed)),
         };
         assert!(proof(&f, &changed_file, &changed_receipt, false).is_err());
-        f.source_root = "Wrong.pages".into();
+        f.source_root = Some("Wrong.pages".into());
         assert!(proof(&f, &a, &ar, true).is_err());
         f.expected_root = "Wrong.pages".into();
         assert!(proof(&f, &b, &br, false).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn owned_fixture_explicit_flat_source_matches_exact_wrapped_current_v2() -> Result<()> {
+        let dir = tempfile::tempdir()?.keep();
+        let (raw, _) = fixture()?;
+        let mut input: serde_json::Value = serde_json::from_slice(&raw)?;
+        input["format"] = "numbers".into();
+        input["document"]["extension"] = "numbers".into();
+        let expected = format!("{}.numbers", input["document"]["name"].as_str().unwrap());
+        input["expected_root"] = expected.clone().into();
+        input["representation"] = "package".into();
+        input["source_root"] = serde_json::Value::Null;
+        let flat = zip_archive("Index/Document.iwa", b"fixed content");
+        let wrapped = zip_archive(&format!("{expected}/Index/Document.iwa"), b"fixed content");
+        let a_path = dir.join("flat.numbers");
+        let b_path = dir.join("wrapped.numbers");
+        std::fs::write(&a_path, &flat)?;
+        std::fs::write(&b_path, &wrapped)?;
+        let a = File::open(&a_path)?;
+        let b = File::open(&b_path)?;
+        let ar = PackageDownload {
+            size: flat.len() as u64,
+            sha256: hex::encode(Sha256::digest(&flat)),
+        };
+        let br = PackageDownload {
+            size: wrapped.len() as u64,
+            sha256: hex::encode(Sha256::digest(&wrapped)),
+        };
+        input["source_size"] = ar.size.into();
+        input["source_sha256"] = ar.sha256.clone().into();
+        input["source"] = a_path.to_string_lossy().as_ref().into();
+        input["semantic"] =
+            serde_json::to_value(cirrove_icloud::package_archive_semantic_identity_versioned(
+                &b,
+                &br,
+                &expected,
+                2,
+                &CancellationToken::new(),
+            )?)?;
+        let bytes = serde_json::to_vec(&input)?;
+        let result = decode(&bytes, &hex::encode(Sha256::digest(&bytes)));
+        assert_eq!(std::fs::read(&a_path)?, flat);
+        assert_eq!(std::fs::read(&b_path)?, wrapped);
+        let f = result.expect("flat source fixture rejected before actual content proof");
+        validate(&f)?;
+        proof(&f, &a, &ar, true)?;
+        proof(&f, &b, &br, false)?;
+        assert_ne!(ar.sha256, br.sha256);
+        // Only the source may be flat; provider package read retains its exact root.
+        assert!(proof(&f, &a, &ar, false).is_err());
+        for (name, body) in [
+            ("../Index/Document.iwa", b"fixed content".as_slice()),
+            ("/Index/Document.iwa", b"fixed content".as_slice()),
+            ("Index\\Document.iwa", b"fixed content".as_slice()),
+            ("Index/Other.iwa", b"fixed content".as_slice()),
+            ("Index/Document.iwa", b"changed bytes".as_slice()),
+        ] {
+            let bad = zip_archive(name, body);
+            let bad_path = dir.join(format!("negative-{}", hex::encode(Sha256::digest(&bad))));
+            std::fs::write(&bad_path, &bad)?;
+            let bad_file = File::open(&bad_path)?;
+            let bad_receipt = PackageDownload {
+                size: bad.len() as u64,
+                sha256: hex::encode(Sha256::digest(&bad)),
+            };
+            // Bind independent raw identity, then exercise flat parser/content proof.
+            let mut bad_input = input.clone();
+            bad_input["source_size"] = bad_receipt.size.into();
+            bad_input["source_sha256"] = bad_receipt.sha256.clone().into();
+            let raw = serde_json::to_vec(&bad_input)?;
+            let bad_fixture = decode(&raw, &hex::encode(Sha256::digest(&raw)))?;
+            assert!(
+                proof(&bad_fixture, &bad_file, &bad_receipt, true).is_err(),
+                "flat content/path guard"
+            );
+        }
+        input.as_object_mut().unwrap().remove("source_root");
+        let missing = serde_json::to_vec(&input)?;
+        assert!(decode(&missing, &hex::encode(Sha256::digest(&missing))).is_err());
+        input["source_root"] = serde_json::Value::Null;
+        input["format"] = "pages".into();
+        input["document"]["extension"] = "pages".into();
+        input["expected_root"] =
+            format!("{}.pages", input["document"]["name"].as_str().unwrap()).into();
+        let bytes = serde_json::to_vec(&input)?;
+        assert!(validate(&decode(&bytes, &hex::encode(Sha256::digest(&bytes)))?).is_err());
         Ok(())
     }
 }
