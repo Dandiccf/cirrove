@@ -103,8 +103,17 @@ fn validate(f: &Fixture) -> Result<()> {
         "pages" => "pages",
         "numbers" => "numbers",
         "keynote" => "key",
+        "xlsx" => "xlsx",
         _ => bail!("fixture format unsupported"),
     };
+    if f.format == "xlsx" {
+        ensure!(
+            f.representation == FixtureRepresentation::Data
+                && f.source_root.is_none()
+                && f.semantic.is_none(),
+            "fixture XLSX requires raw DATA without a package root or semantic proof"
+        );
+    }
     ensure!(
         f.version == 1
             && !f.run.is_nil()
@@ -126,7 +135,7 @@ fn validate(f: &Fixture) -> Result<()> {
             && f.document.name.contains(&f.run.to_string())
             && f.source_root
                 .as_ref()
-                .map_or(f.format == "numbers", |root| root
+                .map_or(f.format == "numbers" || f.format == "xlsx", |root| root
                     .ends_with(&format!(".{extension}"))
                     && !root.contains(['/', '\\'])
                     && !root.chars().any(char::is_control)
@@ -293,6 +302,9 @@ pub use retained_numbers_read::icloud_owned_retained_numbers_read;
 mod editor_metadata;
 pub use editor_metadata::icloud_owned_editor_metadata;
 
+mod calc_metadata;
+pub use calc_metadata::icloud_owned_calc_metadata;
+
 mod editor_source;
 pub use editor_source::icloud_owned_editor_source_proof;
 
@@ -324,6 +336,68 @@ mod tests {
         )?;
         let f = decode(&bytes, &hex::encode(Sha256::digest(&bytes)))?;
         Ok((bytes, f))
+    }
+    #[test]
+    fn owned_fixture_xlsx_data_accepts_exact_raw_registration() -> Result<()> {
+        let (bytes, _) = fixture()?;
+        let mut input: serde_json::Value = serde_json::from_slice(&bytes)?;
+        input["format"] = "xlsx".into();
+        input["document"]["extension"] = "xlsx".into();
+        input["source"] = "/var/tmp/owned-source.xlsx".into();
+        input["source_root"] = serde_json::Value::Null;
+        input["expected_root"] =
+            format!("{}.xlsx", input["document"]["name"].as_str().unwrap()).into();
+        let registered = serde_json::to_vec(&input)?;
+        let f = decode(&registered, &hex::encode(Sha256::digest(&registered)))?;
+        assert_eq!(f.representation, FixtureRepresentation::Data);
+        assert!(f.semantic.is_none() && f.source_root.is_none());
+        validate(&f)?;
+        Ok(())
+    }
+    #[test]
+    fn owned_fixture_xlsx_refuses_package_semantic_wrapped_root_and_extension() -> Result<()> {
+        let (_, mut f) = fixture()?;
+        f.format = "xlsx".into();
+        f.document.extension = "xlsx".into();
+        f.source = "/var/tmp/owned-source.xlsx".into();
+        f.source_root = None;
+        f.expected_root = format!("{}.xlsx", f.document.name);
+        let semantic = PackageSemanticIdentity {
+            version: 2,
+            sha256: "a".repeat(64),
+            entries: 2,
+            files: 1,
+            expanded_bytes: 3,
+        };
+        semantic.validate()?;
+        f.representation = FixtureRepresentation::Package;
+        assert!(
+            validate(&f).is_err(),
+            "XLSX PACKAGE without semantic accepted"
+        );
+        f.semantic = Some(semantic);
+        assert!(validate(&f).is_err(), "XLSX PACKAGE with semantic accepted");
+        f.representation = FixtureRepresentation::Data;
+        assert!(
+            validate(&f).is_err(),
+            "XLSX DATA with package semantic accepted"
+        );
+        f.semantic = None;
+        f.source_root = Some("Export.xlsx".into());
+        assert!(validate(&f).is_err(), "XLSX wrapped source root accepted");
+        f.source_root = None;
+        f.document.extension = "numbers".into();
+        assert!(
+            validate(&f).is_err(),
+            "XLSX document extension mismatch accepted"
+        );
+        f.document.extension = "xlsx".into();
+        f.expected_root = format!("{}.numbers", f.document.name);
+        assert!(
+            validate(&f).is_err(),
+            "XLSX expected extension mismatch accepted"
+        );
+        Ok(())
     }
     #[test]
     fn owned_fixture_registration_rejects_changed_manifest_account_parent_format() -> Result<()> {

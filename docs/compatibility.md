@@ -133,3 +133,21 @@ list-then-PATCH sequence, and Drive offers no atomic sibling-name reservation. S
 [Google Drive](google-drive.md), the
 [writable mount record](benchmarks/google-drive-writable-mount.json) and the
 [broader live record](benchmarks/google-drive-live-acceptance-2.json).
+
+## iCloud development and Linux editor formats
+
+iCloud remains an experimental branch, outside the released packages. Its
+[validation record](icloud-write-integration.md) distinguishes provider content
+verification from application import and save fidelity.
+
+| Format and workflow | Observed scope | Remaining limit |
+| --- | --- | --- |
+| Native Numbers file opened read-only in LibreOffice Calc | One actual iCloud Numbers archive opened in a visible Calc session with A2=11, B2=3 and C2=14; the original archive stayed unchanged. | C2 imported as a numeric VALUE, with `getFormula()` returning `14`, rather than the SUM formula shown in Apple Numbers. Formula-preserving native Numbers editing is not established. |
+| XLSX created and edited in LibreOffice Calc | One local file was created, reopened, saved once and reopened again with `SUM(A2:B2)` preserved and values changing from 7/3/10 to 11/3/14. An independent OOXML inspection confirmed both snapshots. | This local application trial does not establish iCloud upload, atomic replacement, remount or installed acceptance. |
+
+These results are specific to the tested files and installed LibreOffice build.
+Do not infer general iWork format fidelity from readable cell values. The installed
+Numbers, Pages and Keynote LibreOffice filters are import-only; no native iWork
+save or export is promised. Preserve native originals when testing conversions.
+See the [registered Calc trial](benchmarks/icloud-calc-editor-2026-10-05.json)
+and [independent Numbers decoding](benchmarks/icloud-numbers-independent-decoder-2026-10-05.json).

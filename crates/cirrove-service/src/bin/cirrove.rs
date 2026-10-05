@@ -510,6 +510,14 @@ enum Command {
         #[arg(long)]
         sha256: String,
     },
+    /// Capture read-only metadata for one receipt-bound ordinary Calc XLSX file.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudCalcMetadata {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
     /// Compare bounded Google adapter reads with the mount and classify shortcuts (GET-only).
     ValidateGoogleRead {
         #[arg(long)]
@@ -1266,6 +1274,16 @@ async fn main() -> Result<()> {
         } => {
             let proof =
                 cirrove_service::validation::icloud_owned_editor_metadata(&registration, &sha256)
+                    .await?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudCalcMetadata {
+            registration,
+            sha256,
+        } => {
+            let proof =
+                cirrove_service::validation::icloud_owned_calc_metadata(&registration, &sha256)
                     .await?;
             println!("{}", serde_json::to_string(&proof)?);
         }

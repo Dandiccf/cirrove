@@ -2235,3 +2235,58 @@ consistency, not independently decoded cell values, browser export fidelity,
 Linux editor saves or full iWork reliability. The earlier browser arm remains
 closed with its unresolved export. All six full-integration requirements and
 the installed deployment hold remain open.
+
+### Independent Numbers cell decoding on 5 October 2026
+
+A [bounded local comparison](benchmarks/icloud-numbers-independent-decoder-2026-10-05.json)
+used the installed libetonyek `numbers2raw` importer on an unchanged copy of the
+actual current-provider archive and a separate flat diagnostic copy. The latter
+removed only the exact outer document-name wrapper; every member path, type and
+byte was preserved, including the opaque nested `Index.zip`. Production offline
+semantic-v2 scans verified equal content-tree identity before decoding.
+
+Both one-shot decoder calls succeeded and produced identical callback output.
+An independent extraction audit verified one balanced sheet/table scope and
+zero-based coordinates for A2=11, B2=3 and C2=14. This binds the cached values to
+the captured provider document independently of Cirrove's content readers.
+The wrapped layout itself is readable by this installed importer.
+
+No formula property or SUM token was emitted. The result does not prove the
+source lacks its formula; the browser separately showed `SUM(A2:B2)`. It proves
+the cell values, not independent formula fidelity. All six recorded local process
+identities are absent. No cloud, session, daemon, installed-profile or old
+controller operation occurred. The derived copy is retained as a diagnostic
+artifact, not a browser export or normal mount serialization. Visible Linux
+editor saves, export fidelity and the complete iWork format matrix remain open.
+
+### Actual local Calc import, save and reopen on 5 October 2026
+
+The [registered Calc trial](benchmarks/icloud-calc-editor-2026-10-05.json)
+ran the installed LibreOffice application with visible windows through its UNO
+API, a fresh private profile and a finite original deadline. Initial startup
+failures are retained separately: one worker identity acquisition failed before
+document actions, and a later direct Office startup exited with code81. The
+successful fresh trial handled exactly one normal startup restart before any
+document attempt. All three recorded child processes were reaped and are absent.
+
+The unchanged actual Numbers archive opened read-only with values 11, 3 and 14.
+Calc reported C2 as VALUE with formula text `14`, not the SUM formula seen in
+Apple Numbers. No save, repair or conversion of the Numbers source occurred;
+its bytes and filesystem metadata remained unchanged. This is a confirmed
+application-import fidelity limit for this fixture, not evidence that the source
+lost its formula or that Cirrove changed it.
+
+Calc then created its own XLSX with 7/3/SUM=10, closed and reopened it, changed
+only A2 to11, called `store()` once, and reopened 11/3/SUM=14. Both reopened
+versions reported FORMULA with zero error. Independent inspection of the two
+immutable OOXML snapshots confirmed the formula and values. Visible-window API
+checks do not constitute a human GUI witness.
+
+The narrow XLSX DATA fixture verifier failed at its intended unsupported-format
+endpoint before the correction and passed both targeted tests afterwards,
+including six refused alternatives. Five metadata-helper controls also passed.
+Those controls do not establish the saved-session facade end to end. No cloud
+request, mounted save, normal LibreOffice profile change or installed Cirrove
+action occurred during the local trial. The next endpoint is one actual editor
+save through a fresh isolated writable mount, receipt-selected current content
+verification and a fresh read-only remount. All full-iCloud criteria remain open.

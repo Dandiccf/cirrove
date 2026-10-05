@@ -247,9 +247,22 @@ after reloading the document. Its native export could not be acquired, so the
 trial stopped with partial evidence. A [separate read-only observation](docs/benchmarks/icloud-retained-numbers-read-2026-10-05.json)
 has now verified changed provider content through a direct read, a separate
 reader and a fresh mount, with matching content-tree identities. This does not
-independently decode the displayed cell values or prove browser export fidelity.
+by itself decode the displayed cell values or prove browser export fidelity.
+A [subsequent independent local importer](docs/benchmarks/icloud-numbers-independent-decoder-2026-10-05.json)
+read the expected values 11/3/14 from that actual Numbers archive, including its
+unmodified wrapped layout. It did not expose the formula, so formula and local
+editor save fidelity remain unproved by that importer.
 The [browser trial record](docs/benchmarks/icloud-numbers-browser-editor-confirmation-completion-2026-10-05.json)
 keeps that export gap explicit.
+
+A [local Calc trial](docs/benchmarks/icloud-calc-editor-2026-10-05.json)
+now confirms actual XLSX creation, one editor save and reopening with the SUM
+formula preserved. This has not yet been repeated through an iCloud mount.
+The same trial exposed a native Numbers import limit: LibreOffice Calc opened
+the captured Numbers file with correct values, but imported its SUM result as
+a number rather than a formula. Native Numbers editing in Calc is therefore
+not a validated formula-preserving workflow; see the
+[format limits](docs/compatibility.md#icloud-development-and-linux-editor-formats).
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
