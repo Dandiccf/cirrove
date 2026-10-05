@@ -257,8 +257,18 @@ keeps that export gap explicit.
 
 A [local Calc trial](docs/benchmarks/icloud-calc-editor-2026-10-05.json)
 now confirms actual XLSX creation, one editor save and reopening with the SUM
-formula preserved. This has not yet been repeated through an iCloud mount.
-The same trial exposed a native Numbers import limit: LibreOffice Calc opened
+formula preserved. A [subsequent mounted trial](docs/benchmarks/icloud-calc-mounted-editor-2026-10-05.json)
+also saved and reopened its first XLSX through an isolated iCloud mount with
+7/3/SUM=10 intact. It stopped before independent cloud confirmation and never
+performed the second editor save. The local data remains retained; the initiating
+refusal is not yet explained, because stopping the service also marks unfinished
+uploads as unconfirmed. This is partial application evidence, not a confirmed
+cloud-save or remount result.
+The [fresh read-only observation](docs/benchmarks/icloud-calc-retained-read-2026-10-05.json)
+subsequently reached a ready account and verified the owned test folder, but its
+bounded listing did not include the final XLSX. The original pending edits remain
+preserved; the cloud save is still unconfirmed.
+The separate local Calc trial also exposed a native Numbers import limit: LibreOffice Calc opened
 the captured Numbers file with correct values, but imported its SUM result as
 a number rather than a formula. Native Numbers editing in Calc is therefore
 not a validated formula-preserving workflow; see the

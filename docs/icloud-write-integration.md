@@ -2290,3 +2290,52 @@ request, mounted save, normal LibreOffice profile change or installed Cirrove
 action occurred during the local trial. The next endpoint is one actual editor
 save through a fresh isolated writable mount, receipt-selected current content
 verification and a fresh read-only remount. All full-iCloud criteria remain open.
+
+### Partial actual Calc mounted save on 5 October 2026
+
+The [registered mounted trial](benchmarks/icloud-calc-mounted-editor-2026-10-05.json)
+created one new owned folder through a normal isolated writable iCloud mount.
+Actual Calc then saved its first XLSX and reopened 7/3/SUM=10. Its 5281-byte
+source and both sealed content generations have the same digest. The trial
+stopped before independent cloud verification, so the second editor save and
+read-only remount were never admitted. All four recorded children were reaped;
+the controller, test mount and socket are absent. The installed daemon and all
+19 recorded packaged files are unchanged.
+
+The actual journal records a lock-file create, an acknowledged empty temporary
+file, its content successor, a separate final-document create and two pending
+removals. The acknowledged empty item is the temporary file, not the XLSX.
+No destination-victim replacement record was emitted. This first save therefore
+does not establish atomic replacement of an existing document.
+
+Three uploads were unconfirmed after shutdown. Their first deferrals occurred
+in the shutdown second; cancellation itself maps to that state. The controller
+also refuses `Verifying`, which can represent an inspection in progress.
+Without a pre-cleanup refusal snapshot, these observations do not distinguish
+an initiating provider error from a conservative test refusal and subsequent
+cancellation. No provider fix or reliability claim follows from them. The
+fixture remains preserved, with no repeated save or mutation replay. Current
+cloud contents and the initiating refusal still need independent observation;
+all full-iCloud criteria remain open.
+
+### Fresh read-only observation of the retained Calc trial on 5 October 2026
+
+The [registered observation](benchmarks/icloud-calc-retained-read-2026-10-05.json)
+used separate read-only state and cache with the same account credentials; it
+never reopened the original upload journal or repeated the editor save. Initial
+observer versions stopped before file inspection: first at an empty initial
+account list, then at the first published non-ready account state. The retained
+health database recorded a completed refresh. Source inspection showed that the
+manager can publish a previously copied indexing status after further awaits.
+These observations do not establish a provider failure or explain the original
+writable trial's initiating refusal.
+
+A fresh corrected observer retained the original finite deadline and waited for
+published readiness while checking account, collection, root, daemon, read-only
+mount and socket identity. Its actual status witness changed from indexing to
+ready. It verified the original owned folder, but the bounded folder listing did
+not include the final XLSX. This establishes neither current file bytes nor
+definite provider noncommitment. The own daemon was reaped, mount and socket were
+absent, and the installed daemon and all 19 packaged-file digests were unchanged.
+The original sealed edits remain preserved. Cloud confirmation, a second editor
+save, native-format editing and all full-iCloud release criteria remain open.

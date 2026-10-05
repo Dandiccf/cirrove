@@ -144,10 +144,13 @@ verification from application import and save fidelity.
 | --- | --- | --- |
 | Native Numbers file opened read-only in LibreOffice Calc | One actual iCloud Numbers archive opened in a visible Calc session with A2=11, B2=3 and C2=14; the original archive stayed unchanged. | C2 imported as a numeric VALUE, with `getFormula()` returning `14`, rather than the SUM formula shown in Apple Numbers. Formula-preserving native Numbers editing is not established. |
 | XLSX created and edited in LibreOffice Calc | One local file was created, reopened, saved once and reopened again with `SUM(A2:B2)` preserved and values changing from 7/3/10 to 11/3/14. An independent OOXML inspection confirmed both snapshots. | This local application trial does not establish iCloud upload, atomic replacement, remount or installed acceptance. |
+| XLSX created through an isolated iCloud mount in LibreOffice Calc | One actual editor save and reopen retained 7/3/SUM=10; its source and sealed content remain preserved after the test stopped. A separate fresh read-only mount verified the owned folder, but did not list the final XLSX. | The cloud save remains unconfirmed, and the second editor save was not attempted. The initiating refusal remains unexplained; stopped unconfirmed rows or a bounded listing alone do not establish a provider defect or definite noncommitment. |
 
 These results are specific to the tested files and installed LibreOffice build.
 Do not infer general iWork format fidelity from readable cell values. The installed
 Numbers, Pages and Keynote LibreOffice filters are import-only; no native iWork
 save or export is promised. Preserve native originals when testing conversions.
-See the [registered Calc trial](benchmarks/icloud-calc-editor-2026-10-05.json)
+See the [registered Calc trial](benchmarks/icloud-calc-editor-2026-10-05.json),
+the [partial mounted trial](benchmarks/icloud-calc-mounted-editor-2026-10-05.json),
+the [fresh read-only observation](benchmarks/icloud-calc-retained-read-2026-10-05.json),
 and [independent Numbers decoding](benchmarks/icloud-numbers-independent-decoder-2026-10-05.json).

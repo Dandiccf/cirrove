@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "registered_at": "2026-10-05T18:03:36.619812+00:00",
+  "status": "stopped-after-real-calc-a-save-before-cloud-confirmation",
+  "source_head": "039265af5056daed10e691d562e859a393445096",
+  "run": "cb7860c8-9c06-44f2-9fd9-1a6c202f72d2",
+  "question": "Does an actual visible Linux Calc XLSX create and single existing-file save through the normal isolated iCloud writable mount preserve its SUM formula, independently verified current DATA bytes, journal identity lineage and a separate read-only remount?",
+  "prediction": "The local Calc XLSX workflow preserves SUM. The ordinary DATA adapter should return exact A/B raw bytes. Actual temporary/lock/atomic operations determine the journal topology; no fixed count or stable item ID is assumed.",
+  "arms": [
+    {
+      "name": "offline-harness-syntax",
+      "endpoint": "Compile the frozen controller/worker source only; no module execution, cloud or installed action. Actual two syntax checks passed before dispatch."
+    },
+    {
+      "name": "cleanup-helper-version-admission",
+      "endpoint": "Initial actual pinned fusermount3 --version probe exposed PermissionError while acquiring /proc/exe identity, but the exact handle exited 0 and was reaped. Two further read-only controls exercise full original V4 and corrected V5 Controller.spawn with that installed helper; no unmount, daemon, credentials or cloud call. Preserve both actual outcomes, with natural terminal handle reaping only. Actual V4/V5 full-spawn controls both refused during fast process inspection, while both original helper handles exited 0 and were reaped. V6 explicitly awaits the exact pinned setuid helper handle before attempting transient /proc identity; one V6 corrected control is registered next."
+    },
+    {
+      "name": "visible-calc-owned-data-a",
+      "endpoint": "One new owned folder and one actual Calc storeAs A; close/reopen formula and values, stop writer, bind full typed journal and independently verify actual provider DATA/raw A before allowing B."
+    },
+    {
+      "name": "visible-calc-owned-data-b",
+      "endpoint": "New isolated writer on the same fresh state, prove mounted A matches independent A, one A2=11 existing store B; close/reopen formula and values, then stop and bind actual current item plus original identity and atomic source/victim/cleanup as emitted."
+    },
+    {
+      "name": "independent-b-and-readonly-remount",
+      "endpoint": "Receipt-selected metadata and independent provider DATA/raw B; distinct normal RO daemon/mount/cache identity and raw B capture, unchanged completed frontier, all own processes reaped/unmounted."
+    }
+  ],
+  "execution_policy": {
+    "root_lanes": 1,
+    "maximum_seconds": 1800,
+    "cleanup_reserve_seconds": 45,
+    "root_filesystem": "btrfs",
+    "TMPDIR_filesystem": "ext4",
+    "automatic_cloud_retry": false,
+    "old_controller_replay": false,
+    "installed_actions": false,
+    "new_own_scope_only": true,
+    "standing_user_cloud_write_authorization": true
+  },
+  "scope": {
+    "new_folder": "Cirrove-Native-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2",
+    "new_document": "Cirrove-Calc-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2.xlsx",
+    "application_created_temp_lock_operations": "Allowed only inside the new owned folder, all actual rows retained and bound.",
+    "original_trash_body_bytes_verified": false,
+    "native_iwork_editing_verified": false,
+    "human_gui_witness_recorded": false,
+    "full_icloud_gates_closed": false
+  },
+  "inputs": {
+    "controller_sha256": "adeddcf93ead137555085dff778a6e80cf98e3a53add0002fc03ac784c898d2a",
+    "worker_sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106",
+    "fresh_account_context": "Ciphertext-only same-account/credential AAD; no old journals/cache/attempts copied.",
+    "installed_baseline": "PID1243/startticks2318 and all19 packaged file hashes verified unchanged before dispatch."
+  },
+  "pre_dispatch_corrections": [
+    "Atomic parent worker-owner publication added before execution to prevent partial JSON reads.",
+    "Exact actual replacement cleanup-to-object pair, RemoveFile source Node and Removed receipt bound before execution.",
+    "Actual installed setuid fusermount version probe exposed restricted /proc/exe. V5 permits only the pinned helper --version or exact owned-mount -u command to finish naturally on its retained Popen handle, within three seconds and the original deadline; it never signals an unidentified live child. Other process roles remain strict.",
+    "Actual V4/V5 full-spawn controls additionally exposed short helper cmdline lifetime refusal. V6 awaits only the already pinned exact setuid helper version/unmount original handle before /proc inspection; no unidentified live helper can be signalled, and all other roles remain strict."
+  ],
+  "cloud_dispatched": true,
+  "actual_outcome": {
+    "initial_helper_probe": {
+      "identity_acquired": false,
+      "identity_error_type": "PermissionError",
+      "exit_code": 0,
+      "handle_reaped": true,
+      "cloud_calls": 0,
+      "unmount_calls": 0
+    },
+    "helper_full_spawn_v4_v5": {
+      "original_v4_accepted": false,
+      "corrected_v5_accepted": false,
+      "error_types": [
+        "Refusal",
+        "Refusal"
+      ],
+      "exit_codes": [
+        0,
+        0
+      ],
+      "all_handles_reaped": true,
+      "cloud_calls": 0,
+      "unmount_calls": 0
+    },
+    "helper_full_spawn_v6": {
+      "accepted": true,
+      "error_type": null,
+      "all_handles_terminal_and_reaped": true,
+      "restricted_helper_terminal": true,
+      "cloud_calls": 0,
+      "unmount_calls": 0
+    },
+    "cloud_arm": {
+      "tool_exit_code": 1,
+      "duration_seconds": 69.63351702690125,
+      "overall_success": false,
+      "first_editor_store_dispatched": true,
+      "second_editor_store_dispatched": false,
+      "independent_A_dispatched": false,
+      "independent_B_dispatched": false,
+      "read_only_remount_dispatched": false,
+      "file_replacements": 0,
+      "all_children_reaped": true,
+      "all_recorded_children_and_controller_absent": true,
+      "own_mount_socket_absent": true,
+      "all19_installed_files_and_pid_unchanged": true,
+      "all474_source_files_unchanged": true,
+      "cause_proven": false,
+      "cloud_auto_retry": false,
+      "sealed_dirty_fixtures_preserved": true,
+      "preregistration_sha256": "4698b6252fddf9caf769d781b0fe700992a75db356f0a469f56e1cd80ba868dd",
+      "calc_a": {
+        "values": {
+          "A2": 7.0,
+          "B2": 3.0,
+          "C2": 10.0,
+          "formula": "=SUM(A2:B2)"
+        },
+        "source_size": 5281,
+        "source_sha256": "b2cddc446870bd1ddfb5a2e150d8339b724eea878bf2a615559a0c22f00b6de2",
+        "visible_window_API_checked": true,
+        "human_GUI_witness_recorded": false,
+        "provider_receipt_verified": false
+      },
+      "stopped_uploads": [
+        {
+          "sequence": 2,
+          "state": "verify_required",
+          "size": 124,
+          "sha256": "1e9b8cdf6fe678212a8a626df7235987e8a0701b31720db47cff7032cc415624",
+          "intent_kind": "create",
+          "failed_attempts": 1,
+          "transferred_bytes": 124,
+          "has_checkpoint_key": true,
+          "has_remote": false,
+          "has_attempt": false
+        },
+        {
+          "sequence": 3,
+          "state": "uploaded",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "intent_kind": "create",
+          "failed_attempts": 0,
+          "transferred_bytes": 0,
+          "has_checkpoint_key": true,
+          "has_remote": true,
+          "has_attempt": false
+        },
+        {
+          "sequence": 4,
+          "state": "verify_required",
+          "size": 5281,
+          "sha256": "b2cddc446870bd1ddfb5a2e150d8339b724eea878bf2a615559a0c22f00b6de2",
+          "intent_kind": "replace",
+          "failed_attempts": 1,
+          "transferred_bytes": 0,
+          "has_checkpoint_key": false,
+          "has_remote": false,
+          "has_attempt": false
+        },
+        {
+          "sequence": 5,
+          "state": "verify_required",
+          "size": 5281,
+          "sha256": "b2cddc446870bd1ddfb5a2e150d8339b724eea878bf2a615559a0c22f00b6de2",
+          "intent_kind": "create",
+          "failed_attempts": 1,
+          "transferred_bytes": 0,
+          "has_checkpoint_key": true,
+          "has_remote": false,
+          "has_attempt": false
+        }
+      ],
+      "scope_correction": "The completed zero-byte create is the Calc temporary file. A content successor and a separate final-document create remained unconfirmed. No destination-victim atomic replacement record was emitted; the second editor store was never admitted.",
+      "diagnostic_limit": "VerifyRequired in the stopped journal does not alone establish the original provider error: in-flight uploads become VerifyRequired during daemon shutdown. Root cause and independent cloud contents remain unproved."
+    },
+    "following_full_project_check": {
+      "exit_code": 0,
+      "duration_seconds": 534.3985681170016,
+      "sources_unchanged": true,
+      "log_sha256": "92d63475b1d88ac8395434bced428150f1032ca549709b748d847766f53deb61",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "claim_limit": "Functional source/tests/docs checks following the preserved partial cloud arm; no real-provider acceptance gate closed."
+    }
+  }
+}

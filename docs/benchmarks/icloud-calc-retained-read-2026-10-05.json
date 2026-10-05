@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "fresh-read-only-ready-and-owned-folder-observed-final-xlsx-not-listed",
+  "observation_run": "71c7061a-2ab6-443a-aa46-2369202bbcbd",
+  "subject_run": "cb7860c8-9c06-44f2-9fd9-1a6c202f72d2",
+  "source_head": "039265af5056daed10e691d562e859a393445096",
+  "question": "What current document bytes are visible in a fresh read-only account mount for the exact owned folder retained by the interrupted Calc A-save, without reopening its writer journal or replaying any mutation?",
+  "prediction": "The first editor saved and locally reopened A. Its cloud confirmation was not reached before shutdown. A fresh metadata/cache view may expose matching A, different current bytes, or no current document in that view; none is assumed in advance. Absence or mismatch does not alone prove noncommitment.",
+  "arms": [
+    {
+      "name": "source-only-syntax",
+      "endpoint": "Compile frozen observer source without importing/executing its module or accessing the provider. Root V2/V3 syntax passed."
+    },
+    {
+      "name": "actual-sqlite-node-identity-counterfactual",
+      "endpoint": "Actual V2/V3 node() against a private scoped SQLite fixture with column item ID differing from decoded body.id. Original V2 must expose the missing binding; corrected V3 must refuse. A valid matching row must still decode. No provider, daemon or cloud call."
+    },
+    {
+      "name": "fresh-normal-readonly-mount",
+      "endpoint": "Fresh singleton ReadOnly configuration, sealed session ciphertext only under same account/credential AAD, no original journal/cache/attempts; normal frozen daemon with independently bound exact owned folder receipt."
+    },
+    {
+      "name": "current-revision-fenced-observation",
+      "endpoint": "Current account+collection+item ID/etag selected from normal metadata store after listing the receipt-bound folder. Capture at most64MiB under held FD/fstat, unchanged Node revision, parent identity and mount fences. Compare exact raw bytes with retained immutable5281-byte source A. Record absence/mismatch without claiming noncommitment."
+    },
+    {
+      "name": "owned-closure-and-installed-baseline",
+      "endpoint": "Original daemon child handle reaped and own mount absent within the same original300-second window. Check the original writer stays absent and installed service PID/startticks/all19 packaged artifacts unchanged."
+    }
+  ],
+  "execution_policy": {
+    "root_execution_lanes": 1,
+    "maximum_seconds": 300,
+    "cleanup_reserve_seconds": 20,
+    "root_filesystem": "btrfs",
+    "TMPDIR_filesystem": "ext4",
+    "cloud_mutations": false,
+    "old_writer_journal_reopen": false,
+    "old_controller_replay": false,
+    "automatic_save_retry": false,
+    "installed_actions": false,
+    "original_registered_epoch_monotonic_boot_clock": true
+  },
+  "scope": {
+    "owned_folder": "Cirrove-Native-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2",
+    "owned_document": "Cirrove-Calc-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2.xlsx",
+    "source_a_size": 5281,
+    "source_a_sha256": "b2cddc446870bd1ddfb5a2e150d8339b724eea878bf2a615559a0c22f00b6de2"
+  },
+  "inputs": {
+    "observer_sha256": "374a830f55b4318fbce6f1c723fb9a93fc615f9537e8476a09e2036a5be4dab1",
+    "normal_daemon_sha256": "8f059b3c76cce55677cc57880eca4b645ad95bbde245af481cb75588191e9641",
+    "normal_runtime_sources_unchanged": true,
+    "all474_sources_unchanged": false,
+    "only_source_delta": "tests/owned_account_snapshot.rs producer lifetime correction; no daemon/CLI runtime source changed",
+    "account_context": "Ciphertext-only fresh same-account/credential AAD; no key export or old journal/cache/attempt copy"
+  },
+  "limits": [
+    "Fresh normal RO mounted bytes are independent of the original writable cache, but are not independent generic DATA/representation proof without actual full DriveEntries.",
+    "The original interrupted write arm remains closed; matching current bytes would not prove its old worker acknowledged all operations or cleanup.",
+    "No second editor store, destination-victim atomic replacement, native iWork editing, installed delivery or full-iCloud gate closure.",
+    "A retained stale private socket, if any, is not a running daemon; do not claim its path absent without checking."
+  ],
+  "cloud_dispatched": true,
+  "actual_outcome": {
+    "offline_identity_controls": {
+      "arms": [
+        {
+          "version": "v2",
+          "foreign_body_returned": true,
+          "refused": false
+        },
+        {
+          "version": "v3",
+          "foreign_body_returned": false,
+          "refused": true,
+          "exception_class": "Refusal"
+        }
+      ],
+      "actual_original_missing_identity_binding_reproduced": true,
+      "corrected_foreign_identity_refused": true,
+      "corrected_valid_identity_accepted": true,
+      "provider_calls": 0,
+      "daemon_calls": 0,
+      "cloud_mutated": false
+    },
+    "first_read": {
+      "observation_run": "71c7061a-2ab6-443a-aa46-2369202bbcbd",
+      "tool_exit_code": 1,
+      "duration_seconds": 40.13283944129944,
+      "overall_success": false,
+      "current_file_capture_reached": false,
+      "mount_identity_recorded": false,
+      "daemon_exit_code": 0,
+      "exact_child_reaped": true,
+      "own_mount_socket_absent": true,
+      "provider_cause_proven": false,
+      "generic_DATA_proof": false,
+      "provider_mutations": false
+    },
+    "diagnostic_read": {
+      "observation_run": "95afa544-a65b-4ccc-ae20-93092aec96c0",
+      "tool_exit_code": 1,
+      "duration_seconds": 21.405028820037842,
+      "overall_success": false,
+      "current_file_capture_reached": false,
+      "last_status": {
+        "account_count": 0,
+        "account_matches": false,
+        "mount_path_matches": false,
+        "mounted": null,
+        "protocol_version": 1,
+        "restart_required": false,
+        "state": "unrecognized"
+      },
+      "actual_ro_mount_present": true,
+      "precise_refusal": "Initial status accounts array was empty before manager published its first complete vector. The already mounted fresh reader was stopped by the one-shot readiness guard.",
+      "provider_cause_proven": false,
+      "daemon_exit_code": 0,
+      "exact_child_reaped": true,
+      "own_mount_socket_absent": true,
+      "provider_mutations": false
+    },
+    "corrected_read": {
+      "observation_run": "56ea7e45-300f-44e7-8b69-1c0dd4b74f10",
+      "tool_exit_code": 1,
+      "overall_success": false,
+      "startup_empty_status_count": 27,
+      "initial_empty_status_branch_actually_exercised": true,
+      "last_status": {
+        "account_count": 1,
+        "account_matches": true,
+        "mount_path_matches": true,
+        "mounted": true,
+        "protocol_version": 1,
+        "restart_required": false,
+        "state": "updating_or_offline"
+      },
+      "actual_ro_mount_present": true,
+      "precise_refusal": "After 27 valid empty initial account status replies, the exact account and read-only mount were present but the published account state was updating_or_offline. The unchanged ready-state guard refused before file or Node inspection.",
+      "current_file_capture_reached": false,
+      "matching_current_a_proven": false,
+      "provider_cause_proven": false,
+      "provider_non_commitment_proven": false,
+      "generic_DATA_proof": false,
+      "daemon_exit_code": 0,
+      "exact_child_reaped": true,
+      "own_mount_socket_absent": true,
+      "recorded_controller_absent": true,
+      "provider_mutations": false,
+      "old_writer_reopened": false,
+      "installed_19_files_unit_pid_startticks_unchanged": true,
+      "result_sha256": "a960b0a7c2f5e40f708e3c200bfb8f9f5d584a7bdf80cf4d37f5cacfb65902ad",
+      "diagnostic_sha256": "b69f483ef7a2119d95394436be9d0a277f2ced3e2f20541eb3e351f9f1f148a0",
+      "closure_sha256": "d69dbe680ce508a690bec54871f51bce2f22c104b91ec6b15cf16da8a09cce38",
+      "release_gates_closed": 0,
+      "retained_health_after_cleanup": {
+        "health": [
+          {
+            "state": "ready",
+            "last_success": 1791226417,
+            "retry_at": 1791226477,
+            "notifications": "polling"
+          }
+        ],
+        "metadata_row_counts": {
+          "nodes": 1,
+          "observed": 209
+        },
+        "first_refresh_success_time_precedes_refusal_timestamp": true,
+        "exact_refusal_frontier_not_reconstructed": true,
+        "current_file_readback_proven": false
+      }
+    },
+    "readiness_wait_read": {
+      "observation_run": "e996372e-451b-4996-9b41-a27f7a85040f",
+      "registration_sha256": "0750ea9999e7742ccf548377d2b47a1a2a716ec883d2221823cbb4283c58ec97",
+      "tool_exit_code": 0,
+      "overall_success": true,
+      "startup_empty_status_count": 25,
+      "first_nonready_status": {
+        "account_count": 1,
+        "account_matches": true,
+        "feeds": [
+          {
+            "collection": "drive",
+            "state": "indexing"
+          }
+        ],
+        "mount_path_matches": true,
+        "mounted": true,
+        "protocol_version": 1,
+        "restart_required": false,
+        "state": "updating_or_offline"
+      },
+      "last_status": {
+        "account_count": 1,
+        "account_matches": true,
+        "feeds": [
+          {
+            "collection": "drive",
+            "state": "ready"
+          }
+        ],
+        "mount_path_matches": true,
+        "mounted": true,
+        "protocol_version": 1,
+        "restart_required": false,
+        "state": "ready"
+      },
+      "owned_folder_identity_fenced": true,
+      "file_outcome": "not_listed_in_this_fenced_view",
+      "current_file_capture_reached": false,
+      "matching_current_a_proven": false,
+      "provider_cause_proven": false,
+      "provider_non_commitment_proven": false,
+      "generic_DATA_proof": false,
+      "daemon_exit_code": 0,
+      "exact_child_reaped": true,
+      "recorded_controller_absent": true,
+      "own_mount_socket_absent": true,
+      "provider_mutations": false,
+      "old_writer_reopened": false,
+      "installed_19_files_unit_pid_startticks_unchanged": true,
+      "result_sha256": "1e7a319a8d5b172a59b8208e4de37cd9cf9a84ffa0313cc09cbe583cc2c916ca",
+      "closure_sha256": "2efb6d84abf96184bae9765ad5556b0cdfef33b5cdaf180481e1e02e43e9bba1",
+      "release_gates_closed": 0
+    }
+  },
+  "pre_dispatch_corrections": [
+    "Require decoded Node body.id equals exact SQLite selected item for both parent and document.",
+    "Inspect /proc/self/mountinfo for disk ext4 temporary filesystem and reject any mount inside fresh ROOT/TMP; no unbounded findmnt subprocess."
+  ],
+  "diagnostic_read": {
+    "observation_run": "95afa544-a65b-4ccc-ae20-93092aec96c0",
+    "observer_sha256": "a505754e97c229e275c498f7dc4644399dac89039b5f8a6af7268804b2ae5675",
+    "registered_before_dispatch": true,
+    "maximum_seconds": 300,
+    "guards_changed": false,
+    "new_scope": "Fresh read-only state/cache and a distinct owner/clock, no old writer journal. Only pre-cleanup sanitized exception/status diagnostics added.",
+    "automatic_save_retry": false
+  },
+  "corrected_read": {
+    "observation_run": "56ea7e45-300f-44e7-8b69-1c0dd4b74f10",
+    "observer_sha256": "72971a2c49c4a2706ca7c30f3769cbfe42679e402c369b45d3508ad43bbfdfe9",
+    "registered_before_dispatch": true,
+    "maximum_seconds": 300,
+    "correction": "Only a valid protocol1/restartfalse/empty initial account list is polled within the same original window; nonempty route/protocol/state and all content/mount/revision guards remain strict.",
+    "automatic_save_retry": false,
+    "preparation_clock_history": {
+      "initial_registration_expired_without_dispatch": true,
+      "executed_registration_version": 2,
+      "registration_sha256": "e0d092f66c8cbf622372ddec8886389dd820314c5b30ffe36c5a0f5803cc86e8",
+      "clock_extended_after_dispatch": false
+    }
+  },
+  "readiness_wait_read": {
+    "observation_run": "e996372e-451b-4996-9b41-a27f7a85040f",
+    "observer_sha256": "d7de21f60c8b8509115b9916e5db6e24d2b05450759f7ceee99fba7dbbf2462e",
+    "registered_before_dispatch": true,
+    "maximum_seconds": 300,
+    "cleanup_reserve_seconds": 20,
+    "provider_mutations": false,
+    "old_writer_reopened": false,
+    "automatic_save_retry": false,
+    "question": "Can an exact fresh read-only account reach published ready within its original window and independently observe the retained owned folder/current XLSX after the interrupted Calc first save?",
+    "prediction": "The first published account may still reflect indexing while the underlying refresh has already completed. Waiting for published ready should reach actual folder inspection without weakening the read acceptance gate. Current final-file presence/content remains unknown.",
+    "changed_behavior": "Poll valid empty initial status and the exact starting/updating_or_offline account within the original deadline; only ready admits file reads. Reject sign-in-required, unknown state, protocol/account/provider/drive/root/mount mismatch. Bind the first RO mount and socket identity through the wait.",
+    "limitations": [
+      "An absence in this fenced view is not provider noncommitment proof.",
+      "Matching current bytes would not acknowledge old queued mutations or prove full DATA/native editing fidelity.",
+      "No second save, old writer recovery, installed deployment or full release gate closure."
+    ]
+  }
+}

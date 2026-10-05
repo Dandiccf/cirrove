@@ -511,8 +511,15 @@ fn owned_account_snapshot_busy_account_owner_refuses() {
 }
 #[test]
 fn owned_account_snapshot_quiescence_and_registered_context_refuse() {
-    let f = Fixture::new(true);
+    let mut f = Fixture::new(true);
+    assert!(f._child.0.as_mut().unwrap().try_wait().unwrap().is_none());
     f.assert_refused(); // actual registered producer still alive
+    assert!(f._child.0.as_mut().unwrap().try_wait().unwrap().is_none());
+    // End this case before creating other fixtures: a shadowed binding keeps
+    // its producer alive until the function ends, past its own deadline on CI.
+    write(&f.root.join("producer-release"), b"");
+    assert!(f._child.0.as_mut().unwrap().wait().unwrap().success());
+    drop(f);
     let f = Fixture::new(false);
     let path = f.root.join("state/accounts.json");
     fs::write(&path, b"changed synthetic context").unwrap();
