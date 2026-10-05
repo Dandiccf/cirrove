@@ -128,13 +128,21 @@ not touch the cloud, including unknown export children.
 Cirrove helper and an isolated synthetic daemon. It uses Strata's private Xvfb,
 D-Bus, HOME and AT-SPI harness, captures PNGs and writes a result artifact. It never
 uses the user's graphical session. Run it with Strata's E2E Python environment,
-Xvfb on PATH, and a fresh output directory:
+Xvfb on PATH, the compiled companion binary, and a fresh output directory. The
+pinned Strata runner builds `target/e2e-container/build/debug/strata`; pass that
+artifact explicitly when using it:
 
 ```sh
 /path/to/strata/target/e2e-venv/bin/python scripts/validate-strata.py \
-  --strata-checkout /path/to/strata --output /absolute/new/artifact-directory
+  --strata-checkout /path/to/strata \
+  --strata-binary /path/to/strata/target/e2e-container/build/debug/strata \
+  --output /absolute/new/artifact-directory
 ```
 
+The synthetic socket advertises both required capabilities and verifies expected
+identities on pin/unpin. The validator checks kept/fetching badges, source-labelled
+actions, pin/unpin, availability and live withdrawal. It writes `result.json`,
+screenshots and the isolated configuration; it does not deploy or restart a daemon.
 This proves the integration wiring on synthetic data, not real-provider
 reliability. Native Wayland, an installed packaged build, multi-window stress and
 long-session resource behavior remain separate acceptance work. This preview is

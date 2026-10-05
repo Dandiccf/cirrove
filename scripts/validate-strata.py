@@ -49,21 +49,26 @@ class Handler(socketserver.StreamRequestHandler):
         if verb == "subscribe":
             with server.lock:
                 server.listeners.append(self.request)
-                self.wfile.write((json.dumps(server.event())+'\n{"event":"ready"}\n').encode())
+                mount = {"event":"mount","account_id":"fixture","label":"Validation",
+                         "mount_path":server.mount,"mounted":server.mounted}
+                self.wfile.write((json.dumps(server.event())+'\n'+json.dumps(mount)+'\n{"event":"ready"}\n').encode())
                 self.wfile.flush()
             self.rfile.read(1)  # EOF when the provider exits.
             return
         if verb == "capabilities":
-            reply = {"capabilities":{"paths-cached":1,"events":1}}
+            reply = {"capabilities":{"paths-cached":1,"pin-identity":1,"events":1}}
         elif verb == "status":
             reply = {"protocol_version":1,"accounts":[{"account_id":"fixture","label":"Validation","mount_path":server.mount,"mounted":server.mounted}]}
         elif verb == "paths-cached":
             reply = {"states":[dict(server.rows.get(p,{"refusal":"not indexed"}),path=p) for p in body["paths"]]}
         elif verb in ("pin","unpin"):
             state = server.rows[body["path"]]
-            state["pinned"] = "direct" if verb == "pin" else None
-            reply = {"accepted":True,"job":"synthetic-only"}
-            server.invalidate()
+            if body.get("expected") != state["identity"]:
+                reply = {"accepted":False,"refusal":"selected identity changed"}
+            else:
+                state["pinned"] = "direct" if verb == "pin" else None
+                reply = {"accepted":True,"job":"synthetic-only"}
+                server.invalidate()
         else:
             reply = {"refusal":"unexpected verb"}
         self.wfile.write(json.dumps(reply).encode())
@@ -72,8 +77,12 @@ class Handler(socketserver.StreamRequestHandler):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--strata-checkout",type=Path,required=True)
+    parser.add_argument("--strata-binary",type=Path,help="compiled Strata binary; defaults to checkout/target/debug/strata")
     parser.add_argument("--output",type=Path,required=True)
     args=parser.parse_args()
+    binary=(args.strata_binary or args.strata_checkout/"target/debug/strata").resolve()
+    if not binary.is_file() or not os.access(binary,os.X_OK):
+        parser.error("build the companion Strata branch and pass its executable with --strata-binary")
     args.output.mkdir(parents=True,exist_ok=False)
     sys.path.insert(0,str(args.strata_checkout/"tests/e2e"))
     from harness.application import Application
@@ -84,7 +93,7 @@ def main():
     from harness.interaction import Keyboard,Pointer
     from harness.xtest import XTestConnection
     from harness import tree
-    os.environ["STRATA_BINARY"]=str(args.strata_checkout/"target/debug/strata")
+    os.environ["STRATA_BINARY"]=str(binary)
     fixture=FixtureTree.create_at(args.output/"Cloud Files", {
         "Kept offline.txt":"synthetic", "Fetching.txt":"synthetic",
         "On demand.txt":"synthetic", "Inherited.txt":"synthetic",
@@ -93,6 +102,8 @@ def main():
     daemon=FixtureDaemon(args.output/"control.sock",fixture.root)
     for name in ("Kept offline.txt","Fetching.txt","On demand.txt","Inherited.txt","Project",""):
         daemon.rows[name]={"item":name or "root","kind":"folder" if name in ("Project","") else "file","can_pin":True,"size":100,"resident":100,"pinned":None}
+        daemon.rows[name]["identity"]={"item":name or "root","mount":"fixture-mount",
+                                       "scope":{"account":"fixture","provider":"fixture","collection":"drive"}}
     daemon.rows["Kept offline.txt"]["pinned"]="direct"
     daemon.rows["Fetching.txt"].update(pinned="direct",resident=30)
     daemon.rows["Inherited.txt"]["pinned"]="inherited"
@@ -107,31 +118,38 @@ def main():
         app=Application(display,environment,fixture.root)
         window=Strata(app,Keyboard(connection),Pointer(connection),fixture,environment,display)
         app.start()
-        window.wait(lambda: window.window.find(role="image",description="Kept offline"),"Cirrove kept badge")
-        window.wait(lambda: window.window.find(role="image",description="Kept offline · fetching 30%"),"Cirrove fetching badge")
+        window.wait(lambda: window.window.find(role="image",description="cirrove: Kept offline"),"Cirrove kept badge")
+        window.wait(lambda: window.window.find(role="image",description="cirrove: Kept offline · fetching 30%"),"Cirrove fetching badge")
         window.screenshot(args.output/"01-badges.png")
         window.open_context_menu("On demand.txt")
-        window.wait(lambda:"Keep offline" in window.menu_items(),"Cirrove pin menu")
+        window.wait(lambda:"Keep offline · cirrove" in window.menu_items(),"Cirrove pin menu")
         window.screenshot(args.output/"02-keep-menu.png")
-        window.choose_menu_item("Keep offline")
+        window.choose_menu_item("Keep offline · cirrove")
         window.wait(lambda:any(v=="pin" for v,_ in daemon.calls),"pin reached daemon")
         window.keyboard.press("Escape")
         window.open_context_menu("On demand.txt")
-        window.wait(lambda:"Stop keeping offline" in window.menu_items(),"pin state reflected in menu")
+        window.wait(lambda:"Stop keeping offline · cirrove" in window.menu_items(),"pin state reflected in menu")
         window.screenshot(args.output/"03-pinned-menu.png")
-        window.choose_menu_item("Show availability")
-        window.wait(lambda:window.window.find(name="On demand.txt: Kept offline"),"availability dialog")
+        window.choose_menu_item("Show availability · cirrove")
+        window.wait(lambda:any("cirrove: On demand.txt: Kept offline" in " ".join(node.name.split()) for node in window.window.find_all(role="label")),"availability dialog")
         window.screenshot(args.output/"04-availability.png")
         window.keyboard.press("Escape")
+        window.open_context_menu("On demand.txt")
+        window.wait(lambda:"Stop keeping offline · cirrove" in window.menu_items(),"Cirrove unpin menu")
+        window.choose_menu_item("Stop keeping offline · cirrove")
+        window.wait(lambda:any(v=="unpin" for v,_ in daemon.calls),"unpin reached daemon")
+        window.wait(lambda:not window.entry("On demand.txt").find(role="image",description="cirrove: Kept offline"),"unpinned item badge withdrawn")
+        window.keyboard.press("Escape")
         daemon.mounted=False;daemon.invalidate()
-        window.wait(lambda:not window.window.find(role="image",description="Kept offline"),"badges withdrawn on unmount")
+        window.wait(lambda:not window.window.find(role="image",description="cirrove: Kept offline") and not window.window.find(role="image",description="cirrove: Kept offline · fetching 30%"),"badges withdrawn on unmount")
         window.open_context_menu("Kept offline.txt")
         time.sleep(.5)
-        assert "Stop keeping offline" not in window.menu_items()
-        assert "Show availability" not in window.menu_items()
+        assert "Stop keeping offline · cirrove" not in window.menu_items()
+        assert "Show availability · cirrove" not in window.menu_items()
         window.screenshot(args.output/"05-unmounted.png")
-        assert all(v in ("subscribe","capabilities","status","paths-cached","pin") for v,_ in daemon.calls)
-        (args.output/"result.json").write_text(json.dumps({"synthetic":True,"passed":True,"badge_states":["kept","fetching","on-demand-unbadged"],"pin_activation":True,"availability":True,"unmount_withdrawal":True,"calls":{verb:sum(v==verb for v,_ in daemon.calls) for verb in set(v for v,_ in daemon.calls)}},indent=2)+"\n")
+        assert all(v in ("subscribe","capabilities","status","paths-cached","pin","unpin") for v,_ in daemon.calls)
+        assert all(body["expected"]==daemon.rows[body["path"]]["identity"] for verb,body in daemon.calls if verb in ("pin","unpin"))
+        (args.output/"result.json").write_text(json.dumps({"synthetic":True,"passed":True,"badge_states":["kept","fetching","on-demand-unbadged"],"pin_activation":True,"unpin_activation":True,"guarded_identity":True,"availability":True,"unmount_withdrawal":True,"calls":{verb:sum(v==verb for v,_ in daemon.calls) for verb in set(v for v,_ in daemon.calls)}},indent=2)+"\n")
     finally:
         if app:
             (args.output/"strata.log").write_text(app.log())
