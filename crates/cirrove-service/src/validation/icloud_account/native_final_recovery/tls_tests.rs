@@ -926,3 +926,6 @@ async fn native_final_actual_completed_frontier_binds_queue_pairs_receipts_and_p
     check().unwrap();
     assert_eq!(counts(&fixture.server), (1, 1, 1, 1, 1));
 }
+
+#[path = "derived_snapshot_tests.rs"]
+mod derived_snapshot_tests;

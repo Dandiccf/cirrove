@@ -2156,3 +2156,21 @@ write, native export or automatic retry. The controller and watcher settled
 the exact owned processes and mount; the watcher was externally reaped with
 exit0. This establishes imported A content, not browser fidelity, current B,
 read-only remount B or full requirement487 closure.
+
+The [current-format native restoration trial](benchmarks/icloud-native-derived-restoration-2026-10-05.json)
+adds a real synthetic HTTPS producer to the stopped-account copy workflow.
+It generated and encrypted a native19/8 checkpoint, closed its writers and was
+reaped before collection. A separate derived account restored that checkpoint
+using its separately retained, account/operation-bound synthetic wrapping key.
+The normal account router and worker completed exactly one inspection, verified
+Current and Trash, and published the acknowledged metadata without increasing
+any of the five mutation counters. Original, stopped source, snapshot and key
+were preserved. Wrong-key, ciphertext-tamper and wrong-operation controls refused;
+substituting only the positive consumer's key made its real authentication
+endpoint fail. Byte-exact restoration passed all six native recovery tests.
+
+This is current19/8 native restoration with a reconstructed synthetic service
+state. The genuine older14/7 build has no native iCloud checkpoint API, so the
+ordinary migration arm above covers that historical source separately. Neither
+arm proves desktop keyring availability, an installed transition or downgrade,
+an abrupt native Uploading crash, or full requirement488 acceptance.
