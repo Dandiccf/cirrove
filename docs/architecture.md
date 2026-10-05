@@ -976,20 +976,24 @@ completed one conditional Trash-backed handoff through this worker, and
 separate live trials reconciled lost Trash and rename responses without a
 mutation replay. An injected same-ID edit between the worker's prepared
 observation and conditional Trash request was refused at the saved ETag and
-remained a local conflict. These are narrow fixture results, not a general
-iCloud upload adapter: ordinary iCloud mounts remain read-only while
-in-flight timeouts, collision handling, recovery retention and broader file
-and folder operations remain unresolved.
+remained a local conflict. These early isolated results did not establish an
+account-wide writer. Later experimental normal-build iCloud connections support
+explicit write opt-in; read-only remains the default. The
+[iCloud write integration boundary](icloud-write-integration.md) distinguishes
+their implementation from the bounded live evidence and remaining application,
+in-flight uncertainty, recovery and installed acceptance requirements. None of
+these fixture results establishes general provider reliability or release readiness.
 
-The [iCloud write integration boundary](icloud-write-integration.md) records
-the remaining account-wide routing problem: existing files lack a fixture
-journal row with their source node, and the normal read adapter cannot
-fetch an unknown item ID without its parent listing. An isolated replacement
-now checkpoints an independently verified original digest; the production
-writer still must bind the indexed account/collection/item identity to it.
-The isolated mount has since passed one replacement sourced from the
-account-scoped visible metadata index; its owned-tree authorization and
-pending-operation selection still come from a private test journal.
+An ordinary sealed upload can finish a staged identity handoff after unlink
+only when its exact pending Remove successor still belongs to the same scope,
+namespace owner and working stream. Reservation and transactional confirmation
+both check the unresolved dependency, queue phase and old provider ID/ETag.
+Confirmation keeps the owner unlinked, binds the original to hidden recovery,
+and lets the Remove resolve from the newly confirmed ID/revision. Writes and
+truncation through a held descriptor remain local recovery data; newer working
+bytes, dirty state and generation survive completion and journal reopening.
+Synthetic regression and hostile-lineage checks cover this sequence. They do
+not establish real-provider application acceptance or general successor support.
 
 The normal-build iCloud file-create adapter's `begin_upload` only returns a
 prepared checkpoint; it sends no Apple request. The shared worker may return

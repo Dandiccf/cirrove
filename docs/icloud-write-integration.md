@@ -2339,3 +2339,33 @@ definite provider noncommitment. The own daemon was reaped, mount and socket wer
 absent, and the installed daemon and all 19 packaged-file digests were unchanged.
 The original sealed edits remain preserved. Cloud confirmation, a second editor
 save, native-format editing and all full-iCloud release criteria remain open.
+
+### Calc cleanup diagnostics and the local successor correction
+
+The [registered diagnostics](benchmarks/icloud-calc-mounted-editor-diagnostic-2026-10-05.json)
+retain two fresh writable trials. The first stopped at Office process cleanup;
+its stopping error does not establish an upload failure. Actual local-process
+controls then demonstrated a terminal-handle cleanup correction, including
+refusal for a live identity mismatch and preservation of supervised cancellation.
+The next fresh trial reaped all four owned children cleanly and captured a
+different refusal before shutdown: the temporary file's sealed content successor
+was VerifyRequired, with no session or transferred bytes, while its dependent
+Remove was pending. Neither trial attempted the second editor save or remount.
+
+Source inspection identified a local journal guard that rejected an already
+unlinked owner whose head was its dependent Remove. A real-journal synthetic
+worker regression first failed on the original code before the successor's
+provider begin call, with both files' bytes preserved. The correction checks
+the exact ordinary upload-to-Remove lineage at reservation and confirmation.
+The original positive then passed. Six focused tests also passed, including
+post-unlink writes/truncation and exclusive reopening after deletion, saved
+reservation recovery across restart, and three matrices of 40 hostile bindings.
+One earlier control run failed at fixture creation because its existing directory
+was 0755; correcting the private fixture layout changed no production behavior.
+The failed fixtures and results remain retained.
+
+The original cloud trials remain unconfirmed. These tests prove the local
+sequence and its guarded correction; they do not prove any retained trial's
+exact first transfer exception, a successful real-provider Calc save, native iWork editing or
+full iCloud acceptance. A fresh actual cloud arm with newly built binaries is
+still required. All six full-iCloud release criteria remain open.

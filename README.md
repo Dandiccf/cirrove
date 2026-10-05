@@ -268,6 +268,12 @@ The [fresh read-only observation](docs/benchmarks/icloud-calc-retained-read-2026
 subsequently reached a ready account and verified the owned test folder, but its
 bounded listing did not include the final XLSX. The original pending edits remain
 preserved; the cloud save is still unconfirmed.
+Fresh [diagnostic trials](docs/benchmarks/icloud-calc-mounted-editor-diagnostic-2026-10-05.json)
+retained an upload/Remove lineage that reproduced a local journal refusal in a
+synthetic worker test after unlink of a temporary file. The corrected dependency check passed a regression
+that first failed on the original code, restart and retained-byte checks, and
+hostile identity controls. A new actual cloud save is still required; these
+synthetic results do not confirm the retained trials' cloud outcomes.
 The separate local Calc trial also exposed a native Numbers import limit: LibreOffice Calc opened
 the captured Numbers file with correct values, but imported its SUM result as
 a number rather than a formula. Native Numbers editing in Calc is therefore
