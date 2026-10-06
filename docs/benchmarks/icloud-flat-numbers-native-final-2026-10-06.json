@@ -111,7 +111,7 @@
     "Apple Numbers opening and reload were separately measured; read-only remount remains pending.",
     "No installed delivery or full iCloud release acceptance; five of six release criteria remain open."
   ],
-  "next": "Correct and independently validate receipt-backed metadata handoff after the separate read-only remount capture failure; broader full-iCloud release criteria remain open.",
+  "next": "Run a separately preregistered strict semantic read-only remount on a new owned subject before Apple application opening; broader full-iCloud release criteria remain open.",
   "original_preregistration_sha256": "2d3b1225d051f4a3afb8dab3373fa0fbaea45d0885c32568c75768c0606f2c4f",
   "prediction": "Fresh normal CLI import publishes A; B replacement reaches a durable uncertain checkpoint; inspection-only recovery resolves current B and original A without replay. All raw and complete semantic V2 source bindings remain unchanged.",
   "question": "Can a freshly imported native Numbers A be replaced by the genuine edited flat B, survive a controlled final-confirmation process exit, and recover the same operation by inspection only while preserving original A in Trash?",
