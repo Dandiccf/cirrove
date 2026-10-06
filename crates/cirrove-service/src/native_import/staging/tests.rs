@@ -97,6 +97,44 @@ fn capture(path: &Path, temp: &tempfile::TempDir) -> ValidatedPackageArchive {
     .unwrap()
 }
 #[test]
+fn explicit_flat_numbers_source_is_captured_without_rewriting() {
+    let temp = disk_temp();
+    let path = temp.path().join("source.numbers");
+    let original = archive("Index/Document.iwa", b"owned synthetic Numbers content");
+    std::fs::write(&path, &original).unwrap();
+    std::fs::set_permissions(&path, Permissions::from_mode(0o400)).unwrap();
+    let before = std::fs::metadata(&path).unwrap();
+    let result = ValidatedPackageArchive::capture_with_source_layout(
+        &path,
+        temp.path(),
+        PackageSourceLayout::FlatNumbers,
+        None,
+        &CancellationToken::new(),
+    );
+    let after = std::fs::metadata(&path).unwrap();
+    assert!(same_source(&before, &after));
+    assert_eq!(after.mode() & 0o777, 0o400);
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    assert!(!temp.path().join("journal").exists());
+    let snapshot = result.expect("explicit flat Numbers admission must succeed");
+    assert_eq!(snapshot.file.metadata().unwrap().mode() & 0o777, 0o400);
+    assert_eq!(snapshot.file.metadata().unwrap().nlink(), 0);
+    assert!(snapshot.file.write_at(b"bad", 0).is_err());
+    let (mut file, representation, size, sha256) = snapshot.into_parts();
+    let mut captured = Vec::new();
+    file.read_to_end(&mut captured).unwrap();
+    assert_eq!(captured, original);
+    assert_eq!(size, original.len() as u64);
+    assert_eq!(sha256, hex::encode(Sha256::digest(&original)));
+    representation.validate().unwrap();
+    let wire = serde_json::to_value(representation).unwrap();
+    assert_eq!(wire["kind"], "flat_numbers_archive");
+    assert!(wire.get("expected_root").is_none());
+    assert_eq!(wire["semantic"]["version"], 2);
+    assert_eq!(wire["semantic"]["files"], 1);
+    assert_eq!(wire["semantic"]["entries"], 3);
+}
+#[test]
 fn validated_snapshot_is_private_read_only_and_independent_of_original() {
     let temp = disk_temp();
     let path = source(&temp);
@@ -350,5 +388,63 @@ fn descriptor_bound_exclusion_rejects_source_alias_into_private_state() {
             &[state.path().to_owned()]
         ),
         Err(ImportAdmissionError::Source)
+    ));
+}
+
+#[test]
+fn flat_layout_requires_explicit_absent_root_and_preserves_source_on_refusal() {
+    let temp = disk_temp();
+    let path = temp.path().join("misleading.pages");
+    let bytes = archive("Index/Document.iwa", b"owned synthetic content");
+    std::fs::write(&path, &bytes).unwrap();
+    std::fs::set_permissions(&path, Permissions::from_mode(0o400)).unwrap();
+    let before = std::fs::metadata(&path).unwrap();
+    for (layout, root) in [
+        (PackageSourceLayout::Wrapped, None),
+        (PackageSourceLayout::Wrapped, Some("Document.numbers")),
+        (PackageSourceLayout::FlatNumbers, Some("Document.numbers")),
+        (PackageSourceLayout::FlatNumbers, Some("")),
+    ] {
+        assert!(matches!(
+            ValidatedPackageArchive::capture_with_source_layout(
+                &path,
+                temp.path(),
+                layout,
+                root,
+                &CancellationToken::new(),
+            ),
+            Err(ImportAdmissionError::Archive)
+        ));
+    }
+    assert!(same_source(&before, &std::fs::metadata(&path).unwrap()));
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    // Explicit layout, rather than the misleading local filename, controls
+    // archive parsing. Destination-format validation is a separate admission gate.
+    let snapshot = ValidatedPackageArchive::capture_with_source_layout(
+        &path,
+        temp.path(),
+        PackageSourceLayout::FlatNumbers,
+        None,
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let (_, representation, _, _) = snapshot.into_parts();
+    let mut wire = serde_json::to_value(&representation).unwrap();
+    assert_eq!(wire["kind"], "flat_numbers_archive");
+    assert!(wire.get("expected_root").is_none());
+    wire["expected_root"] = serde_json::json!("Invented.numbers");
+    assert!(serde_json::from_value::<UploadRepresentation>(wire).is_err());
+    std::fs::set_permissions(&path, Permissions::from_mode(0o600)).unwrap();
+    std::fs::write(&path, archive("../Index/Document.iwa", b"unsafe path")).unwrap();
+    std::fs::set_permissions(&path, Permissions::from_mode(0o400)).unwrap();
+    assert!(matches!(
+        ValidatedPackageArchive::capture_with_source_layout(
+            &path,
+            temp.path(),
+            PackageSourceLayout::FlatNumbers,
+            None,
+            &CancellationToken::new(),
+        ),
+        Err(ImportAdmissionError::Archive)
     ));
 }

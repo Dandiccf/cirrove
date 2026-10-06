@@ -1,5 +1,11 @@
-use cirrove_core::{CancellationToken, upload::UploadRepresentation};
-use cirrove_icloud::{PackageDownload, package_archive_semantic_identity_versioned};
+use cirrove_core::{
+    CancellationToken,
+    upload::{PackageSourceLayout, UploadRepresentation},
+};
+use cirrove_icloud::{
+    PackageDownload, package_archive_semantic_identity_versioned,
+    package_flat_archive_semantic_identity_v2,
+};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{File, Metadata, OpenOptions, Permissions},
@@ -50,7 +56,7 @@ fn check(cancel: &CancellationToken) -> Result<()> {
     }
 }
 
-/// Capability produced only by bounded capture and exact-root semantic parsing.
+/// Capability produced only by bounded capture and explicit-layout semantic parsing.
 /// The anonymous snapshot has no public path and only a read-only descriptor is
 /// retained. A filename extension is never admission authority.
 /// Call capture from a bounded blocking task, outside the journal lock.
@@ -61,21 +67,38 @@ pub struct ValidatedPackageArchive {
     sha256: String,
 }
 impl ValidatedPackageArchive {
+    /// Explicit source contract; a missing wrapper is never inferred from bytes.
+    pub fn capture_with_source_layout(
+        source: &Path,
+        staging_directory: &Path,
+        source_layout: PackageSourceLayout,
+        expected_root: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<Self> {
+        Self::capture_excluding_with_source_layout(
+            source,
+            staging_directory,
+            source_layout,
+            expected_root,
+            cancel,
+            &[],
+        )
+    }
     pub fn capture(
         source: &Path,
         staging_directory: &Path,
         expected_root: &str,
         cancel: &CancellationToken,
     ) -> Result<Self> {
-        Self::capture_observed(
+        Self::capture_with_source_layout(
             source,
             staging_directory,
-            expected_root,
+            PackageSourceLayout::Wrapped,
+            Some(expected_root),
             cancel,
-            &[],
-            |_| {},
         )
     }
+    #[cfg(test)]
     pub(crate) fn capture_excluding(
         source: &Path,
         staging_directory: &Path,
@@ -92,6 +115,7 @@ impl ValidatedPackageArchive {
             |_| {},
         )
     }
+    #[cfg(test)]
     fn capture_observed(
         source: &Path,
         staging_directory: &Path,
@@ -100,7 +124,50 @@ impl ValidatedPackageArchive {
         excluded: &[std::path::PathBuf],
         mut copied: impl FnMut(u64),
     ) -> Result<Self> {
+        Self::capture_observed_with_source_layout(
+            source,
+            staging_directory,
+            PackageSourceLayout::Wrapped,
+            Some(expected_root),
+            cancel,
+            excluded,
+            &mut copied,
+        )
+    }
+    pub(crate) fn capture_excluding_with_source_layout(
+        source: &Path,
+        staging_directory: &Path,
+        source_layout: PackageSourceLayout,
+        expected_root: Option<&str>,
+        cancel: &CancellationToken,
+        excluded: &[std::path::PathBuf],
+    ) -> Result<Self> {
+        Self::capture_observed_with_source_layout(
+            source,
+            staging_directory,
+            source_layout,
+            expected_root,
+            cancel,
+            excluded,
+            |_| {},
+        )
+    }
+    fn capture_observed_with_source_layout(
+        source: &Path,
+        staging_directory: &Path,
+        source_layout: PackageSourceLayout,
+        expected_root: Option<&str>,
+        cancel: &CancellationToken,
+        excluded: &[std::path::PathBuf],
+        mut copied: impl FnMut(u64),
+    ) -> Result<Self> {
         check(cancel)?;
+        if !matches!(
+            (source_layout, expected_root),
+            (PackageSourceLayout::Wrapped, Some(_)) | (PackageSourceLayout::FlatNumbers, None)
+        ) {
+            return Err(ImportAdmissionError::Archive);
+        }
         let directory = private_directory(staging_directory)?;
         if !source.is_absolute() {
             return Err(ImportAdmissionError::Source);
@@ -192,13 +259,21 @@ impl ValidatedPackageArchive {
         let file =
             File::open(format!("/proc/self/fd/{}", snapshot.as_raw_fd())).map_err(storage)?;
         drop(snapshot);
-        let semantic = package_archive_semantic_identity_versioned(
-            &file,
-            &receipt,
-            expected_root,
-            FRESH_NATIVE_SEMANTIC_VERSION,
-            cancel,
-        )
+        let semantic = match (source_layout, expected_root) {
+            (PackageSourceLayout::Wrapped, Some(root)) => {
+                package_archive_semantic_identity_versioned(
+                    &file,
+                    &receipt,
+                    root,
+                    FRESH_NATIVE_SEMANTIC_VERSION,
+                    cancel,
+                )
+            }
+            (PackageSourceLayout::FlatNumbers, None) => {
+                package_flat_archive_semantic_identity_v2(&file, &receipt, cancel)
+            }
+            _ => return Err(ImportAdmissionError::Archive),
+        }
         .map_err(|_| {
             if cancel.is_cancelled() {
                 ImportAdmissionError::Cancelled
@@ -209,9 +284,17 @@ impl ValidatedPackageArchive {
         check(cancel)?;
         Ok(Self {
             file,
-            representation: UploadRepresentation::PackageArchive {
-                expected_root: expected_root.to_owned(),
-                semantic,
+            representation: match (source_layout, expected_root) {
+                (PackageSourceLayout::Wrapped, Some(root)) => {
+                    UploadRepresentation::PackageArchive {
+                        expected_root: root.to_owned(),
+                        semantic,
+                    }
+                }
+                (PackageSourceLayout::FlatNumbers, None) => {
+                    UploadRepresentation::FlatNumbersArchive { semantic }
+                }
+                _ => return Err(ImportAdmissionError::Archive),
             },
             size,
             sha256: receipt.sha256,

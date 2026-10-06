@@ -35,7 +35,7 @@ fn daemon_storage_format_reports_compiled_constants_without_state_initialization
     assert_eq!(
         reply,
         serde_json::json!({
-            "version": 1, "product": "cirroved", "journal_schema": 20,
+            "version": 1, "product": "cirroved", "journal_schema": 21,
             "metadata_schema": cirrove_store::SCHEMA_VERSION,
         })
     );

@@ -58,7 +58,6 @@ pub use owned_package_create::{
     OwnedPackageCreate, OwnedPackagePlan, PackageAllocationRefusal, PackageCreateInspection,
 };
 mod package_semantic;
-#[cfg(feature = "write-probe")]
 pub use package_semantic::package_flat_archive_semantic_identity_v2;
 pub use package_semantic::{
     PACKAGE_SEMANTIC_IDENTITY_VERSION, PackageSemanticComparison, PackageSemanticIdentity,

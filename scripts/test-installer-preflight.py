@@ -16,7 +16,7 @@ import unittest
 ROOT = Path(__file__).resolve().parent.parent
 UNIT = "cirroved.service"
 UNIT_PATH = "/org/freedesktop/systemd1/unit/cirroved_2eservice"
-POLICY_ANCHOR = "docs/development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy"
+POLICY_ANCHOR = "docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy"
 
 
 class InstallerPreflight(unittest.TestCase):
@@ -139,7 +139,7 @@ print(json.dumps(result))
 
     def policy(self, state):
         (self.repo / "packaging/developer-install-policy.json").write_text(json.dumps({
-            "version": 1, "state": state, "journal_schema": 20, "metadata_schema": 8,
+            "version": 1, "state": state, "journal_schema": 21, "metadata_schema": 8,
             "policy_document": POLICY_ANCHOR}))
 
     def remember(self, path, data=b"retained synthetic local bytes"):

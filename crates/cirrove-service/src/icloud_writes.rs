@@ -271,6 +271,10 @@ impl UploadProvider for ICloudWriteProvider {
         if let cirrove_core::upload::UploadRepresentation::PackageReplacementArchive {
             original,
             ..
+        }
+        | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive {
+            original,
+            ..
         } = &request.representation
         {
             let suffix = cirrove_core::upload::native_package_suffix(&original.name)?;
@@ -311,6 +315,7 @@ impl UploadProvider for ICloudWriteProvider {
                     (
                         UploadIntent::Replace { .. },
                         cirrove_core::upload::UploadRepresentation::PackageReplacementArchive { .. }
+                            | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
                     )
                 ))
     }

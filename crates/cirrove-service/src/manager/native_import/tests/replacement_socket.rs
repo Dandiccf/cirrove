@@ -341,7 +341,8 @@ async fn native_replacement_public_socket_worker_discovery_watch_and_stop() -> a
             item_id: before.id.clone(),
             etag: before.etag.clone().unwrap(),
             archive: source,
-            expected_root: "Source.pages".into(),
+            source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+            expected_root: Some("Source.pages".into()),
         };
         ensure!(
             crate::replace_native_package(&runtime.join("absent.sock"), &request)
@@ -580,6 +581,7 @@ async fn native_replacement_public_socket_worker_discovery_watch_and_stop() -> a
                 crate::native_import::NativeReplaceInput {
                     selected,
                     source: request.archive.clone(),
+                    source_layout: request.source_layout,
                     expected_root: request.expected_root.clone(),
                 },
                 CancellationToken::new(),

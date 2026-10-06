@@ -912,3 +912,164 @@ fn native_stage_abandonment_wrong_evidence_and_commit_failure_leave_reservation_
     .unwrap();
     assert!(j.local_export_source(row.id).is_err());
 }
+
+#[test]
+fn flat_numbers_handoff_retains_two_ids_and_publication_across_restart() {
+    let root = temp().keep();
+    let staging = temp().keep();
+    let source = staging.join("flat.numbers");
+    let bytes = crate::native_import::synthetic_package_archive(
+        "Index/Document.iwa",
+        b"new Numbers revision",
+    );
+    std::fs::write(&source, &bytes).unwrap();
+    let archive = ValidatedPackageArchive::capture_with_source_layout(
+        &source,
+        &staging,
+        crate::native_import::PackageSourceLayout::FlatNumbers,
+        None,
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let mut original = before();
+    original.name = "Owned.numbers".into();
+    let mut j = UploadJournal::open(&root, &scope().account, 1 << 20).unwrap();
+    let row = j
+        .enqueue_validated_package_replacement(
+            scope(),
+            original.clone(),
+            original_semantic(),
+            archive,
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    let UploadRepresentation::FlatNumbersReplacementArchive {
+        semantic,
+        original: captured_original,
+        ..
+    } = &row.representation
+    else {
+        panic!("flat replacement proof missing")
+    };
+    assert_eq!(captured_original.as_ref(), &original);
+    let semantic = semantic.clone();
+    // Recovery exposes pending flat replacement bytes without replaying the
+    // handoff or changing either namespace identity.
+    drop(j);
+    let pending_database = std::fs::read(root.join("uploads.db")).unwrap();
+    let ro = RecoveryJournal::open(&root, &scope().account).unwrap();
+    assert_eq!(
+        serde_json::to_value(&ro.list(0, 10).unwrap()[0]).unwrap(),
+        serde_json::to_value(&row).unwrap()
+    );
+    let exported = staging.join("pending-flat.zip");
+    let export = ro
+        .local_export_source(row.id)
+        .unwrap()
+        .copy_to(&exported, &CancellationToken::new(), |_| {})
+        .unwrap();
+    assert_eq!(export.operation, row.id);
+    assert_eq!(export.sha256, row.sha256);
+    assert_eq!(std::fs::read(exported).unwrap(), bytes);
+    drop(ro);
+    assert_eq!(
+        std::fs::read(root.join("uploads.db")).unwrap(),
+        pending_database
+    );
+    let mut j = UploadJournal::open(&root, &scope().account, 1 << 20).unwrap();
+    let claimed = j.claim_next().unwrap().unwrap();
+    let attempt = claimed.attempt.unwrap();
+    let recovery = j
+        .reserve_identity_handoff(
+            row.id,
+            attempt,
+            RecoveryLocation::Trash {
+                local_name: "recovery-cirrove.numbers".into(),
+                parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
+            },
+        )
+        .unwrap();
+    let mut current = original.clone();
+    current.id = "FILE::com.apple.CloudDocs::replacement".into();
+    current.etag = Some("replacement-v1".into());
+    current.size = semantic.expanded_bytes;
+    let mut backup = original.clone();
+    backup.parent_id = Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT".into());
+    backup.etag = Some("trash-v2".into());
+    let proof = || PackageHandoffReceipt {
+        original: original.clone(),
+        current: PackageUploadReceipt {
+            remote: current.clone(),
+            semantic: semantic.clone(),
+        },
+        backup: PackageUploadReceipt {
+            remote: backup.clone(),
+            semantic: original_semantic(),
+        },
+    };
+    for fault in 0..3 {
+        let saved = serde_json::to_value(j.get(row.id).unwrap()).unwrap();
+        let mut wrong = proof();
+        match fault {
+            0 => wrong.backup.remote.id = "FILE::com.apple.CloudDocs::foreign".into(),
+            1 => wrong.original.etag = Some("changed-original".into()),
+            _ => wrong.current.semantic.sha256 = "b".repeat(64),
+        }
+        assert!(
+            j.acknowledge_package_handoff(row.id, attempt, wrong)
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(j.get(row.id).unwrap()).unwrap(), saved);
+        assert_eq!(
+            std::fs::read(j.objects.join(row.id.to_string())).unwrap(),
+            bytes
+        );
+    }
+    j.acknowledge_package_handoff(row.id, attempt, proof())
+        .unwrap();
+    let completed = j.get(row.id).unwrap();
+    assert_eq!(completed.state, UploadState::Uploaded);
+    assert_eq!(
+        j.namespace_for_operation(row.id).unwrap().unwrap().remote,
+        Some(current.clone())
+    );
+    assert_eq!(
+        j.namespace_object(recovery).unwrap().remote,
+        Some(backup.clone())
+    );
+    assert_eq!(
+        j.native_replacement_list(&scope(), None, 10)
+            .unwrap()
+            .operations
+            .len(),
+        1
+    );
+    assert_eq!(
+        j.package_publication_due(now_seconds())
+            .unwrap()
+            .unwrap()
+            .id,
+        row.id
+    );
+    j.finish_package_publication(
+        &completed,
+        PackagePublicationStatus::Present(current),
+        now_seconds(),
+    )
+    .unwrap();
+    drop(j);
+    let ro = RecoveryJournal::open(&root, &scope().account).unwrap();
+    assert!(matches!(
+        ro.local_export_source(row.id),
+        Err(JournalError::Stale)
+    ));
+    drop(ro);
+    let j = UploadJournal::open(&root, &scope().account, 1 << 20).unwrap();
+    assert_eq!(
+        serde_json::to_value(j.get(row.id).unwrap()).unwrap(),
+        serde_json::to_value(completed).unwrap()
+    );
+    assert_eq!(j.namespace_object(recovery).unwrap().remote, Some(backup));
+    assert!(j.package_publication_due(now_seconds()).unwrap().is_none());
+    assert_eq!(std::fs::read(source).unwrap(), bytes);
+}

@@ -46,7 +46,7 @@ pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
 use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use cirrove_core::{Node, NodeKind, Scope};
-pub(crate) const JOURNAL_SCHEMA: u32 = 20;
+pub(crate) const JOURNAL_SCHEMA: u32 = 21;
 pub(crate) use export::MetadataPublicationJournal;
 pub use generations::{UploadBase, WriteBase};
 pub(crate) use identity_handoff::OrdinaryHandoffMetadata;
@@ -536,8 +536,21 @@ impl UploadJournal {
         representation
             .validate()
             .map_err(|_| JournalError::Intent)?;
+        if matches!(
+            &representation,
+            UploadRepresentation::FlatNumbersArchive { .. }
+        ) && (scope.provider != "icloud"
+            || scope.collection != "drive"
+            || !matches!(&intent, UploadIntent::Create { name, .. }
+                    if cirrove_core::upload::native_package_suffix(&name.to_ascii_lowercase()) == Some(".numbers")))
+        {
+            return Err(JournalError::Intent);
+        }
         if !representation.is_file_bytes() {
-            let native_generation = matches!(&working, Some(GenerationCommit::Native(_)))
+            let native_generation = matches!(
+                &representation,
+                UploadRepresentation::PackageReplacementArchive { .. }
+            ) && matches!(&working, Some(GenerationCommit::Native(_)))
                 && package_replacement::original(&representation).is_some();
             if (working.is_some() && !native_generation)
                 || (order.base.is_some() && !native_generation)

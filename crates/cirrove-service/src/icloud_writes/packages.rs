@@ -42,9 +42,14 @@ impl ICloudWriteProvider {
     ) -> Result<Arc<dyn UploadProvider>> {
         self.validate_operation(operation, request)?;
         match (&request.representation, &request.intent) {
-            (UploadRepresentation::PackageArchive { .. }, UploadIntent::Create { .. }) => {}
             (
-                UploadRepresentation::PackageReplacementArchive { .. },
+                UploadRepresentation::PackageArchive { .. }
+                | UploadRepresentation::FlatNumbersArchive { .. },
+                UploadIntent::Create { .. },
+            ) => {}
+            (
+                UploadRepresentation::PackageReplacementArchive { .. }
+                | UploadRepresentation::FlatNumbersReplacementArchive { .. },
                 UploadIntent::Replace { .. },
             ) => {}
             _ => return Err(UploadError::Unsupported("invalid native package operation")),
@@ -56,6 +61,7 @@ impl ICloudWriteProvider {
         if matches!(
             &request.representation,
             UploadRepresentation::PackageReplacementArchive { .. }
+                | UploadRepresentation::FlatNumbersReplacementArchive { .. }
         ) {
             return Ok(Arc::new(
                 self.native_package_adapter(operation, request, checkpoint)
@@ -104,10 +110,10 @@ impl ICloudWriteProvider {
         checkpoint: Option<&SecretString>,
     ) -> Result<ICloudFileReplace> {
         let operation_id = self.validate_operation(operation, request)?;
-        let UploadRepresentation::PackageReplacementArchive { original, .. } =
-            &request.representation
-        else {
-            return Err(UploadError::Invalid);
+        let original = match &request.representation {
+            UploadRepresentation::PackageReplacementArchive { original, .. }
+            | UploadRepresentation::FlatNumbersReplacementArchive { original, .. } => original,
+            _ => return Err(UploadError::Invalid),
         };
         let staging = self.package_staging()?;
         let sign_in = ICloudSealedSignIn {

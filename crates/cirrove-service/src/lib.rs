@@ -607,7 +607,7 @@ pub struct KeepBothReply {
 
 /// Explicit replacement of one exact selected native PACKAGE revision.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "ReplaceNativePackageWire")]
 pub struct ReplaceNativePackageRequest {
     pub label: String,
     pub expected_account_id: String,
@@ -615,7 +615,51 @@ pub struct ReplaceNativePackageRequest {
     pub item_id: String,
     pub etag: String,
     pub archive: PathBuf,
-    pub expected_root: String,
+    #[serde(default, skip_serializing_if = "package_source_is_wrapped")]
+    pub source_layout: native_import::PackageSourceLayout,
+    pub expected_root: Option<String>,
+}
+fn package_source_is_wrapped(layout: &native_import::PackageSourceLayout) -> bool {
+    *layout == native_import::PackageSourceLayout::Wrapped
+}
+fn validate_package_source_shape(
+    layout: native_import::PackageSourceLayout,
+    root: &Option<String>,
+) -> std::result::Result<(), &'static str> {
+    match (layout, root) {
+        (native_import::PackageSourceLayout::Wrapped, Some(_))
+        | (native_import::PackageSourceLayout::FlatNumbers, None) => Ok(()),
+        _ => Err("source layout and archive root disagree"),
+    }
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReplaceNativePackageWire {
+    label: String,
+    expected_account_id: String,
+    path: String,
+    item_id: String,
+    etag: String,
+    archive: PathBuf,
+    #[serde(default)]
+    source_layout: native_import::PackageSourceLayout,
+    expected_root: Option<String>,
+}
+impl TryFrom<ReplaceNativePackageWire> for ReplaceNativePackageRequest {
+    type Error = &'static str;
+    fn try_from(wire: ReplaceNativePackageWire) -> std::result::Result<Self, Self::Error> {
+        validate_package_source_shape(wire.source_layout, &wire.expected_root)?;
+        Ok(Self {
+            label: wire.label,
+            expected_account_id: wire.expected_account_id,
+            path: wire.path,
+            item_id: wire.item_id,
+            etag: wire.etag,
+            archive: wire.archive,
+            source_layout: wire.source_layout,
+            expected_root: wire.expected_root,
+        })
+    }
 }
 /// Observation only; never submits a replacement or changes its archive.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -828,7 +872,7 @@ pub async fn watch_native_import(
 
 /// Explicit native archive import; representation is verified by the daemon.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(try_from = "ImportNativePackageWire")]
 pub struct ImportNativePackageRequest {
     pub label: String,
     /// Optional consent binding for callers that selected an existing account.
@@ -836,10 +880,40 @@ pub struct ImportNativePackageRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_account_id: Option<String>,
     pub archive: PathBuf,
-    pub expected_root: String,
+    #[serde(default, skip_serializing_if = "package_source_is_wrapped")]
+    pub source_layout: native_import::PackageSourceLayout,
+    pub expected_root: Option<String>,
     /// Visible relative destination directory inside the selected mount.
     pub parent: String,
     pub name: String,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ImportNativePackageWire {
+    label: String,
+    #[serde(default)]
+    expected_account_id: Option<String>,
+    archive: PathBuf,
+    #[serde(default)]
+    source_layout: native_import::PackageSourceLayout,
+    expected_root: Option<String>,
+    parent: String,
+    name: String,
+}
+impl TryFrom<ImportNativePackageWire> for ImportNativePackageRequest {
+    type Error = &'static str;
+    fn try_from(wire: ImportNativePackageWire) -> std::result::Result<Self, Self::Error> {
+        validate_package_source_shape(wire.source_layout, &wire.expected_root)?;
+        Ok(Self {
+            label: wire.label,
+            expected_account_id: wire.expected_account_id,
+            archive: wire.archive,
+            source_layout: wire.source_layout,
+            expected_root: wire.expected_root,
+            parent: wire.parent,
+            name: wire.name,
+        })
+    }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ImportNativePackageReply {
@@ -1473,7 +1547,7 @@ pub async fn serve_managed(
                         if verb=="replace-native-package" {
                             let reply=match (serde_json::from_str::<ReplaceNativePackageRequest>(body),&manager){
                                 (Ok(r),Some(m)) if !r.label.is_empty()=>match m.engine(&r.label).await {
-                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.start_native_replacement(engine,crate::native_import::NativeReplaceInput{selected:crate::native_trash::NativeTrashInput{expected_account_id:r.expected_account_id,path:r.path,item_id:r.item_id,etag:r.etag},source:r.archive,expected_root:r.expected_root}).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.start_native_replacement(engine,crate::native_import::NativeReplaceInput{selected:crate::native_trash::NativeTrashInput{expected_account_id:r.expected_account_id,path:r.path,item_id:r.item_id,etag:r.etag},source:r.archive,source_layout:r.source_layout,expected_root:r.expected_root}).await {
                                         Ok(job)=>NativeReplacementReply{job:Some(job),refusal:None},Err(_)=>NativeReplacementReply{job:None,refusal:Some("native replacement admission could not be started".into())},
                                     },_=>NativeReplacementReply{job:None,refusal:Some("selected replacement account changed or is unavailable".into())},
                                 },_=>NativeReplacementReply{job:None,refusal:Some("replacement requires an exact account and available service".into())},
@@ -1567,7 +1641,7 @@ pub async fn serve_managed(
                                 (Ok(r), Some(m)) => match m.engine(&r.label).await {
                                     Ok(engine) if r.expected_account_id.as_ref().is_some_and(|expected| expected != &engine.account.id) => ImportNativePackageReply { job: None, refusal: Some("native import account changed; select the connection again".into()) },
                                     Ok(engine) => match engine.start_native_import(m.clone(), crate::native_import::NativeImportInput {
-                                        source:r.archive, expected_root:r.expected_root, parent:r.parent, name:r.name,
+                                        source:r.archive, source_layout:r.source_layout, expected_root:r.expected_root, parent:r.parent, name:r.name,
                                     }) {
                                         Ok(job) => ImportNativePackageReply {job:Some(job), refusal:None},
                                         Err(_) => ImportNativePackageReply {job:None, refusal:Some("native import could not be started".into())},
@@ -2315,6 +2389,51 @@ mod tests {
         }
     }
     #[test]
+    fn native_source_layout_preserves_legacy_wire_and_rejects_ambiguous_roots() {
+        let import = serde_json::json!({"label":"Owned","archive":"/var/tmp/Owned.zip","expected_root":"Owned.numbers","parent":"","name":"Copy.numbers"});
+        let replace = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"path":"Owned.numbers","item_id":"FILE::com.apple.CloudDocs::owned","etag":"v1","archive":"/var/tmp/Owned.zip","expected_root":"Owned.numbers"});
+        for (is_replace, legacy) in [(false, import), (true, replace)] {
+            let decode =
+                |value: serde_json::Value| -> Result<serde_json::Value, serde_json::Error> {
+                    if is_replace {
+                        serde_json::from_value::<ReplaceNativePackageRequest>(value)
+                            .and_then(serde_json::to_value)
+                    } else {
+                        serde_json::from_value::<ImportNativePackageRequest>(value)
+                            .and_then(serde_json::to_value)
+                    }
+                };
+            assert_eq!(decode(legacy.clone()).unwrap(), legacy);
+            for null_root in [false, true] {
+                let mut value = legacy.clone();
+                if null_root {
+                    value["expected_root"] = serde_json::Value::Null;
+                } else {
+                    value.as_object_mut().unwrap().remove("expected_root");
+                }
+                assert!(
+                    decode(value.clone()).is_err(),
+                    "wrapped root must be present and nonnull"
+                );
+                value["source_layout"] = serde_json::json!("flat_numbers");
+                let flat = decode(value).unwrap();
+                assert_eq!(flat["source_layout"], "flat_numbers");
+                assert!(flat["expected_root"].is_null());
+            }
+            for layout in ["flat_numbers", "guessed", "flat-numbers"] {
+                let mut value = legacy.clone();
+                value["source_layout"] = serde_json::json!(layout);
+                assert!(
+                    decode(value).is_err(),
+                    "unknown layout or nonnull flat root"
+                );
+            }
+            let mut value = legacy.clone();
+            value["source_layout"] = serde_json::json!("wrapped");
+            assert_eq!(decode(value).unwrap(), legacy);
+        }
+    }
+    #[test]
     fn native_replacement_protocol_requires_exact_selection_and_observers_reject_write_fields() {
         let input = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"path":"Owned.pages","item_id":"FILE::com.apple.CloudDocs::owned","etag":"v1","archive":"/var/tmp/Owned.zip","expected_root":"Owned.pages"});
         assert!(serde_json::from_value::<ReplaceNativePackageRequest>(input.clone()).is_ok());
@@ -2335,7 +2454,14 @@ mod tests {
         }
         let watch = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"operation":uuid::Uuid::new_v4()});
         let list = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"limit":100});
-        for key in ["archive", "expected_root", "item_id", "etag", "retry"] {
+        for key in [
+            "archive",
+            "expected_root",
+            "source_layout",
+            "item_id",
+            "etag",
+            "retry",
+        ] {
             let mut w = watch.clone();
             w[key] = serde_json::json!("forbidden");
             assert!(serde_json::from_value::<WatchNativeReplacementRequest>(w).is_err());
@@ -2365,7 +2491,8 @@ mod tests {
                 item_id: "FILE::com.apple.CloudDocs::owned".into(),
                 etag: "v1".into(),
                 archive: "/var/tmp/Owned.zip".into(),
-                expected_root: "Owned.pages".into(),
+                source_layout: native_import::PackageSourceLayout::Wrapped,
+                expected_root: Some("Owned.pages".into()),
             },
         )
         .await
@@ -2402,44 +2529,58 @@ mod tests {
     #[tokio::test]
     async fn native_replacement_client_preserves_structured_archive_and_selection() {
         use tokio::io::AsyncBufReadExt;
-        let dir = tempfile::tempdir().unwrap();
-        let socket = dir.path().join("control.sock");
-        let listener = UnixListener::bind(&socket).unwrap();
-        let input = ReplaceNativePackageRequest {
-            label: "Owned".into(),
-            expected_account_id: uuid::Uuid::new_v4().to_string(),
-            path: "Folder/quote \"; $(literal).pages".into(),
-            item_id: "FILE::com.apple.CloudDocs::owned".into(),
-            etag: "e-tag".into(),
-            archive: PathBuf::from("/var/tmp/source \"; $(literal)\n.zip"),
-            expected_root: "Source.pages".into(),
-        };
-        let expected = serde_json::to_value(&input).unwrap();
-        let task = tokio::spawn(async move {
-            let (stream, _) = listener.accept().await.unwrap();
-            let mut reader = tokio::io::BufReader::new(stream);
-            let mut line = String::new();
-            reader.read_line(&mut line).await.unwrap();
-            let request: ReplaceNativePackageRequest =
-                serde_json::from_str(line.strip_prefix("replace-native-package ").unwrap())
+        for source_layout in [
+            native_import::PackageSourceLayout::Wrapped,
+            native_import::PackageSourceLayout::FlatNumbers,
+        ] {
+            let dir = tempfile::tempdir().unwrap().keep().join("private");
+            private_dir(&dir).unwrap();
+            let socket = dir.join("control.sock");
+            let listener = UnixListener::bind(&socket).unwrap();
+            let input = ReplaceNativePackageRequest {
+                label: "Owned".into(),
+                expected_account_id: uuid::Uuid::new_v4().to_string(),
+                path: "Folder/quote \"; $(literal).pages".into(),
+                item_id: "FILE::com.apple.CloudDocs::owned".into(),
+                etag: "e-tag".into(),
+                archive: PathBuf::from("/var/tmp/source \"; $(literal)\n.zip"),
+                source_layout,
+                expected_root: (source_layout == native_import::PackageSourceLayout::Wrapped)
+                    .then(|| "Source.pages".into()),
+            };
+            let expected = serde_json::to_value(&input).unwrap();
+            if source_layout == native_import::PackageSourceLayout::Wrapped {
+                assert!(expected.get("source_layout").is_none());
+            } else {
+                assert_eq!(expected["source_layout"], "flat_numbers");
+                assert!(expected["expected_root"].is_null());
+            }
+            let task = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let mut reader = tokio::io::BufReader::new(stream);
+                let mut line = String::new();
+                reader.read_line(&mut line).await.unwrap();
+                let request: ReplaceNativePackageRequest =
+                    serde_json::from_str(line.strip_prefix("replace-native-package ").unwrap())
+                        .unwrap();
+                assert_eq!(serde_json::to_value(request).unwrap(), expected);
+                assert_eq!(line.bytes().filter(|b| *b == b'\n').count(), 1);
+                reader
+                    .get_mut()
+                    .write_all(b"{\"job\":null,\"refusal\":\"synthetic\"}\n")
+                    .await
                     .unwrap();
-            assert_eq!(serde_json::to_value(request).unwrap(), expected);
-            assert_eq!(line.bytes().filter(|b| *b == b'\n').count(), 1);
-            reader
-                .get_mut()
-                .write_all(b"{\"job\":null,\"refusal\":\"synthetic\"}\n")
-                .await
-                .unwrap();
-        });
-        assert_eq!(
-            replace_native_package(&socket, &input)
-                .await
-                .unwrap()
-                .refusal
-                .as_deref(),
-            Some("synthetic")
-        );
-        task.await.unwrap();
+            });
+            assert_eq!(
+                replace_native_package(&socket, &input)
+                    .await
+                    .unwrap()
+                    .refusal
+                    .as_deref(),
+                Some("synthetic")
+            );
+            task.await.unwrap();
+        }
     }
 }
 

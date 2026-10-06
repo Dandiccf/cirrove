@@ -29,7 +29,20 @@ struct Seen {
 #[derive(Clone, Copy)]
 enum Reply {
     Refusal,
+    LegacyRefusal,
     Observer(&'static str),
+}
+// The pre-layout daemon contract: unknown fields are rejected before a job.
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct LegacyImportRequest {
+    label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    expected_account_id: Option<String>,
+    archive: std::path::PathBuf,
+    expected_root: String,
+    parent: String,
+    name: String,
 }
 fn job(state: JobState) -> Job {
     Job {
@@ -60,12 +73,21 @@ async fn scenario(
     capability: Option<u32>,
     reply: Reply,
 ) -> (std::process::Output, Seen) {
+    scenario_with_layout(binding, capability, reply, false).await
+}
+async fn scenario_with_layout(
+    binding: Option<&str>,
+    capability: Option<u32>,
+    reply: Reply,
+    flat: bool,
+) -> (std::process::Output, Seen) {
     let temp = tempfile::Builder::new()
         .prefix("cirrove-import-binding-")
         .tempdir_in("/var/tmp")
-        .unwrap();
-    std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
-    let socket = temp.path().join("control.sock");
+        .unwrap()
+        .keep();
+    std::fs::set_permissions(temp.as_path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    let socket = temp.as_path().join("control.sock");
     let listener = UnixListener::bind(&socket).unwrap();
     std::fs::set_permissions(&socket, std::fs::Permissions::from_mode(0o600)).unwrap();
     let seen = Arc::new(Mutex::new(Seen::default()));
@@ -98,6 +120,14 @@ async fn scenario(
                     drop(recorded);
                     match reply {
                         Reply::Refusal => json!({"job":null,"refusal":REFUSAL}),
+                        Reply::LegacyRefusal => {
+                            let legacy = serde_json::from_str::<LegacyImportRequest>(body);
+                            assert!(
+                                legacy.is_err(),
+                                "old daemon must reject explicit flat request before starting a job"
+                            );
+                            json!({"job":null,"refusal":"legacy source layout unsupported"})
+                        }
                         Reply::Observer(_) => json!({"job":job(JobState::Running),"refusal":null}),
                     }
                 }
@@ -135,24 +165,21 @@ async fn scenario(
             stream.shutdown().await.unwrap();
         }
     });
-    let archive = temp.path().join("never-opened-source.numbers");
+    let archive = temp.as_path().join("never-opened-source.numbers");
     assert!(!archive.exists());
     let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_cirrove"));
     command
         .args(["import-native-package", "--label", LABEL, "--archive"])
         .arg(&archive)
-        .args([
-            "--source-root",
-            "Source.numbers",
-            "--parent",
-            "Owned",
-            "--name",
-            "Copy.numbers",
-            "--socket",
-        ])
+        .args(["--parent", "Owned", "--name", "Copy.numbers", "--socket"])
         .arg(&socket)
         .env("RUST_LOG", "off")
         .kill_on_drop(true);
+    if flat {
+        command.args(["--source-layout", "flat-numbers"]);
+    } else {
+        command.args(["--source-root", "Source.numbers"]);
+    }
     if let Some(account) = binding {
         command.args(["--account-id", account]);
     }
@@ -186,7 +213,12 @@ fn exact_import(seen: &Seen, binding: Option<&str>) {
         ),
     }
     assert_eq!(request.label, LABEL);
-    assert_eq!(request.expected_root, "Source.numbers");
+    assert_eq!(request.expected_root.as_deref(), Some("Source.numbers"));
+    assert_eq!(
+        request.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::Wrapped
+    );
+    assert!(seen.serialized_imports[0].get("source_layout").is_none());
     assert_eq!(request.parent, "Owned");
     assert_eq!(request.name, "Copy.numbers");
     assert!(request.archive.is_absolute());
@@ -273,5 +305,61 @@ async fn cli_native_import_invalid_selected_uuid_refuses_before_any_socket_reque
         String::from_utf8(output.stderr)
             .unwrap()
             .contains("invalid value")
+    );
+}
+
+#[tokio::test]
+async fn cli_explicit_flat_numbers_dispatches_null_root_once_without_opening_archive() {
+    let (output, seen) = scenario_with_layout(Some(SELECTED), Some(1), Reply::Refusal, true).await;
+    assert!(!output.status.success());
+    assert_eq!(seen.verbs, vec!["capabilities", "import-native-package"]);
+    assert_eq!(seen.imports.len(), 1);
+    let request = &seen.imports[0];
+    assert_eq!(request.expected_account_id.as_deref(), Some(SELECTED));
+    assert_eq!(
+        request.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::FlatNumbers
+    );
+    assert!(request.expected_root.is_none());
+    assert_eq!(request.name, "Copy.numbers");
+    assert_eq!(seen.serialized_imports[0]["source_layout"], "flat_numbers");
+    assert!(seen.serialized_imports[0]["expected_root"].is_null());
+    assert!(String::from_utf8(output.stderr).unwrap().contains(REFUSAL));
+    for capability in [None, Some(2)] {
+        let (output, seen) =
+            scenario_with_layout(Some(SELECTED), capability, Reply::Refusal, true).await;
+        assert!(!output.status.success());
+        assert_eq!(seen.verbs, vec!["capabilities"]);
+        assert!(
+            seen.imports.is_empty(),
+            "flat source choice cannot bypass account-binding capability"
+        );
+    }
+}
+
+#[tokio::test]
+async fn cli_explicit_flat_numbers_old_daemon_refusal_does_not_observe_or_retry() {
+    let legacy = json!({"label":LABEL,"expected_account_id":SELECTED,"archive":"/var/tmp/never-opened.numbers","expected_root":"Source.numbers","parent":"Owned","name":"Copy.numbers"});
+    let decoded: LegacyImportRequest = serde_json::from_value(legacy.clone()).unwrap();
+    assert_eq!(
+        serde_json::to_value(decoded).unwrap(),
+        legacy,
+        "old wrapped wire remains valid"
+    );
+    let (output, seen) =
+        scenario_with_layout(Some(SELECTED), Some(1), Reply::LegacyRefusal, true).await;
+    assert!(!output.status.success());
+    assert_eq!(seen.verbs, vec!["capabilities", "import-native-package"]);
+    assert_eq!(seen.imports.len(), 1);
+    assert_eq!(
+        seen.imports[0].expected_account_id.as_deref(),
+        Some(SELECTED)
+    );
+    assert_eq!(seen.serialized_imports[0]["source_layout"], "flat_numbers");
+    assert!(seen.serialized_imports[0]["expected_root"].is_null());
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("legacy source layout unsupported")
     );
 }

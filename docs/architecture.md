@@ -1365,7 +1365,8 @@ not discard that historical job. Older receipts without a captured original are
 not backfilled with guessed metadata.
 
 Writable maintenance processes one due job at a time. Read-only Engine startup
-also repairs pending jobs through a narrow handle to an existing schema-20 journal.
+also repairs pending jobs through a narrow handle to an existing schema-20 or
+schema-21 journal.
 The Manager starts the same latched task when its effective connection is read-only,
 even if the recorded grant allows writes but no write factory is supplied. Initial
 launch and remount use this mode check; actual writable connections use maintenance.
@@ -1383,4 +1384,28 @@ feed cursors. Exact-ID directory membership uses the normal listing visibility
 rules without scanning the whole directory. In-flight older observations are
 invalidated with the item and affected parents. These mechanisms are under
 validation; the installed schema transition remains held under the
-[deployment policy](development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy).
+[deployment policy](development.md#flat-numbers-source-journal-schema21-held-prerelease-policy).
+
+## Explicit flat Numbers source archives
+
+The experimental import and exact-revision replacement paths distinguish the
+caller's local archive layout from the provider's DATA/PACKAGE representation.
+The default wrapped layout retains its exact required source root and legacy
+wire shape. Explicit `flat_numbers` has no source root and requires a Numbers
+destination or an already proven selected Numbers PACKAGE. It never converts
+an existing DATA item into a PACKAGE based on its filename.
+
+Admission seals the unchanged raw source in an anonymous read-only snapshot and
+recomputes its bounded semantic V2 identity. Flat exports are not repacked and
+receive no invented wrapper. Upload payload verification and retained checkpoint
+inspection use the same explicit source contract; independently downloaded
+current and Trash archives still require the actual provider-name wrapper.
+
+Journal schema 21 persists distinct `flat_numbers_archive` and
+`flat_numbers_replacement_archive` kinds, with versioned query indexes and
+publication triggers. Existing wrapped records retain their serialized fields.
+Older writers must refuse schema 21 rather than discard unknown semantics.
+Read-only recovery accepts the supported range without migrating, and narrow
+ordinary metadata repair accepts existing schemas 20 and 21 only. The installed
+transition remains held. Synthetic admission and transport checks do not prove
+Apple Numbers reopening, export fidelity or complete iCloud support.

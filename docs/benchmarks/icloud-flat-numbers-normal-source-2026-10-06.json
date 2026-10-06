@@ -1,0 +1,234 @@
+{
+  "question": "Can explicit flat Numbers admission capture unchanged source bytes as a sealed anonymous snapshot without inventing a wrapper?",
+  "arms": [
+    "wiring baseline refuses explicit flat source",
+    "implementation admits the same unchanged test"
+  ],
+  "endpoint": "Exactly one named test executes; baseline fails at typed admission, implementation passes immutable snapshot and explicit layout assertions.",
+  "prediction": "Baseline returns Archive; implementation recomputes semantic V2 with no expected_root and preserves raw source bytes.",
+  "scope": "Local source admission, one unchanged actual Apple export offline, synthetic transport/recovery and GTK controls; no real-provider reliability, installation or release claim.",
+  "status": "local_and_synthetic_validation_passed_live_acceptance_open",
+  "baseline": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cirrove-service",
+      "--lib",
+      "--locked",
+      "native_import::staging::tests::explicit_flat_numbers_source_is_captured_without_rewriting",
+      "--",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "executed_tests": 1,
+    "exit_code": 101,
+    "elapsed_seconds": 54.85321217600722,
+    "typed_refusal": "Archive",
+    "failure_endpoint": "explicit flat Numbers admission must succeed",
+    "log_sha256": "0a518865cd53a3a64e4e5d6e5004eb523aacbbf52030649f52ff04822e2b827c",
+    "test_body_sha256": "c4a7791aebdfb206094d96247d4a92319dd6cdc0d9f7ecc265eca5666d19d60d",
+    "test_binary_sha256": "c0421a4be403f2ab2b8deff63d61a05d5764b2d850a30341084df8ae1116f71a",
+    "temporary_filesystem": "ext4",
+    "source_unchanged_checks": "mode, identity, bytes and absence of journal asserted before desired admission endpoint"
+  },
+  "candidate_result": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "cirrove-service",
+      "--lib",
+      "--locked",
+      "native_import::staging::tests::explicit_flat_numbers_source_is_captured_without_rewriting",
+      "--",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "executed_tests": 1,
+    "exit_code": 0,
+    "elapsed_seconds": 46.01029743696563,
+    "log_sha256": "0a8a8e461f703a020b52de8f554ea1e37e37741a0f87335f78f61328c5fcacc9",
+    "test_body_sha256": "c4a7791aebdfb206094d96247d4a92319dd6cdc0d9f7ecc265eca5666d19d60d",
+    "temporary_filesystem": "ext4",
+    "same_test_body_as_baseline": true,
+    "endpoint": "unchanged raw bytes, anonymous 0400/nonwritable snapshot, explicit flat_numbers_archive kind without expected_root, recomputed semantic V2"
+  },
+  "live_acceptance": "open",
+  "installed_delivery": "held; no installed changes",
+  "older_writer_control": {
+    "compiled_journal_schema": 20,
+    "tested_header": 21,
+    "executed_tests": 1,
+    "exit_code": 0,
+    "elapsed_seconds": 0.03999138297513127,
+    "binary_sha256": "c0421a4be403f2ab2b8deff63d61a05d5764b2d850a30341084df8ae1116f71a",
+    "log_sha256": "5d334fb6e83d4376578088cd605c5dd26666d38db05ceafb48d5c9526e89b338",
+    "test": "journal::representation::tests::package_representation_schema_upgrade_and_readonly_old_new_recovery_preserve_bytes",
+    "temporary_filesystem": "ext4",
+    "scope": "Actual retained baseline test binary refuses its future header21 for writer and read-only recovery. Synthetic header fixture; no real account, schema21 migration or deployment."
+  },
+  "checkpoint_guard_control": {
+    "question": "Does native inner source-layout tamper refuse before any original verification HTTP?",
+    "arms": [
+      "only early inner-checkpoint guard omitted",
+      "same guard restored"
+    ],
+    "prediction": "Omitted guard still rejects CheckpointInvalid with zero mutations but makes extra original verification HTTP, failing total request equality; restored guard refuses before HTTP.",
+    "test": "owned_mounted_replace::native::tests::flat_numbers_inner_layout_tamper_refuses_before_original_http",
+    "scope": "Synthetic local TLS fixture; no real provider or new release acceptance.",
+    "status": "same_test_red_green_complete",
+    "red": {
+      "executed_tests": 1,
+      "exit_code": 101,
+      "elapsed_seconds": 15.801108850981109,
+      "log_sha256": "e1a119a223770d0ba253484a031d46a67b7c9f4d0fd85fb6189c0e3475f3a131",
+      "test_source_sha256": "65f2dbcd61e54dc0a07e2dd6f6ca62dfc629ae08f630ee318b44f00996a0912d"
+    },
+    "green": {
+      "executed_tests": 1,
+      "exit_code": 0,
+      "elapsed_seconds": 2.3318685269914567,
+      "log_sha256": "b3080332633f27946011684a826870d78d08f2c4bba8cf615e4ebf31b0b1a4df",
+      "test_source_sha256": "65f2dbcd61e54dc0a07e2dd6f6ca62dfc629ae08f630ee318b44f00996a0912d"
+    },
+    "red_endpoint": "request total16 versus pre-tamper9; zero mutation callbacks",
+    "green_endpoint": "no extra request; zero mutation callbacks"
+  },
+  "actual_export_offline_admission": {
+    "question": "Does the normal default-feature service library admit the unchanged actual retained Apple Numbers export with explicit flat layout, while refusing wrapped/invented roots?",
+    "prediction": "Flat capture succeeds; wrapped and nonnull-flat roots refuse; source identity/content/mode unchanged and staging empty after snapshot drop.",
+    "scope": "Offline original source capture only; zero provider calls and no new live upload/application claim.",
+    "source_size": 138945,
+    "source_sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "temporary_filesystem": "ext4",
+    "library_features": [],
+    "binary_sha256": "f91545bee38cbeeff9d8769ebd4efb49bf16639d394b32c5e0795530aa93a272",
+    "library_sha256": "93088f2fc7c6b5e2d8155c1691c52adef25902809ac27ad650649384ad07a03e",
+    "elapsed_seconds": 29.019813788996544,
+    "source_unchanged": true,
+    "endpoint": {
+      "explicit_actual_export_admitted": true,
+      "wrapped_contract_refused": true,
+      "invented_root_refused": true,
+      "stage_empty_after_drop": true
+    },
+    "log_sha256": "83276a8b790192af243c72ba3238803423a02e2cea7e2a5a946ce562b9f4adb1"
+  },
+  "publication_integrity_control": {
+    "question": "Does a persisted flat upload with mutually matching but invalid V1 source/completion proofs refuse publication before metadata work?",
+    "prediction": "Without central request revalidation, corrupted matching proofs are considered complete; with validation, due/status/finish refuse and row/payload remain retained.",
+    "arms": [
+      "flat support without new completion revalidation",
+      "same test with completion revalidation"
+    ],
+    "scope": "Synthetic retained-record corruption fixture; no actual provider or metadata publication.",
+    "status": "same_test_red_green_complete",
+    "red": {
+      "executed_tests": 1,
+      "exit_code": 101,
+      "elapsed_seconds": 8.993421277962625,
+      "log_sha256": "313a6a2aae1ddac552be64dc812d4210ae5a722807526baa2efd941f0d7930c5",
+      "test_source_sha256": "01047c681b67945007c746f82fc906aaf840b68f31e617204772f8a3cdd3251c"
+    },
+    "green": {
+      "executed_tests": 1,
+      "exit_code": 0,
+      "elapsed_seconds": 9.680216878012288,
+      "log_sha256": "ae98507cde591aad0ec58ccdf4b51f808a49145fbef09606f06202d543231b17",
+      "test_source_sha256": "01047c681b67945007c746f82fc906aaf840b68f31e617204772f8a3cdd3251c"
+    },
+    "test": "journal::representation::tests::flat_numbers_publication_rejects_retained_matching_version_one_receipts",
+    "green_endpoint": "due/status/finish reject matching invalid V1 proofs; upload row, payload, source and publication state unchanged"
+  },
+  "complete_check": {
+    "command": [
+      "bash",
+      "scripts/check.sh"
+    ],
+    "expected_duration_seconds": 1200,
+    "temporary_filesystem": "ext4",
+    "prediction": "format, clippy, workspace and feature tests, synthetic kernel mounts, scripts and ledger pass without installed changes",
+    "status": "passed",
+    "earlier_attempts": [
+      {
+        "exit_code": 101,
+        "elapsed_seconds": 6.204816875979304,
+        "log_sha256": "3b2247172ceeba89183912ad3df9d244117bee13c17b818fe3f6511718ff39a3",
+        "failure": "core unit test used serde_json absent from core dependencies; moved JSON wire control to existing service test dependency; no dependencies added"
+      },
+      {
+        "exit_code": 101,
+        "elapsed_seconds": 213.86426093999762,
+        "log_sha256": "6d28f22664cb50aa9ee17c6236bd98636eb7f542886b9cfdf73b8e42c05134a4",
+        "failure": "Two new tests expected completed-upload local_export_source success; existing recovery policy correctly returned Stale. Test-only correction proves pending bytes across read-only export/restart, and completed-export refusal; production policy unchanged."
+      },
+      {
+        "exit_code": 101,
+        "elapsed_seconds": 70.31867422099458,
+        "log_sha256": "e8871c0f537c5bb03036ee1e906e126f688c6f0e955e01682c37d8c207ea527a",
+        "failure": "Existing integration migration test still expected current20/future21; actual schema21 requires advancing independent current assertion and unknown-header controls. All511 service unit tests passed."
+      },
+      {
+        "exit_code": 1,
+        "elapsed_seconds": 647.5300066199852,
+        "log_sha256": "81d4c930cb90f819b4fea13da8a66a7c5a83a150453a569fecebbb690d40e472",
+        "sources_unchanged": true,
+        "failure": "All Rust/feature/kernel groups passed; scripts/smoke.py could not bind its Unix socket because registered TMPDIR parent was too long for SUN_LEN. Environment-only correction to a fresh short private ext4 TMPDIR; no product code change."
+      },
+      {
+        "exit_code": 1,
+        "elapsed_seconds": 536.707298778987,
+        "log_sha256": "8055c9b7f8b25a690e507dbb8a2436dccec1738e1ecff11d7db85861dea363a3",
+        "sources_unchanged": true,
+        "failure": "All Rust/feature/kernel tests and earlier script groups passed; translation-source coverage detected five new unregistered UI strings. Regenerated catalogues and supplied all five German translations; exact four translation controls then passed. No backend or test-policy change."
+      }
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 550.1556652170257,
+    "log_sha256": "2c57c8cc471fb62ff6c90075d0891e1dc783e4bc8a25aa409de84271f4735a22",
+    "sources_unchanged": true,
+    "source_count": 538,
+    "source_pin_map_sha256": "870929b1799347a372c3016e48ea693b832102fe292b59823ad6834aa146fa60",
+    "temporary_parent_length": 36,
+    "test_group_results": 87,
+    "test_pass_occurrences": 2013,
+    "test_count_limit": "Occurrences include repeated feature/kernel groups and nested fixture processes; not a count of distinct tests.",
+    "installed_daemon_unchanged": true,
+    "installed_daemon_sha256": "64ef37b2f08f5a8e432d172fb0a08a5f6e37cdc908776a4ef5a8ed5fc700324f",
+    "source_sha256": {
+      "crates/cirrove-core/src/upload.rs": "20ccc4e1438df57eced7b0e8a656f88e51addfa300fe361c25fe086c65bb5aa6",
+      "crates/cirrove-core/src/upload/representation.rs": "323574f28548152b0a2e2eea2d382e86ac284d6bf6e7044acb0f05a07786309b",
+      "crates/cirrove-icloud/src/owned_mounted_replace/native.rs": "934895d09f5beca6a3fa408b5c80bc05272773c53013036878e865b397ae6712",
+      "crates/cirrove-icloud/src/package_create.rs": "595b6fbce3eda05b0861849283a5f37d50d0d36e32f0125063c3ae07743327c2",
+      "crates/cirrove-icloud/src/package_semantic.rs": "efcff1ef712debe402f2585bee36e53625b90e1a57460318250b5556e208c989",
+      "crates/cirrove-service/src/journal.rs": "546e531738bb6a486f182997afa88813fe425cbbfb9ceee0c7826726b3ebdac8",
+      "crates/cirrove-service/src/journal/package_publication.rs": "6fefb252d37cc3cd0543052db2b8fc5dd2be7fe0d6830f7b60193853d4e6497e",
+      "crates/cirrove-service/src/native_import/staging.rs": "e9c9041081ada0e0613c4ff3222eb1a3e913ba59d85c0681de1107bda67ac81b",
+      "scripts/check.sh": "1d0fcb02913e55e014c83edf45189589ebd2177198f967ea1297bf036e57f501",
+      "packaging/developer-install-policy.json": "28683c5836e0ebed4c4e0229db0fd0e2516b06251e1d17b18bf8e3aba5a813fb",
+      "po/cirrove.pot": "e89a37f67ccf7c59eb5ac5374b86c3d03d30d8b3aab4d1eba6d46719f13024cc",
+      "po/de.po": "3406dc3024c7b826d0e5c135905884f6f918028d45c0f7ed2fc7f8079d132dfa"
+    }
+  },
+  "desktop_window_control": {
+    "question": "Does the actual GTK import form explicitly select flat layout, disable wrapper entry and dispatch exactly one bound request without reading source or contacting provider?",
+    "prediction": "Exactly1 scenario passes both legacy wrapped controls and explicit flat form/single dispatch controls.",
+    "expected_duration_seconds": 60,
+    "temporary_filesystem": "ext4",
+    "binary_sha256": "9b7d794acea3fefa87cb06941dfd9dc299a3554e66e64ed649d7d3edea3a4d68",
+    "source_sha256": {
+      "crates/cirrove-desktop/src/ui/native_import.rs": "96529167f60e4d646f4060c9e2afc1ff0da98985905ef662e928cd3234ba1f38",
+      "crates/cirrove-desktop/tests/window.rs": "75029736e3d0155a82b4acf1a336bd4c0d864f72264ca8e63bc1d50b5562eac8"
+    },
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 1.0673955969978124,
+    "log_sha256": "c56e43c499bc2385f55074d060b2378b2afac9af3135464ff214960f67cfefd9",
+    "executed_scenarios": 1,
+    "passed_scenarios": 1,
+    "scope": "Actual GTK form, synthetic local accounts/socket on private session bus; no iCloud/provider calls. Private portal shutdown warnings retained."
+  }
+}

@@ -798,6 +798,23 @@ pub fn native_import_fields_valid(
     parent: &str,
     name: &str,
 ) -> bool {
+    native_import_source_fields_valid(
+        archive,
+        cirrove_service::native_import::PackageSourceLayout::Wrapped,
+        Some(root),
+        parent,
+        name,
+    )
+}
+
+/// Explicit source format choice; content validation still belongs to the daemon.
+pub fn native_import_source_fields_valid(
+    archive: &std::path::Path,
+    layout: cirrove_service::native_import::PackageSourceLayout,
+    root: Option<&str>,
+    parent: &str,
+    name: &str,
+) -> bool {
     let component = |s: &str| {
         !s.is_empty()
             && s.len() <= 255
@@ -811,11 +828,20 @@ pub fn native_import_fields_valid(
         && !archive
             .components()
             .any(|p| matches!(p, std::path::Component::ParentDir))
-        && component(root)
-        && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase()).is_some()
         && component(name)
-        && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase())
-            == cirrove_core::upload::native_package_suffix(&name.to_ascii_lowercase())
+        && match (layout, root) {
+            (cirrove_service::native_import::PackageSourceLayout::Wrapped, Some(root)) => {
+                component(root)
+                    && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase())
+                        .is_some()
+                    && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase())
+                        == cirrove_core::upload::native_package_suffix(&name.to_ascii_lowercase())
+            }
+            (cirrove_service::native_import::PackageSourceLayout::FlatNumbers, None) => {
+                name.to_ascii_lowercase().ends_with(".numbers")
+            }
+            _ => false,
+        }
         && parent.len() <= 4096
         && (parent.is_empty() || parent.split('/').all(component))
 }

@@ -1015,8 +1015,11 @@ enum Command {
         etag: String,
         #[arg(long)]
         archive: PathBuf,
-        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
-        source_root: String,
+        #[arg(long, required_unless_present = "source_layout", conflicts_with = "source_layout", value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        source_root: Option<String>,
+        /// Explicit flat Apple Numbers ZIP; no enclosing document folder.
+        #[arg(long, value_parser = ["flat-numbers"], conflicts_with = "source_root")]
+        source_layout: Option<String>,
         #[arg(long)]
         socket: Option<PathBuf>,
     },
@@ -1124,9 +1127,12 @@ enum Command {
         account_id: Option<uuid::Uuid>,
         #[arg(long)]
         archive: PathBuf,
-        /// Exact enclosing directory name inside the source archive.
-        #[arg(long)]
-        source_root: String,
+        /// Exact enclosing directory name inside a wrapped source archive.
+        #[arg(long, required_unless_present = "source_layout", conflicts_with = "source_layout", value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        source_root: Option<String>,
+        /// Explicit flat Apple Numbers ZIP; no enclosing document folder.
+        #[arg(long, value_parser = ["flat-numbers"], conflicts_with = "source_root")]
+        source_layout: Option<String>,
         /// Visible relative destination directory; empty means the drive root.
         #[arg(long, default_value = "")]
         parent: String,
@@ -2287,6 +2293,7 @@ async fn main() -> Result<()> {
             etag,
             archive,
             source_root,
+            source_layout,
             socket,
         } => {
             let socket = match socket {
@@ -2303,7 +2310,7 @@ async fn main() -> Result<()> {
             }
             let account = account_id.to_string();
             let selected = (item_id.clone(), etag.clone());
-            let reply=cirrove_service::replace_native_package(&socket,&cirrove_service::ReplaceNativePackageRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag,archive,expected_root:source_root}).await.context("replacement reply unavailable; use list-native-replacements for this account before submitting again")?;
+            let reply=cirrove_service::replace_native_package(&socket,&cirrove_service::ReplaceNativePackageRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag,archive,source_layout:if source_layout.is_some(){cirrove_service::native_import::PackageSourceLayout::FlatNumbers}else{cirrove_service::native_import::PackageSourceLayout::Wrapped},expected_root:source_root}).await.context("replacement reply unavailable; use list-native-replacements for this account before submitting again")?;
             if let Some(refusal) = reply.refusal {
                 bail!("{refusal}");
             }
@@ -2643,6 +2650,7 @@ async fn main() -> Result<()> {
             account_id,
             archive,
             source_root,
+            source_layout,
             parent,
             name,
             socket,
@@ -2675,6 +2683,11 @@ async fn main() -> Result<()> {
                     label: label.clone(),
                     expected_account_id: account_id.clone(),
                     archive,
+                    source_layout: if source_layout.is_some() {
+                        cirrove_service::native_import::PackageSourceLayout::FlatNumbers
+                    } else {
+                        cirrove_service::native_import::PackageSourceLayout::Wrapped
+                    },
                     expected_root: source_root,
                     parent,
                     name: name.clone(),
@@ -3124,6 +3137,44 @@ mod icloud_access_tests {
             ])
             .is_err()
         );
+    }
+    #[test]
+    fn native_archive_cli_flat_choice_is_explicit_and_excludes_source_root() {
+        for verb in ["import-native-package", "replace-native-package"] {
+            let mut args = vec![
+                "cirrove",
+                verb,
+                "--label",
+                "Owned",
+                "--archive",
+                "/var/tmp/source.numbers",
+            ];
+            if verb == "import-native-package" {
+                args.extend(["--name", "Copy.numbers"]);
+            } else {
+                args.extend([
+                    "--account-id",
+                    "11111111-1111-4111-8111-111111111111",
+                    "--path",
+                    "Owned.numbers",
+                    "--item-id",
+                    "owned-id",
+                    "--etag",
+                    "v1",
+                ]);
+            }
+            assert!(Args::try_parse_from(&args).is_err());
+            let mut flat = args.clone();
+            flat.extend(["--source-layout", "flat-numbers"]);
+            assert!(Args::try_parse_from(&flat).is_ok());
+            flat.extend(["--source-root", "Invented.numbers"]);
+            assert!(Args::try_parse_from(flat).is_err());
+            let mut unknown = args.clone();
+            unknown.extend(["--source-layout", "auto"]);
+            assert!(Args::try_parse_from(unknown).is_err());
+            args.extend(["--source-root", "Source.numbers"]);
+            assert!(Args::try_parse_from(args).is_ok());
+        }
     }
     #[test]
     fn native_import_requires_explicit_source_root_and_destination_name() {

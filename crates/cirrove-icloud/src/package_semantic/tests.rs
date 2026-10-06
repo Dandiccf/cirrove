@@ -636,9 +636,16 @@ fn diagnostic_directory_delta_never_weakens_strict_semantic_identity() {
         );
         let (b, br) = staged(&bytes, dir.path());
         let token = CancellationToken::new();
-        let observation =
-            diagnostic_archive_comparison(&a, &ar, "Source.pages", &b, &br, "Stage.pages", &token)
-                .unwrap();
+        let observation = diagnostic_archive_comparison(
+            &a,
+            &ar,
+            Some("Source.pages"),
+            &b,
+            &br,
+            "Stage.pages",
+            &token,
+        )
+        .unwrap();
         assert_eq!(observation["directory_only_delta"], expected_delta);
         assert_eq!(
             observation["exact_file_paths_sizes_hashes_equal"],
@@ -669,8 +676,16 @@ fn diagnostic_directory_delta_never_weakens_strict_semantic_identity() {
                 && !printed.contains("private")
         );
         assert!(
-            diagnostic_archive_comparison(&a, &ar, "Wrong.pages", &b, &br, "Stage.pages", &token)
-                .is_err()
+            diagnostic_archive_comparison(
+                &a,
+                &ar,
+                Some("Wrong.pages"),
+                &b,
+                &br,
+                "Stage.pages",
+                &token
+            )
+            .is_err()
         );
         let cancelled = CancellationToken::new();
         cancelled.cancel();
@@ -678,7 +693,7 @@ fn diagnostic_directory_delta_never_weakens_strict_semantic_identity() {
             diagnostic_archive_comparison(
                 &a,
                 &ar,
-                "Source.pages",
+                Some("Source.pages"),
                 &b,
                 &br,
                 "Stage.pages",

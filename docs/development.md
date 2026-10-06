@@ -632,23 +632,28 @@ Upgrading properly is: install the new binaries first, then restart the service,
 then use the new commands.
 
 
-### Ordinary metadata publication journal schema20: held prerelease policy
+<a id="ordinary-metadata-publication-journal-schema20-held-prerelease-policy"></a>
 
-Schema20 adds a durable queue for publishing ordinary handoff metadata after its
-typed acknowledgement. It retains the native backup-first state and native-working
-prerequisites introduced by earlier schemas. This is not permission to upgrade
-installed accounts. Until recovery, successor and application acceptance is
-complete, validation must use explicitly isolated state, sockets, mounts and
-binaries. Do not open the user's current journal with a schema20 writer, restart
-the installed service or change package/developer installation state for these tests.
+### Flat Numbers source journal schema21: held prerelease policy
+
+Schema20 introduced a durable queue for publishing ordinary handoff metadata after
+its typed acknowledgement. Schema21 adds explicit flat Numbers import and
+replacement archive tags; wrapped archive tags keep their existing wire format.
+It retains the native backup-first state and native-working prerequisites
+introduced by earlier schemas. This is not permission to upgrade installed
+accounts. Until recovery, successor and application acceptance is complete,
+validation must use explicitly isolated state, sockets, mounts and binaries. Do
+not open the user's current journal with a schema21 writer, restart the installed
+service or change package/developer installation state for these tests.
 
 Every writable journal opened by this build migrates, including ordinary-only
 accounts with no native documents. Read-only metadata repair opens only an existing
-schema20 journal; it does not migrate it or claim uploads or mutations. The fence
-protects retained native bytes and ordinary publication jobs from older code that
-cannot interpret those semantics. Older writers, including schema17, schema18 and
-schema19 binaries, must refuse schema20 rather than ignore the queue or lower the
-version. A table being additive does not make the writer downgrade safe.
+schema20 or schema21 journal; it does not migrate it or claim uploads or mutations.
+Read-only recovery retains schemas14 through21. The fence protects retained native
+bytes, ordinary publication jobs and explicit source layouts from older code that
+cannot interpret those semantics. Schema20 and older writers must refuse schema21
+rather than ignore its tags or lower the version. A table being additive does not
+make the writer downgrade safe.
 
 The developer installer enforces this hold through
 `packaging/developer-install-policy.json`. Before building and again before its

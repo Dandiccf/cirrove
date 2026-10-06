@@ -493,16 +493,20 @@ complete iCloud conflict-resolution UX.
 
 An active writable iCloud connection offers **Import an iWork document** when the
 running service advertises version 1 of both `import-native-package` and
-`import-native-package-account-binding`. Choose a local ZIP archive, enter the
-exact Pages, Numbers or Keynote document folder inside it, a relative destination
-folder (leave blank for the drive root), and a new document name in the same
-format. The archive must be outside Cirrove mounts and private state. The daemon
+`import-native-package-account-binding`. Choose a local ZIP archive. The default
+**Document folder (wrapped)** layout requires its exact Pages, Numbers or Keynote
+document folder and a new name in the same format. For a genuine Numbers export
+without an outer folder, explicitly choose **Flat Numbers export**; the document
+folder field is disabled and the new name must end in `.numbers`. Enter a relative
+destination folder (leave blank for the drive root). The archive must be outside
+Cirrove mounts and private state. The daemon
 validates the archive and stages at most 64 MiB before queueing any cloud work.
 
 This creates a new native document; it does not edit or replace an existing one.
 The daemon independently verifies the returned content and waits for metadata
-publication before reporting import completion. Pages has bounded live evidence;
-Numbers import/open checks exist, while Numbers replacement and Keynote application
+publication before reporting import completion. Pages public CLI and Desktop import
+have separately complete bounded live evidence. Owned Numbers replacement and
+Keynote import/open also have bounded evidence; broader editing and application
 fidelity remain open. Archive acceptance alone does not prove Apple fidelity.
 Progress and refusals appear with the connection's transfers. **Stop** stops watching;
 an already queued import may still finish. An uncertain response never triggers an
@@ -518,8 +522,12 @@ only a local fake socket. Set `CIRROVE_NATIVE_IMPORT_SNAPSHOT` to a private PNG 
 to capture its actual import dialog. Validate it in light and dark themes, including
 German labels, keyboard submission, invalid fields, cancellation and a write-access
 change while the dialog is open. A successful synthetic dialog or socket test does
-not establish Apple document-editing compatibility. Installed desktop click-through
-and a new owned live Pages import remain separate acceptance steps.
+not establish Apple document-editing compatibility. The scenario now also checks
+the explicit **Flat Numbers export** choice, disabled document-folder field and
+one account-bound request without a source root. Genuine flat Numbers upload/open
+and installed desktop click-through remain separate acceptance steps. See
+[source-contract validation](benchmarks/icloud-flat-numbers-normal-source-2026-10-06.json)
+and [public Pages acceptance](benchmarks/icloud-pages-live-desktop-import-owned-focus-2026-10-06.json).
 
 ### Find an import again after reconnecting
 

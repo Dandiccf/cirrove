@@ -97,6 +97,7 @@ impl Manager {
             .to_owned();
         validate_input(&NativeImportInput {
             source: input.source.clone(),
+            source_layout: input.source_layout,
             expected_root: input.expected_root.clone(),
             parent: String::new(),
             name,
@@ -135,14 +136,15 @@ impl Manager {
             .join("native-import");
         let source = input.source;
         let root = input.expected_root;
+        let source_layout = input.source_layout;
         let token = cancel.clone();
         let lifetime = control.clone();
         let capture_stage = stage.clone();
         let (archive, permit, _lifetime) = tokio::task::spawn_blocking(move || -> Result<_> {
             source_allowed(&source, &excluded)?;
             crate::private_dir(&stage)?;
-            let archive = ValidatedPackageArchive::capture_excluding(
-                &source, &stage, &root, &token, &excluded,
+            let archive = ValidatedPackageArchive::capture_excluding_with_source_layout(
+                &source, &stage, source_layout, root.as_deref(), &token, &excluded,
             )?;
             Ok((archive, permit, lifetime))
         })

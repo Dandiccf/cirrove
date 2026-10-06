@@ -251,11 +251,31 @@ impl ICloudPackageCreate {
             || !matches!(
                 request.representation,
                 UploadRepresentation::PackageArchive { .. }
+                    | UploadRepresentation::FlatNumbersArchive { .. }
             )
         {
             return Err(UploadError::Invalid);
         }
+        if matches!(
+            request.representation,
+            UploadRepresentation::FlatNumbersArchive { .. }
+        ) && cirrove_core::upload::native_package_suffix(name) != Some(".numbers")
+        {
+            return Err(UploadError::Invalid);
+        }
         Ok(name)
+    }
+    pub(crate) fn validate_native_checkpoint(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        account_hash: &str,
+    ) -> Result<()> {
+        if self.decode(operation, request, checkpoint)?.account_hash != account_hash {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        Ok(())
     }
     fn encode(saved: &Checkpoint) -> Result<SecretString> {
         let text = serde_json::to_string(saved).map_err(|_| UploadError::Invalid)?;
@@ -396,12 +416,10 @@ impl ICloudPackageCreate {
             .await
             .map_err(|_| UploadError::Uncertain)?;
         tokio::task::spawn_blocking(move || {
-            let UploadRepresentation::PackageArchive {
-                expected_root,
-                semantic,
-            } = &request.representation
-            else {
-                return Err(UploadError::Invalid);
+            let semantic = match &request.representation {
+                UploadRepresentation::PackageArchive { semantic, .. }
+                | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+                _ => return Err(UploadError::Invalid),
             };
             if !source
                 .metadata()
@@ -442,13 +460,25 @@ impl ICloudPackageCreate {
                 size,
                 sha256: digest,
             };
-            let actual = crate::package_archive_semantic_identity_versioned(
-                target.borrowed_file(),
-                &receipt,
-                expected_root,
-                semantic.version,
-                &cancel,
-            )?;
+            let actual = match &request.representation {
+                UploadRepresentation::PackageArchive { expected_root, .. } => {
+                    crate::package_archive_semantic_identity_versioned(
+                        target.borrowed_file(),
+                        &receipt,
+                        expected_root,
+                        semantic.version,
+                        &cancel,
+                    )?
+                }
+                UploadRepresentation::FlatNumbersArchive { .. } => {
+                    crate::package_flat_archive_semantic_identity_v2(
+                        target.borrowed_file(),
+                        &receipt,
+                        &cancel,
+                    )?
+                }
+                _ => return Err(UploadError::Invalid),
+            };
             if &actual != semantic {
                 return Err(UploadError::Invalid);
             }
@@ -529,11 +559,10 @@ impl ICloudPackageCreate {
         progress.fence = "archive-semantic-parse";
         let token = cancel.clone();
         let root = name.to_owned();
-        let UploadRepresentation::PackageArchive {
-            semantic: expected, ..
-        } = &saved.request.representation
-        else {
-            return Err(UploadError::Invalid);
+        let expected = match &saved.request.representation {
+            UploadRepresentation::PackageArchive { semantic, .. }
+            | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+            _ => return Err(UploadError::Invalid),
         };
         let version = expected.version;
         let semantic = tokio::task::spawn_blocking(move || {
@@ -547,11 +576,10 @@ impl ICloudPackageCreate {
         })
         .await
         .map_err(|_| UploadError::Uncertain)??;
-        let UploadRepresentation::PackageArchive {
-            semantic: expected, ..
-        } = &saved.request.representation
-        else {
-            return Err(UploadError::Invalid);
+        let expected = match &saved.request.representation {
+            UploadRepresentation::PackageArchive { semantic, .. }
+            | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+            _ => return Err(UploadError::Invalid),
         };
         progress.fence = "archive-semantic-equality";
         if &semantic != expected {
@@ -830,10 +858,16 @@ impl ICloudPackageCreate {
         request: &UploadRequest,
         checkpoint: &SecretString,
         source: File,
-        source_root: String,
+        source_root: Option<String>,
         cancel: &CancellationToken,
     ) -> Result<(serde_json::Value, Option<PackageUploadReceipt>)> {
         let saved = self.decode(operation, request, checkpoint)?;
+        match (&request.representation, source_root.as_deref()) {
+            (UploadRepresentation::PackageArchive { expected_root, .. }, Some(root))
+                if root == expected_root => {}
+            (UploadRepresentation::FlatNumbersArchive { .. }, None) => {}
+            _ => return Err(UploadError::CheckpointInvalid),
+        }
         if saved.slot.is_none() {
             return Err(UploadError::Uncertain);
         }
@@ -862,7 +896,7 @@ impl ICloudPackageCreate {
                 crate::package_semantic::diagnostic_archive_comparison(
                     &source,
                     &source_receipt,
-                    &source_root,
+                    source_root.as_deref(),
                     download.borrowed_file(),
                     &receipt,
                     &stage_root,

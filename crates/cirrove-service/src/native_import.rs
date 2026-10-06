@@ -1,11 +1,13 @@
 //! Explicit native archive admission. No provider calls or mounted write inference.
 mod staging;
+pub use cirrove_core::upload::PackageSourceLayout;
 pub use staging::{ImportAdmissionError, ValidatedPackageArchive};
 
 /// Explicit import input; caller-selected archive names are not package authority.
 pub struct NativeImportInput {
     pub source: std::path::PathBuf,
-    pub expected_root: String,
+    pub source_layout: cirrove_core::upload::PackageSourceLayout,
+    pub expected_root: Option<String>,
     pub parent: String,
     pub name: String,
 }
@@ -24,7 +26,8 @@ pub(crate) use staging::tests::archive as synthetic_package_archive;
 pub struct NativeReplaceInput {
     pub selected: crate::native_trash::NativeTrashInput,
     pub source: std::path::PathBuf,
-    pub expected_root: String,
+    pub source_layout: cirrove_core::upload::PackageSourceLayout,
+    pub expected_root: Option<String>,
 }
 
 /// Static admission context only; never includes a provider/parser error or path.

@@ -134,6 +134,58 @@ fn native_import_form_preserves_unusual_names_but_refuses_escape_or_other_format
 }
 
 #[test]
+fn native_import_flat_numbers_form_requires_explicit_layout_and_no_wrapper_root() {
+    use cirrove_desktop::model::native_import_source_fields_valid as valid;
+    use cirrove_service::native_import::PackageSourceLayout::{FlatNumbers, Wrapped};
+    let source = Path::new("/var/tmp/actual-export.numbers");
+    assert!(valid(
+        source,
+        FlatNumbers,
+        None,
+        "Owned/Reports",
+        "New 'document'.numbers"
+    ));
+    for name in [
+        "Copy.pages",
+        "Copy.key",
+        "Copy.numbers.zip",
+        "../Copy.numbers",
+        "",
+    ] {
+        assert!(!valid(source, FlatNumbers, None, "Owned", name));
+    }
+    assert!(!valid(
+        source,
+        FlatNumbers,
+        Some("Invented.numbers"),
+        "Owned",
+        "Copy.numbers"
+    ));
+    assert!(!valid(source, Wrapped, None, "Owned", "Copy.numbers"));
+    assert!(!valid(
+        source,
+        FlatNumbers,
+        None,
+        "../Owned",
+        "Copy.numbers"
+    ));
+    assert!(!valid(
+        Path::new("relative.numbers"),
+        FlatNumbers,
+        None,
+        "Owned",
+        "Copy.numbers"
+    ));
+    assert!(valid(
+        source,
+        Wrapped,
+        Some("Actual.numbers"),
+        "Owned",
+        "Copy.numbers"
+    ));
+}
+
+#[test]
 fn native_import_progress_never_claims_offline_pinning() {
     use cirrove_desktop::model::RunningJob;
     use cirrove_service::jobs::{Job, JobKind, JobState};

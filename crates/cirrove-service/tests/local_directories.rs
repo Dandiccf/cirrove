@@ -266,11 +266,19 @@ fn schema_thirteen_migrates_and_missing_or_future_destination_state_fails_closed
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        20
+        21
     );
     db.execute_batch("DROP TABLE write_destinations;").unwrap();
     assert!(UploadJournal::open(&root, &scope().account, 1024 * 1024).is_err());
-    db.execute_batch("PRAGMA user_version=21;").unwrap();
+    let future_schema = u32::try_from(
+        cirrove_service::storage_format_attestation()["journal_schema"]
+            .as_u64()
+            .unwrap(),
+    )
+    .unwrap()
+        + 1;
+    db.pragma_update(None, "user_version", future_schema)
+        .unwrap();
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 1024 * 1024),
         Err(JournalError::Schema)

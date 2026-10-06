@@ -17,7 +17,8 @@ fn input(f: &Fixture) -> NativeReplaceInput {
             etag: "v1".into(),
         },
         source: f.source.clone(),
-        expected_root: "Source.pages".into(),
+        source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+        expected_root: Some("Source.pages".into()),
     }
 }
 fn semantic() -> PackageSemanticIdentity {
@@ -112,7 +113,8 @@ async fn nested_numbers_with_parent_handoff(
                 etag: target.etag.clone().unwrap(),
             },
             source: f.source.clone(),
-            expected_root: "Source.numbers".into(),
+            source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+            expected_root: Some("Source.numbers".into()),
         },
         target,
         local_parent,
@@ -248,7 +250,8 @@ async fn native_replace_admission_qualifies_once_and_retains_after_cancel() {
             etag: "v1".into(),
         },
         source: f.source.clone(),
-        expected_root: "Source.pages".into(),
+        source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+        expected_root: Some("Source.pages".into()),
     };
     assert!(
         f.manager

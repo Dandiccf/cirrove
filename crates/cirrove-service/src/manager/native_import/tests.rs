@@ -209,7 +209,8 @@ impl Fixture {
     fn input(&self) -> NativeImportInput {
         NativeImportInput {
             source: self.source.clone(),
-            expected_root: "Source.pages".into(),
+            source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+            expected_root: Some("Source.pages".into()),
             parent: String::new(),
             name: "Imported.pages".into(),
         }
@@ -370,7 +371,8 @@ async fn package_parent_and_mount_or_state_sources_are_refused() {
 fn native_profile_pairs_supported_formats_and_rejects_unsafe_name_or_path() {
     let mut input = NativeImportInput {
         source: "/owned/file".into(),
-        expected_root: "Source.pages".into(),
+        source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+        expected_root: Some("Source.pages".into()),
         parent: String::new(),
         name: "Import.PAGES".into(),
     };
@@ -386,11 +388,11 @@ fn native_profile_pairs_supported_formats_and_rejects_unsafe_name_or_path() {
     }
     for suffix in ["pages", "numbers", "key"] {
         input.name = format!("Import.{suffix}");
-        input.expected_root = format!("Source.{suffix}");
+        input.expected_root = Some(format!("Source.{suffix}"));
         assert!(validate_input(&input).is_ok());
     }
     input.name = "Import.pages".into();
-    input.expected_root = "Source.key".into();
+    input.expected_root = Some("Source.key".into());
     assert!(validate_input(&input).is_err());
 }
 
@@ -468,7 +470,7 @@ async fn supported_import_formats_require_validated_archive_before_durable_enque
     for suffix in ["pages", "numbers", "key"] {
         let f = Fixture::new().await;
         let mut input = f.input();
-        input.expected_root = format!("Source.{suffix}");
+        input.expected_root = Some(format!("Source.{suffix}"));
         input.name = format!("Imported.{suffix}");
         for body in [
             b"ordinary DATA bytes with a native-looking filename".to_vec(),
@@ -481,6 +483,7 @@ async fn supported_import_formats_require_validated_archive_before_durable_enque
                         f.engine.clone(),
                         NativeImportInput {
                             source: input.source.clone(),
+                            source_layout: input.source_layout,
                             expected_root: input.expected_root.clone(),
                             parent: input.parent.clone(),
                             name: input.name.clone()
@@ -527,7 +530,8 @@ async fn mixed_case_import_format_preserves_case_sensitive_archive_root() {
         let name = format!("Imported.{}", extension.to_ascii_lowercase());
         let input = || NativeImportInput {
             source: f.source.clone(),
-            expected_root: root.clone(),
+            source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+            expected_root: Some(root.clone()),
             parent: String::new(),
             name: name.clone(),
         };
@@ -568,3 +572,71 @@ async fn mixed_case_import_format_preserves_case_sensitive_archive_root() {
 }
 
 mod list;
+
+#[test]
+fn flat_numbers_input_requires_explicit_layout_and_absent_root() {
+    let mut input = NativeImportInput {
+        source: "/owned/source.numbers".into(),
+        source_layout: crate::native_import::PackageSourceLayout::FlatNumbers,
+        expected_root: None,
+        parent: String::new(),
+        name: "Import.numbers".into(),
+    };
+    assert!(validate_input(&input).is_ok());
+    input.expected_root = Some("Source.numbers".into());
+    assert!(validate_input(&input).is_err());
+    input.expected_root = None;
+    for name in [
+        "Import.pages",
+        "Import.key",
+        "../Import.numbers",
+        "bad\n.numbers",
+    ] {
+        input.name = name.into();
+        assert!(validate_input(&input).is_err());
+    }
+    input.name = "Import.numbers".into();
+    input.source_layout = crate::native_import::PackageSourceLayout::Wrapped;
+    assert!(validate_input(&input).is_err());
+}
+
+#[tokio::test]
+async fn flat_numbers_manager_enqueues_exact_layout_bytes_without_wrapper_inference() {
+    use std::io::Read;
+    let f = Fixture::new().await;
+    let bytes = crate::native_import::synthetic_package_archive(
+        "Index/Document.iwa",
+        b"owned Numbers source",
+    );
+    std::fs::write(&f.source, &bytes).unwrap();
+    // The path still ends in .pages: layout is chosen explicitly, never inferred.
+    let mut input = f.input();
+    input.source_layout = crate::native_import::PackageSourceLayout::FlatNumbers;
+    input.expected_root = None;
+    input.name = "Imported.numbers".into();
+    let row = f
+        .manager
+        .enqueue_native_package(f.engine.clone(), input, CancellationToken::new())
+        .await
+        .unwrap();
+    let UploadRepresentation::FlatNumbersArchive { semantic } = &row.representation else {
+        panic!("explicit flat representation missing")
+    };
+    assert_eq!(semantic.version, 2);
+    let mut captured = Vec::new();
+    f.journal
+        .lock()
+        .unwrap()
+        .payload(row.id)
+        .unwrap()
+        .read_to_end(&mut captured)
+        .unwrap();
+    assert_eq!(captured, bytes);
+    assert_eq!(std::fs::read(&f.source).unwrap(), bytes);
+    assert_eq!(row.size, bytes.len() as u64);
+    assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
+    assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+    let wire = serde_json::to_value(&row.representation).unwrap();
+    assert_eq!(wire["kind"], "flat_numbers_archive");
+    assert!(wire.get("expected_root").is_none());
+}

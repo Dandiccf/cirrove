@@ -284,7 +284,8 @@ async fn scenario(mounted: bool) -> anyhow::Result<()> {
             label: engine.account.label.clone(),
             expected_account_id: None,
             archive: source,
-            expected_root: "Source.pages".into(),
+            source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+            expected_root: Some("Source.pages".into()),
             parent: String::new(),
             name: "Socket import.pages".into(),
         };

@@ -337,6 +337,11 @@ impl UploadJournal {
                     semantic,
                     original_semantic,
                     ..
+                }
+                | UploadRepresentation::FlatNumbersReplacementArchive {
+                    original,
+                    semantic,
+                    original_semantic,
                 },
                 Some((selected, current_semantic, backup_semantic)),
             ) if selected == original.as_ref()
@@ -1152,14 +1157,19 @@ impl UploadRecord {
 impl UploadRecord {
     /// Recorded typed acknowledgment only, not a fresh provider observation.
     pub(crate) fn native_replacement_receipt(&self) -> Option<(&Node, &Node, &Node)> {
-        let UploadRepresentation::PackageReplacementArchive {
-            original,
-            semantic,
-            original_semantic,
-            ..
-        } = &self.representation
-        else {
-            return None;
+        let (original, semantic, original_semantic) = match &self.representation {
+            UploadRepresentation::PackageReplacementArchive {
+                original,
+                semantic,
+                original_semantic,
+                ..
+            }
+            | UploadRepresentation::FlatNumbersReplacementArchive {
+                original,
+                semantic,
+                original_semantic,
+            } => (original, semantic, original_semantic),
+            _ => return None,
         };
         let handoff = self.identity_handoff.as_ref()?;
         let backup = handoff.backup.as_ref()?;

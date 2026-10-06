@@ -20,7 +20,11 @@ fn archive(root: &str, changed: bool, explicit_root: bool) -> Vec<u8> {
     }
     writer
         .start_file(
-            format!("{root}/Document"),
+            if root.is_empty() {
+                "Document".into()
+            } else {
+                format!("{root}/Document")
+            },
             zip::write::SimpleFileOptions::default(),
         )
         .unwrap();
@@ -54,7 +58,13 @@ impl Drop for Server {
     }
 }
 impl Server {
-    async fn start(source: Vec<u8>, remote: Vec<u8>, lose_registration: bool) -> Self {
+    async fn start(
+        source: Vec<u8>,
+        remote: Vec<u8>,
+        lose_registration: bool,
+        target: &str,
+    ) -> Self {
+        let target = target.to_owned();
         let decoder = base64::engine::general_purpose::STANDARD;
         let cert = decoder
             .decode(include_str!("../fixtures/server-cert.b64").trim())
@@ -101,11 +111,11 @@ impl Server {
                         match (method,path.split('?').next().unwrap()) {
                             ("POST","/retrieveItemDetailsInFolders")=>{
                                 let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request[0]["drivewsid"],ROOT_ID);
-                                let items=if state.registered {vec![json!({"drivewsid":"FILE::com.apple.CloudDocs::new-package","docwsid":"new-package","zone":"com.apple.CloudDocs","type":"FILE","name":"Target","extension":"pages","parentId":ROOT_ID,"etag":"native-v1","size":LOGICAL_SIZE})]} else {Vec::new()};
+                                let items=if state.registered {vec![json!({"drivewsid":"FILE::com.apple.CloudDocs::new-package","docwsid":"new-package","zone":"com.apple.CloudDocs","type":"FILE","name":"Target","extension":target.rsplit_once('.').unwrap().1,"parentId":ROOT_ID,"etag":"native-v1","size":LOGICAL_SIZE})]} else {Vec::new()};
                                 Some(json!([{"drivewsid":ROOT_ID,"type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())
                             },
                             ("POST","/ws/com.apple.CloudDocs/upload/web")=>{
-                                let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["type"],"PACKAGE");assert_eq!(request["filename"],"Target.pages");assert_eq!(request["size"],source.len());
+                                let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["type"],"PACKAGE");assert_eq!(request["filename"],target);assert_eq!(request["size"],source.len());
                                 Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":"new-package","owner_id":""}]).to_string().into_bytes())
                             },
                             ("POST","/signed-upload")=>{
@@ -114,9 +124,9 @@ impl Server {
                             },
                             ("POST","/ws/com.apple.CloudDocs/update/documents")=>{
                                 assert_eq!(state.uploaded,source);assert!(!state.registered);
-                                let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["command"],"add_package");assert_eq!(request["document_id"],"new-package");assert_eq!(request["path"]["path"],"Target.pages");assert_eq!(request["path"]["starting_document_id"],"root");assert_eq!(request["allow_conflict"],false);assert!(request.get("owner").is_none());
+                                let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["command"],"add_package");assert_eq!(request["document_id"],"new-package");assert_eq!(request["path"]["path"],target);assert_eq!(request["path"]["starting_document_id"],"root");assert_eq!(request["allow_conflict"],false);assert!(request.get("owner").is_none());
                                 state.registered=true;
-                                if lose_registration {None} else {Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":"new-package","item_id":"item-native","etag":"native-v1","size":LOGICAL_SIZE,"name":"Target.pages"}}]}).to_string().into_bytes())}
+                                if lose_registration {None} else {Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":"new-package","item_id":"item-native","etag":"native-v1","size":LOGICAL_SIZE,"name":target}}]}).to_string().into_bytes())}
                             },
                             ("GET","/ws/com.apple.CloudDocs/download/by_id")=>{
                                 assert!(state.registered);assert!(path.contains("document_id=new-package"));Some(json!({"package_token":{"url":format!("{ORIGIN}/signed-download")}}).to_string().into_bytes())
@@ -149,14 +159,27 @@ async fn arm(
     changed_remote: bool,
     version: u32,
     remote_directories: bool,
+    flat: bool,
 ) {
     let expected_conflict = changed_remote || (version == 1 && remote_directories);
     let (_dir, provider, mut request, saved) = fixture();
-    let source = archive("Source.pages", false, false);
-    let remote = archive("Target.pages", changed_remote, remote_directories);
+    let source_root = if flat { None } else { Some("Source.pages") };
+    let target = if flat {
+        "Target.numbers"
+    } else {
+        "Target.pages"
+    };
+    let source = archive(source_root.unwrap_or(""), false, false);
+    let remote = archive(target, changed_remote, remote_directories);
+    if flat {
+        let UploadIntent::Create { name, .. } = &mut request.intent else {
+            panic!("create")
+        };
+        *name = target.into();
+    }
     assert_ne!(source, remote);
     assert_ne!(source.len() as u64, LOGICAL_SIZE);
-    let server = Server::start(source.clone(), remote, lose_registration).await;
+    let server = Server::start(source.clone(), remote, lose_registration, target).await;
     {
         let mut state = provider.session.lock().await;
         let Session::Ready(session) = &mut *state else {
@@ -171,20 +194,31 @@ async fn arm(
     request.size = source.len() as u64;
     request.sha256 = hex::encode(Sha256::digest(&source));
     let cancel = CancellationToken::new();
-    let semantic = crate::package_archive_semantic_identity_versioned(
-        &file,
-        &crate::PackageDownload {
-            size: request.size,
-            sha256: request.sha256.clone(),
-        },
-        "Source.pages",
-        version,
-        &cancel,
-    )
-    .unwrap();
-    request.representation = UploadRepresentation::PackageArchive {
-        expected_root: "Source.pages".into(),
-        semantic: semantic.clone(),
+    let receipt = crate::PackageDownload {
+        size: request.size,
+        sha256: request.sha256.clone(),
+    };
+    let semantic = if flat {
+        crate::package_flat_archive_semantic_identity_v2(&file, &receipt, &cancel).unwrap()
+    } else {
+        crate::package_archive_semantic_identity_versioned(
+            &file,
+            &receipt,
+            "Source.pages",
+            version,
+            &cancel,
+        )
+        .unwrap()
+    };
+    request.representation = if flat {
+        UploadRepresentation::FlatNumbersArchive {
+            semantic: semantic.clone(),
+        }
+    } else {
+        UploadRepresentation::PackageArchive {
+            expected_root: "Source.pages".into(),
+            semantic: semantic.clone(),
+        }
     };
     let UploadStep::Allocate(allocation) = provider
         .begin_upload_for_operation(&saved.operation, &request, &cancel)
@@ -194,6 +228,31 @@ async fn arm(
         panic!("allocate checkpoint");
     };
     assert!(allocation.expose_secret().len() <= MAX_CHECKPOINT);
+    if flat {
+        let mut wrong = request.clone();
+        wrong.representation = UploadRepresentation::PackageArchive {
+            expected_root: "Source.numbers".into(),
+            semantic: semantic.clone(),
+        };
+        let before = server.state.lock().unwrap().calls.len();
+        assert!(matches!(
+            provider
+                .inspect_upload_for_operation(&saved.operation, &wrong, &allocation, &cancel)
+                .await,
+            Err(UploadError::CheckpointInvalid)
+        ));
+        let mut value: serde_json::Value =
+            serde_json::from_str(allocation.expose_secret()).unwrap();
+        value["request"] = serde_json::to_value(&wrong).unwrap();
+        let tampered = SecretString::from(value.to_string());
+        assert!(matches!(
+            provider
+                .inspect_upload_for_operation(&saved.operation, &request, &tampered, &cancel)
+                .await,
+            Err(UploadError::CheckpointInvalid)
+        ));
+        assert_eq!(server.state.lock().unwrap().calls.len(), before);
+    }
     let UploadStep::Stream(body) = provider
         .allocate_upload_for_operation(&saved.operation, &request, &allocation, &cancel)
         .await
@@ -261,7 +320,7 @@ async fn arm(
     if let Some(receipt) = receipt {
         assert_eq!(receipt.remote.id, "FILE::com.apple.CloudDocs::new-package");
         assert_eq!(receipt.remote.parent_id.as_deref(), Some(ROOT_ID));
-        assert_eq!(receipt.remote.name, "Target.pages");
+        assert_eq!(receipt.remote.name, target);
         assert_eq!(receipt.remote.size, LOGICAL_SIZE);
         assert!(receipt.remote.package);
         assert_eq!(receipt.remote.kind, NodeKind::Folder);
@@ -286,7 +345,7 @@ async fn arm(
                 &request,
                 &registration,
                 source_file,
-                "Source.pages".into(),
+                source_root.map(str::to_owned),
                 &cancel,
             )
             .await
@@ -332,7 +391,13 @@ async fn exhausted_staging_budget_refuses_package_allocation_before_any_http() {
     request.sha256 = hex::encode(Sha256::digest(&source));
     saved.request = request.clone();
     let checkpoint = ICloudPackageCreate::encode(&saved).unwrap();
-    let server = Server::start(source, archive("Target.pages", false, false), false).await;
+    let server = Server::start(
+        source,
+        archive("Target.pages", false, false),
+        false,
+        "Target.pages",
+    )
+    .await;
     {
         let mut state = provider.session.lock().await;
         let Session::Ready(session) = &mut *state else {
@@ -385,19 +450,19 @@ async fn exhausted_staging_budget_refuses_package_allocation_before_any_http() {
 }
 #[tokio::test]
 async fn package_create_real_https_roundtrip_verifies_repacked_archive_and_logical_size() {
-    tokio::time::timeout(Duration::from_secs(15), arm(false, false, 1, false))
+    tokio::time::timeout(Duration::from_secs(15), arm(false, false, 1, false, false))
         .await
         .unwrap();
 }
 #[tokio::test]
 async fn package_create_lost_registration_reply_recovers_by_readback_without_replay() {
-    tokio::time::timeout(Duration::from_secs(15), arm(true, false, 1, false))
+    tokio::time::timeout(Duration::from_secs(15), arm(true, false, 1, false, false))
         .await
         .unwrap();
 }
 #[tokio::test]
 async fn package_create_successful_registration_with_wrong_remote_content_is_not_a_receipt() {
-    tokio::time::timeout(Duration::from_secs(15), arm(false, true, 1, false))
+    tokio::time::timeout(Duration::from_secs(15), arm(false, true, 1, false, false))
         .await
         .unwrap();
 }
@@ -405,21 +470,36 @@ async fn package_create_successful_registration_with_wrong_remote_content_is_not
 #[tokio::test]
 async fn package_create_v2_stored_proof_survives_added_directory_entries_and_lost_reply() {
     for lost in [false, true] {
-        tokio::time::timeout(Duration::from_secs(15), arm(lost, false, 2, true))
+        tokio::time::timeout(Duration::from_secs(15), arm(lost, false, 2, true, false))
             .await
             .unwrap();
     }
 }
 #[tokio::test]
 async fn package_create_v2_still_refuses_changed_file_bytes() {
-    tokio::time::timeout(Duration::from_secs(15), arm(false, true, 2, true))
+    tokio::time::timeout(Duration::from_secs(15), arm(false, true, 2, true, false))
         .await
         .unwrap();
 }
 
 #[tokio::test]
 async fn package_create_retained_v1_directory_conflict_is_not_reinterpreted_as_v2() {
-    tokio::time::timeout(Duration::from_secs(15), arm(false, false, 1, true))
+    tokio::time::timeout(Duration::from_secs(15), arm(false, false, 1, true, false))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn package_create_flat_numbers_real_https_and_lost_reply_keep_layout_bound() {
+    for lost in [false, true] {
+        tokio::time::timeout(Duration::from_secs(15), arm(lost, false, 2, true, true))
+            .await
+            .unwrap();
+    }
+}
+#[tokio::test]
+async fn package_create_flat_numbers_wrong_remote_content_is_not_a_receipt() {
+    tokio::time::timeout(Duration::from_secs(15), arm(false, true, 2, true, true))
         .await
         .unwrap();
 }

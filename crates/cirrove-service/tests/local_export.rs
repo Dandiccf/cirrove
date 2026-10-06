@@ -231,7 +231,15 @@ fn offline_reader_refuses_future_schema_and_symlinked_database_or_objects() {
     let root = temp.path().join("journal");
     let db_path = root.join("uploads.db");
     let db = rusqlite::Connection::open(&db_path).unwrap();
-    db.pragma_update(None, "user_version", 21).unwrap();
+    let future_schema = u32::try_from(
+        cirrove_service::storage_format_attestation()["journal_schema"]
+            .as_u64()
+            .unwrap(),
+    )
+    .unwrap()
+        + 1;
+    db.pragma_update(None, "user_version", future_schema)
+        .unwrap();
     drop(db);
     let before = fs::read(&db_path).unwrap();
     assert!(RecoveryJournal::open(&root, "owned").is_err());

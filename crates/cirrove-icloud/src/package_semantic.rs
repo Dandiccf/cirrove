@@ -116,7 +116,6 @@ pub fn package_archive_semantic_identity_versioned(
 /// It does not classify provider DATA/PACKAGE or validate native editor fidelity.
 /// Accepts only redundant local ZIP64 size pairs that exactly mirror bounded
 /// classic sizes in Stored/flags0 entries. Genuine ZIP64 remains unsupported.
-#[cfg(feature = "write-probe")]
 pub fn package_flat_archive_semantic_identity_v2(
     archive: &File,
     receipt: &PackageDownload,
@@ -654,18 +653,25 @@ mod tests;
 pub(crate) fn diagnostic_archive_comparison(
     source: &File,
     source_receipt: &PackageDownload,
-    source_root: &str,
+    source_root: Option<&str>,
     downloaded: &File,
     downloaded_receipt: &PackageDownload,
     downloaded_root: &str,
     cancel: &CancellationToken,
 ) -> Result<serde_json::Value> {
-    validate_root(source_root)?;
     validate_root(downloaded_root)?;
-    let a = bind_root(
-        fingerprint(source, source_receipt, cancel, MAX_EXPANDED)?,
-        source_root,
-    )?;
+    let a = match source_root {
+        Some(root) => {
+            validate_root(root)?;
+            bind_root(
+                fingerprint(source, source_receipt, cancel, MAX_EXPANDED)?,
+                root,
+            )?
+        }
+        None => {
+            fingerprint_with_local_size_mirror(source, source_receipt, cancel, MAX_EXPANDED, true)?
+        }
+    };
     let b = bind_root(
         fingerprint(downloaded, downloaded_receipt, cancel, MAX_EXPANDED)?,
         downloaded_root,

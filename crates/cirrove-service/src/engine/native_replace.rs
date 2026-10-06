@@ -9,7 +9,8 @@ use crate::{
 use cirrove_core::{Node, upload::UploadRepresentation};
 fn original(row: &UploadRecord) -> Result<&Node> {
     match &row.representation {
-        UploadRepresentation::PackageReplacementArchive { original, .. } => Ok(original),
+        UploadRepresentation::PackageReplacementArchive { original, .. }
+        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. } => Ok(original),
         _ => anyhow::bail!("not a native replacement"),
     }
 }

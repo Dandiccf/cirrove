@@ -4,6 +4,15 @@ use serde::{Deserialize, Serialize};
 /// Version 1 commits to the canonical framing documented in the benchmark
 /// contract. Unknown versions must be rejected, not silently reinterpreted.
 pub const PACKAGE_SEMANTIC_IDENTITY_VERSION: u32 = 1;
+/// Caller-selected local archive layout, independent of the provider's remote
+/// DATA/PACKAGE representation. Flat Numbers never supplies a wrapper root.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PackageSourceLayout {
+    #[default]
+    Wrapped,
+    FlatNumbers,
+}
 /// A content identity, not upload authority or a remote revision receipt. Bind
 /// this separately to the account, operation, expected root and source revision.
 /// Contains no archive paths, provider identifiers or document contents.
@@ -71,10 +80,18 @@ pub enum UploadRepresentation {
         expected_root: String,
         semantic: PackageSemanticIdentity,
     },
+    /// Explicit local Numbers export without an outer directory. The remote
+    /// representation is still verified separately as a native package.
+    FlatNumbersArchive { semantic: PackageSemanticIdentity },
     /// Explicit two-ID archive replacement. Original content/revision is retained
     /// separately from the sealed replacement bytes; neither is a path alias.
     PackageReplacementArchive {
         expected_root: String,
+        semantic: PackageSemanticIdentity,
+        original: Box<crate::Node>,
+        original_semantic: PackageSemanticIdentity,
+    },
+    FlatNumbersReplacementArchive {
         semantic: PackageSemanticIdentity,
         original: Box<crate::Node>,
         original_semantic: PackageSemanticIdentity,
@@ -106,7 +123,20 @@ impl UploadRepresentation {
             }
             semantic.validate()?;
         }
+        if let Self::FlatNumbersArchive { semantic }
+        | Self::FlatNumbersReplacementArchive { semantic, .. } = self
+        {
+            semantic.validate()?;
+            if semantic.version != 2 {
+                return Err(super::UploadError::Invalid);
+            }
+        }
         if let Self::PackageReplacementArchive {
+            original,
+            original_semantic,
+            ..
+        }
+        | Self::FlatNumbersReplacementArchive {
             original,
             original_semantic,
             ..
@@ -133,6 +163,11 @@ impl UploadRepresentation {
             {
                 return Err(super::UploadError::Invalid);
             }
+        }
+        if let Self::FlatNumbersReplacementArchive { original, .. } = self
+            && !original.name.to_ascii_lowercase().ends_with(".numbers")
+        {
+            return Err(super::UploadError::Invalid);
         }
         Ok(())
     }
@@ -194,6 +229,97 @@ pub fn native_package_suffix(name: &str) -> Option<&'static str> {
 mod format_tests {
     #![allow(clippy::unwrap_used)]
     use super::*;
+    #[test]
+    fn flat_numbers_source_requires_explicit_v2() {
+        let proof = PackageSemanticIdentity {
+            version: 2,
+            sha256: "a".repeat(64),
+            entries: 3,
+            files: 1,
+            expanded_bytes: 1,
+        };
+        let value = UploadRepresentation::FlatNumbersArchive { semantic: proof };
+        value.validate().unwrap();
+        let UploadRepresentation::FlatNumbersArchive { mut semantic } = value else {
+            unreachable!()
+        };
+        semantic.version = 1;
+        assert!(
+            UploadRepresentation::FlatNumbersArchive { semantic }
+                .validate()
+                .is_err()
+        );
+    }
+    #[test]
+    fn flat_numbers_replacement_requires_selected_package_identity_and_revision() {
+        let proof = PackageSemanticIdentity {
+            version: 2,
+            sha256: "a".repeat(64),
+            entries: 3,
+            files: 1,
+            expanded_bytes: 1,
+        };
+        let original = crate::Node {
+            id: "selected-id".into(),
+            parent_id: Some("selected-parent".into()),
+            name: "Selected.numbers".into(),
+            kind: crate::NodeKind::Folder,
+            size: 1,
+            modified_unix: 0,
+            etag: Some("selected-etag".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        };
+        let mut request = super::super::UploadRequest {
+            representation: UploadRepresentation::FlatNumbersReplacementArchive {
+                semantic: proof.clone(),
+                original: Box::new(original),
+                original_semantic: proof,
+            },
+            scope: crate::Scope {
+                account: "owned".into(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            },
+            intent: super::super::UploadIntent::Replace {
+                item: "selected-id".into(),
+                expected_etag: "selected-etag".into(),
+            },
+            size: 1,
+            sha256: "b".repeat(64),
+        };
+        request.validate().unwrap();
+        request.intent = super::super::UploadIntent::Replace {
+            item: "different-id".into(),
+            expected_etag: "selected-etag".into(),
+        };
+        assert!(request.validate().is_err());
+        request.intent = super::super::UploadIntent::Replace {
+            item: "selected-id".into(),
+            expected_etag: "different-etag".into(),
+        };
+        assert!(request.validate().is_err());
+        request.intent = super::super::UploadIntent::Replace {
+            item: "selected-id".into(),
+            expected_etag: "selected-etag".into(),
+        };
+        let UploadRepresentation::FlatNumbersReplacementArchive { original, .. } =
+            &mut request.representation
+        else {
+            unreachable!()
+        };
+        original.package = false;
+        assert!(request.validate().is_err());
+        let UploadRepresentation::FlatNumbersReplacementArchive { original, .. } =
+            &mut request.representation
+        else {
+            unreachable!()
+        };
+        original.package = true;
+        original.name = "Selected.pages".into();
+        assert!(request.validate().is_err());
+    }
     #[test]
     fn native_format_names_are_bounded_single_components_not_representation_proofs() {
         for suffix in [".pages", ".numbers", ".key"] {

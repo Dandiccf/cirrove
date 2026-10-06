@@ -131,8 +131,8 @@ fn native_replacement_list_is_scoped_typed_and_readonly_across_states() {
     let mut foreign_account = append(&mut j, 10, true, UploadState::Pending, false);
     foreign_account.scope.account = "other".into();
     save(&j, &foreign_account);
-    let plan:String=j.db.query_row("EXPLAIN QUERY PLAN SELECT body FROM uploads INDEXED BY native_package_replacement_operations WHERE sequence>0 AND json_extract(body,'$.representation.kind')='package_replacement_archive' ORDER BY sequence LIMIT 3",[],|r|r.get(3)).unwrap();
-    assert!(plan.contains("native_package_replacement_operations"));
+    let plan:String=j.db.query_row("EXPLAIN QUERY PLAN SELECT body FROM uploads INDEXED BY native_package_replacement_operations_v21 WHERE sequence>0 AND json_extract(body,'$.representation.kind') IN ('package_replacement_archive','flat_numbers_replacement_archive') ORDER BY sequence LIMIT 3",[],|r|r.get(3)).unwrap();
+    assert!(plan.contains("native_package_replacement_operations_v21"));
     let version: u32 =
         j.db.pragma_query_value(None, "user_version", |r| r.get(0))
             .unwrap();
@@ -189,7 +189,7 @@ fn native_replacement_list_legacy_empty_pages_and_byte_overflow_never_skip_rows(
             .map(|i| append(&mut j, i, true, UploadState::Uploaded, true).id)
             .collect::<Vec<_>>();
         if !indexed {
-            j.db.execute_batch("DROP INDEX native_package_replacement_operations")
+            j.db.execute_batch("DROP INDEX native_package_replacement_operations_v21")
                 .unwrap();
         }
         drop(j);

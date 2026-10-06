@@ -713,3 +713,369 @@ fn native_trash_is_terminal_and_cannot_chain_from_existing_generation() {
     }));
     assert!(!removal.request.accepts(&MutationReceipt::Upsert(node())));
 }
+
+#[test]
+fn flat_numbers_schema20_migration_preserves_wrapped_history_and_publishes_flat_receipt() {
+    use crate::native_import::{PackageSourceLayout, ValidatedPackageArchive};
+    let retained = private_tempdir().keep();
+    let root = retained.join("journal");
+    let mut j = UploadJournal::open(&root, "owned", 1 << 20).unwrap();
+    let parent = "FOLDER::com.apple.CloudDocs::owned";
+    let wrapped = j
+        .enqueue_package_archive(
+            scope(),
+            UploadIntent::Create {
+                parent: parent.into(),
+                name: "Legacy.pages".into(),
+            },
+            "Source.pages".into(),
+            semantic(),
+            b"retained wrapped bytes".as_slice(),
+        )
+        .unwrap();
+    let wrapped_before = serde_json::to_value(&wrapped).unwrap();
+    // Synthetic schema20 uses the actual prior wrapped-only SQL definitions.
+    // It is not an invocation of an older producer or an installed-state test.
+    j.db.execute_batch("DROP INDEX native_package_import_operations_v21;
+        DROP INDEX native_package_replacement_operations_v21;
+        DROP INDEX uploaded_package_receipts_v21;
+        DROP TRIGGER package_metadata_on_insert_v21;
+        DROP TRIGGER package_metadata_on_update_v21;
+        CREATE INDEX native_package_import_operations ON uploads(sequence) WHERE json_extract(body,'$.representation.kind')='package_archive';
+        CREATE INDEX native_package_replacement_operations ON uploads(sequence) WHERE json_extract(body,'$.representation.kind')='package_replacement_archive';").unwrap();
+    j.db.execute_batch(r#"CREATE TABLE IF NOT EXISTS package_metadata_publication(
+        operation TEXT PRIMARY KEY, done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),
+        failures INTEGER NOT NULL DEFAULT 0, retry_after INTEGER NOT NULL DEFAULT 0, observed TEXT);
+        CREATE INDEX IF NOT EXISTS package_metadata_due ON package_metadata_publication(done,retry_after,operation);
+        CREATE INDEX IF NOT EXISTS uploaded_package_receipts_v17 ON uploads(sequence)
+        WHERE state='uploaded' AND json_extract(body,'$.representation.kind') IN('package_archive','package_replacement_archive')
+          AND json_type(body,'$.package_completion')='object';
+        CREATE TRIGGER IF NOT EXISTS package_metadata_on_update_v17 AFTER UPDATE OF state,body ON uploads
+        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind') IN('package_archive','package_replacement_archive')
+          AND json_type(NEW.body,'$.package_completion')='object'
+        BEGIN INSERT OR IGNORE INTO package_metadata_publication(operation) VALUES(NEW.id); END;
+        CREATE TRIGGER IF NOT EXISTS package_metadata_on_insert_v17 AFTER INSERT ON uploads
+        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind') IN('package_archive','package_replacement_archive')
+          AND json_type(NEW.body,'$.package_completion')='object'
+        BEGIN INSERT OR IGNORE INTO package_metadata_publication(operation) VALUES(NEW.id); END;
+        INSERT OR IGNORE INTO package_metadata_publication(operation)
+        SELECT id FROM uploads WHERE state='uploaded'
+          AND json_extract(body,'$.representation.kind') IN('package_archive','package_replacement_archive')
+          AND json_type(body,'$.package_completion')='object';"#).unwrap();
+    j.db.pragma_update(None, "user_version", 20).unwrap();
+    drop(j);
+    let database_before = std::fs::read(root.join("uploads.db")).unwrap();
+    {
+        let repair =
+            crate::journal::export::MetadataPublicationJournal::open(&root, "owned").unwrap();
+        assert!(repair.due(0).unwrap().is_none());
+    }
+    assert_eq!(
+        std::fs::read(root.join("uploads.db")).unwrap(),
+        database_before
+    );
+    let mut j = UploadJournal::open(&root, "owned", 1 << 20).unwrap();
+    assert_eq!(
+        serde_json::to_value(j.get(wrapped.id).unwrap()).unwrap(),
+        wrapped_before
+    );
+    assert_eq!(payload(&j, wrapped.id), b"retained wrapped bytes");
+    let archive = crate::native_import::synthetic_package_archive(
+        "Index/Document.iwa",
+        b"flat owned Numbers",
+    );
+    let source = retained.join("source.numbers");
+    std::fs::write(&source, &archive).unwrap();
+    let captured = ValidatedPackageArchive::capture_with_source_layout(
+        &source,
+        &retained,
+        PackageSourceLayout::FlatNumbers,
+        None,
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let row = j
+        .enqueue_validated_package_archive(
+            scope(),
+            UploadIntent::Create {
+                parent: parent.into(),
+                name: "Flat.numbers".into(),
+            },
+            captured,
+            &CancellationToken::new(),
+        )
+        .unwrap();
+    let UploadRepresentation::FlatNumbersArchive { semantic } = &row.representation else {
+        panic!("flat proof missing")
+    };
+    let semantic = semantic.clone();
+    // Pending flat bytes are exportable after a read-only restart. Exporting
+    // does not acknowledge the upload or change the retained row/database.
+    drop(j);
+    let pending_database = std::fs::read(root.join("uploads.db")).unwrap();
+    let recovery = RecoveryJournal::open(&root, "owned").unwrap();
+    let pending = recovery
+        .list(0, 10)
+        .unwrap()
+        .into_iter()
+        .find(|saved| saved.id == row.id)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(pending).unwrap(),
+        serde_json::to_value(&row).unwrap()
+    );
+    let exported = retained.join("flat-pending-export.zip");
+    let export = recovery
+        .local_export_source(row.id)
+        .unwrap()
+        .copy_to(&exported, &CancellationToken::new(), |_| {})
+        .unwrap();
+    assert_eq!(export.operation, row.id);
+    assert_eq!(export.sha256, row.sha256);
+    assert_eq!(std::fs::read(exported).unwrap(), archive);
+    drop(recovery);
+    assert_eq!(
+        std::fs::read(root.join("uploads.db")).unwrap(),
+        pending_database
+    );
+    let mut j = UploadJournal::open(&root, "owned", 1 << 20).unwrap();
+    assert_eq!(
+        j.native_import_list(&scope(), None, 10)
+            .unwrap()
+            .operations
+            .len(),
+        2
+    );
+    // Complete the older wrapped operation so claim_next reaches this flat row.
+    let claimed = j.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, wrapped.id);
+    j.stop_attempt(wrapped.id, claimed.attempt.unwrap(), UploadState::Failed)
+        .unwrap();
+    let claimed = j.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, row.id);
+    let remote = Node {
+        id: "FILE::com.apple.CloudDocs::flat".into(),
+        parent_id: Some(parent.into()),
+        name: "Flat.numbers".into(),
+        kind: NodeKind::Folder,
+        size: semantic.expanded_bytes,
+        modified_unix: 1,
+        etag: Some("flat-v1".into()),
+        content_version: None,
+        target: None,
+        package: true,
+    };
+    let mut wrong = remote.clone();
+    wrong.name = "Flat.pages".into();
+    assert!(
+        j.acknowledge_package(
+            row.id,
+            claimed.attempt.unwrap(),
+            PackageUploadReceipt {
+                remote: wrong,
+                semantic: semantic.clone()
+            }
+        )
+        .is_err()
+    );
+    assert_eq!(payload(&j, row.id), archive);
+    j.acknowledge_package(
+        row.id,
+        claimed.attempt.unwrap(),
+        PackageUploadReceipt {
+            remote: remote.clone(),
+            semantic,
+        },
+    )
+    .unwrap();
+    let completed = j.get(row.id).unwrap();
+    assert_eq!(
+        j.package_publication_due(now_seconds())
+            .unwrap()
+            .unwrap()
+            .id,
+        row.id
+    );
+    j.finish_package_publication(
+        &completed,
+        PackagePublicationStatus::Present(remote),
+        now_seconds(),
+    )
+    .unwrap();
+    assert_eq!(
+        j.native_import_list(&scope(), None, 10)
+            .unwrap()
+            .operations
+            .len(),
+        2
+    );
+    assert_eq!(payload(&j, row.id), archive);
+    drop(j);
+    let database_before = std::fs::read(root.join("uploads.db")).unwrap();
+    {
+        let repair =
+            crate::journal::export::MetadataPublicationJournal::open(&root, "owned").unwrap();
+        assert!(repair.due(0).unwrap().is_none());
+    }
+    assert_eq!(
+        std::fs::read(root.join("uploads.db")).unwrap(),
+        database_before
+    );
+    let recovery = RecoveryJournal::open(&root, "owned").unwrap();
+    assert_eq!(recovery.list(0, 10).unwrap().len(), 2);
+    // Completed uploads are historical receipts, not retained export stages.
+    assert!(matches!(
+        recovery.local_export_source(row.id),
+        Err(JournalError::Stale)
+    ));
+    drop(recovery);
+    let j = UploadJournal::open(&root, "owned", 1 << 20).unwrap();
+    assert_eq!(
+        serde_json::to_value(j.get(row.id).unwrap()).unwrap(),
+        serde_json::to_value(completed).unwrap()
+    );
+    let version: u32 =
+        j.db.pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap();
+    assert_eq!(version, 21);
+    // The prior writer's `version > JOURNAL_SCHEMA` fence rejects 21 when its
+    // compiled maximum is 20. This is source-level, not an old-binary run.
+    assert!(version > 20);
+    assert_eq!(payload(&j, wrapped.id), b"retained wrapped bytes");
+    assert_eq!(std::fs::read(source).unwrap(), archive);
+}
+
+#[test]
+fn flat_numbers_publication_rejects_retained_matching_version_one_receipts() {
+    use crate::native_import::{PackageSourceLayout, ValidatedPackageArchive};
+    for endpoint in ["due", "status", "finish"] {
+        let retained = private_tempdir().keep();
+        let root = retained.join("journal");
+        let mut journal = UploadJournal::open(&root, "owned", 1 << 20).unwrap();
+        let bytes = crate::native_import::synthetic_package_archive(
+            "Index/Document.iwa",
+            b"owned flat publication corruption fixture",
+        );
+        let source = retained.join("source.numbers");
+        std::fs::write(&source, &bytes).unwrap();
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o400)).unwrap();
+        let captured = ValidatedPackageArchive::capture_with_source_layout(
+            &source,
+            &retained,
+            PackageSourceLayout::FlatNumbers,
+            None,
+            &CancellationToken::new(),
+        )
+        .unwrap();
+        let parent = "FOLDER::com.apple.CloudDocs::owned";
+        let record = journal
+            .enqueue_validated_package_archive(
+                scope(),
+                UploadIntent::Create {
+                    parent: parent.into(),
+                    name: "Owned.numbers".into(),
+                },
+                captured,
+                &CancellationToken::new(),
+            )
+            .unwrap();
+        let UploadRepresentation::FlatNumbersArchive { semantic } = &record.representation else {
+            panic!("actual flat capture missing")
+        };
+        assert_eq!(semantic.version, 2);
+        let remote = Node {
+            id: "FILE::com.apple.CloudDocs::owned-flat-publication".into(),
+            parent_id: Some(parent.into()),
+            name: "Owned.numbers".into(),
+            kind: NodeKind::Folder,
+            size: semantic.expanded_bytes,
+            modified_unix: 1,
+            etag: Some("owned-revision".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        };
+        let claimed = journal.claim_next().unwrap().unwrap();
+        assert_eq!(claimed.id, record.id);
+        journal
+            .acknowledge_package(
+                record.id,
+                claimed.attempt.unwrap(),
+                PackageUploadReceipt {
+                    remote: remote.clone(),
+                    semantic: semantic.clone(),
+                },
+            )
+            .unwrap();
+        // The genuine admission/acknowledgment first proves this is a due valid
+        // V2 receipt; only the retained local row is then deliberately corrupted.
+        assert_eq!(
+            journal.package_publication_due(0).unwrap().unwrap().id,
+            record.id
+        );
+        assert_eq!(
+            journal.package_publication_status(record.id).unwrap(),
+            PackagePublicationStatus::Pending
+        );
+        journal.db.execute(
+            "UPDATE uploads SET body=json_set(body,'$.representation.semantic.version',1,'$.package_completion.version',1) WHERE id=?1",
+            [record.id.to_string()],
+        ).unwrap();
+        let corrupted = journal.get(record.id).unwrap();
+        assert!(corrupted.representation.validate().is_err());
+        let row_before: String = journal
+            .db
+            .query_row(
+                "SELECT body FROM uploads WHERE id=?1",
+                [record.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let publication_before: (i64, i64, i64, Option<String>) = journal.db.query_row(
+            "SELECT done,failures,retry_after,observed FROM package_metadata_publication WHERE operation=?1",
+            [record.id.to_string()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        ).unwrap();
+        assert_eq!(publication_before, (0, 0, 0, None));
+        let payload_before = payload(&journal, record.id);
+        assert_eq!(payload_before, bytes);
+        let outcome = match endpoint {
+            "due" => journal.package_publication_due(0).map(|_| ()),
+            "status" => journal.package_publication_status(record.id).map(|_| ()),
+            "finish" => journal.finish_package_publication(
+                &corrupted,
+                PackagePublicationStatus::Present(remote),
+                0,
+            ),
+            _ => unreachable!(),
+        };
+        let row_after: String = journal
+            .db
+            .query_row(
+                "SELECT body FROM uploads WHERE id=?1",
+                [record.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let publication_after: (i64, i64, i64, Option<String>) = journal.db.query_row(
+            "SELECT done,failures,retry_after,observed FROM package_metadata_publication WHERE operation=?1",
+            [record.id.to_string()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        ).unwrap();
+        assert_eq!(row_after, row_before, "{endpoint}: no upload transition");
+        assert_eq!(
+            publication_after, publication_before,
+            "{endpoint}: corrupt job cannot complete or back off"
+        );
+        assert_eq!(payload(&journal, record.id), payload_before);
+        assert_eq!(std::fs::read(&source).unwrap(), bytes);
+        assert_eq!(
+            std::fs::metadata(&source).unwrap().permissions().mode() & 0o777,
+            0o400
+        );
+        // Baseline reaches here on due() with Ok(Some(corrupted)); it must not
+        // be described as a setup/compile failure or a live provider failure.
+        assert!(
+            matches!(outcome, Err(JournalError::Corrupt | JournalError::Stale)),
+            "{endpoint}: matching invalid proof versions must be refused"
+        );
+    }
+}

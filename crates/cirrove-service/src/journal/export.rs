@@ -323,7 +323,9 @@ impl RecoveryJournal {
         }
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if !(14..=super::JOURNAL_SCHEMA).contains(&version) || (metadata_only && version != 20) {
+        if !(14..=super::JOURNAL_SCHEMA).contains(&version)
+            || (metadata_only && !matches!(version, 20 | 21))
+        {
             return Err(JournalError::Schema);
         }
         if metadata_only {

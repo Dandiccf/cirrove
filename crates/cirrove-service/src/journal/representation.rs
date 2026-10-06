@@ -118,8 +118,10 @@ impl UploadJournal {
         receipt: PackageUploadReceipt,
     ) -> Result<()> {
         let mut record = self.active_attempt(id, attempt)?;
-        let UploadRepresentation::PackageArchive { semantic, .. } = &record.representation else {
-            return Err(JournalError::Intent);
+        let semantic = match &record.representation {
+            UploadRepresentation::PackageArchive { semantic, .. }
+            | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+            _ => return Err(JournalError::Intent),
         };
         record
             .representation

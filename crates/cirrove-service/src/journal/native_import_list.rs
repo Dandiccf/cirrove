@@ -23,8 +23,8 @@ pub struct NativeImportListing {
 pub(super) fn migrate(db: &Connection) -> Result<()> {
     // Additive query index only. Read-only recovery never installs this index.
     db.execute_batch(
-        "CREATE INDEX IF NOT EXISTS native_package_import_operations ON uploads(sequence)
-        WHERE json_extract(body,'$.representation.kind')='package_archive';",
+        "CREATE INDEX IF NOT EXISTS native_package_import_operations_v21 ON uploads(sequence)
+        WHERE json_extract(body,'$.representation.kind') IN('package_archive','flat_numbers_archive');",
     )?;
     Ok(())
 }
@@ -37,17 +37,20 @@ fn native_id(value: &str, prefix: &str) -> bool {
 fn selection(row: UploadRecord) -> Result<NativeImportSelection> {
     // Mirror watch admission: explicit PACKAGE Create, never a mounted save,
     // replacement, successor, working generation or old-ID handoff.
-    let UploadRepresentation::PackageArchive {
-        expected_root,
-        semantic,
-    } = &row.representation
-    else {
-        return Err(JournalError::Corrupt);
+    let (expected_root, semantic) = match &row.representation {
+        UploadRepresentation::PackageArchive {
+            expected_root,
+            semantic,
+        } => (Some(expected_root.as_str()), semantic),
+        UploadRepresentation::FlatNumbersArchive { semantic } => (None, semantic),
+        _ => return Err(JournalError::Corrupt),
     };
     let UploadIntent::Create { parent, name } = &row.intent else {
         return Err(JournalError::Corrupt);
     };
-    let suffix = cirrove_core::upload::native_package_suffix(&expected_root.to_ascii_lowercase());
+    let suffix = expected_root
+        .map(|root| cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase()))
+        .unwrap_or(Some(".numbers"));
     if row.representation.validate().is_err()
         || row.intent.validate().is_err()
         || row.base.is_some()
@@ -58,7 +61,7 @@ fn selection(row: UploadRecord) -> Result<NativeImportSelection> {
         || row.sha256.len() != 64
         || !row.sha256.bytes().all(|b| b.is_ascii_hexdigit())
         || !native_id(parent, "FOLDER::com.apple.CloudDocs::")
-        || expected_root.len() > 255
+        || expected_root.is_some_and(|root| root.len() > 255)
         || name.len() > 255
         || suffix.is_none()
         || suffix != cirrove_core::upload::native_package_suffix(&name.to_ascii_lowercase())
@@ -114,18 +117,18 @@ impl UploadJournal {
             return Err(JournalError::Intent);
         }
         let after = i64::try_from(after.unwrap_or(0)).map_err(|_| JournalError::Intent)?;
-        let indexed: bool = self.db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='index' AND name='native_package_import_operations')", [], |r| r.get(0))?;
+        let indexed: bool = self.db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='index' AND name='native_package_import_operations_v21')", [], |r| r.get(0))?;
         // Legacy fallback scans at most limit+1 ordinary/native sequence rows.
         // Do not deserialize or return unrelated ordinary record bodies.
         let sql = if indexed {
             "SELECT id,sequence,state,json_extract(body,'$.representation.kind'),
                 CASE WHEN length(CAST(body AS BLOB))<=?3 THEN body END
-             FROM uploads INDEXED BY native_package_import_operations
-             WHERE sequence>?1 AND json_extract(body,'$.representation.kind')='package_archive'
+             FROM uploads INDEXED BY native_package_import_operations_v21
+             WHERE sequence>?1 AND json_extract(body,'$.representation.kind') IN('package_archive','flat_numbers_archive')
              ORDER BY sequence LIMIT ?2"
         } else {
             "SELECT id,sequence,state,json_extract(body,'$.representation.kind'),
-                CASE WHEN json_extract(body,'$.representation.kind')='package_archive'
+                CASE WHEN json_extract(body,'$.representation.kind') IN('package_archive','flat_numbers_archive')
                     AND length(CAST(body AS BLOB))<=?3 THEN body END
              FROM uploads WHERE sequence>?1 ORDER BY sequence LIMIT ?2"
         };
@@ -147,7 +150,10 @@ impl UploadJournal {
                 return Err(JournalError::Corrupt);
             }
             let kind: Option<String> = raw.get(3)?;
-            if kind.as_deref() == Some("package_archive") {
+            if matches!(
+                kind.as_deref(),
+                Some("package_archive" | "flat_numbers_archive")
+            ) {
                 let id: String = raw.get(0)?;
                 let state: String = raw.get(2)?;
                 let body: Option<String> = raw.get(4)?;
@@ -158,6 +164,7 @@ impl UploadJournal {
                     || !matches!(
                         row.representation,
                         UploadRepresentation::PackageArchive { .. }
+                            | UploadRepresentation::FlatNumbersArchive { .. }
                     )
                 {
                     return Err(JournalError::Corrupt);

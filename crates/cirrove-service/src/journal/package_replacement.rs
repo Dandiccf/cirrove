@@ -4,7 +4,8 @@ use rusqlite::Transaction;
 
 pub(super) fn original(representation: &UploadRepresentation) -> Option<&Node> {
     match representation {
-        UploadRepresentation::PackageReplacementArchive { original, .. } => Some(original),
+        UploadRepresentation::PackageReplacementArchive { original, .. }
+        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. } => Some(original),
         _ => None,
     }
 }
@@ -14,9 +15,16 @@ pub(super) fn validate(
     representation: &UploadRepresentation,
 ) -> Result<()> {
     let before = original(representation).ok_or(JournalError::Intent)?;
-    let UploadRepresentation::PackageReplacementArchive { expected_root, .. } = representation
-    else {
-        return Err(JournalError::Intent);
+    let layout_matches = match representation {
+        UploadRepresentation::PackageReplacementArchive { expected_root, .. } => {
+            cirrove_core::upload::native_package_suffix(expected_root)
+                == cirrove_core::upload::native_package_suffix(&before.name)
+        }
+        UploadRepresentation::FlatNumbersReplacementArchive { .. } => {
+            cirrove_core::upload::native_package_suffix(&before.name.to_ascii_lowercase())
+                == Some(".numbers")
+        }
+        _ => false,
     };
     representation
         .validate()
@@ -31,8 +39,7 @@ pub(super) fn validate(
             .is_some_and(|p| p.starts_with("FOLDER::com.apple.CloudDocs::") && !p.ends_with("::"))
         || before.parent_id.as_deref() == Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
         || cirrove_core::upload::native_package_suffix(&before.name).is_none()
-        || cirrove_core::upload::native_package_suffix(expected_root)
-            != cirrove_core::upload::native_package_suffix(&before.name)
+        || !layout_matches
         || !matches!(intent, UploadIntent::Replace { item, expected_etag } if item == &before.id && before.etag.as_ref() == Some(expected_etag))
     {
         return Err(JournalError::Intent);
@@ -52,22 +59,28 @@ impl UploadJournal {
         cancel: &cirrove_core::CancellationToken,
     ) -> Result<UploadRecord> {
         let (file, representation, size, sha256) = archive.into_parts();
-        let UploadRepresentation::PackageArchive {
-            expected_root,
-            semantic,
-        } = representation
-        else {
-            return Err(JournalError::Intent);
+        let representation = match representation {
+            UploadRepresentation::PackageArchive {
+                expected_root,
+                semantic,
+            } => UploadRepresentation::PackageReplacementArchive {
+                expected_root,
+                semantic,
+                original: Box::new(before.clone()),
+                original_semantic,
+            },
+            UploadRepresentation::FlatNumbersArchive { semantic } => {
+                UploadRepresentation::FlatNumbersReplacementArchive {
+                    semantic,
+                    original: Box::new(before.clone()),
+                    original_semantic,
+                }
+            }
+            _ => return Err(JournalError::Intent),
         };
         let intent = UploadIntent::Replace {
             item: before.id.clone(),
             expected_etag: before.etag.clone().ok_or(JournalError::Intent)?,
-        };
-        let representation = UploadRepresentation::PackageReplacementArchive {
-            expected_root,
-            semantic,
-            original: Box::new(before),
-            original_semantic,
         };
         self.enqueue_admitted(
             scope,

@@ -4,7 +4,7 @@ use crate::{
     filesystem::WriteControl,
     native_import::{NativeImportInput, ValidatedPackageArchive},
 };
-use cirrove_core::upload::{UploadIntent, UploadRepresentation};
+use cirrove_core::upload::{PackageSourceLayout, UploadIntent, UploadRepresentation};
 
 pub(super) fn eligible(engine: &Engine) -> bool {
     engine.account.enabled
@@ -18,21 +18,26 @@ pub(super) fn status_allows(status: &[AccountStatus], engine: &Engine) -> bool {
         .any(|s| s.account_id == engine.account.id && s.enabled && s.mounted)
 }
 fn validate_input(input: &NativeImportInput) -> Result<()> {
+    let format = cirrove_core::upload::native_package_suffix(&input.name.to_ascii_lowercase());
+    let layout_valid = match (input.source_layout, input.expected_root.as_deref()) {
+        (PackageSourceLayout::Wrapped, Some(root)) => {
+            !root.is_empty()
+                && root.len() <= 255
+                && !root
+                    .chars()
+                    .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
+                && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase()) == format
+        }
+        (PackageSourceLayout::FlatNumbers, None) => format == Some(".numbers"),
+        _ => false,
+    };
     if !input.source.is_absolute()
         || input
             .source
             .components()
             .any(|p| matches!(p, std::path::Component::ParentDir))
-        || cirrove_core::upload::native_package_suffix(&input.expected_root.to_ascii_lowercase())
-            .is_none()
-        || cirrove_core::upload::native_package_suffix(&input.expected_root.to_ascii_lowercase())
-            != cirrove_core::upload::native_package_suffix(&input.name.to_ascii_lowercase())
-        || input
-            .expected_root
-            .chars()
-            .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
-        || input.expected_root.is_empty()
-        || input.expected_root.len() > 255
+        || format.is_none()
+        || !layout_valid
         || input.name.len() > 255
         || input
             .name
@@ -120,6 +125,7 @@ impl Manager {
             || !matches!(
                 record.representation,
                 UploadRepresentation::PackageArchive { .. }
+                    | UploadRepresentation::FlatNumbersArchive { .. }
             )
         {
             bail!("native import publication does not belong to this account");
@@ -219,6 +225,7 @@ impl Manager {
             .join("native-import");
         let source = input.source.clone();
         let root = input.expected_root.clone();
+        let source_layout = input.source_layout;
         let token = cancel.clone();
         let lifetime = control.clone();
         let (archive, permit, _lifetime) = tokio::task::spawn_blocking(move || -> Result<_> {
@@ -226,8 +233,13 @@ impl Manager {
             source_allowed(&source, &excluded)?;
             crate::private_dir(&stage)
                 .map_err(|_| anyhow::anyhow!("native import staging is unavailable"))?;
-            let archive = ValidatedPackageArchive::capture_excluding(
-                &source, &stage, &root, &token, &excluded,
+            let archive = ValidatedPackageArchive::capture_excluding_with_source_layout(
+                &source,
+                &stage,
+                source_layout,
+                root.as_deref(),
+                &token,
+                &excluded,
             )?;
             Ok((archive, permit, _lifetime))
         })
@@ -285,6 +297,7 @@ impl Manager {
             || !matches!(
                 record.representation,
                 UploadRepresentation::PackageArchive { .. }
+                    | UploadRepresentation::FlatNumbersArchive { .. }
             )
         {
             bail!("native import receipt does not belong to this account");

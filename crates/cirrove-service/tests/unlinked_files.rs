@@ -297,9 +297,17 @@ fn schema_eight_migration_keeps_pending_streams_and_newer_schema_is_refused() {
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        20
+        21
     );
-    db.execute_batch("PRAGMA user_version=21;").unwrap();
+    let future_schema = u32::try_from(
+        cirrove_service::storage_format_attestation()["journal_schema"]
+            .as_u64()
+            .unwrap(),
+    )
+    .unwrap()
+        + 1;
+    db.pragma_update(None, "user_version", future_schema)
+        .unwrap();
     drop(db);
     assert!(matches!(
         UploadJournal::open(&path, &scope().account, 1024 * 1024),

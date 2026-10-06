@@ -161,8 +161,8 @@ fn native_import_list_is_scoped_historical_and_unchanged_under_readonly_recovery
     legacy.remote.as_mut().unwrap().content_version = Some("E1".into());
     save(&j, &legacy);
     let frozen = serde_json::to_value(j.list(0, 100).unwrap()).unwrap();
-    let plan:String=j.db.query_row("EXPLAIN QUERY PLAN SELECT body FROM uploads INDEXED BY native_package_import_operations WHERE sequence>0 AND json_extract(body,'$.representation.kind')='package_archive' ORDER BY sequence LIMIT 3",[],|r|r.get(3)).unwrap();
-    assert!(plan.contains("native_package_import_operations"));
+    let plan:String=j.db.query_row("EXPLAIN QUERY PLAN SELECT body FROM uploads INDEXED BY native_package_import_operations_v21 WHERE sequence>0 AND json_extract(body,'$.representation.kind') IN ('package_archive','flat_numbers_archive') ORDER BY sequence LIMIT 3",[],|r|r.get(3)).unwrap();
+    assert!(plan.contains("native_package_import_operations_v21"));
     drop(j);
     let before = std::fs::read(t.path().join("uploads.db")).unwrap();
     let ro = RecoveryJournal::open(t.path(), "owned").unwrap();
@@ -232,7 +232,7 @@ fn native_import_list_legacy_pages_and_escaped_byte_overflow_do_not_skip_operati
             .map(|i| append(&mut j, i, true, UploadState::Uploaded, true).id)
             .collect();
         if !indexed {
-            j.db.execute_batch("DROP INDEX native_package_import_operations")
+            j.db.execute_batch("DROP INDEX native_package_import_operations_v21")
                 .unwrap();
         }
         drop(j);

@@ -61,14 +61,17 @@ fn buttons(widget: &gtk::Widget, label: &str) -> Vec<gtk::Button> {
 }
 
 fn provider_selector(widget: &gtk::Widget) -> Option<adw::ComboRow> {
+    combo_row(widget, "Provider")
+}
+fn combo_row(widget: &gtk::Widget, title: &str) -> Option<adw::ComboRow> {
     if let Some(row) = widget.downcast_ref::<adw::ComboRow>()
-        && row.title() == "Provider"
+        && row.title() == title
     {
         return Some(row.clone());
     }
     let mut child = widget.first_child();
     while let Some(current) = child {
-        if let Some(found) = provider_selector(&current) {
+        if let Some(found) = combo_row(&current, title) {
             return Some(found);
         }
         child = current.next_sibling();
@@ -2760,8 +2763,8 @@ fn main() {
 
 fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let temp = tempfile::tempdir().unwrap();
-    let state = temp.path().join("state");
+    let temp = tempfile::tempdir().unwrap().keep();
+    let state = temp.as_path().join("state");
     cirrove_service::private_dir(&state).unwrap();
     let mut sample = demo::snapshot().unwrap();
     let settings = sample.settings.as_mut().unwrap();
@@ -2780,7 +2783,7 @@ fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() 
     status.accounts[0].tenant.clear();
     status.accounts[0].mounted = true;
     status.accounts[0].state = "ready".into();
-    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let service = fake_service(&runtime, temp.as_path(), sample.status.unwrap());
     let app = application("NativeImport");
     let ui = Window::new(
         &app,
@@ -2803,7 +2806,7 @@ fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() 
             .unwrap()
             .is_visible()
     );
-    let archive = temp.path().join("Document.pages");
+    let archive = temp.as_path().join("Document.pages");
     // No archive is opened in the desktop; a real daemon owns validation.
     ui.native_import_dialog(selected.clone(), archive.clone());
     pump_until("import fields", || {
@@ -2874,7 +2877,11 @@ fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() 
         Some(selected.id.as_str())
     );
     assert_eq!(request.archive, archive);
-    assert_eq!(request.expected_root, "Document.pages");
+    assert_eq!(request.expected_root.as_deref(), Some("Document.pages"));
+    assert_eq!(
+        request.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::Wrapped
+    );
     assert_eq!(request.parent, "Reports");
     assert_eq!(request.name, "New 'document'.pages");
     drop(lines);
@@ -2895,6 +2902,75 @@ fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() 
             .count(),
         1
     );
+    // The explicit flat choice drives the real form and still submits only once.
+    let flat_archive = temp.as_path().join("actual-flat-export.numbers");
+    assert!(!flat_archive.exists());
+    ui.native_import_dialog(selected.clone(), flat_archive.clone());
+    pump_until("explicit archive layout", || {
+        combo_row(window.upcast_ref(), "Archive layout").is_some()
+    });
+    let layout = combo_row(window.upcast_ref(), "Archive layout").unwrap();
+    assert_eq!(
+        layout.selected(),
+        0,
+        "existing wrapped choice is the default"
+    );
+    let root = entry_row(window.upcast_ref(), "Document folder").unwrap();
+    assert!(root.is_sensitive());
+    layout.set_selected(1);
+    assert!(!root.is_sensitive());
+    root.set_text("This must not become a fabricated wrapper.numbers");
+    entry_row(window.upcast_ref(), "New document name")
+        .unwrap()
+        .set_text("Explicit copy.numbers");
+    entry_row(window.upcast_ref(), "Destination folder")
+        .unwrap()
+        .set_text("Reports");
+    pump_until("flat import enabled", || {
+        button(window.upcast_ref(), "Import").is_some_and(|b| b.is_sensitive())
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("one additional explicit flat request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count()
+            == 2
+    });
+    let requests = service.requests.lock().unwrap();
+    let line = requests
+        .iter()
+        .filter(|line| line.starts_with("import-native-package "))
+        .nth(1)
+        .unwrap();
+    let wire: serde_json::Value =
+        serde_json::from_str(line.strip_prefix("import-native-package ").unwrap()).unwrap();
+    let flat: cirrove_service::ImportNativePackageRequest =
+        serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(
+        flat.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::FlatNumbers
+    );
+    assert!(flat.expected_root.is_none());
+    assert!(wire["expected_root"].is_null());
+    assert_eq!(wire["source_layout"], "flat_numbers");
+    assert_eq!(
+        flat.expected_account_id.as_deref(),
+        Some(selected.id.as_str())
+    );
+    assert_eq!(flat.archive, flat_archive);
+    assert_eq!(flat.name, "Explicit copy.numbers");
+    assert_eq!(flat.parent, "Reports");
+    assert!(
+        !flat.archive.exists(),
+        "Desktop must not open or rewrite the archive"
+    );
+    drop(requests);
     window.close();
     service.task.abort();
 }

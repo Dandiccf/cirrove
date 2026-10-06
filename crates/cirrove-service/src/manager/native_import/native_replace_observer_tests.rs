@@ -16,7 +16,8 @@ async fn queued() -> (Fixture, crate::journal::UploadRecord) {
             etag: "v1".into(),
         },
         source: f.source.clone(),
-        expected_root: "Source.pages".into(),
+        source_layout: crate::native_import::PackageSourceLayout::Wrapped,
+        expected_root: Some("Source.pages".into()),
     };
     let row = f
         .manager

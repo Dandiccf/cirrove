@@ -2915,6 +2915,59 @@ The stopped audit passed 26 explicit checks, including all 537 source pins,
 19 installed files and mount/socket closure. Journal bytes stayed unchanged;
 SHM timestamps changed. Together with Desktop378, this closes the first full-iCloud
 criterion using two separately complete fresh arms. The other five criteria
-and installed schema-transition HOLD remain open. Next is the explicit admission
-contract for genuine flat Numbers exports, which the current wrapped-package
-input cannot express; no synthetic success or archive repack closes that gap.
+and installed schema-transition HOLD remain open. At that checkpoint, the
+wrapped-package input could not express genuine flat Numbers exports. The
+subsequent explicit source-contract work is recorded below; no synthetic success
+or archive repack closes live application acceptance.
+
+### Explicit flat Numbers admission on 6 October 2026
+
+The [registered source-contract validation](benchmarks/icloud-flat-numbers-normal-source-2026-10-06.json)
+first ran a desired admission test against a compilable wiring baseline. Exactly
+one test executed and failed at the typed `Archive` refusal, before implementation.
+This is a new format capability, not a regression of previously supported writes.
+
+The implementation selects `flat_numbers` explicitly, requires an absent/null
+source root, seals the unchanged archive and recomputes semantic V2. Legacy
+wrapped requests keep their existing wire shape and required nonnull root.
+The CLI accepts `--source-layout flat-numbers` instead of `--source-root`; the
+Desktop form exposes the same explicit choice. Import and selected-revision
+replacement persist distinct source kinds through payload verification,
+completion, metadata publication and retained recovery inspection. Provider
+downloads and original/Trash proofs keep strict actual-name wrappers. Ordinary
+DATA items remain ordinary DATA.
+
+The same desired source test passed after implementation. Offline admission of
+the unchanged 138,945-byte Apple export also passed against the normal service
+library with no optional features. Its source identity, bytes and 0400 mode stayed
+unchanged. The actual GTK form passed its separate synthetic dialog scenario.
+These checks do not upload that export or reopen a new copy in Apple Numbers.
+
+The source and expanded archive limits remain 64 MiB with at most 10,000 canonical
+entries. Flat layout is supported only for explicit Numbers input. The bounded
+parser's narrow redundant local ZIP64 size mirror is supported; genuine ZIP64
+archives and unsupported central/global ZIP extensions remain refused. Linux
+editor fidelity and other flat iWork formats are not established by this change.
+
+Two additional corruption controls failed before their respective fixes and
+passed with unchanged tests afterward. Inner checkpoint layout tamper now refuses
+before original verification HTTP. Matching invalid V1 flat completion proofs
+now refuse publication discovery, status and completion, retaining the upload row,
+source, payload and publication state. Pending flat bytes survive read-only
+restart/export; completed uploads keep the existing rescue-export refusal.
+
+The candidate journal writer advances to schema21, under the
+[held deployment policy](development.md#flat-numbers-source-journal-schema21-held-prerelease-policy).
+The installed packaged daemon and account state are not migrated. A future fresh
+owned live arm must still establish unchanged-source upload, actual remote
+representation and exact identity/revision, independent content, Apple Numbers
+open and the required recovery endpoints. Local admission and synthetic transport
+results do not close those criteria.
+
+The complete `bash scripts/check.sh` run passed in 550.16 seconds, including
+format, Clippy, workspace and optional iCloud tests, actual kernel/FUSE controls,
+script checks, translations, ledger and documentation. All 538 pinned source and
+translation files were unchanged during that run. Earlier failures and their
+corrections remain in the same validation record. The running packaged daemon
+retained its exact PID/start identity and binary/unit hashes. These local and
+synthetic checks leave the live and installed acceptance endpoints open.

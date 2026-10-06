@@ -269,7 +269,8 @@ impl ICloudFileReplace {
         staging: &Path,
         account_hash: String,
     ) -> UploadResult<Self> {
-        let UploadRepresentation::PackageReplacementArchive { original, .. } =
+        let (UploadRepresentation::PackageReplacementArchive { original, .. }
+        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }) =
             &request.representation
         else {
             return Err(UploadError::Invalid);
@@ -310,20 +311,31 @@ impl ICloudFileReplace {
     }
     fn native_identity(request: &UploadRequest, parent: &Node) -> UploadResult<()> {
         request.validate()?;
-        let UploadRepresentation::PackageReplacementArchive {
-            original,
-            expected_root,
-            ..
-        } = &request.representation
-        else {
-            return Err(UploadError::Invalid);
+        let original = match &request.representation {
+            UploadRepresentation::PackageReplacementArchive {
+                original,
+                expected_root,
+                ..
+            } => {
+                if cirrove_core::upload::native_package_suffix(expected_root).is_none()
+                    || cirrove_core::upload::native_package_suffix(expected_root)
+                        != cirrove_core::upload::native_package_suffix(&original.name)
+                {
+                    return Err(UploadError::Invalid);
+                }
+                original
+            }
+            UploadRepresentation::FlatNumbersReplacementArchive { original, .. }
+                if cirrove_core::upload::native_package_suffix(&original.name)
+                    == Some(".numbers") =>
+            {
+                original
+            }
+            _ => return Err(UploadError::Invalid),
         };
         if request.scope.provider != "icloud"
             || request.scope.collection != "drive"
             || Uuid::parse_str(&request.scope.account).is_err()
-            || cirrove_core::upload::native_package_suffix(expected_root).is_none()
-            || cirrove_core::upload::native_package_suffix(expected_root)
-                != cirrove_core::upload::native_package_suffix(&original.name)
             || parent.name.is_empty()
             || parent.name.len() > 255
             || parent.name.contains(['/', '\0', '\r', '\n'])
@@ -364,19 +376,24 @@ impl ICloudFileReplace {
     }
     fn native_stage_request(&self) -> UploadResult<UploadRequest> {
         let context = self.native.as_ref().ok_or(UploadError::Invalid)?;
-        let UploadRepresentation::PackageReplacementArchive {
-            expected_root,
-            semantic,
-            ..
-        } = &context.request.representation
-        else {
-            return Err(UploadError::Invalid);
-        };
-        Ok(UploadRequest {
-            representation: UploadRepresentation::PackageArchive {
+        let representation = match &context.request.representation {
+            UploadRepresentation::PackageReplacementArchive {
+                expected_root,
+                semantic,
+                ..
+            } => UploadRepresentation::PackageArchive {
                 expected_root: expected_root.clone(),
                 semantic: semantic.clone(),
             },
+            UploadRepresentation::FlatNumbersReplacementArchive { semantic, .. } => {
+                UploadRepresentation::FlatNumbersArchive {
+                    semantic: semantic.clone(),
+                }
+            }
+            _ => return Err(UploadError::Invalid),
+        };
+        Ok(UploadRequest {
+            representation,
             scope: self.scope.clone(),
             intent: UploadIntent::Create {
                 parent: self.folder.id.clone(),
@@ -422,6 +439,14 @@ impl ICloudFileReplace {
         {
             return Err(UploadError::CheckpointInvalid);
         }
+        if let NativePhase::Stage { inner } = &saved.phase {
+            context.provider.validate_native_checkpoint(
+                op,
+                &self.native_stage_request()?,
+                &unpack(inner.clone())?,
+                &context.account_hash,
+            )?;
+        }
         if let NativePhase::Handoff { plan, phase } = &saved.phase {
             if *phase == HandoffPhase::InstallNew {
                 return Err(UploadError::CheckpointInvalid);
@@ -443,11 +468,16 @@ impl ICloudFileReplace {
     }
     fn native_check_plan(&self, plan: &HandoffPlan) -> UploadResult<()> {
         let context = self.native.as_ref().ok_or(UploadError::Invalid)?;
-        let UploadRepresentation::PackageReplacementArchive {
+        let (UploadRepresentation::PackageReplacementArchive {
             semantic,
             original_semantic,
             ..
-        } = &context.request.representation
+        }
+        | UploadRepresentation::FlatNumbersReplacementArchive {
+            semantic,
+            original_semantic,
+            ..
+        }) = &context.request.representation
         else {
             return Err(UploadError::Invalid);
         };
@@ -477,11 +507,16 @@ impl ICloudFileReplace {
     }
     fn native_plan(&self, receipt: PackageUploadReceipt) -> UploadResult<HandoffPlan> {
         let context = self.native.as_ref().ok_or(UploadError::Invalid)?;
-        let UploadRepresentation::PackageReplacementArchive {
+        let (UploadRepresentation::PackageReplacementArchive {
             semantic,
             original_semantic,
             ..
-        } = &context.request.representation
+        }
+        | UploadRepresentation::FlatNumbersReplacementArchive {
+            semantic,
+            original_semantic,
+            ..
+        }) = &context.request.representation
         else {
             return Err(UploadError::Invalid);
         };
@@ -575,9 +610,12 @@ impl ICloudFileReplace {
     }
     async fn native_before_stage(&self, cancel: &CancellationToken) -> UploadResult<()> {
         let context = self.native.as_ref().ok_or(UploadError::Invalid)?;
-        let UploadRepresentation::PackageReplacementArchive {
+        let (UploadRepresentation::PackageReplacementArchive {
             original_semantic, ..
-        } = &context.request.representation
+        }
+        | UploadRepresentation::FlatNumbersReplacementArchive {
+            original_semantic, ..
+        }) = &context.request.representation
         else {
             return Err(UploadError::Invalid);
         };
@@ -954,30 +992,38 @@ impl ICloudFileReplace {
         // Validates inner account/request/operation before loading credentials.
         self.native_stage_diagnostic(operation, &inner)?;
         let context = self.native.as_ref().ok_or(UploadError::Invalid)?;
-        let UploadRepresentation::PackageReplacementArchive {
-            expected_root,
-            semantic,
-            ..
-        } = &request.representation
-        else {
-            return Err(UploadError::Invalid);
+        let (source_root, semantic) = match &request.representation {
+            UploadRepresentation::PackageReplacementArchive {
+                expected_root,
+                semantic,
+                ..
+            } => (Some(expected_root.clone()), semantic),
+            UploadRepresentation::FlatNumbersReplacementArchive { semantic, .. } => {
+                (None, semantic)
+            }
+            _ => return Err(UploadError::Invalid),
         };
         let source_check = source.try_clone().map_err(|_| UploadError::Invalid)?;
-        let root = expected_root.clone();
+        let root = source_root.clone();
         let version = semantic.version;
         let source_receipt = crate::PackageDownload {
             size: request.size,
             sha256: request.sha256.clone(),
         };
         let token = cancel.clone();
-        let actual = tokio::task::spawn_blocking(move || {
-            crate::package_archive_semantic_identity_versioned(
+        let actual = tokio::task::spawn_blocking(move || match root {
+            Some(root) => crate::package_archive_semantic_identity_versioned(
                 &source_check,
                 &source_receipt,
                 &root,
                 version,
                 &token,
-            )
+            ),
+            None => crate::package_flat_archive_semantic_identity_v2(
+                &source_check,
+                &source_receipt,
+                &token,
+            ),
         })
         .await
         .map_err(|_| UploadError::Uncertain)??;
@@ -991,7 +1037,7 @@ impl ICloudFileReplace {
                 &self.native_stage_request()?,
                 &unpack(inner)?,
                 source,
-                expected_root.clone(),
+                source_root,
                 cancel,
             )
             .await?;

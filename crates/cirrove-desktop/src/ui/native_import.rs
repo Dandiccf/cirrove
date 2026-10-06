@@ -1,6 +1,7 @@
 //! Explicit archive import; validation and all cloud operations belong to the daemon.
 use super::*;
 use cirrove_service::ImportNativePackageRequest;
+use cirrove_service::native_import::PackageSourceLayout;
 
 /// The chooser and its GTK regression use the same concrete filter.
 fn native_import_filter() -> gtk::FileFilter {
@@ -57,7 +58,7 @@ impl Window {
         let dialog = adw::AlertDialog::new(
             Some(&gettext("Import an iWork document")),
             Some(&gettext(
-                "Choose a ZIP archive containing one Pages, Numbers or Keynote document folder. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document.",
+                "Choose a wrapped Pages, Numbers or Keynote archive, or explicitly choose a flat Numbers export. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document.",
             )),
         );
         let group = adw::PreferencesGroup::new();
@@ -69,6 +70,14 @@ impl Window {
             .build();
         let root = adw::EntryRow::builder()
             .title(gettext("Document folder"))
+            .build();
+        let layout = adw::ComboRow::builder()
+            .title(gettext("Archive layout"))
+            .model(&gtk::StringList::new(&[
+                &gettext("Document folder (wrapped)"),
+                &gettext("Flat Numbers export"),
+            ]))
+            .selected(0)
             .build();
         let parent = adw::EntryRow::builder()
             .title(gettext("Destination folder"))
@@ -95,11 +104,12 @@ impl Window {
             name.set_text(guess);
         }
         group.add(&source);
+        group.add(&layout);
         group.add(&root);
         group.add(&parent);
         group.add(&name);
         let help = gtk::Label::builder()
-            .label(gettext("Use the exact document folder name inside the archive. The folder and new name must have the same .pages, .numbers or .key extension. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."))
+            .label(gettext("For a wrapped archive, use its exact document folder name and the same extension for the new name. A flat Numbers export has no document folder and requires a .numbers name. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."))
             .wrap(true)
             .xalign(0.0)
             .build();
@@ -118,15 +128,25 @@ impl Window {
             let root = root.downgrade();
             let parent = parent.downgrade();
             let name = name.downgrade();
+            let layout = layout.downgrade();
             move || {
-                let (Some(root), Some(parent), Some(name)) =
-                    (root.upgrade(), parent.upgrade(), name.upgrade())
-                else {
+                let (Some(root), Some(parent), Some(name), Some(layout)) = (
+                    root.upgrade(),
+                    parent.upgrade(),
+                    name.upgrade(),
+                    layout.upgrade(),
+                ) else {
                     return false;
                 };
-                crate::model::native_import_fields_valid(
+                let selected = match layout.selected() {
+                    0 => PackageSourceLayout::Wrapped,
+                    1 => PackageSourceLayout::FlatNumbers,
+                    _ => return false,
+                };
+                crate::model::native_import_source_fields_valid(
                     &archive,
-                    &root.text(),
+                    selected,
+                    (selected == PackageSourceLayout::Wrapped).then_some(root.text().as_str()),
                     &parent.text(),
                     &name.text(),
                 )
@@ -134,6 +154,17 @@ impl Window {
         };
         dialog.set_response_enabled("import", valid());
         let valid = Rc::new(valid);
+        let weak_dialog = dialog.downgrade();
+        let changed_valid = valid.clone();
+        let weak_root = root.downgrade();
+        layout.connect_selected_notify(move |layout| {
+            if let Some(root) = weak_root.upgrade() {
+                root.set_sensitive(layout.selected() == 0);
+            }
+            if let Some(dialog) = weak_dialog.upgrade() {
+                dialog.set_response_enabled("import", changed_valid());
+            }
+        });
         for entry in [&root, &parent, &name] {
             let weak_dialog = dialog.downgrade();
             let changed_valid = valid.clone();
@@ -159,10 +190,17 @@ impl Window {
                 return;
             }
             if let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) {
-                ui.submit_native_import(
+                let selected_layout = match layout.selected() {
+                    0 => PackageSourceLayout::Wrapped,
+                    1 => PackageSourceLayout::FlatNumbers,
+                    _ => return,
+                };
+                ui.submit_native_import_with_layout(
                     &selected,
                     archive.clone(),
-                    root.text().to_string(),
+                    selected_layout,
+                    (selected_layout == PackageSourceLayout::Wrapped)
+                        .then(|| root.text().to_string()),
                     parent.text().to_string(),
                     name.text().to_string(),
                 );
@@ -182,13 +220,38 @@ impl Window {
         parent: String,
         name: String,
     ) {
+        self.submit_native_import_with_layout(
+            selected,
+            archive,
+            PackageSourceLayout::Wrapped,
+            Some(expected_root),
+            parent,
+            name,
+        );
+    }
+
+    pub fn submit_native_import_with_layout(
+        self: &Rc<Self>,
+        selected: &AccountCard,
+        archive: PathBuf,
+        source_layout: PackageSourceLayout,
+        expected_root: Option<String>,
+        parent: String,
+        name: String,
+    ) {
         let Some(card) = self
             .card(&selected.id)
             .filter(|current| current.same_native_import_target(selected))
         else {
             return;
         };
-        if !crate::model::native_import_fields_valid(&archive, &expected_root, &parent, &name) {
+        if !crate::model::native_import_source_fields_valid(
+            &archive,
+            source_layout,
+            expected_root.as_deref(),
+            &parent,
+            &name,
+        ) {
             return;
         }
         let Backend::Live {
@@ -204,6 +267,7 @@ impl Window {
             expected_account_id: Some(card.id.clone()),
             label: card.label,
             archive,
+            source_layout,
             expected_root,
             parent,
             name,

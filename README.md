@@ -301,6 +301,14 @@ verification and Apple Pages open of its own new document. These two complete
 arms close the public Pages import criterion. Native editing and full release
 acceptance remain open.
 
+The development branch now provides an explicit source format for genuine
+Apple Numbers exports without an outer document folder. Import and replacement
+use `--source-layout flat-numbers`, with no `--source-root`; wrapped archives
+keep their existing contract. The unchanged archive is checked rather than
+repacked. [The validation record](docs/benchmarks/icloud-flat-numbers-normal-source-2026-10-06.json)
+separates local and synthetic checks from the still-required real iCloud upload,
+Numbers reopening and recovery acceptance.
+
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic
@@ -308,7 +316,7 @@ editor workflows beyond the bounded Calc trial, broader Pages/Numbers/Keynote
 editing/reopen fidelity, DATA coverage beyond these owned fixtures, session retention
 and renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;
-[its deployment policy](docs/development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy)
+[its deployment policy](docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
 requires keeping it separate from the installed release. Read the
 [iCloud development record](https://github.com/Dandiccf/cirrove/blob/research/icloud-feasibility/docs/icloud-write-integration.md)
 and follow [PR 86](https://github.com/Dandiccf/cirrove/pull/86) for published

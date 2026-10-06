@@ -23,7 +23,7 @@ UNIT = "cirroved.service"
 DESTINATION = "org.freedesktop.systemd1"
 MANAGER_PATH = "/org/freedesktop/systemd1"
 UNIT_PATH = "/org/freedesktop/systemd1/unit/cirroved_2eservice"
-POLICY_DOCUMENT = "docs/development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy"
+POLICY_DOCUMENT = "docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy"
 
 
 class Refusal(Exception):
@@ -247,7 +247,7 @@ def source_policy(repo):
             or not integer(value["journal_schema"]) or value["journal_schema"] == 0
             or not integer(value["metadata_schema"]) or value["metadata_schema"] == 0
             or value["policy_document"] != POLICY_DOCUMENT
-            or (value["state"] == "held" and (value["journal_schema"], value["metadata_schema"]) != (20, 8))):
+            or (value["state"] == "held" and (value["journal_schema"], value["metadata_schema"]) != (21, 8))):
         raise Refusal("source installation policy is invalid")
     return value
 

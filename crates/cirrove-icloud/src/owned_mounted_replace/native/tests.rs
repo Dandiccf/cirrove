@@ -29,7 +29,11 @@ const NEW: &str = "FILE::com.apple.CloudDocs::new";
 fn archive(root: &str, old: bool, corrupt: bool) -> Vec<u8> {
     let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     zip.start_file(
-        format!("{root}/Document"),
+        if root.is_empty() {
+            "Document".into()
+        } else {
+            format!("{root}/Document")
+        },
         zip::write::SimpleFileOptions::default(),
     )
     .unwrap();
@@ -57,6 +61,28 @@ fn semantic(root: &str, old: bool) -> PackageSemanticIdentity {
         &CancellationToken::new(),
     )
     .unwrap()
+}
+fn semantic_v2(root: &str, old: bool) -> PackageSemanticIdentity {
+    let bytes = archive(root, old, false);
+    let mut file = tempfile::tempfile().unwrap();
+    file.write_all(&bytes).unwrap();
+    let receipt = PackageDownload {
+        size: bytes.len() as u64,
+        sha256: hex::encode(Sha256::digest(&bytes)),
+    };
+    if root.is_empty() {
+        crate::package_flat_archive_semantic_identity_v2(&file, &receipt, &CancellationToken::new())
+            .unwrap()
+    } else {
+        crate::package_archive_semantic_identity_versioned(
+            &file,
+            &receipt,
+            root,
+            2,
+            &CancellationToken::new(),
+        )
+        .unwrap()
+    }
 }
 fn plan() -> HandoffPlan {
     let staged_name = format!("staged-by-cirrove-{}.pages", Uuid::new_v4());
@@ -184,7 +210,7 @@ impl Server {
                     "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id=="old"||id=="new");Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},
                     "/archive/old"|"/archive/new"=>{s.archive_calls+=1;let old=url.path().ends_with("old");let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};Some(archive(name,old,s.corrupt))},
                     "/moveItemsToTrash"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],OLD);assert_eq!(request["items"][0]["etag"],"old-v1");s.trash_calls+=1;assert_eq!(s.trash_calls,1);assert!(!s.changed&&!s.moved&&!s.deleted);s.trashed=true;if lost_trash{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
-                    "/renameItems"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],NEW);assert_eq!(request["items"][0]["etag"],"new-v1");assert_eq!(request["items"][0]["name"],"Target.pages");s.rename_calls+=1;assert_eq!(s.rename_calls,1);assert!(s.trashed);s.installed=true;if lost_rename{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
+                    "/renameItems"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],NEW);assert_eq!(request["items"][0]["etag"],"new-v1");assert_eq!(request["items"][0]["name"],plan.target_name);s.rename_calls+=1;assert_eq!(s.rename_calls,1);assert!(s.trashed);s.installed=true;if lost_rename{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
                     _=>panic!("unexpected synthetic native handoff route"),
                 }};
                 if let Some(reply)=reply{stream.write_all(format!("HTTP/1.1 200 Fixture\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",reply.len()).as_bytes()).await.unwrap();stream.write_all(&reply).await.unwrap();stream.shutdown().await.unwrap();}
@@ -284,6 +310,40 @@ fn coordinator(
         Some((server.client.clone(), format!("{ORIGIN}/").parse().unwrap()));
     owner
 }
+fn restart_coordinator(
+    server: &Server,
+    directory: &Path,
+    request: UploadRequest,
+    operation: Uuid,
+    checkpoint: &SecretString,
+    flat: bool,
+) -> ICloudFileReplace {
+    if !flat {
+        return coordinator(server, directory, request, operation);
+    }
+    let mut owner = ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
+        request.clone(),
+        operation,
+        ICloudSealedSignIn {
+            apple_id: "fixture@example.com".into(),
+            credential_id: Uuid::new_v4().to_string(),
+        },
+        directory,
+        directory,
+        checkpoint,
+    )
+    .unwrap();
+    let context = owner.native.as_mut().unwrap();
+    context.provider = ICloudPackageCreate::native_handoff_test_provider(
+        request.scope,
+        parent(),
+        directory,
+        server.session(),
+    );
+    context.fixture_transport =
+        Some((server.client.clone(), format!("{ORIGIN}/").parse().unwrap()));
+    owner
+}
 fn take_commit(step: UploadStep) -> SecretString {
     match step {
         UploadStep::Commit(value) => value,
@@ -300,19 +360,40 @@ fn counts(server: &Server) -> (usize, usize, usize, usize, usize) {
         s.rename_calls,
     )
 }
-async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bool) {
+async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bool, flat: bool) {
     let operation = Uuid::new_v4();
     let mut plan = plan();
     plan.staged_name = format!("staged-by-cirrove-{operation}.pages");
     plan.recovery_name = format!("recovery-by-cirrove-{operation}.pages");
-    let source = archive("Source.pages", false, false);
+    if flat {
+        plan.target_name = "Target.numbers".into();
+        plan.staged_name = format!("staged-by-cirrove-{operation}.numbers");
+        plan.recovery_name = format!("recovery-by-cirrove-{operation}.numbers");
+        let proof = plan.package.as_mut().unwrap();
+        proof.original = semantic_v2(&plan.target_name, true);
+        proof.staged = semantic_v2("", false);
+    }
+    let source = archive(if flat { "" } else { "Source.pages" }, false, false);
     let dir = directory();
     let scope = Scope {
         account: Uuid::new_v4().to_string(),
         provider: "icloud".into(),
         collection: "drive".into(),
     };
-    let r = request(scope, &source);
+    let mut r = request(scope, &source);
+    if flat {
+        let UploadRepresentation::PackageReplacementArchive { original, .. } = &r.representation
+        else {
+            panic!("wrapped fixture")
+        };
+        let mut original = original.clone();
+        original.name = "Target.numbers".into();
+        r.representation = UploadRepresentation::FlatNumbersReplacementArchive {
+            semantic: semantic_v2("", false),
+            original,
+            original_semantic: semantic_v2("Target.numbers", true),
+        };
+    }
     assert_ne!(r.size, 17); // archive bytes are not logical package size
     let server = Server::start(
         plan,
@@ -333,8 +414,65 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         panic!("allocate")
     };
     assert_eq!(counts(&server), (0, 0, 0, 0, 0));
+    if flat {
+        let before = server.state.lock().unwrap().requests;
+        for outer in [false, true] {
+            let mut changed: Value = serde_json::from_str(armed.expose_secret()).unwrap();
+            if outer {
+                let UploadRepresentation::FlatNumbersReplacementArchive {
+                    semantic,
+                    original,
+                    original_semantic,
+                } = &r.representation
+                else {
+                    panic!("flat")
+                };
+                changed["request"]["representation"] =
+                    serde_json::to_value(UploadRepresentation::PackageReplacementArchive {
+                        expected_root: "Source.numbers".into(),
+                        semantic: semantic.clone(),
+                        original: original.clone(),
+                        original_semantic: original_semantic.clone(),
+                    })
+                    .unwrap();
+            } else {
+                changed["phase"]["Stage"]["inner"]["request"]["representation"] =
+                    serde_json::to_value(UploadRepresentation::PackageArchive {
+                        expected_root: "Source.numbers".into(),
+                        semantic: semantic_v2("", false),
+                    })
+                    .unwrap();
+            }
+            let changed = SecretString::from(changed.to_string());
+            assert!(matches!(
+                owner
+                    .allocate_upload_for_operation(&op, &r, &changed, &cancel)
+                    .await,
+                Err(UploadError::CheckpointInvalid)
+            ));
+            assert_eq!(
+                server.state.lock().unwrap().requests,
+                before,
+                "layout tamper must refuse before original verification HTTP"
+            );
+            assert!(matches!(
+                ICloudFileReplace::restore_native_package_from_sealed_checkpoint(
+                    r.clone(),
+                    operation,
+                    ICloudSealedSignIn {
+                        apple_id: "fixture@example.com".into(),
+                        credential_id: Uuid::new_v4().to_string()
+                    },
+                    dir.path(),
+                    dir.path(),
+                    &changed,
+                ),
+                Err(UploadError::CheckpointInvalid)
+            ));
+        }
+    }
     // Restart with an armed allocation, no returned slot: strictly read-only.
-    owner = coordinator(&server, dir.path(), r.clone(), operation);
+    owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &armed, flat);
     assert!(matches!(
         owner
             .inspect_upload_for_operation(&op, &r, &armed, &cancel)
@@ -362,7 +500,14 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         .await;
     let move_old = if lost_registration {
         assert!(step.is_err());
-        owner = coordinator(&server, dir.path(), r.clone(), operation);
+        owner = restart_coordinator(
+            &server,
+            dir.path(),
+            r.clone(),
+            operation,
+            &registration,
+            flat,
+        );
         take_commit(
             owner
                 .inspect_upload_for_operation(&op, &r, &registration, &cancel)
@@ -386,7 +531,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         .await;
     let inspect = if lost_trash {
         assert!(step.is_err());
-        owner = coordinator(&server, dir.path(), r.clone(), operation);
+        owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &move_old, flat);
         take_commit(
             owner
                 .inspect_upload_for_operation(&op, &r, &move_old, &cancel)
@@ -403,7 +548,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
             .await
             .unwrap(),
     );
-    owner = coordinator(&server, dir.path(), r.clone(), operation);
+    owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &install, flat);
     assert!(matches!(
         owner
             .inspect_upload_for_operation(&op, &r, &install, &cancel)
@@ -416,7 +561,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         .await;
     let step = if lost_rename {
         assert!(step.is_err());
-        owner = coordinator(&server, dir.path(), r.clone(), operation);
+        owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &install, flat);
         owner
             .inspect_upload_for_operation(&op, &r, &install, &cancel)
             .await
@@ -430,11 +575,32 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
     assert_eq!(receipt.original.id, OLD);
     assert_eq!(receipt.current.remote.id, NEW);
     assert_eq!(receipt.backup.remote.id, OLD);
-    assert_eq!(receipt.current.remote.name, "Target.pages");
+    assert_eq!(
+        receipt.current.remote.name,
+        if flat {
+            "Target.numbers"
+        } else {
+            "Target.pages"
+        }
+    );
     assert_eq!(receipt.current.remote.size, 17);
     assert_eq!(receipt.backup.remote.parent_id.as_deref(), Some(TRASH_ROOT));
-    assert_eq!(receipt.current.semantic, semantic("Source.pages", false));
-    assert_eq!(receipt.backup.semantic, semantic("Target.pages", true));
+    assert_eq!(
+        receipt.current.semantic,
+        if flat {
+            semantic_v2("", false)
+        } else {
+            semantic("Source.pages", false)
+        }
+    );
+    assert_eq!(
+        receipt.backup.semantic,
+        if flat {
+            semantic_v2("Target.numbers", true)
+        } else {
+            semantic("Target.pages", true)
+        }
+    );
     let result = owner
         .reconcile_upload_for_operation(&op, &r, Some(&install), &cancel)
         .await
@@ -444,11 +610,11 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
 }
 #[tokio::test]
 async fn package_creation_through_typed_handoff_preserves_logical_sizes() {
-    complete_arm(false, false, false).await;
+    complete_arm(false, false, false, false).await;
 }
 #[tokio::test]
 async fn lost_registration_trash_and_install_replies_resume_by_inspection_only() {
-    complete_arm(true, true, true).await;
+    complete_arm(true, true, true, false).await;
 }
 #[tokio::test]
 async fn wrong_bindings_and_proofs_refuse_before_network() {
@@ -1332,4 +1498,88 @@ async fn native_stage_abandonment_keynote_keeps_exact_operation_and_original() {
 #[tokio::test]
 async fn native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original() {
     native_abandon_format_arm(".PAGES").await;
+}
+
+#[tokio::test]
+async fn flat_numbers_typed_handoff_and_checkpoint_restore_keep_source_layout() {
+    for lost in [false, true] {
+        tokio::time::timeout(
+            Duration::from_secs(30),
+            complete_arm(lost, lost, lost, true),
+        )
+        .await
+        .unwrap();
+    }
+}
+
+#[tokio::test]
+async fn flat_numbers_inner_layout_tamper_refuses_before_original_http() {
+    let operation = Uuid::new_v4();
+    let mut plan = plan();
+    plan.target_name = "Target.numbers".into();
+    plan.staged_name = format!("staged-by-cirrove-{operation}.numbers");
+    plan.recovery_name = format!("recovery-by-cirrove-{operation}.numbers");
+    let proof = plan.package.as_mut().unwrap();
+    proof.original = semantic_v2(&plan.target_name, true);
+    proof.staged = semantic_v2("", false);
+    let source = archive("", false, false);
+    let scope = Scope {
+        account: Uuid::new_v4().to_string(),
+        provider: "icloud".into(),
+        collection: "drive".into(),
+    };
+    let mut request = request(scope, &source);
+    let UploadRepresentation::PackageReplacementArchive { original, .. } = &request.representation
+    else {
+        panic!("wrapped fixture")
+    };
+    let mut original = original.clone();
+    original.name = "Target.numbers".into();
+    request.representation = UploadRepresentation::FlatNumbersReplacementArchive {
+        semantic: semantic_v2("", false),
+        original,
+        original_semantic: semantic_v2("Target.numbers", true),
+    };
+    let dir = directory();
+    let server = Server::start(plan, source, false, false, false).await;
+    let owner = coordinator(&server, dir.path(), request.clone(), operation);
+    let token = CancellationToken::new();
+    let op = operation.to_string();
+    let UploadStep::Allocate(armed) = owner
+        .begin_upload_for_operation(&op, &request, &token)
+        .await
+        .unwrap()
+    else {
+        panic!("real allocation arm")
+    };
+    let mut value: Value = serde_json::from_str(armed.expose_secret()).unwrap();
+    value["phase"]["Stage"]["inner"]["request"]["representation"] =
+        serde_json::to_value(UploadRepresentation::PackageArchive {
+            expected_root: "Source.numbers".into(),
+            semantic: semantic_v2("", false),
+        })
+        .unwrap();
+    let changed = SecretString::from(value.to_string());
+    let requests_before = server.state.lock().unwrap().requests;
+    assert!(
+        requests_before > 0,
+        "genuine original package was independently verified before arming"
+    );
+    assert_eq!(counts(&server), (0, 0, 0, 0, 0));
+    assert!(matches!(
+        owner
+            .allocate_upload_for_operation(&op, &request, &changed, &token)
+            .await,
+        Err(UploadError::CheckpointInvalid)
+    ));
+    assert_eq!(
+        counts(&server),
+        (0, 0, 0, 0, 0),
+        "tamper never authorizes provider mutation"
+    );
+    assert_eq!(
+        server.state.lock().unwrap().requests,
+        requests_before,
+        "inner source-layout tamper must refuse before any original verification HTTP"
+    );
 }
