@@ -131,7 +131,9 @@ impl Registration {
                     } else {
                         "source-a.numbers"
                     }),
-                    Some("Source.numbers".into()),
+                    // A required-present null root explicitly opts into flat
+                    // Numbers; all wrapped callers retain the exact old root.
+                    self.source.root.as_ref().map(|_| "Source.numbers".into()),
                 )
             }
             Arm::FlatNumbersPreflight | Arm::FlatNumbersPostflight => {
@@ -240,7 +242,9 @@ impl Recovered {
         ensure!(
             a.path == r.session_directory.join("source-a.numbers")
                 && a.root
-                    == if matches!(r.arm, Arm::FlatNumbersPostflight) {
+                    == if matches!(r.arm, Arm::NativeFinalPostflight) {
+                        r.source.root.clone()
+                    } else if matches!(r.arm, Arm::FlatNumbersPostflight) {
                         None
                     } else {
                         Some("Source.numbers".into())

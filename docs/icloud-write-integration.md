@@ -3211,7 +3211,31 @@ this control. The complete `bash scripts/check.sh` passed in 619.95 seconds with
 controls, all nine reader controls and all seven native recovery runtime controls.
 The initial standalone parser filter executed zero tests because it omitted the
 actual module namespace; this is recorded separately and supplies no passing
-evidence. Desktop display scenarios were not repeated. The NativeFinal metadata
-producer still needs explicit flat-source acquisition before a real flat loss arm
-is ready. Apple fault acceptance, genuine edited replacement and the five open
+evidence. Desktop display scenarios were not repeated. That control did not
+acquire NativeFinal metadata from Apple; subsequent local producer admission
+coverage is recorded below. Apple fault acceptance, genuine edited replacement and the five open
 release criteria remain separate; installed delivery stays on HOLD.
+
+### NativeFinal flat metadata producer admission on 6 October 2026
+
+The [registered producer control](benchmarks/icloud-flat-native-final-metadata-acquisition-2026-10-06.json)
+first failed both desired null-root admission assertions against unchanged
+production code. The unchanged tests passed after the producer accepted an
+explicit null source root within the existing NativeFinal namespace and required
+matching A/B roots in postflight. They exercise local flat V2 proof, fixture
+production and the generic consumer, including byte and mode preservation.
+
+All 19 module tests then passed. The first whole-module run retained one obsolete
+expectation that NativeFinal must reject null roots; its correction preserves
+wrong-root, missing-root, foreign-subject, Pages-null and mixed-layout refusals.
+The two original desired test bodies and their complete helper region are unchanged.
+These are local controls, with no provider calls or mutations. Genuine editor
+export, fresh Apple metadata acquisition, uncertain-operation recovery and the
+five open full-integration criteria remain separate.
+
+The complete `bash scripts/check.sh` passed in 564.20 seconds with
+`RUST_TEST_THREADS=4`, all 549 runtime source pins unchanged, kernel/FUSE and
+script coverage included. Desktop display scenarios were not repeated. The
+previous head's CI run separately failed an existing adaptive OneDrive window-count
+assertion (18 expected, 19 observed); its other six jobs passed. This local full
+check does not erase that CI result or close an iCloud release criterion.

@@ -1,6 +1,186 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
 use std::{io::Write, os::unix::fs::DirBuilderExt};
+
+struct NativeFinalFlatLocal {
+    registration: Registration,
+    files: Vec<(PathBuf, Vec<u8>)>,
+    source_path: PathBuf,
+}
+fn native_final_flat_local(postflight: bool) -> Result<NativeFinalFlatLocal> {
+    let mut registration = if postflight {
+        postflight_plan()
+    } else {
+        plan(Arm::NativeFinalPreflight)
+    };
+    // Keep local byte fixtures on Root's registered TMPDIR. The registration
+    // retains the exact NativeFinal namespace; no live scope is created here.
+    let directory = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir()?
+        .keep();
+    let mut files = Vec::new();
+    let mut prepare = |source: &mut Source, content: &[u8]| -> Result<PathBuf> {
+        let path = directory.join(source.path.file_name().context("source filename missing")?);
+        let raw = zip_archive("Index/Document.iwa", content);
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)?;
+        file.write_all(&raw)?;
+        file.sync_all()?;
+        source.size = raw.len() as u64;
+        source.sha256 = hex::encode(Sha256::digest(&raw));
+        source.root = None;
+        source.semantic = cirrove_icloud::package_flat_archive_semantic_identity_v2(
+            &file,
+            &PackageDownload {
+                size: source.size,
+                sha256: source.sha256.clone(),
+            },
+            &CancellationToken::new(),
+        )?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o400))?;
+        let mut local = source.clone();
+        local.path = path.clone();
+        source_verified(&local)?;
+        files.push((path.clone(), raw));
+        Ok(path)
+    };
+    let source_path = prepare(&mut registration.source, b"owned flat current B")?;
+    if let Some(recovered) = &mut registration.recovered {
+        prepare(&mut recovered.source_a, b"owned flat original A")?;
+    }
+    let bytes = serde_json::to_vec(&registration)?;
+    let path = directory.join("registration.json");
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o400)
+        .open(&path)?;
+    file.write_all(&bytes)?;
+    file.sync_all()?;
+    files.push((path, bytes));
+    Ok(NativeFinalFlatLocal {
+        registration,
+        files,
+        source_path,
+    })
+}
+fn native_final_flat_preserved(local: &NativeFinalFlatLocal) -> Result<()> {
+    for (path, bytes) in &local.files {
+        assert_eq!(&std::fs::read(path)?, bytes);
+        assert_eq!(std::fs::metadata(path)?.permissions().mode() & 0o777, 0o400);
+    }
+    Ok(())
+}
+fn native_final_flat_consumer(local: &NativeFinalFlatLocal) -> Result<Registration> {
+    let bytes = serde_json::to_vec(&local.registration)?;
+    let desired = registered(&bytes, &hex::encode(Sha256::digest(&bytes)), 1001);
+    // Actual local flat proof and unchanged bytes/modes precede the desired
+    // admission assertion. Baseline refusal is collected, not a setup error.
+    native_final_flat_preserved(local)?;
+    assert!(
+        desired.is_ok(),
+        "NativeFinal explicit-null flat metadata registration must be admitted"
+    );
+    let registration = desired?;
+    assert!(registration.subject_run.is_none());
+    assert_eq!(
+        registration.document.name,
+        format!("Cirrove-Numbers-Parent-{}.numbers", registration.run)
+    );
+    let (parent, document) = entries(&registration);
+    let parent = exact_parent(&[parent], &registration)?;
+    let mut document = exact_entry(&[document], &registration.document)?;
+    document.items.clear(); // Same documented narrow entry as the producer.
+    let encoded = serde_json::to_vec(&fixture_value(&registration, &parent, &document))?;
+    let fixture = super::super::decode(&encoded, &hex::encode(Sha256::digest(&encoded)))?;
+    validate(&fixture)?;
+    assert_eq!(fixture.run, registration.run);
+    assert_eq!(fixture.document, document);
+    assert!(fixture.source_root.is_none());
+    assert_eq!(fixture.expected_root, registration.document.name);
+    let file = File::open(&local.source_path)?;
+    proof(
+        &fixture,
+        &file,
+        &PackageDownload {
+            size: registration.source.size,
+            sha256: registration.source.sha256.clone(),
+        },
+        true,
+    )?;
+    native_final_flat_preserved(local)?;
+    Ok(registration)
+}
+
+#[test]
+fn native_fixture_native_final_flat_preflight_accepts_null_source_and_generic_consumer()
+-> Result<()> {
+    let local = native_final_flat_local(false)?;
+    let r = native_final_flat_consumer(&local)?;
+    assert!(matches!(r.arm, Arm::NativeFinalPreflight));
+    assert!(r.recovered.is_none());
+    assert_eq!(r.artifact_stem(), "native-import-fixture");
+    let mut value = serde_json::to_value(&r)?;
+    value["source"].as_object_mut().unwrap().remove("root");
+    assert!(registered_value(&value).is_err());
+    let mut wrong = r.clone();
+    wrong.source.root = Some("Other.numbers".into());
+    assert!(wrong.validate(1001).is_err());
+    wrong = r.clone();
+    wrong.subject_run = Some(Uuid::new_v4());
+    assert!(wrong.validate(1001).is_err());
+    wrong = r;
+    wrong.document.name = format!("Cirrove-Numbers-Editor-{}.numbers", wrong.run);
+    assert!(wrong.validate(1001).is_err());
+    native_final_flat_preserved(&local)
+}
+
+#[test]
+fn native_fixture_native_final_flat_postflight_accepts_null_sources_and_exact_trash_binding()
+-> Result<()> {
+    let local = native_final_flat_local(true)?;
+    let r = native_final_flat_consumer(&local)?;
+    assert!(matches!(r.arm, Arm::NativeFinalPostflight));
+    assert_eq!(r.artifact_stem(), "native-final-postflight");
+    let recovered = r.recovered.as_ref().unwrap();
+    assert!(recovered.source_a.root.is_none());
+    assert_ne!(recovered.source_a.semantic, r.source.semantic);
+    let observed = cirrove_icloud::VerifiedPackageTrash {
+        archive: PackageDownload {
+            size: 321,
+            sha256: "f".repeat(64),
+        },
+        semantic: recovered.source_a.semantic.clone(),
+        trash_etag: recovered.backup.etag.clone().unwrap(),
+    };
+    trash_binding(&recovered.backup, &recovered.source_a, &observed)?;
+    let mut bad = r.clone();
+    bad.recovered.as_mut().unwrap().source_a.root = Some("Source.numbers".into());
+    assert!(bad.validate(1001).is_err());
+    bad = r.clone();
+    bad.recovered.as_mut().unwrap().original.id = bad.document.id.clone();
+    assert!(bad.validate(1001).is_err());
+    let mut wrong_backup = recovered.backup.clone();
+    wrong_backup.etag = Some("wrong-trash-revision".into());
+    assert!(trash_binding(&wrong_backup, &recovered.source_a, &observed).is_err());
+    let wrong_semantic = cirrove_icloud::VerifiedPackageTrash {
+        semantic: r.source.semantic.clone(),
+        ..observed
+    };
+    assert!(trash_binding(&recovered.backup, &recovered.source_a, &wrong_semantic).is_err());
+    let mut value = serde_json::to_value(&r)?;
+    value["recovered"]["source_a"]
+        .as_object_mut()
+        .unwrap()
+        .remove("root");
+    assert!(registered_value(&value).is_err());
+    native_final_flat_preserved(&local)
+}
 fn plan(arm: Arm) -> Registration {
     let run = Uuid::new_v4();
     let account = Uuid::new_v4();
@@ -584,21 +764,21 @@ fn native_fixture_flat_registration_refuses_subject_scope_and_root_substitution(
 }
 
 #[test]
-fn native_fixture_flat_extension_preserves_legacy_subject_and_wrapped_root_requirements()
--> Result<()> {
+fn native_fixture_flat_extension_preserves_legacy_subject_and_explicit_root_contracts() -> Result<()>
+{
     for r in [
         plan(Arm::PagesDesktop),
         plan(Arm::NativeFinalPreflight),
         postflight_plan(),
     ] {
-        let value = serde_json::to_value(r)?;
+        let value = serde_json::to_value(&r)?;
         registered_value(&value)?;
         assert!(value.get("subject_run").is_none());
         for case in 0..3 {
             let mut bad = value.clone();
             match case {
                 0 => bad["subject_run"] = Uuid::new_v4().to_string().into(),
-                1 => bad["source"]["root"] = serde_json::Value::Null,
+                1 => bad["source"]["root"] = "Other.numbers".into(),
                 _ => {
                     bad["source"].as_object_mut().unwrap().remove("root");
                 }
@@ -607,6 +787,13 @@ fn native_fixture_flat_extension_preserves_legacy_subject_and_wrapped_root_requi
                 registered_value(&bad).is_err(),
                 "legacy subject/root substitution {case} accepted"
             );
+        }
+        // Pages still requires its exact wrapper. NativeFinal postflight
+        // cannot mix a flat B with the registered wrapped original A.
+        if matches!(r.arm, Arm::PagesDesktop | Arm::NativeFinalPostflight) {
+            let mut bad = value.clone();
+            bad["source"]["root"] = serde_json::Value::Null;
+            assert!(registered_value(&bad).is_err());
         }
     }
     Ok(())

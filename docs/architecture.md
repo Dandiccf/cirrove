@@ -1425,6 +1425,15 @@ writer's journal receipt, perform mutations or claim application acceptance.
 Its public failures retain only fixed observer-stage labels and discard underlying
 errors and contexts; exact identity, revision and content guards remain mandatory.
 
+The NativeFinal metadata producer also accepts a required-present null source
+root within its original owned run and document namespace. Any non-null root
+must still be exactly `Source.numbers`; a missing field is refused. Postflight
+requires matching A/B layouts. This producer uses the existing root field rather
+than the recovery harness's separate `source_layout` field. It generates the
+generic full-metadata fixture from actual provider entries and independently
+checks current content, original Trash content and final metadata fences. Local
+admission tests do not establish an actual Apple preflight or postflight result.
+
 The feature-only retained Numbers reader defaults to `changed_only`: the current
 item must have a different revision from the retained reference. Explicit
 `current_snapshot` permits either the same or a different observed revision while
