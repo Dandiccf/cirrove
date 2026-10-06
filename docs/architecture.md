@@ -1414,6 +1414,15 @@ Retained inspection never re-prepares or allocates. Independently downloaded
 current and Trash archives still require the actual provider-name wrapper and
 strict equality to the original source.
 
+A feature-only read observer can bind a previously imported owned Numbers test
+document to a separate fresh observation run. Explicit flat preflight/postflight
+arms require a present null source root and scan the unchanged local archives
+with semantic V2; downloaded current and Trash archives still require their exact
+provider-name wrapper. The postflight binds distinct original/current identities,
+original Trash revision and both source contents. Existing wrapped/Pages arms
+retain their original scope. This observer does not independently establish the
+writer's journal receipt, perform mutations or claim application acceptance.
+
 Journal schema 21 persists distinct `flat_numbers_archive` and
 `flat_numbers_replacement_archive` kinds, with versioned query indexes and
 publication triggers. Existing wrapped records retain their serialized fields.

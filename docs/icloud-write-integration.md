@@ -3096,3 +3096,33 @@ formatting, Clippy, workspace and optional iCloud tests, actual kernel/FUSE grou
 scripts, translations, ledger and documentation. Display scenarios were not
 repeated. These checks support the bounded result above and leave full acceptance
 open.
+
+
+### Selected flat Numbers replacement read observer on 6 October 2026
+
+The [registered observer control](benchmarks/icloud-flat-numbers-replacement-observer-2026-10-06.json)
+removes a validation gap for the next genuine Numbers edit/replacement trial.
+The existing feature-only observer now has explicit flat preflight/postflight
+arms for an already imported owned document. A fresh observation run binds the
+previous subject run, account, exact parent/item/revision and unchanged flat
+source archives. Source roots must be explicitly null; downloaded current and
+Trash packages retain exact provider-name wrappers and strict semantic V2.
+Postflight requires distinct original/current identities, the original's Trash
+revision and complete A/B contents. Legacy wrapped/Pages scopes are preserved.
+The caller separately proves the stopped writer and durable receipt.
+
+The two desired JSON-admission and valid-fixture tests first compiled and failed
+against the original consumer. The same regression bodies then passed; all 14
+observer tests passed, including the original eight and four additional controls
+for scope, missing roots, original/Trash substitution and flat source tampering.
+Three new guard signatures needed workspace formatting before the complete
+check; that correction is retained in the artifact. These controls made no
+provider calls. Genuine B export, actual public replacement, independent B/Trash-A
+proof and recovery acceptance remain open.
+
+The complete `bash scripts/check.sh` passed in 555.56 seconds, including all 14
+observer tests again after workspace formatting, full workspace and optional
+iCloud controls, real kernel/FUSE groups, script tests, translations, ledger and
+documentation. All 546 pinned source/script/Cargo/translation/policy files stayed
+unchanged. No cloud call, installed change or additional release criterion is
+claimed by this local observer correction.

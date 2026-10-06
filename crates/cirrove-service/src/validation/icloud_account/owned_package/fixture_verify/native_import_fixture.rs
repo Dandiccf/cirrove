@@ -1,4 +1,4 @@
-//! Feature-only exact owned Pages-desktop / native-final preflight and postflight read observer.
+//! Feature-only exact owned Pages/native-final and selected flat Numbers read observer.
 use super::super::public_verify::exact_entry;
 use super::*;
 use cirrove_core::{Node, NodeKind};
@@ -10,6 +10,8 @@ enum Arm {
     PagesDesktop,
     NativeFinalPreflight,
     NativeFinalPostflight,
+    FlatNumbersPreflight,
+    FlatNumbersPostflight,
 }
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -17,7 +19,8 @@ struct Source {
     path: PathBuf,
     size: u64,
     sha256: String,
-    root: String,
+    #[serde(deserialize_with = "super::required_source_root")]
+    root: Option<String>,
     semantic: PackageSemanticIdentity,
 }
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -33,6 +36,8 @@ struct Registration {
     version: u32,
     arm: Arm,
     run: Uuid,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    subject_run: Option<Uuid>,
     account: Uuid,
     label: String,
     session_directory: PathBuf,
@@ -48,7 +53,7 @@ struct Registration {
     deadline_unix_seconds: u64,
 }
 impl Registration {
-    fn expected(&self) -> (PathBuf, String, String, String, PathBuf, String) {
+    fn expected(&self) -> (PathBuf, String, String, String, PathBuf, Option<String>) {
         match self.arm {
             Arm::PagesDesktop => {
                 let dir = PathBuf::from(format!("/var/tmp/cirrove-pages-desktop-{}", self.run));
@@ -59,7 +64,7 @@ impl Registration {
                     name.clone(),
                     "pages".into(),
                     dir.join("mounted-import.pages"),
-                    name,
+                    Some(name),
                 )
             }
             Arm::NativeFinalPreflight | Arm::NativeFinalPostflight => {
@@ -74,13 +79,43 @@ impl Registration {
                     } else {
                         "source-a.numbers"
                     }),
-                    "Source.numbers".into(),
+                    Some("Source.numbers".into()),
+                )
+            }
+            Arm::FlatNumbersPreflight | Arm::FlatNumbersPostflight => {
+                let dir = PathBuf::from(format!(
+                    "/var/tmp/cirrove-numbers-flat-replacement-{}",
+                    self.run
+                ));
+                (
+                    dir.clone(),
+                    "iCloudNumbersFlatReplacementValidation".into(),
+                    format!(
+                        "Cirrove-Numbers-Editor-{}.numbers",
+                        self.subject_run.unwrap_or(self.run)
+                    ),
+                    "numbers".into(),
+                    dir.join(if matches!(self.arm, Arm::FlatNumbersPostflight) {
+                        "source-b.numbers"
+                    } else {
+                        "source-a.numbers"
+                    }),
+                    None,
                 )
             }
         }
     }
     fn validate(&self, now: u64) -> Result<()> {
         let (dir, label, name, _, source, root) = self.expected();
+        ensure!(
+            match self.arm {
+                Arm::FlatNumbersPreflight | Arm::FlatNumbersPostflight => self
+                    .subject_run
+                    .is_some_and(|subject| !subject.is_nil() && subject != self.run),
+                _ => self.subject_run.is_none(),
+            },
+            "native fixture subject binding refused"
+        );
         ensure!(
             self.version == 1
                 && !self.run.is_nil()
@@ -100,7 +135,8 @@ impl Registration {
             native_id(&self.parent.id, "FOLDER::com.apple.CloudDocs::")
                 && self.parent.id != cirrove_icloud::ROOT_ID
                 && self.parent.parent_id.as_deref() == Some(cirrove_icloud::ROOT_ID)
-                && self.parent.name == format!("Cirrove-Native-{}", self.run)
+                && self.parent.name
+                    == format!("Cirrove-Native-{}", self.subject_run.unwrap_or(self.run))
                 && self.parent.kind == NodeKind::Folder
                 && !self.parent.package
                 && self.parent.target.is_none()
@@ -124,8 +160,10 @@ impl Registration {
             "native fixture source proof refused"
         );
         match (self.arm, self.recovered.as_ref()) {
-            (Arm::NativeFinalPostflight, Some(recovered)) => recovered.validate(self)?,
-            (Arm::PagesDesktop | Arm::NativeFinalPreflight, None) => {}
+            (Arm::NativeFinalPostflight | Arm::FlatNumbersPostflight, Some(recovered)) => {
+                recovered.validate(self)?
+            }
+            (Arm::PagesDesktop | Arm::NativeFinalPreflight | Arm::FlatNumbersPreflight, None) => {}
             _ => anyhow::bail!("native fixture recovered inputs refused"),
         }
         ensure!(
@@ -149,7 +187,12 @@ impl Recovered {
         a.semantic.validate()?;
         ensure!(
             a.path == r.session_directory.join("source-a.numbers")
-                && a.root == "Source.numbers"
+                && a.root
+                    == if matches!(r.arm, Arm::FlatNumbersPostflight) {
+                        None
+                    } else {
+                        Some("Source.numbers".into())
+                    }
                 && a.size > 0
                 && a.size <= LIMIT
                 && hex_digest(&a.sha256)
@@ -182,11 +225,18 @@ impl Recovered {
 }
 impl Registration {
     fn artifact_stem(&self) -> &'static str {
-        if matches!(self.arm, Arm::NativeFinalPostflight) {
-            "native-final-postflight"
-        } else {
-            "native-import-fixture"
+        match self.arm {
+            Arm::FlatNumbersPreflight => "flat-numbers-preflight",
+            Arm::FlatNumbersPostflight => "flat-numbers-postflight",
+            Arm::NativeFinalPostflight => "native-final-postflight",
+            _ => "native-import-fixture",
         }
+    }
+    fn postflight(&self) -> bool {
+        matches!(
+            self.arm,
+            Arm::NativeFinalPostflight | Arm::FlatNumbersPostflight
+        )
     }
 }
 fn trash_binding(
@@ -249,13 +299,20 @@ fn source_verified(source: &Source) -> Result<()> {
         "native fixture source bytes changed"
     );
     ensure!(
-        cirrove_icloud::package_archive_semantic_identity_versioned(
-            &file,
-            &receipt,
-            &source.root,
-            2,
-            &CancellationToken::new()
-        )? == source.semantic,
+        match source.root.as_deref() {
+            Some(root) => cirrove_icloud::package_archive_semantic_identity_versioned(
+                &file,
+                &receipt,
+                root,
+                2,
+                &CancellationToken::new()
+            )?,
+            None => cirrove_icloud::package_flat_archive_semantic_identity_v2(
+                &file,
+                &receipt,
+                &CancellationToken::new()
+            )?,
+        } == source.semantic,
         "native fixture source semantics changed"
     );
     Ok(())
@@ -328,7 +385,7 @@ fn fixture_value(
     document: &DriveEntry,
 ) -> serde_json::Value {
     let (_, _, _, format, _, _) = r.expected();
-    serde_json::json!({"version":1,"run":r.run,"account":r.account,"session_directory":r.session_directory,
+    serde_json::json!({"version":1,"run":r.subject_run.unwrap_or(r.run),"account":r.account,"session_directory":r.session_directory,
         "settings_sha256":r.settings_sha256,"parent":parent,"document":document,"format":format,
         "representation":"package","source":r.source.path,"source_size":r.source.size,"source_sha256":r.source.sha256,
         "source_root":r.source.root,"expected_root":r.document.name,"semantic":r.source.semantic})
@@ -355,12 +412,16 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
     unchanged(path, digest, &r, &settings_path)?;
     // Exclusive attempt is durable before any session/provider access. A failed
     // or expired read is retained, never implicitly retried in this directory.
+    let mut attempt_value = serde_json::json!({
+        "run":r.run,"account":r.account,"registration_sha256":digest,"started_unix_seconds":r.started_unix_seconds,
+        "deadline_unix_seconds":r.deadline_unix_seconds,"provider_mutation":false,"automatic_retry":false});
+    if let Some(subject) = r.subject_run {
+        attempt_value["subject_run"] = serde_json::to_value(subject)?;
+    }
     record(
         &r.session_directory
             .join(format!("{}.attempt.json", r.artifact_stem())),
-        &serde_json::json!({
-        "run":r.run,"account":r.account,"registration_sha256":digest,"started_unix_seconds":r.started_unix_seconds,
-        "deadline_unix_seconds":r.deadline_unix_seconds,"provider_mutation":false,"automatic_retry":false}),
+        &attempt_value,
     )?;
     File::open(&r.session_directory)?.sync_all()?;
     let remaining = r
@@ -383,7 +444,9 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         let mut trash_proof = None;
         if let Some(recovered) = &r.recovered {
             let attempt = verification_directory(&r.session_directory)?;
-            manifest(&attempt, r.run, "native-final-postflight-Trash-read-only")?;
+            manifest(&attempt, r.run, if matches!(r.arm, Arm::FlatNumbersPostflight) {
+                "flat-numbers-postflight-Trash-read-only"
+            } else { "native-final-postflight-Trash-read-only" })?;
             let staging = tempfile::tempfile_in(&attempt)?;
             staging.set_permissions(std::fs::Permissions::from_mode(0o600))?;
             let observed = remote.verify_owned_package_in_trash(cirrove_icloud::OwnedPackageTrashRequest {
@@ -406,16 +469,18 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         let executable=std::env::current_exe()?;let mut executable_file=File::open(&executable)?;
         let producer=serde_json::json!({"path":executable,"size":executable_file.metadata()?.len(),"sha256":sha256(&mut executable_file)?});
         unchanged(path,digest,&r,&settings_path)?;
-        let acquisition=serde_json::json!({"run":r.run,"account":r.account,"operation":r.operation,"operation_kind":if matches!(r.arm,Arm::NativeFinalPostflight){"replacement"}else{"import"},
+        let mut acquisition=serde_json::json!({"run":r.run,"account":r.account,"operation":r.operation,"operation_kind":if r.postflight(){"replacement"}else{"import"},
             "parent_creation":r.parent_creation,"producer_binary":producer,"source":"actual-ICloudReadSession-metadata-output","arm":r.arm,
             "parent":parent,"document":document,"fixture_registration_sha256":fixture_digest,
             "registration_sha256":digest,"provider_mutation":false});
+        if let Some(subject) = r.subject_run { acquisition["subject_run"] = serde_json::to_value(subject)?; }
         record(&r.session_directory.join(format!("{}-acquired.json", r.artifact_stem())),&acquisition)?;
-        let result=serde_json::json!({"run":r.run,"account":r.account,"registration_sha256":digest,
-            "fixture_manifest_sha256":fixture_digest,"registered_operation":r.operation,"operation_kind":if matches!(r.arm,Arm::NativeFinalPostflight){"replacement"}else{"import"},"registered_parent_creation":r.parent_creation,
+        let mut result=serde_json::json!({"run":r.run,"account":r.account,"registration_sha256":digest,
+            "fixture_manifest_sha256":fixture_digest,"registered_operation":r.operation,"operation_kind":if r.postflight(){"replacement"}else{"import"},"registered_parent_creation":r.parent_creation,
             "journal_receipt_independently_verified":false,"source":r.source,"current":current,"original_trash":trash_proof,"arm":r.arm,
             "actual_typed_metadata_acquired":true,"source_semantic_verified":true,
             "gui_fidelity_verified":false,"cloud_mutated":false,"automatic_retry":false});
+        if let Some(subject) = r.subject_run { result["subject_run"] = serde_json::to_value(subject)?; }
         record(&r.session_directory.join(format!("{}-verified.json", r.artifact_stem())),&result)?;
         File::open(&r.session_directory)?.sync_all()?;
         same_directory(&r.session_directory,&guard)?;same_directory(&r.session_directory.join("state"),&state_guard)?;

@@ -13,7 +13,10 @@ fn plan(arm: Arm) -> Registration {
             format!("Cirrove-Pages-Desktop-{run}.pages"),
             "mounted-import.pages",
         ),
-        Arm::NativeFinalPreflight | Arm::NativeFinalPostflight => (
+        Arm::NativeFinalPreflight
+        | Arm::NativeFinalPostflight
+        | Arm::FlatNumbersPreflight
+        | Arm::FlatNumbersPostflight => (
             format!("/var/tmp/cirrove-native-final-{run}"),
             "iCloudNativeFinalValidation",
             format!("Cirrove-Numbers-Parent-{run}.numbers"),
@@ -27,6 +30,7 @@ fn plan(arm: Arm) -> Registration {
         version: 1,
         arm,
         run,
+        subject_run: None,
         account,
         label: label.into(),
         session_directory: PathBuf::from(&dir),
@@ -39,7 +43,7 @@ fn plan(arm: Arm) -> Registration {
             path: PathBuf::from(&dir).join(file),
             size: 123,
             sha256: "b".repeat(64),
-            root,
+            root: Some(root),
             semantic: PackageSemanticIdentity {
                 version: 2,
                 entries: 2,
@@ -89,7 +93,7 @@ fn native_fixture_registration_binds_two_owned_arm_shapes() -> Result<()> {
                 2 => bad.label = "foreign".into(),
                 3 => bad.session_directory = PathBuf::from("/var/tmp/other"),
                 4 => bad.source.path = bad.source.path.with_file_name("other"),
-                5 => bad.source.root = "Other.pages".into(),
+                5 => bad.source.root = Some("Other.pages".into()),
                 6 => bad.document.name = "other.pages".into(),
                 7 => bad.document.parent_id = Some("foreign".into()),
                 8 => bad.document.package = false,
@@ -220,7 +224,7 @@ fn native_fixture_source_and_settings_guards_refuse_changed_bytes() -> Result<()
         path: path.clone(),
         size: receipt.size,
         sha256: receipt.sha256,
-        root: "Source.pages".into(),
+        root: Some("Source.pages".into()),
         semantic,
     };
     source_verified(&source)?;
@@ -427,7 +431,7 @@ fn native_fixture_postflight_source_a_scanner_rejects_raw_or_semantic_tamper() -
         path,
         size: receipt.size,
         sha256: receipt.sha256,
-        root: "Source.numbers".into(),
+        root: Some("Source.numbers".into()),
         semantic,
     };
     source_verified(&source)?;
@@ -438,7 +442,296 @@ fn native_fixture_postflight_source_a_scanner_rejects_raw_or_semantic_tamper() -
     wrong.semantic.sha256 = "0".repeat(64);
     assert!(source_verified(&wrong).is_err());
     let mut wrong = source;
-    wrong.root = "Other.numbers".into();
+    wrong.root = Some("Other.numbers".into());
     assert!(source_verified(&wrong).is_err());
+    Ok(())
+}
+
+fn flat_registration(postflight: bool) -> Result<serde_json::Value> {
+    let r = if postflight {
+        postflight_plan()
+    } else {
+        plan(Arm::NativeFinalPreflight)
+    };
+    let subject = Uuid::new_v4();
+    let dir = format!("/var/tmp/cirrove-numbers-flat-replacement-{}", r.run);
+    let name = format!("Cirrove-Numbers-Editor-{subject}.numbers");
+    let mut value = serde_json::to_value(&r)?;
+    value["arm"] = if postflight {
+        "flat_numbers_postflight".into()
+    } else {
+        "flat_numbers_preflight".into()
+    };
+    value["subject_run"] = subject.to_string().into();
+    value["session_directory"] = dir.clone().into();
+    value["label"] = "iCloudNumbersFlatReplacementValidation".into();
+    value["parent"]["name"] = format!("Cirrove-Native-{subject}").into();
+    value["document"]["name"] = name.clone().into();
+    value["source"]["path"] = format!(
+        "{dir}/source-{}.numbers",
+        if postflight { "b" } else { "a" }
+    )
+    .into();
+    value["source"]["root"] = serde_json::Value::Null;
+    if postflight {
+        value["recovered"]["original"]["name"] = name.clone().into();
+        value["recovered"]["backup"]["name"] = name.into();
+        value["recovered"]["source_a"]["path"] = format!("{dir}/source-a.numbers").into();
+        value["recovered"]["source_a"]["root"] = serde_json::Value::Null;
+    }
+    Ok(value)
+}
+
+fn registered_value(value: &serde_json::Value) -> Result<Registration> {
+    let bytes = serde_json::to_vec(value)?;
+    registered(&bytes, &hex::encode(Sha256::digest(&bytes)), 1001)
+}
+
+fn flat_admission_and_fixture(postflight: bool) -> Result<()> {
+    let value = flat_registration(postflight)?;
+    let retained = serde_json::to_vec(&value)?;
+    assert!(value["source"]["root"].is_null());
+    assert_ne!(value["run"], value["subject_run"]);
+    // Existing registration consumer is the desired endpoint; baseline refuses
+    // the explicit flat arm before any session, artifact or provider access.
+    let r = registered_value(&value)?;
+    assert_eq!(serde_json::to_vec(&value)?, retained);
+    let (parent, document) = entries(&r);
+    let actual_parent = exact_parent(&[parent], &r)?;
+    let actual_document = exact_entry(&[document.clone()], &r.document)?;
+    let f: Fixture = serde_json::from_value(fixture_value(&r, &actual_parent, &actual_document))?;
+    validate(&f)?;
+    assert_eq!(serde_json::to_value(f.run)?, value["subject_run"]);
+    assert_eq!(f.session_directory, r.session_directory);
+    assert_eq!(f.document, document);
+    assert!(f.source_root.is_none());
+    assert_eq!(f.expected_root, r.document.name);
+    assert_eq!(f.semantic.as_ref(), Some(&r.source.semantic));
+    assert_eq!(
+        r.artifact_stem(),
+        if postflight {
+            "flat-numbers-postflight"
+        } else {
+            "flat-numbers-preflight"
+        }
+    );
+    Ok(())
+}
+
+#[test]
+fn native_fixture_flat_preflight_admits_selected_subject_and_generates_valid_fixture() -> Result<()>
+{
+    flat_admission_and_fixture(false)
+}
+
+#[test]
+fn native_fixture_flat_postflight_admits_selected_subject_and_generates_valid_fixture() -> Result<()>
+{
+    flat_admission_and_fixture(true)
+}
+
+#[test]
+fn native_fixture_flat_registration_refuses_subject_scope_and_root_substitution() -> Result<()> {
+    for postflight in [false, true] {
+        let value = flat_registration(postflight)?;
+        registered_value(&value)?;
+        for case in 0..15 {
+            let mut bad = value.clone();
+            match case {
+                0 => {
+                    bad.as_object_mut().unwrap().remove("subject_run");
+                }
+                1 => bad["subject_run"] = serde_json::Value::Null,
+                2 => bad["subject_run"] = Uuid::nil().to_string().into(),
+                3 => bad["subject_run"] = bad["run"].clone(),
+                4 => bad["subject_run"] = Uuid::new_v4().to_string().into(),
+                5 => {
+                    bad["source"].as_object_mut().unwrap().remove("root");
+                }
+                6 => bad["source"]["root"] = "Source.numbers".into(),
+                7 => {
+                    bad["session_directory"] = format!(
+                        "/var/tmp/cirrove-numbers-flat-replacement-{}",
+                        bad["subject_run"].as_str().unwrap()
+                    )
+                    .into()
+                }
+                8 => bad["label"] = "iCloudNativeFinalValidation".into(),
+                9 => bad["source"]["path"] = "/var/tmp/foreign/source-a.numbers".into(),
+                10 => {
+                    bad["parent"]["name"] =
+                        format!("Cirrove-Native-{}", bad["run"].as_str().unwrap()).into()
+                }
+                11 => {
+                    bad["document"]["name"] = format!(
+                        "Cirrove-Numbers-Editor-{}.numbers",
+                        bad["run"].as_str().unwrap()
+                    )
+                    .into()
+                }
+                12 => bad["deadline_unix_seconds"] = 1001.into(),
+                13 => bad["source"]["semantic"]["version"] = 1.into(),
+                _ => bad["document"]["package"] = false.into(),
+            }
+            assert!(
+                registered_value(&bad).is_err(),
+                "flat scope/root substitution {postflight}/{case} accepted"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn native_fixture_flat_extension_preserves_legacy_subject_and_wrapped_root_requirements()
+-> Result<()> {
+    for r in [
+        plan(Arm::PagesDesktop),
+        plan(Arm::NativeFinalPreflight),
+        postflight_plan(),
+    ] {
+        let value = serde_json::to_value(r)?;
+        registered_value(&value)?;
+        assert!(value.get("subject_run").is_none());
+        for case in 0..3 {
+            let mut bad = value.clone();
+            match case {
+                0 => bad["subject_run"] = Uuid::new_v4().to_string().into(),
+                1 => bad["source"]["root"] = serde_json::Value::Null,
+                _ => {
+                    bad["source"].as_object_mut().unwrap().remove("root");
+                }
+            }
+            assert!(
+                registered_value(&bad).is_err(),
+                "legacy subject/root substitution {case} accepted"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn native_fixture_flat_postflight_requires_distinct_current_original_and_flat_source_a()
+-> Result<()> {
+    let value = flat_registration(true)?;
+    let r = registered_value(&value)?;
+    let recovered = r.recovered.as_ref().context("postflight recovered A")?;
+    let actual = cirrove_icloud::VerifiedPackageTrash {
+        archive: PackageDownload {
+            size: 321,
+            sha256: "f".repeat(64),
+        },
+        semantic: recovered.source_a.semantic.clone(),
+        trash_etag: recovered.backup.etag.clone().context("Trash revision")?,
+    };
+    trash_binding(&recovered.backup, &recovered.source_a, &actual)?;
+    assert!(trash_binding(&recovered.backup, &r.source, &actual).is_err());
+    for case in 0..10 {
+        let mut bad = value.clone();
+        match case {
+            0 => {
+                bad.as_object_mut().unwrap().remove("recovered");
+            }
+            1 => bad["recovered"]["source_a"]["root"] = "Source.numbers".into(),
+            2 => {
+                bad["recovered"]["source_a"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("root");
+            }
+            3 => bad["recovered"]["original"]["id"] = bad["document"]["id"].clone(),
+            4 => bad["recovered"]["backup"]["id"] = bad["document"]["id"].clone(),
+            5 => bad["recovered"]["backup"]["parent_id"] = bad["parent"]["id"].clone(),
+            6 => bad["recovered"]["source_a"]["semantic"] = bad["source"]["semantic"].clone(),
+            7 => bad["recovered"]["source_a"]["sha256"] = bad["source"]["sha256"].clone(),
+            8 => bad["recovered"]["source_a"]["path"] = bad["source"]["path"].clone(),
+            _ => bad["recovered"]["backup"]["etag"] = "*".into(),
+        }
+        assert!(
+            registered_value(&bad).is_err(),
+            "flat original/Trash/A substitution {case} accepted"
+        );
+    }
+    let mut wrong = actual;
+    wrong.trash_etag = "foreign-revision".into();
+    assert!(trash_binding(&recovered.backup, &recovered.source_a, &wrong).is_err());
+    Ok(())
+}
+
+#[test]
+fn native_fixture_flat_source_scanner_preserves_bytes_and_refuses_wrapped_or_changed_proof()
+-> Result<()> {
+    let dir = tempfile::tempdir()?.keep();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
+    let raw = zip_archive("Index/Document.iwa", b"synthetic flat Numbers source");
+    let path = dir.join("source-a.numbers");
+    std::fs::write(&path, &raw)?;
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let receipt = PackageDownload {
+        size: raw.len() as u64,
+        sha256: hex::encode(Sha256::digest(&raw)),
+    };
+    let semantic = cirrove_icloud::package_flat_archive_semantic_identity_v2(
+        &File::open(&path)?,
+        &receipt,
+        &CancellationToken::new(),
+    )?;
+    let source = Source {
+        path: path.clone(),
+        size: receipt.size,
+        sha256: receipt.sha256,
+        root: None,
+        semantic,
+    };
+    source_verified(&source)?;
+    for case in 0..4 {
+        let mut bad = source.clone();
+        match case {
+            0 => bad.root = Some("Source.numbers".into()),
+            1 => bad.sha256 = "0".repeat(64),
+            2 => bad.semantic.sha256 = "0".repeat(64),
+            _ => bad.size += 1,
+        }
+        assert!(
+            source_verified(&bad).is_err(),
+            "flat scanner substitution {case} accepted"
+        );
+        assert_eq!(std::fs::read(&path)?, raw);
+        assert_eq!(
+            std::fs::metadata(&path)?.permissions().mode() & 0o777,
+            0o600
+        );
+    }
+    let wrapped = zip_archive(
+        "Source.numbers/Index/Document.iwa",
+        b"synthetic wrapped source",
+    );
+    let wrapped_path = dir.join("wrapped.numbers");
+    std::fs::write(&wrapped_path, &wrapped)?;
+    std::fs::set_permissions(&wrapped_path, std::fs::Permissions::from_mode(0o600))?;
+    let wrapped_receipt = PackageDownload {
+        size: wrapped.len() as u64,
+        sha256: hex::encode(Sha256::digest(&wrapped)),
+    };
+    let wrapped_semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
+        &File::open(&wrapped_path)?,
+        &wrapped_receipt,
+        "Source.numbers",
+        2,
+        &CancellationToken::new(),
+    )?;
+    let wrapped_source = Source {
+        path: wrapped_path,
+        size: wrapped_receipt.size,
+        sha256: wrapped_receipt.sha256,
+        root: Some("Source.numbers".into()),
+        semantic: wrapped_semantic,
+    };
+    source_verified(&wrapped_source)?;
+    let mut mismatched = wrapped_source.clone();
+    mismatched.root = None;
+    assert!(source_verified(&mismatched).is_err());
+    assert_eq!(std::fs::read(&wrapped_source.path)?, wrapped);
     Ok(())
 }
