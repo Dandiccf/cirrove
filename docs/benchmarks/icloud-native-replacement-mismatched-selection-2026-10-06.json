@@ -322,5 +322,46 @@
       "size": 8079,
       "sha256": "5876be4ef5f4a884187df1906e35a8c96e6a619ce4615ad7d2dff14f9357e1a3"
     }
+  },
+  "local_archival_correction": {
+    "question": "Does the actual old archive method fail across filesystems while a same-root archive preserves bytes, modes and inodes and refuses a collision?",
+    "controls_executed": 3,
+    "passed": true,
+    "old_method_cross_device_errno": 18,
+    "old_sources_preserved": true,
+    "new_same_root_bytes_modes_inodes_preserved": true,
+    "existing_archive_refused_before_move": true,
+    "closed_real_arm_errno_proven": false,
+    "provider_calls": false,
+    "keys_read": false,
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/archive-controls-result-v1.json",
+      "size": 642,
+      "sha256": "e885aa985cd29c2c7744a972e185c53e22101f0e1b565d99242fb67f6ddfcb22"
+    },
+    "driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/archive-controls-root-result-v1.json",
+      "size": 523,
+      "sha256": "d09d27fb6e3ab7ad03e06a794f46f597467cd992eda10c84774625882d30c08b"
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/archive-controls-root-registration-v1.json",
+      "size": 1339,
+      "sha256": "efc83a4a1c43ad62e9802d51976607e2f813609fd7c0beb51c349211a7c615ae"
+    },
+    "script": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/archive_controls_v1.py",
+      "size": 7164,
+      "sha256": "ff84aaf6b78f2f27fccb12dd2f82e442b8f29797bf5626ee4f31bda08853c249"
+    },
+    "new_controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/controller_mismatched_selection_v4.py",
+      "size": 43874,
+      "sha256": "b6f0e48c485218d1cd6853d04df68d0ede9fcbff5f4ba365c033043e77a9d80c"
+    },
+    "fresh_successor_run": "c4f645a7-8892-487f-9356-e9aa43a8f8d9",
+    "fresh_cloud_root_absent": true,
+    "fresh_cloud_window_started": false,
+    "fresh_cloud_dispatched": false
   }
 }
