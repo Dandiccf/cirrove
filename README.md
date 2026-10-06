@@ -79,13 +79,14 @@ to atomic-save ordering and publication of the confirmed replacement identities.
 A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
 also verified the exact original bytes in iCloud Trash.
 Native iWork editing and five full-integration acceptance areas remain open.
-Standalone native-document removal has
-[local crash-recovery coverage](docs/benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json),
-but separate real-iCloud acceptance remains open. The latest live attempt stopped
-before import or removal, with an uncertain folder-creation operation retained
-without replay. Subsequent read-only inspection did not produce an accepted
-cloud result. The [validation record](docs/icloud-write-integration.md) preserves
-the outcomes and remaining limits.
+A [fresh standalone native-document removal trial](docs/benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json)
+now recovered a controlled process exit after iCloud removal but before local
+acknowledgement, without repeating the mutation. Independent verification found
+the complete original content in Trash and confirmed its absence from the original
+location; normal read-only listing, watch and mount checks also passed. The earlier
+175 attempt remains an unresolved folder-creation outcome, retained without replay.
+Broader native editing, conflict handling and release acceptance remain open; the
+[validation record](docs/icloud-write-integration.md) preserves the separate outcomes.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -95,8 +96,12 @@ for the precise preview scope.
 
 Strata's [isolated companion GUI checks](docs/strata.md) passed for availability
 badges, offline actions, inherited pins and native-document restrictions.
-Real-provider and installed Strata acceptance, along with Dolphin's broader live
-desktop acceptance, remain open. Distribution and upgrade
+A [fresh private-host trial](docs/benchmarks/icloud-strata-private-host-dialog-2026-10-06.json)
+also passed the real normal read-only iCloud catalog, native Show availability
+menu and exact filename/On demand dialog, with one actual indexed archive child.
+It preserved installed artifacts and settings; real pin/fetch/kept transitions,
+notifications and installed Strata acceptance remain open. Dolphin's broader live
+desktop acceptance also remains open. Distribution and upgrade
 boundaries are recorded in the [validation record](docs/validation.md).
 
 ## Try Cirrove
@@ -292,6 +297,12 @@ file with correct values, but imported its SUM result as a number rather than a
 formula. Native Numbers editing in Calc is therefore not a validated
 formula-preserving workflow; see the
 [format limits](docs/compatibility.md#icloud-development-and-linux-editor-formats).
+A [fresh offline Numbers-to-XLSX conversion](docs/benchmarks/icloud-numbers-calc-genuine-export-2026-10-06.json)
+then imported an Apple-edited Numbers export, created one XLSX copy and reopened
+it with values 17, 3 and 20 preserved. Calc imported the SUM result as the number
+20, so the conversion completed but did not preserve the formula. This automated
+trial preserved the original source; interactive editing and saving back to
+native Numbers remain unvalidated.
 
 The public Desktop Pages import interface now passes a separate
 [local chooser test](docs/benchmarks/icloud-pages-chooser-visible-tree-2026-10-06.json):
@@ -361,8 +372,11 @@ Local validation also exposed two standalone native-removal recovery gaps:
 read-only startup did not finish pending metadata absence, and a historical
 observer required a writer. The [development correction](docs/benchmarks/icloud-native-trash-readonly-publication-2026-10-06.json)
 passes the actual startup regressions and 47 targeted controls, preserving
-retained saves and later restores. Live standalone removal after process loss
-and installed acceptance remain separate next checks.
+retained saves and later restores. The separate
+[fresh real-iCloud removal trial](docs/benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json)
+also passed recovery after process loss, independent Trash-content verification
+and normal read-only absence checks. This single bounded arm does not establish
+broader conflict handling, sustained reliability or installed acceptance.
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical

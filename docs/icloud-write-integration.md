@@ -3620,3 +3620,59 @@ The receipt validator is unchanged; only one bounded fixed-format timing line
 is accepted. All six local children were reaped and all 561 source pins and
 thirteen dependency pins matched. V5 has not performed a real read, and the
 earlier cloud classification and failed operand remain unretained.
+
+
+### Fresh standalone native Trash recovery on 6 October
+
+The separately registered [fresh removal arm](benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json)
+passed in 237.67 seconds within its original 600-second window and 45-second
+cleanup reserve. It created a new owned folder and imported one flat Numbers
+archive through the normal public CLI before submitting one public native Trash
+request. A genuine Removed result was withheld by process exit 86 before local
+acknowledgement. The retained operation was still incomplete at that boundary;
+the public Trash CLI exited one and did not claim completion.
+
+Inspection-only recovery used the same operation UUID, with one inspection and
+one reconciliation, zero preparations and zero mutation callbacks. Independent
+verification then matched the complete semantic V2 tree in Trash: 46 entries,
+42 files and 133,252 expanded bytes. The original item was absent before and
+after verification. This compares complete content, including the previews;
+it does not claim raw Trash ZIP equality with the source archive.
+
+Normal read-only public listing and watch, followed by mounted original-path
+absence, passed without changing the completed journal frontier. All thirteen
+original managed handles were reaped and their processes were absent; the owned
+mount and socket were gone. Source pins, nineteen installed artifacts, the
+installed unit and daemon identity remained unchanged. An independent terminal
+audit passed all sixteen checks.
+
+This is one bounded removal and recovery arm, with controlled local
+acknowledgement loss rather than an unobserved provider reply. HTTP request counts
+were not instrumented. It neither resolves nor replays the earlier 175 folder
+operation, and it does not establish broader native editing, conflict refusal,
+sustained reliability or installed acceptance. Full-iCloud row 486 remains open;
+one of the six release criteria is closed and five remain open.
+
+
+### Mismatched-selection arm stopped before replacement
+
+The [fresh mismatched-selection arm](benchmarks/icloud-native-replacement-mismatched-selection-2026-10-06.json)
+stopped with exit one after 105.24 seconds. The owned folder, normal public flat
+Numbers import and typed independent metadata acquisition completed. Before any
+replacement request, the controller raised OSError while moving a local proof
+file into its retained readback directory. The errno was not retained, so the
+specific filesystem cause is unproved.
+
+No replacement request or mismatched-selection refusal endpoint was exercised;
+the planned refusal preservation comparison and final independent postflight
+therefore remain unvalidated. All six original managed handles were reaped and
+absent, the owned mount/socket were gone, source pins matched, and the nineteen
+installed artifacts, unit and daemon identity were preserved. The first local
+check's setup refusal and the corrected second local check's pass remain separate
+pre-dispatch outcomes. This stopped arm is retained without automatic retry.
+
+The preceding complete `bash scripts/check.sh` passed in 548.12 seconds with
+all 561 source pins unchanged and 87 test groups reporting no failures. It was
+not a display rerun. That repository validation does not turn the partial live
+arm into conflict-refusal or installed acceptance: row 486 remains open, with one
+of six full-iCloud release criteria closed and five open.
