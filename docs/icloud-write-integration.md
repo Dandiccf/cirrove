@@ -3732,12 +3732,11 @@ publication and expiration refusal. These controls do not execute the full
 cloud controller. Earlier compilation, fixture-calibration and timeout failures
 remain in their own artifacts and are not treated as the intended failing arm.
 
-The next live trial must independently verify the complete A/B/B content and
-captured revisions after refusing a reserved-name competitor. No such live
-trial is established by these synthetic results. The pause tests a competitor
-present before the fresh preflight; it cannot establish atomic protection from
-a change after that final preflight. Row 486 and the five remaining release
-criteria stay open; installed delivery remains held.
+These synthetic results alone establish no live competing-name preservation.
+The pause tests a competitor present before the fresh preflight; it cannot
+establish atomic protection from a change after that final preflight. Row 486
+and the five remaining release criteria stay open; installed delivery remains
+held.
 
 The observer's final synchronous disk publication now checks the original
 monotonic deadline before and after recording its result. An actual
@@ -3767,3 +3766,45 @@ original check process was reaped and absent. It includes all seven pause and
 seven observer tests on the final source. Desktop display scenarios were not
 repeated. This supersedes the earlier full10 source validation for the observer
 deadline fix; neither check establishes a new live or installed result.
+
+
+### Real competing-name refusal and three-item preservation
+
+A [fresh owned Numbers trial](benchmarks/icloud-native-pre-trash-recovery-name-occupant-fresh-2026-10-07.json)
+passed in 299.64 seconds. A normal public import established original A. The
+public B replacement reached its durable pre-Trash pause; a distinct normal
+Cirrove instance then imported B once at the exact reserved recovery name.
+Read-only capture bound all three typed IDs, revisions and locations before
+one release. The same replacement became Conflict, with no current/recovery
+or package-completion receipt; the public replacement CLI returned the
+expected failure rather than reporting successful replacement.
+
+After both writers stopped, the independent observer downloaded all three
+packages and verified full canonical V2 A/B/B content against the immutable
+source exports. All captured IDs, revisions and locations remained equal.
+Remote transport archives have different raw bytes; the result is full
+semantic identity, not raw ZIP equality. All ten inner process handles and
+both outer command handles closed, both mounts and sockets were absent, all
+563 source hashes stayed unchanged, and installed artifacts remained intact.
+HTTP counts are uninstrumented. This proves this exact competitor present
+before final preflight; it does not establish a server-side atomic race guard.
+
+The [preceding partial arm](benchmarks/icloud-native-pre-trash-recovery-name-occupant-2026-10-07.json)
+confirmed original A but stopped at a local test-controller file-mode guard
+before replacement. Inspection also found a latent wrong metadata-store path.
+Both failures and the byte-exact closed-database RED/GREEN controls remain
+recorded. The fresh arm uses a new folder and operation identities, the
+account-scoped store, and umask077 from its first process launch; it does not
+replay the earlier arm. Original, stage and competitor evidence is retained;
+no abandoned-stage cleanup or GUI fidelity claim follows. Row 486 and all five
+remaining full-iCloud criteria remain open; installed delivery stays on HOLD.
+
+
+After recording the live and partial-arm evidence, the [complete precommit
+check](benchmarks/icloud-native-pre-trash-full12-check-2026-10-07.json) passed
+in 539.56 seconds: formatting, Clippy, workspace/feature tests, kernel/FUSE
+scenarios, scripts, ledger and documentation, with all 87 Rust test groups
+passing and all 563 source hashes unchanged. Both independent live-case audits
+also passed: sixteen bounded provider-proof checks and 96 terminal/closure
+checks. Display scenarios, installed migration and full-iCloud acceptance
+remain separate.

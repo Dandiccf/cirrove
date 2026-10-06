@@ -550,3 +550,12 @@ controls and five observer controls. Their purpose is to make the next owned
 competing-recovery-name trial controlled and independently verifiable.
 They do not establish a live conflict, atomic cloud replacement or installed
 acceptance; all five open criteria above remain unchanged.
+
+
+The 2026-10-07 [fresh competing-name trial](benchmarks/icloud-native-pre-trash-recovery-name-occupant-fresh-2026-10-07.json)
+adds real evidence to criterion 486: one Numbers replacement refused an owned
+reserved-name occupant before final preflight, and stopped independent full
+V2 readback preserved original A, stage B and occupant B with the same IDs,
+revisions and locations. It does not close broader editing, atomic races,
+representation coverage, installed transitions or abandoned-stage cleanup.
+The full-iCloud count remains one criterion closed and five open.
