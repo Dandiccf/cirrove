@@ -268,6 +268,9 @@ pub struct RecoveryJournal {
 }
 impl RecoveryJournal {
     pub fn open(root: &Path, account: &str) -> Result<Self> {
+        Self::open_existing(root, account, false)
+    }
+    fn open_existing(root: &Path, account: &str, metadata_only: bool) -> Result<Self> {
         if account.is_empty() {
             return Err(JournalError::Intent);
         }
@@ -299,7 +302,11 @@ impl RecoveryJournal {
         let _database = open_existing("uploads.db")?;
         let db = Connection::open_with_flags(
             root.join("uploads.db"),
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
+            (if metadata_only {
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+            } else {
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+            }) | rusqlite::OpenFlags::SQLITE_OPEN_NOFOLLOW,
         )?;
         // SQLite rejects /proc descriptor aliases with NOFOLLOW. Check that
         // its ordinary pathname still identifies our held private directory
@@ -316,8 +323,11 @@ impl RecoveryJournal {
         }
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if !(14..=super::JOURNAL_SCHEMA).contains(&version) {
+        if !(14..=super::JOURNAL_SCHEMA).contains(&version) || (metadata_only && version != 20) {
             return Err(JournalError::Schema);
+        }
+        if metadata_only {
+            db.execute_batch("PRAGMA synchronous=FULL;")?;
         }
         let stored: String =
             db.query_row("SELECT account FROM identity WHERE singleton=1", [], |r| {
@@ -714,5 +724,27 @@ impl RecoveryJournal {
         limit: u32,
     ) -> Result<NativeImportListing> {
         self.journal.native_import_list(scope, after, limit)
+    }
+}
+
+/// Existing-journal local job status only: no writer, payload mutation, transfer
+/// claim, migration, vault or upload/mutation reconciliation is exposed.
+pub(crate) struct MetadataPublicationJournal(RecoveryJournal);
+impl MetadataPublicationJournal {
+    pub(crate) fn open(root: &Path, account: &str) -> Result<Self> {
+        Ok(Self(RecoveryJournal::open_existing(root, account, true)?))
+    }
+    pub(crate) fn due(&self, now: u64) -> Result<Option<super::OrdinaryHandoffMetadata>> {
+        self.0.journal.ordinary_metadata_due(now)
+    }
+    pub(crate) fn finish(
+        &self,
+        proof: &super::OrdinaryHandoffMetadata,
+        completed: bool,
+        now: u64,
+    ) -> Result<()> {
+        self.0
+            .journal
+            .finish_ordinary_metadata(proof, completed, now)
     }
 }

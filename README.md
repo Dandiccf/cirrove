@@ -77,9 +77,15 @@ replacement sequences, restart recovery and preservation of newer working bytes.
 The latest live trial again verified the first save, but exposed an additional
 ordering case: the editor can prepare replacement before iCloud acknowledges its
 temporary file. That case now passes tests that first failed on the original code,
-with identity and receipt refusal controls. The complete two-save workflow and
-read-only remount still need real-provider acceptance. XLSX results do not
-establish native iWork editing support.
+with identity and receipt refusal controls. A subsequent [owned Calc trial](docs/benchmarks/icloud-calc-after-completed-cleanup-2026-10-06.json)
+independently verified both saved XLSX versions and completed every journal entry,
+including temporary-file cleanup. Its read-only remount stopped at an attribute
+check; the retained index still contained the old and new identities under the
+same name. A durable publication queue now passes the reproduced stale-identity
+regression and synthetic successor/read-only restart checks, including startup
+with a writable grant but an effectively read-only connection. Fresh live remount
+acceptance remains open.
+XLSX results do not establish native iWork editing support.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -299,7 +305,7 @@ saves from real editors, broader Pages/Numbers/Keynote editing/reopen fidelity,
 DATA format coverage beyond this Numbers fixture, session retention
 and renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;
-[its deployment policy](docs/development.md#native-working-journal-schema19-held-prerelease-policy)
+[its deployment policy](docs/development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy)
 requires keeping it separate from the installed release. Read the
 [iCloud development record](https://github.com/Dandiccf/cirrove/blob/research/icloud-feasibility/docs/icloud-write-integration.md)
 and follow [PR 86](https://github.com/Dandiccf/cirrove/pull/86) for published

@@ -235,6 +235,8 @@ pub struct Engine {
     icloud_write_staging_budget: Option<cirrove_icloud::ICloudWriteStagingBudget>,
     pub account: Account,
     pub db: PathBuf,
+    ordinary_publication_journal: PathBuf,
+    ordinary_publication_started: AtomicBool,
     pub provider: Arc<dyn ReadProvider>,
     pub cache: ContentCache,
     pub cancel: CancellationToken,
@@ -302,6 +304,7 @@ impl Engine {
         private_dir(&directory)?;
         let owner = crate::accounts::account_lock(&directory)?;
         let db = directory.join("metadata.db");
+        let ordinary_publication_journal = directory.join("journal");
         let path = db.clone();
         let keeper = tokio::task::spawn_blocking(move || Store::open(path)).await??;
         let blocks = directory.join("blocks.db");
@@ -333,6 +336,8 @@ impl Engine {
             .then(cirrove_icloud::ICloudWriteStagingBudget::default),
             account,
             db,
+            ordinary_publication_journal,
+            ordinary_publication_started: AtomicBool::new(false),
             provider,
             cache,
             cancel: CancellationToken::new(),
@@ -1327,11 +1332,27 @@ impl Engine {
         }
         Ok((scope, node))
     }
+    /// Start local receipt publication for an effective read-only connection.
+    /// The manager may select this mode without changing the recorded grant.
+    pub(crate) fn start_ordinary_metadata_readonly(self: &Arc<Self>) {
+        if !self
+            .ordinary_publication_started
+            .swap(true, Ordering::SeqCst)
+        {
+            let engine = self.clone();
+            self.tasks.spawn(async move {
+                engine.repair_ordinary_metadata_readonly().await;
+            });
+        }
+    }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
         // Before anything can evict, so a restart never spends the window
         // between mounting and the first pin change treating pinned blocks as
         // ordinary ones.
         self.refresh_reservations().await?;
+        if self.account.access == cirrove_auth::AccessMode::ReadOnly {
+            self.start_ordinary_metadata_readonly();
+        }
         if !self.discovery_started.swap(true, Ordering::SeqCst) {
             let engine = self.clone();
             self.tasks.spawn(async move {
@@ -2335,3 +2356,102 @@ mod tests {
 
 mod native_abandon;
 mod native_replace;
+
+impl Engine {
+    /// Call only with an independently validated receipt; no journal/activity
+    /// lock or SQLite transaction survives this optional exact-ID read.
+    pub(crate) async fn publish_ordinary_metadata(
+        &self,
+        proof: &crate::journal::OrdinaryHandoffMetadata,
+    ) -> Result<bool, ProviderError> {
+        if proof.scope != self.scope(&proof.scope.collection) {
+            return Err(ProviderError::Unavailable);
+        }
+        let apply = || {
+            let db = self.db.clone();
+            let proof = proof.clone();
+            tokio::task::spawn_blocking(move || {
+                Store::open(db)?.publish_ordinary_handoff_backup(
+                    &proof.scope,
+                    &proof.original,
+                    &proof.current,
+                    &proof.backup,
+                )
+            })
+        };
+        let complete = apply()
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        if complete {
+            self.changed.notify_waiters();
+            return Ok(true);
+        }
+        tokio::select! {biased;
+            _=self.cancel.cancelled()=>return Err(ProviderError::Cancelled),
+            result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&proof.scope,&proof.original.id))=>{
+                match result {Ok(Ok(_))|Ok(Err(ProviderError::NotFound))=>(),
+                    Ok(Err(error))=>return Err(error),Err(_)=>return Err(ProviderError::Unavailable)}
+            }
+        }
+        let complete = apply()
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        if complete {
+            self.changed.notify_waiters();
+        }
+        Ok(complete)
+    }
+    /// One due job under the existing exclusive owner, released before Store or
+    /// provider work and independently reacquired for immutable status CAS.
+    pub(crate) async fn repair_ordinary_metadata_once_at(&self, root: PathBuf) -> Result<bool> {
+        let account = self.account.id.clone();
+        let read_root = root.clone();
+        let proof = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            if !read_root.try_exists()? {
+                return Ok(None);
+            }
+            let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            journal.due(now())
+        })
+        .await??;
+        let Some(proof) = proof else { return Ok(false) };
+        let result = self.publish_ordinary_metadata(&proof).await;
+        let completed = result.as_ref().is_ok_and(|value| *value);
+        let account = self.account.id.clone();
+        tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            journal.finish(&proof, completed, now())
+        })
+        .await??;
+        result.map_err(anyhow::Error::from)?;
+        Ok(true)
+    }
+    async fn repair_ordinary_metadata_readonly(self: Arc<Self>) {
+        let mut failed = 0u32;
+        loop {
+            if self.cancel.is_cancelled() {
+                return;
+            }
+            let result = self
+                .repair_ordinary_metadata_once_at(self.ordinary_publication_journal.clone())
+                .await;
+            let delay = match result {
+                Ok(true) => {
+                    failed = 0;
+                    Duration::from_millis(100)
+                }
+                Ok(false) => {
+                    failed = 0;
+                    Duration::from_secs(1)
+                }
+                Err(_) => {
+                    failed = failed.saturating_add(1).min(6);
+                    Duration::from_secs((1u64 << failed).min(60))
+                }
+            };
+            tokio::select! {biased;_=self.cancel.cancelled()=>return,_=tokio::time::sleep(delay)=>()}
+        }
+    }
+}

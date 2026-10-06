@@ -625,26 +625,30 @@ demonstrating an error message was run without `--state-dir`, migrated a live
 account's index on the way to failing, and left the installed daemon unable to
 read it. That historical metadata-index incident involved only added empty tables;
 it is not a general downgrade procedure. In particular, never lower a journal's
-`user_version` to make an older writer accept new persisted semantics. The native
-working schema policy below requires a compatible recovery reader instead.
+`user_version` to make an older writer accept new persisted semantics. The journal
+schema policy below requires a compatible recovery reader instead.
 
 Upgrading properly is: install the new binaries first, then restart the service,
 then use the new commands.
 
 
-### Native working journal schema19: held prerelease policy
+### Ordinary metadata publication journal schema20: held prerelease policy
 
-Schema19 adds native backup-first state to the native-working prerequisite, not permission to upgrade
-installed accounts. Until its recovery, successor and application acceptance is
+Schema20 adds a durable queue for publishing ordinary handoff metadata after its
+typed acknowledgement. It retains the native backup-first state and native-working
+prerequisites introduced by earlier schemas. This is not permission to upgrade
+installed accounts. Until recovery, successor and application acceptance is
 complete, validation must use explicitly isolated state, sockets, mounts and
-binaries. Do not open the user's current journal with a schema19 writer, restart
+binaries. Do not open the user's current journal with a schema20 writer, restart
 the installed service or change package/developer installation state for these tests.
 
-Every writable journal opened by that build migrates, including ordinary-only
-accounts with no native documents. The fence protects native working bytes from
-older code that could interpret them as ordinary uploads. Schema17 and schema18 binaries must
-refuse schema19 rather than ignore the marker or lower the version. A table being
-additive does not make the writer downgrade safe.
+Every writable journal opened by this build migrates, including ordinary-only
+accounts with no native documents. Read-only metadata repair opens only an existing
+schema20 journal; it does not migrate it or claim uploads or mutations. The fence
+protects retained native bytes and ordinary publication jobs from older code that
+cannot interpret those semantics. Older writers, including schema17, schema18 and
+schema19 binaries, must refuse schema20 rather than ignore the queue or lower the
+version. A table being additive does not make the writer downgrade safe.
 
 The developer installer enforces this hold through
 `packaging/developer-install-policy.json`. Before building and again before its

@@ -1,0 +1,113 @@
+{
+  "arms": [
+    {
+      "endpoint": "A real Calc storeAs once, local close/reopen semantic proof, full journal completion and independent DATA bytes; only then B real Calc store once, local close/reopen, full journal completion and independent DATA bytes, followed by read-only remount and byte/semantic verification",
+      "name": "fresh-corrected-calc-two-save"
+    }
+  ],
+  "execution_policy": {
+    "SQLITE_TMPDIR_filesystem": "ext4",
+    "TMPDIR_filesystem": "ext4",
+    "cleanup_reserve_seconds": 45,
+    "explicit_user_authorization": "Standing user authorization for iCloud writes and tests",
+    "installed_actions": false,
+    "one_runtime_lane_no_compilation": true,
+    "one_trial_no_automatic_retry": true,
+    "original_wall_monotonic_boot_window": true,
+    "preserve_all_original_child_handles_and_evidence": true,
+    "stop_on_uncertain_result": true,
+    "window_seconds": 600
+  },
+  "follow_up_candidate": {
+    "actual_descriptor_identity_unknown": true,
+    "causal_claim": false,
+    "neither_observed_absent": true,
+    "required_next_action": "deterministic exact-identity replacement publication regression; do not tombstone by pathname or replay cloud saves",
+    "stored_observed_same_parent_name_A_and_B": true,
+    "stored_sizes_A": 5281,
+    "stored_sizes_B": 5611
+  },
+  "inputs": {
+    "cleanup_source_sha256": "7ed74494244021600e557d330ef439d6c481dacfe4a999ab0fc341d8c2ab5212",
+    "controller_sha256": "890c7383b89b8ae7c833d63b5d9bcb235563b6b5ec039739b89859a51246161c",
+    "full_check_duration_seconds": 647.9971813170123,
+    "full_check_exit_code": 0,
+    "local_source_regression": "icloud-completed-atomic-cleanup-routing-2026-10-06.json",
+    "production_source_sha256": "f6e81efa6a6924477a9af0390015afaeb5ef8327175cb3093c71ef15719fa03e",
+    "runtime_binding_sha256": "242da4d52ab6f8b77cd4dc6f5ff86dd39d239ade30787da516204fa15e496b1d",
+    "source_count": 477,
+    "worker_sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106"
+  },
+  "inspection_corrections": [
+    {
+      "all15complete_and_nineUploaded_independently_confirmed": true,
+      "authoritative_independent_method": "journal mode=ro/query_only with WAL included; metadata immutable RO after asserting WAL absent; before/after all DB/WAL/SHM stamps and bytes unchanged",
+      "initial_immutable_query_not_used_as_authoritative_proof": true,
+      "initial_root_journal_inspection_used_immutable": true,
+      "journal_wal_later_found_present": true
+    },
+    {
+      "correction": "retained same-audit annex normalizes string comparison and proves actual2318 unchanged",
+      "independent_initial_birth_comparison": "int startticks versus string baseline yielded false",
+      "original_audit_preserved": true
+    }
+  ],
+  "limits": [
+    "One scoped XLSX trial cannot establish native Pages/Numbers/Keynote editing, long-session reliability, all recovery topologies or installed deployment.",
+    "Retained uncertain prior writers remain untouched; this trial never confirms or repairs their outcomes.",
+    "A completed local save is not cloud acknowledgement; independent content verification is required."
+  ],
+  "outcome": {
+    "actual_fstat_type_and_size_retained": false,
+    "all15_journal_entries_complete": true,
+    "all477_sources_unchanged": true,
+    "all_recorded_processes_absent": true,
+    "automatic_retry": false,
+    "cleanup_failed_attempts": 0,
+    "completed_atomic_cleanup_sequence": 14,
+    "duration_seconds": 459.32816277397797,
+    "failure_boundary": "remount existing descriptor fstat regular-file/type and source-size assertion; actual fstat not retained",
+    "first_save_independent_data_verified": true,
+    "first_save_sha256": "1115c77ffd406532b6db4c3163397ad0081d2f8dab7a5aa40ec07d822559de40",
+    "first_save_size": 5281,
+    "full_icloud_gate_closed": false,
+    "installed_unit_pid_birth_and_19_files_unchanged": true,
+    "launch_exit_code": 1,
+    "mount_and_socket_absent": true,
+    "original_children_reaped": 13,
+    "provider_trash_original_bytes_independently_verified": false,
+    "readonly_remount_verified": false,
+    "second_save_independent_data_verified": true,
+    "second_save_sha256": "7f0d691e90110705e4915a8070a351eb1173861dc5d26e1e71aea805b7e41eae",
+    "second_save_size": 5611
+  },
+  "outcome_evidence": {
+    "failure_diagnostic_sha256": "90166adc8b7412ca7dcfd9569091f0090445773a58321c560ea367101b79abea",
+    "first_data_proof_sha256": "b56b980675c318e22d1febe1cb98d43f325c884cebcad424b0b636e77ee2ac28",
+    "immutable_prereg_sha256": "8515119ce5720a9f2dfb62fe5c6de6629b2762290ae6aad03fb92b67f81a5751",
+    "independent_birth_correction_annex_sha256": "28b24d8418d8bc376b3921979e7710bae025c262c464fab2e476afb2c438f251",
+    "independent_terminal_audit_sha256": "8e63ae9c60d27f354979f4cab43bedc904e76e332fa455816f51f928920290ea",
+    "launch_result_sha256": "58c46560428658451b1d115c9f648d5d84842a7ba3e6adbdb20cc92ac7cd4589",
+    "owned_closure_sha256": "b2251b01469459163738d420320aab001593068dcd1a52ee9a848c2d987e478b",
+    "root_terminal_audit_sha256": "f6d0fee429e4016cb44fa1d19e4cd7ba9aa0dfbf27b9c46c32010fe0c1921d4f",
+    "second_data_proof_sha256": "7c7e374bafc351fd63637040809b6b734e6628411f56b7c96e8c44a6bec7bc94"
+  },
+  "prediction": "The delayed-Create marker and exact completed source/target cleanup receipt routing should settle both fresh Calc saves and temporary cleanup. Independent DATA A then B and a fresh read-only remount must match saved bytes. An uncertain outcome stops this one-shot trial without retry.",
+  "question": "Does the corrected sealed atomic-source handoff permit one fresh real Calc XLSX creation and one atomic editor replacement through ordinary iCloud FUSE, with complete journal settlement, independent byte-for-byte cloud readback of each saved version and a fresh read-only remount?",
+  "registered_at": "2026-10-06T00:38:21.003774+00:00",
+  "registered_date": "2026-10-06",
+  "run": "b72959f1-10a4-4f00-97d1-cb88462c6f4f",
+  "scope": {
+    "full_icloud_gate_closed": false,
+    "installed_delivery": false,
+    "native_iwork_editing": false,
+    "old_mutation_replayed": false,
+    "old_writer_reopened": false,
+    "ordinary_xlsx": true,
+    "owned_new_folder_and_document_only": true
+  },
+  "source_head": "333a0a440bd25f146fc4c10357f7ab276c231c8b",
+  "status": "both-saves-independently-verified-cleanup-applied-remount-attribute-refusal",
+  "timezone": "Europe/Vienna",
+  "version": 1
+}

@@ -431,7 +431,7 @@ fn schema_nine_migration_retains_pending_saves_and_missing_new_schema_is_refused
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        19
+        20
     );
     db.execute_batch("DROP TABLE write_prerequisites").unwrap();
     assert!(UploadJournal::open(tmp.path(), &scope().account, 1024 * 1024).is_err());
@@ -440,7 +440,7 @@ fn schema_nine_migration_retains_pending_saves_and_missing_new_schema_is_refused
             .unwrap(),
         2
     );
-    db.execute_batch("PRAGMA user_version=20").unwrap();
+    db.execute_batch("PRAGMA user_version=21").unwrap();
     assert!(matches!(
         UploadJournal::open(tmp.path(), &scope().account, 1024 * 1024),
         Err(JournalError::Schema)
@@ -448,6 +448,6 @@ fn schema_nine_migration_retains_pending_saves_and_missing_new_schema_is_refused
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        20
+        21
     );
 }

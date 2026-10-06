@@ -1,0 +1,47 @@
+{
+  "question": "Can the owned GTK depth17 traversal finish while depth64/node512/child512 and original live/deadline refusals remain finite?",
+  "registered_at": "2026-10-06T01:14:00.153228+00:00",
+  "status": "actual-desired-red-and-seven-green-pure-controls",
+  "prediction": {
+    "baseline": "Same actual old depth16 method refuses depth17; actual Refusal collected, desired success assertIsNone fails. Exactly1 FAIL/0ERROR; no absentAPI/parse or realGI timing assertion.",
+    "corrected": "7pure decisionsPASS/0ERROR: depth17+exact64 pass,65 refuses;512 totalnodes pass/513refuse;child513refuses;expired/dead/mismatched birth/exe refuse;cycle reaches65 and refuses unchanged finite algorithm."
+  },
+  "arms": {
+    "baseline_expected_failed": 1,
+    "corrected_expected_passed": 7
+  },
+  "scope": "Pure AST-selected active/walk methods with synthetic nodes and clocks; no GI or public chooser dispatch",
+  "actual_diagnostic_sha256": "7246babf153e6b97d4da95e693616c8c1d7b7b37fdeb5673f0b93f076a8fd8f8",
+  "source_sha256": {
+    "baseline": "edc2d78e4a9f962237ec5243757e46fc8af3f7939c45acd07684e4a59edded1d",
+    "corrected": "e8420d7df1f7b1472c7c226b20048cee39eb9320ad23bc86bdbdcba79d187be3",
+    "test": "e65483f8b80e9a00dbc046f276f6153449cb063e8c5129c053b320d9631d8923"
+  },
+  "full_icloud_gate_closed": false,
+  "results": {
+    "red": {
+      "exit_code": 1,
+      "duration_seconds": 0.054820562014356256,
+      "sources_unchanged": true,
+      "log_sha256": "a31ea47114f2ee0127c5a38e6233324b0b522157b9cbb4d73ab2f48e1a5f2b09",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "executed_tests": 1,
+      "original_command_pid": 1092393,
+      "original_command_absent": true,
+      "registration_sha256": "379a8aa026ba7c45aa0efef25725d25eeaacb276656c92e90e1cda6e1e4ce05c"
+    },
+    "green": {
+      "exit_code": 0,
+      "duration_seconds": 0.05234626500168815,
+      "sources_unchanged": true,
+      "log_sha256": "670a39115e7523a8984e4842e16547cb2094b03fad392b037b4b9dc8b2656e62",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "executed_tests": 7,
+      "original_command_pid": 1092558,
+      "original_command_absent": true,
+      "registration_sha256": "33eaf88f5d8c21d78d26f3cf39270e93c9c7af6fc76e3167ff6150191ca23fd5"
+    }
+  }
+}

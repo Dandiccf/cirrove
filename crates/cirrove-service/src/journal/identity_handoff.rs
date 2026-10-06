@@ -10,6 +10,9 @@ use rusqlite::Transaction;
 pub(crate) struct Reservation {
     recovery_object: Uuid,
     old_item: String,
+    /// Full validated pre-provider identity for local metadata CAS only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    metadata_original: Option<Box<Node>>,
     recovery_name: String,
     #[serde(default)]
     trash_parent: Option<String>,
@@ -266,6 +269,7 @@ impl UploadJournal {
         record.identity_handoff = Some(Reservation {
             recovery_object,
             old_item: item.clone(),
+            metadata_original: Some(Box::new(old.clone())),
             recovery_name,
             trash_parent,
             backup: None,
@@ -1192,5 +1196,206 @@ impl Reservation {
             && self.trash_parent.as_deref() == Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
             && self.backup.is_none())
         .then_some((self.recovery_object, self.recovery_name.as_str()))
+    }
+}
+
+/// Durable immutable receipt, independent of later visible heads.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct OrdinaryHandoffMetadata {
+    pub(crate) operation: Uuid,
+    sequence: u64,
+    pub(crate) scope: Scope,
+    owner: Uuid,
+    size: u64,
+    sha256: String,
+    pub(crate) original: Node,
+    pub(crate) current: Node,
+    pub(crate) backup: Node,
+}
+fn metadata_owner(db: &Connection, id: Uuid) -> Result<NamespaceObject> {
+    let owner: String = db.query_row(
+        "SELECT object FROM namespace_operations WHERE operation=?1",
+        [id.to_string()],
+        |r| r.get(0),
+    )?;
+    namespace::by_id(
+        db,
+        Uuid::parse_str(&owner).map_err(|_| JournalError::Corrupt)?,
+    )
+}
+fn metadata_receipt(row: &UploadRecord, owner: Uuid) -> Result<Option<OrdinaryHandoffMetadata>> {
+    if !row.representation.is_file_bytes() || row.identity_handoff.is_none() {
+        return Ok(None);
+    }
+    let reservation = row.identity_handoff.as_ref().ok_or(JournalError::Corrupt)?;
+    let Some(original) = reservation.metadata_original.as_deref() else {
+        return Ok(None);
+    };
+    let (current, backup) = row
+        .ordinary_handoff_receipt()
+        .ok_or(JournalError::Corrupt)?;
+    if row.scope.account.is_empty()
+        || row.scope.collection.is_empty()
+        || row.state != UploadState::Uploaded
+        || row.transferred_bytes != row.size
+        || original.id != reservation.old_item
+        || !matches!(&row.intent,UploadIntent::Replace{item,expected_etag}
+            if item==&original.id && original.etag.as_ref()==Some(expected_etag))
+        || original.kind != NodeKind::File
+        || original.package
+        || original.target.is_some()
+        || original.content_revision().is_none()
+        || original.parent_id.is_none()
+        || current.parent_id != original.parent_id
+        || current.name != original.name
+        || backup.size != original.size
+    {
+        return Err(JournalError::Corrupt);
+    }
+    Ok(Some(OrdinaryHandoffMetadata {
+        operation: row.id,
+        sequence: row.sequence,
+        scope: row.scope.clone(),
+        owner,
+        size: row.size,
+        sha256: row.sha256.clone(),
+        original: original.clone(),
+        current: current.clone(),
+        backup: backup.clone(),
+    }))
+}
+pub(super) fn migrate_metadata_publication(db: &mut Connection) -> Result<()> {
+    db.execute_batch("CREATE TABLE IF NOT EXISTS ordinary_metadata_publication(
+        operation TEXT PRIMARY KEY,body TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),
+        failures INTEGER NOT NULL DEFAULT 0,retry_after INTEGER NOT NULL DEFAULT 0);
+        CREATE INDEX IF NOT EXISTS ordinary_metadata_due_v20 ON ordinary_metadata_publication(retry_after,operation) WHERE done=0;")?;
+    Ok(()) // No legacy receipt backfill or synthesized original.
+}
+/// Same transaction as the already validated full handoff acknowledgment.
+pub(super) fn enqueue_metadata_publication(tx: &Transaction<'_>, row: &UploadRecord) -> Result<()> {
+    if !row.representation.is_file_bytes() || row.identity_handoff.is_none() {
+        return Ok(());
+    }
+    let owner = metadata_owner(tx, row.id)?;
+    if let Some(proof) = metadata_receipt(row, owner.id)? {
+        tx.execute(
+            "INSERT OR IGNORE INTO ordinary_metadata_publication(operation,body) VALUES(?1,?2)",
+            params![row.id.to_string(), serde_json::to_string(&proof)?],
+        )?;
+    }
+    Ok(())
+}
+fn metadata_job(db: &Connection, account: &str, id: Uuid) -> Result<OrdinaryHandoffMetadata> {
+    let (body, upload, sequence, state, complete, qsequence, qid): (
+        String,
+        String,
+        i64,
+        String,
+        bool,
+        i64,
+        String,
+    ) = db.query_row(
+        "SELECT p.body,u.body,u.sequence,u.state,q.complete,q.sequence,q.id
+         FROM ordinary_metadata_publication p JOIN uploads u ON u.id=p.operation
+         JOIN write_queue q ON q.id=u.id WHERE p.operation=?1 AND p.done=0",
+        [id.to_string()],
+        |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+            ))
+        },
+    )?;
+    if body.len() > 256 * 1024 || upload.len() > 256 * 1024 {
+        return Err(JournalError::Corrupt);
+    }
+    let proof: OrdinaryHandoffMetadata = serde_json::from_str(&body)?;
+    let row: UploadRecord = serde_json::from_str(&upload)?;
+    let owner = metadata_owner(db, id)?;
+    if row.id != id
+        || row.state != UploadState::Uploaded
+        || row.scope != proof.scope
+        || proof.operation != id
+        || state != "uploaded"
+        || !complete
+        || u64::try_from(sequence).ok() != Some(row.sequence)
+        || qsequence != sequence
+        || qid != id.to_string()
+        || proof.scope.account != account
+        || owner.scope != proof.scope
+        || metadata_receipt(&row, owner.id)?.as_ref() != Some(&proof)
+    {
+        return Err(JournalError::Stale);
+    }
+    // Newer dirty saves/Relocates/unlink/retirement do not cancel historical jobs.
+    Ok(proof)
+}
+impl UploadJournal {
+    pub(crate) fn ordinary_metadata_due(
+        &self,
+        now: u64,
+    ) -> Result<Option<OrdinaryHandoffMetadata>> {
+        let tx = self.db.unchecked_transaction()?;
+        let selected: Option<(String, String)> = tx
+            .query_row(
+                "SELECT operation,body FROM ordinary_metadata_publication
+            WHERE done=0 AND retry_after<=?1 ORDER BY retry_after,operation LIMIT 1",
+                [i64::try_from(now).map_err(|_| JournalError::Stale)?],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let Some((id, body)) = selected else {
+            tx.commit()?;
+            return Ok(None);
+        };
+        let result = Uuid::parse_str(&id)
+            .map_err(|_| JournalError::Corrupt)
+            .and_then(|id| metadata_job(&tx, &self.account, id));
+        if result.is_err() {
+            // Corruption is never acknowledged. Defer only this exact raw local
+            // queue entry, so a bad head cannot indefinitely starve valid jobs.
+            tx.execute(
+                "UPDATE ordinary_metadata_publication SET
+                retry_after=?3+min(60,(1 << min(failures+1,6))),failures=min(failures+1,6)
+                WHERE operation=?1 AND body=?2 AND done=0",
+                params![
+                    id,
+                    body,
+                    i64::try_from(now).map_err(|_| JournalError::Stale)?
+                ],
+            )?;
+        }
+        tx.commit()?;
+        result.map(Some)
+    }
+
+    pub(crate) fn finish_ordinary_metadata(
+        &self,
+        expected: &OrdinaryHandoffMetadata,
+        completed: bool,
+        now: u64,
+    ) -> Result<()> {
+        let tx = self.db.unchecked_transaction()?;
+        if metadata_job(&tx, &self.account, expected.operation)? != *expected {
+            return Err(JournalError::Stale);
+        }
+        let now = i64::try_from(now).map_err(|_| JournalError::Stale)?;
+        let changed = if completed {
+            tx.execute("UPDATE ordinary_metadata_publication SET done=1,retry_after=0 WHERE operation=?1 AND done=0",[expected.operation.to_string()])?
+        } else {
+            tx.execute("UPDATE ordinary_metadata_publication SET retry_after=?2+min(60,(1 << min(failures+1,6))),failures=min(failures+1,6)
+                WHERE operation=?1 AND done=0",params![expected.operation.to_string(),now])?
+        };
+        if changed != 1 {
+            return Err(JournalError::Stale);
+        }
+        tx.commit()?;
+        Ok(())
     }
 }

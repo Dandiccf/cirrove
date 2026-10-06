@@ -258,3 +258,31 @@ pub(super) fn write_snapshot(
     }
     Ok(())
 }
+
+/// Canonical known-directory membership for one provider identity. All UNION
+/// arms retain READDIR's observation/absence precedence; primary keys bound work
+/// to this ID rather than decoding/scanning the directory.
+pub(super) fn child_id_on(
+    db: &Connection,
+    scope: &Scope,
+    parent: &str,
+    id: &str,
+) -> Result<Option<Option<Node>>> {
+    let key = Store::key(scope)?;
+    let Some((sql, revision)) = read_source(db, &key, parent, false)? else {
+        return Ok(None);
+    };
+    let query = sql
+        .replace("e.parent=?2", "e.parent=?2 AND e.id=?4")
+        .replace("n.scope=?1", "n.scope=?1 AND n.id=?4")
+        .replace("o.scope=?1", "o.scope=?1 AND o.id=?4")
+        .replace("ORDER BY name,id", "LIMIT 1");
+    let body: Option<String> = db
+        .query_row(&query, params![key, parent, revision, id], |r| r.get(0))
+        .optional()?;
+    let node: Option<Node> = body.map(|body| serde_json::from_str(&body)).transpose()?;
+    if node.as_ref().is_some_and(|node| node.id != id) {
+        return Err(StoreError::OutOfOrder);
+    }
+    Ok(Some(node))
+}

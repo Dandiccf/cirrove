@@ -30,12 +30,12 @@ fn daemon_storage_format_reports_compiled_constants_without_state_initialization
     );
     assert!(output.stderr.is_empty());
     let reply: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-    // The registered current journal writer format is19; this baseline test
+    // The registered current journal writer format is20; this baseline test
     // intentionally calls no new API so it compiles against original source.
     assert_eq!(
         reply,
         serde_json::json!({
-            "version": 1, "product": "cirroved", "journal_schema": 19,
+            "version": 1, "product": "cirroved", "journal_schema": 20,
             "metadata_schema": cirrove_store::SCHEMA_VERSION,
         })
     );

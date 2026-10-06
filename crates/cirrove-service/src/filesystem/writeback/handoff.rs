@@ -61,11 +61,34 @@ impl Writeback {
             .local_object(scope, item)
             .is_some_and(|o| o.follows_remote))
     }
-    /// After publishing pending namespace changes, inspect at most 16 cleanup
-    /// candidates and make one provider request. The cursor makes pending/open
-    /// objects yield to others. Publication also repairs a missed callback
-    /// without replaying the provider operation.
+    async fn publish_ordinary_metadata(&self, engine: &Engine) -> Result<bool> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let proof = self
+            .local(move |journal| journal.ordinary_metadata_due(now))
+            .await?;
+        let Some(proof) = proof else { return Ok(false) };
+        let result = engine.publish_ordinary_metadata(&proof).await;
+        let completed = result.as_ref().is_ok_and(|value| *value);
+        let completed_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.local(move |journal| {
+            journal.finish_ordinary_metadata(&proof, completed, completed_at)
+        })
+        .await?;
+        result.map_err(|error| errno(&error))?;
+        Ok(true)
+    }
+    /// Publish one due metadata job, then inspect at most 16 cleanup candidates.
+    /// Publication and retirement may each make one bounded exact-ID read.
+    /// The cursor makes pending/open objects yield to others; missed publication
+    /// callbacks are repaired without replaying the provider operation.
     pub async fn maintain(self: &Arc<Self>, engine: &Engine) -> Result<bool> {
+        let publication_worked = self.publish_ordinary_metadata(engine).await?;
         if self.refresh_projection().await? {
             engine.changed.notify_waiters();
         }
@@ -92,7 +115,7 @@ impl Writeback {
             .await?;
         if batch.is_empty() {
             *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)? = None;
-            return Ok(false);
+            return Ok(publication_worked);
         }
         for (object, clean) in batch {
             *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)? = Some(object.id);
@@ -207,7 +230,7 @@ impl Writeback {
             }
             return Ok(true);
         }
-        Ok(false)
+        Ok(publication_worked)
     }
 }
 
@@ -1195,5 +1218,893 @@ mod tests {
                 assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
             }
         }
+    }
+
+    // This existing-API regression fails on the old sole-visible-identity
+    // assertion after successful handoff, without relying on provider reads.
+    #[tokio::test]
+    async fn confirmed_ordinary_handoff_retires_only_after_old_metadata_moves_to_backup() {
+        let Fixture {
+            _temp,
+            engine,
+            writer,
+            journal,
+            provider,
+            working,
+        } = Fixture::new(false).await;
+        let root = _temp.keep(); // Retain evidence; no recursive fixture cleanup.
+        eprintln!(
+            "retained ordinary handoff metadata fixture: {}",
+            root.display()
+        );
+        let scope = engine.scope("drive");
+        let original = provider.node.clone();
+        let bytes = b"new-body";
+        let current = Node {
+            id: "zz-new-current".into(),
+            size: bytes.len() as u64,
+            etag: Some("current-B".into()),
+            content_version: Some("current-B".into()),
+            ..original.clone()
+        };
+        let backup = Node {
+            parent_id: Some("trash".into()),
+            etag: Some("backup-A".into()),
+            content_version: Some("backup-A".into()),
+            ..original.clone()
+        };
+        let id = {
+            let mut j = journal.lock().unwrap();
+            j.write_working(working.id, 0, bytes).unwrap();
+            let id = j.seal_working(working.id).unwrap().unwrap().id;
+            let row = j.claim_next().unwrap().unwrap();
+            assert_eq!(row.id, id);
+            j.reserve_identity_handoff(
+                id,
+                row.attempt.unwrap(),
+                cirrove_core::upload::RecoveryLocation::Trash {
+                    local_name: "recovery-A".into(),
+                    parent: "trash".into(),
+                },
+            )
+            .unwrap();
+            j.acknowledge_identity_handoff(
+                id,
+                row.attempt.unwrap(),
+                current.clone(),
+                backup.clone(),
+            )
+            .unwrap();
+            let row = j.get(id).unwrap();
+            assert_eq!(row.state, crate::journal::UploadState::Uploaded);
+            assert_eq!(row.ordinary_handoff_receipt(), Some((&current, &backup)));
+            id
+        };
+        let mut store = Store::open(&engine.db).unwrap();
+        store
+            .observe_directory(&scope, "root", &[original.clone(), current.clone()])
+            .unwrap();
+        store.observe_node(&scope, &current).unwrap();
+        assert_eq!(store.children(&scope, "root").unwrap().unwrap().len(), 2);
+        let before_cursor = store.cursor(&scope).unwrap();
+        let delayed_old = store.node_observation(&scope, &original.id).unwrap();
+        drop(store);
+        assert!(writer.maintain(&engine).await.unwrap());
+        {
+            let j = journal.lock().unwrap();
+            let row = j.get(id).unwrap();
+            assert_eq!(row.ordinary_handoff_receipt(), Some((&current, &backup)));
+            let owner = j.namespace_for_operation(id).unwrap().unwrap();
+            assert!(owner.follows_remote && owner.latest.is_none() && owner.working_file.is_none());
+            assert_eq!(owner.remote.as_ref(), Some(&current));
+        }
+        assert_eq!(
+            provider.calls.load(Ordering::SeqCst),
+            0,
+            "exact cached B and receipt publication must need no provider replay/read"
+        );
+        let mut store = Store::open(&engine.db).unwrap();
+        assert_eq!(store.cursor(&scope).unwrap(), before_cursor);
+        let listed = store.children(&scope, "root").unwrap().unwrap();
+        assert_eq!(
+            listed,
+            vec![current.clone()],
+            "confirmed HandoffComplete must not leave old A at the original name after retirement"
+        );
+        assert_eq!(
+            store.node(&scope, &original.id).unwrap(),
+            Some(backup.clone())
+        );
+        assert!(
+            matches!(
+                store.publish_node(&delayed_old, &original).unwrap(),
+                cirrove_store::ObservationResult::Superseded(_)
+            ),
+            "pre-publication exact-ID observation cannot resurrect old A"
+        );
+        assert_eq!(
+            store.children(&scope, "root").unwrap().unwrap(),
+            vec![current]
+        );
+    }
+    // Follow-on history and read-only controls supplement the existing-API
+    // regression; their new consumers make no original-baseline RED claim.
+    struct OrdinaryMetadataCase {
+        root: std::path::PathBuf,
+        journal_root: std::path::PathBuf,
+        engine: Arc<Engine>,
+        writer: Arc<Writeback>,
+        journal: Arc<Mutex<UploadJournal>>,
+        provider: Arc<Provider>,
+        working: Uuid,
+        id: Uuid,
+        scope: Scope,
+        original: Node,
+        current: Node,
+        backup: Node,
+    }
+    impl OrdinaryMetadataCase {
+        async fn new(account_journal: bool) -> Self {
+            let Fixture {
+                _temp,
+                engine,
+                writer: donor_writer,
+                journal: donor_journal,
+                provider,
+                working: donor_working,
+            } = Fixture::new(false).await;
+            let root = _temp.keep();
+            eprintln!("retained ordinary publication fixture: {}", root.display());
+            let original = provider.node.clone();
+            let scope = engine.scope("drive");
+            let journal_root = if account_journal {
+                engine.db.parent().unwrap().join("journal")
+            } else {
+                root.join("journal")
+            };
+            let (writer, journal, working) = if account_journal {
+                drop(donor_writer);
+                drop(donor_journal);
+                let mut j = UploadJournal::open(&journal_root, "handoff", 4096).unwrap();
+                let w = j
+                    .create_working(scope.clone(), original.clone(), false, b"old".as_slice())
+                    .unwrap();
+                let j = Arc::new(Mutex::new(j));
+                (Writeback::new(&engine, j.clone()).await.unwrap(), j, w.id)
+            } else {
+                (donor_writer, donor_journal, donor_working.id)
+            };
+            let bytes = b"new-body";
+            let current = Node {
+                id: "zz-new-current".into(),
+                size: bytes.len() as u64,
+                etag: Some("current-B".into()),
+                content_version: Some("current-B".into()),
+                ..original.clone()
+            };
+            let backup = Node {
+                parent_id: Some("trash".into()),
+                etag: Some("backup-A".into()),
+                content_version: Some("backup-A".into()),
+                ..original.clone()
+            };
+            let id = {
+                let mut j = journal.lock().unwrap();
+                j.write_working(working, 0, bytes).unwrap();
+                let id = j.seal_working(working).unwrap().unwrap().id;
+                let row = j.claim_next().unwrap().unwrap();
+                assert_eq!(row.id, id);
+                j.reserve_identity_handoff(
+                    id,
+                    row.attempt.unwrap(),
+                    cirrove_core::upload::RecoveryLocation::Trash {
+                        local_name: "recovery-A".into(),
+                        parent: "trash".into(),
+                    },
+                )
+                .unwrap();
+                j.acknowledge_identity_handoff(
+                    id,
+                    row.attempt.unwrap(),
+                    current.clone(),
+                    backup.clone(),
+                )
+                .unwrap();
+                assert_eq!(
+                    j.get(id).unwrap().ordinary_handoff_receipt(),
+                    Some((&current, &backup))
+                );
+                id
+            };
+            let mut store = Store::open(&engine.db).unwrap();
+            store
+                .observe_directory(&scope, "root", &[original.clone(), current.clone()])
+                .unwrap();
+            store.observe_node(&scope, &current).unwrap();
+            drop(store);
+            Self {
+                root,
+                journal_root,
+                engine,
+                writer,
+                journal,
+                provider,
+                working,
+                id,
+                scope,
+                original,
+                current,
+                backup,
+            }
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_handoff_history_survives_next_sealed_save_and_newer_dirty_bytes() {
+        let f = OrdinaryMetadataCase::new(false).await;
+        let cbytes = b"third-revision";
+        let dirty = b"later-dirty";
+        let c = Node {
+            id: "zz-third-current".into(),
+            size: cbytes.len() as u64,
+            etag: Some("current-C".into()),
+            content_version: Some("current-C".into()),
+            ..f.current.clone()
+        };
+        let b_backup = Node {
+            parent_id: Some("trash".into()),
+            etag: Some("backup-B".into()),
+            content_version: Some("backup-B".into()),
+            ..f.current.clone()
+        };
+        let next = {
+            let mut j = f.journal.lock().unwrap();
+            j.write_working(f.working, 0, cbytes).unwrap();
+            j.truncate_working(f.working, cbytes.len() as u64).unwrap();
+            j.seal_working(f.working).unwrap().unwrap().id
+        };
+        {
+            let mut j = f.journal.lock().unwrap();
+            j.write_working(f.working, 0, dirty).unwrap();
+            j.truncate_working(f.working, dirty.len() as u64).unwrap();
+        }
+        let retained = f.journal.lock().unwrap().working_file(f.working).unwrap();
+        assert!(retained.dirty && retained.latest == Some(next));
+        // B's historical A->Trash job must publish despite latest C and dirty D.
+        assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+        assert_eq!(
+            Store::open(&f.engine.db)
+                .unwrap()
+                .node(&f.scope, &f.original.id)
+                .unwrap(),
+            Some(f.backup.clone())
+        );
+        {
+            let mut j = f.journal.lock().unwrap();
+            assert_eq!(
+                serde_json::to_value(j.working_file(f.working).unwrap()).unwrap(),
+                serde_json::to_value(&retained).unwrap()
+            );
+            let row = j.claim_next().unwrap().unwrap();
+            assert_eq!(row.id, next);
+            j.reserve_identity_handoff(
+                next,
+                row.attempt.unwrap(),
+                cirrove_core::upload::RecoveryLocation::Trash {
+                    local_name: "recovery-B".into(),
+                    parent: "trash".into(),
+                },
+            )
+            .unwrap();
+            j.acknowledge_identity_handoff(next, row.attempt.unwrap(), c.clone(), b_backup.clone())
+                .unwrap();
+            assert_eq!(j.read_working(f.working, 0, 4096).unwrap(), dirty);
+            assert!(j.working_file(f.working).unwrap().dirty);
+        }
+        let mut store = Store::open(&f.engine.db).unwrap();
+        store.observe_node(&f.scope, &c).unwrap();
+        drop(store);
+        assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+        assert!(!f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+        let store = Store::open(&f.engine.db).unwrap();
+        assert_eq!(store.children(&f.scope, "root").unwrap().unwrap(), vec![c]);
+        assert_eq!(
+            store.node(&f.scope, &f.original.id).unwrap(),
+            Some(f.backup)
+        );
+        assert_eq!(store.node(&f.scope, &f.current.id).unwrap(), Some(b_backup));
+        assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+    }
+    #[tokio::test]
+    async fn ordinary_handoff_history_survives_completed_relocate_and_unlink() {
+        for unlink in [false, true] {
+            let f = OrdinaryMetadataCase::new(false).await;
+            let before = {
+                let mut j = f.journal.lock().unwrap();
+                let owner = j.namespace_for_operation(f.id).unwrap().unwrap();
+                if unlink {
+                    let removed = j
+                        .unlink_namespace_file(owner.id, owner.revision, false)
+                        .unwrap();
+                    assert_eq!(
+                        j.namespace_object(owner.id).unwrap().latest,
+                        Some(removed.mutation.id)
+                    );
+                } else {
+                    let relocated = j
+                        .relocate_namespace_item(
+                            owner.id,
+                            owner.revision,
+                            "root".into(),
+                            "renamed.txt".into(),
+                        )
+                        .unwrap();
+                    let claimed = j.claim_mutation().unwrap().unwrap();
+                    assert_eq!(claimed.id, relocated.id);
+                    let remote = Node {
+                        name: "renamed.txt".into(),
+                        etag: Some("relocated-B".into()),
+                        content_version: Some("relocated-B".into()),
+                        ..f.current.clone()
+                    };
+                    assert_eq!(
+                        j.acknowledge_mutation(
+                            claimed.id,
+                            claimed.attempt.unwrap(),
+                            cirrove_core::mutation::MutationReceipt::Upsert(remote)
+                        )
+                        .unwrap(),
+                        crate::journal::MutationState::Applied
+                    );
+                }
+                j.namespace_object(owner.id).unwrap()
+            };
+            assert_ne!(before.latest, Some(f.id));
+            assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+            assert_eq!(
+                serde_json::to_value(
+                    f.journal
+                        .lock()
+                        .unwrap()
+                        .namespace_object(before.id)
+                        .unwrap()
+                )
+                .unwrap(),
+                serde_json::to_value(&before).unwrap()
+            );
+            assert_eq!(
+                Store::open(&f.engine.db)
+                    .unwrap()
+                    .node(&f.scope, &f.original.id)
+                    .unwrap(),
+                Some(f.backup)
+            );
+            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_handoff_ro_startup_repairs_history_without_reconciling_uploads() {
+        let f = OrdinaryMetadataCase::new(true).await;
+        let pending = {
+            let mut j = f.journal.lock().unwrap();
+            j.write_working(f.working, 0, b"pending-C").unwrap();
+            let next = j.seal_working(f.working).unwrap().unwrap().id;
+            let claimed = j.claim_next().unwrap().unwrap();
+            assert_eq!(claimed.id, next);
+            claimed
+        };
+        let path = f.journal_root.join("uploads.db");
+        let upload_before: String = rusqlite::Connection::open(&path)
+            .unwrap()
+            .query_row(
+                "SELECT body FROM uploads WHERE id=?1",
+                [pending.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let OrdinaryMetadataCase {
+            root,
+            journal_root: _,
+            engine,
+            writer,
+            journal,
+            provider,
+            working: _,
+            id,
+            scope,
+            original,
+            current: _,
+            backup,
+        } = f;
+        let mut account = engine.account.clone();
+        account.access = AccessMode::ReadOnly;
+        drop(writer);
+        drop(journal);
+        drop(engine);
+        let ro = Engine::new(account, provider.clone(), root.join("state"))
+            .await
+            .unwrap();
+        ro.start().await.unwrap(); // Actual normal RO start registration, no Writeback.
+        tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                let done: bool = rusqlite::Connection::open(&path)
+                    .unwrap()
+                    .query_row(
+                        "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+                        [id.to_string()],
+                        |r| r.get(0),
+                    )
+                    .unwrap();
+                if done {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        ro.stop().await;
+        let db = rusqlite::Connection::open(&path).unwrap();
+        let upload_after: String = db
+            .query_row(
+                "SELECT body FROM uploads WHERE id=?1",
+                [pending.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(upload_after, upload_before);
+        assert_eq!(pending.state, crate::journal::UploadState::Uploading);
+        assert_eq!(
+            Store::open(&ro.db)
+                .unwrap()
+                .node(&scope, &original.id)
+                .unwrap(),
+            Some(backup)
+        );
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+    }
+    #[tokio::test]
+    async fn ordinary_handoff_restart_repairs_before_and_after_store_commit_idempotently() {
+        for store_committed in [false, true] {
+            let f = OrdinaryMetadataCase::new(false).await;
+            let proof = f
+                .journal
+                .lock()
+                .unwrap()
+                .ordinary_metadata_due(0)
+                .unwrap()
+                .unwrap();
+            let mut store = Store::open(&f.engine.db).unwrap();
+            let cursor = store.cursor(&f.scope).unwrap();
+            if store_committed {
+                assert!(
+                    store
+                        .publish_ordinary_handoff_backup(
+                            &proof.scope,
+                            &proof.original,
+                            &proof.current,
+                            &proof.backup
+                        )
+                        .unwrap()
+                );
+            }
+            drop(store);
+            let OrdinaryMetadataCase {
+                journal_root,
+                engine,
+                writer,
+                journal,
+                provider,
+                id,
+                scope,
+                current,
+                original: _,
+                backup: _,
+                root: _,
+                working: _,
+            } = f;
+            drop(writer);
+            drop(journal); // Exclusive handle restart, no normalizing writer open.
+            assert!(
+                engine
+                    .repair_ordinary_metadata_once_at(journal_root.clone())
+                    .await
+                    .unwrap()
+            );
+            let store = Store::open(&engine.db).unwrap();
+            assert_eq!(
+                store.children(&scope, "root").unwrap().unwrap(),
+                vec![current]
+            );
+            assert_eq!(store.cursor(&scope).unwrap(), cursor);
+            drop(store);
+            assert!(
+                !engine
+                    .repair_ordinary_metadata_once_at(journal_root.clone())
+                    .await
+                    .unwrap()
+            );
+            let handle =
+                crate::journal::MetadataPublicationJournal::open(&journal_root, "handoff").unwrap();
+            assert!(handle.due(0).unwrap().is_none());
+            drop(handle);
+            let db = rusqlite::Connection::open(journal_root.join("uploads.db")).unwrap();
+            assert_eq!(db.query_row("SELECT count(*) FROM ordinary_metadata_publication WHERE operation=?1 AND done=1",[id.to_string()],|r|r.get::<_,i64>(0)).unwrap(),1);
+            assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_handoff_metadata_preserves_newer_observations_and_absence() {
+        for arm in [
+            "old_revision",
+            "old_location",
+            "old_name",
+            "absence",
+            "current_revision",
+            "large_unrelated",
+        ] {
+            let f = OrdinaryMetadataCase::new(false).await;
+            let mut store = Store::open(&f.engine.db).unwrap();
+            let mut external = f.original.clone();
+            match arm {
+                "old_revision" => {
+                    external.etag = Some("external".into());
+                    external.content_version = Some("external".into());
+                    store.observe_node(&f.scope, &external).unwrap();
+                }
+                "old_location" => {
+                    external.parent_id = Some("external".into());
+                    store.observe_node(&f.scope, &external).unwrap();
+                }
+                "old_name" => {
+                    external.name = "external.txt".into();
+                    store.observe_node(&f.scope, &external).unwrap();
+                }
+                "absence" => {
+                    let ticket = store.node_observation(&f.scope, &external.id).unwrap();
+                    store.publish_absence(&ticket).unwrap();
+                }
+                "current_revision" => {
+                    external = f.current.clone();
+                    external.etag = Some("external-B".into());
+                    external.content_version = Some("external-B".into());
+                    store.observe_node(&f.scope, &external).unwrap();
+                }
+                _ => {
+                    let mut nodes = vec![f.original.clone(), f.current.clone()];
+                    nodes.extend((0..4096).map(|i| Node {
+                        id: format!("unrelated-{i:04}"),
+                        ..external.clone()
+                    }));
+                    store.observe_directory(&f.scope, "root", &nodes).unwrap();
+                }
+            }
+            let cursor = store.cursor(&f.scope).unwrap();
+            drop(store);
+            assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+            let store = Store::open(&f.engine.db).unwrap();
+            assert_eq!(store.cursor(&f.scope).unwrap(), cursor);
+            if matches!(
+                arm,
+                "old_revision" | "old_location" | "old_name" | "current_revision"
+            ) {
+                assert_eq!(store.node(&f.scope, &external.id).unwrap(), Some(external));
+            } else if arm == "absence" {
+                assert!(store.node(&f.scope, &external.id).unwrap().is_none());
+            } else {
+                let nodes = store.children(&f.scope, "root").unwrap().unwrap();
+                assert_eq!(nodes.len(), 4097);
+                assert_eq!(
+                    nodes
+                        .iter()
+                        .filter(|n| n.id.starts_with("unrelated-"))
+                        .count(),
+                    4096
+                );
+            }
+            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_handoff_queue_rejects_corruption_and_defers_a_bad_head_without_acknowledging_it()
+     {
+        for arm in [
+            "capture_missing",
+            "capture_name",
+            "capture_parent",
+            "capture_revision",
+            "capture_size",
+            "current_id",
+            "backup_id",
+            "operation_map",
+            "serialized_state",
+            "serialized_scope",
+            "native",
+            "queue_incomplete",
+            "sql_state",
+            "negative_sequence",
+            "job_scope",
+            "job_original",
+        ] {
+            let f = OrdinaryMetadataCase::new(false).await;
+            let db = rusqlite::Connection::open(f.journal_root.join("uploads.db")).unwrap();
+            let text: String = db
+                .query_row(
+                    "SELECT body FROM uploads WHERE id=?1",
+                    [f.id.to_string()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            let mut row: serde_json::Value = serde_json::from_str(&text).unwrap();
+            match arm {
+                "capture_missing" => {
+                    row["identity_handoff"]["metadata_original"] = serde_json::Value::Null
+                }
+                "capture_name" => {
+                    row["identity_handoff"]["metadata_original"]["name"] =
+                        serde_json::json!("foreign")
+                }
+                "capture_parent" => {
+                    row["identity_handoff"]["metadata_original"]["parent_id"] =
+                        serde_json::json!("foreign")
+                }
+                "capture_revision" => {
+                    row["identity_handoff"]["metadata_original"]["etag"] =
+                        serde_json::json!("foreign")
+                }
+                "capture_size" => {
+                    row["identity_handoff"]["metadata_original"]["size"] = serde_json::json!(999)
+                }
+                "current_id" => row["remote"]["id"] = serde_json::json!(f.original.id),
+                "backup_id" => {
+                    row["identity_handoff"]["backup"]["id"] = serde_json::json!("foreign")
+                }
+                "serialized_state" => row["state"] = serde_json::json!("verify_required"),
+                "serialized_scope" => row["scope"]["collection"] = serde_json::json!("foreign"),
+                "native" => {
+                    row["representation"] = serde_json::json!({"kind":"package_archive","expected_root":"Owned.numbers","semantic":{"version":2,"sha256":"a".repeat(64),"entries":2,"files":1,"expanded_bytes":8}})
+                }
+                "operation_map" => {
+                    db.execute(
+                        "UPDATE namespace_operations SET object=?2 WHERE operation=?1",
+                        rusqlite::params![f.id.to_string(), Uuid::new_v4().to_string()],
+                    )
+                    .unwrap();
+                }
+                "queue_incomplete" => {
+                    db.execute(
+                        "UPDATE write_queue SET complete=0 WHERE id=?1",
+                        [f.id.to_string()],
+                    )
+                    .unwrap();
+                }
+                "negative_sequence" => {
+                    db.execute(
+                        "UPDATE uploads SET sequence=-1 WHERE id=?1",
+                        [f.id.to_string()],
+                    )
+                    .unwrap();
+                }
+                "sql_state" => {
+                    db.execute(
+                        "UPDATE uploads SET state='pending' WHERE id=?1",
+                        [f.id.to_string()],
+                    )
+                    .unwrap();
+                }
+                _ => {
+                    let text: String = db
+                        .query_row(
+                            "SELECT body FROM ordinary_metadata_publication WHERE operation=?1",
+                            [f.id.to_string()],
+                            |r| r.get(0),
+                        )
+                        .unwrap();
+                    let mut job: serde_json::Value = serde_json::from_str(&text).unwrap();
+                    if arm == "job_scope" {
+                        job["scope"]["provider"] = serde_json::json!("foreign");
+                    } else {
+                        job["original"]["etag"] = serde_json::json!("foreign");
+                    }
+                    db.execute(
+                        "UPDATE ordinary_metadata_publication SET body=?2 WHERE operation=?1",
+                        rusqlite::params![f.id.to_string(), job.to_string()],
+                    )
+                    .unwrap();
+                }
+            }
+            db.execute(
+                "UPDATE uploads SET body=?2 WHERE id=?1",
+                rusqlite::params![f.id.to_string(), row.to_string()],
+            )
+            .unwrap();
+            let store = Store::open(&f.engine.db).unwrap();
+            let before = store.visible_nodes(&f.scope).unwrap();
+            let cursor = store.cursor(&f.scope).unwrap();
+            assert!(
+                f.journal.lock().unwrap().ordinary_metadata_due(0).is_err(),
+                "{arm}"
+            );
+            assert_eq!(
+                db.query_row(
+                    "SELECT done,failures FROM ordinary_metadata_publication WHERE operation=?1",
+                    [f.id.to_string()],
+                    |r| Ok((r.get::<_, bool>(0)?, r.get::<_, i64>(1)?))
+                )
+                .unwrap(),
+                (false, 1)
+            );
+            assert_eq!(store.visible_nodes(&f.scope).unwrap(), before);
+            assert_eq!(store.cursor(&f.scope).unwrap(), cursor);
+            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+        }
+        let f = OrdinaryMetadataCase::new(false).await;
+        let db = rusqlite::Connection::open(f.journal_root.join("uploads.db")).unwrap();
+        db.execute(
+            "INSERT INTO ordinary_metadata_publication(operation,body) VALUES(?1,'malformed')",
+            [Uuid::nil().to_string()],
+        )
+        .unwrap();
+        assert!(f.journal.lock().unwrap().ordinary_metadata_due(0).is_err());
+        let proof = f
+            .journal
+            .lock()
+            .unwrap()
+            .ordinary_metadata_due(0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(proof.operation, f.id);
+        assert_eq!(
+            db.query_row(
+                "SELECT done,failures FROM ordinary_metadata_publication WHERE operation=?1",
+                [Uuid::nil().to_string()],
+                |r| Ok((r.get::<_, bool>(0)?, r.get::<_, i64>(1)?))
+            )
+            .unwrap(),
+            (false, 1)
+        );
+    }
+
+    #[tokio::test]
+    async fn ordinary_handoff_engine_scope_refuses_foreign_provider_before_store_or_read() {
+        let f = OrdinaryMetadataCase::new(false).await;
+        let mut proof = f
+            .journal
+            .lock()
+            .unwrap()
+            .ordinary_metadata_due(0)
+            .unwrap()
+            .unwrap();
+        proof.scope.provider = "foreign-provider".into();
+        let store = Store::open(&f.engine.db).unwrap();
+        let visible = store.visible_nodes(&f.scope).unwrap();
+        let cursor = store.cursor(&f.scope).unwrap();
+        assert!(f.engine.publish_ordinary_metadata(&proof).await.is_err());
+        assert_eq!(store.visible_nodes(&f.scope).unwrap(), visible);
+        assert_eq!(store.cursor(&f.scope).unwrap(), cursor);
+        assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+        let db = rusqlite::Connection::open(f.journal_root.join("uploads.db")).unwrap();
+        assert!(
+            !db.query_row(
+                "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+                [f.id.to_string()],
+                |r| r.get::<_, bool>(0)
+            )
+            .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn ordinary_handoff_later_complete_listing_supersedes_old_absence() {
+        for staged in [false, true] {
+            let f = OrdinaryMetadataCase::new(false).await;
+            let mut store = Store::open(&f.engine.db).unwrap();
+            let ticket = store.node_observation(&f.scope, &f.original.id).unwrap();
+            store.publish_absence(&ticket).unwrap();
+            assert!(store.node(&f.scope, &f.original.id).unwrap().is_none());
+            if staged {
+                store
+                    .directory_publication(
+                        &f.scope,
+                        "root",
+                        CancellationToken::new(),
+                        std::time::Instant::now() + Duration::from_secs(5),
+                    )
+                    .unwrap()
+                    .page(DirectoryPage {
+                        nodes: vec![f.original.clone(), f.current.clone()],
+                        next: None,
+                    })
+                    .unwrap()
+                    .publish()
+                    .unwrap();
+            } else {
+                store
+                    .observe_directory(&f.scope, "root", &[f.original.clone(), f.current.clone()])
+                    .unwrap();
+            }
+            let store = Store::open(&f.engine.db).unwrap();
+            assert_eq!(store.children(&f.scope, "root").unwrap().unwrap().len(), 2);
+            assert_eq!(
+                store.node(&f.scope, &f.original.id).unwrap(),
+                Some(f.original.clone())
+            );
+            drop(store);
+            assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+            assert_eq!(
+                Store::open(&f.engine.db)
+                    .unwrap()
+                    .children(&f.scope, "root")
+                    .unwrap()
+                    .unwrap(),
+                vec![f.current]
+            );
+            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_handoff_legacy_missing_capture_is_not_backfilled_on_reopen() {
+        let f = OrdinaryMetadataCase::new(false).await;
+        let db = rusqlite::Connection::open(f.journal_root.join("uploads.db")).unwrap();
+        db.execute(
+            "DELETE FROM ordinary_metadata_publication WHERE operation=?1",
+            [f.id.to_string()],
+        )
+        .unwrap();
+        db.execute("UPDATE uploads SET body=json_remove(body,'$.identity_handoff.metadata_original') WHERE id=?1",[f.id.to_string()]).unwrap();
+        let before: String = db
+            .query_row(
+                "SELECT body FROM uploads WHERE id=?1",
+                [f.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        drop(db);
+        let OrdinaryMetadataCase {
+            journal_root,
+            engine,
+            writer,
+            journal,
+            provider,
+            id,
+            scope,
+            root: _,
+            working: _,
+            original: _,
+            current: _,
+            backup: _,
+        } = f;
+        let store = Store::open(&engine.db).unwrap();
+        let visible = store.visible_nodes(&scope).unwrap();
+        drop(store);
+        drop(writer);
+        drop(journal);
+        let reopened = UploadJournal::open(&journal_root, "handoff", 4096).unwrap();
+        assert!(reopened.ordinary_metadata_due(0).unwrap().is_none());
+        let db = rusqlite::Connection::open(journal_root.join("uploads.db")).unwrap();
+        let after: String = db
+            .query_row(
+                "SELECT body FROM uploads WHERE id=?1",
+                [id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(after, before);
+        assert_eq!(
+            db.query_row(
+                "SELECT count(*) FROM ordinary_metadata_publication",
+                [],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            Store::open(&engine.db)
+                .unwrap()
+                .visible_nodes(&scope)
+                .unwrap(),
+            visible
+        );
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
     }
 }

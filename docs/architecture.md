@@ -1354,3 +1354,33 @@ recovery accepts supported older journals without migrating them. Older binaries
 must refuse schema 19; editing the header is not a downgrade mechanism. These
 changes have synthetic journal and actual FUSE coverage; installed transitions
 and real Pages/Numbers/Keynote application acceptance remain separate release gates.
+
+## Ordinary replacement metadata publication
+
+Journal schema 20 adds a durable local metadata job for each confirmed ordinary
+identity handoff. The reservation captures the full original node before provider
+work; the same transaction that records the typed current/backup receipt enqueues
+its publication job. Later saves, rename, unlink and working-copy retirement do
+not discard that historical job. Older receipts without a captured original are
+not backfilled with guessed metadata.
+
+Writable maintenance processes one due job at a time. Read-only Engine startup
+also repairs pending jobs through a narrow handle to an existing schema-20 journal.
+The Manager starts the same latched task when its effective connection is read-only,
+even if the recorded grant allows writes but no write factory is supplied. Initial
+launch and remount use this mode check; actual writable connections use maintenance.
+That handle validates private ownership, account and schema, and changes only local
+publication completion or retry status. It does not migrate, claim transfers,
+reconcile mutations, access the credential vault or issue provider writes. Journal
+ownership and SQLite transactions end before metadata publication or a bounded
+exact-ID provider read; completion reacquires ownership and validates the immutable
+job and uploaded receipt again.
+
+The metadata store changes only the exact scoped original identity when its full
+visible node still matches the captured original. It publishes the validated
+backup location, preserving newer positive/negative observations and completed
+feed cursors. Exact-ID directory membership uses the normal listing visibility
+rules without scanning the whole directory. In-flight older observations are
+invalidated with the item and affected parents. These mechanisms are under
+validation; the installed schema transition remains held under the
+[deployment policy](development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy).

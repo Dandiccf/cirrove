@@ -1186,7 +1186,7 @@ earlier schema17 explicit archive workflow. Synthetic journal and kernel tests
 do not establish Apple-backed save or deployment acceptance. Every writable
 journal opened by this writer advances, including ordinary-only accounts;
 validation remains isolated until recovery and application acceptance. See the
-[deployment and recovery policy](development.md#native-working-journal-schema19-held-prerelease-policy).
+[deployment and recovery policy](development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy).
 Pre-upgrade exports preserve selected local bytes, not provider rollback, sharing
 or revision history. Missing/corrupt bindings must refuse upload while compatible
 read-only recovery still exports exact retained bytes without network or parsing.
@@ -2582,3 +2582,76 @@ remain in force; no synthetic result confirms the unresolved real cleanup.
 The initial fixture construction failures are recorded separately and are not
 counted as failure-before-fix evidence; see the
 [cleanup regression](benchmarks/icloud-completed-atomic-cleanup-routing-2026-10-06.json).
+
+
+### Two confirmed Calc saves and a remaining remount boundary
+
+The [fresh cleanup-corrected trial](benchmarks/icloud-calc-after-completed-cleanup-2026-10-06.json)
+on `333a0a4` independently read back both ordinary XLSX versions: A was 5,281
+bytes and B was 5,611 bytes, each matching the saved source SHA-256. All 15
+journal entries completed; all nine uploads and six mutations had zero failed
+attempts. Cleanup sequence 14 reached Applied. This is actual owned-account
+evidence for the completed cleanup correction, not a native iWork matrix result.
+
+The same trial stopped at the subsequent read-only remount's regular-file/size
+assertion. The actual descriptor attributes were not retained, so its failing
+clause cannot be reconstructed. The stopped metadata contains both old A and
+new B under the same parent and name, with neither identity marked absent.
+An independent read-only audit of the retained cache and canonical name query
+selects A at 5,281 bytes, while the exact B receipt expects 5,611 bytes. Ordinary
+handoff acknowledgement commits the journal; its maintenance can retire B
+without publishing the old identity's confirmed Trash relocation to the index.
+This deterministic cache/source reproduction led to the controlled regression and
+durable exact-identity publication correction described below. A fresh live remount
+is still required. No save was repeated. All 13 original children were reaped, the owned mount and socket were
+closed, and the installed daemon and 19 packaged artifacts remained unchanged.
+
+A separate [bounded public chooser trial](benchmarks/icloud-pages-bounded-public-chooser-2026-10-06.json)
+passed isolated accessibility health and the exact chooser/Desktop ownership
+acknowledgements, then refused the first accessible-tree traversal at its
+16-level/512-node bound. Neither the failing depth nor count was retained.
+There were no UI actions or import requests. Its exact Desktop and five original
+children were reaped and its sockets closed. The next diagnostic preserves the
+same bound and records the actual values before refusal; no public Pages import
+or full-iCloud criterion closes here. The [observer controls](benchmarks/icloud-pages-birth-observation-controls-2026-10-06.json)
+record two desired pure decision failures and ten corrected passes, without
+claiming actual kernel timing or UI acceptance from mocks.
+
+### Durable ordinary replacement metadata repair
+
+The [metadata regression](benchmarks/icloud-ordinary-handoff-metadata-publication-2026-10-06.json)
+now reproduces the duplicate old/new listing after successful handoff on unchanged
+production code. The same test passes after the correction: only B remains at the
+original name, A has its exact validated backup location, the completed cursor is
+unchanged, and a delayed old observation cannot resurrect A.
+
+Schema20 enqueues immutable publication jobs in the handoff acknowledgement
+transaction. Nine additional tests pass with the original regression, covering
+later sealed/dirty saves, completed rename and unlink, normal read-only Engine
+startup with an unchanged Uploading successor, restart before/after Store commit,
+newer observations, scoped receipt refusal and corrupt-job backoff. These are
+synthetic checks. Two initial compile errors are retained separately from the
+single genuine failure-before-fix endpoint. Fresh owned cloud remount acceptance
+and all six full-iCloud requirements remain open. The current deployment hold is
+schema20/metadata8; the installed schema14 Canary daemon remains untouched.
+
+A further supported-API startup regression reproduced the same retained metadata
+problem when `Manager::start_with_provider` supplies no write factory, despite a
+recorded ReadWrite grant. The unchanged fixture fails at the exact backup lookup;
+the corrected fixture passes while preserving Uploading rows, working bytes,
+sealed payloads and settings. It cancels and joins the real Manager before its
+assertions. The nonempty mount sentinel deliberately refuses before FUSE, so this
+is startup coverage, not a successful kernel mount or remount. Initial launch and
+remount now select the same metadata-only task from the effective connection mode.
+The complete project check now passes this final correction in 644.87 seconds,
+with all 534 code/script/policy pins unchanged and kernel FUSE checks included.
+Desktop display scenarios and the actual cloud remount remain separate requirements.
+
+The [unchanged-bound desktop diagnostic](benchmarks/icloud-pages-accessibility-walk-diagnostic-2026-10-06.json)
+recorded an owned GTK node at depth17 with only 20 output nodes. After a controlled
+desired failure and seven corrected pure traversal checks, the
+[fresh bounded-walk trial](benchmarks/icloud-pages-bounded-owned-walk-2026-10-06.json)
+completed that walk but refused ambiguous name-only account selection. No UI
+action or import request occurred; all original owned processes were reaped and
+sockets closed. A fresh selector will require an owned, visible expandable row
+and preserve ambiguity refusal. Public Desktop import remains unverified.

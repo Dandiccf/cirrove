@@ -265,7 +265,7 @@ fn native_backup_gap_occupied_canonical_rollback_preserves_exact_gap_revision_an
 }
 
 #[test]
-fn native_backup_schema18_dirty_recovery_migrates_atomically_to19() {
+fn native_backup_schema18_dirty_recovery_migrates_atomically_to_current_schema() {
     let root = temp();
     let data = bytes(b"original");
     let mut j = journal(&root);
@@ -278,7 +278,7 @@ fn native_backup_schema18_dirty_recovery_migrates_atomically_to19() {
     let db = Connection::open(&path).unwrap();
     db.execute_batch("DROP TABLE native_backup_gaps; DROP TABLE native_backup_streams; UPDATE namespace_objects SET body=json_remove(body,'$.native_archive.backed_up'); PRAGMA user_version=18;").unwrap();
     drop(db);
-    for version in [18, 19] {
+    for version in [18, JOURNAL_SCHEMA] {
         let before = std::fs::read(&path).unwrap();
         let ro = RecoveryJournal::open(&root.path().join("journal"), "native-working").unwrap();
         let dest = root.path().join(format!("schema{version}-export"));
@@ -328,7 +328,7 @@ fn native_backup_schema18_dirty_recovery_migrates_atomically_to19() {
             assert_eq!(
                 j.db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
                     .unwrap(),
-                19
+                JOURNAL_SCHEMA
             );
             assert_eq!(j.working_file(f.id).unwrap().generation, generation);
             assert_eq!(j.read_working(f.id, 0, 4096).unwrap(), dirty);

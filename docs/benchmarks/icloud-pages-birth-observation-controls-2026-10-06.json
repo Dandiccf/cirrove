@@ -1,0 +1,107 @@
+{
+  "arms": [
+    {
+      "command": [
+        "/usr/bin/env",
+        "SOURCE=/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-root-successor-v4/outer.py",
+        "SOURCE_SHA=44f8f1051017eba82b93430beafef54e0f8189ce6520741d1c4a04e4e753b77a",
+        "BASELINE=1",
+        "/usr/bin/python3.14",
+        "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-empty-cmdline-private-v5/test_birth_identity_controls_v2.py",
+        "Decisions.test_empty_cmdline_observation_preserves_birth_then_requires_exact_argv"
+      ],
+      "expected_exit_code": 1,
+      "expected_tests": 1,
+      "phase": "root-pages-birth-controls-empty-red-v1",
+      "prediction": "Actual frozen V4 exact identity assertion AST refuses first parsedempty command line; same desired success endpoint collects RuntimeError then fails assertIsNone. Pure mocked decision sensitivity, not reproduction of real kernel timing. No new API absent/compile-error endpoint.",
+      "registration_sha256": "98612dcc7997393b057cca52286fe8fb58302d0082d363c83e3a348ac77e5fde"
+    },
+    {
+      "command": [
+        "/usr/bin/env",
+        "SOURCE=/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-empty-cmdline-private-v5/outer_v6.py",
+        "SOURCE_SHA=c239b55539e406fb143fba1a81b1017a559d75625b8dbdef9ded651f0c7d006d",
+        "BASELINE=0",
+        "/usr/bin/python3.14",
+        "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-empty-cmdline-private-v5/test_birth_identity_controls_v3.py",
+        "Decisions.test_slow_publish_crossing_original_identity_window_refuses"
+      ],
+      "expected_exit_code": 1,
+      "expected_tests": 1,
+      "phase": "root-pages-birth-controls-publish-red-v1",
+      "prediction": "Actual preserved V6 observe_birth_identity returns exact argv after fake publication advances monotonic clock1.01s across original1s observation boundary; desired assertRaises(RuntimeError) fails. This is actual helper guard sensitivity with explicit fake callback, not real publication latency or kernel timing. No absent API/setup error endpoint.",
+      "registration_sha256": "8d1f6f3c0c16cd0cbbd13a0ee70e63855e0d4bd0d3b9ce5b806478787f4dce1d"
+    },
+    {
+      "command": [
+        "/usr/bin/env",
+        "SOURCE=/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-empty-cmdline-private-v5/outer_v7.py",
+        "SOURCE_SHA=62402cb3e8af2190119212a8250875e4f2b6d7419ee9bfd217b7a8ac5295ddf4",
+        "BASELINE=0",
+        "/usr/bin/python3.14",
+        "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-empty-cmdline-private-v5/test_birth_identity_controls_v3.py"
+      ],
+      "expected_exit_code": 0,
+      "expected_tests": 10,
+      "phase": "root-pages-birth-controls-v7-green-v1",
+      "prediction": "All10 pure controls pass; new exact argv sample taken within original window but published after its limit is refused after retained first frame. Existing9 decisions/default fake callback unchanged.",
+      "registration_sha256": "4c690bd966eee4fe070d6049768986b3f14e08bd10237172e2a1a86e0fb81b4c"
+    }
+  ],
+  "full_icloud_gate_closed": false,
+  "limits": [
+    "Pure fake sample and clock callbacks do not reproduce kernel timing or prove chooser acceptance.",
+    "Historical a4 raw byte count remains unknown."
+  ],
+  "outcome": [
+    {
+      "actual_tests": 1,
+      "desired_assertion_failure": true,
+      "errors": 0,
+      "original_command_and_runner_absent": true,
+      "phase": "root-pages-birth-controls-empty-red-v1",
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 0.05020887701539323,
+        "exit_code": 1,
+        "installed_actions": false,
+        "log_sha256": "4ceb1793bf2be8145a7380648e3a472144c414d5c89b9321c4f169d71496d9dc",
+        "sources_unchanged": true
+      }
+    },
+    {
+      "actual_tests": 1,
+      "desired_assertion_failure": true,
+      "errors": 0,
+      "original_command_and_runner_absent": true,
+      "phase": "root-pages-birth-controls-publish-red-v1",
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 0.04746972001157701,
+        "exit_code": 1,
+        "installed_actions": false,
+        "log_sha256": "35fab936283744f924883c17563cbbde160b0fd2a666b385d1dbbb0afc677fbc",
+        "sources_unchanged": true
+      }
+    },
+    {
+      "actual_tests": 10,
+      "desired_assertion_failure": false,
+      "errors": 0,
+      "original_command_and_runner_absent": true,
+      "phase": "root-pages-birth-controls-v7-green-v1",
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 0.04791148996446282,
+        "exit_code": 0,
+        "installed_actions": false,
+        "log_sha256": "cf8d3a2572a7898fcf32a4c2dd1445509b3d59e66061853243c4627f80695068",
+        "sources_unchanged": true
+      }
+    }
+  ],
+  "question": "Do retained original exact-identity and pre-publication guards fail the desired pure decision endpoints while bounded original-child observation with a post-publication check passes ten controls?",
+  "registered_at": "2026-10-06T00:39:02.097761+00:00",
+  "runtime_or_cloud_started": false,
+  "status": "two-desired-red-controls-and-ten-corrected-controls-pass"
+}

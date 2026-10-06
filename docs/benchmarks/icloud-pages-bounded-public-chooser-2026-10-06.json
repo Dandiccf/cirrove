@@ -1,0 +1,87 @@
+{
+  "arms": [
+    "fresh public chooser cancel on default Desktop"
+  ],
+  "chooser_sha256": "9d5f6f90b1ed26b9f7605a5c4b8a491673fe21308d8123d510fa3d9bebb4ad95",
+  "controller_sha256": "62402cb3e8af2190119212a8250875e4f2b6d7419ee9bfd217b7a8ac5295ddf4",
+  "controls_record": "icloud-pages-birth-observation-controls-2026-10-06.json",
+  "desktop_binding_sha256": "ce43e6b2ed8c3c746150310844d1225e28ba51ad15e7c956b6a61ed82f0b5b70",
+  "endpoint": "local chooser and confirmation actual UI success, zero import RPC/provider calls, exact original Desktop/controller/owned buses reaped and sockets absent",
+  "execution_policy": {
+    "TMPDIR_filesystem": "ext4",
+    "automatic_retry": false,
+    "cleanup_reserve_seconds": 30,
+    "cloud_allowed": false,
+    "installed_actions": false,
+    "one_runtime_lane": true,
+    "original_window_seconds": 180
+  },
+  "full_icloud_gate_closed": false,
+  "limits": [
+    "Chooser/Cancel proves local UI only, not completed native import, original public mount publication, semantic readback, Apple Pages open or native editing.",
+    "Old a4 parsed-empty birth cause remains unknown.",
+    "180s allowance is not a kernel/fsync hard realtime guarantee."
+  ],
+  "native_pages_import_completed": false,
+  "outcome": {
+    "actions": [],
+    "actual_walk_depth_and_output_count_retained": false,
+    "all477_source_pins_unchanged": true,
+    "all_recorded_processes_absent": true,
+    "chooser_and_desktop_owner_ack_pass": true,
+    "cloud_called": false,
+    "desktop_original_handle_reap_confirmed": true,
+    "duration_seconds": 1.470814543950837,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_v5.py",
+          "function": "main",
+          "line": 548
+        },
+        {
+          "file": "chooser_v5.py",
+          "function": "run",
+          "line": 328
+        },
+        {
+          "file": "chooser_v5.py",
+          "function": "walk",
+          "line": 242
+        },
+        {
+          "file": "chooser_v5.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "first_ui_action_reached": false,
+    "full_icloud_gate_closed": false,
+    "import_rpc_count": 0,
+    "launch_exit_code": 1,
+    "original_controller_and_all_five_children_reaped": true,
+    "owned_accessibility_health_pass": true,
+    "owned_bus_sockets_and_fixture_socket_absent": true,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    }
+  },
+  "outcome_evidence": {
+    "chooser_result_sha256": "7934aa732d48066543d58676cc1374364149a888833c12a9b3e7e030726ea5b3",
+    "controller_result_sha256": "6c388e5e3d8b943ed6bde8054b66634e66a62301a5d3a62a6b49d0e14d197ebb",
+    "desktop_original_reap_sha256": "d7be40272d4df0dbe77c33350aeeb2fec55f7b94b53854e08b38dd5a59ed1fa4",
+    "health_sha256": "7c20fbecfabd72ca35c2e9e58dd212efe557c55411dbfc0b9b25a1a5f8e7dc08",
+    "immutable_prereg_sha256": "54666bb06858231a60c2c9d00432a914966dcfb385e8e59dd8bb248255adf5ff",
+    "launch_result_sha256": "a0b7f7b3ab693e502345e6a8604f9dd3f5bfe236fd07a8bee7a11d8b5f83ed48"
+  },
+  "prediction": "Reviewed original-child observer passes startup only with exact argument/birth identity; actual public selection then cancel completes without provider requests. Any identity/UI failure stops this single owned arm.",
+  "question": "Does bounded same-original-child identity observation allow the owned accessibility health and actual default public Desktop Pages chooser\u2192Open\u2192confirmation\u2192Cancel workflow while issuing zero import/provider mutations?",
+  "registered_at": "2026-10-06T00:53:52.275778+00:00",
+  "run": "23ca7eff-e36c-4ee3-b148-d8f0e55c0441",
+  "source_head": "333a0a440bd25f146fc4c10357f7ab276c231c8b",
+  "status": "owned-health-and-desktop-ack-pass-ui-tree-bound-refusal-before-action"
+}

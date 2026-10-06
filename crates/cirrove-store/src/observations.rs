@@ -451,3 +451,89 @@ impl Store {
         Ok(changed)
     }
 }
+
+impl Store {
+    /// Receipt-bound local relocation, not a provider observation or a name delete.
+    /// true means an exact old view was moved, already moved, or superseded by
+    /// independently different/absent metadata; false requires an exact-ID read.
+    pub fn publish_ordinary_handoff_backup(
+        &mut self,
+        scope: &Scope,
+        original: &Node,
+        current_node: &Node,
+        backup: &Node,
+    ) -> Result<bool> {
+        if original.id.is_empty()
+            || backup.id != original.id
+            || current_node.id == original.id
+            || original.kind != cirrove_core::NodeKind::File
+            || original.package
+            || original.target.is_some()
+            || original.content_revision().is_none()
+            || original.parent_id.is_none()
+            || backup.kind != original.kind
+            || backup.package
+            || backup.target.is_some()
+            || backup.content_revision().is_none()
+            || backup.size != original.size
+            || backup.parent_id.is_none()
+            || current_node.kind != original.kind
+            || current_node.package
+            || current_node.target.is_some()
+            || current_node.content_revision().is_none()
+            || current_node.parent_id != original.parent_id
+            || current_node.name != original.name
+            || (backup.parent_id == original.parent_id && backup.name == original.name)
+        {
+            return Err(StoreError::OutOfOrder);
+        }
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let key = Self::key(scope)?;
+        let absent: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM observed_absent WHERE scope=?1 AND id=?2)",
+            params![key, original.id],
+            |r| r.get(0),
+        )?;
+        if absent {
+            return Ok(true);
+        } // Preserve newer exact-ID negative observation.
+        let known = Self::node_on(&tx, scope, &original.id)?;
+        let directory = directories::child_id_on(
+            &tx,
+            scope,
+            original
+                .parent_id
+                .as_deref()
+                .ok_or(StoreError::OutOfOrder)?,
+            &original.id,
+        )?;
+        let listed = directory.as_ref().and_then(|node| node.as_ref());
+        if known.as_ref() == Some(backup) {
+            return Ok(true);
+        }
+        if known.as_ref().is_some_and(|n| n != original) || listed.is_some_and(|n| n != original) {
+            return Ok(true);
+        } // Preserve different revision/location, never overwrite from history.
+        if known.is_none() && listed.is_none() {
+            return Ok(false);
+        }
+        if directory.is_some() && listed.is_none() {
+            return Ok(true); // A complete later listing already excludes the original identity.
+        }
+        changed_items(
+            &tx,
+            scope,
+            std::slice::from_ref(backup),
+            std::slice::from_ref(original),
+            None,
+        )?;
+        let revision = advance(&tx)?;
+        write_node(&tx, scope, backup, timestamp(), revision)?;
+        tx.commit()?;
+        Ok(true)
+    }
+}

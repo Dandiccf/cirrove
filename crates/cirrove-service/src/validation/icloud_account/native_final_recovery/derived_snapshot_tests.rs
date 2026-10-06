@@ -425,7 +425,10 @@ async fn native_snapshot_real_tls_checkpoint_restores_on_distinct_copy_without_r
         digest(&fs::read(checkpoint).unwrap()),
         ready["checkpoint_sha256"].as_str().unwrap()
     );
-    for (relative, version) in [("journal/uploads.db", 19u32), ("metadata.db", 8u32)] {
+    for (relative, version) in [
+        ("journal/uploads.db", crate::journal::JOURNAL_SCHEMA),
+        ("metadata.db", 8u32),
+    ] {
         let db = rusqlite::Connection::open_with_flags(
             derived.join("accounts").join(&account.id).join(relative),
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
@@ -590,7 +593,7 @@ async fn native_snapshot_real_tls_checkpoint_restores_on_distinct_copy_without_r
         &root.join("native-derived-restoration-result.json"),
         &json!({
             "version": 1, "run": run, "status": "passed",
-            "journal_format": 19, "metadata_format": 8,
+            "journal_format": crate::journal::JOURNAL_SCHEMA, "metadata_format": 8,
             "producer_exit_code": status.code(), "producer_pid": pid,
             "exact_producer_gone_before_collection": true,
             "source_image_and_original_bytes_modes_preserved": true,

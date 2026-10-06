@@ -479,3 +479,202 @@ async fn readonly_retained_status_busy_reader_preserves_counts_and_recovers_avai
     );
     Ok(())
 }
+
+// This public Manager path deliberately mounts read-only without changing a
+// recorded ReadWrite grant. No FUSE/kernel capability is needed: the retained
+// sentinel rejects mount admission before any filesystem session is spawned.
+#[tokio::test]
+async fn ordinary_handoff_effective_readonly_manager_repairs_with_readwrite_grant() -> Result<()> {
+    use cirrove_core::NodeKind;
+    use cirrove_store::Store;
+    use std::io::Read;
+
+    let Fixture {
+        _temp,
+        state,
+        journal: journal_root,
+        mut account,
+        provider,
+        ..
+    } = Fixture::new(false).await?;
+    let root = _temp.keep(); // Preserve this fixture; no recursive cleanup.
+    eprintln!(
+        "retained effective read-only publication fixture: {}",
+        root.display()
+    );
+    account.access = cirrove_auth::AccessMode::ReadWrite;
+    let settings = serde_json::to_vec(&Settings {
+        version: 2,
+        accounts: vec![account.clone()],
+    })?;
+    std::fs::write(state.join("accounts.json"), &settings)?;
+    let engine = Engine::new(account.clone(), provider.clone(), state.clone()).await?;
+    let metadata = engine.db.clone();
+    let scope = engine.scope("fixture");
+    let original = Node {
+        id: "old-A".into(),
+        parent_id: Some("root".into()),
+        name: "owned.txt".into(),
+        kind: NodeKind::File,
+        size: 3,
+        modified_unix: 1,
+        etag: Some("revision-A".into()),
+        content_version: Some("revision-A".into()),
+        target: None,
+        package: false,
+    };
+    let current = Node {
+        id: "new-B".into(),
+        size: 8,
+        etag: Some("revision-B".into()),
+        content_version: Some("revision-B".into()),
+        ..original.clone()
+    };
+    let backup = Node {
+        parent_id: Some("trash".into()),
+        etag: Some("trash-A".into()),
+        content_version: Some("trash-A".into()),
+        ..original.clone()
+    };
+    let mut journal =
+        crate::journal::UploadJournal::open(&journal_root, &account.id, account.cache_bytes)?;
+    let working = journal.create_working(scope.clone(), original.clone(), false, &b"old"[..])?;
+    journal.write_working(working.id, 0, b"new-body")?;
+    let uploaded = journal.seal_working(working.id)?.context("sealed B")?;
+    let claimed = journal.claim_next()?.context("claimed B")?;
+    assert_eq!(claimed.id, uploaded.id);
+    let attempt = claimed.attempt.context("B attempt")?;
+    journal.reserve_identity_handoff(
+        uploaded.id,
+        attempt,
+        cirrove_core::upload::RecoveryLocation::Trash {
+            local_name: "recovery-A".into(),
+            parent: "trash".into(),
+        },
+    )?;
+    journal.acknowledge_identity_handoff(uploaded.id, attempt, current.clone(), backup.clone())?;
+    assert_eq!(journal.get(uploaded.id)?.state, UploadState::Uploaded);
+    assert_eq!(
+        journal.get(uploaded.id)?.ordinary_handoff_receipt(),
+        Some((&current, &backup))
+    );
+    // A metadata-only reader must not normalize or claim this newer save.
+    journal.write_working(working.id, 0, b"pending-C")?;
+    let later = journal.seal_working(working.id)?.context("sealed C")?;
+    let later_claim = journal.claim_next()?.context("claimed C")?;
+    assert_eq!(later_claim.id, later.id);
+    assert_eq!(later_claim.state, UploadState::Uploading);
+    let mut b_bytes = Vec::new();
+    journal.payload(uploaded.id)?.read_to_end(&mut b_bytes)?;
+    assert_eq!(b_bytes, b"new-body");
+    let mut c_bytes = Vec::new();
+    journal.payload(later.id)?.read_to_end(&mut c_bytes)?;
+    assert_eq!(c_bytes, b"pending-C");
+    let working_before = serde_json::to_value(journal.working_file(working.id)?)?;
+    drop(journal);
+    let mut store = Store::open(&metadata)?;
+    store.observe_directory(&scope, "root", &[original.clone(), current.clone()])?;
+    store.observe_node(&scope, &current)?;
+    assert_eq!(
+        store
+            .children(&scope, "root")?
+            .context("cached original and current listing")?
+            .len(),
+        2
+    );
+    drop(store);
+    drop(engine); // Release the actual account owner before public Manager startup.
+
+    let db_path = journal_root.join("uploads.db");
+    let rows = || -> Result<Vec<(String, String)>> {
+        let db = rusqlite::Connection::open(&db_path)?;
+        let mut statement = db.prepare("SELECT id,body FROM uploads ORDER BY sequence")?;
+        Ok(statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?)
+    };
+    let before_uploads = rows()?;
+    let cancel = CancellationToken::new();
+    let supplied = provider.clone();
+    let (manager, task) = Manager::start_with_provider(
+        state.clone(),
+        cancel.clone(),
+        Arc::new(move |_| Ok(supplied.clone())),
+    );
+    let waited = tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let done: bool = rusqlite::Connection::open(&db_path)?.query_row(
+                "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+                [uploaded.id.to_string()],
+                |row| row.get(0),
+            )?;
+            if done {
+                return Ok::<_, anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await;
+    let launched_grant = manager
+        .engines
+        .read()
+        .await
+        .get(&account.id)
+        .map(|engine| engine.account.access);
+    let no_writers = manager.writers.read().await.is_empty();
+    cancel.cancel();
+    task.await?; // Stop/join before any desired assertion, including baseline failure.
+    assert_eq!(launched_grant, Some(cirrove_auth::AccessMode::ReadWrite));
+    assert!(no_writers);
+    assert_eq!(
+        rows()?,
+        before_uploads,
+        "metadata repair changed an upload frontier"
+    );
+    assert_eq!(std::fs::read(state.join("accounts.json"))?, settings);
+    assert_eq!(
+        std::fs::read(account.mount_path.join("local-sentinel"))?,
+        b"preserve"
+    );
+    assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        std::fs::metadata(state.join("accounts.json"))?
+            .permissions()
+            .mode()
+            & 0o777,
+        0o600
+    );
+    let db = rusqlite::Connection::open(&db_path)?;
+    let working_after: String = db.query_row(
+        "SELECT body FROM working_files WHERE id=?1",
+        [working.id.to_string()],
+        |row| row.get(0),
+    )?;
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&working_after)?,
+        working_before
+    );
+    assert_eq!(
+        std::fs::read(journal_root.join("objects").join(uploaded.id.to_string()))?,
+        b_bytes
+    );
+    assert_eq!(
+        std::fs::read(journal_root.join("objects").join(later.id.to_string()))?,
+        c_bytes
+    );
+    drop(db);
+    let done: bool = rusqlite::Connection::open(&db_path)?.query_row(
+        "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+        [uploaded.id.to_string()],
+        |row| row.get(0),
+    )?;
+    let store = Store::open(&metadata)?;
+    assert_eq!(
+        store.node(&scope, &original.id)?,
+        Some(backup),
+        "effective read-only Manager must repair the retained ordinary receipt even with a ReadWrite grant"
+    );
+    assert!(done && matches!(waited, Ok(Ok(()))));
+    assert_eq!(store.children(&scope, "root")?, Some(vec![current]));
+    Ok(())
+}

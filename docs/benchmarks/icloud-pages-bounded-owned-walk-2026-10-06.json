@@ -1,0 +1,103 @@
+{
+  "question": "Does the fresh owned public chooser complete source selection and confirmation cancellation after its measured depth17 limit is corrected?",
+  "registered_at": "2026-10-06T01:14:45.686827+00:00",
+  "run": "a2636362-6af9-4174-84cc-8f9df2e38c78",
+  "source_head": "333a0a440bd25f146fc4c10357f7ab276c231c8b",
+  "status": "walk-completed-account-title-uniqueness-refusal-before-any-action",
+  "prediction": "The same owned GTK tree may complete its first walk with depth64; any new refusal remains retained. Success proves only local chooser flow, not cloud import or native editing.",
+  "arms": [
+    "One fresh scoped public chooser with synthetic no-write RPC fixture"
+  ],
+  "bounds": {
+    "depth": 64,
+    "node_count": 512,
+    "child_count": 512,
+    "window_seconds": 180,
+    "cleanup_reserve_seconds": 30
+  },
+  "pure_controls": {
+    "red": {
+      "exit_code": 1,
+      "duration_seconds": 0.054820562014356256,
+      "sources_unchanged": true,
+      "log_sha256": "a31ea47114f2ee0127c5a38e6233324b0b522157b9cbb4d73ab2f48e1a5f2b09",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "executed_tests": 1,
+      "original_command_pid": 1092393,
+      "original_command_absent": true,
+      "registration_sha256": "379a8aa026ba7c45aa0efef25725d25eeaacb276656c92e90e1cda6e1e4ce05c"
+    },
+    "green": {
+      "exit_code": 0,
+      "duration_seconds": 0.05234626500168815,
+      "sources_unchanged": true,
+      "log_sha256": "670a39115e7523a8984e4842e16547cb2094b03fad392b037b4b9dc8b2656e62",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "executed_tests": 7,
+      "original_command_pid": 1092558,
+      "original_command_absent": true,
+      "registration_sha256": "33eaf88f5d8c21d78d26f3cf39270e93c9c7af6fc76e3167ff6150191ca23fd5"
+    }
+  },
+  "chooser_sha256": "e8420d7df1f7b1472c7c226b20048cee39eb9320ad23bc86bdbdcba79d187be3",
+  "controller_sha256": "ba8f7bdb755e2d785b987c59eee820725839ef609e884468a778211d9a9414ba",
+  "desktop_binding_sha256": "cf9e227db9e660b0d6283420c6be88b0b1b9c53366d1b8f6645ffa8baf1abcd4",
+  "execution_policy": {
+    "cloud_allowed": false,
+    "installed_actions": false,
+    "automatic_retry": false,
+    "temporary_filesystem": "ext4"
+  },
+  "full_icloud_gate_closed": false,
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.2703630960313603,
+    "health_pass": true,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_bounded_walk_v8.py",
+          "function": "main",
+          "line": 564
+        },
+        {
+          "file": "chooser_bounded_walk_v8.py",
+          "function": "run",
+          "line": 347
+        },
+        {
+          "file": "chooser_bounded_walk_v8.py",
+          "function": "unique",
+          "line": 284
+        },
+        {
+          "file": "chooser_bounded_walk_v8.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "actions": [],
+    "import_rpc_count": 0,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "original_owned_processes_reaped_and_absent": true,
+    "owned_sockets_and_mount_absent": true,
+    "registered_inputs_unchanged_during_run": true,
+    "independent_closure_audit_sha256": "609533773562ee5ea5e461dfcd8d7ae1baf1f32f5eaf3a02cef221dc8af6d7aa",
+    "cloud_mutated": false,
+    "installed_actions": false
+  },
+  "limits": [
+    "The first actual walk completed, then the name-only iCloud Drive selection refused more than one match; actual matching count/states were not retained.",
+    "Later metadata production edits changed the checkout after this terminal run; current sources are not claimed equal to its frozen build binding.",
+    "No local chooser completion, live import, independent document readback or full iCloud gate acceptance."
+  ],
+  "next_action": "A new owned account selector using exact title, visible expandable row and original Desktop PID, with ambiguity refusal retained; first prove controlled baseline RED and corrected decision controls."
+}

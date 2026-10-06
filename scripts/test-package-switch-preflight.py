@@ -69,7 +69,7 @@ if NAMESPACE:
                 path.write_text('#!/usr/bin/python3\nimport json,os,sys\nwith open("/var/tmp/mutations.jsonl","a") as f: f.write(json.dumps({"command":os.path.basename(sys.argv[0]),"argv":sys.argv[1:]})+"\\n")\nsys.exit(97)\n')
                 path.chmod(0o700)
             daemon = self.bin / "cirroved"
-            daemon.write_text('#!/usr/bin/python3\nimport json,sys\nif sys.argv[1:] == ["--storage-format-json"]:\n print(json.dumps({"version":1,"product":"cirroved","journal_schema":19,"metadata_schema":8})); sys.exit(0)\nsys.exit(97)\n')
+            daemon.write_text('#!/usr/bin/python3\nimport json,sys\nif sys.argv[1:] == ["--storage-format-json"]:\n print(json.dumps({"version":1,"product":"cirroved","journal_schema":20,"metadata_schema":8})); sys.exit(0)\nsys.exit(97)\n')
             daemon.chmod(0o700)
             bus = self.bin / "busctl"
             bus.write_text('''#!/usr/bin/python3
@@ -221,7 +221,7 @@ class PackageSwitchPortable(unittest.TestCase):
         self.symlinks = set()
         self.details = {"UnitPath": list(map(str, self.roots)), "FragmentPath": str(self.removable),
                         "DropInPaths": [], "Transient": False}
-        self.policy = {"state": "held", "journal_schema": 19, "metadata_schema": 8}
+        self.policy = {"state": "held", "journal_schema": 20, "metadata_schema": 8}
         self.snapshot = {"effective_state": str(self.home / ".local/state/cirrove"), "process": None}
         self.retained = set()
         self.epoch = 0
@@ -270,7 +270,7 @@ class PackageSwitchPortable(unittest.TestCase):
             # Only executable observation is synthetic here; strict parser/FD
             # query have separate actual local child fixtures below.
             stack.enter_context(patch.object(self.guard, "package_storage_format",
-                return_value={"version": 1, "product": "cirroved", "journal_schema": 19, "metadata_schema": 8}))
+                return_value={"version": 1, "product": "cirroved", "journal_schema": 20, "metadata_schema": 8}))
             stack.enter_context(patch.object(self.guard, "service_snapshot", return_value=self.snapshot))
             stack.enter_context(patch.object(self.guard, "retained_state", side_effect=lambda p: str(p) in self.retained))
             return (function or (lambda: self.guard.package_preflight(ROOT)))()
@@ -377,7 +377,7 @@ class PackageSwitchPortable(unittest.TestCase):
     def test_second_format_query_route_drift_is_rechecked_before_mutation(self):
         current = dict(self.snapshot)
         queries = 0
-        declaration = {"version": 1, "product": "cirroved", "journal_schema": 19, "metadata_schema": 8}
+        declaration = {"version": 1, "product": "cirroved", "journal_schema": 20, "metadata_schema": 8}
         def query(*_args):
             nonlocal current, queries
             queries += 1
@@ -420,7 +420,7 @@ if not NAMESPACE:
             spec = importlib.util.spec_from_file_location("format_attestation_guard", ROOT / "scripts/install-preflight.py")
             self.guard = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(self.guard)
-            self.policy = {"journal_schema": 19, "metadata_schema": 8}
+            self.policy = {"journal_schema": 20, "metadata_schema": 8}
             self.value = {"version": 1, "product": "cirroved", **self.policy}
             self.fixture = Path(tempfile.mkdtemp(prefix="storage-format-", dir=os.environ.get("TMPDIR", "/var/tmp")))
             self.fixture.chmod(0o700)
@@ -465,7 +465,7 @@ if not NAMESPACE:
         def test_storage_format_reply_rejects_malformed_duplicate_extra_and_oversize(self):
             raw=json.dumps(self.value).encode()
             cases=[b"",b"\xff",b"[]",raw+b"{}",b"x"*4097,
-                b'{"version":1,"version":1,"product":"cirroved","journal_schema":19,"metadata_schema":8}',
+                b'{"version":1,"version":1,"product":"cirroved","journal_schema":20,"metadata_schema":8}',
                 json.dumps({**self.value,"extra":True}).encode()]
             cases.extend(json.dumps({k:v for k,v in self.value.items() if k!=field}).encode() for field in self.value)
             for data in cases:

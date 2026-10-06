@@ -1054,6 +1054,9 @@ impl Manager {
                                                 writes.as_ref(),
                                             )
                                             .await?;
+                                            if writable.is_none() {
+                                                active.engine.start_ordinary_metadata_readonly();
+                                            }
                                             mount_checked(active.engine.clone(), writable).await
                                         }
                                         .await;
@@ -1185,6 +1188,9 @@ impl Manager {
         if let Err(error) = engine.start().await {
             engine.stop().await;
             return Err(error);
+        }
+        if writable.is_none() {
+            engine.start_ordinary_metadata_readonly();
         }
         let (session, writers, mount_error) = match mount_checked(engine.clone(), writable).await {
             Ok((session, writers)) => (Some(session), writers, None),

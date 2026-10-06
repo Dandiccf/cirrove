@@ -1,0 +1,94 @@
+{
+  "arms": [
+    "fresh scoped public chooser diagnostic with exact original owned Desktop and buses"
+  ],
+  "bounds": {
+    "depth": 16,
+    "output_count_exclusive": 512
+  },
+  "chooser_sha256": "edc2d78e4a9f962237ec5243757e46fc8af3f7939c45acd07684e4a59edded1d",
+  "controller_sha256": "aa11a121caeb9976590d8d3068f07a5a4f95b32820929bce75756ae78c368353",
+  "desktop_binding_sha256": "cf9e227db9e660b0d6283420c6be88b0b1b9c53366d1b8f6645ffa8baf1abcd4",
+  "execution_policy": {
+    "automatic_retry": false,
+    "cleanup_reserve_seconds": 30,
+    "cloud_allowed": false,
+    "installed_actions": false,
+    "temporary_filesystem": "ext4",
+    "window_seconds": 180
+  },
+  "full_icloud_gate_closed": false,
+  "limits": [
+    "Old23ca actual boundary values remain unknown.",
+    "Diagnostic does not prove native import, semantic readback, Apple Pages open or native editing."
+  ],
+  "prediction": "The same guard still refuses if legitimate GTK depth or output count exceeds its bound; retain actual safe values and exact owned PID before refusal. Any success remains local chooser only. No cap change, old-arm replay or cloud mutation.",
+  "question": "Which actual depth/node-count clause stops the owned GTK accessibility walk at its unchanged16/512 bound?",
+  "registered_at": "2026-10-06T01:08:24.656902+00:00",
+  "run": "0bb1ea1f-cf9d-40f8-8747-1988cf4960c8",
+  "source_head": "333a0a440bd25f146fc4c10357f7ab276c231c8b",
+  "status": "actual-owned-depth17-refusal-before-any-gui-action",
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.471221368003171,
+    "diagnostic": {
+      "bounds_unchanged": true,
+      "depth": 17,
+      "depth_allowed": false,
+      "expected_own_pid": 1086265,
+      "node_pid_error_class": null,
+      "node_type_module": "gi.overrides.Atspi",
+      "node_type_name": "Accessible",
+      "observed_node_pid": 1086265,
+      "original_own_startticks": 27355707,
+      "output_count": 20,
+      "output_count_allowed": true,
+      "recorded_before_same_guard": true,
+      "stack_count_after_pop": 5
+    },
+    "health_pass": true,
+    "original_controller_children_desktop_reaped_and_absent": true,
+    "owned_socket_and_mount_absence": true,
+    "all_477_source_pins_unchanged": true,
+    "actions": [],
+    "import_rpc_count": 0,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_walk_diagnostic_v6.py",
+          "function": "main",
+          "line": 562
+        },
+        {
+          "file": "chooser_walk_diagnostic_v6.py",
+          "function": "run",
+          "line": 342
+        },
+        {
+          "file": "chooser_walk_diagnostic_v6.py",
+          "function": "walk",
+          "line": 256
+        },
+        {
+          "file": "chooser_walk_diagnostic_v6.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "independent_audit_sha256": "5f746ed46d280d43b054cab9bce31fa0ccde351526abf34e8e00789e9959302e",
+    "cloud_mutated": false,
+    "installed_actions": false
+  },
+  "inspection_corrections": [
+    "Root first invocation rejected a literal PLACEHOLDER digest before any manifest, process or clock; all future paths were absent. The corrected prepared digest dispatched exactly one actual diagnostic run.",
+    "Independent audit V1 compared sourcepin dictionaries including an extra relative field and incorrectly flagged inequality. Retained V2 corrects only comparison of path/size/SHA; no rerun or changed product observation."
+  ],
+  "next_action": "A fresh bounded traversal successor, depth64 with node512/child512 and all original owner/deadline checks; pure baseline desiredRED and seven corrected controls are recorded separately."
+}

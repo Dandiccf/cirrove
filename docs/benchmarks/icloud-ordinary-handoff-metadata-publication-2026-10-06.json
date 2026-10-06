@@ -1,0 +1,424 @@
+{
+  "arms": [
+    {
+      "command": [
+        "/home/dandiccf/.cargo/bin/cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--lib",
+        "--locked",
+        "--message-format=json-render-diagnostics",
+        "confirmed_ordinary_handoff_retires_only_after_old_metadata_moves_to_backup",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "expected_exit": 101,
+      "expected_tests": 1,
+      "name": "baseline333",
+      "phase": "root-ordinary-handoff-metadata-baseline-red-v1"
+    },
+    {
+      "name": "corrected_same_positive_and_history_controls",
+      "status": "not-registered-until-reviewed-source-ready"
+    }
+  ],
+  "baseline_evidence": {
+    "actual_tests_executed": 1,
+    "audit_sha256": "c4fccc4db97a018daec290588edfe7aaae460ef08f668f6172544068ef1e68a3",
+    "compiler_test_elf_sha256": "de06a0656cb9f0e68221eeb088e706c23cf67f59e2fa7a45e1fa8a30cc86c528",
+    "desired_endpoint": "sole-B original-parent listing after confirmed ordinary handoff and successful maintenance retirement",
+    "phase": "root-ordinary-handoff-metadata-baseline-red-v1",
+    "result": {
+      "cloud_mutated": false,
+      "duration_seconds": 12.553908836038318,
+      "exit_code": 101,
+      "installed_actions": false,
+      "log_sha256": "e758bd4664d0d2d0ce199ce2790196c151338fee2e5714957ed32d5e3a044260",
+      "sources_unchanged": true
+    },
+    "setup_or_compile_failure": false
+  },
+  "execution_policy": {
+    "SQLITE_TMPDIR_filesystem": "ext4",
+    "TMPDIR_filesystem": "ext4",
+    "cloud_mutations": false,
+    "installed_actions": false,
+    "one_runtime_compile_lane": true,
+    "retained_private_fixture": true,
+    "synthetic_fixtures_only": true
+  },
+  "full_icloud_gate_closed": false,
+  "known_draft_correction": {
+    "draft_not_applied": true,
+    "independent_reviews_identified_successor_gap": true,
+    "v2_latest_only_eligibility_incomplete": true
+  },
+  "prediction": "Unchanged333 fails the genuine maintain sole-B endpoint; a corrected bounded durable receipt path must pass the same endpoint plus advanced-head/reopen/idempotence/authority/observation controls.",
+  "question": "Can durable per-receipt publication eliminate stale old identity after ordinary iCloud handoff across retirement and later saves, relocates or deletion, without rewriting newer observations or completed cursors?",
+  "registered_at": "2026-10-06T01:03:21.383446+00:00",
+  "source_head": "333a0a440bd25f146fc4c10357f7ab276c231c8b",
+  "status": "two-desired-baseline-reds-eleven-focused-green-complete-final-fullcheck-pass-live-remount-pending",
+  "corrected_arm_registration": {
+    "phase": "root-ordinary-handoff-metadata-first-green-v1",
+    "registered_at": "2026-10-06T01:18:49.656251+00:00",
+    "registration_sha256": "9b9f8687269d5c0e7dcaec82ca3a13cea4595cfab0c89e2063ca436ecb46d323",
+    "production_patch_sha256": "64b24c17b03fb48a5104cbf06b9a5211842898b7407bb5a2d2d0bf148668fe53",
+    "canonical_source_count": 477,
+    "journal_schema": 20,
+    "installed_policy": "HOLD; no installed migrations or service changes",
+    "prediction": "Exact same previously failing existing-API test now reaches sole B listing, backup oldID CAS and delayed observation refusal after durable ordinary publication. Any error is retained; no real provider calls."
+  },
+  "correction_attempts": [
+    {
+      "phase": "root-ordinary-handoff-metadata-first-green-v1",
+      "result": {
+        "exit_code": 101,
+        "duration_seconds": 6.168634579982609,
+        "sources_unchanged": true,
+        "log_sha256": "21f46fecfa78cfc14208dde1461a33b3a42a8d16872e002ac15afc19d1ccc742",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "test_executed": false,
+      "failure": "Compiler E0277: SQLite FromSql lacks u64; two tuple fields fixed to i64 and unsigned sequence is checked explicitly."
+    },
+    {
+      "phase": "root-ordinary-handoff-metadata-history-controls-v1",
+      "result": {
+        "exit_code": 101,
+        "duration_seconds": 7.576688777015079,
+        "sources_unchanged": true,
+        "log_sha256": "c73ac762cda4981842bab5fe27d948a80b488ac7080249120dd1ca8f827e7297",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "test_executed": false,
+      "failure": "Compiler E0369: retained WorkingFile and NamespaceObject lack PartialEq; full-object test equality corrected to serde_json::to_value without changing production types."
+    }
+  ],
+  "checked_sequence_arm_registration": {
+    "phase": "root-ordinary-handoff-metadata-checked-sequence-green-v1",
+    "registered_at": "2026-10-06T01:20:09.068996+00:00",
+    "registration_sha256": "242186a066ea7aea973c63038024e9a7564ff604993f86d7a326346abffcc16c",
+    "prediction": "Same actual baseline endpoint reaches sole B and delayed-old refusal after SQLite signed sequence types and checked unsigned conversion compile correction. No provider replay."
+  },
+  "corrected_regression": {
+    "exit_code": 0,
+    "duration_seconds": 42.6852213019738,
+    "sources_unchanged": true,
+    "log_sha256": "fba8c1834520c6a7c5769d0013df49a1ea31c2fe6d76201c5aa1663871259cfe",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "artifacts": [
+      {
+        "target": "cirrove_service",
+        "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "size": 575665784,
+        "sha256": "f817547d59e639f5f71fb0f8bb84b23cba46fc6f2b3e95d7ba207ec11d3dab8d",
+        "fresh": false,
+        "test": true
+      }
+    ],
+    "executed_tests": 1,
+    "filtered_tests": 521,
+    "baseline_test_body_unchanged": true,
+    "validated_endpoint": [
+      "Typed ordinary handoff remains Uploaded and cleanup retires its exact current owner",
+      "Only new B remains under original parent/name",
+      "Old exact scoped A metadata now equals validated backup",
+      "Completed feed cursor unchanged",
+      "Delayed pre-publication old item observation superseded",
+      "Zero provider reads/writes in this fixture"
+    ],
+    "unproven": [
+      "Successor/history/unlink durability and ROstartup controls",
+      "Full project check on corrected final source",
+      "Fresh owned cloud two-save and ROremount",
+      "Installed schema migration and full native iWork application acceptance"
+    ]
+  },
+  "follow_on_controls_registration": {
+    "phase": "root-ordinary-handoff-metadata-history-controls-v1",
+    "registered_at": "2026-10-06T01:23:52.111886+00:00",
+    "registration_sha256": "0788c49841100b82a726e7b5ec3da12a1cd9b71acef29865cb47f09e3e57f8e1",
+    "expected_tests": 10,
+    "test_names": [
+      "ordinary_handoff_history_survives_next_sealed_save_and_newer_dirty_bytes",
+      "ordinary_handoff_history_survives_completed_relocate_and_unlink",
+      "ordinary_handoff_ro_startup_repairs_history_without_reconciling_uploads",
+      "ordinary_handoff_restart_repairs_before_and_after_store_commit_idempotently",
+      "ordinary_handoff_metadata_preserves_newer_observations_and_absence",
+      "ordinary_handoff_queue_rejects_corruption_and_defers_a_bad_head_without_acknowledging_it",
+      "ordinary_handoff_engine_scope_refuses_foreign_provider_before_store_or_read",
+      "ordinary_handoff_later_complete_listing_supersedes_old_absence",
+      "ordinary_handoff_legacy_missing_capture_is_not_backfilled_on_reopen"
+    ],
+    "arms": {
+      "external_arms": 6,
+      "namespace_successor_arms": 2,
+      "restart_boundaries": 2,
+      "integrity_arms": 16,
+      "bad_head_arms": 1,
+      "complete_directory_arms": 2,
+      "engine_scope_arms": 1,
+      "legacy_missing_capture_arms": 1
+    },
+    "prediction": "All ten exact ordinary-handoff tests pass: original sensitivity endpoint plus later save/dirty bytes, relocate/unlink, actual RO Engine startup without Uploading successor reconciliation, Store-commit restart/idempotence, newer metadata/cursor and bad receipt/foreign scope/refusal/backoff controls. No provider replay or installed mutation.",
+    "source_count": 477,
+    "new_test_baseline_sensitivity_claimed": false
+  },
+  "follow_on_controls_serde_registration": {
+    "phase": "root-ordinary-handoff-metadata-history-controls-serde-v1",
+    "registered_at": "2026-10-06T01:25:25.842429+00:00",
+    "registration_sha256": "1f8feb15385051364f9fe0f334e988a425f83f8337a769b4b1c1c235263f995f",
+    "expected_tests": 10,
+    "prediction": "All ten exact ordinary-handoff tests pass: original sensitivity endpoint plus later save/dirty bytes, relocate/unlink, actual RO Engine startup without Uploading successor reconciliation, Store-commit restart/idempotence, newer metadata/cursor and bad receipt/foreign scope/refusal/backoff controls. No provider replay or installed mutation. WorkingFile and NamespaceObject exact equality uses their full serde representation; no production PartialEq changes."
+  },
+  "follow_on_controls_result": {
+    "exit_code": 0,
+    "duration_seconds": 16.13587895600358,
+    "sources_unchanged": true,
+    "log_sha256": "2b976463256b75fa6465895df952333e414ecdd6a8c5d64ff143edba614a382e",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "artifacts": [
+      {
+        "target": "cirrove_service",
+        "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+        "size": 576384160,
+        "sha256": "97fa1117b61854c1a21b964a53acb2ad5b3b168657d6a4569fea93b8223ac9b2",
+        "fresh": false,
+        "test": true
+      }
+    ],
+    "executed_tests": 10,
+    "filtered_tests": 521,
+    "old_baseline_sensitivity_tests": 1,
+    "new_follow_on_tests": 9,
+    "synthetic_only": true,
+    "provider_counter_scope": "Fixture node reads only; no WriteProvider or real cloud session exists in these tests.",
+    "current_correction_after_focused_run": "Writable retry now starts at completion time, matching read-only repair, so a slow read does not consume the delay; covered by upcoming final full check."
+  },
+  "full_check_registration": {
+    "phase": "root-ordinary-handoff-metadata-fullcheck-v1",
+    "registered_at": "2026-10-06T01:27:37.482073+00:00",
+    "command": "scripts/check.sh",
+    "fast": false,
+    "prediction": "Full formatting/Clippy/workspace/feature/kernel/script/docs/ledger check passes unchanged sources. No native app, live cloud remount or installed migration is proven by this check.",
+    "canonical_source_count": 477,
+    "total_pinned_source_paths": 534,
+    "journal_schema": 20,
+    "metadata_schema": 8,
+    "cloud_mutations": false,
+    "installed_actions": false
+  },
+  "independent_static_audits": {
+    "metadata_v6_sha256": "7c774169aad29b65d7fd187b1aa6a7514269fd91902ed15c82e5c505151def5e",
+    "checked_sequence_correction_annex_sha256": "08cf7f6ef9c31771701622c5eebb5a525790ed24430c4498b583875a05f1a587",
+    "controls_correction_terminal_annex_sha256": "412ce0c97704239b1ba1983cf93d1da5226ae0d439b046b99688c856b5875d65"
+  },
+  "full_check_attempts": [
+    {
+      "phase": "root-ordinary-handoff-metadata-fullcheck-v1",
+      "result": {
+        "exit_code": 101,
+        "duration_seconds": 9.145298838964663,
+        "sources_unchanged": true,
+        "log_sha256": "fa858937ff108dd9eb4bb771b00e42c05d119e6ffdf254c86a96d3d0d23a969e",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "completed": false,
+      "failure": "Clippy large_enum_variant: inline captured Node increased UploadRecord. Corrected to Option<Box<Node>> without changing serialized proof or boxing unrelated operations."
+    },
+    {
+      "phase": "root-ordinary-handoff-metadata-boxed-fullcheck-v1",
+      "result": {
+        "exit_code": 101,
+        "duration_seconds": 153.87479725194862,
+        "sources_unchanged": true,
+        "log_sha256": "139663f52f0386c8b39457ec86387f3e8cf58f4f9dc49981f30636a7036f6b26",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "completed": false,
+      "failure": "Workspace native schema17 migration test still expected19 instead of current20;501 service tests passed,1 failed,29 ignored. Systematic compatibility correction updates nine current assertions, seven unsupported future fences to21 and two current producer fields; no production guard is relaxed."
+    },
+    {
+      "phase": "root-ordinary-handoff-metadata-schema-compat-fullcheck-v1",
+      "result": {
+        "exit_code": 0,
+        "duration_seconds": 662.2279191660346,
+        "sources_unchanged": true,
+        "log_sha256": "baf7e8ea802f23743f03df7c6ace465ca7840b3c6192bf672d95df6508b89e4f",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "completed": true,
+      "boundary": "PASS for this checked source only; newly found effective-read-only Manager startup gap requires its own baseline, correction and a new full check."
+    },
+    {
+      "phase": "root-ordinary-handoff-effective-readonly-fullcheck-v1",
+      "result": {
+        "exit_code": 101,
+        "duration_seconds": 9.484036614012439,
+        "sources_unchanged": true,
+        "log_sha256": "fb1c712f8223f86c331af574b8929fde4f174e9236ae06227a978b3bb158c687",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "completed": false,
+      "failure": "Clippy unwrap_used in new fixture setup only. Replace Option unwrap with descriptive anyhow Context; production and the desired exact-backup endpoint are unchanged. The previously executed baseline RED and corrected GREEN used byte-identical test bodies; this subsequent setup-only lint correction changes the final test hash."
+    },
+    {
+      "phase": "root-ordinary-handoff-effective-readonly-context-fullcheck-v1",
+      "result": {
+        "exit_code": 0,
+        "duration_seconds": 644.8667800939875,
+        "sources_unchanged": true,
+        "log_sha256": "f6e470a4680f47b54be6c095f6d15e687c6fd49a39cf20a095740f4a6815bfb8",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "completed": true,
+      "boundary": "Final checked production and fixture Context correction pass all mandatory stages, including kernel mounts; desktop display scenarios and actual cloud remount are separate. All six full-iCloud acceptance rows remain open."
+    }
+  ],
+  "boxed_full_check_registration": {
+    "phase": "root-ordinary-handoff-metadata-boxed-fullcheck-v1",
+    "registered_at": "2026-10-06T01:29:21.140996+00:00",
+    "command": "scripts/check.sh",
+    "fast": false,
+    "prediction": "Full formatting/Clippy/workspace/feature/kernel/script/docs/ledger check passes unchanged sources. No native app, live cloud remount or installed migration is proven by this check. Captured original uses Box<Node> to avoid growing the Operation enum; serialized receipt is unchanged.",
+    "total_pinned_source_paths": 534
+  },
+  "schema_compat_full_check_registration": {
+    "phase": "root-ordinary-handoff-metadata-schema-compat-fullcheck-v1",
+    "registered_at": "2026-10-06T01:34:35.611087+00:00",
+    "command": "scripts/check.sh",
+    "fast": false,
+    "prediction": "Full formatting/Clippy/workspace/feature/kernel/script/docs/ledger check passes unchanged sources. No native app, live cloud remount or installed migration is proven by this check. Captured original uses Box<Node> to avoid growing the Operation enum; serialized receipt is unchanged. Existing current-version migration assertions expect20; unsupported future-version fences remain active at21, and derived producer reports compiled current schema.",
+    "total_pinned_source_paths": 534
+  },
+  "independent_full_check_terminal_audit": {
+    "private_relative": "ordinary-handoff-metadata-publication-private-v6/audit-admission-schema20-fullcheck-terminal-installed-v1.json",
+    "sha256": "ccc036229e59e9a22a8d00e5c00eabb2180b637145cbe064ee158d6df64f69e4",
+    "source_pins_match": 534,
+    "docs_before_run_match": 21,
+    "installed_files_unchanged": 19,
+    "service_pid_birth_unchanged": true,
+    "home_shadow_absent": true
+  },
+  "effective_readonly_registration": {
+    "phase": "root-ordinary-handoff-effective-readonly-baseline-red-v1",
+    "registration_sha256": "eccc86ad7d5fa213d00320bfc47e9512efb79a7f1bac496f638fc44428b993d8",
+    "command": [
+      "/home/dandiccf/.cargo/bin/cargo",
+      "test",
+      "-p",
+      "cirrove-service",
+      "--lib",
+      "--locked",
+      "--message-format=json-render-diagnostics",
+      "manager::retained_status_tests::ordinary_handoff_effective_readonly_manager_repairs_with_readwrite_grant",
+      "--",
+      "--exact",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "expected_selected_tests": 1,
+    "baseline_prediction": "Exactly one desired assertion failure: after Manager cancellation/join and retained uploads/settings/payload preservation, old A lookup still differs from the exact receipt backup. Corrected same test must pass; this nonempty-mount-sentinel fixture does not prove successful kernel mounting.",
+    "corrected_prediction": "The identical supported-API fixture repairs A to exact backup, leaves only B in root and marks job done, without altering configured ReadWrite grant, upload rows or immutable payloads.",
+    "remount_boundary": "Manager remount uses the same mode-dependent starter; this fixture tests startup only.",
+    "kernel_boundary": "Nonempty sentinel refuses before FUSE; no successful mounted session is claimed.",
+    "cloud_mutations": false,
+    "installed_actions": false
+  },
+  "effective_readonly_baseline": {
+    "phase": "root-ordinary-handoff-effective-readonly-baseline-red-v1",
+    "result": {
+      "exit_code": 101,
+      "duration_seconds": 12.200233720010146,
+      "sources_unchanged": true,
+      "log_sha256": "95915f8a5e249e90cfd848e985f68ec8498a4efa28f0b2e607cd6e680d640a63",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "selected_tests": 1,
+    "passed": 0,
+    "failed": 1,
+    "filtered_out": 531,
+    "desired_endpoint": "Exact original-A lookup still at root instead of typed receipt backup, after preservation checks and actual Manager cancel/join.",
+    "compile_failure": false,
+    "baseline_executable_sha256": "b4668ec445099174a049b4f3f70f145ff2b69b6bdd68728e65d2975fc95e464b"
+  },
+  "effective_readonly_corrected_registration": {
+    "phase": "root-ordinary-handoff-effective-readonly-green-v1",
+    "registration_sha256": "be8a2057ed4b7f9ed7a7d3f3446d733ae2816ebd6590e3ceb5cb1cb0cdb852c0",
+    "test_body_unchanged": true,
+    "expected_selected_tests": 1,
+    "prediction": "The identical real Manager public startup fixture passes its previously failing exact-A-backup endpoint, sole-B listing and durable job-done endpoint; configured ReadWrite and Uploading successor/settings/working/object payloads are unchanged. Startup with retained mount sentinel only, not kernel or real-provider acceptance.",
+    "independent_static_audit_sha256": "d023d61e6e8165096e64f11cbcb0a73d4888ebfa40c258439d227453506f847e"
+  },
+  "effective_readonly_corrected_result": {
+    "phase": "root-ordinary-handoff-effective-readonly-green-v1",
+    "result": {
+      "exit_code": 0,
+      "duration_seconds": 23.549772307975218,
+      "sources_unchanged": true,
+      "log_sha256": "0c651d64f10bfe4a522cea496de72ad26f01af37887dfba5088e41b7539553cc",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove_service",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+          "size": 576453056,
+          "sha256": "3bb05497a3998583aa6661f047453b46bad24e28615653f5c19aba7e3dbece69",
+          "fresh": false,
+          "test": true
+        }
+      ]
+    },
+    "passed": 1,
+    "failed": 0,
+    "filtered_out": 531,
+    "test_body_unchanged_from_desired_baseline_red": true,
+    "kernel_mount_proven": false,
+    "manager_remount_route_statically_reviewed_only": true
+  },
+  "effective_readonly_full_check_registration": {
+    "phase": "root-ordinary-handoff-effective-readonly-fullcheck-v1",
+    "command": [
+      "/home/dandiccf/Work/cirrove/scripts/check.sh"
+    ],
+    "source_pin_count": 534,
+    "canonical_rust_cargo_source_count": 477,
+    "full_check_fast": false,
+    "expected_duration_seconds": 1200,
+    "prediction": "Complete mandatory check passes current durable metadata schema20 source and final effective-read-only Manager launch/remount wiring. Both desired baseline failures and eleven focused passes are retained; installed daemon untouched and all six full-iCloud acceptance rows remain open. No new cloud or successful live remount claim."
+  },
+  "effective_readonly_context_full_check_registration": {
+    "phase": "root-ordinary-handoff-effective-readonly-context-fullcheck-v1",
+    "command": [
+      "/home/dandiccf/Work/cirrove/scripts/check.sh"
+    ],
+    "full_check_fast": false,
+    "source_pin_count": 534,
+    "canonical_rust_cargo_source_count": 477,
+    "prediction": "Complete check passes after replacing the fixture-only Option unwrap with descriptive Context. No production behavior or desired baseline endpoint changed; all six full-iCloud rows stay open."
+  },
+  "final_full_check_terminal_audit": {
+    "private_relative": "ordinary-handoff-effective-readonly-private-v1/audit-admission-context-fullcheck-terminal-installed-v1.json",
+    "sha256": "5ee8468ae380888094b29ac76b78562c181852d44d68856b5cdd91025917cbdc",
+    "source_pins_match": 534,
+    "docs_before_run_match": 21,
+    "installed_files_unchanged": 19,
+    "service_pid_birth_unchanged": true,
+    "home_shadow_absent": true
+  },
+  "effective_readonly_canonical_terminal_audit_sha256": "a7badc9b23ce188fe57bc168b764c5cb40a9299097a7530ba59f500fd7328642",
+  "fixture_context_lint_correction_audit_sha256": "ac6f7064a9ddee9c80b40b95dd35f89b801a4be13db1b3d00d84a780bdc5b1db"
+}

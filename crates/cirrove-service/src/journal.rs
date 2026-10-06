@@ -46,8 +46,10 @@ pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
 use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use cirrove_core::{Node, NodeKind, Scope};
-pub(crate) const JOURNAL_SCHEMA: u32 = 19;
+pub(crate) const JOURNAL_SCHEMA: u32 = 20;
+pub(crate) use export::MetadataPublicationJournal;
 pub use generations::{UploadBase, WriteBase};
+pub(crate) use identity_handoff::OrdinaryHandoffMetadata;
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;
 pub use namespace::{
@@ -386,6 +388,7 @@ impl UploadJournal {
         directories::migrate(&mut db, version)?;
         representation::migrate(&mut db, version)?;
         package_publication::migrate(&mut db)?;
+        identity_handoff::migrate_metadata_publication(&mut db)?;
         native_trash_publication::migrate(&mut db)?;
         native_replacement_list::migrate(&db)?;
         native_import_list::migrate(&db)?;
@@ -871,6 +874,7 @@ impl UploadJournal {
         {
             if record.identity_handoff.is_some() {
                 identity_handoff::confirm(&tx, record, remote)?;
+                identity_handoff::enqueue_metadata_publication(&tx, record)?;
                 working::native::successors::acknowledge(&tx, record)?;
             } else if !replacements::confirm(&tx, record.id, record.sequence, remote)? {
                 namespace::confirm(&tx, record.id, record.sequence, remote)?;
