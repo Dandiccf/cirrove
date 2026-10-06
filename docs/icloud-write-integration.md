@@ -3351,3 +3351,47 @@ remained unchanged. No cloud write or automatic remount retry occurred. The next
 controlled arm will place strict remount verification before opening Apple Numbers;
 it must use a new owned subject and a fresh preregistered window. Five remaining
 full-integration criteria and installed delivery stay open.
+
+### Fresh replacement and full read-only remount before Apple opening
+
+The [first new subject](benchmarks/icloud-native-final-remount-before-apple-2026-10-06.json)
+imported and independently verified its own original, then stopped before B
+replacement. The private harness supplied a full UUID temporary path where the
+production feature adapter requires the first eight characters. Static review
+had missed that contract mismatch. The failed arm is retained; its remount was
+never dispatched and no automatic replay occurred.
+
+A [separately registered corrected subject](benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json)
+used the proven harness with only its fresh run identity changed. It closed in
+351.39 seconds: genuine edited B replaced its owned A, the controlled process
+exit occurred before the final local confirmation, and the same operation
+recovered through one inspection without upload, reconciliation or namespace
+replay. Independent postflight verified the full new B and original A in Trash.
+The original handles were reaped and the owned mount/socket closed.
+
+Only after that successful subject closed, a
+[separate normal read-only mount](benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json)
+started from a derived copy of its state and closed successfully in 12.897 seconds.
+Canonical lookup selected only the exact receipt-bound B at the original name;
+the exact A backup metadata remained in Trash. Mounted capture and independent
+offline scanning matched B's full semantic V2 identity: 46 entries, 42 files and
+133,252 expanded bytes, including all three previews. Independent retained audits
+passed both arms; the read-only audit passed all 16 checks.
+
+No Apple application opening preceded this endpoint. The original closed state,
+completed transfer rows, runtime source pins, all 19 installed files, unit and
+daemon identity remained unchanged. This arm made no provider write and no new
+Trash-content read; full original content preservation comes from the separate
+native postflight. The earlier revision-drift failure remains failed and no
+reference was relaxed. This closes the bounded semantic remount question, not
+native Linux editor saves, broad format fidelity, installed delivery or any
+additional full-integration release row.
+
+The [separate Apple Numbers check](benchmarks/icloud-native-final-apple-after-remount-2026-10-06.json)
+then opened that exact fresh B using its identity-bound route. It displayed
+17/3/20 and `SUM(A2:B2)` and retained both after one reload, without cell edits or
+a repair dialog. The owned test tab closed within its own original window.
+Installed file hashes, unit and daemon identity were checked again afterward
+and remained unchanged. Application fidelity for this fixture is confirmed;
+provider serialization after Apple opening and broader native editing are not
+claimed by this arm.

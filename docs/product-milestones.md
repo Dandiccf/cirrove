@@ -534,3 +534,11 @@ inspection without replay, independent reads verified new B and original A in
 Trash, and Apple Numbers preserved the edited values and SUM formula after
 reload. This is supporting evidence for the native replacement row, which
 remains open for its broader editing, removal, conflict and release requirements.
+
+A [separate fresh replacement](benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json)
+also passed genuine B process-loss recovery and independent current/Trash proof.
+Its [normal read-only remount](benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json)
+subsequently returned the exact complete B semantic tree, including all 42 files
+and three previews, before any Apple opening. This supports the bounded replacement
+and remount behavior; it does not close the broader row or the five remaining
+full-iCloud release gates. Installed delivery remains held.

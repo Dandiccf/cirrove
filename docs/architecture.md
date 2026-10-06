@@ -1403,8 +1403,12 @@ historical operation separately. Schema-20 handling and ordinary legacy receipts
 without a captured original keep their existing limits. Local regression evidence
 is recorded in the [native metadata publication trial](benchmarks/icloud-native-package-backup-publication-2026-10-06.json);
 A fresh live read-only startup also repaired completed native history; its mount
-capture refused a newer provider revision. Complete semantic remount and installed
-acceptance remain separate checks.
+capture refused a newer provider revision. A separately registered fresh replacement
+then passed recovery and independent current/Trash proofs. Its
+[normal read-only remount](benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json)
+returned the exact complete B content tree before Apple opening, with the original
+state and transfer rows preserved. This is bounded live evidence for the metadata
+handoff and semantic remount; installed acceptance remains separate.
 
 ## Explicit flat Numbers source archives
 

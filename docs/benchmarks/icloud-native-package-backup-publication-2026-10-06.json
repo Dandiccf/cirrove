@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-06",
-  "status": "local_fullcheck_passed_live_metadata_backfill_passed_strict_remount_refused_new_revision",
+  "status": "local_fullcheck_passed_fresh_native_recovery_and_full_semantic_normal_readonly_remount_passed",
   "question": "Does completed native replacement publication relocate the exact original item to its receipt-bound Trash backup and expose only new B at the old name, including journal reopen and completed read-only restart, while preserving newer metadata and transfer state?",
   "prediction": "Existing native publication refreshes only B and leaves cached original A at its original parent/name; desired normal/reopened-journal assertions fail. Receipt-bound metadata relocation and narrowly allowed read-only completed-state repair should converge without name deletion, mutation replay or feed-cursor change.",
   "arms": [
@@ -184,7 +184,7 @@
     "Native same-proof completion idempotent under racing callbacks; ordinary serialized job shape and transfer rows unchanged"
   ],
   "fresh_readonly_acceptance": "icloud-native-package-readonly-backfill-2026-10-06.json",
-  "remaining_local_review": "Original Native3, Store8 and Journal3 controls and entire mandatory fullcheck passed. Fresh37b actual read-only startup repaired the completed history and selected sole B with A in Trash; capture refused a newer current revision. Full semantic remount and installed acceptance remain open.",
+  "remaining_local_review": "Entire mandatory fullcheck and original Native3/Store8/Journal3 controls passed. Earlier37b startup metadata repair passed but capture refused a newer revision; arm remains failed. Fresh a643 recovery/current B/Trash A full proofs and separate a785 normal read-only full B semantics before Apple opening passed. Separate Apple Numbers open/reload retained17/3/20 and SUM(A2:B2), zero edits. Five full-integration release gates and installed acceptance stay open; delivery HOLD.",
   "initial_fullcheck": {
     "exit_code": 101,
     "elapsed_seconds": 172.66185070300708,
@@ -254,5 +254,8 @@
     "coverage": "Formatting, Clippy, workspace and required feature/kernel groups, script tests, acceptance ledger and documentation completed in the same command; desktop display scenarios remain outside this command."
   },
   "full_integration_accepted": false,
-  "remaining_release_gates": 5
+  "remaining_release_gates": 5,
+  "fresh_native_acceptance": "icloud-native-final-remount-before-apple-corrected-2026-10-06.json",
+  "fresh_full_semantic_readonly_acceptance": "icloud-native-package-readonly-remount-before-apple-2026-10-06.json",
+  "separate_Apple_acceptance": "icloud-native-final-apple-after-remount-2026-10-06.json"
 }

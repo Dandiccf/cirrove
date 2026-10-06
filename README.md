@@ -335,9 +335,16 @@ Trash. A [local correction](docs/benchmarks/icloud-native-package-backup-publica
 now passes the normal-completion, reopened-journal and read-only-startup regressions;
 a fresh read-only startup also repaired the completed live history and selected
 only new B with original A in Trash. Its [capture trial](docs/benchmarks/icloud-native-package-readonly-backfill-2026-10-06.json)
-then refused a newer iCloud revision, preserving the exact reference check; full
-semantic remount acceptance remains open. This is one bounded
-development case; it does not establish native Linux editor saves, all iWork
+then refused a newer iCloud revision, preserving the exact reference check.
+A [fresh separately registered replacement](docs/benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json)
+subsequently passed the same recovery and independent current/Trash checks. Its
+[normal read-only remount](docs/benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json)
+then preserved the complete new content tree, including all 42 files and the
+three previews, before any Apple application opening. The earlier failed arms
+remain recorded. [Apple Numbers subsequently opened this new document](docs/benchmarks/icloud-native-final-apple-after-remount-2026-10-06.json)
+and retained 17/3/20 and `SUM(A2:B2)` after reload, with no cell edits or repair
+dialog. This closes that bounded semantic remount check; it does not
+establish native Linux editor saves, all iWork
 formats or sustained reliability.
 
 These are bounded development results. **Full iCloud support is still open:**
