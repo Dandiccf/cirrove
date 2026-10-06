@@ -82,7 +82,10 @@ Native iWork editing and five full-integration acceptance areas remain open.
 A [new local crash-recovery test](docs/benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json)
 also confirms that standalone native-document removal can recover the same
 operation after process loss without sending another Trash request to its TLS
-fixture. Its separate real-iCloud acceptance test is still being prepared.
+fixture. Separate live removal acceptance remains open: the
+[latest attempt](docs/benchmarks/icloud-native-trash-numbers-receipt-loss-attempt2-2026-10-06.json)
+created its own test folder, then stopped during import admission before any
+document upload was queued or any removal was submitted.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to

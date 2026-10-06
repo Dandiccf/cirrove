@@ -3464,8 +3464,8 @@ controls passed. A separate saved-session-only collector now acquires fresh
 typed parent/document metadata, verifies the exact PACKAGE content and fences
 metadata, settings, source and the original deadline again before exporting
 its proof. All three collector admission controls passed. Actual fresh typed
-provider metadata, new executable bindings and a
-complete overall check remain prerequisites for real-account dispatch. The
+provider metadata remains a live endpoint; new executable bindings and a
+complete overall check were required before real-account dispatch. The
 first overall check that reached script smoke tests stopped because its disk
 temporary path exceeded the Linux UNIX-socket length limit; the unchanged-source
 failed result remains recorded. This work closes no additional release gate and
@@ -3476,4 +3476,76 @@ seconds under the shorter ext4 temporary path, with all 561 registered
 runtime/source/fixture/script pins unchanged. Its original process handle was
 reaped and absent. Formatting, Clippy, workspace and required feature tests,
 actual kernel/FUSE scenarios, scripts, the ledger and documentation passed;
-display scenarios remain separate. Fresh real-account dispatch is still pending.
+display scenarios remain separate.
+
+The [first once-only real-account attempt](benchmarks/icloud-native-trash-numbers-receipt-loss-2026-10-06.json)
+then stopped at the private controller's startup status guard before folder
+creation, import or native Trash admission. No cloud-file mutation was
+dispatched; provider reads may have occurred and were not counted. The actual
+status operands were not retained, so an initially unpublished account vector
+is a source-supported explanation, not an observed cause. The original failed
+cleanup record is preserved: the daemon was killed after its short shutdown
+wait and left an owned mount. All original handles were reaped; Root separately
+verified and unmounted that exact dead mount, then verified all source and
+executable pins and the unchanged nineteen-file installed baseline. The
+[closed window](benchmarks/icloud-native-trash-numbers-receipt-loss-window-2026-10-06.json)
+records both outcomes. No receipt-loss, recovery, Trash-content or read-only
+remount endpoint was exercised, and the closed trial will not be replayed.
+
+The [source-selected startup controls](benchmarks/icloud-native-trash-controller-startup-2026-10-06.json)
+reproduced two controller defects on the old source: refusing the legitimate
+empty initial account list, and failing to capture an already-present owned
+mount/socket before a status refusal. Both controls failed on V4 and passed on
+V5; all seven V5 controls passed, including refusal of foreign scope, multiple
+accounts, a changed binary and a wrong protocol. These are pure Python controls
+with mocked process, socket and filesystem facts. They neither identify the
+unretained status operands from the live failure nor prove real daemon shutdown;
+late mount/socket publication during shutdown remains a separate controller
+frontier. Its subsequent desired V5 control failed, while the V6 successor
+passed that same control, all six closure controls and all seven startup
+controls. The first V6 fixture omitted a mocked `RUN` global and raised a
+NameError; that setup failure remains recorded alongside the corrected
+controls. No controller guard was relaxed and no daemon runtime proof is
+claimed from these pure controls.
+
+The [fresh successor real-account arm](benchmarks/icloud-native-trash-numbers-receipt-loss-attempt2-2026-10-06.json)
+ran for 43.39 seconds. Startup passed and one owned folder creation completed.
+It then stopped at the public import-job composite guard before any upload was
+enqueued. The raw journal retains exactly that Applied folder mutation and its
+completed queue entry, with zero uploads; no native Trash admission occurred.
+The normal daemon exited zero, the original import observer was stopped, all
+original handles were reaped, and the owned mount/socket were absent. All 561
+source pins, compiled and fresh role hashes and the nineteen-file installed
+baseline matched. The [closed successor window](benchmarks/icloud-native-trash-numbers-receipt-loss-attempt2-window-2026-10-06.json)
+preserves the actual failure and closure. Its owned test folder is retained.
+
+The status operands at refusal were not retained. Source review confirms that
+the guard accepts the valid initial Running job with the exact requested name,
+no issue and no durable operation yet. Pre-enqueue admission can fail without
+an upload row; the evidence does not establish which guard operand failed or
+which admission stage caused it. The diagnostic controller successor records only
+sanitized guard facts and fixed issue categories, preserving refusal and
+no-retry behavior. This arm closes no additional release criterion and is not
+automatically repeated.
+
+The diagnostic successor passed all three source-selected controls: the valid
+initial Running job is accepted, a failed admission remains refused after its
+sanitized snapshot, and untrusted issue/name text is omitted. Independent
+reviews also found a concrete difference from the previously successful parent
+admission: an Applied folder receipt can precede the namespace handoff.
+The successor waits for the exact owned operation/receipt/namespace binding,
+`follows_remote=true` and `latest=None` before the sole import submission. Its
+desired predecessor control failed; the same successor control and all five
+readiness controls passed. This justifies the added readiness fence without
+establishing the cause of the unobserved live refusal.
+The same selected readiness method also passed against the actual closed
+successor journal, returning true with its strict SQL/body/owner bindings.
+Database, WAL and SHM bytes remained unchanged. This later read-only snapshot
+does not establish readiness at the time of the original refusal.
+
+The complete documentation-successor `bash scripts/check.sh` passed in 556.16
+seconds, with all 561 runtime/source pins unchanged and its original handle
+reaped and absent. Implementation commit `670cb88` also passed all seven
+[GitHub CI jobs](https://github.com/Dandiccf/cirrove/actions/runs/37497027629).
+Neither result closes standalone real-iCloud removal acceptance or permits
+installed migration.
