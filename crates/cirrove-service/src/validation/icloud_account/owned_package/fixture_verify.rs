@@ -305,6 +305,9 @@ pub use editor_metadata::icloud_owned_editor_metadata;
 mod calc_metadata;
 pub use calc_metadata::icloud_owned_calc_metadata;
 
+mod calc_trash_original;
+pub use calc_trash_original::icloud_owned_calc_trash_original;
+
 mod editor_source;
 pub use editor_source::icloud_owned_editor_source_proof;
 

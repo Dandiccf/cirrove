@@ -66,16 +66,16 @@ filesystem operations have their own limits.
 A further bounded Numbers trial recovered a lost final replacement confirmation
 through inspection of the same operation, with no repeated cloud write, and
 independently verified the new document and the original in Trash. See the
-[iCloud validation record](docs/icloud-write-integration.md). Desktop import,
-real editor saves, broader session recovery and installed upgrades remain open.
+[iCloud validation record](docs/icloud-write-integration.md). Public Desktop iWork
+import, broader native editing, session recovery and installed upgrades remain open.
 A fresh Linux Calc trial completed the first save, all uploads and temporary-file
 and lock-file removal. Independent iCloud DATA readback matched the saved XLSX
 byte for byte. Calc then saved and reopened a second version locally, but its
 cloud confirmation remained unresolved during atomic replacement.
 Guarded corrections now pass synthetic same-directory and cross-directory
 replacement sequences, restart recovery and preservation of newer working bytes.
-The latest live trial again verified the first save, but exposed an additional
-ordering case: the editor can prepare replacement before iCloud acknowledges its
+The subsequent delayed-Create trial again verified the first save, but exposed
+an additional ordering case: the editor can prepare replacement before iCloud acknowledges its
 temporary file. That case now passes tests that first failed on the original code,
 with identity and receipt refusal controls. A subsequent [owned Calc trial](docs/benchmarks/icloud-calc-after-completed-cleanup-2026-10-06.json)
 independently verified both saved XLSX versions and completed every journal entry,
@@ -83,9 +83,15 @@ including temporary-file cleanup. Its read-only remount stopped at an attribute
 check; the retained index still contained the old and new identities under the
 same name. A durable publication queue now passes the reproduced stale-identity
 regression and synthetic successor/read-only restart checks, including startup
-with a writable grant but an effectively read-only connection. Fresh live remount
-acceptance remains open.
-XLSX results do not establish native iWork editing support.
+with a writable grant but an effectively read-only connection. A
+[fresh publication-corrected trial](docs/benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json)
+now passed both saves and independent DATA readbacks, completed all 15 journal
+entries, and captured the exact second XLSX through a distinct normal read-only
+remount. The cache held the original at its receipt-bound Trash identity and only
+the new version at the original name. All owned children were reaped and the
+installed daemon remained unchanged. This Calc arm has no independent original
+Trash-byte proof. Native iWork editing and the six full-integration gates remain
+unverified.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to

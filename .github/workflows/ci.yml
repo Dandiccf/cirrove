@@ -42,7 +42,7 @@ jobs:
       - name: Check the isolated iCloud write probe
         run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-write-probe --locked -- -D warnings
       - name: Check the feature-gated iCloud editor metadata CLI
-        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove --test owned_icloud_editor_metadata_cli --test owned_icloud_editor_source_proof_cli --test owned_account_snapshot --locked -- -D warnings
+        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove --test owned_icloud_editor_metadata_cli --test owned_icloud_editor_source_proof_cli --test owned_account_snapshot --test owned_icloud_calc_trash_original_cli --locked -- -D warnings
       - name: Check the isolated mounted iCloud write probe
         run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-mounted-write-probe --locked -- -D warnings
       - name: Credential round trip against a throwaway Secret Service
@@ -70,6 +70,8 @@ jobs:
         run: cargo test -p cirrove-service --features icloud-write-probe --lib validation::icloud_account --locked
       - name: iCloud editor metadata CLI refuses before state access
         run: cargo test -p cirrove-service --features icloud-write-probe --test owned_icloud_editor_metadata_cli --locked
+      - name: Calc Trash original CLI refuses before session access
+        run: cargo test -p cirrove-service --features icloud-write-probe --test owned_icloud_calc_trash_original_cli --locked
       - name: iCloud editor source proof CLI refuses without state access
         run: cargo test -p cirrove-service --features icloud-write-probe --test owned_icloud_editor_source_proof_cli --locked
       - name: Opaque stopped owned-account snapshot contracts

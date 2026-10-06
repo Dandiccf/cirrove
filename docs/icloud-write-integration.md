@@ -2502,7 +2502,8 @@ rejected deliberately corrupted digest metadata before the intended authority
 check. Reading the owned fixture's raw sealed bytes independently fixed that
 inspection; production remained unchanged, and the subsequent nine tests passed.
 These are local synthetic results. The retained cloud writer is not replayed,
-and a fresh real-provider two-save/remount trial remains necessary.
+and a fresh real-provider two-save/remount trial remained necessary at that point.
+The subsequent successful ordinary XLSX arm is recorded below.
 
 The complete `scripts/check.sh` then passed in 674.461 seconds, including every
 Clippy variant, workspace and feature tests, kernel FUSE scenarios, script checks,
@@ -2602,9 +2603,9 @@ selects A at 5,281 bytes, while the exact B receipt expects 5,611 bytes. Ordinar
 handoff acknowledgement commits the journal; its maintenance can retire B
 without publishing the old identity's confirmed Trash relocation to the index.
 This deterministic cache/source reproduction led to the controlled regression and
-durable exact-identity publication correction described below. A fresh live remount
-is still required. No save was repeated. All 13 original children were reaped, the owned mount and socket were
-closed, and the installed daemon and 19 packaged artifacts remained unchanged.
+durable exact-identity publication correction described below. That arm did not
+establish a fresh live remount. No save was repeated. All 13 original children
+were reaped, the owned mount and socket were closed, and the installed daemon and 19 packaged artifacts remained unchanged.
 
 A separate [bounded public chooser trial](benchmarks/icloud-pages-bounded-public-chooser-2026-10-06.json)
 passed isolated accessibility health and the exact chooser/Desktop ownership
@@ -2631,9 +2632,9 @@ later sealed/dirty saves, completed rename and unlink, normal read-only Engine
 startup with an unchanged Uploading successor, restart before/after Store commit,
 newer observations, scoped receipt refusal and corrupt-job backoff. These are
 synthetic checks. Two initial compile errors are retained separately from the
-single genuine failure-before-fix endpoint. Fresh owned cloud remount acceptance
-and all six full-iCloud requirements remain open. The current deployment hold is
-schema20/metadata8; the installed schema14 Canary daemon remains untouched.
+single genuine failure-before-fix endpoint. The subsequent owned cloud remount
+result is recorded below; all six full-iCloud requirements remain open. The
+current deployment hold is schema20/metadata8; the installed schema14 Canary daemon remains untouched.
 
 A further supported-API startup regression reproduced the same retained metadata
 problem when `Manager::start_with_provider` supplies no write factory, despite a
@@ -2645,7 +2646,46 @@ is startup coverage, not a successful kernel mount or remount. Initial launch an
 remount now select the same metadata-only task from the effective connection mode.
 The complete project check now passes this final correction in 644.87 seconds,
 with all 534 code/script/policy pins unchanged and kernel FUSE checks included.
-Desktop display scenarios and the actual cloud remount remain separate requirements.
+Desktop display scenarios remain separate; the actual owned cloud remount result
+is recorded next.
+
+### Actual Calc two-save DATA readback and read-only remount on 6 October 2026
+
+The [fresh metadata-publication arm](benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json)
+on `b078a414` completed once in 479.19 seconds within the original 600-second
+window and 45-second cleanup reserve. Calc stored and reopened A with 7/3/SUM=10,
+then the independent iCloud DATA verifier matched its 5,281-byte source and
+SHA-256. Only after that proof, one B save reopened 11/3/SUM=14. Its independent
+DATA readback matched the new 5,612-byte source. A distinct normal read-only
+remount then captured 5,612 bytes with the same B SHA-256,
+`309095700a7965e6e377c06d826766f0cacb54c6be6c06e32d69c2b5af8b4ca0`.
+
+All 15 queue entries completed: nine Uploaded operations and six Applied
+mutations, with zero failed attempts. The sealed temporary source, final target
+and temporary cleanup all completed. Three durable ordinary metadata jobs were
+done with no failures or backoff. The stopped cache held original A as the exact
+target receipt's 5,281-byte Trash backup; B was the sole identity at the original
+folder/name. That backup is A, distinct from the source handoff's prior empty
+temporary file. This is actual DATA and remount evidence for the correction,
+not a claim derived from synthetic tests.
+
+The original controller and all 13 owned children were reaped, the outer runner
+was gone, and mount/socket closure was independently checked. All 477 runtime
+source pins, 534 checked code/script/policy pins and four frozen roles remained
+unchanged. The installed daemon's unit, PID/birth and executable, plus all 19
+packaged files, stayed unchanged. No old writer was reopened or save repeated.
+
+The read-only audit used WAL-aware SQLite access for the stopped journal. Its
+DB, WAL and SHM byte hashes stayed unchanged, but SHM coordination advanced
+mtime/ctime; the audit therefore does not claim unchanged filesystem timestamps.
+Metadata used immutable read-only access only after confirming no WAL existed.
+The exact preregistration bytes were preserved and matched to the actual launch
+manifest before outcomes were appended.
+
+This is one bounded ordinary XLSX arm. Visible-window UNO checks record no human
+GUI witness. Independent original Trash raw bytes and restoration remain
+unverified; native iWork editing, public Desktop import, all six full-iCloud
+gates and the schema20/metadata8 installed-migration hold remain open.
 
 The [unchanged-bound desktop diagnostic](benchmarks/icloud-pages-accessibility-walk-diagnostic-2026-10-06.json)
 recorded an owned GTK node at depth17 with only 20 output nodes. After a controlled

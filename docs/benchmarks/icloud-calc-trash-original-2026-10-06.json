@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "status": "preregistered-not-dispatched",
+  "question": "Can a separate read-only observer verify the exact original XLSX bytes in iCloud Trash after the completed fresh Calc A/B save and read-only remount?",
+  "writer_run": "3df92c58-7185-4452-9647-94994ada2400",
+  "observer_run": "e5f343bc-4c48-4753-b7cb-114d30b0e3ce",
+  "prediction": "The completed target replacement receipt identifies the original A, not the distinct zero-byte source shadow. A new saved-session reader will find that exact Trash item and verify its 5281 bytes with SHA-256 3645854724d003f2a18ce55f2fc6f1b5a9e761598f5e9d8d93ee23b1c77b1dba.",
+  "arms": {
+    "synthetic_guards": {
+      "prediction": "Five new-feature unit tests and one CLI refusal test pass. Foreign identity, scope, revision, representation, source, unknown fields, elapsed window and duplicate attempt are refused.",
+      "cloud_requests": false,
+      "regression_before_fix_claim": false
+    },
+    "owned_provider_observation": {
+      "mutation_allowed": false,
+      "original_window_seconds": 90,
+      "cleanup_reserve_seconds": 20,
+      "automatic_retry": false,
+      "endpoint": "Exact completed target backup identity/revision and independent streamed original A size/digest, with metadata checked before and after; original child handle reaped within the registered window."
+    }
+  },
+  "prerequisites": [
+    "Actual stopped writer audit PASS and all original handles reaped; no writer reopen or mutation replay.",
+    "A fixture, independent A read receipt and full typed target upload record copied and digest-bound; original source bytes held unchanged.",
+    "A newly built feature-only observer bound to the actual source and complete scripts/check.sh result; no reuse of a CLI without this command.",
+    "Fresh private read-only settings and sealed saved session retaining the same account/credential identity; no other cloud client state or installed daemon change.",
+    "Disk-backed TMPDIR and SQLITE_TMPDIR, with no overlapping compile or measurement."
+  ],
+  "limits": [
+    "One owned ordinary XLSX observation; no general provider reliability or native iWork fidelity claim.",
+    "Trash presence and raw bytes do not prove restoration, restore destination or whole Trash inventory.",
+    "Synthetic guards validate observer instrumentation, not provider acceptance.",
+    "All six full-iCloud acceptance rows remain open; installed schema transition remains held."
+  ],
+  "actual_observer_build": null,
+  "actual_observer_window": null,
+  "result": null,
+  "preregistration_sha256": "28e8cff899198e7700553f1a98a80056c5823161575fcf4cb06361ecc75b758f",
+  "local_validation": {
+    "status": "PASS synthetic instrumentation only",
+    "baseline_regression_claim": false,
+    "source_count": 480,
+    "private_cli_fixture_root_mode": "0700",
+    "arms": [
+      {
+        "phase": "root-calc-trash-original-guards-v1",
+        "executed_test_count": 5,
+        "exit_code": 0,
+        "duration_seconds": 43.15363969100872,
+        "log_sha256": "6f26f789b952d937e608a4ce204722a31be9bcf179b283441fbdf3b03a000378",
+        "artifacts": [
+          {
+            "target": "cirrove_service",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+            "size": 621383400,
+            "sha256": "24e495e9b402251921e6b3084e8602d570b509a42241c38221b02d10c7b186ab",
+            "fresh": false,
+            "test": true
+          }
+        ],
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      {
+        "phase": "root-calc-trash-original-cli-safety-v1",
+        "executed_test_count": 1,
+        "exit_code": 0,
+        "duration_seconds": 4.161123858997598,
+        "log_sha256": "ce4a476483736d0518e68964065a5d33dc8cd8c0c6da9c54eb66cc9f3af1c082",
+        "artifacts": [
+          {
+            "target": "owned_icloud_calc_trash_original_cli",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/owned_icloud_calc_trash_original_cli-617004592e811261",
+            "size": 10923112,
+            "sha256": "3efc9dfd954498499a5ee9d3eadf2001c974bbf3f9394e80a3225cb74818eefa",
+            "fresh": false,
+            "test": true
+          },
+          {
+            "target": "cirroved",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+            "size": 505467608,
+            "sha256": "54799c52f7cc149f10204eceb433694d9b65f91c2ae8b6be0aff1ca7565e5f60",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove-icloud-write-probe",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-write-probe",
+            "size": 434799720,
+            "sha256": "adfc6288ab6911bb543623242ce05d1b96f53d29be15707d8b2a5ac1ee65ed97",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove-icloud-mounted-write-probe",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+            "size": 503600776,
+            "sha256": "932d215aa20f842ef2e4c582202dc815db335cb75134a38b442447f9fc1c7727",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 508011104,
+            "sha256": "e0e5406e1e8e4c6e592ce4a4e58336f345c739e5f59d869dd3f409b93ff31c74",
+            "fresh": false,
+            "test": false
+          }
+        ],
+        "cloud_mutated": false,
+        "installed_actions": false
+      }
+    ],
+    "full_check": {
+      "command": "scripts/check.sh",
+      "fast": false,
+      "exit_code": 0,
+      "duration_seconds": 611.0128533809911,
+      "log_sha256": "608be994883c78f436527a434cf621a3e4e403603b506b6de543adb7218f8ab6",
+      "source_count": 480,
+      "code_script_policy_count": 537,
+      "all_registered_sources_unchanged": true,
+      "all_23_registered_documentation_files_unchanged": true,
+      "kernel_fuse_scenarios_ran": true,
+      "desktop_display_scenarios_separate": true,
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  }
+}
