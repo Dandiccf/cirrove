@@ -1,0 +1,668 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-private-v1/chooser_addressed_location_v22_v2.py",
+    "sha256": "ce9f4edd15e7c84be5933bba9da00415f6f67043c1884baa66be8a512f1af5e9",
+    "size": 62025
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-private-v1/outer_addressed_location_v22.py",
+    "sha256": "4abc1009354a052a7c345864083d67a950a1ddd82749f82ad7ff46f285df3d04",
+    "size": 24738
+  },
+  "endpoint": "Local public chooser evidence and complete original handle/socket closure; no import submission or provider request.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_attestation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/primary-attestation-v4.json",
+    "sha256": "bf05ff87cd4d7e8a617d55cd04519fb8439aa4b189e61763975849a437b29f2a",
+    "size": 6447
+  },
+  "limits": [
+    "Fresh local synthetic account only, no full iCloud/provider acceptance credit.",
+    "Owned-window addressed keyboard navigation only; original time/birth/GTK guards retained.",
+    "Previous run remains closed and is not reopened."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "One owned chooser Ctrl+l will expose a GTK TEXT or ENTRY field with Location placeholder and editable/text interfaces; exact local path selection followed by Open will reach confirmation and Cancel once, with complete original handle/socket closure.",
+  "question": "Can one public Ctrl+l addressed to the exact owned GTK chooser expose its actual Location text field, select the pinned local Pages archive, and Cancel the import confirmation with zero import requests?",
+  "run": "565915e8-d7fa-4fb9-a358-49f7bf86a2fe",
+  "source_count": 480,
+  "status": "actual-local-location-field-exposed-path-call-typeerror",
+  "version": 1,
+  "performed": {
+    "local_ui": true,
+    "addressed_chooser_control_l_once": true,
+    "actual_focused_location_field": true,
+    "path_write_attempt_recorded": true,
+    "successful_path_write_verified": false,
+    "open_action": false,
+    "archive_selection": false,
+    "confirmation_cancel": false,
+    "import_submission": false,
+    "provider": false,
+    "installed_actions": false
+  },
+  "actual_outcome": {
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-root-5659-v1/public-addressed-location-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2391,
+      "sha256": "869b4ec43755b83893212dae0efd4168b71372b7ec15de40fb765b039eb00510"
+    },
+    "root_frozen_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-root-5659-v1/preregistration-frozen-v1.json",
+      "size": 2391,
+      "sha256": "869b4ec43755b83893212dae0efd4168b71372b7ec15de40fb765b039eb00510"
+    },
+    "original_tool_session": 42837,
+    "terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1357132,
+      "controller_proc_absent": true,
+      "duration_seconds": 2.6935340519994497,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "565915e8-d7fa-4fb9-a358-49f7bf86a2fe",
+      "signals": []
+    },
+    "summary": "Four addressed TABs and one SPACE expanded the exact owned account, then the public Import action reached the chooser. One addressed Ctrl+l exposed a unique owned GTK TEXT field with Location placeholder, editable/text interfaces and actual FOCUSED state. A durable local-path attempt was recorded; editable.set_text_contents(str(archive)) raised TypeError at line 845 before the subsequent readback or any Open action.",
+    "cause_limits": "A successful local pathname write was not proved. The retained exception class/position does not identify the precise GI signature or other call failure cause. No Open, archive selection, confirmation Cancel or provider import endpoint completed.",
+    "owned_location_diagnostic": {
+      "actions_before": [
+        "navigate-own-account-tab-01",
+        "navigate-own-account-tab-02",
+        "navigate-own-account-tab-03",
+        "navigate-own-account-tab-04",
+        "expand-own-account-space-once",
+        "public-import-document-once",
+        "real-chooser-owned-control-l-once"
+      ],
+      "child_limit": 512,
+      "chooser": {
+        "owned": true,
+        "pid": 1357147,
+        "title": "Choose a local iWork archive",
+        "title_redacted": false
+      },
+      "collection_complete": true,
+      "collection_error_class": null,
+      "depth_limit": 64,
+      "desktop_pid": 1357147,
+      "desktop_startticks": 28391712,
+      "entry_text_read": false,
+      "filename_labels_read": false,
+      "interactive_nodes": [
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            2
+          ],
+          "pid": 1357147,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            2
+          ],
+          "pid": 1357147,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            0,
+            0,
+            2
+          ],
+          "pid": 1357147,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            0,
+            2
+          ],
+          "pid": 1357147,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            0,
+            2
+          ],
+          "pid": 1357147,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "activate"
+          ],
+          "attributes": {
+            "placeholder-text": "Location",
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": true,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "pid": 1357147,
+          "role": "text",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": true,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": true,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": true
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": "Cancel",
+          "name_redacted": false,
+          "owned": true,
+          "path": [
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "pid": 1357147,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": "Search",
+          "name_redacted": false,
+          "owned": true,
+          "path": [
+            1,
+            0,
+            0,
+            2,
+            0
+          ],
+          "pid": 1357147,
+          "role": "toggle button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": "Open",
+          "name_redacted": false,
+          "owned": true,
+          "path": [
+            1,
+            0,
+            0,
+            2,
+            1
+          ],
+          "pid": 1357147,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        }
+      ],
+      "missing_location_guard_unchanged": true,
+      "monotonic": 283918.823802732,
+      "node_limit": 512,
+      "nonstandard_control_names_redacted": true,
+      "one_observation_no_action": true,
+      "original_action_deadline": 284066.56509742,
+      "run": "565915e8-d7fa-4fb9-a358-49f7bf86a2fe"
+    },
+    "failure": {
+      "class": "TypeError",
+      "positions": [
+        {
+          "file": "chooser_addressed_location_v22_v2.py",
+          "function": "main",
+          "line": 1109
+        },
+        {
+          "file": "chooser_addressed_location_v22_v2.py",
+          "function": "run",
+          "line": 845
+        }
+      ]
+    },
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path"
+    ],
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "full_chooser_confirmation_cancel": false,
+    "closure": {
+      "all_five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1357143,
+          "startticks": 28391692,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1357138,
+          "startticks": 28391680,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1357137,
+          "startticks": 28391680,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1357136,
+          "startticks": 28391679,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1357135,
+          "startticks": 28391679,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop": {
+        "original_handle_reaped": true,
+        "pid": 1357147,
+        "returncode": -15,
+        "startticks": 28391712
+      },
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "utility_count": 24,
+      "utility_original_handles_all_reaped_exit_zero": true,
+      "closure_errors": [],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "outer_errors": [
+        "RuntimeError"
+      ],
+      "outer_error_scope": "RuntimeError propagates the failed chooser child; original handle/socket closure is complete.",
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "root-public-chooser-registration-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-root-5659-v1/root-public-chooser-registration-v2.json",
+        "size": 6610,
+        "sha256": "33a9027beda466eb4208ff248d89aaad785da7b70e0620d70e10b9732c4f2c11"
+      },
+      "root-public-chooser-launch-manifest-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-root-5659-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66437,
+        "sha256": "2b18bdc6165cf414ea0ba3b4c5084a6803055ddb44e597c98572e5f51c6a4954"
+      },
+      "root-public-chooser-launch-result-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-root-5659-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "dbb30f01f0aa7ba361a26f216d972b2fb5cd2520bf7db9b144d462be9f2d3795"
+      },
+      "result.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-565915e8-d7fa-4fb9-a358-49f7bf86a2fe/chooser/result.json",
+        "size": 4343,
+        "sha256": "71da96a8e416183ea3dd341239c493361d10258f5eaaa6fc21b7f601837d8a5c"
+      },
+      "chooser-location-controls-before-refusal.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-565915e8-d7fa-4fb9-a358-49f7bf86a2fe/chooser/chooser-location-controls-before-refusal.json",
+        "size": 8845,
+        "sha256": "440db3bd6573fdfe040a730cb1a4b0873876bc73bbaf25196b75352535b49671"
+      },
+      "desktop-reaped.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-565915e8-d7fa-4fb9-a358-49f7bf86a2fe/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "078c062f2d41bcce678a4c4001c2e123d34e568a443050aa869cdaa28d7181a3"
+      },
+      "action-08.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-565915e8-d7fa-4fb9-a358-49f7bf86a2fe/chooser/action-08.json",
+        "size": 140,
+        "sha256": "9f5b1666ee3a425c713c49f94ad148615f0e6fa59a15a993d420c482240b7589"
+      },
+      "gtk-library-mapping-calibration.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-565915e8-d7fa-4fb9-a358-49f7bf86a2fe/chooser/gtk-library-mapping-calibration.json",
+        "size": 1248,
+        "sha256": "a10f8690db8843d14d2400acf9c8ffc94f365ff2dc808b16316d1afd7ab6cc94"
+      }
+    },
+    "diagnostic_field_interpretation": {
+      "missing_location_guard_unchanged": "stale-inapplicable-not-an-accepted-result-claim",
+      "snapshot_timing": "After the actual addressed Ctrl+l and before the later path-write TypeError."
+    }
+  },
+  "corrections": [
+    {
+      "version": 1,
+      "kind": "stale-inherited-diagnostic-field",
+      "previous_public_outcome": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-addressed-location-root-5659-v1/public-addressed-location-outcome-before-inherited-flag-correction-v1.json",
+        "size": 20595,
+        "sha256": "f808305941b6aeee396508c0a8bb0d29881a5d38e63462657feb50ad7002ed00"
+      },
+      "raw_field": "actual_outcome.owned_location_diagnostic.missing_location_guard_unchanged",
+      "raw_value": true,
+      "interpretation": "Stale and inapplicable for V22; not evidence that the prior location guard stayed unchanged. V22 changes the selector to allow GTK TEXT/ENTRY with Location placeholder and captures this diagnostic after the addressed Ctrl+l.",
+      "filename_limit": "The inherited chooser-location-controls-before-refusal.json suffix does not establish a same-guard comparison.",
+      "preservation": "Original diagnostic bytes and their evidence SHA remain unchanged; the raw inherited field is retained as historical emitted data only.",
+      "facts_unchanged": "Actual ownership/field/interface/FOCUSED metadata remain valid. set_text_contents raised TypeError before readback/Open; no successful path-write/Cancel/import/provider endpoint is claimed."
+    }
+  ]
+}

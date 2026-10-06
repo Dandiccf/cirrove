@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "status": "performed-local-account-row-action-refused-before-chooser",
+  "run": "b592cd66-22d2-4fd0-9523-88c327d23faf",
+  "question": "Does the owned account-row selection let the default Desktop open its public Pages chooser, select one owned local archive and cancel the import confirmation?",
+  "prediction": "The actionable owned row is selected despite an identically named title label; the real public chooser reaches confirmation and Cancel without submitting an import.",
+  "original_window_seconds": 180,
+  "cleanup_reserve_seconds": 30,
+  "automatic_retry": false,
+  "cloud_allowed": false,
+  "import_submission_allowed": false,
+  "endpoint": "Public Import document button, native chooser exact owned local path, confirmation showing the selected archive, one Cancel, original process handles reaped and all owned bus/fixture sockets closed.",
+  "prerequisites": [
+    "Original selector desired failure and corrected five pure controls completed.",
+    "Fresh compiled default cirrove-desktop with features [], same 480 Rust/Cargo source snapshot and complete successful scripts/check.sh evidence.",
+    "Private session and accessibility buses, own registry and synthetic account/control fixture; no shared user service or cloud session.",
+    "All previous runtime lanes closed and disk-backed ext4 TMPDIR/SQLITE_TMPDIR."
+  ],
+  "limits": [
+    "Local public chooser and confirmation Cancel only: no actual provider import, publication, semantic readback or Apple Pages open.",
+    "The actual role matches behind the earlier ambiguous-name failure were not retained; this is not a claimed diagnosis of that historical runtime failure.",
+    "All six full-iCloud gates remain open; installed artifacts and services remain unchanged."
+  ],
+  "actual_build_binding": {
+    "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+    "source_count": 480,
+    "compiler_features": [],
+    "binary_sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "binary_size": 508661032,
+    "build_duration_seconds": 17.55021592398407,
+    "build_log_sha256": "6a65d0b46f7a9973936c6e29d0f41bb38a3a13cb7dd404bb6db9b223c7e8db08",
+    "desktop_binding_sha256": "5a75ca719d4ec7a504c74f5505059191f74b3763b67931b086c464678e0a8334",
+    "fullcheck_log_sha256": "608be994883c78f436527a434cf621a3e4e403603b506b6de543adb7218f8ab6"
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.4705749939894304,
+    "overall_success": false,
+    "actual_position": {
+      "account_row_selected": true,
+      "action_label": "expand-own-synthetic-account",
+      "failure_class": "Refusal",
+      "failure_positions": [
+        {
+          "file": "chooser_account_row_v9.py",
+          "function": "main",
+          "line": 573
+        },
+        {
+          "file": "chooser_account_row_v9.py",
+          "function": "run",
+          "line": 358
+        },
+        {
+          "file": "chooser_account_row_v9.py",
+          "function": "action",
+          "line": 299
+        },
+        {
+          "file": "chooser_account_row_v9.py",
+          "function": "require",
+          "line": 38
+        }
+      ],
+      "predicate": "ENABLED && SENSITIVE on the exact owned account row before invoking its action",
+      "completed_actions": 0,
+      "chooser_reached": false,
+      "confirmation_cancel_reached": false
+    },
+    "diagnosis_limit": "The individual ENABLED and SENSITIVE states were not retained. This establishes the combined action-admission refusal, not which flag was false or why. The owned row selection succeeded; no historical ambiguous-label diagnosis is inferred.",
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "all_mutating_requests_refused": true,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "five_outer_child_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1293375,
+          "start_ticks": 28079850,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1293369,
+          "start_ticks": 28079838,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1293368,
+          "start_ticks": 28079838,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1293367,
+          "start_ticks": 28079838,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1293366,
+          "start_ticks": 28079838,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1293384,
+        "returncode": -15,
+        "startticks": 28079869
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_cleanup_errors": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66427,
+        "sha256": "6415c40c737e5aad6c3012ac58c608783d2c08c916ed2f7e1ea923da2749bc38"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "8f35b30d125499ba5f8e52c1da00ea817b5ac17d3d9eb68a4b8c5f8a04879997"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-b592cd66-22d2-4fd0-9523-88c327d23faf/result.json",
+        "size": 4214,
+        "sha256": "c67ef28577a47407b2e9e71fbbe8901119151ee07e13a427767dfb5a7d883216"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-b592cd66-22d2-4fd0-9523-88c327d23faf/chooser/result.json",
+        "size": 1179,
+        "sha256": "9376503b6570082f827adeef9b7de7faf9560e647abc8ba288dbad2448675fff"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-b592cd66-22d2-4fd0-9523-88c327d23faf/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "53faf22765cc83067e8bdb50097cc4fd2ec6ae6dbb728ac39957605edc94f816"
+      }
+    },
+    "next_step": "A separate fresh diagnostic arm may retain the exact enabled/sensitive state before the unchanged action guard. This closed run is not replayed and the guard is not relaxed.",
+    "full_release_gates_closed": false
+  },
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/public-chooser-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2359,
+      "sha256": "ab24604183b7c726858dae64fb0bd5c9071ac7031d63fb779c93ceb18917c166"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/root-public-chooser-registration-v2.json",
+      "size": 5666,
+      "sha256": "203dbc15132630b8c3e8a1fb35e41bc8ba40ba73ccfb97ca5cc48be388a5210a"
+    },
+    "original_public_preregistration_sha256": "ab24604183b7c726858dae64fb0bd5c9071ac7031d63fb779c93ceb18917c166",
+    "launched_registration_sha256": "203dbc15132630b8c3e8a1fb35e41bc8ba40ba73ccfb97ca5cc48be388a5210a",
+    "question_prediction_scope_preserved": true
+  }
+}

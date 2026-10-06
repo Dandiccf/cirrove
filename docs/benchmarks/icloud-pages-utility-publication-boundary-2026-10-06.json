@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "status": "performed-original-desired-failure-corrected-one-pass",
+  "question": "Does a slow durable attempt publication crossing the original active deadline refuse before launching the utility?",
+  "prediction": "Actual V13 hyprctl AST launches one fixture child before refusal and fails the zero-spawn assertion; V14 checks the same deadline before Popen and passes with zero fixture children.",
+  "endpoint": "One desired baseline failure and one corrected pass, zero real children, keys, GI or provider calls.",
+  "baseline_sha256": "4a154471dec21c3ecc4f00fff448d45335d768f22c7a5ae6e3c439c2b633c80e",
+  "corrected_sha256": "5bd4d1246e2355a7611ddd981b75578ffcccc987cf1c9d9d62f27a4051a4e4f3",
+  "control_sha256": "85925bf8a736bba58d8f37c008f734f1cbfdf2f51828e084cf86ac3c064ca106",
+  "limits": [
+    "AST source-bound utility method with clock, files and subprocess fixtures; no runtime proof.",
+    "No lifetime or full iCloud gate closure from these controls."
+  ],
+  "preregistration_preserved": {
+    "byteexact_pre_outcome_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-keyboard-root-launch-private-67b8-v1/public-utility-boundary-byteexact-before-outcome-v1.json",
+      "size": 952,
+      "sha256": "02a3d81d6d38be12d93f69dbe24a5e38b8a2cfa1e14a69590f9a3d5dd6fb93a9"
+    },
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "baseline_V13": {
+      "exit_code": 1,
+      "duration_seconds": 0.05208061798475683,
+      "tests_executed": 1,
+      "passes": 0,
+      "desired_assertion_failures": 1,
+      "errors": 0,
+      "sources_unchanged": true,
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-utility-publication-baseline-controls-v1-registration.json",
+        "size": 70304,
+        "sha256": "8665568bd9f84e43b857b4592753c2ced1c21358de235255c1bfedee0cce63fc"
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-utility-publication-baseline-controls-v1-result.json",
+        "size": 233,
+        "sha256": "65f8d4c667a71a87504b9c3bac0bc97e54ebd9c3d0e63b468c85b4a1b3e7e411"
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-utility-publication-baseline-controls-v1.log",
+        "size": 1054,
+        "sha256": "da57feb01cd8e8d92e5f91a5a3120341afc4effc6dee8f67616c16e10abed4c2"
+      }
+    },
+    "corrected_V14": {
+      "exit_code": 0,
+      "duration_seconds": 0.050817231007386,
+      "tests_executed": 1,
+      "passes": 1,
+      "desired_assertion_failures": 0,
+      "errors": 0,
+      "sources_unchanged": true,
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-utility-publication-corrected-controls-v1-registration.json",
+        "size": 70304,
+        "sha256": "5d4e64c6289e093b15198df34d1ef009722c6532de6acb8b1a9ad791c16b2056"
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-utility-publication-corrected-controls-v1-result.json",
+        "size": 231,
+        "sha256": "6382493f9734109bcabd3705fd307f88ffed7a646c7df7645845b95c98675388"
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-utility-publication-corrected-controls-v1.log",
+        "size": 98,
+        "sha256": "fb184ea57734512b1f088f9181209901b9cd46df3eb7eaa2500ea9e48dde20b5"
+      }
+    },
+    "baseline_fixture_spawn_count": 1,
+    "corrected_fixture_spawn_count": 0,
+    "baseline_endpoint": "Actual V13 utility method AST crossed the original active deadline during durable attempt publication, then invoked the Popen fixture once and failed the zero-spawn desired assertion.",
+    "corrected_endpoint": "V14 rechecked the same deadline after publication and refused before Popen; one test passed with zero fixture spawns.",
+    "fixture_Popen_is_not_real_child": true,
+    "real_children_keys_GI_provider_calls": 0,
+    "full_gate_credit": false,
+    "scope": "Pure clock/publication ordering boundary, not actual process lifetime or provider acceptance."
+  }
+}

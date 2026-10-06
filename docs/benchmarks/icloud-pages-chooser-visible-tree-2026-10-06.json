@@ -1,0 +1,252 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-private-v1/chooser_visible_tree_v26.py",
+    "sha256": "1104eecb5934a19d60022b81bd171b9a438c1abc60174b58220ffd55b2bd0131",
+    "size": 64198
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-private-v1/outer_visible_tree_v26.py",
+    "sha256": "838d531828f448bbfecee0b76eb1da81588c998010dc9f2cd486db66e0248824",
+    "size": 24738
+  },
+  "endpoint": "Local public chooser evidence and complete original handle/socket closure; no import submission or provider request.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_attestation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/primary-attestation-v4.json",
+    "sha256": "bf05ff87cd4d7e8a617d55cd04519fb8439aa4b189e61763975849a437b29f2a",
+    "size": 6447
+  },
+  "limits": [
+    "Fresh local synthetic account only, no full iCloud/provider acceptance credit.",
+    "Owned-window addressed keyboard navigation only; original time/birth/GTK guards retained.",
+    "Previous run remains closed and is not reopened."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "Pruning hidden or defunct owned descendants before querying their children will avoid obsolete UI branches; exact confirmation validation and one Cancel will complete, or an unchanged visible child-count refusal will retain its current states.",
+  "question": "Can observing only visible live owned UI descendants verify real Pages chooser selection and confirmation Cancel, while preserving strict bounds for every traversed live visible node?",
+  "run": "8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e",
+  "source_count": 480,
+  "status": "actual-local-full-chooser-cancel-visible-dismissal-pass",
+  "version": 1,
+  "performed": {
+    "local_ui": true,
+    "exact_path_set_and_independent_readback": true,
+    "real_open_action": true,
+    "owned_confirmation_filename_and_four_labels": true,
+    "cancel_action_once": true,
+    "visible_confirmation_absence_verified": true,
+    "full_local_endpoint": true,
+    "import_submission": false,
+    "provider": false,
+    "installed_actions": false
+  },
+  "actual_outcome": {
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-root-v26-v1/public-visible-tree-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2339,
+      "sha256": "6825a3d6163486f4f446726285cccd31833e4fb7580e43da3db3566b2037429a"
+    },
+    "root_frozen_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-root-v26-v1/preregistration-frozen-v1.json",
+      "size": 2339,
+      "sha256": "6825a3d6163486f4f446726285cccd31833e4fb7580e43da3db3566b2037429a"
+    },
+    "original_tool_session": 81253,
+    "terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1366121,
+      "controller_proc_absent": true,
+      "duration_seconds": 4.025412221963052,
+      "errors": [],
+      "exit_code": 0,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": true,
+      "provider_verified": false,
+      "run": "8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e",
+      "signals": []
+    },
+    "summary": "The actual local chooser completed ten recorded actions: four addressed TABs, one SPACE, public Import once, owned Ctrl+l once, exact pathname set/readback, real Open once and confirmation Cancel once. The exact owned confirmation filename and all four labels passed; the final visible-tree poll verified no matching visible confirmation. Full outer and chooser results succeeded with complete original-handle/socket closure.",
+    "confirmation_labels": [
+      "Local archive",
+      "Document folder",
+      "Destination folder",
+      "New document name"
+    ],
+    "traversal_contract": "Only exact owned non-root DEFUNCT or not-SHOWING descendants are pruned before querying their children. Depth64/node512/child512 limits remain; invalid counts on traversed live visible nodes remain refusals. Root traversal is not exempt from count bounds.",
+    "limits": "Verified visible confirmation absence is not proof every accessibility object was destroyed. This is one local synthetic-account chooser/Cancel arm; no real import, provider mutation/reliability or full gate485 acceptance. Earlier failed arms remain retained separately.",
+    "failure": null,
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once",
+      "public-import-confirmation-cancel-once"
+    ],
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "gate485_complete": false,
+    "local_chooser_confirmation_cancel": true,
+    "source_binding_review": {
+      "all_480_current_source_pins_match_launch_manifest": true,
+      "five_registration_source_guards_match": true,
+      "roles_actual_hash_size_match": {
+        "dbus": {
+          "path": "/usr/bin/dbus-daemon",
+          "size": 199176,
+          "sha256": "e9ffeaea83965fa53077f716e352d3038794200bacb8eee043fe55117ce2c7d7"
+        },
+        "desktop": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+          "size": 508661032,
+          "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f"
+        },
+        "python": {
+          "path": "/usr/bin/python3.14",
+          "size": 14424,
+          "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+        },
+        "registry": {
+          "path": "/usr/lib/at-spi2-registryd",
+          "size": 84624,
+          "sha256": "b3791824a03aafbef63ed992218ee1e53aab46d19ffec715896d4e909ec21898"
+        },
+        "chooser": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-private-v1/chooser_visible_tree_v26.py",
+          "size": 64198,
+          "sha256": "1104eecb5934a19d60022b81bd171b9a438c1abc60174b58220ffd55b2bd0131"
+        },
+        "controller": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-private-v1/outer_visible_tree_v26.py",
+          "size": 24738,
+          "sha256": "838d531828f448bbfecee0b76eb1da81588c998010dc9f2cd486db66e0248824"
+        }
+      },
+      "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961"
+    },
+    "closure": {
+      "all_five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1366132,
+          "startticks": 28434114,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1366128,
+          "startticks": 28434106,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1366127,
+          "startticks": 28434106,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1366126,
+          "startticks": 28434106,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1366125,
+          "startticks": 28434105,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop": {
+        "original_handle_reaped": true,
+        "pid": 1366137,
+        "returncode": -15,
+        "startticks": 28434134
+      },
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "utility_count": 24,
+      "utility_original_handles_all_reaped_exit_zero": true,
+      "closure_errors": [],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "outer_errors": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "root-public-chooser-registration-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-root-v26-v1/root-public-chooser-registration-v2.json",
+        "size": 6577,
+        "sha256": "e49f5299e89d79bf321ffc3c4421ea433e50752efbc4c23cf2d1393cf7582cca"
+      },
+      "root-public-chooser-launch-manifest-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-root-v26-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66392,
+        "sha256": "b48f1c6193a9a87e194041aefeccad6ea389e8df120e597ade9e6608ae2fe32b"
+      },
+      "root-public-chooser-launch-result-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-visible-tree-root-v26-v1/root-public-chooser-launch-result-v2.json",
+        "size": 452,
+        "sha256": "a283cd37f3e1797292e4b8aa8bee1ea14ac50786f3dc2952319a24e034ec82ea"
+      },
+      "result.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e/chooser/result.json",
+        "size": 4125,
+        "sha256": "76b468f3b2adba1986b37fbe495e6a37b4a3ec4685fb3ad6190602a92998ef23"
+      },
+      "desktop-reaped.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "ac14c2c98f1a09b345902cbcf8d7bcf32b3ff0a16f8dd5260062c2e18213c999"
+      },
+      "action-08.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e/chooser/action-08.json",
+        "size": 140,
+        "sha256": "2ff46cee5f7ead19841be7e8607c883f62e2aa174c8fb629317794094384eda2"
+      },
+      "action-09.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e/chooser/action-09.json",
+        "size": 129,
+        "sha256": "d84bec70044ecf0de43e9db8463c3f3ad8d07eca403a56ae002b73425bf98906"
+      },
+      "action-10.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e/chooser/action-10.json",
+        "size": 145,
+        "sha256": "6e49c7235ca5a97ff6c0e05e2efa9cd1809fa2b4fe4f8e1554801502363f00b1"
+      },
+      "gtk-library-mapping-calibration.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-8b274c5c-44d2-4e32-ae3e-bb93bd6d9e1e/chooser/gtk-library-mapping-calibration.json",
+        "size": 1249,
+        "sha256": "a1e1172ba93b259ec64499e6c1652f7391656542bb3f4ca37b88ecd3e39757ac"
+      }
+    }
+  }
+}

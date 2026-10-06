@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "status": "performed-baseline-desired-failure-V18-and-final-V19-eleven-pass",
+  "question": "Does the source-bound mapper translate the observed virtual stat device to the calibrated physical mapping while retaining exact path/inode/namespace and GTK action refusal guards?",
+  "prediction": "V16 actual mapper fails the matching-library assertion with stat0:31 and maps0:29. V18 actual mapper passes eleven controls using calibrated mapping0:29, including existing refuse/one-key cases.",
+  "endpoint": "One desired original failure without errors and eleven corrected passes, no real library loading, processes, GTK/GI, keyboard or provider.",
+  "baseline": "0bbc1f05c7567c8f86696ddac6dcf5864edc696b407aa880f00ba89c1378437e",
+  "corrected": "d9083be2b0bb5668c1a96c9dceeb45e88c87e00134a33a8da6a21b4d8143d167",
+  "control": "68d3f05bac4bf7551a4b678efee8bbd5844b7f6f892dc3c3f19eb0d542debfa4",
+  "limits": [
+    "Calibration caller itself remains runtime-unverified until the fresh arm.",
+    "Mocks model captured device translation; no global filesystem identity or provider acceptance claim."
+  ],
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-library-private-v1/public-calibrated-controls-preregistration-byteexact-before-outcome-v1.json",
+      "size": 1069,
+      "sha256": "3e807624c7523dce84c59601673a763cc67da6e0d4b64a714cf84577457b73ad"
+    },
+    "matches_both_actual_registration_pins": true,
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "arms": {
+      "baseline_V16": {
+        "exit_code": 1,
+        "duration_seconds": 0.05562287598149851,
+        "tests_executed": 1,
+        "passes": 0,
+        "desired_assertion_failures": 1,
+        "errors": 0,
+        "sources_unchanged": true,
+        "actual_source": {
+          "SOURCE": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-attribute-mapped-library-private-v1/chooser_keyboard_cancel_v16.py",
+          "SOURCE_SHA": "0bbc1f05c7567c8f86696ddac6dcf5864edc696b407aa880f00ba89c1378437e"
+        },
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-baseline-controls-v1-registration.json",
+          "size": 70493,
+          "sha256": "01e6fd267d991b3f44dac09c488f08970b5a135de2b61068e59cf678631aa9fe"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-baseline-controls-v1-result.json",
+          "size": 233,
+          "sha256": "80e189f8d8208c9f6d4423ffaad892b11c29f409fbbadcb558762771a4015025"
+        },
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-baseline-controls-v1.log",
+          "size": 1154,
+          "sha256": "3538f5ee9426bd6901c9805894b50e186adbc1de141cf639a218652782c9f6a9"
+        }
+      },
+      "corrected_V18": {
+        "exit_code": 0,
+        "duration_seconds": 0.05853730399394408,
+        "tests_executed": 11,
+        "passes": 11,
+        "desired_assertion_failures": 0,
+        "errors": 0,
+        "sources_unchanged": true,
+        "actual_source": {
+          "SOURCE": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-library-private-v1/chooser_keyboard_cancel_v18.py",
+          "SOURCE_SHA": "d9083be2b0bb5668c1a96c9dceeb45e88c87e00134a33a8da6a21b4d8143d167"
+        },
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-corrected-controls-v1-registration.json",
+          "size": 70402,
+          "sha256": "945e6c79a19658c1a183e6b5e2e623f3eb057d29329d603bae754a6738499c50"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-corrected-controls-v1-result.json",
+          "size": 233,
+          "sha256": "b8ce06be80492a2a72790ebe81e53522351f0f410c464f8566dfebfde4bdc485"
+        },
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-corrected-controls-v1.log",
+          "size": 424,
+          "sha256": "5903bb5fa6c2917a3fe68ec3d2b330fe40214eeb737c6181119b81d9b7031a62"
+        }
+      },
+      "final_V19": {
+        "exit_code": 0,
+        "duration_seconds": 0.05546119704376906,
+        "tests_executed": 11,
+        "passes": 11,
+        "desired_assertion_failures": 0,
+        "errors": 0,
+        "sources_unchanged": true,
+        "actual_source": {
+          "SOURCE": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-library-private-v1/chooser_keyboard_cancel_v19.py",
+          "SOURCE_SHA": "dc5510ebff8157afb0207a0aef08556d7fc249f7f5b202259af64bc3c83f98c0"
+        },
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-corrected-controls-v2-registration.json",
+          "size": 70402,
+          "sha256": "84fe753a972c223782db3ba2009a9703a0842563f334dac69aa103b0ee65a414"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-corrected-controls-v2-result.json",
+          "size": 233,
+          "sha256": "cb8c8d98bd92703999121699f0a20865f36dc3addba70f5d99194c70eaa7792b"
+        },
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-calibrated-corrected-controls-v2.log",
+          "size": 424,
+          "sha256": "fd2ee6d2f8c71219d14e031b7819f6404b8d5aea6b27b1a2f38d2ec09f2c2f76"
+        },
+        "correction_scope": "Initialize cleanup state before calling calibration; controller method behavior otherwise retained.",
+        "real_library_loading_process_GI_keyboard_provider_calls": 0
+      }
+    },
+    "baseline_endpoint": "Original V16 gtk_library_mapped returned false for exact inode/path with stat0:31 and maps0:29, producing the desired assertTrue failure without an API/setup error.",
+    "corrected_endpoint": "V18 actual source method AST passed eleven controls with synthetic calibrated mapping0:29 and exact path/inode/namespace guards, alongside existing action/one-key refusals.",
+    "real_library_loading_process_GI_keyboard_provider_calls": 0,
+    "runtime_calibration_caller_verified": false,
+    "provider_verified": false,
+    "full_gate_credit": false,
+    "scope": "Source-bound synthetic device identity translation controls only; no global filesystem identity equivalence, calibration-runtime, chooser or provider claim.",
+    "future_V19_cleanup_initialization_correction": "Executed separately as v2: initialization before calibration only; final source controls passed, no runtime calibration caller execution."
+  },
+  "V18_outcome_preserved": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-library-private-v1/public-calibrated-controls-V18-outcome-byteexact-before-V19-v1.json",
+    "size": 5391,
+    "sha256": "a35af8446eae8903925059ae695869740da459775ecddd188ba9d3c796eb2985"
+  }
+}

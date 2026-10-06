@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "status": "performed-original-desired-failure-corrected-ten-pass",
+  "question": "Can the controller admit the observed GTK attribute with absent legacy name/version getters only when the exact pinned GTK ELF is mapped into the target process?",
+  "prediction": "V14 refuses the observed null getters and fails the valid-click assertion. V16 passes ten controls, including exact device/inode mapping and bounded maps input, alongside existing disabled/foreign/window/one-key refusals.",
+  "endpoint": "Desired baseline1FAIL without errors, corrected10PASS without errors; no real process, GI, key or provider calls.",
+  "baseline": "5bd4d1246e2355a7611ddd981b75578ffcccc987cf1c9d9d62f27a4051a4e4f3",
+  "corrected": "0bbc1f05c7567c8f86696ddac6dcf5864edc696b407aa880f00ba89c1378437e",
+  "control": "31270d89cf6ec8b87b223f6a0d0b24d76f51f6246f45113e5af6df65026571fc",
+  "limits": [
+    "Only method AST and synthetic maps/file/keyboard fixtures; runtime chooser remains unverified.",
+    "Pinned mapped library substitutes version proof for absent application metadata; no general GTK version claim."
+  ],
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-mapped-root-launch-private-f060-v1/public-attribute-controls-preregistration-byteexact-before-outcome-v1.json",
+      "size": 1083,
+      "sha256": "7ede8d91ba5a37904393ff1c17646a6539431094007cddac817040a5a734776f"
+    },
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "arms": {
+      "baseline_V14": {
+        "exit_code": 1,
+        "duration_seconds": 0.058230548980645835,
+        "tests_executed": 1,
+        "desired_assertion_failures": 1,
+        "passes": 0,
+        "errors": 0,
+        "sources_unchanged": true,
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-attribute-baseline-controls-v1-registration.json",
+          "size": 70486,
+          "sha256": "51c8e4b58a373dce79cf05e9cfd15f2f4757a2742ec4a8e4251a01f037592478"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-attribute-baseline-controls-v1-result.json",
+          "size": 234,
+          "sha256": "2c0e928738391ebbc670824739eb6d9b8ba801dd1d4772ceb45ad3b7fb6fed32"
+        },
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-attribute-baseline-controls-v1.log",
+          "size": 1124,
+          "sha256": "b1cd308379bb5e0b54ceb5e704d5b9d9d96b0e481136209f2066218f03c193f7"
+        }
+      },
+      "corrected_V16": {
+        "exit_code": 0,
+        "duration_seconds": 0.056772627984173596,
+        "tests_executed": 10,
+        "desired_assertion_failures": 0,
+        "passes": 10,
+        "errors": 0,
+        "sources_unchanged": true,
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-attribute-corrected-controls-v1-registration.json",
+          "size": 70426,
+          "sha256": "521d50fee0c1f21bd483d40fa757a7e46e6a92a061f40e4270cb03f34a345081"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-attribute-corrected-controls-v1-result.json",
+          "size": 234,
+          "sha256": "be2f3a7bc719aa1dacc040ebcba575cdcecfa1429056b14c81293297ee2572de"
+        },
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-attribute-corrected-controls-v1.log",
+          "size": 429,
+          "sha256": "4adfd55d471c34ae9a804a5bbe15d577e1794470daf63961056cd20b281ae1ad"
+        }
+      }
+    },
+    "baseline_endpoint": "Valid-click desired assertion failed with Refusal on V14 when getters were null, despite fixture toolkit attribute GTK. No setup/API error.",
+    "corrected_endpoint": "Ten V16 source-bound AST controls passed, including synthetic exact mapped device/inode and bounded maps input checks.",
+    "real_GI_process_key_provider_calls": 0,
+    "full_gate_credit": false,
+    "runtime_limit": "Synthetic maps/device/inode control success does not imply successful mapped-library validation of actual Desktop; the separate f060 arm refused before input."
+  }
+}

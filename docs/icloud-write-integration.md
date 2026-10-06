@@ -2722,3 +2722,79 @@ files. The registered 90-second window and 20-second cleanup reserve completed i
 no source/script/policy change followed it. This proves original raw bytes for
 this owned XLSX arm, not restoration, native application fidelity, a complete
 Trash inventory, installed migration or any full-iCloud gate closure.
+
+### Public Desktop account expansion diagnosis on 6 October 2026
+
+The [fresh account-row chooser trial](benchmarks/icloud-pages-account-row-chooser-2026-10-06.json)
+selected the exact owned expandable row, then refused before its first action.
+A [new state observation](benchmarks/icloud-pages-account-row-readiness-diagnostic-2026-10-06.json)
+retained `ENABLED=false`, `SENSITIVE=true` and no actions on that row.
+The [subsequent bounded subtree observation](benchmarks/icloud-pages-account-row-subtree-diagnostic-2026-10-06.json)
+captured all 15 owned nodes: even visible buttons offering `click` reported
+`ENABLED=false`. No expansion action was exposed in the observed subtree.
+
+These runs completed in 1.471, 1.270 and 1.421 seconds, respectively. Each used
+the same frozen default Desktop and isolated synthetic account. All original
+process handles were reaped, owned sockets closed, inputs remained unchanged,
+and no import or cloud request occurred. This identifies limits of the test's
+AT-SPI action admission and expansion mechanism; it does not establish a broken
+user interface. A fresh GTK-specific controller must prove its state guards and
+own-window keyboard activation before testing the real chooser. Public Desktop
+import, original-mount publication and independent native readback remain open.
+
+The subsequent GTK-specific work now distinguishes two further controller
+assumptions from product behavior. GTK application toolkit getters returned
+null, while its public attributes correctly identify GTK. The pinned GTK ELF
+then reported the same inode and exact pathname through `stat` and process
+mappings, but different device numbers on this Btrfs host. A known-file
+calibration retains the hashed source descriptor across loading that exact ELF
+without calling `gtk_init`, then compares its physical mapping tuple and mount
+namespace with the owned Desktop. The
+[actual calibrated trial](benchmarks/icloud-pages-gtk-calibrated-library-chooser-2026-10-06.json)
+passed that admission and all three read-only compositor queries.
+
+It then stopped at GTK's unsupported AT-SPI `Component.GrabFocus` call, before
+sending any key or opening the import dialog. All original children and utility
+handles were reaped, sockets closed and inputs unchanged. This result proves
+the library calibration on this host, not public import completion. The
+[separate controls](benchmarks/icloud-pages-gtk-calibrated-library-controls-2026-10-06.json)
+first fail under the original device comparison and pass eleven cases under
+the correction; they do not replace the live chooser test. The successor must
+use ordinary keyboard navigation addressed to the owned window and observe
+the exact account row focused before activating it. No full release criterion
+or installed deployment hold has closed.
+
+### Actual public Pages chooser and confirmation Cancel completed on 6 October 2026
+
+The [fresh visible-tree arm](benchmarks/icloud-pages-chooser-visible-tree-2026-10-06.json)
+completed once in 4.025 seconds on the frozen default Desktop from `65a25139`,
+with all 480 runtime and 537 checked source pins unchanged. Four addressed TABs
+focused the exact owned account row; one SPACE expanded it. The public Import
+control opened the actual GTK chooser. One chooser-addressed Ctrl+l exposed
+its focused editable TEXT field with the `Location` placeholder. Explicit
+AT-SPI interface calls set and read back the exact sealed local archive path.
+The real Open action reached confirmation, whose archive filename and four
+field labels were checked before one Cancel. The visible confirmation was then
+absent. This proves the local public selection/confirmation/Cancel route, not
+cloud submission or destruction of every accessible object.
+
+The earlier [explicit-interface arm](benchmarks/icloud-pages-chooser-explicit-text-2026-10-06.json)
+already reached Cancel but failed its final tree observation. A
+[cache-clear successor](benchmarks/icloud-pages-chooser-post-cancel-cache-2026-10-06.json)
+failed earlier, before its new post-Cancel step could execute. The
+[event-dispatch arm](benchmarks/icloud-pages-chooser-context-dispatch-2026-10-06.json)
+retained an exact owned child count of -1 during confirmation polling; its
+underlying cause remains unproved. The successful successor observes live
+visible owned descendants, pruning hidden or defunct non-root branches before
+child queries. It preserves the original depth/node/child bounds and still
+refuses invalid child counts on traversed visible nodes. The application root
+remains observable even though it has no visible surface itself.
+
+All 24 compositor utility handles, five outer child handles, the Desktop and
+original controller were reaped. Owned sockets closed and all inputs remained
+unchanged. Status, capabilities and recent activity were requested twice each;
+there were exactly zero import requests and no provider access. These controller
+corrections did not change Cirrove behavior or the installed service. Full Pages
+import still needs one fresh actual Desktop submission, public completion and
+publication on its original mount, independent semantic readback and Apple Pages
+open of the exact allocated document. All six full-iCloud criteria remain open.

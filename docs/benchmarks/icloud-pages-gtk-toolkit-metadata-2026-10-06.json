@@ -1,0 +1,200 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-toolkit-root-launch-private-10cf8b5c-v1/chooser_toolkit_diagnostic_v15.py",
+    "sha256": "c694996f850f48992cbccca33c3312bab6dae5d87392a3f79364a185ed43ad70",
+    "size": 46025
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "Owned bounded toolkit-name/version snapshot before unchanged refusal and complete original handle/socket closure.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "limits": [
+    "No claim of executed keyboard route, chooser completion, import or provider reliability.",
+    "Same metadata guard retained, no replay of old runs."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "A missing or differently formatted toolkit metadata field explains refusal; one owned value snapshot will distinguish it without weakening the guard.",
+  "question": "What actual toolkit name/version does the selected owned account row report before the unchanged exact GTK guard refuses?",
+  "run": "10cf8b5c-b7ad-4fbc-ba3c-dbd6e11fddc9",
+  "source_count": 480,
+  "status": "performed-local-unset-toolkit-metadata-refused-before-input",
+  "version": 1,
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-toolkit-root-launch-private-10cf8b5c-v1/public-toolkit-preregistration-byteexact-before-outcome-v1.json",
+      "size": 1521,
+      "sha256": "c35e7b5b86a866d6eab193cb1b6841bd70fad2c8bbb475623ac37267bf1c6b5b"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-toolkit-root-launch-private-10cf8b5c-v1/root-public-chooser-registration-v2.json",
+      "size": 6605,
+      "sha256": "0218146393e720a871e3f496266d3d2656a0a9c9d9349574edf6715891d40a85"
+    },
+    "original_public_pin_matches_registration": true,
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.2705923320027068,
+    "overall_chooser_success": false,
+    "toolkit_diagnostic_captured": true,
+    "toolkit_metadata": {
+      "actions_before": 0,
+      "desktop_pid": 1322712,
+      "original_action_deadline": 282405.662984081,
+      "run": "10cf8b5c-b7ad-4fbc-ba3c-dbd6e11fddc9",
+      "same_toolkit_guard_preserved": true,
+      "startticks": 28225619,
+      "toolkit_name": null,
+      "toolkit_version": null
+    },
+    "first_refusal": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_toolkit_diagnostic_v15.py",
+          "function": "main",
+          "line": 833
+        },
+        {
+          "file": "chooser_toolkit_diagnostic_v15.py",
+          "function": "run",
+          "line": 596
+        },
+        {
+          "file": "chooser_toolkit_diagnostic_v15.py",
+          "function": "expand_account_keyboard",
+          "line": 490
+        },
+        {
+          "file": "chooser_toolkit_diagnostic_v15.py",
+          "function": "gtk_ready",
+          "line": 397
+        },
+        {
+          "file": "chooser_toolkit_diagnostic_v15.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "keyboard_route_executed": false,
+    "utility_children": [],
+    "actions": [],
+    "keys_sent": 0,
+    "focus_or_ui_actions_performed": 0,
+    "import_rpc_count": 0,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "cloud_called": false,
+    "provider_verified": false,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "interpretation": "The exact owned row toolkit-name and toolkit-version getters both returned null, so the unchanged exact GTK name/version predicate refused before any keyboard, utility, focus or UI action. No keyboard-route failure or product/provider defect is established by these unset getters.",
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1322708,
+          "start_ticks": 28225599,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1322703,
+          "start_ticks": 28225588,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1322702,
+          "start_ticks": 28225587,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1322701,
+          "start_ticks": 28225587,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1322700,
+          "start_ticks": 28225587,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1322712,
+        "returncode": -15,
+        "startticks": 28225619
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "chooser_closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_cleanup_errors": [],
+      "launcher_signals": [],
+      "desktop_signals": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-toolkit-root-launch-private-10cf8b5c-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66443,
+        "sha256": "1cdafc6504d6eac10172b44cef6afce23807cc87c6d31e3151645cd43dfb7b0b"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-toolkit-root-launch-private-10cf8b5c-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "14b140334dee1695c187731cab74945b5b9805e59fef124c80a9458a981022b9"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-10cf8b5c-b7ad-4fbc-ba3c-dbd6e11fddc9/result.json",
+        "size": 4222,
+        "sha256": "8e54a6707ee8ab7044c94329700bcc94c84128ee3b715b1adc886da26a7b1a8a"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-10cf8b5c-b7ad-4fbc-ba3c-dbd6e11fddc9/chooser/result.json",
+        "size": 1377,
+        "sha256": "6e3d2154acd6bb92a3b0c2bc14b3ca3db6082013d007785b09fc03f847b2e657"
+      },
+      "toolkit_diagnostic": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-10cf8b5c-b7ad-4fbc-ba3c-dbd6e11fddc9/chooser/gtk-toolkit-metadata-before-refusal.json",
+        "size": 266,
+        "sha256": "eac311234f8424e1a6d97a4ee9ae0ad51762b6daf727302ad34f9e668f4c8249"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-10cf8b5c-b7ad-4fbc-ba3c-dbd6e11fddc9/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "64fb8df4d2a8879ba94d3aa3e09d24ded54d8ccc66e9d8df35ae967a78d4a871"
+      }
+    },
+    "closed_run_not_replayed": true,
+    "full_release_gates_closed": false
+  }
+}

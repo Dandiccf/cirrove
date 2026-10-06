@@ -1,0 +1,91 @@
+{
+  "baseline_source_sha256": "8cb2cd5c62f05b2ea50057dc1c03f460b5c951d8cd6fc8d9a5a297da4cd99074",
+  "control_sha256": "2323762e688edcda376fefed9abb41374cd60fa1d26dbd65beb263e3f8f45935",
+  "corrected_source_sha256": "5bd4d1246e2355a7611ddd981b75578ffcccc987cf1c9d9d62f27a4051a4e4f3",
+  "endpoint": "One desired baseline assertion failure without errors, nine corrected passes without errors, exact source bytes preserved.",
+  "limits": [
+    "Actual action/state/keyboard method AST; other fixture interfaces stubbed.",
+    "No GI, live desktop, subprocesses from the controls, keyboard, provider or installed changes.",
+    "No actual chooser or full iCloud gate credit."
+  ],
+  "prediction": "Original source fails the one desired clickable-button endpoint. Corrected source passes nine AST controls, including refusal cases and no key repetition.",
+  "question": "Does the GTK-specific controller admit the observed ENABLED=false but sensitive visible click control while refusing disabled, foreign, stale and ambiguous targets; does the owned keyboard route send at most one exact addressed key?",
+  "status": "performed-original-desired-failure-corrected-nine-pass",
+  "version": 1,
+  "pre_execution_correction": "Final V14 adds a live/deadline check after fsynced utility attempt and before Popen. V13 corrected action phase remained unexecuted; original action baseline already produced desired failure.",
+  "preregistration_preserved": {
+    "current_pre_outcome_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-keyboard-root-launch-private-67b8-v1/public-gtk-controls-byteexact-before-outcome-v1.json",
+      "size": 1372,
+      "sha256": "7787a237543cd64438aa82b0340edc6f238d37800bc8bf86575cf3d8a405dd8f"
+    },
+    "original_registered_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-row-keyboard-cancel-private-v1/action-controls-original-preregistration.json",
+      "size": 1147,
+      "sha256": "4b062b18c111fb6148547247209d1e5517a030b3f6896e8d274f66148444fb3e"
+    },
+    "original_registration_pin_matches": true,
+    "pre_execution_V14_correction_retained": true
+  },
+  "result": {
+    "baseline": {
+      "exit_code": 1,
+      "duration_seconds": 0.051349262008443475,
+      "tests_executed": 1,
+      "passes": 0,
+      "desired_assertion_failures": 1,
+      "errors": 0,
+      "sources_unchanged": true,
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-action-baseline-controls-v1-registration.json",
+        "size": 70545,
+        "sha256": "503eb04b863323f8dfb528726d45dbcb66c4d0bd1b842f64d198dd20938f2d3c"
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-action-baseline-controls-v1-result.json",
+        "size": 234,
+        "sha256": "91cc38f51effd752acd3e37c758ffecd1b906cf057051e476fbcf3033d1efcd5"
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-action-baseline-controls-v1.log",
+        "size": 1129,
+        "sha256": "fa80d52236ea95bff7f1f0ab805317d01e55112036b913face3519cef589e6fc"
+      }
+    },
+    "corrected_V14": {
+      "exit_code": 0,
+      "duration_seconds": 0.05383533000713214,
+      "tests_executed": 9,
+      "passes": 9,
+      "desired_assertion_failures": 0,
+      "errors": 0,
+      "sources_unchanged": true,
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-action-corrected-controls-v2-registration.json",
+        "size": 70463,
+        "sha256": "ef5dc889710ee1c8557193be693b17961912bf102e00a997f1636f6739a7dafc"
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-action-corrected-controls-v2-result.json",
+        "size": 233,
+        "sha256": "88ca825870f8aad8e71569e581528244b658493505aacb8149d714f2b854c6c2"
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-action-corrected-controls-v2.log",
+        "size": 424,
+        "sha256": "a4158d288bd653f8593ebf69ae71b64e2a2a394a748d1fafb5ac8446d5655609"
+      }
+    },
+    "baseline_endpoint": "Observed sensitive visible click target without ENABLED refused on original controller; desired error-is-None assertion failed with Refusal, not an API/setup error.",
+    "corrected_endpoint": "Nine source-bound AST action/state/keyboard controls passed.",
+    "real_GI_desktop_or_subprocesses_from_controls": false,
+    "real_keys": 0,
+    "provider_calls": 0,
+    "full_gate_credit": false,
+    "scope": "Private controller admission/one-key instrumentation controls only; actual keyboard chooser readiness is a separate arm."
+  }
+}

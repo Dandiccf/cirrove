@@ -1,0 +1,711 @@
+{
+  "actual_build_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/desktop-binding-v1.json",
+    "sha256": "5a75ca719d4ec7a504c74f5505059191f74b3763b67931b086c464678e0a8334",
+    "size": 64516
+  },
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "One owned row subtree snapshot under the existing64-depth/512-node/512-child bounds before the unchanged action refusal, with original process handles reaped and owned sockets closed.",
+  "fullcheck": {
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1.log",
+      "sha256": "608be994883c78f436527a434cf621a3e4e403603b506b6de543adb7218f8ab6",
+      "size": 270023
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1-registration.json",
+      "sha256": "7e7625ad666116295503fce45189ad74763e82e2b25044edb65064d3cfd2dca7",
+      "size": 73296
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1-result.json",
+      "sha256": "d9fda80b0903b0cc0b9a9c616f9b9fc5013bacd301376ed7cff1851b328331ab",
+      "size": 231
+    }
+  },
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "limits": [
+    "Local synthetic account only; no provider import or acceptance credit.",
+    "No readiness polling, action selection change, retry, guard relaxation or replay.",
+    "Foreign nodes receive PID only and are not descended; names are queried only for owned nodes.",
+    "Installed integration and all six release gates unchanged."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "The non-actionable outer row contains an embedded header; a single bounded subtree snapshot will locate its role and action interface without invoking any action or weakening readiness guards.",
+  "question": "Which owned descendant under the selected iCloud account row exposes the real expansion action, and what states/actions does it have?",
+  "run": "99704c8d-e7c3-401f-978e-d8e1a454b6e0",
+  "source_count": 480,
+  "status": "performed-local-subtree-diagnostic-captured-action-guard-refused",
+  "version": 1,
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-subtree-root-launch-private-9970-v1/public-subtree-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2670,
+      "sha256": "201a3b482c9360b5a159e535ee2ecde1846506d0d663022e44d3d47705f36ae7"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-subtree-root-launch-private-9970-v1/root-public-chooser-registration-v2.json",
+      "size": 5698,
+      "sha256": "d3f0e5bef23227f88415214fbae74e41791e2cb9deebd7163400906b8c4b70f5"
+    },
+    "original_public_preregistration_sha256": "201a3b482c9360b5a159e535ee2ecde1846506d0d663022e44d3d47705f36ae7",
+    "question_prediction_scope_preserved": true
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.42144303600071,
+    "overall_chooser_success": false,
+    "bounded_subtree_diagnostic_captured": true,
+    "owned_desktop": {
+      "pid": 1306437,
+      "start_ticks": 28144743
+    },
+    "collection_complete": true,
+    "collection_error_class": null,
+    "node_count": 15,
+    "bounds": {
+      "depth": 64,
+      "nodes": 512,
+      "children": 512
+    },
+    "path_semantics": "zero-based child-index path from selected account row",
+    "one_observation_no_retry": true,
+    "readiness_guard_unchanged": true,
+    "owned_nodes": [
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "iCloud Drive",
+          "pid": 1306437,
+          "role": "list item",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": true,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": []
+      },
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "",
+          "pid": 1306437,
+          "role": "panel",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "",
+          "pid": 1306437,
+          "role": "panel",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "",
+          "pid": 1306437,
+          "role": "panel",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "",
+          "pid": 1306437,
+          "role": "image",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "",
+          "pid": 1306437,
+          "role": "panel",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          1
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 8,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [
+            "clipboard.copy",
+            "selection.delete",
+            "clipboard.paste",
+            "link.open",
+            "clipboard.cut",
+            "link.copy",
+            "menu.popup",
+            "selection.select-all"
+          ],
+          "details_complete": true,
+          "name": "iCloud Drive",
+          "pid": 1306437,
+          "role": "label",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 8,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [
+            "clipboard.copy",
+            "selection.delete",
+            "clipboard.paste",
+            "link.open",
+            "clipboard.cut",
+            "link.copy",
+            "menu.popup",
+            "selection.select-all"
+          ],
+          "details_complete": true,
+          "name": "local-pages-chooser@example.invalid \u00b7 Connected",
+          "pid": 1306437,
+          "role": "label",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "",
+          "pid": 1306437,
+          "role": "panel",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          2
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 0,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [],
+          "details_complete": true,
+          "name": "",
+          "pid": 1306437,
+          "role": "panel",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          2,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 1,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "details_complete": true,
+          "name": "Unmount",
+          "pid": 1306437,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          2,
+          0,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 8,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [
+            "clipboard.copy",
+            "selection.delete",
+            "clipboard.paste",
+            "link.open",
+            "clipboard.cut",
+            "link.copy",
+            "menu.popup",
+            "selection.select-all"
+          ],
+          "details_complete": true,
+          "name": "Unmount",
+          "pid": 1306437,
+          "role": "label",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          2,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 1,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "details_complete": true,
+          "name": "Sign in again",
+          "pid": 1306437,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          2,
+          0,
+          1
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 8,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [
+            "clipboard.copy",
+            "selection.delete",
+            "clipboard.paste",
+            "link.open",
+            "clipboard.cut",
+            "link.copy",
+            "menu.popup",
+            "selection.select-all"
+          ],
+          "details_complete": true,
+          "name": "Sign in again",
+          "pid": 1306437,
+          "role": "label",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          2,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "facts": {
+          "action_count": 1,
+          "action_error_class": null,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "details_complete": true,
+          "name": "Open in Files",
+          "pid": 1306437,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true,
+        "path": [
+          0,
+          2,
+          0,
+          2
+        ]
+      }
+    ],
+    "actions_before": 0,
+    "completed_actions": 0,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_subtree_diagnostic_v11.py",
+          "function": "main",
+          "line": 664
+        },
+        {
+          "file": "chooser_subtree_diagnostic_v11.py",
+          "function": "run",
+          "line": 449
+        },
+        {
+          "file": "chooser_subtree_diagnostic_v11.py",
+          "function": "action",
+          "line": 391
+        },
+        {
+          "file": "chooser_subtree_diagnostic_v11.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "observed_boundary": "All 15 recorded owned nodes had ENABLED=false and SENSITIVE=true. The outer iCloud Drive list item exposed zero actions; Unmount, Sign in again and Open in Files buttons each exposed one click action. The unchanged row action admission guard refused before any action.",
+    "diagnosis_limit": "This is a complete bounded AT-SPI subtree snapshot at one time. It establishes these exact target states and interfaces, not a broken UI, GTK activation failure, provider issue or whether a separately validated keyboard interaction can activate the row. No production UI change or guard relaxation follows from ENABLED=false alone.",
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "all_mutating_requests_refused": true,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "five_outer_child_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1306433,
+          "start_ticks": 28144724,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1306428,
+          "start_ticks": 28144716,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1306427,
+          "start_ticks": 28144716,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1306426,
+          "start_ticks": 28144715,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1306425,
+          "start_ticks": 28144715,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1306437,
+        "returncode": -15,
+        "startticks": 28144743
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "chooser_closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_cleanup_errors": [],
+      "launcher_signals": [],
+      "desktop_signals": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-subtree-root-launch-private-9970-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66447,
+        "sha256": "32270d5c6b552dcbe7aabe6300316a847ee8dd26de0e8d5dc663666b51be6705"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-subtree-root-launch-private-9970-v1/root-public-chooser-launch-result-v2.json",
+        "size": 452,
+        "sha256": "a724aadb8059243bc0d33bec7902e968256aa18c23acea257fa175652fd31517"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-99704c8d-e7c3-401f-978e-d8e1a454b6e0/result.json",
+        "size": 4224,
+        "sha256": "0b49379a9c38827be68750db9d2fbd31fec5fde7b5fa9bd8267dbf810465af28"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-99704c8d-e7c3-401f-978e-d8e1a454b6e0/chooser/result.json",
+        "size": 1211,
+        "sha256": "84de3bef01920acd9ba347d470cd4e2e74bb2f307f49923485069807888795fc"
+      },
+      "subtree_diagnostic": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-99704c8d-e7c3-401f-978e-d8e1a454b6e0/chooser/account-row-subtree-before-refusal.json",
+        "size": 11507,
+        "sha256": "8ce1e1ed4d871ac2deb862b725f2d8c2daba795e2c573da40f77edf695a8f475"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-99704c8d-e7c3-401f-978e-d8e1a454b6e0/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "c774dd89ab10e078df3374b7b9847d2a9cbf064cec986e4915f96e238325051c"
+      }
+    },
+    "closed_run_not_replayed": true,
+    "full_release_gates_closed": false
+  }
+}

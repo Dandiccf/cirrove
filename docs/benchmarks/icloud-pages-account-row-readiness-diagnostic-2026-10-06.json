@@ -1,0 +1,255 @@
+{
+  "actual_build_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/desktop-binding-v1.json",
+    "sha256": "5a75ca719d4ec7a504c74f5505059191f74b3763b67931b086c464678e0a8334",
+    "size": 64516
+  },
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "One bounded owned-row and up to eight immediate child diagnostic snapshot before unchanged refusal; retained original process handles reaped and owned sockets closed. If guard is ready, normal existing chooser-Cancel endpoint applies.",
+  "fullcheck": {
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1.log",
+      "sha256": "608be994883c78f436527a434cf621a3e4e403603b506b6de543adb7218f8ab6",
+      "size": 270023
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1-registration.json",
+      "sha256": "7e7625ad666116295503fce45189ad74763e82e2b25044edb65064d3cfd2dca7",
+      "size": 73296
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1-result.json",
+      "sha256": "d9fda80b0903b0cc0b9a9c616f9b9fc5013bacd301376ed7cff1851b328331ab",
+      "size": 231
+    }
+  },
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "limits": [
+    "Local synthetic account; no provider import or acceptance credit.",
+    "No readiness polling or guard relaxation. No replay of b592.",
+    "Installed integration and all six release gates unchanged."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "The found row retains SHOWING and EXPANDABLE but lacks ENABLED or SENSITIVE; one bounded row/child snapshot will determine flags and action placement before the unchanged refusal. No specific root cause is claimed before observation.",
+  "question": "Which exact owned account-row states, role and actions cause the expansion action readiness guard to refuse in the default desktop?",
+  "run": "1774b6d8-0e9b-4a98-93d9-aab5c2a6c2a8",
+  "source_count": 480,
+  "status": "performed-local-diagnostic-captured-action-guard-refused",
+  "version": 1,
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-readiness-root-launch-private-1774-v1/public-readiness-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2633,
+      "sha256": "457e2870e8bee5fd9757d3395d7c9f77dde554b305a417565693496cfafc36c9"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-readiness-root-launch-private-1774-v1/root-public-chooser-registration-v2.json",
+      "size": 5708,
+      "sha256": "057eb7233adb40a99268a6c5dec8ea24b255144a46461aca7dccac8ae7c4f055"
+    },
+    "original_public_preregistration_sha256": "457e2870e8bee5fd9757d3395d7c9f77dde554b305a417565693496cfafc36c9",
+    "question_prediction_scope_preserved": true
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.2700975789921358,
+    "overall_chooser_success": false,
+    "bounded_diagnostic_captured": true,
+    "owned_desktop": {
+      "pid": 1302844,
+      "start_ticks": 28128213
+    },
+    "one_observation_no_retry": true,
+    "readiness_guard_unchanged": true,
+    "row": {
+      "action_count": 0,
+      "action_names": [],
+      "name": "iCloud Drive",
+      "pid": 1302844,
+      "role": "list item",
+      "states": {
+        "BUSY": false,
+        "DEFUNCT": false,
+        "ENABLED": false,
+        "EXPANDABLE": true,
+        "EXPANDED": false,
+        "FOCUSABLE": true,
+        "FOCUSED": false,
+        "SENSITIVE": true,
+        "SHOWING": true,
+        "VISIBLE": true
+      }
+    },
+    "immediate_children": [
+      {
+        "index": 0,
+        "node": {
+          "action_count": 0,
+          "action_names": [],
+          "name": "",
+          "pid": 1302844,
+          "role": "panel",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "ENABLED": false,
+            "EXPANDABLE": false,
+            "EXPANDED": false,
+            "FOCUSABLE": false,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          }
+        },
+        "owned": true
+      }
+    ],
+    "child_count": 1,
+    "child_snapshot_limit": 8,
+    "children_truncated": false,
+    "actions_before": 0,
+    "completed_actions": 0,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_readiness_diagnostic_v10.py",
+          "function": "main",
+          "line": 637
+        },
+        {
+          "file": "chooser_readiness_diagnostic_v10.py",
+          "function": "run",
+          "line": 422
+        },
+        {
+          "file": "chooser_readiness_diagnostic_v10.py",
+          "function": "action",
+          "line": 364
+        },
+        {
+          "file": "chooser_readiness_diagnostic_v10.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "observed_boundary": "The exact owned iCloud Drive list item had ENABLED=false, SENSITIVE=true, SHOWING=true and EXPANDABLE=true. Its unchanged ENABLED && SENSITIVE guard refused before invoking any action. The row and its single immediate panel child each exposed zero actions.",
+    "diagnosis_limit": "These retained AT-SPI states explain this target admission refusal. They do not establish a broken UI, a provider issue or absence of an actionable expander deeper in the owned subtree. No subtree action target is inferred from this one immediate-child snapshot.",
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "all_mutating_requests_refused": true,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "five_outer_child_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1302800,
+          "start_ticks": 28128192,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1302782,
+          "start_ticks": 28128180,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1302781,
+          "start_ticks": 28128179,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1302780,
+          "start_ticks": 28128179,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1302779,
+          "start_ticks": 28128179,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1302844,
+        "returncode": -15,
+        "startticks": 28128213
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "chooser_closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_cleanup_errors": [],
+      "launcher_signals": [],
+      "desktop_signals": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-readiness-root-launch-private-1774-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66461,
+        "sha256": "5b5f9e18973f29cc74dc347d38ea700a0dfe815588bf6e153cdb758ce6e6596e"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-row-readiness-root-launch-private-1774-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "c542ea53d2af9e79d4a37c4fa3ab5bfe2586cb53aba199d14b3ecddff5f81dfc"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-1774b6d8-0e9b-4a98-93d9-aab5c2a6c2a8/result.json",
+        "size": 4230,
+        "sha256": "592e9e5b0e2bbd636a5c0c00158371357434a2af5576a324a41cf7d97518ef96"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-1774b6d8-0e9b-4a98-93d9-aab5c2a6c2a8/chooser/result.json",
+        "size": 1219,
+        "sha256": "fbce91f4b2bb8e8dedcebe49088968c1d0983d14de7edd5ce0994624925e297e"
+      },
+      "readiness_diagnostic": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-1774b6d8-0e9b-4a98-93d9-aab5c2a6c2a8/chooser/account-row-readiness-before-refusal.json",
+        "size": 1297,
+        "sha256": "4688c5407379486be1724a06f28a884c438ea232883077b720fa697386625712"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-1774b6d8-0e9b-4a98-93d9-aab5c2a6c2a8/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "1b31640080152a05fef0fb8c75a51ac7522d126d5b136758260d32420e53baa7"
+      }
+    },
+    "next_step": "A separate fresh bounded owned-subtree diagnostic may identify the actual expander action target. This closed run is not replayed and the action readiness guard remains strict.",
+    "full_release_gates_closed": false
+  }
+}

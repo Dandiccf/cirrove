@@ -1,0 +1,242 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-post-cancel-cache-private-v1/chooser_post_cancel_cache_v24.py",
+    "sha256": "70e60e622a9aa291061a2edbd2f0097ca3a02249cf300f77e2def78b440dc3a0",
+    "size": 62500
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-post-cancel-cache-private-v1/outer_post_cancel_cache_v24.py",
+    "sha256": "3307b759aa258f84ddc2ab5b6d4f55fb3ca1a54e95b4705442a7b16328bd67f5",
+    "size": 24738
+  },
+  "endpoint": "Local public chooser evidence and complete original handle/socket closure; no import submission or provider request.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_attestation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/primary-attestation-v4.json",
+    "sha256": "bf05ff87cd4d7e8a617d55cd04519fb8439aa4b189e61763975849a437b29f2a",
+    "size": 6447
+  },
+  "limits": [
+    "Fresh local synthetic account only, no full iCloud/provider acceptance credit.",
+    "Owned-window addressed keyboard navigation only; original time/birth/GTK guards retained.",
+    "Previous run remains closed and is not reopened."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "One bounded 0.2s settle and owned recursive cache clear will remove obsolete cached descendants; unchanged tree bounds and exact owned PID checks will confirm dismissal with zero import RPCs and complete original closure, or refuse without another Cancel.",
+  "question": "After the real archive selection and one successful confirmation Cancel, does clearing only the owned accessibility cache permit strict current-tree verification that the confirmation is gone?",
+  "run": "affbb124-49e3-4748-aacf-dff420872576",
+  "source_count": 480,
+  "status": "actual-local-pre-cancel-confirmation-walk-refusal",
+  "version": 1,
+  "performed": {
+    "local_ui": true,
+    "exact_path_set_and_readback": true,
+    "real_open_action": true,
+    "confirmation_validation": false,
+    "cancel_action": false,
+    "post_cancel_settle": false,
+    "post_cancel_cache_clear": false,
+    "confirmation_gone_verified": false,
+    "full_local_endpoint": false,
+    "import_submission": false,
+    "provider": false,
+    "installed_actions": false
+  },
+  "actual_outcome": {
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-post-cancel-cache-root-v24-v1/public-post-cancel-cache-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2380,
+      "sha256": "eb439c98441e6f66223fbfc0523e460adfd9604122abf41b7a85ba68af033162"
+    },
+    "root_frozen_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-post-cancel-cache-root-v24-v1/preregistration-frozen-v1.json",
+      "size": 2380,
+      "sha256": "eb439c98441e6f66223fbfc0523e460adfd9604122abf41b7a85ba68af033162"
+    },
+    "original_tool_session": 13259,
+    "terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1362042,
+      "controller_proc_absent": true,
+      "duration_seconds": 3.2734031500294805,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "affbb124-49e3-4748-aacf-dff420872576",
+      "signals": []
+    },
+    "summary": "Nine recorded actions reached exact path entry/readback and real Open. The initial import-confirmation poll refused at walk child-count guard 0 <= count <= 512, line 263 (run line 851), before confirmation validation or Cancel. The new post-Cancel settle/cache-clear code was never executed.",
+    "prediction_validated": false,
+    "cache_clear_effectiveness_tested": false,
+    "cause_limits": "The actual failing count and accessible-node state were not retained. No measured negative count, cache cause, cache-clear ineffectiveness or product UI defect is claimed. The separate bounded event-dispatch proposal remains an unvalidated hypothesis.",
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_post_cancel_cache_v24.py",
+          "function": "main",
+          "line": 1117
+        },
+        {
+          "file": "chooser_post_cancel_cache_v24.py",
+          "function": "run",
+          "line": 851
+        },
+        {
+          "file": "chooser_post_cancel_cache_v24.py",
+          "function": "poll",
+          "line": 278
+        },
+        {
+          "file": "chooser_post_cancel_cache_v24.py",
+          "function": "<lambda>",
+          "line": 851
+        },
+        {
+          "file": "chooser_post_cancel_cache_v24.py",
+          "function": "walk",
+          "line": 263
+        },
+        {
+          "file": "chooser_post_cancel_cache_v24.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once"
+    ],
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "full_chooser_confirmation_cancel": false,
+    "closure": {
+      "all_five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1362053,
+          "startticks": 28414903,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1362048,
+          "startticks": 28414891,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1362047,
+          "startticks": 28414890,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1362046,
+          "startticks": 28414889,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1362045,
+          "startticks": 28414889,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop": {
+        "original_handle_reaped": true,
+        "pid": 1362057,
+        "returncode": -15,
+        "startticks": 28414923
+      },
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "utility_count": 24,
+      "utility_original_handles_all_reaped_exit_zero": true,
+      "closure_errors": [],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "outer_errors": [
+        "RuntimeError"
+      ],
+      "outer_error_scope": "RuntimeError propagates the refused chooser child; original handle/socket closure is complete.",
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "root-public-chooser-registration-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-post-cancel-cache-root-v24-v1/root-public-chooser-registration-v2.json",
+        "size": 6604,
+        "sha256": "b5178cc116d2f4a50980b609ccfcd2013a35e5e3ad04fedc4fa906afb404ee04"
+      },
+      "root-public-chooser-launch-manifest-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-post-cancel-cache-root-v24-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66429,
+        "sha256": "bd0b721b1ef8263587d6e733c5a33d83aaf386d49b6c132fb1edcef8d33d316f"
+      },
+      "root-public-chooser-launch-result-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-post-cancel-cache-root-v24-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "9e71772d8f9adaee966a8263a297bba964199542b9525f8d4f79d09b17404b41"
+      },
+      "result.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-affbb124-49e3-4748-aacf-dff420872576/chooser/result.json",
+        "size": 4837,
+        "sha256": "532d913e328d38425f54f3e50a24619b2bdc5505e6eb418e61d57b367ba219a8"
+      },
+      "desktop-reaped.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-affbb124-49e3-4748-aacf-dff420872576/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "8b429ffa26ee5afc9d8981473a493268ae13044561be4d5a439094f15365adf5"
+      },
+      "action-08.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-affbb124-49e3-4748-aacf-dff420872576/chooser/action-08.json",
+        "size": 140,
+        "sha256": "21d730bd7d343025c8ae5f5309004076cde0e28b9b43184db21b3ee9742f733a"
+      },
+      "action-09.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-affbb124-49e3-4748-aacf-dff420872576/chooser/action-09.json",
+        "size": 128,
+        "sha256": "02592e47a8291563313d211480744787499f3f4c38fa5674c80c39c215c3a37d"
+      },
+      "gtk-library-mapping-calibration.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-affbb124-49e3-4748-aacf-dff420872576/chooser/gtk-library-mapping-calibration.json",
+        "size": 1249,
+        "sha256": "db9cf32c084586ca936ed36ff4100cbcc1b64981a4656ed685ce4dc885573fee"
+      }
+    }
+  }
+}

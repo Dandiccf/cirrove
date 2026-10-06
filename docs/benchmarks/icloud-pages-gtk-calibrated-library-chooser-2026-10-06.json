@@ -1,0 +1,334 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-library-private-v1/chooser_keyboard_cancel_v19.py",
+    "sha256": "dc5510ebff8157afb0207a0aef08556d7fc249f7f5b202259af64bc3c83f98c0",
+    "size": 48983
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-library-private-v1/outer_keyboard_cancel_v17.py",
+    "sha256": "40af6bbd42f191487efa5cd5d5722220340d167612e4f403e7d4fa28bd588d5a",
+    "size": 24738
+  },
+  "endpoint": "Local public chooser confirmation Cancel and complete original process/socket closure, no provider call.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_attestation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-root-launch-private-ca999-v1/primary-attestation-v3.json",
+    "sha256": "08740dabbd1110c78020314916a02e781ee05050258ff93fa7398796cb75c519",
+    "size": 5089
+  },
+  "limits": [
+    "Local synthetic service; no provider or full iCloud acceptance credit.",
+    "One owned window addressed SPACE only; no global input or retries.",
+    "Calibrated GTK physical device/inode/path and same mount namespace; no stat-device equivalence assumption.",
+    "11 synthetic controls are separate from actual runtime proof."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "Same-namespace known-library calibration will admit the actual GTK target and one explicitly addressed SPACE will expand the owned focused account; the real chooser will select the pinned Pages archive and confirmation Cancel will issue zero import requests.",
+  "question": "Can the frozen default Desktop expand the exact owned account row, open its public Pages chooser, select the exact owned local archive and cancel confirmation without import submission?",
+  "run": "ca9993b2-7084-4bbe-ba55-5d8318be0e33",
+  "source_count": 480,
+  "status": "performed-local-calibration-passed-focus-acquisition-error-before-key",
+  "version": 1,
+  "preregistration_preserved": {
+    "byteexact_original_frozen_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-root-launch-private-ca999-v1/preregistration-frozen-v1.json",
+      "size": 2455,
+      "sha256": "e041d1e226d756ee7bcee902ce59d9913f4cba5177ca45d852623098def42650"
+    },
+    "byteexact0400_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-root-launch-private-ca999-v1/public-calibrated-chooser-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2455,
+      "sha256": "e041d1e226d756ee7bcee902ce59d9913f4cba5177ca45d852623098def42650"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-root-launch-private-ca999-v1/root-public-chooser-registration-v2.json",
+      "size": 6602,
+      "sha256": "2d1661a0d9985047c79ca7d7d984ee983e9a810b838a8fa83fbf0df7b8d36aff"
+    },
+    "original_public_pin_matches_launch": true,
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.472110117028933,
+    "overall_chooser_success": false,
+    "GTK_calibration_and_target_guard_passed": true,
+    "GTK_library_mapping_calibration": {
+      "gtk_init_called": false,
+      "harness_pid": 1342560,
+      "mapped_inode": 141524,
+      "mapped_major": 0,
+      "mapped_minor": 29,
+      "mappings": [
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        }
+      ],
+      "namespace": "mnt:[4026531832]",
+      "no_preexisting_gtk_mapping": true,
+      "original_action_deadline": 283396.40134677,
+      "preflight_elf": {
+        "path": "/usr/lib/libgtk-4.so.1.2200.4",
+        "sha256": "191573fa61ffee70af2af82f1caf4c8d45b336523f56b7d6097fd34c13a5a809",
+        "size": 11823816
+      },
+      "preflight_stamp": [
+        31,
+        141524,
+        11823816,
+        33261,
+        0,
+        1,
+        1777516217000000000,
+        1788518792077930229
+      ],
+      "run": "ca9993b2-7084-4bbe-ba55-5d8318be0e33",
+      "source_bytes_and_stamp_unchanged": true,
+      "source_fd_retained_across_dlopen": true
+    },
+    "utilities": [
+      {
+        "error_class": null,
+        "exit_code": 0,
+        "pid": 1342603,
+        "reaped": true,
+        "sequence": 1,
+        "command": [
+          "/usr/bin/hyprctl",
+          "systeminfo"
+        ],
+        "attempt": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/hyprctl-01-attempt.json",
+          "size": 372,
+          "sha256": "89350a9bf8c7bc612807962d53e801d05df56d51e2585e74f8b9bd86558b2b9c"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/hyprctl-01-result.json",
+          "size": 97,
+          "sha256": "77356d3dab44e725d96aa3f696de68ae24742a677fc4695de88802d6d650783f"
+        }
+      },
+      {
+        "error_class": null,
+        "exit_code": 0,
+        "pid": 1342607,
+        "reaped": true,
+        "sequence": 2,
+        "command": [
+          "/usr/bin/hyprctl",
+          "-j",
+          "version"
+        ],
+        "attempt": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/hyprctl-02-attempt.json",
+          "size": 379,
+          "sha256": "7a68abe27cda8d8c6cbf9816139adb4a866f0c8c989f4d883259375ca2343aab"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/hyprctl-02-result.json",
+          "size": 97,
+          "sha256": "ae1a34611b193d7c5d49ba5bfa971aec0c3bd52edb6ac7f37209a7a44c83442c"
+        }
+      },
+      {
+        "error_class": null,
+        "exit_code": 0,
+        "pid": 1342608,
+        "reaped": true,
+        "sequence": 3,
+        "command": [
+          "/usr/bin/hyprctl",
+          "-j",
+          "clients"
+        ],
+        "attempt": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/hyprctl-03-attempt.json",
+          "size": 379,
+          "sha256": "3e31a665855a1bd6a3c1fbc733ba60925568c3b82ad63fb209251f82e736c201"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/hyprctl-03-result.json",
+          "size": 97,
+          "sha256": "325db8a902a90d835ce4b1f38dbe542cfcbd6181ac0313b46ae6072180ebe578"
+        }
+      }
+    ],
+    "focus_attempt": {
+      "accessible_pid": 1342564,
+      "action": "focus-own-account-once",
+      "desktop_pid": 1342564,
+      "monotonic": 283247.447117447
+    },
+    "first_failure": {
+      "retained_sanitized_failure": {
+        "class": "Error",
+        "positions": [
+          {
+            "file": "chooser_keyboard_cancel_v19.py",
+            "function": "main",
+            "line": 893
+          },
+          {
+            "file": "chooser_keyboard_cancel_v19.py",
+            "function": "run",
+            "line": 609
+          },
+          {
+            "file": "chooser_keyboard_cancel_v19.py",
+            "function": "expand_account_keyboard",
+            "line": 531
+          }
+        ]
+      },
+      "call_at_exact_position": "component.grab_focus()",
+      "exception_domain_root_reported": "GLib.Error",
+      "error_message_not_exported": true
+    },
+    "actions": [
+      "focus-own-account-once"
+    ],
+    "key_dispatch_count": 0,
+    "import_rpc_count": 0,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "cloud_called": false,
+    "provider_verified": false,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "interpretation": "Same-namespace pinned GTK mapping calibration and target admission passed. Three owned read-only hyprctl requests exited0 and were reaped. A durable focus attempt was recorded, then component.grab_focus raised Error before focused-state validation or key dispatch. No chooser/confirmation Cancel endpoint or import occurred; this does not establish a product UI defect or failure of a keyboard action that never ran.",
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1342560,
+          "start_ticks": 28324673,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1342555,
+          "start_ticks": 28324662,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1342554,
+          "start_ticks": 28324661,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1342553,
+          "start_ticks": 28324661,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1342552,
+          "start_ticks": 28324661,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1342564,
+        "returncode": -15,
+        "startticks": 28324693
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "chooser_closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_cleanup_errors": [],
+      "launcher_signals": [],
+      "desktop_signals": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-root-launch-private-ca999-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66435,
+        "sha256": "4dd494218320d83d7e741666bdc92c34fec317ad9431a88d96da5da3b125c0ab"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-root-launch-private-ca999-v1/root-public-chooser-launch-result-v2.json",
+        "size": 453,
+        "sha256": "a026e4586a5c07a69acbc2ffc1bbe131d67550509a1a998cc6712c76d0249cda"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/result.json",
+        "size": 4216,
+        "sha256": "cea28fe59d4f18a8acfa68ba00844827a83f2f72266ee0650b318f31c04ecd6f"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/result.json",
+        "size": 1535,
+        "sha256": "d02cbf6dd6b35a70417381150d4e1f8dab75963f7a0a25c05064da5b870e777f"
+      },
+      "calibration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/gtk-library-mapping-calibration.json",
+        "size": 1248,
+        "sha256": "392b7339d1a7369598c316a3691b8ceb1701b61b4d360caeb008faaf17a64d69"
+      },
+      "focus_attempt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/action-01.json",
+        "size": 129,
+        "sha256": "445179e351e8d450e07ec452b7f9b74141a4cdb29ae48ad663e123b69172b9e1"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-ca9993b2-7084-4bbe-ba55-5d8318be0e33/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "de5f19fe0141947059c017b3b6bc7cde6826eacac96f614a10a8229db60434da"
+      }
+    },
+    "closed_run_not_replayed": true,
+    "full_release_gates_closed": false
+  }
+}

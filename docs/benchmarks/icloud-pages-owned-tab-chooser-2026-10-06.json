@@ -1,0 +1,216 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-window-tab-cancel-private-v1/chooser_keyboard_cancel_v20_v2.py",
+    "sha256": "c32e9d60160385a941e4911f595ccbd78ade7731b7211b887af7a2c0b0ed2a9b",
+    "size": 51334
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-window-tab-cancel-private-v1/outer_keyboard_cancel_v20.py",
+    "sha256": "d9e8e7ab557262547d35d1b09f037d9ba785b67896471066e62f6868c9c97ae6",
+    "size": 24738
+  },
+  "endpoint": "Public chooser confirmation Cancel with complete original handle/socket closure and zero import requests.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_attestation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/primary-attestation-v4.json",
+    "sha256": "bf05ff87cd4d7e8a617d55cd04519fb8439aa4b189e61763975849a437b29f2a",
+    "size": 6447
+  },
+  "limits": [
+    "Live local synthetic account only, no full iCloud/provider credit.",
+    "Only an initially active exact owned window; no global input.",
+    "No claim the8TAB bound necessarily reaches this row.",
+    "Eight actual-method synthetic controls are not live chooser acceptance."
+  ],
+  "maximum_spaces": 1,
+  "maximum_tabs": 8,
+  "maximum_utility_children": 32,
+  "original_window_seconds": 180,
+  "prediction": "At most8 addressed TABs will reach the actual exact account row; only after actual FOCUSED one addressed SPACE will expand it, enabling public chooser selection and confirmation Cancel without import submission.",
+  "question": "Can normal keyboard navigation addressed to the exact owned active Desktop focus its account row, expand it, select the exact local Pages archive via the real chooser and cancel confirmation?",
+  "run": "af971a4e-a8c0-47e5-b730-6257cd350fea",
+  "source_count": 480,
+  "status": "actual-local-chooser-reached-location-control-refusal",
+  "version": 1,
+  "performed": {
+    "local_ui": true,
+    "account_tab_navigation": true,
+    "owned_account_space": true,
+    "public_import_button": true,
+    "archive_selection": false,
+    "confirmation_cancel": false,
+    "import_submission": false,
+    "provider": false,
+    "installed_actions": false
+  },
+  "actual_outcome": {
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/public-tab-chooser-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2440,
+      "sha256": "163a03f186d143141def71d7fcca4b8c6666a57b7dc2dfb488b4a265f664e984"
+    },
+    "original_tool_session": 60267,
+    "terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1349794,
+      "controller_proc_absent": true,
+      "duration_seconds": 2.424039556994103,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "af971a4e-a8c0-47e5-b730-6257cd350fea",
+      "signals": []
+    },
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once"
+    ],
+    "tabs": 4,
+    "spaces": 1,
+    "utility_count": 19,
+    "utilities_all_exit_zero_and_original_handles_reaped": true,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_keyboard_cancel_v20_v2.py",
+          "function": "main",
+          "line": 929
+        },
+        {
+          "file": "chooser_keyboard_cancel_v20_v2.py",
+          "function": "run",
+          "line": 654
+        },
+        {
+          "file": "chooser_keyboard_cancel_v20_v2.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "boundary": "Exact owned account gained focus after four addressed TABs; one addressed SPACE expanded it. Public Import document action reached the real file chooser. No recognized Location/File name/Name entry was found, then the recognized Enter Location/Location button lookup returned None; require(location is not None) refused at run line 654.",
+    "cause_limits": "The run did not retain a chooser subtree explaining the missing accessible entry/button. This is a harness boundary observation, not proof of broken product UI or failed provider import.",
+    "public_endpoint_complete": false,
+    "import_rpc_count": 0,
+    "provider_verified": false,
+    "cloud_called": false,
+    "closure": {
+      "all_five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1349811,
+          "startticks": 28355856,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1349805,
+          "startticks": 28355848,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1349804,
+          "startticks": 28355847,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1349803,
+          "startticks": 28355847,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1349802,
+          "startticks": 28355847,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop": {
+        "original_handle_reaped": true,
+        "pid": 1349815,
+        "returncode": -15,
+        "startticks": 28355876
+      },
+      "controller_pid": 1349794,
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "closure_errors": [],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "inputs_unchanged": true,
+      "outer_errors": [
+        "RuntimeError"
+      ],
+      "outer_error_scope": "RuntimeError propagates the failed chooser child; closure errors are empty."
+    },
+    "evidence": {
+      "root-public-chooser-registration-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/root-public-chooser-registration-v2.json",
+        "size": 6589,
+        "sha256": "66edec576b450360e0beb158fc6fea991a25205ffcf13d41d13055ba4f097437"
+      },
+      "root-public-chooser-launch-manifest-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66422,
+        "sha256": "78c0aef52c40bba9b1e24e41c9854b6ef7cec9bcd6f00d7c64aa732a70431434"
+      },
+      "root-public-chooser-launch-result-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/root-public-chooser-launch-result-v2.json",
+        "size": 453,
+        "sha256": "09d365730a8e6cbbd6782f9b9453100af3311283bbf469705de4bcb50d49eac9"
+      },
+      "result.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-af971a4e-a8c0-47e5-b730-6257cd350fea/chooser/result.json",
+        "size": 3737,
+        "sha256": "d2b0c226dd219080fea78995f7907da0b5f0d8a987bebd65368d1be7bb0e25cd"
+      },
+      "gtk-library-mapping-calibration.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-af971a4e-a8c0-47e5-b730-6257cd350fea/chooser/gtk-library-mapping-calibration.json",
+        "size": 1249,
+        "sha256": "e898ce54ae1caacc00965b275caa33f439878358078acea1e0a2341605f9a813"
+      },
+      "action-06.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-af971a4e-a8c0-47e5-b730-6257cd350fea/chooser/action-06.json",
+        "size": 134,
+        "sha256": "11e8c3a4f00108b1f45bd9140b3a2593dea34f57f9b2af9b358d0292599f7e9b"
+      },
+      "desktop-reaped.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-af971a4e-a8c0-47e5-b730-6257cd350fea/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "56ec4850cfa1fa40580314ee62f0ff7bf8428f195886a0474c7670e3f69c7349"
+      }
+    }
+  }
+}

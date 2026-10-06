@@ -1,0 +1,270 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-context-dispatch-private-v1/chooser_context_dispatch_v25.py",
+    "sha256": "02d41a71b0a5c0dba389e0fc0f3e1237f33a878c464b5e7ce9104389fe80f888",
+    "size": 63665
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-context-dispatch-private-v1/outer_context_dispatch_v25.py",
+    "sha256": "ac7a1894d217cade81cd855a8633057c6319b1cf9f80deb4691e47c4f8664201",
+    "size": 24738
+  },
+  "endpoint": "Local public chooser evidence and complete original handle/socket closure; no import submission or provider request.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_attestation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/primary-attestation-v4.json",
+    "sha256": "bf05ff87cd4d7e8a617d55cd04519fb8439aa4b189e61763975849a437b29f2a",
+    "size": 6447
+  },
+  "limits": [
+    "Fresh local synthetic account only, no full iCloud/provider acceptance credit.",
+    "Owned-window addressed keyboard navigation only; original time/birth/GTK guards retained.",
+    "Previous run remains closed and is not reopened."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "Draining pending cache events before each observation will remove obsolete children without ignoring negative counts or relaxing traversal; local selection and Cancel will complete once, or an exact unchanged child-count diagnostic will explain refusal.",
+  "question": "Will bounded nonblocking accessibility event dispatch between strict UI observations allow the real Pages chooser selection, confirmation checks, one Cancel and verified dismissal to complete?",
+  "run": "a181e1b2-a269-4333-9c55-655378bf5eba",
+  "source_count": 480,
+  "status": "actual-local-context-dispatch-owned-negative-child-count-refusal",
+  "version": 1,
+  "performed": {
+    "local_ui": true,
+    "bounded_context_dispatch_loop": true,
+    "exact_path_set_and_readback": true,
+    "real_open_action": true,
+    "confirmation_validation": false,
+    "cancel_action": false,
+    "post_cancel_cache_clear": false,
+    "confirmation_gone_verified": false,
+    "full_local_endpoint": false,
+    "import_submission": false,
+    "provider": false,
+    "installed_actions": false
+  },
+  "actual_outcome": {
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-context-dispatch-root-v25-v1/public-context-dispatch-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2374,
+      "sha256": "b662459992b66553b53f8d87d8d1fb6fc698463fe12132ce0e44c93ec8161cc5"
+    },
+    "root_frozen_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-context-dispatch-root-v25-v1/preregistration-frozen-v1.json",
+      "size": 2374,
+      "sha256": "b662459992b66553b53f8d87d8d1fb6fc698463fe12132ce0e44c93ec8161cc5"
+    },
+    "original_tool_session": 47977,
+    "terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1364377,
+      "controller_proc_absent": true,
+      "duration_seconds": 3.22316871304065,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "a181e1b2-a269-4333-9c55-655378bf5eba",
+      "signals": []
+    },
+    "summary": "Nine recorded actions reached exact path entry/readback and real Open. Bounded nonblocking context dispatch ran before observations. The initial confirmation poll still refused the unchanged child-count guard; this time the diagnostic retained actual count -1 at depth 15/output count 180, from exact owned Desktop PID 1364397. No Cancel or later cache-clear code was reached.",
+    "context_dispatch_resolved_refusal": false,
+    "context_scope": "The context-drain loop executed; the number of pending events or actual iteration callbacks was not recorded. This run does not establish elimination of the issue.",
+    "child_count_diagnostic": {
+      "child_limit": 512,
+      "count": -1,
+      "count_guard_unchanged": true,
+      "depth": 15,
+      "expected_own_pid": 1364397,
+      "observed_pid": 1364397,
+      "original_action_deadline": 284403.968995403,
+      "output_count": 180,
+      "path": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        1
+      ],
+      "run": "a181e1b2-a269-4333-9c55-655378bf5eba"
+    },
+    "cause_limits": "The diagnostic records the invalid count and exact owned identity/path, but not node visibility/DEFUNCT state or a D-Bus/cache failure cause. Hidden/defunct/cache explanations remain unproved; V25 did not skip or ignore invalid counts.",
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_context_dispatch_v25.py",
+          "function": "main",
+          "line": 1139
+        },
+        {
+          "file": "chooser_context_dispatch_v25.py",
+          "function": "run",
+          "line": 873
+        },
+        {
+          "file": "chooser_context_dispatch_v25.py",
+          "function": "poll",
+          "line": 300
+        },
+        {
+          "file": "chooser_context_dispatch_v25.py",
+          "function": "<lambda>",
+          "line": 873
+        },
+        {
+          "file": "chooser_context_dispatch_v25.py",
+          "function": "walk",
+          "line": 274
+        },
+        {
+          "file": "chooser_context_dispatch_v25.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once"
+    ],
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "full_chooser_confirmation_cancel": false,
+    "closure": {
+      "all_five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1364388,
+          "startticks": 28425426,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1364383,
+          "startticks": 28425418,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1364382,
+          "startticks": 28425418,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1364381,
+          "startticks": 28425418,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1364380,
+          "startticks": 28425417,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop": {
+        "original_handle_reaped": true,
+        "pid": 1364397,
+        "returncode": -15,
+        "startticks": 28425446
+      },
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "utility_count": 24,
+      "utility_original_handles_all_reaped_exit_zero": true,
+      "closure_errors": [],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "outer_errors": [
+        "RuntimeError"
+      ],
+      "outer_error_scope": "RuntimeError propagates the refused chooser child; original handle/socket closure is complete.",
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "root-public-chooser-registration-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-context-dispatch-root-v25-v1/root-public-chooser-registration-v2.json",
+        "size": 6599,
+        "sha256": "e72529ac2b9636f1e53f4a6441fcce360a42768020e0f1ce9b5a2932ce6e5d61"
+      },
+      "root-public-chooser-launch-manifest-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-context-dispatch-root-v25-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66422,
+        "sha256": "634ceca3c0fa2fb1eef49b3b49ba3cf2a5b889391e23983a69219ba09ddd04d8"
+      },
+      "root-public-chooser-launch-result-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-context-dispatch-root-v25-v1/root-public-chooser-launch-result-v2.json",
+        "size": 452,
+        "sha256": "abd4c7de1f3dcd7f8a5c7b163d56365c2a4cb5d914442144bc24e05f13cc7501"
+      },
+      "result.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-a181e1b2-a269-4333-9c55-655378bf5eba/chooser/result.json",
+        "size": 4831,
+        "sha256": "cd63e8806d173047264118527d769af2da859dc6d0216b336e6b1d16e2f9325e"
+      },
+      "walk-child-count-before-refusal.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-a181e1b2-a269-4333-9c55-655378bf5eba/chooser/walk-child-count-before-refusal.json",
+        "size": 387,
+        "sha256": "8b47da4060128b00ba84e17c3f0015c36f13acbce4f50513460f43a6a6d8564a"
+      },
+      "desktop-reaped.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-a181e1b2-a269-4333-9c55-655378bf5eba/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "99ad49bf83c89c3de50e575ad4a359bd66a642a9913b8e7adf372798eadb6201"
+      },
+      "action-09.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-a181e1b2-a269-4333-9c55-655378bf5eba/chooser/action-09.json",
+        "size": 129,
+        "sha256": "aece12b82a8d886bc4c7f0f968d6fc7e05c6b166cfaa68edd17d21a7fe413fac"
+      },
+      "gtk-library-mapping-calibration.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-a181e1b2-a269-4333-9c55-655378bf5eba/chooser/gtk-library-mapping-calibration.json",
+        "size": 1249,
+        "sha256": "4fbb22ae3a4cb65a0c6e380f6f75f7e8f4a2047f3f3f07291f464c278da09ec2"
+      }
+    }
+  }
+}

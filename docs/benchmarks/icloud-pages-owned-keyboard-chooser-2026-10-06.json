@@ -1,0 +1,234 @@
+{
+  "actual_build_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/desktop-binding-v1.json",
+    "sha256": "5a75ca719d4ec7a504c74f5505059191f74b3763b67931b086c464678e0a8334",
+    "size": 64516
+  },
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-row-keyboard-cancel-private-v1/chooser_keyboard_cancel_v14.py",
+    "sha256": "5bd4d1246e2355a7611ddd981b75578ffcccc987cf1c9d9d62f27a4051a4e4f3",
+    "size": 45265
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "Owned public Import document button, real chooser exact owned local Pages archive, matching confirmation and one Cancel; original utilities/Desktop/outer handles reaped and owned sockets closed.",
+  "fullcheck": {
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1.log",
+      "sha256": "608be994883c78f436527a434cf621a3e4e403603b506b6de543adb7218f8ab6",
+      "size": 270023
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1-registration.json",
+      "sha256": "7e7625ad666116295503fce45189ad74763e82e2b25044edb65064d3cfd2dca7",
+      "size": 73296
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-trash-original-fullcheck-v1-result.json",
+      "sha256": "d9fda80b0903b0cc0b9a9c616f9b9fc5013bacd301376ed7cff1851b328331ab",
+      "size": 231
+    }
+  },
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_control": {
+    "config_provider": "lua",
+    "gtk_library": {
+      "path": "/usr/lib/libgtk-4.so.1.2200.4",
+      "sha256": "191573fa61ffee70af2af82f1caf4c8d45b336523f56b7d6097fd34c13a5a809",
+      "size": 11823816
+    },
+    "gtk_state_contract": "gtk4-sensitive-without-enabled-v1",
+    "gtk_version": "4.22.4",
+    "hyprctl": {
+      "path": "/usr/bin/hyprctl",
+      "sha256": "2780a8bb56494917a725f817c9cf70fb5cc2f39aac5abc62ecf2e619a1f13ec5",
+      "size": 272680
+    },
+    "hyprland_commit": "efb50993780079460b0cbed1363e2166a2de1d9f",
+    "hyprland_version": "0.56.2",
+    "primary_attestation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-keyboard-root-launch-private-67b8-v1/primary-attestation-v1.json",
+      "sha256": "1f8d59a59c62be27abdd78f61d63443f4aaca851463a7f96672a3448b94c0dde",
+      "size": 3332
+    },
+    "version": 1
+  },
+  "limits": [
+    "Local synthetic account/Cancel only, no actual provider import or full gate credit.",
+    "One exact address-bound SPACE; no global input, retries, focus fallback, legacy dispatcher fallback or configuration changes.",
+    "GTK-specific state mapping admits SENSITIVE and SHOWING, rejects DEFUNCT/BUSY and requires discovered unique action; all process/birth/time/provenance checks preserved.",
+    "Installed integration and all six release gates unchanged."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "The owned row focuses and expands after one address-bound Lua SPACE. The real Import document action reaches local file selection and confirmation Cancel without import RPC. Any mismatched focus/window/state or unclear outcome refuses without key or mutation replay.",
+  "question": "Does GTK-specific action admission plus one exact owned-window Space expansion reach the real public file chooser and import confirmation Cancel?",
+  "run": "67b8f2dd-b069-4de4-9415-c4846ac54244",
+  "source_count": 480,
+  "status": "performed-local-refused-before-keyboard-or-ui-action",
+  "version": 1,
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-keyboard-root-launch-private-67b8-v1/public-keyboard-preregistration-byteexact-before-outcome-v1.json",
+      "size": 4109,
+      "sha256": "acb203c344a99a31da6e41f74bb76d8cdfa30b5b85e6892a4415cdf410ebb0b3"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-keyboard-root-launch-private-67b8-v1/root-public-chooser-registration-v2.json",
+      "size": 6595,
+      "sha256": "8d80ff4f67eb3828230a878ee3fc326e5d444ccf90b631b3c28a87e32836dec4"
+    },
+    "original_public_pin_matches_registration": true,
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.2201101010432467,
+    "overall_success": false,
+    "first_refusal": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_keyboard_cancel_v14.py",
+          "function": "main",
+          "line": 822
+        },
+        {
+          "file": "chooser_keyboard_cancel_v14.py",
+          "function": "run",
+          "line": 585
+        },
+        {
+          "file": "chooser_keyboard_cancel_v14.py",
+          "function": "expand_account_keyboard",
+          "line": 479
+        },
+        {
+          "file": "chooser_keyboard_cancel_v14.py",
+          "function": "gtk_ready",
+          "line": 386
+        },
+        {
+          "file": "chooser_keyboard_cancel_v14.py",
+          "function": "require",
+          "line": 38
+        }
+      ],
+      "predicate": "node.get_toolkit_name() == 'GTK' and node.get_toolkit_version() == '4.22.4'",
+      "actual_toolkit_name_and_version_retained": false
+    },
+    "keyboard_route_executed": false,
+    "utility_children": [],
+    "keys_sent": 0,
+    "focus_or_ui_actions_performed": 0,
+    "actions": [],
+    "import_rpc_count": 0,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "cloud_called": false,
+    "provider_verified": false,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "interpretation": "Toolkit admission refused before any utility, key, focus or UI action. This does not show a keyboard route failure, a broken UI or a provider defect; the actual toolkit name/version were not retained.",
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1320475,
+          "start_ticks": 28214423,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1320470,
+          "start_ticks": 28214415,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1320469,
+          "start_ticks": 28214414,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1320468,
+          "start_ticks": 28214413,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1320467,
+          "start_ticks": 28214413,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "five_original_outer_handles_reaped": true,
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1320478,
+        "returncode": -15,
+        "startticks": 28214443
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "desktop_signals": [],
+      "inputs_unchanged": true,
+      "keyboard_pin_stamps_passed_root_recorded": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-keyboard-root-launch-private-67b8-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66422,
+        "sha256": "5fc0ce1e2ffa0cbf26b015e8f27ed7a230dd909527356414d6097b01c7d5f634"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-keyboard-root-launch-private-67b8-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "3076a2564d537a262e9dbabe9332c4d5eb86d086cfdb4eb1c615d997cbb81993"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-67b8f2dd-b069-4de4-9415-c4846ac54244/result.json",
+        "size": 4213,
+        "sha256": "b77b6462ca537e0eb967e99b29c615b41885921f6ff216eac091fb454c8c7957"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-67b8f2dd-b069-4de4-9415-c4846ac54244/chooser/result.json",
+        "size": 1362,
+        "sha256": "d56965083f3454793f507b0c01ce16a141cf894502ad613963c1565fd37a56a0"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-67b8f2dd-b069-4de4-9415-c4846ac54244/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "ef66b480661de3a07dca075097e1406e6624c1b2e85051cacdab39951060c422"
+      }
+    },
+    "closed_run_not_replayed": true,
+    "next_step": "A separate fresh local diagnostic can retain the actual toolkit metadata before the unchanged admission predicate. No key replay or provider retry follows from this refusal."
+  }
+}

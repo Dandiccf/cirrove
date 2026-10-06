@@ -280,6 +280,12 @@ formula. Native Numbers editing in Calc is therefore not a validated
 formula-preserving workflow; see the
 [format limits](docs/compatibility.md#icloud-development-and-linux-editor-formats).
 
+The public Desktop Pages import interface now passes a separate
+[local chooser test](docs/benchmarks/icloud-pages-chooser-visible-tree-2026-10-06.json):
+selecting a real archive, checking its confirmation and cancelling without
+submitting an import. Actual cloud submission through that interface and its
+independent completion checks remain open.
+
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic
