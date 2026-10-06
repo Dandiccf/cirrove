@@ -79,13 +79,13 @@ to atomic-save ordering and publication of the confirmed replacement identities.
 A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
 also verified the exact original bytes in iCloud Trash.
 Native iWork editing and five full-integration acceptance areas remain open.
-A [new local crash-recovery test](docs/benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json)
-also confirms that standalone native-document removal can recover the same
-operation after process loss without sending another Trash request to its TLS
-fixture. Separate live removal acceptance remains open: the
-[latest attempt](docs/benchmarks/icloud-native-trash-numbers-receipt-loss-attempt2-2026-10-06.json)
-created its own test folder, then stopped during import admission before any
-document upload was queued or any removal was submitted.
+Standalone native-document removal has
+[local crash-recovery coverage](docs/benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json),
+but separate real-iCloud acceptance remains open. The latest live attempt stopped
+before import or removal, with an uncertain folder-creation operation retained
+without replay. Subsequent read-only inspection did not produce an accepted
+cloud result. The [validation record](docs/icloud-write-integration.md) preserves
+the outcomes and remaining limits.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -93,7 +93,10 @@ Google's native documents. OneNote and other provider packages also retain their
 package-specific write restrictions. See [Google Drive](docs/google-drive.md)
 for the precise preview scope.
 
-Dolphin's broader live desktop acceptance remains open. Distribution and upgrade
+Strata's [isolated companion GUI checks](docs/strata.md) passed for availability
+badges, offline actions, inherited pins and native-document restrictions.
+Real-provider and installed Strata acceptance, along with Dolphin's broader live
+desktop acceptance, remain open. Distribution and upgrade
 boundaries are recorded in the [validation record](docs/validation.md).
 
 ## Try Cirrove

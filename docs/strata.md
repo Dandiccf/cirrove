@@ -103,12 +103,41 @@ not touch the cloud, including unknown export children.
 Cirrove helper and an isolated synthetic daemon. It uses Strata's private Xvfb,
 D-Bus, HOME and AT-SPI harness, captures PNGs and writes a result artifact. It never
 uses the user's graphical session. Run it with Strata's E2E Python environment,
-Xvfb on PATH, and a fresh output directory:
+Xvfb on PATH, and a fresh output directory.
+
+Use the E2E interpreter supplied by that checkout or its matching container image
+(`/opt/e2e-venv/bin/python` in the retained image). For a separately built or
+frozen companion, supply its exact ELF path and SHA256 from the reviewed build or
+bundle receipt:
 
 ```sh
-/path/to/strata/target/e2e-venv/bin/python scripts/validate-strata.py \
-  --strata-checkout /path/to/strata --output /absolute/new/artifact-directory
+/path/to/e2e/python scripts/validate-strata.py \
+  --strata-checkout /path/to/strata \
+  --strata-binary /absolute/pinned/strata \
+  --strata-binary-sha256 "$STRATA_BINARY_SHA256" \
+  --output /absolute/new/artifact-directory
 ```
+
+The binary and digest options must be supplied together. The validator refuses a
+non-regular, symlinked or untrusted executable, missing ELF magic, or a digest
+mismatch before loading the GUI harness or installing the isolated helper. It
+rechecks the binary before launch and after the endpoints. If both options are omitted, it
+uses the existing `CHECKOUT/target/debug/strata` and records its observed pin; it
+never builds Strata. A binary digest alone does not establish compatibility: bind
+the matching companion source, provider API and harness separately.
+
+The [controlled companion GUI arm](benchmarks/icloud-strata-companion-gui-2026-10-06.json)
+passed with the source-bound companion CI ELF on a private container display,
+network disabled and disk-backed `/tmp`. It covered kept/fetching badges, one
+Keep and one direct Stop activation, inherited Keep followed by direct state
+refresh, availability-only for a synthetic native `can_pin=false` entry, and
+unmount withdrawal. After app and handler closure, the complete mutation trace
+was exactly `pin On demand.txt`, `unpin On demand.txt`, `pin Inherited.txt` with the
+registered bodies. Seven screenshots and the original Docker waits and stopped
+container are retained. The original 300-second work plus 30-second cleanup
+window closed in 9.427 seconds; this is one functional arm, not a performance
+measurement. Three local refusal tests covered eight negative cases before GUI
+loading. No real Cirrove daemon, provider or installed account was exercised.
 
 This proves the integration wiring on synthetic data, not real-provider
 reliability. Native Wayland, an installed packaged build, multi-window stress and

@@ -410,8 +410,11 @@ seen the new ID. Ordinary-file mutation matching does not mistake optional
 content-lineage decoration for a changed provider observation; identity, ETag,
 name, size, kind and the independent content check remain enforced.
 
-The next milestone is **recoverable iCloud writes through the regular account
-router**, with explicit acceptance gates:
+This ordinary-write development table records the earlier router milestone.
+Later bounded native imports and Numbers replacement evidence below supersede
+its original native-document checklist. The current six full-release criteria
+are maintained in [product milestones](product-milestones.md#7-full-icloud-release-acceptance),
+with one closed and five open; these rows are not additional release criteria.
 
 | Gate | Current evidence | Required before enabling ordinary writes |
 | --- | --- | --- |
@@ -421,7 +424,7 @@ router**, with explicit acceptance gates:
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement and [two consecutive atomic saves](benchmarks/icloud-mounted-atomic-chain-2026-10-01.md); separate versions, receipt-gated editor cleanup and remount verified | More complex chains, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints; local export picker and receipt-checked progress dialog; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests; offline sealed/working-byte selection and real native-dialog export | Active-account and [read-only downgrade recovery](benchmarks/icloud-readonly-recovery-2026-10-01.md) have core/socket/CLI/FUSE and native-window evidence; installed validation, per-operation explanation and audit of earlier retained fixtures remain open |
 | Capacity and sessions | Typed session rejection preserves checkpoints and bytes through [synthetic upload recovery](benchmarks/icloud-write-session-rejection-2026-10-01.md) and [namespace-operation recovery](benchmarks/icloud-mutation-session-rejection-2026-10-01.md); 65/66 MiB and [1 GiB mounted arms](benchmarks/icloud-mounted-gib-account-2026-10-01.md); exact remote digests, recoverable predecessor and fresh-mount reads; explicit deadlines | [Synthetic storage refusal](benchmarks/icloud-storage-refusal-2026-10-01.md) and [actual local ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md) passed their bounded arms; [provably unsent folder-create retry](benchmarks/icloud-folder-create-recovery-2026-10-01.md) also passed its bounded synthetic arms; real quota/slow-link/expired-session and larger-file acceptance remain open |
-| Native document packages | Owned Pages import, explicit replacement, independent current/Trash content verification and Apple open; Numbers import/formula-open and separate exact-content readback; canonical archive saves, atomic replacement, retirement and backup-first handling have synthetic kernel coverage | Finish desktop import submission/publication, Numbers replacement, Keynote and actual DATA acceptance; validate Apple-backed mounted saves, restart/recovery and installed transitions; arbitrary generated-child editing remains refused |
+| Native document packages | Owned Pages import, explicit replacement, independent current/Trash content verification and Apple open; Numbers import/formula-open and separate exact-content readback; canonical archive saves, atomic replacement, retirement and backup-first handling have synthetic kernel coverage | Bounded public Pages import and genuine Numbers replacement have since passed; complete the native editor/representation matrix, standalone Trash and conflict acceptance, wider restart/session recovery and installed transitions; arbitrary generated-child editing remains refused |
 | Installed release | Experimental isolated mounts | Explicit opt-in, existing read-only accounts preserved, packaged installation and file-manager validation |
 
 The first new recovery test must use a fresh Cirrove-owned fixture, register its
@@ -3549,3 +3552,71 @@ reaped and absent. Implementation commit `670cb88` also passed all seven
 [GitHub CI jobs](https://github.com/Dandiccf/cirrove/actions/runs/37497027629).
 Neither result closes standalone real-iCloud removal acceptance or permits
 installed migration.
+
+The [next once-only real-account arm](benchmarks/icloud-native-trash-numbers-receipt-loss-attempt3-2026-10-06.json)
+stopped after 28.40 seconds, before import or native Trash admission. Local mkdir
+returned, but the sole folder mutation reached `VerifyRequired` without a recorded
+attempt or receipt; its queue entry is incomplete. This is an uncertain cloud
+folder outcome, not a confirmed creation or confirmed failure. The raw frontier
+contains zero uploads, and no import or Trash command was started.
+The normal daemon exited zero; all original handles were reaped, the owned
+mount/socket were absent, and the source, executable and nineteen-file installed
+baselines matched. The [closed window](benchmarks/icloud-native-trash-numbers-receipt-loss-attempt3-window-2026-10-06.json)
+preserves that unresolved outcome. Its cause and cloud presence or absence are
+unproved; provider reads were not counted. The exact operation remains retained
+without requeue, retry or replay. No removal, recovery, Trash-content or read-only
+remount endpoint was exercised, and no additional release criterion closes.
+
+
+The separately registered [local checkpoint inspection](benchmarks/icloud-folder-create-checkpoint-inspection-2026-10-06.json)
+then authenticated the two exact retained ciphertexts. Its accepted second local
+read classified the outer plan as Sent and the inner checkpoint as Created, with
+the operation-bound folder ID. The helper exited zero in 0.124 seconds, was
+reaped, and left all thirteen state files unchanged. It made no HTTP/provider
+request and opened no writer journal. The folder mutation still has no recorded
+typed Upsert receipt and remains `VerifyRequired`; current cloud presence and
+the cause of its uncertainty are unproved. No acknowledgement, replay, import
+or Trash request followed, and no acceptance gate closes.
+
+The first local read also exited zero in the helper, but its receiver rejected
+the output and did not retain the classification. Actual helper-codec fixtures
+subsequently showed that the old receiver rejected valid uppercase UUIDs; the
+corrected receiver passed the same desired case and thirty scoped controls.
+That compatibility defect is proven locally, while the first real rejection
+operand remains unretained. Both local reads have closed without extending the
+original cloud window.
+
+
+A separately registered [exact-ID read-only inspection](benchmarks/icloud-folder-exact-id-read-2026-10-06.json)
+then ended in 0.950 seconds: the helper exited zero, but the outer stream/result
+guard raised AssertionError before retaining a classification. The original
+helper handle was reaped and absent, all thirteen state files and all 561 current
+source pins were unchanged, and no timeout or cleanup signal occurred. The
+observation was stopped without a second read, journal acknowledgement or replay;
+current cloud presence remains unverified.
+
+Static review found a concrete stream-contract mismatch: the pinned iCloud
+dependency has `write-probe` enabled and its direct root listing emits a fixed
+phase-timing line to stderr, while the outer guard demands empty stderr. The
+actual streams were not retained, so this source finding does not establish the
+actual failed operand or recover the cloud classification. Local stream controls
+and real-cloud acceptance remain distinct; this observation closes no release
+criterion.
+
+The current successor passed the complete `bash scripts/check.sh` in 554.65
+seconds, including workspace and actual FUSE groups, with all 561 current source
+pins unchanged and the original handle reaped and absent. The separately
+controlled Strata companion GUI arm passed in 9.427 seconds with exactly its
+three synthetic actions and no network access. Neither result establishes
+current presence for the unclassified folder inspection or closes an additional
+full-iCloud release criterion.
+
+The local stream correction was then verified with the actual linked iCloud
+dependency: an unconfigured session refused its root listing before HTTP while
+emitting the fixed timing line. The source-selected V4 success branch failed
+the desired control; V5 passed that same control and all 26 stream controls,
+including the four actual synthetic Rust codec forms and hostile outputs.
+The receipt validator is unchanged; only one bounded fixed-format timing line
+is accepted. All six local children were reaped and all 561 source pins and
+thirteen dependency pins matched. V5 has not performed a real read, and the
+earlier cloud classification and failed operand remain unretained.

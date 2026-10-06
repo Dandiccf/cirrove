@@ -1,0 +1,501 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-06T17:57:44.400038+00:00",
+  "status": "authenticated_retained_checkpoint_classification_pass_current_cloud_receipt_unconfirmed",
+  "question": "Which durable folder-create checkpoint phase is retained for the exact closed 175 operation, after authenticating its two pinned ciphertexts and validating their account, collection, operation and request tuple?",
+  "prediction_before_real_key_read": {
+    "actual_phase": "unknown",
+    "bounded_outcomes": [
+      "authenticated not_sent",
+      "authenticated may_have_sent",
+      "authenticated created with exact retained item ID",
+      "safe refusal without classification"
+    ],
+    "interpretation": "Classification alone. NotSent is unsent checkpoint evidence; MayHaveSent retains an uncertain outcome; Created contains an operation-bound ID for possible separate exact-ID observation. This run does not establish current cloud presence or a failure cause."
+  },
+  "subject": {
+    "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "provider": "icloud",
+    "collection": "drive",
+    "operation": "875969b5-b87d-4bbb-8049-7f240e53de76",
+    "root": "/var/tmp/cirrove-native-trash-175a90ac-a82d-40d4-9214-518101308d1b",
+    "request_kind": "create_folder",
+    "parent": "FOLDER::com.apple.CloudDocs::root",
+    "name": "Cirrove-Native-Trash-175a90ac-a82d-40d4-9214-518101308d1b",
+    "retained_mutation_state": "verify_required",
+    "receipt_recorded": false,
+    "queue_complete": false,
+    "uploads": 0,
+    "original_arm_closed": true,
+    "original_600_second_window_extended": false,
+    "terminal_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root-uncertain-folder-terminal-audit-v1.json",
+      "size": 2027,
+      "sha256": "04c6963301e412124f034c8d7e2b013583957db27c2af98a9485f1e247a97b2d"
+    }
+  },
+  "endpoint": {
+    "authenticate_exact_pinned_ciphertexts": 2,
+    "algorithm": "AES256GCM",
+    "aad": "Exact production domain, account and full operation credential key; no values exported.",
+    "sealed_key_marker_required": "icloud-seal-v1",
+    "legacy_fallback_allowed": false,
+    "tuple": "Exact saved outer plan and inner checkpoint: operation, account/provider/collection, original CreateFolder request, captured plain ROOT destination, no prepared item or content digest.",
+    "output": "Fixed safe fields, typed phase and validated Created folder UUID only. No plaintext, key, cursor, URL, error body or metadata name export.",
+    "state_file_count_expected": 13,
+    "state_byte_and_protected_stamp_hashes_unchanged": true,
+    "root_original_pids_mount_socket_absent": true,
+    "helper_original_handle_reaped_and_pid_absent": true,
+    "helper_exit_zero_and_safe_json_required_for_classification": true
+  },
+  "execution": {
+    "owner": "Root",
+    "real_key_read_status": "two_separately_bounded_local_attempts_closed",
+    "command": [
+      "/home/dandiccf/Storage/.cirrove-builds/folder175-checkpoint-only-bbd48e14-d3a5-4be6-870c-37e4af7efdf2/checkpoint-only",
+      "--checkpoint-only"
+    ],
+    "runner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_once_v4.py",
+      "size": 8514,
+      "sha256": "e2a769a86907a5e247648e81c164469758a4cef9a27b4de200e3a95956934591"
+    },
+    "helper_internal_timeout_seconds": 20,
+    "separate_local_total_seconds": 40,
+    "work_timeout_seconds": 30,
+    "cleanup_reserve_seconds": 10,
+    "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+    "filesystem_must_be_disk": true,
+    "new_provider_window": false,
+    "automatic_retry": false
+  },
+  "scope": {
+    "provider_calls_authorized": 0,
+    "credential_writes_authorized": 0,
+    "journal_open_authorized": false,
+    "normal_daemon_or_worker_authorized": false,
+    "prepare_mutate_reconcile_ack_requeue_import_authorized": false,
+    "old_operation_replay_authorized": false,
+    "installed_actions": false,
+    "release_or_acceptance_gate_closed": false
+  },
+  "frozen_helper": {
+    "source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/src/main.rs",
+      "size": 16642,
+      "sha256": "ba4cca5587d1cc0fc8d35e2e89dec24c77827ac36fa9dddec40b9418d715d956"
+    },
+    "binary": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/folder175-checkpoint-only-bbd48e14-d3a5-4be6-870c-37e4af7efdf2/checkpoint-only",
+      "size": 179247904,
+      "sha256": "7ef7ab06a3576cd2a6a0b2bcd7490b5627b64efa9d02e18a3a01158e5b709951",
+      "mode": "0o500"
+    },
+    "standalone_manifest": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/Cargo.toml",
+      "size": 629,
+      "sha256": "2ad4201059d17129bdf4a2bf3fb97a33d2313baa2730dfd4d52832756501fc59"
+    },
+    "dependency_count": 13,
+    "dependency_pins": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/dependency-pins-v2.json",
+      "size": 3274,
+      "sha256": "28e31535dc82d18a2a2bdf0112116f3450d261eb9c67254a973e7086a0919145"
+    },
+    "handoff": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/handoff-v2.json",
+      "size": 4414,
+      "sha256": "d030cce37a2b32c5de7ffbaa86121efe2f5e426c79f3eb28e988ec2d81d12d3f"
+    },
+    "current_runtime_source_count": 561,
+    "runtime_source_and_dependency_pins_unchanged_in_local_controls": true,
+    "local_compile_strategy": "Fingerprint-matched frozen rlibs; unique output directory, no shared incremental compilation or tracked manifest changes."
+  },
+  "synthetic_controls_already_completed": {
+    "tests_executed": 9,
+    "passed": 9,
+    "failed": 0,
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/offline-controls-registration-v2.json",
+      "size": 83068,
+      "sha256": "3716504b78766981f167592202480c92bf576d612960aa39a8a4c705766247e0"
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/offline-controls-result-v2.json",
+      "size": 9086,
+      "sha256": "9fd9371fc70019cb45688d8b7e839505b00c16621cd3a93fdfbdaaf6391966d8"
+    },
+    "test_log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/synthetic-tests-v2.log",
+      "size": 729,
+      "sha256": "f5c1393faa80fe97eb3b05c03bf1b86c18710b796bbeeb14e96cfe3675d5ef52"
+    },
+    "all_four_local_original_children_reaped_and_absent": true,
+    "signals": [],
+    "real_helper_executed": false,
+    "real_checkpoint_key_loads": 0,
+    "provider_calls": 0,
+    "claims": "Bound phases, foreign operation/scope/parent/name/request, malformed codecs, sealed-only provenance and wrong key/AAD/ciphertext, privacy and denied save/remove controls. These synthetic controls do not classify the real operation."
+  },
+  "completed_fullcheck_provenance": {
+    "phase": "full5",
+    "exit_code": 0,
+    "elapsed_seconds": 556.1627799710259,
+    "sources_unchanged": true,
+    "source_count": 561,
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full5-registration-v1.json",
+      "size": 73189,
+      "sha256": "4d5e54ecf611eae148fdce1306f9aaf6d28213e43bbf29490b0669ea5619f0f4"
+    },
+    "owner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full5-owner-v1.json",
+      "size": 199,
+      "sha256": "ea3f9c174ac55e5faab9a395391fb114501f6af25d5a78aed025696fbca28e3f"
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full5-result-v1.json",
+      "size": 346,
+      "sha256": "0c3e344194a1b8a4937462aac331f672f73c9242f592b54fa272fb49e868ff8c"
+    },
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full5-v1.log",
+      "size": 284562,
+      "sha256": "126fe7f7db0202235bd86c0044b493edc84ce6b4aa58a5349c7779ce6dc17fe2"
+    },
+    "scope": "Runtime/check provenance; not proof of the real retained checkpoint phase or provider reliability."
+  },
+  "limitations_and_retained_history": [
+    "No actual phase, current cloud folder receipt or error cause is known before this local key read.",
+    "Initial source V1 used the public vault loader, which may return legacy keyring plaintext independently of pinned ciphertext. It was not executed against real keys. The sealed-only successor directly authenticates pinned bytes with each retained key loaded once.",
+    "First offline compilation failed because SHA2 0.11 Digest output lacked LowerHex. No tests or real helper ran in that failed phase. Per-byte lowercase hex correction then compiled and passed nine controls.",
+    "Created suffix validation deliberately requires a UUID, stricter than the production nonempty suffix rule; unsupported legacy IDs are refused.",
+    "Read access time may change. Byte hashes and dev/inode/mode/owner/link-count/size/mtime/ctime are compared; atime is excluded from the immutability claim.",
+    "Root separately verifies all original subject process IDs absent and no owned mount/socket remains before and after the local observation.",
+    "No direct adapter inspection, new listing, write, acknowledgement, replay, import or release gate is authorized by this registration.",
+    "A possible Created UUID casing mismatch in the receiver is under static investigation. No actual phase or initiating receiver predicate is retained; synthetic reproduction cannot establish the lost real output."
+  ],
+  "history_pins": {
+    "source_v1": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/source-v1.rs",
+      "size": 13333,
+      "sha256": "327a2dfb0a13a19fc0e4761a73e948d5a0726744b2e4e9f8f38dc1f9c2448d39"
+    },
+    "failed_compile_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/offline-controls-result-v1.json",
+      "size": 4098,
+      "sha256": "fc8c272792c6aee440713b14740321057935d7065da2fac36fbcae686335f8c3"
+    }
+  },
+  "actual_real_outcome": {
+    "attempt": 1,
+    "overall_classification_endpoint_accepted": false,
+    "helper_exit_code": 0,
+    "elapsed_seconds": 0.12462039804086089,
+    "runner_error_class": "AssertionError",
+    "classification_retained": false,
+    "actual_checkpoint_phase": "unknown",
+    "cloud_folder_outcome": "uncertain; unchanged by local observation",
+    "state_files_unchanged": true,
+    "state_file_count": 13,
+    "original_helper_handle_reaped": true,
+    "helper_process_absent": true,
+    "timed_out": false,
+    "deadline_overrun": false,
+    "signals": [],
+    "provider_calls": 0,
+    "installed_actions": false,
+    "acknowledgement_requeue_retry_or_import": false,
+    "original_cloud_operation_replayed": false,
+    "original_cloud_window_reopened_or_extended": false,
+    "release_or_acceptance_gate_closed": false,
+    "evidence": {
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-inspection-once-registration-v1.json",
+        "size": 6365,
+        "sha256": "a1b3948e06b61a6df4286a1245847294f6fbe0dab9b724772ce75e751fbd16ab"
+      },
+      "owner": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-inspection-once-owner-v1.json",
+        "size": 285,
+        "sha256": "c060b0920bbe183e5d929a7cb6da9b938c419735050dd80cbe70cdae55943def"
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-inspection-once-result-v1.json",
+        "size": 495,
+        "sha256": "d0b3868348dac6ee878efd08e72ab0e0a394edc5fbbb1c9537460a94e2efde32"
+      },
+      "original_public_preregistration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-inspection-public-preregistration-original-v1.json",
+        "size": 10694,
+        "sha256": "d6d27233deaa769b93c74f7dc79c6e23b81d5ce2df89654ca6c56ac8eb64ad0d"
+      }
+    },
+    "failure_limit": "The pinned helper returned zero, but Root receiver rejected its output with AssertionError and did not retain stdout for privacy. No phase can be reconstructed or published from this result.",
+    "next_step": "Validate a corrected receiver against synthetic output emitted through the actual helper codec before registering any separately bounded local inspection. No cloud retry or HTTP request follows."
+  },
+  "actual_codec_receiver_controls_preregistration": {
+    "version": 1,
+    "registered_at": "2026-10-06T18:04:04.667527+00:00",
+    "question": "Will the same source-selected receiver accept an actual Rust-helper-coded uppercase Created UUID without normalizing its retained identity, while preserving all scope/authentication/privacy refusals?",
+    "prediction": "V4 fails the desired valid-uppercase assertion; V6 passes the same assertion and all seven real-codec valid fixture shapes plus 22 hostile payloads. The repeated desired case is included in the 30-case full suite.",
+    "commands": [
+      {
+        "phase": "receiver-v4-desired-negative",
+        "command": [
+          "python",
+          "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/test_actual_codec_receivers_v1.py",
+          "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_once_v4.py",
+          "e2a769a86907a5e247648e81c164469758a4cef9a27b4de200e3a95956934591",
+          "desired",
+          "56318c3c09730bec9738daf4760b0459fb5fea3885352266f6a014b27ed675be"
+        ],
+        "expected_exit_code": 1,
+        "expected_tests": 1,
+        "expected_failures": 1,
+        "expected_errors": 0
+      },
+      {
+        "phase": "receiver-v6-same-desired",
+        "command": [
+          "python",
+          "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/test_actual_codec_receivers_v1.py",
+          "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_local_read2_v6.py",
+          "75c492f7012e2f05c253fe7d098ae0a66fe5fcfd5e05179f23bbe63047679617",
+          "desired",
+          "56318c3c09730bec9738daf4760b0459fb5fea3885352266f6a014b27ed675be"
+        ],
+        "expected_exit_code": 0,
+        "expected_tests": 1
+      },
+      {
+        "phase": "receiver-v6-all",
+        "command": [
+          "python",
+          "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/test_actual_codec_receivers_v1.py",
+          "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_local_read2_v6.py",
+          "75c492f7012e2f05c253fe7d098ae0a66fe5fcfd5e05179f23bbe63047679617",
+          "all",
+          "56318c3c09730bec9738daf4760b0459fb5fea3885352266f6a014b27ed675be"
+        ],
+        "expected_exit_code": 0,
+        "expected_tests": 30
+      }
+    ],
+    "pins": {
+      "receiver_v4": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_once_v4.py",
+        "size": 8514,
+        "sha256": "e2a769a86907a5e247648e81c164469758a4cef9a27b4de200e3a95956934591"
+      },
+      "receiver_v6": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_local_read2_v6.py",
+        "size": 8981,
+        "sha256": "75c492f7012e2f05c253fe7d098ae0a66fe5fcfd5e05179f23bbe63047679617"
+      },
+      "test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/test_actual_codec_receivers_v1.py",
+        "size": 3904,
+        "sha256": "d9d4f21f6b0f4aa831f59eecab3c24e2171bb65fc821dae323681c2e4e39e85d"
+      },
+      "actual_helper_codec_fixtures": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/actual-helper-codec-fixtures-v1.json",
+        "size": 6210,
+        "sha256": "56318c3c09730bec9738daf4760b0459fb5fea3885352266f6a014b27ed675be"
+      },
+      "export_source": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/codec-export-source-v2.rs",
+        "size": 20241,
+        "sha256": "f5e3937b381ac97fbfda70d4c2be027776555c21349cd30ab87706488338c2f6"
+      },
+      "export_registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/codec-export-registration-v1.json",
+        "size": 80589,
+        "sha256": "9fa806d26d7a481f079be756866059702100e75d260b99d1de2081ea6301b60b"
+      },
+      "export_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/codec-export-result-v1.json",
+        "size": 7118,
+        "sha256": "2402549277590cd03aa7a91ba3b89e813cd1d83951319d8e1aa2ebbea73671c8"
+      }
+    },
+    "fixture_origin": "Actual unchanged helper byte prefix +test-only module invoked authenticate(), validate() and serde SafeResult with synthetic AES keys; no real key load or old state access.",
+    "provider_calls": 0,
+    "real_key_reads": 0,
+    "scope": "Pure source-selected receiver controls, not proof of the first real lost classification or its exact rejection operand.",
+    "actual_result": null
+  },
+  "actual_codec_receiver_controls_correction_registration": {
+    "source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/run-actual-codec-receivers-v2.py",
+      "sha256": "19042378ff8970d6b3566e7e70fb90539c338d897338d7d03af28ea08b409bba",
+      "size": 2778
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/actual-codec-receiver-registration-v2.json",
+      "size": 6680,
+      "sha256": "5e75014ab7a5e9edcc58383e9cd6582a4de81d73c0fac9a0e949302263cd2ad9"
+    },
+    "correction": "V1 executed all three decoder test arms to expected logs, then its outcome recorder failed on passing a str to pin() before persisting receipts. V2 converts path arguments explicitly and writes each child receipt immediately. Decoder/test/fixture sources and command arguments unchanged.",
+    "actual_result": {
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/actual-codec-receiver-result-v2.json",
+        "size": 2692,
+        "sha256": "ad4e556e3e726488892b4ffc41b815228caaa5e41de9de1e058d77c2a44fbda0"
+      },
+      "baseline_v4": {
+        "actual_exit_code": 1,
+        "actual_tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "desired_endpoint": "Actual Rust-coded uppercase Created UUID should be accepted unchanged; V4 rejects it."
+      },
+      "corrected_v6_same_test": {
+        "actual_exit_code": 0,
+        "actual_tests": 1,
+        "passed": 1
+      },
+      "corrected_v6_full_suite": {
+        "actual_exit_code": 0,
+        "actual_tests": 30,
+        "passed": 30,
+        "actual_codec_valid_shapes": 7,
+        "hostile_mutations": 22,
+        "duplicate_desired_case": 1
+      },
+      "all_three_original_children_reaped_and_absent": true,
+      "signals": [],
+      "provider_calls": 0,
+      "real_key_reads": 0,
+      "selected_sources_and_fixtures_unchanged": true,
+      "classification_of_first_real_read_still_unknown": true,
+      "limit": "This is meaningful receiver compatibility proof through actual authenticate/validate/serde fixture output. It cannot establish the first real lost phase or its initiating assertion."
+    }
+  },
+  "local_read2_preregistration": {
+    "registered_at": "2026-10-06T18:06:08.651121+00:00",
+    "status": "completed_checkpoint_classification_accepted",
+    "question": "Can the corrected exact-codec-compatible receiver retain a safe phase classification of the same two pinned ciphertexts without any provider call or state change?",
+    "prediction": "The fixed receiver accepts all actual helper UUID forms and preserves exact case/shape. Actual retained phase remains unknown until a successful separately bounded read; safe refusal remains an acceptable stop. No cloud outcome or failure cause is predicted.",
+    "subject": "Same closed exact175 operation875969b5-b87d-4bbb-8049-7f240e53de76; no cloud replay, new nonce, import or old window reopening.",
+    "command": [
+      "python",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_local_read2_v6.py",
+      "/home/dandiccf/Storage/.cirrove-builds/folder175-checkpoint-only-bbd48e14-d3a5-4be6-870c-37e4af7efdf2/checkpoint-only",
+      "7ef7ab06a3576cd2a6a0b2bcd7490b5627b64efa9d02e18a3a01158e5b709951"
+    ],
+    "runner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_checkpoint_inspect_local_read2_v6.py",
+      "size": 8981,
+      "sha256": "75c492f7012e2f05c253fe7d098ae0a66fe5fcfd5e05179f23bbe63047679617"
+    },
+    "helper_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/src/main.rs",
+      "size": 16642,
+      "sha256": "ba4cca5587d1cc0fc8d35e2e89dec24c77827ac36fa9dddec40b9418d715d956"
+    },
+    "helper_binary": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/folder175-checkpoint-only-bbd48e14-d3a5-4be6-870c-37e4af7efdf2/checkpoint-only",
+      "size": 179247904,
+      "sha256": "7ef7ab06a3576cd2a6a0b2bcd7490b5627b64efa9d02e18a3a01158e5b709951",
+      "mode": "0o500"
+    },
+    "receiver_compatibility_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/actual-codec-receiver-result-v2.json",
+      "size": 2692,
+      "sha256": "ad4e556e3e726488892b4ffc41b815228caaa5e41de9de1e058d77c2a44fbda0"
+    },
+    "actual_helper_codec_fixtures": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/actual-helper-codec-fixtures-v1.json",
+      "size": 6210,
+      "sha256": "56318c3c09730bec9738daf4760b0459fb5fea3885352266f6a014b27ed675be"
+    },
+    "codec_export_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/codec-export-registration-v1.json",
+      "size": 80589,
+      "sha256": "9fa806d26d7a481f079be756866059702100e75d260b99d1de2081ea6301b60b"
+    },
+    "codec_export_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-checkpoint-only-private-v1/codec-export-result-v1.json",
+      "size": 7118,
+      "sha256": "2402549277590cd03aa7a91ba3b89e813cd1d83951319d8e1aa2ebbea73671c8"
+    },
+    "maximum_local_seconds": 40,
+    "work_seconds": 30,
+    "cleanup_reserve_seconds": 10,
+    "helper_internal_seconds": 20,
+    "state_file_count_expected": 13,
+    "state_bytes_and_protected_stamps_unchanged_required": true,
+    "provider_calls_authorized": 0,
+    "real_key_read_owner": "Root once only",
+    "journal_worker_session_adapter_ack_retry_import_authorized": false,
+    "original_cloud_window_extended": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "release_or_acceptance_gate_closed": false,
+    "actual_result": {
+      "success": true,
+      "helper_exit_code": 0,
+      "elapsed_seconds": 0.12405357102397829,
+      "runner_error": null,
+      "classification": {
+        "version": 1,
+        "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+        "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+        "operation": "875969b5-b87d-4bbb-8049-7f240e53de76",
+        "checkpoint_only": true,
+        "provider_calls": 0,
+        "journal_opened": false,
+        "outer_phase": "sent",
+        "inner_phase": {
+          "phase": "created",
+          "id": "FOLDER::com.apple.CloudDocs::8DF53411-120A-481E-9286-35C4DAA569F3"
+        },
+        "exact_created_identity_available": true,
+        "ciphertext_files_unchanged": true,
+        "write_calls_allowed": false,
+        "authenticated_pinned_ciphertexts": true,
+        "legacy_fallback_used": false
+      },
+      "state_file_count": 13,
+      "state_files_unchanged": true,
+      "original_helper_handle_reaped": true,
+      "helper_process_absent": true,
+      "timed_out": false,
+      "deadline_overrun": false,
+      "signals": [],
+      "provider_calls": 0,
+      "journal_opened": false,
+      "installed_actions": false,
+      "acknowledgement_requeue_retry_import_or_cloud_replay": false,
+      "original_cloud_window_extended": false,
+      "release_or_acceptance_gate_closed": false,
+      "evidence": {
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-inspection-local-read2-registration-v1.json",
+          "size": 6474,
+          "sha256": "9a722e5ee8d2bcdf8761c6c71725b52f0c8f36099f5545d800b1622894937e8a"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-inspection-local-read2-owner-v1.json",
+          "size": 285,
+          "sha256": "1a7ecc694f2bb043c4142318edc2bbbea1ee786319316749c861e1962f24b933"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-inspection-local-read2-result-v1.json",
+          "size": 1109,
+          "sha256": "4fc6265b8058c864242ebca4cc5e6dc0ce26049ddbd3648ca3583782b88921d5"
+        },
+        "original_local_read2_public_preregistration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/checkpoint-public-prereg-local-read2-original-v1.json",
+          "size": 25654,
+          "sha256": "27b364a47008d577aca096285589ff08ded9ce4061c3cc4c8ee5cba3e161d57e"
+        }
+      },
+      "interpretation": "The exact operation retains authenticated Sent/Created checkpoint evidence and the saved folder ID. There was no HTTP request or current cloud observation, no typed Upsert receipt was recorded, and the journal remains VerifyRequired. Current cloud presence and the cause of original uncertainty remain unproved.",
+      "first_attempt_limit": "The first receiver discarded its successful helper output, so its classification and exact rejection operand remain unretained. The tested UUID casing incompatibility does not prove the historical rejection cause."
+    }
+  }
+}

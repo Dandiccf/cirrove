@@ -88,9 +88,44 @@ guard. Its journal contains the completed folder creation, no upload and no
 native removal. The daemon exited normally; all original child handles were
 reaped and the mount/socket closed without a separate manual unmount. Source,
 executable and installed baselines matched. The failing guard operands were not
-retained, so the precise import failure is unproved. Neither failed attempt
-establishes live standalone removal acceptance or is automatically repeated.
+retained, so the precise import failure is unproved. Those attempts establish
+no live standalone removal acceptance and are not automatically repeated.
+
+The [next once-only arm](benchmarks/icloud-native-trash-numbers-receipt-loss-attempt3-2026-10-06.json)
+stopped before import or Trash with an uncertain folder-creation outcome.
+Local mkdir acknowledgement did not produce a recorded cloud receipt: the sole
+folder mutation remains `VerifyRequired`, with no attempt or receipt and an
+incomplete queue entry. There are no upload records or native Trash admissions.
+All original child handles were reaped, the owned mount/socket closed, and the
+source and installed baselines matched. The evidence does not establish whether
+the folder exists in iCloud or what caused the uncertainty. The operation is
+retained without requeue, retry or another test submission.
+
+A separate [checkpoint-only local observation](benchmarks/icloud-folder-create-checkpoint-inspection-2026-10-06.json)
+authenticated the exact operation's outer Sent plan and inner Created checkpoint,
+including its retained provider folder ID. All thirteen state files remained
+unchanged, and the helper was reaped. It made no provider request or journal
+change. This is saved identity evidence, not a current cloud observation or a
+recorded typed Upsert receipt: the mutation remains `VerifyRequired`, and neither
+import nor Trash has been submitted. The first local receiver failure is retained;
+its unrecorded classification and precise rejection cause remain unproved.
 
 This document describes the explicit API contract. Synthetic tests and a
 successful build do not establish installed-provider reliability; controlled
 normal-service acceptance and release gates remain separately recorded.
+
+
+The subsequent [bounded exact-ID read-only inspection](benchmarks/icloud-folder-exact-id-read-2026-10-06.json)
+closed with helper exit zero and an outer output-guard refusal. Its classification
+was not retained; it confirms neither current presence nor absence. All thirteen
+local state files remained unchanged and the original child was reaped. No
+second read, acknowledgement, requeue, import or Trash request followed.
+Static review identified an empty-stderr guard incompatible with the pinned
+write-probe library's phase-timing output; the discarded actual streams prevent
+attributing the live refusal to that operand.
+
+The local successor accepts only the fixed bounded timing line, preserving the
+receipt guards. The actual dependency's pre-HTTP timing output failed the V4
+control and passed V5; all 26 local stream controls passed. This corrects the
+local receiver contract without repeating the cloud inspection or resolving
+its unretained classification.
