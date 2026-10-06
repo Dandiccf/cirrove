@@ -1,0 +1,99 @@
+{
+  "actual_outcome": {
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once",
+      "set-confirmation-document-folder",
+      "set-confirmation-destination-folder",
+      "set-confirmation-new-document-name",
+      "public-import-confirmation-cancel-once"
+    ],
+    "actual_import_requests": 0,
+    "all_480_runtime_and_537_checked_sources_match": true,
+    "all_three_exact_owned_fields_verified": true,
+    "cancel_once": true,
+    "checkout_head": "0d2fbfafc2b2a715088ffd4001a9f09b85faaba1",
+    "chooser": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-local-chooser-focus-fields-private-v1/chooser_focus_fields_v27.py",
+      "sha256": "1dc7e23b6be354105a993d3a7ad25ff32892b8bb96a98139461a3afaebec8350",
+      "size": 69368
+    },
+    "chooser_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-f896633d-3b28-4cba-9dbb-a166e230a694/chooser/result.json",
+      "sha256": "5f6b5848e08c738c1c63abc771af905ab37fbbf91688b8ecc812945825ae6dab",
+      "size": 4345
+    },
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-local-chooser-focus-fields-private-v1/outer_focus_fields_v27.py",
+      "sha256": "e2864cc5a76fc9b14fac42a6c6728ec4bfe82315373e2835abe2e8d2d3c9bf91",
+      "size": 24828
+    },
+    "field_readbacks": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-f896633d-3b28-4cba-9dbb-a166e230a694/chooser/confirmation-field-readbacks.json",
+      "sha256": "c6c144496094bcf6503c4f2eb3d69cc06acc91b5ab907fe53c7c8cdab87d4875",
+      "size": 583
+    },
+    "full_integration_accepted": false,
+    "limits": "One actual local synthetic-account trial. It does not prove which active-window operand differed in the earlier11f trial, arbitrary hidden-label layouts or actual cloud submission. All full-iCloud rows remain open.",
+    "original_tool_session": 14901,
+    "outer_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-f896633d-3b28-4cba-9dbb-a166e230a694/result.json",
+      "sha256": "bfdc310ea2b3c8fbbab55d562fa8fc09c9be562a309ca1da1ded0d4671bf6e9f",
+      "size": 4189
+    },
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-local-chooser-focus-fields-root-v27-v1/public-preregistration-byteexact-before-outcome.json",
+      "sha256": "7aa4e0960ef286c448a6340bd5780a417ca38f7dc88873939f3b1bce9a4a1d2f",
+      "size": 1653
+    },
+    "provider_calls": 0,
+    "root_terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1416701,
+      "controller_proc_absent": true,
+      "duration_seconds": 4.479759689013008,
+      "errors": [],
+      "exit_code": 0,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": true,
+      "provider_verified": false,
+      "run": "f896633d-3b28-4cba-9dbb-a166e230a694",
+      "signals": []
+    },
+    "runtime_build_head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961"
+  },
+  "arms": [
+    "fresh-local-bounded-chooser-focus-three-fields-cancel"
+  ],
+  "automatic_retry": false,
+  "chooser_focus_observation_limit": 5,
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "compositor_utility_limit": 40,
+  "endpoint": "Actual local full chooser, three exact field readbacks and Cancel; zero import RPCs/provider calls; all original handles and sockets closed.",
+  "installed_actions": false,
+  "limits": [
+    "Synthetic account/socket only; no cloud daemon, keyring or provider access.",
+    "No focus command or keyboard input while the observed active PID/address belongs to another surface.",
+    "Exactly three owned title-labelled fields; no Enter or Import submission.",
+    "Visible title labels were observed previously; arbitrary hidden-title layouts are not established.",
+    "No public cloud import or full-iCloud release gate credit. Earlier cloud arms stay closed."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "The owned chooser reaches exact compositor PID/address readiness within five observations. All three uniquely title-labelled editable fields accept and return their registered values, then one Cancel dismisses the confirmation. If readiness or field identity remains ambiguous, the local arm refuses and retains privacy-safe evidence.",
+  "question": "Can five bounded exact-owned chooser-focus observations permit one addressed Ctrl+l, followed by actual archive selection, three confirmation-field setter/readbacks and Cancel on the normal Desktop without any import request?",
+  "run": "f896633d-3b28-4cba-9dbb-a166e230a694",
+  "status": "actual-local-chooser-three-field-readbacks-cancel-pass",
+  "version": 1
+}

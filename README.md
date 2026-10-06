@@ -283,7 +283,9 @@ formula-preserving workflow; see the
 The public Desktop Pages import interface now passes a separate
 [local chooser test](docs/benchmarks/icloud-pages-chooser-visible-tree-2026-10-06.json):
 selecting a real archive, checking its confirmation and cancelling without
-submitting an import. Actual cloud submission through that interface and its
+submitting an import. A [subsequent local test](docs/benchmarks/icloud-pages-local-chooser-focus-fields-2026-10-06.json)
+also passed exact entry and readback of all three import confirmation fields.
+Actual cloud submission through that interface and its
 independent completion checks remain open.
 
 These are bounded development results. **Full iCloud support is still open:**

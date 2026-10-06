@@ -2832,3 +2832,16 @@ occurred while hashing the already-written result; its exact metadata mismatch
 is unproved and does not change the retained child or journal results. The arm
 will not be replayed. A fresh local chooser/three-field/Cancel check must now
 validate bounded readiness observation before another cloud submission trial.
+
+The [fresh local three-field arm](benchmarks/icloud-pages-local-chooser-focus-fields-2026-10-06.json)
+then passed in 4.480 seconds. It retained exact owned-window checks, allowed at
+most five initial read-only focus observations and kept the 40-utility bound.
+The actual chooser selected the owned archive, and each uniquely title-labelled
+Document folder, Destination folder and New document name field accepted and
+returned its registered value through explicit AT-SPI interfaces. All three
+were checked again before one Cancel; the visible confirmation disappeared.
+All 13 recorded actions completed, with zero import requests or provider calls,
+unchanged inputs and complete original-handle/socket closure. This verifies the
+local field route, not the cause of the earlier focus refusal or a cloud import.
+The next owned live arm must carry these validated controls through actual
+submission, public completion, original-mount publication and independent reads.
