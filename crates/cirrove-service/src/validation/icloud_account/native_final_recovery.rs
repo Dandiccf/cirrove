@@ -373,6 +373,11 @@ impl Guard {
 
 #[async_trait::async_trait]
 impl UploadProvider for Guard {
+    fn requires_begin_payload(&self, r: &UploadRequest) -> bool {
+        matches!(self.mode, Mode::Lose)
+            && r == &self.request
+            && self.inner.requires_begin_payload(r)
+    }
     fn inspection_timeout(&self, r: &UploadRequest) -> Duration {
         self.inner.inspection_timeout(r)
     }
@@ -467,6 +472,18 @@ impl UploadProvider for Guard {
     ) -> cirrove_core::upload::Result<UploadStep> {
         self.mutation_allowed(o, r)?;
         self.inner.begin_upload_for_operation(o, r, c).await
+    }
+    async fn begin_upload_from_payload_for_operation(
+        &self,
+        o: &str,
+        r: &UploadRequest,
+        f: std::fs::File,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        self.mutation_allowed(o, r)?;
+        self.inner
+            .begin_upload_from_payload_for_operation(o, r, f, c)
+            .await
     }
     async fn allocate_upload_for_operation(
         &self,

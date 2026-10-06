@@ -730,6 +730,27 @@ impl ICloudFileReplace {
 
 #[async_trait]
 impl UploadProvider for ICloudFileReplace {
+    fn requires_begin_payload(&self, request: &UploadRequest) -> bool {
+        self.native.is_some()
+            && matches!(
+                request.representation,
+                cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
+            )
+    }
+    async fn begin_upload_from_payload_for_operation(
+        &self,
+        op: &str,
+        request: &UploadRequest,
+        file: File,
+        cancel: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        if self.requires_begin_payload(request) {
+            return self
+                .native_begin_from_payload(op, request, file, cancel)
+                .await;
+        }
+        self.begin_upload_for_operation(op, request, cancel).await
+    }
     async fn begin_upload_for_operation(
         &self,
         op: &str,

@@ -1396,10 +1396,23 @@ destination or an already proven selected Numbers PACKAGE. It never converts
 an existing DATA item into a PACKAGE based on its filename.
 
 Admission seals the unchanged raw source in an anonymous read-only snapshot and
-recomputes its bounded semantic V2 identity. Flat exports are not repacked and
-receive no invented wrapper. Upload payload verification and retained checkpoint
-inspection use the same explicit source contract; independently downloaded
-current and Trash archives still require the actual provider-name wrapper.
+recomputes its bounded semantic V2 identity. The source snapshot, raw receipt
+and request remain unchanged. For explicit flat Numbers only, payload-aware
+begin derives a separate bounded deterministic transport ZIP under the exact
+destination-name wrapper. Strict wrapped semantic V2 must equal the original
+flat source before returning an allocation checkpoint. That checkpoint records
+the transport size, digest and root; allocation uses the transport size. Stream
+rederives it from the sealed source and compares the complete receipt before HTTP.
+No network await occurs while the worker holds its journal lock.
+
+Fresh flat package checkpoints use version 2 with a required transport receipt;
+wrapped version 1 serialization is unchanged. Legacy flat version 1 checkpoints
+remain readable for recovery inspection but cannot allocate, stream or register
+the old raw transport. Structural receipt errors refuse before HTTP; a valid
+shape with an altered size or digest is detected during stream rederivation.
+Retained inspection never re-prepares or allocates. Independently downloaded
+current and Trash archives still require the actual provider-name wrapper and
+strict equality to the original source.
 
 Journal schema 21 persists distinct `flat_numbers_archive` and
 `flat_numbers_replacement_archive` kinds, with versioned query indexes and

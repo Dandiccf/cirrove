@@ -2,6 +2,8 @@
 use super::*;
 use cirrove_core::upload::{PackageSemanticIdentity, PackageUploadReceipt, UploadRepresentation};
 use serde_json::json;
+use sha2::Digest;
+use std::os::unix::fs::PermissionsExt;
 fn enqueue(provider: &ICloudWriteProvider, parent: &str) -> (String, UploadRequest) {
     let row = provider
         .journal
@@ -208,6 +210,21 @@ impl UploadProvider for Routed {
         self.call("begin", op, r, None);
         Ok(UploadStep::Allocate(self.checkpoint.clone()))
     }
+    async fn begin_upload_from_payload_for_operation(
+        &self,
+        op: &str,
+        r: &UploadRequest,
+        mut file: File,
+        _: &CancellationToken,
+    ) -> Result<UploadStep> {
+        use std::io::Read;
+        self.call("payload-begin", op, r, None);
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes.len() as u64, r.size);
+        assert_eq!(hex::encode(sha2::Sha256::digest(&bytes)), r.sha256);
+        Ok(UploadStep::Allocate(self.checkpoint.clone()))
+    }
     async fn allocate_upload_for_operation(
         &self,
         op: &str,
@@ -299,10 +316,114 @@ impl UploadProvider for Routed {
     }
 }
 #[tokio::test]
+async fn flat_create_and_replacement_payload_begins_forward_exact_operation_request_and_file() {
+    for replacement in [false, true] {
+        let (temp, mut provider) = super::super::tests::fixture();
+        let root = temp.keep();
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let source = root.join("flat.numbers");
+        let bytes = crate::native_import::synthetic_package_archive(
+            "Index/Document.iwa",
+            b"owned Numbers source",
+        );
+        std::fs::write(&source, &bytes).unwrap();
+        let cancel = CancellationToken::new();
+        let archive = crate::native_import::ValidatedPackageArchive::capture_with_source_layout(
+            &source,
+            &root,
+            crate::native_import::PackageSourceLayout::FlatNumbers,
+            None,
+            &cancel,
+        )
+        .unwrap();
+        let row = {
+            let mut journal = provider.journal.lock().unwrap();
+            if replacement {
+                journal
+                    .enqueue_validated_package_replacement(
+                        provider.scope.clone(),
+                        Node {
+                            id: "FILE::com.apple.CloudDocs::original".into(),
+                            parent_id: Some("FOLDER::com.apple.CloudDocs::owned".into()),
+                            name: "Owned.numbers".into(),
+                            kind: NodeKind::Folder,
+                            size: 123,
+                            modified_unix: 0,
+                            etag: Some("original-v1".into()),
+                            content_version: None,
+                            target: None,
+                            package: true,
+                        },
+                        PackageSemanticIdentity {
+                            version: 2,
+                            sha256: "a".repeat(64),
+                            entries: 2,
+                            files: 1,
+                            expanded_bytes: 123,
+                        },
+                        archive,
+                        &cancel,
+                    )
+                    .unwrap()
+            } else {
+                journal
+                    .enqueue_validated_package_archive(
+                        provider.scope.clone(),
+                        UploadIntent::Create {
+                            parent: ROOT_ID.into(),
+                            name: "Owned.numbers".into(),
+                        },
+                        archive,
+                        &cancel,
+                    )
+                    .unwrap()
+            }
+        };
+        let operation = row.id.to_string();
+        let request = UploadRequest {
+            scope: row.scope,
+            intent: row.intent,
+            representation: row.representation,
+            size: row.size,
+            sha256: row.sha256,
+        };
+        let raw = SecretString::from("opaque-flat-checkpoint");
+        let routed = Arc::new(Routed {
+            operation: operation.clone(),
+            request: request.clone(),
+            checkpoint: raw.clone(),
+            calls: Mutex::new(Vec::new()),
+        });
+        provider.package_test_adapter = Some(routed.clone());
+        assert!(provider.requires_begin_payload(&request));
+        let file = provider.journal.lock().unwrap().payload(row.id).unwrap();
+        assert!(matches!(
+            provider
+                .begin_upload_from_payload_for_operation(&operation, &request, file, &cancel)
+                .await
+                .unwrap(),
+            UploadStep::Allocate(_)
+        ));
+        assert_eq!(*routed.calls.lock().unwrap(), ["payload-begin"]);
+        let mut foreign = request.clone();
+        foreign.scope.account = Uuid::new_v4().to_string();
+        let file = provider.journal.lock().unwrap().payload(row.id).unwrap();
+        assert!(matches!(
+            provider
+                .begin_upload_from_payload_for_operation(&operation, &foreign, file, &cancel)
+                .await,
+            Err(UploadError::Invalid)
+        ));
+        assert_eq!(*routed.calls.lock().unwrap(), ["payload-begin"]);
+        assert_eq!(std::fs::read(&source).unwrap(), bytes);
+    }
+}
+#[tokio::test]
 async fn package_callbacks_are_operation_bound_and_do_not_enter_file_envelope() {
     use std::io::{Seek, SeekFrom, Write};
     let (_temp, mut provider) = super::super::tests::fixture();
     let (operation, request) = enqueue(&provider, ROOT_ID);
+    assert!(!provider.requires_begin_payload(&request));
     let raw = SecretString::from("opaque-provider-checkpoint-".repeat(2000));
     let routed = Arc::new(Routed {
         operation: operation.clone(),

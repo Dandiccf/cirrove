@@ -5,7 +5,7 @@ use base64::Engine as _;
 use cirrove_core::upload::PackageSemanticIdentity;
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{FileExt, PermissionsExt};
 use std::{
     io::Write,
     sync::{Arc, Mutex},
@@ -83,6 +83,44 @@ fn semantic_v2(root: &str, old: bool) -> PackageSemanticIdentity {
         )
         .unwrap()
     }
+}
+fn flat_wire_expectation(source: &[u8], root: &str) -> (u64, PackageSemanticIdentity) {
+    let budget = crate::write_staging::WriteStagingBudget::new();
+    let private_file = || {
+        let file = tempfile::tempfile().unwrap();
+        file.set_permissions(std::fs::Permissions::from_mode(0o600))
+            .unwrap();
+        file
+    };
+    let original = budget.adopt(private_file()).unwrap();
+    for (i, chunk) in source.chunks(64 * 1024).enumerate() {
+        original
+            .write_chunk_at((i * 64 * 1024) as u64, chunk)
+            .unwrap();
+    }
+    let wire = budget.adopt(private_file()).unwrap();
+    let raw = PackageDownload {
+        size: source.len() as u64,
+        sha256: hex::encode(Sha256::digest(source)),
+    };
+    let cancel = CancellationToken::new();
+    let semantic =
+        crate::package_flat_archive_semantic_identity_v2(original.borrowed_file(), &raw, &cancel)
+            .unwrap();
+    let receipt =
+        crate::package_wire::flat_numbers_wire(&original, &raw, root, &semantic, &wire, &cancel)
+            .unwrap();
+    let mut unchanged = vec![0; source.len()];
+    original
+        .borrowed_file()
+        .read_exact_at(&mut unchanged, 0)
+        .unwrap();
+    assert_eq!(unchanged, source);
+    assert_ne!(
+        receipt.size, raw.size,
+        "wire wrapper is distinct from immutable flat source"
+    );
+    (receipt.size, semantic)
 }
 fn plan() -> HandoffPlan {
     let staged_name = format!("staged-by-cirrove-{}.pages", Uuid::new_v4());
@@ -162,7 +200,15 @@ impl Server {
         lost_registration: bool,
         lost_trash: bool,
         lost_rename: bool,
+        flat: bool,
     ) -> Self {
+        let (wire_size, flat_semantic) = if flat {
+            let (size, semantic) = flat_wire_expectation(&source, &plan.staged_name);
+            assert_eq!(&semantic, &plan.package.as_ref().unwrap().staged);
+            (size, Some(semantic))
+        } else {
+            (source.len() as u64, None)
+        };
         let decoder = base64::engine::general_purpose::STANDARD;
         let cert = decoder
             .decode(include_str!("../../package_create/fixtures/server-cert.b64").trim())
@@ -202,8 +248,8 @@ impl Server {
                 let reply={let mut s=observed.lock().unwrap();s.requests+=1;let url=url::Url::parse(&format!("{ORIGIN}{path}")).unwrap();match url.path(){
                     "/retrieveItemDetailsInFolders"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request[0]["drivewsid"],FOLDER);let mut items=if s.registered{vec![entry(&plan,&s,false)]}else{vec![]};if !s.trashed&&!s.moved&&!s.deleted{items.push(entry(&plan,&s,true));}
                     if s.collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");other["name"]=json!("Target");items.push(other);}Some(json!([{"drivewsid":FOLDER,"parentId":ROOT_ID,"name":"Owned","zone":"com.apple.CloudDocs","type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())},
-                    "/ws/com.apple.CloudDocs/upload/web"=>{let r:Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],source.len());s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":"new","owner_id":""}]).to_string().into_bytes())},
-                    "/signed-upload"=>{assert_eq!(body,source);s.body_calls+=1;assert_eq!(s.body_calls,1);Some(json!({"hexBrSyntheticChecksum":"aa","ckSectionAssets":[{"hexFileChecksum":"bb","hexReferenceChecksum":"cc","hexWrappingKey":"dd","receiptToken":"YQ==","size":source.len()}]}).to_string().into_bytes())},
+                    "/ws/com.apple.CloudDocs/upload/web"=>{let r:Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],wire_size);s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":"new","owner_id":""}]).to_string().into_bytes())},
+                    "/signed-upload"=>{assert_eq!(body.len() as u64,wire_size);if let Some(expected)=&flat_semantic {let mut uploaded=tempfile::tempfile().unwrap();uploaded.write_all(&body).unwrap();let raw=PackageDownload{size:body.len() as u64,sha256:hex::encode(Sha256::digest(&body))};let actual=crate::package_archive_semantic_identity_versioned(&uploaded,&raw,&plan.staged_name,2,&CancellationToken::new()).unwrap();assert_eq!(&actual,expected,"actual TLS POST must preserve every flat source path and byte under exact staged root");}else{assert_eq!(body,source);}s.body_calls+=1;assert_eq!(s.body_calls,1);Some(json!({"hexBrSyntheticChecksum":"aa","ckSectionAssets":[{"hexFileChecksum":"bb","hexReferenceChecksum":"cc","hexWrappingKey":"dd","receiptToken":"YQ==","size":wire_size}]}).to_string().into_bytes())},
                     "/ws/com.apple.CloudDocs/update/documents"=>{let r:Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["command"],"add_package");assert_eq!(r["document_id"],"new");assert_eq!(r["path"]["path"],plan.staged_name);assert_eq!(r["path"]["starting_document_id"],"owned");assert_eq!(r["allow_conflict"],false);assert_eq!(s.body_calls,1);s.registrations+=1;assert_eq!(s.registrations,1);s.registered=true;if lost_registration{None}else{Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":"new","item_id":"new-item","etag":"new-v1","size":17,"name":plan.staged_name}}]}).to_string().into_bytes())}},
                     "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==OLD;assert!(old||request["items"][0]["drivewsid"]==NEW);let mut observed_entry=entry(&plan,&s,old);if !old&&s.wrong_stage_identity {observed_entry["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");}
                     if !old&&s.change_after_stage_lookup{s.changed=true;}Some(json!({"items":if old&&s.deleted{vec![]}else{vec![observed_entry]}}).to_string().into_bytes())},
@@ -401,16 +447,27 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         lost_registration,
         lost_trash,
         lost_rename,
+        flat,
     )
     .await;
     let mut owner = coordinator(&server, dir.path(), r.clone(), operation);
     let op = operation.to_string();
     let cancel = CancellationToken::new();
-    let UploadStep::Allocate(armed) = owner
-        .begin_upload_for_operation(&op, &r, &cancel)
-        .await
-        .unwrap()
-    else {
+    let mut initial = tempfile::tempfile().unwrap();
+    initial.write_all(&source).unwrap();
+    let preserved_initial = initial.try_clone().unwrap();
+    let beginning = if flat {
+        owner
+            .begin_upload_from_payload_for_operation(&op, &r, initial, &cancel)
+            .await
+    } else {
+        owner.begin_upload_for_operation(&op, &r, &cancel).await
+    };
+    let mut unchanged = vec![0; source.len()];
+    preserved_initial.read_exact_at(&mut unchanged, 0).unwrap();
+    assert_eq!(unchanged, source);
+    assert_eq!(hex::encode(Sha256::digest(&unchanged)), r.sha256);
+    let UploadStep::Allocate(armed) = beginning.unwrap() else {
         panic!("allocate")
     };
     assert_eq!(counts(&server), (0, 0, 0, 0, 0));
@@ -489,12 +546,19 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
     };
     let mut file = tempfile::tempfile().unwrap();
     file.write_all(&source).unwrap();
+    let preserved_stream = file.try_clone().unwrap();
     let registration = take_commit(
         owner
             .upload_stream_for_operation(&op, &r, &body, file, &cancel)
             .await
             .unwrap(),
     );
+    let mut unchanged_stream = vec![0; source.len()];
+    preserved_stream
+        .read_exact_at(&mut unchanged_stream, 0)
+        .unwrap();
+    assert_eq!(unchanged_stream, source);
+    assert_eq!(hex::encode(Sha256::digest(&unchanged_stream)), r.sha256);
     let step = owner
         .commit_upload_for_operation(&op, &r, &registration, &cancel)
         .await;
@@ -607,6 +671,9 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         .unwrap();
     assert!(matches!(result, Reconciliation::PackageHandoffCommitted(_)));
     assert_eq!(counts(&server), (1, 1, 1, 1, 1));
+    preserved_initial.read_exact_at(&mut unchanged, 0).unwrap();
+    assert_eq!(unchanged, source);
+    assert_eq!(hex::encode(Sha256::digest(&unchanged)), r.sha256);
 }
 #[tokio::test]
 async fn package_creation_through_typed_handoff_preserves_logical_sizes() {
@@ -621,7 +688,7 @@ async fn wrong_bindings_and_proofs_refuse_before_network() {
     let operation = Uuid::new_v4();
     let source = archive("Source.pages", false, false);
     let dir = directory();
-    let server = Server::start(plan(), source.clone(), false, false, false).await;
+    let server = Server::start(plan(), source.clone(), false, false, false, false).await;
     let r = request(
         Scope {
             account: Uuid::new_v4().to_string(),
@@ -720,7 +787,7 @@ async fn changed_original_before_stage_never_allocates_or_mutates() {
         let operation = Uuid::new_v4();
         let source = archive("Source.pages", false, false);
         let dir = directory();
-        let server = Server::start(plan(), source.clone(), false, false, false).await;
+        let server = Server::start(plan(), source.clone(), false, false, false, false).await;
         {
             let mut state = server.state.lock().unwrap();
             match change {
@@ -754,7 +821,7 @@ async fn complete_envelope_and_header_limits_fail_without_dispatch() {
     let operation = Uuid::new_v4();
     let source = archive("Source.pages", false, false);
     let dir = directory();
-    let server = Server::start(plan(), source.clone(), false, false, false).await;
+    let server = Server::start(plan(), source.clone(), false, false, false, false).await;
     let r = request(
         Scope {
             account: Uuid::new_v4().to_string(),
@@ -825,7 +892,7 @@ async fn native_stage_abandonment_proof_is_exact_and_only_reads_metadata() {
             },
             &source,
         );
-        let server = Server::start(p, source.clone(), false, false, false).await;
+        let server = Server::start(p, source.clone(), false, false, false, false).await;
         let owner = coordinator(&server, dir.path(), r.clone(), operation);
         let op = operation.to_string();
         let cancel = CancellationToken::new();
@@ -1390,7 +1457,7 @@ async fn native_abandon_format_arm(suffix: &str) {
         let dir = directory();
         let source_path = dir.path().join("source.zip");
         std::fs::write(&source_path, &source).unwrap();
-        let server = Server::start(p, source.clone(), true, false, false).await;
+        let server = Server::start(p, source.clone(), true, false, false, false).await;
         let owner = coordinator(&server, dir.path(), r.clone(), operation);
         let cancel = CancellationToken::new();
         assert_eq!(owner.stage_name, format!("staged-by-cirrove-{operation}{canonical}"));
@@ -1541,17 +1608,24 @@ async fn flat_numbers_inner_layout_tamper_refuses_before_original_http() {
         original_semantic: semantic_v2("Target.numbers", true),
     };
     let dir = directory();
-    let server = Server::start(plan, source, false, false, false).await;
+    let server = Server::start(plan, source.clone(), false, false, false, true).await;
     let owner = coordinator(&server, dir.path(), request.clone(), operation);
     let token = CancellationToken::new();
     let op = operation.to_string();
+    let mut initial = tempfile::tempfile().unwrap();
+    initial.write_all(&source).unwrap();
+    let preserved_initial = initial.try_clone().unwrap();
     let UploadStep::Allocate(armed) = owner
-        .begin_upload_for_operation(&op, &request, &token)
+        .begin_upload_from_payload_for_operation(&op, &request, initial, &token)
         .await
         .unwrap()
     else {
         panic!("real allocation arm")
     };
+    let mut unchanged = vec![0; source.len()];
+    preserved_initial.read_exact_at(&mut unchanged, 0).unwrap();
+    assert_eq!(unchanged, source);
+    assert_eq!(hex::encode(Sha256::digest(&unchanged)), request.sha256);
     let mut value: Value = serde_json::from_str(armed.expose_secret()).unwrap();
     value["phase"]["Stage"]["inner"]["request"]["representation"] =
         serde_json::to_value(UploadRepresentation::PackageArchive {

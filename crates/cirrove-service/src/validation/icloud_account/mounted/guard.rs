@@ -138,6 +138,9 @@ pub(super) struct Guarded {
 
 #[async_trait::async_trait]
 impl UploadProvider for Guarded {
+    fn requires_begin_payload(&self, r: &UploadRequest) -> bool {
+        self.owned.upload(r).is_ok() && self.inner.requires_begin_payload(r)
+    }
     fn begin_is_mutation_free_until_checkpoint(&self, r: &UploadRequest) -> bool {
         self.owned.upload(r).is_ok() && self.inner.begin_is_mutation_free_until_checkpoint(r)
     }
@@ -200,6 +203,18 @@ impl UploadProvider for Guarded {
     ) -> cirrove_core::upload::Result<UploadStep> {
         self.owned.upload(r)?;
         self.inner.begin_upload_for_operation(o, r, c).await
+    }
+    async fn begin_upload_from_payload_for_operation(
+        &self,
+        o: &str,
+        r: &UploadRequest,
+        f: File,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        self.owned.upload(r)?;
+        self.inner
+            .begin_upload_from_payload_for_operation(o, r, f, c)
+            .await
     }
     async fn inspect_upload_for_operation(
         &self,

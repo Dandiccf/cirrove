@@ -251,13 +251,26 @@ impl TransferWorker {
                 None => None,
             }
         } else {
-            let next = self
-                .remote(
+            let next = if self.provider.requires_begin_payload(&request) {
+                let file = self.local(move |j| j.payload(id)).await?;
+                self.remote(
+                    Duration::from_secs(125),
+                    self.provider.begin_upload_from_payload_for_operation(
+                        &operation,
+                        &request,
+                        file,
+                        &self.cancel,
+                    ),
+                )
+                .await?
+            } else {
+                self.remote(
                     Duration::from_secs(125),
                     self.provider
                         .begin_upload_for_operation(&operation, &request, &self.cancel),
                 )
-                .await?;
+                .await?
+            };
             allocation_allowed = matches!(next, UploadStep::Allocate(_));
             Some(next)
         };

@@ -744,11 +744,30 @@ impl ICloudFileReplace {
         r: &UploadRequest,
         c: &CancellationToken,
     ) -> UploadResult<UploadStep> {
+        if self.requires_begin_payload(r) {
+            return Err(UploadError::Unsupported(
+                "flat Numbers preparation requires sealed payload",
+            ));
+        }
         let context = self.native_check(op, r)?;
         tokio::select! {biased; _ = c.cancelled() => Err(UploadError::Uncertain), result = async {
             self.native_before_stage(c).await?;
             let step = context.provider.begin_upload_for_operation(op, &self.native_stage_request()?, c).await?;
             self.native_wrap_stage(step,c).await
+        } => result}
+    }
+    pub(super) async fn native_begin_from_payload(
+        &self,
+        op: &str,
+        request: &UploadRequest,
+        file: File,
+        cancel: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        let context = self.native_check(op, request)?;
+        tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            self.native_before_stage(cancel).await?;
+            let step = context.provider.begin_upload_from_payload_for_operation(op, &self.native_stage_request()?, file, cancel).await?;
+            self.native_wrap_stage(step, cancel).await
         } => result}
     }
     pub(super) async fn native_allocate(

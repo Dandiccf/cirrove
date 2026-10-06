@@ -646,6 +646,16 @@ validation must use explicitly isolated state, sockets, mounts and binaries. Do
 not open the user's current journal with a schema21 writer, restart the installed
 service or change package/developer installation state for these tests.
 
+Fresh flat Numbers package uploads also use a version-2 encrypted provider
+checkpoint containing a separately derived transport receipt. The journal remains
+schema21; this checkpoint is not compatible with the earlier schema21 candidate.
+Keep its matching binaries with isolated state rather than treating a shared
+journal version as downgrade permission. Legacy flat version-1 package checkpoints
+can be inspected but cannot allocate, send a body or register the raw source.
+Already verified replacement handoff recovery retains its existing conditional
+operations. Original pending source bytes remain available through read-only rescue
+export; no cloud replay is needed to recover them locally.
+
 Every writable journal opened by this build migrates, including ordinary-only
 accounts with no native documents. Read-only metadata repair opens only an existing
 schema20 or schema21 journal; it does not migrate it or claim uploads or mutations.

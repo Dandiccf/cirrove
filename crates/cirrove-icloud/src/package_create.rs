@@ -48,6 +48,8 @@ struct Checkpoint {
     phase: Phase,
     slot: Option<wire::Slot>,
     registration: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    wire: Option<crate::package_wire::WireReceipt>,
 }
 #[derive(Default)]
 struct VerificationProgress {
@@ -296,13 +298,30 @@ impl ICloudPackageCreate {
         }
         let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
             .map_err(|_| UploadError::CheckpointInvalid)?;
-        if saved.version != 1
+        if !matches!(saved.version, 1 | 2)
             || Uuid::parse_str(operation).is_err()
             || saved.operation != operation
             || saved.request != *request
             || saved.parent != self.parent
             || saved.account_hash.is_empty()
             || saved.account_hash.len() > 256
+        {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let flat = matches!(
+            request.representation,
+            UploadRepresentation::FlatNumbersArchive { .. }
+        );
+        if (saved.version == 2 && (!flat || saved.wire.is_none()))
+            || (saved.version == 1 && saved.wire.is_some())
+        {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        if let Some(wire) = &saved.wire
+            && (!matches!(
+                request.representation,
+                UploadRepresentation::FlatNumbersArchive { .. }
+            ) || wire.validate(self.request(request)?).is_err())
         {
             return Err(UploadError::CheckpointInvalid);
         }
@@ -487,6 +506,50 @@ impl ICloudPackageCreate {
         .await
         .map_err(|_| UploadError::Uncertain)?
     }
+    async fn flat_wire(
+        &self,
+        source: File,
+        request: &UploadRequest,
+        cancel: &CancellationToken,
+    ) -> Result<(Arc<WriteStagingFile>, crate::package_wire::WireReceipt)> {
+        let name = self.request(request)?.to_owned();
+        let UploadRepresentation::FlatNumbersArchive { semantic } = &request.representation else {
+            return Err(UploadError::Invalid);
+        };
+        let semantic = semantic.clone();
+        let original = crate::PackageDownload {
+            size: request.size,
+            sha256: request.sha256.clone(),
+        };
+        let source = self.payload(source, request, cancel).await?;
+        let wire = self
+            .staging_budget
+            .create(&self.staging)
+            .await
+            .map_err(|_| UploadError::Uncertain)?;
+        let cancel = cancel.clone();
+        tokio::task::spawn_blocking(move || {
+            let receipt = crate::package_wire::flat_numbers_wire(
+                &source, &original, &name, &semantic, &wire, &cancel,
+            )?;
+            Ok((wire, receipt))
+        })
+        .await
+        .map_err(|_| UploadError::Uncertain)?
+    }
+    fn wire_size(&self, saved: &Checkpoint) -> Result<u64> {
+        if matches!(
+            saved.request.representation,
+            UploadRepresentation::FlatNumbersArchive { .. }
+        ) {
+            let wire = saved.wire.as_ref().ok_or(UploadError::CheckpointInvalid)?;
+            wire.validate(self.request(&saved.request)?)
+                .map_err(|_| UploadError::CheckpointInvalid)?;
+            Ok(wire.size)
+        } else {
+            Ok(saved.request.size)
+        }
+    }
     async fn verify(
         &self,
         session: &mut ICloudReadSession,
@@ -644,6 +707,12 @@ impl ReadWindowSink for DiskSink {
 }
 #[async_trait]
 impl UploadProvider for ICloudPackageCreate {
+    fn requires_begin_payload(&self, request: &UploadRequest) -> bool {
+        matches!(
+            request.representation,
+            UploadRepresentation::FlatNumbersArchive { .. }
+        )
+    }
     fn begin_is_mutation_free_until_checkpoint(&self, request: &UploadRequest) -> bool {
         self.request(request).is_ok()
     }
@@ -658,6 +727,11 @@ impl UploadProvider for ICloudPackageCreate {
         request: &UploadRequest,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if self.requires_begin_payload(request) {
+            return Err(UploadError::Unsupported(
+                "flat Numbers preparation requires sealed payload",
+            ));
+        }
         self.request(request)?;
         if Uuid::parse_str(operation).is_err() {
             return Err(UploadError::Invalid);
@@ -665,7 +739,32 @@ impl UploadProvider for ICloudPackageCreate {
         tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
             let mut state = self.session.lock().await; let session = Self::active(&mut state).await?;
             self.vacant(session, self.request(request)?).await?;
-            let saved = Checkpoint {version:1, operation:operation.into(), request:request.clone(), parent:self.parent.clone(), account_hash:session.account_hash.clone().ok_or(UploadError::Invalid)?, phase:Phase::AllocationArmed, slot:None, registration:None};
+            let saved = Checkpoint {version:1, operation:operation.into(), request:request.clone(), parent:self.parent.clone(), account_hash:session.account_hash.clone().ok_or(UploadError::Invalid)?, phase:Phase::AllocationArmed, slot:None, registration:None, wire:None};
+            Ok(UploadStep::Allocate(Self::encode(&saved)?))
+        } => result}
+    }
+    async fn begin_upload_from_payload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        payload: File,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        if !self.requires_begin_payload(request) {
+            return self
+                .begin_upload_for_operation(operation, request, cancel)
+                .await;
+        }
+        self.request(request)?;
+        if Uuid::parse_str(operation).is_err() {
+            return Err(UploadError::Invalid);
+        }
+        let (_, wire) = self.flat_wire(payload, request, cancel).await?;
+        tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
+            let mut state = self.session.lock().await; let session = Self::active(&mut state).await?;
+            self.vacant(session, self.request(request)?).await?;
+            if cancel.is_cancelled() { return Err(UploadError::Uncertain); }
+            let saved = Checkpoint { version:2, operation:operation.into(), request:request.clone(), parent:self.parent.clone(), account_hash:session.account_hash.clone().ok_or(UploadError::Invalid)?, phase:Phase::AllocationArmed, slot:None, registration:None, wire:Some(wire) };
             Ok(UploadStep::Allocate(Self::encode(&saved)?))
         } => result}
     }
@@ -680,12 +779,13 @@ impl UploadProvider for ICloudPackageCreate {
         if saved.phase != Phase::AllocationArmed {
             return Err(UploadError::CheckpointInvalid);
         }
+        let wire_size = self.wire_size(&saved)?;
         tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
             let _reservation = self.staging_budget.create(&self.staging).await.map_err(|_| UploadError::Uncertain)?;
             let mut state = self.session.lock().await; let session = Self::active(&mut state).await?; Self::binding(session, &saved)?;
             self.vacant(session, self.request(request)?).await?;
             if cancel.is_cancelled() {return Err(UploadError::Uncertain);}
-            saved.slot = Some(wire::allocate(session, self.request(request)?, request.size).await.map_err(map_session_error)?);
+            saved.slot = Some(wire::allocate(session, self.request(request)?, wire_size).await.map_err(map_session_error)?);
             saved.phase = Phase::BodyArmed;
             Ok(UploadStep::Stream(Self::encode(&saved)?))
         } => result}
@@ -746,7 +846,16 @@ impl UploadProvider for ICloudPackageCreate {
         if saved.phase != Phase::BodyArmed {
             return Err(UploadError::CheckpointInvalid);
         }
-        let file = self.payload(payload, request, cancel).await?;
+        let wire_size = self.wire_size(&saved)?;
+        let file = if self.requires_begin_payload(request) {
+            let (file, receipt) = self.flat_wire(payload, request, cancel).await?;
+            if saved.wire.as_ref() != Some(&receipt) {
+                return Err(UploadError::CheckpointInvalid);
+            }
+            file
+        } else {
+            self.payload(payload, request, cancel).await?
+        };
         tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
             let mut state = self.session.lock().await; let session = Self::active(&mut state).await?; Self::binding(session, &saved)?;
             // Vault loading can cancel and return Ready in the same poll. The
@@ -758,7 +867,7 @@ impl UploadProvider for ICloudPackageCreate {
                 probe.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 return Err(UploadError::Uncertain);
             }
-            let receipt = wire::upload(session, saved.slot.as_ref().ok_or(UploadError::CheckpointInvalid)?, file, request.size).await.map_err(map_content_error)?;
+            let receipt = wire::upload(session, saved.slot.as_ref().ok_or(UploadError::CheckpointInvalid)?, file, wire_size).await.map_err(map_content_error)?;
             saved.registration = Some(receipt.expose_secret().to_owned()); saved.phase = Phase::RegistrationArmed;
             Ok(UploadStep::Commit(Self::encode(&saved)?))
         } => result}
@@ -784,6 +893,7 @@ impl UploadProvider for ICloudPackageCreate {
         if saved.phase != Phase::RegistrationArmed {
             return Err(UploadError::CheckpointInvalid);
         }
+        self.wire_size(&saved)?;
         tokio::select! {biased; _ = cancel.cancelled() => Err(UploadError::Uncertain), result = async {
             let mut state = self.session.lock().await; let session = Self::active(&mut state).await?; Self::binding(session, &saved)?;
             self.vacant(session, self.request(request)?).await?;

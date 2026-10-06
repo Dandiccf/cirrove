@@ -3010,5 +3010,47 @@ The complete `bash scripts/check.sh` command passed again before publication in
 530.89 seconds, with all 538 source/translation pins unchanged. The implementation
 head's [GitHub CI](https://github.com/Dandiccf/cirrove/actions/runs/37425658643)
 also completed successfully. These checks preserve the failed live result. A
-private model-based regression draft is prepared but has not been compiled or
-executed; it cannot yet serve as evidence of a correction.
+private model-based regression draft had not been compiled or executed at that
+publication. Its subsequent controlled results are recorded below.
+
+
+### Separate flat Numbers transport envelope on 6 October 2026
+
+The [registered transport control](benchmarks/icloud-flat-numbers-wire-envelope-2026-10-06.json)
+models the observed loss of the outer path component. This is an inference from
+the failed owned upload, not an Apple protocol guarantee. The desired complete
+roundtrip first failed with typed `Conflict`; the same test source then passed
+with a separate destination-name transport wrapper. Index, Metadata, Tables and
+all previews must return unchanged, with exactly one allocation, body,
+registration and independent verification. Strict semantic V2 was not relaxed.
+
+The caller's sealed flat source, raw receipt and request remain unchanged.
+Fresh preparation derives a bounded deterministic ZIP and records its separate
+size, digest and exact root in a version-2 package checkpoint before allocation.
+Streaming rederives and compares that receipt before sending a body. Existing
+wrapped version-1 transport is unchanged. Legacy flat version-1 checkpoints
+support read-only inspection; they cannot allocate, stream or register the old
+raw source. Recovery never prepares or allocates again. Structural receipt
+corruption refuses before HTTP; valid-shape size/digest tampering refuses before
+stream HTTP when the source is rederived.
+
+A separately registered offline control used the actual unchanged 138,945-byte
+Apple export. Two derivations produced identical 141,475-byte transport archives,
+each with exactly the source's semantic V2 content. The original bytes, mode,
+identity and modification metadata stayed unchanged. This control made no cloud
+calls and did not open Numbers. The inferred-model regression and offline source
+check establish local transport preservation, not live provider acceptance.
+
+The candidate journal stays at schema21 under the existing held deployment
+policy. The installed packaged daemon remains unchanged. Fresh live upload,
+Apple Numbers reopening, replacement/recovery endpoints and the five remaining
+release criteria stay open. Earlier compile/setup failures and fixture callback
+updates are retained in the same transport artifact.
+
+The entire `bash scripts/check.sh` passed in 670.61 seconds: formatting, all
+Clippy variants, workspace and optional iCloud tests, actual kernel/FUSE groups,
+scripts, translations, ledger and docs. All 546 registered crate/script/Cargo/
+translation/policy pins stayed unchanged. Display scenarios were not repeated.
+An earlier full run missed the existing retained-status test's initial deadline;
+the isolated unchanged test and subsequent entire run passed. This deadline
+failure remains recorded without changing the timeout or claiming a proven cause.

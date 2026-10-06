@@ -213,6 +213,12 @@ pub enum RecoveryLocation {
 /// does not prove failure. Reconcile the remote target before restarting it.
 #[async_trait]
 pub trait UploadProvider: Send + Sync {
+    /// A fresh begin needs the verified sealed source before returning its
+    /// allocation checkpoint. Recovery inspection never invokes this hook.
+    fn requires_begin_payload(&self, _request: &UploadRequest) -> bool {
+        false
+    }
+
     /// True only if `begin_upload` cannot contact or mutate the provider before
     /// returning a checkpoint. When the journal has never recorded a checkpoint
     /// and the vault has none, the worker can then retry that preflight safely.
@@ -252,6 +258,18 @@ pub trait UploadProvider: Send + Sync {
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
         self.begin_upload(request, cancel).await
+    }
+    /// Prepare a fresh upload from its verified source before allocation.
+    /// Providers that do not require a payload retain their existing begin.
+    async fn begin_upload_from_payload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        _payload: File,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        self.begin_upload_for_operation(operation, request, cancel)
+            .await
     }
     /// Execute a fresh, durably armed allocation exactly once in this attempt.
     /// This is distinct from `inspect_upload`: inspecting a saved allocation

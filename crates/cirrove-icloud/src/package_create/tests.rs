@@ -61,6 +61,7 @@ fn fixture() -> (
         },
     };
     let saved = Checkpoint {
+        wire: None,
         version: 1,
         operation: Uuid::new_v4().to_string(),
         request: request.clone(),

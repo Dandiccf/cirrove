@@ -259,6 +259,13 @@ impl CreateEnvelope {
 
 #[async_trait]
 impl UploadProvider for ICloudWriteProvider {
+    fn requires_begin_payload(&self, request: &UploadRequest) -> bool {
+        matches!(
+            request.representation,
+            cirrove_core::upload::UploadRepresentation::FlatNumbersArchive { .. }
+                | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
+        )
+    }
     fn staged_recovery_location(
         &self,
         operation: &str,
@@ -359,6 +366,23 @@ impl UploadProvider for ICloudWriteProvider {
             inner: String::new(),
         }
         .wrap(step)
+    }
+    async fn begin_upload_from_payload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        payload: File,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        if !request.representation.is_file_bytes() {
+            return self
+                .package_adapter(operation, request, None)
+                .await?
+                .begin_upload_from_payload_for_operation(operation, request, payload, cancel)
+                .await;
+        }
+        self.begin_upload_for_operation(operation, request, cancel)
+            .await
     }
     async fn allocate_upload_for_operation(
         &self,

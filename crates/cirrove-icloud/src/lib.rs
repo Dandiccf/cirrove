@@ -2028,6 +2028,7 @@ mod storage_refusal_tests;
 
 mod package_create;
 mod package_transport;
+mod package_wire;
 pub use package_create::ICloudPackageCreate;
 mod write_staging;
 pub use write_staging::WriteStagingBudget as ICloudWriteStagingBudget;
