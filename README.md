@@ -79,14 +79,14 @@ to atomic-save ordering and publication of the confirmed replacement identities.
 A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
 also verified the exact original bytes in iCloud Trash.
 Native iWork editing and five full-integration acceptance areas remain open.
-A [fresh standalone native-document removal trial](docs/benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json)
-now recovered a controlled process exit after iCloud removal but before local
-acknowledgement, without repeating the mutation. Independent verification found
-the complete original content in Trash and confirmed its absence from the original
-location; normal read-only listing, watch and mount checks also passed. The earlier
-175 attempt remains an unresolved folder-creation outcome, retained without replay.
-Broader native editing, conflict handling and release acceptance remain open; the
-[validation record](docs/icloud-write-integration.md) preserves the separate outcomes.
+A [fresh standalone removal trial](docs/benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json)
+recovered a controlled process exit without repeating the mutation, verified the
+complete original content in Trash and passed normal read-only absence checks.
+A separate [mismatched-selection trial](docs/benchmarks/icloud-native-replacement-mismatched-selection-fresh-2026-10-06.json)
+refused replacement with a deliberately wrong revision and independently confirmed
+the original unchanged. Naturally stale revisions, concurrent conflicts, broader
+native editing and release acceptance remain open. Earlier uncertain and partial
+outcomes remain in the [validation record](docs/icloud-write-integration.md).
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to

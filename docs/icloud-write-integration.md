@@ -3676,3 +3676,32 @@ all 561 source pins unchanged and 87 test groups reporting no failures. It was
 not a display rerun. That repository validation does not turn the partial live
 arm into conflict-refusal or installed acceptance: row 486 remains open, with one
 of six full-iCloud release criteria closed and five open.
+
+### Fresh mismatched-selection refusal
+
+The separately registered [fresh successor](benchmarks/icloud-native-replacement-mismatched-selection-fresh-2026-10-06.json)
+passed in 120.74 seconds within its original 600/45-second window. After new
+owned-folder setup, normal public flat Numbers import and independent reference
+acquisition, one public replacement request used the actual item ID with a
+deliberately wrong non-wildcard ETag. The CLI exited one as expected; its unique
+job failed at selected-document resolution, with no native replacement progress
+or durable replacement operation admitted.
+
+Exact journal rows and the fixed private payload inventories remained unchanged.
+Stopped independent postflight preserved the complete original Node, actual ETag
+and full semantic V2 content. All nine original managed handles were reaped and
+absent, the owned mount/socket were closed, and source pins plus the nineteen
+installed artifacts, unit and daemon identity matched. The independent terminal
+audit passed all sixteen checks.
+
+The same genuine B archive supplied both the initial import and the refused
+replacement; this adds no editor-fidelity result. It tests deliberately mismatched
+selection, not a naturally stale previously valid revision or a concurrent
+same-name occupant. HTTP counts were not instrumented. The earlier 8d650 partial
+arm and its unknown errno remain separately retained without replay. Row 486
+stays open, with one full-iCloud release criterion closed and five open;
+installed delivery remains held.
+
+The reserved recovery-name guard also has a new [controlled TLS regression](benchmarks/icloud-native-recovery-name-occupant-controls-2026-10-06.json). Omitting only that name from the foreign-occupant guard made the exact test fail before its expected refusal; restoring the unchanged guard made it pass, with original, staged and occupant metadata preserved and zero Trash/rename calls. These are synthetic responses, not a live competing-name or atomic-race result.
+
+The complete `bash scripts/check.sh` subsequently passed in 621.01 seconds, with 87 completed test groups and no failures, including formatting, Clippy, workspace/feature tests, kernel/FUSE groups, scripts, ledger and documentation. The formatter only expanded the new test's final equality assertion; all 561 after-format source pins were preserved through closure. The original process was reaped and absent. Display scenarios were not repeated, and this source validation does not close live conflict or installed acceptance.

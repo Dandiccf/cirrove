@@ -91,6 +91,7 @@ struct State {
     changed: bool,
     corrupt: bool,
     collision: bool,
+    recovery_collision: bool,
     trash_calls: usize,
     rename_calls: usize,
     requests: usize,
@@ -157,7 +158,8 @@ impl Server {
                 };
                 let reply={let mut s=observed.lock().unwrap();s.requests+=1;let url=url::Url::parse(&format!("{ORIGIN}{path}")).unwrap();match url.path(){
                     "/retrieveItemDetailsInFolders"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request[0]["drivewsid"],FOLDER);let mut items=vec![entry(&plan,&s,false)];if !s.trashed&&!s.moved&&!s.deleted{items.push(entry(&plan,&s,true));}
-                    if s.collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");other["name"]=json!("Target");items.push(other);}Some(json!([{"drivewsid":FOLDER,"parentId":ROOT_ID,"name":"Owned","type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())},
+                    if s.collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");other["name"]=json!("Target");items.push(other);}
+                    if s.recovery_collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::recovery-occupant");other["docwsid"]=json!("recovery-occupant");other["name"]=json!(plan.recovery_name.strip_suffix(".pages").unwrap());other["etag"]=json!("occupant-v1");items.push(other);}Some(json!([{"drivewsid":FOLDER,"parentId":ROOT_ID,"name":"Owned","type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())},
                     "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==OLD;assert!(old||request["items"][0]["drivewsid"]==NEW);Some(json!({"items":if old&&s.deleted{vec![]}else{vec![entry(&plan,&s,old)]}}).to_string().into_bytes())},
                     "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id=="old"||id=="new");Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},
                     "/archive/old"|"/archive/new"=>{let old=url.path().ends_with("old");let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};Some(archive(name,old,s.corrupt))},
@@ -368,4 +370,60 @@ async fn native_handoff_both_semantic_proofs_are_enforced_before_mutation() {
         assert!(state.requests > 0);
         assert_eq!((state.trash_calls, state.rename_calls), (0, 0));
     }
+}
+
+#[tokio::test]
+async fn native_handoff_recovery_name_occupant_preserves_all_identities() {
+    let plan = plan();
+    let server = Server::start(plan.clone(), false, false).await;
+    let dir = directory();
+    let cancel = CancellationToken::new();
+    {
+        let mut state = server.state.lock().unwrap();
+        state.recovery_collision = true;
+        // This arm changes only the foreign recovery-name occupant.
+        assert!(!state.trashed && !state.installed && !state.moved && !state.deleted);
+        assert!(!state.changed && !state.corrupt && !state.collision);
+    }
+    let mut session = server.session();
+    let before = session.list_folder(FOLDER).await.unwrap();
+    assert_eq!(before.len(), 3);
+    let original = before.iter().find(|entry| entry.drivewsid == OLD).unwrap();
+    let staged = before.iter().find(|entry| entry.drivewsid == NEW).unwrap();
+    let occupant = before
+        .iter()
+        .find(|entry| entry.drivewsid == "FILE::com.apple.CloudDocs::recovery-occupant")
+        .unwrap();
+    assert_eq!(original.display_name(), plan.target_name);
+    assert_eq!(original.etag, plan.original_etag);
+    assert_eq!(staged.display_name(), plan.staged_name);
+    assert_eq!(staged.etag, plan.staged_etag);
+    assert_eq!(occupant.display_name(), plan.recovery_name);
+    assert_eq!(occupant.parent_id, FOLDER);
+    assert_eq!(occupant.etag, "occupant-v1");
+    assert_ne!(occupant.drivewsid, original.drivewsid);
+    assert_ne!(occupant.drivewsid, staged.drivewsid);
+    assert_eq!(original.parent_id, FOLDER);
+    assert_eq!(staged.parent_id, FOLDER);
+    assert_eq!(original.kind, "FILE");
+    assert_eq!(staged.kind, "FILE");
+    // Observe all valid actors before the desired refusal assertion.
+    let before = serde_json::to_value(before).unwrap();
+    let result = session
+        .trash_native_handoff_original(&plan, dir.path(), &cancel)
+        .await;
+    assert!(
+        matches!(result, Ok(false)),
+        "a foreign recovery-name occupant must refuse before Trash"
+    );
+    let after = serde_json::to_value(session.list_folder(FOLDER).await.unwrap()).unwrap();
+    assert_eq!(
+        after, before,
+        "original, stage and occupant metadata changed"
+    );
+    let state = server.state.lock().unwrap();
+    assert_eq!((state.trash_calls, state.rename_calls), (0, 0));
+    assert!(!state.trashed && !state.installed && !state.moved && !state.deleted);
+    assert!(!state.changed && !state.corrupt && !state.collision);
+    assert!(state.recovery_collision);
 }
