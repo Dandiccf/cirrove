@@ -352,6 +352,7 @@ impl RecoveryJournal {
                 working: anchored.join("working"),
                 account: account.into(),
                 quota: 1,
+                native_metadata_scan: Default::default(),
                 _owner: owner,
             },
             _directory: std::sync::Arc::new(dir),
@@ -738,6 +739,18 @@ impl MetadataPublicationJournal {
     }
     pub(crate) fn due(&self, now: u64) -> Result<Option<super::OrdinaryHandoffMetadata>> {
         self.0.journal.ordinary_metadata_due(now)
+    }
+    pub(crate) fn due_with_scan(
+        &self,
+        now: u64,
+        scan: super::NativeMetadataScan,
+    ) -> (
+        super::NativeMetadataScan,
+        Result<Option<super::OrdinaryHandoffMetadata>>,
+    ) {
+        self.0.journal.native_metadata_scan.set(scan);
+        let result = self.due(now);
+        (self.0.journal.native_metadata_scan.get(), result)
     }
     pub(crate) fn finish(
         &self,

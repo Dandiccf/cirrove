@@ -1213,6 +1213,10 @@ impl Reservation {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct OrdinaryHandoffMetadata {
+    /// Existing ordinary JSON remains byte-compatible. Native jobs require
+    /// their own complete package receipt and captured original authority.
+    #[serde(default, skip_serializing_if = "metadata_is_ordinary")]
+    pub(crate) native: bool,
     pub(crate) operation: Uuid,
     sequence: u64,
     pub(crate) scope: Scope,
@@ -1223,25 +1227,64 @@ pub(crate) struct OrdinaryHandoffMetadata {
     pub(crate) current: Node,
     pub(crate) backup: Node,
 }
+fn metadata_is_ordinary(native: &bool) -> bool {
+    !native
+}
 fn metadata_owner(db: &Connection, id: Uuid) -> Result<NamespaceObject> {
     let owner: String = db.query_row(
         "SELECT object FROM namespace_operations WHERE operation=?1",
         [id.to_string()],
         |r| r.get(0),
     )?;
-    namespace::by_id(
-        db,
-        Uuid::parse_str(&owner).map_err(|_| JournalError::Corrupt)?,
-    )
+    let id = Uuid::parse_str(&owner).map_err(|_| JournalError::Corrupt)?;
+    let owner = namespace::by_id(db, id)?;
+    if owner.id != id {
+        return Err(JournalError::Corrupt);
+    }
+    Ok(owner)
 }
 fn metadata_receipt(row: &UploadRecord, owner: Uuid) -> Result<Option<OrdinaryHandoffMetadata>> {
-    if !row.representation.is_file_bytes() || row.identity_handoff.is_none() {
+    if row.identity_handoff.is_none() {
         return Ok(None);
     }
     let reservation = row.identity_handoff.as_ref().ok_or(JournalError::Corrupt)?;
     let Some(original) = reservation.metadata_original.as_deref() else {
         return Ok(None);
     };
+    if !row.representation.is_file_bytes() {
+        let Some((selected, current, backup)) = row.native_replacement_receipt() else {
+            return Err(JournalError::Corrupt);
+        };
+        package_replacement::validate(&row.scope, &row.intent, &row.representation)?;
+        cirrove_core::upload::UploadRequest {
+            scope: row.scope.clone(),
+            intent: row.intent.clone(),
+            representation: row.representation.clone(),
+            size: row.size,
+            sha256: row.sha256.clone(),
+        }
+        .validate()
+        .map_err(|_| JournalError::Corrupt)?;
+        if original != selected
+            || row.transferred_bytes != row.size
+            || current.id.ends_with("::")
+            || row.scope.account.is_empty()
+        {
+            return Err(JournalError::Corrupt);
+        }
+        return Ok(Some(OrdinaryHandoffMetadata {
+            native: true,
+            operation: row.id,
+            sequence: row.sequence,
+            scope: row.scope.clone(),
+            owner,
+            size: row.size,
+            sha256: row.sha256.clone(),
+            original: original.clone(),
+            current: current.clone(),
+            backup: backup.clone(),
+        }));
+    }
     let (current, backup) = row
         .ordinary_handoff_receipt()
         .ok_or(JournalError::Corrupt)?;
@@ -1264,6 +1307,7 @@ fn metadata_receipt(row: &UploadRecord, owner: Uuid) -> Result<Option<OrdinaryHa
         return Err(JournalError::Corrupt);
     }
     Ok(Some(OrdinaryHandoffMetadata {
+        native: false,
         operation: row.id,
         sequence: row.sequence,
         scope: row.scope.clone(),
@@ -1280,11 +1324,11 @@ pub(super) fn migrate_metadata_publication(db: &mut Connection) -> Result<()> {
         operation TEXT PRIMARY KEY,body TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0 CHECK(done IN(0,1)),
         failures INTEGER NOT NULL DEFAULT 0,retry_after INTEGER NOT NULL DEFAULT 0);
         CREATE INDEX IF NOT EXISTS ordinary_metadata_due_v20 ON ordinary_metadata_publication(retry_after,operation) WHERE done=0;")?;
-    Ok(()) // No legacy receipt backfill or synthesized original.
+    Ok(()) // No ordinary legacy backfill or synthesized original.
 }
 /// Same transaction as the already validated full handoff acknowledgment.
 pub(super) fn enqueue_metadata_publication(tx: &Transaction<'_>, row: &UploadRecord) -> Result<()> {
-    if !row.representation.is_file_bytes() || row.identity_handoff.is_none() {
+    if row.identity_handoff.is_none() {
         return Ok(());
     }
     let owner = metadata_owner(tx, row.id)?;
@@ -1308,7 +1352,7 @@ fn metadata_job(db: &Connection, account: &str, id: Uuid) -> Result<OrdinaryHand
     ) = db.query_row(
         "SELECT p.body,u.body,u.sequence,u.state,q.complete,q.sequence,q.id
          FROM ordinary_metadata_publication p JOIN uploads u ON u.id=p.operation
-         JOIN write_queue q ON q.id=u.id WHERE p.operation=?1 AND p.done=0",
+         JOIN write_queue q ON q.id=u.id WHERE p.operation=?1",
         [id.to_string()],
         |r| {
             Ok((
@@ -1346,12 +1390,122 @@ fn metadata_job(db: &Connection, account: &str, id: Uuid) -> Result<OrdinaryHand
     // Newer dirty saves/Relocates/unlink/retirement do not cancel historical jobs.
     Ok(proof)
 }
+#[derive(Clone, Copy, Default)]
+pub(crate) struct NativeMetadataScan {
+    after: i64,
+    highwater: Option<i64>,
+}
+fn queue_native_history(db: &Connection, account: &str, id: &str, body: &str) -> Result<()> {
+    let present: bool = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM ordinary_metadata_publication WHERE operation=?1)",
+        [id],
+        |r| r.get(0),
+    )?;
+    if present {
+        return Ok(());
+    }
+    if body.len() > 256 * 1024 {
+        db.execute(
+            "INSERT OR IGNORE INTO ordinary_metadata_publication(operation,body) VALUES(?1,'null')",
+            [id],
+        )?;
+        return Ok(());
+    }
+    let value: serde_json::Value = serde_json::from_str(body)?;
+    if !matches!(
+        value["representation"]["kind"].as_str(),
+        Some("package_replacement_archive" | "flat_numbers_replacement_archive")
+    ) || !value["identity_handoff"]["metadata_original"].is_object()
+    {
+        return Ok(());
+    }
+    let proof = (|| -> Result<OrdinaryHandoffMetadata> {
+        if body.len() > 256 * 1024 {
+            return Err(JournalError::Corrupt);
+        }
+        let id = Uuid::parse_str(id).map_err(|_| JournalError::Corrupt)?;
+        let row: UploadRecord = serde_json::from_str(body)?;
+        let owner = metadata_owner(db, id)?;
+        let proof = metadata_receipt(&row, owner.id)?.ok_or(JournalError::Corrupt)?;
+        if row.id != id
+            || !proof.native
+            || proof.scope.account != account
+            || owner.scope != proof.scope
+        {
+            return Err(JournalError::Stale);
+        }
+        Ok(proof)
+    })();
+    let queue_body = match proof {
+        Ok(proof) => serde_json::to_string(&proof)?,
+        Err(_) => "null".into(),
+    };
+    db.execute(
+        "INSERT OR IGNORE INTO ordinary_metadata_publication(operation,body) VALUES(?1,?2)",
+        params![id, queue_body],
+    )?;
+    Ok(())
+}
+/// A fixed startup range, with at most 16 indexed package rows inspected per
+/// pass. Imports/queued rows advance the same cursor; an exhausted scan stops.
+fn backfill_native_metadata(
+    db: &Connection,
+    account: &str,
+    scan: &mut NativeMetadataScan,
+) -> Result<()> {
+    let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
+    if version != 21 {
+        return Ok(());
+    }
+    let highwater = match scan.highwater {
+        Some(value) => value,
+        None => {
+            let value = db.query_row(
+                "SELECT coalesce(max(sequence),0) FROM uploads WHERE sequence>=0",
+                [],
+                |r| r.get::<_, i64>(0),
+            )?;
+            if value < 0 {
+                return Err(JournalError::Corrupt);
+            }
+            scan.highwater = Some(value);
+            value
+        }
+    };
+    if scan.after >= highwater {
+        return Ok(());
+    }
+    let mut query = db.prepare(
+        "SELECT u.sequence,u.id,u.body FROM uploads u WHERE u.sequence>?1 AND u.sequence<=?2 AND u.state='uploaded'
+         AND json_extract(u.body,'$.representation.kind') IN('package_archive','package_replacement_archive','flat_numbers_archive','flat_numbers_replacement_archive')
+         AND json_type(u.body,'$.package_completion')='object'
+         ORDER BY u.sequence LIMIT 16")?;
+    let rows = query
+        .query_map(params![scan.after, highwater], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    for (sequence, id, body) in &rows {
+        queue_native_history(db, account, id, body)?;
+        scan.after = *sequence;
+    }
+    if rows.len() < 16 {
+        scan.after = highwater;
+    }
+    Ok(())
+}
 impl UploadJournal {
     pub(crate) fn ordinary_metadata_due(
         &self,
         now: u64,
     ) -> Result<Option<OrdinaryHandoffMetadata>> {
         let tx = self.db.unchecked_transaction()?;
+        let mut scan = self.native_metadata_scan.get();
+        backfill_native_metadata(&tx, &self.account, &mut scan)?;
         let selected: Option<(String, String)> = tx
             .query_row(
                 "SELECT operation,body FROM ordinary_metadata_publication
@@ -1362,6 +1516,7 @@ impl UploadJournal {
             .optional()?;
         let Some((id, body)) = selected else {
             tx.commit()?;
+            self.native_metadata_scan.set(scan);
             return Ok(None);
         };
         let result = Uuid::parse_str(&id)
@@ -1382,6 +1537,7 @@ impl UploadJournal {
             )?;
         }
         tx.commit()?;
+        self.native_metadata_scan.set(scan);
         result.map(Some)
     }
 
@@ -1395,6 +1551,17 @@ impl UploadJournal {
         if metadata_job(&tx, &self.account, expected.operation)? != *expected {
             return Err(JournalError::Stale);
         }
+        if expected.native
+            && completed
+            && tx.query_row(
+                "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+                [expected.operation.to_string()],
+                |r| r.get::<_, bool>(0),
+            )?
+        {
+            tx.commit()?;
+            return Ok(());
+        }
         let now = i64::try_from(now).map_err(|_| JournalError::Stale)?;
         let changed = if completed {
             tx.execute("UPDATE ordinary_metadata_publication SET done=1,retry_after=0 WHERE operation=?1 AND done=0",[expected.operation.to_string()])?
@@ -1407,5 +1574,400 @@ impl UploadJournal {
         }
         tx.commit()?;
         Ok(())
+    }
+    /// Native package publication shares the immutable metadata job. A racing
+    /// maintenance callback may already have completed this exact same proof.
+    pub(crate) fn native_metadata_for_package(&self, id: Uuid) -> Result<OrdinaryHandoffMetadata> {
+        let tx = self.db.unchecked_transaction()?;
+        let body: String = tx.query_row(
+            "SELECT body FROM uploads WHERE id=?1 AND state='uploaded'",
+            [id.to_string()],
+            |r| r.get(0),
+        )?;
+        queue_native_history(&tx, &self.account, &id.to_string(), &body)?;
+        let result = metadata_job(&tx, &self.account, id);
+        tx.commit()?;
+        let proof = result?;
+        if !proof.native {
+            return Err(JournalError::Intent);
+        }
+        Ok(proof)
+    }
+    pub(crate) fn finish_native_metadata(&self, expected: &OrdinaryHandoffMetadata) -> Result<()> {
+        let tx = self.db.unchecked_transaction()?;
+        if !expected.native || metadata_job(&tx, &self.account, expected.operation)? != *expected {
+            return Err(JournalError::Stale);
+        }
+        tx.execute(
+            "UPDATE ordinary_metadata_publication SET done=1,retry_after=0 WHERE operation=?1",
+            [expected.operation.to_string()],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod metadata_native_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn fixture() -> (tempfile::TempDir, UploadJournal, Scope) {
+        let root = tempfile::tempdir().unwrap();
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let journal =
+            UploadJournal::open(&root.path().join("journal"), &scope.account, 1024 * 1024).unwrap();
+        (root, journal, scope)
+    }
+    fn native_ack(
+        root: &Path,
+        journal: &mut UploadJournal,
+        scope: &Scope,
+        label: &str,
+    ) -> UploadRecord {
+        let staging = root.join(format!("staging-{label}"));
+        std::fs::create_dir(&staging).unwrap();
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let source = root.join(format!("source-{label}.zip"));
+        std::fs::write(
+            &source,
+            crate::native_import::synthetic_package_archive(
+                "Source.pages/Document",
+                b"new sealed native content",
+            ),
+        )
+        .unwrap();
+        let archive = crate::native_import::ValidatedPackageArchive::capture(
+            &source,
+            &staging,
+            "Source.pages",
+            &cirrove_core::CancellationToken::new(),
+        )
+        .unwrap();
+        let original = Node {
+            id: format!("FILE::com.apple.CloudDocs::old-{label}"),
+            parent_id: Some("FOLDER::com.apple.CloudDocs::owned".into()),
+            name: format!("Owned-{label}.pages"),
+            kind: NodeKind::Folder,
+            package: true,
+            size: 3,
+            modified_unix: 0,
+            etag: Some("old-v1".into()),
+            content_version: None,
+            target: None,
+        };
+        let old_semantic = PackageSemanticIdentity {
+            version: 1,
+            sha256: "a".repeat(64),
+            entries: 1,
+            files: 1,
+            expanded_bytes: 3,
+        };
+        let row = journal
+            .enqueue_validated_package_replacement(
+                scope.clone(),
+                original.clone(),
+                old_semantic.clone(),
+                archive,
+                &cirrove_core::CancellationToken::new(),
+            )
+            .unwrap();
+        let claimed = journal.claim_next().unwrap().unwrap();
+        assert_eq!(claimed.id, row.id);
+        let attempt = claimed.attempt.unwrap();
+        journal
+            .reserve_identity_handoff(
+                row.id,
+                attempt,
+                RecoveryLocation::Trash {
+                    local_name: format!("recovery-{label}.pages"),
+                    parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
+                },
+            )
+            .unwrap();
+        let UploadRepresentation::PackageReplacementArchive { semantic, .. } = &row.representation
+        else {
+            panic!("typed native")
+        };
+        journal
+            .acknowledge_package_handoff(
+                row.id,
+                attempt,
+                PackageHandoffReceipt {
+                    original: original.clone(),
+                    current: PackageUploadReceipt {
+                        remote: Node {
+                            id: format!("FILE::com.apple.CloudDocs::new-{label}"),
+                            etag: Some("new-v2".into()),
+                            size: 25,
+                            ..original.clone()
+                        },
+                        semantic: semantic.clone(),
+                    },
+                    backup: PackageUploadReceipt {
+                        remote: Node {
+                            parent_id: Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT".into()),
+                            etag: Some("trash-v2".into()),
+                            ..original
+                        },
+                        semantic: old_semantic,
+                    },
+                },
+            )
+            .unwrap();
+        journal.get(row.id).unwrap()
+    }
+    fn ordinary_ack(journal: &mut UploadJournal, scope: &Scope) -> UploadRecord {
+        let original = Node {
+            id: "ordinary-old".into(),
+            parent_id: Some("root".into()),
+            name: "Owned.txt".into(),
+            kind: NodeKind::File,
+            package: false,
+            size: 3,
+            modified_unix: 0,
+            etag: Some("old-v1".into()),
+            content_version: Some("old-content".into()),
+            target: None,
+        };
+        let working = journal
+            .create_working(scope.clone(), original.clone(), false, &b"old"[..])
+            .unwrap();
+        journal.write_working(working.id, 0, b"new").unwrap();
+        let row = journal.seal_working(working.id).unwrap().unwrap();
+        let claimed = journal.claim_next().unwrap().unwrap();
+        assert_eq!(claimed.id, row.id);
+        let attempt = claimed.attempt.unwrap();
+        journal
+            .reserve_identity_handoff(
+                row.id,
+                attempt,
+                RecoveryLocation::Sibling {
+                    name: "recovery-A.txt".into(),
+                },
+            )
+            .unwrap();
+        journal
+            .acknowledge_identity_handoff(
+                row.id,
+                attempt,
+                Node {
+                    id: "ordinary-new".into(),
+                    etag: Some("new-v2".into()),
+                    content_version: Some("new-content".into()),
+                    ..original.clone()
+                },
+                Node {
+                    name: "recovery-A.txt".into(),
+                    etag: Some("backup-v2".into()),
+                    ..original
+                },
+            )
+            .unwrap();
+        journal.get(row.id).unwrap()
+    }
+    fn bodies(journal: &UploadJournal) -> Vec<(String, String)> {
+        journal
+            .db
+            .prepare("SELECT id,body FROM uploads ORDER BY sequence")
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn metadata_native_qualifier_preserves_exact_ordinary_json_wire() {
+        let (_root, mut journal, scope) = fixture();
+        let row = ordinary_ack(&mut journal, &scope);
+        let proof = journal.ordinary_metadata_due(0).unwrap().unwrap();
+        assert_eq!(proof.operation, row.id);
+        assert!(!proof.native);
+        let body: String = journal
+            .db
+            .query_row(
+                "SELECT body FROM ordinary_metadata_publication WHERE operation=?1",
+                [row.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let wire: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert!(wire.get("native").is_none());
+        assert_eq!(serde_json::to_string(&proof).unwrap(), body);
+        assert_eq!(
+            serde_json::from_str::<OrdinaryHandoffMetadata>(&body).unwrap(),
+            proof
+        );
+        // A fixed startup range inspects 16 indexed receipts per pass, even
+        // when all earlier rows already have jobs. New acknowledgments enqueue
+        // directly; the exhausted history cursor never revisits that prefix.
+        for index in 0..17 {
+            native_ack(
+                _root.path(),
+                &mut journal,
+                &scope,
+                &format!("bounded-{index}"),
+            );
+        }
+        journal
+            .db
+            .execute(
+                "DELETE FROM ordinary_metadata_publication WHERE operation!=?1",
+                [row.id.to_string()],
+            )
+            .unwrap();
+        let before = bodies(&journal);
+        let mut scan = NativeMetadataScan::default();
+        backfill_native_metadata(&journal.db, &scope.account, &mut scan).unwrap();
+        assert_eq!(journal.db.query_row("SELECT count(*) FROM ordinary_metadata_publication WHERE json_extract(body,'$.native')=1", [], |r| r.get::<_,i64>(0)).unwrap(), 16);
+        assert!(scan.after < scan.highwater.unwrap());
+        backfill_native_metadata(&journal.db, &scope.account, &mut scan).unwrap();
+        assert_eq!(journal.db.query_row("SELECT count(*) FROM ordinary_metadata_publication WHERE json_extract(body,'$.native')=1", [], |r| r.get::<_,i64>(0)).unwrap(), 17);
+        assert_eq!(scan.after, scan.highwater.unwrap());
+        assert_eq!(bodies(&journal), before);
+        let fresh = native_ack(_root.path(), &mut journal, &scope, "after-highwater");
+        assert!(
+            journal
+                .native_metadata_for_package(fresh.id)
+                .unwrap()
+                .native
+        );
+        journal
+            .db
+            .execute(
+                "DELETE FROM ordinary_metadata_publication WHERE operation=?1",
+                [fresh.id.to_string()],
+            )
+            .unwrap();
+        backfill_native_metadata(&journal.db, &scope.account, &mut scan).unwrap();
+        assert!(
+            !journal
+                .db
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM ordinary_metadata_publication WHERE operation=?1)",
+                    [fresh.id.to_string()],
+                    |r| r.get::<_, bool>(0)
+                )
+                .unwrap()
+        );
+        let restored = journal.native_metadata_for_package(fresh.id).unwrap();
+        journal.finish_native_metadata(&restored).unwrap();
+        journal.finish_native_metadata(&restored).unwrap();
+        journal
+            .finish_ordinary_metadata(&restored, true, 0)
+            .unwrap();
+    }
+
+    #[test]
+    fn metadata_native_invalid_history_is_retained_and_valid_sibling_is_not_starved() {
+        for arm in [
+            "foreign_scope",
+            "missing_owner",
+            "owner_body_id",
+            "incomplete_queue",
+            "invalid_native_proof",
+        ] {
+            let (root, mut journal, scope) = fixture();
+            let bad = native_ack(root.path(), &mut journal, &scope, "bad");
+            let good = native_ack(root.path(), &mut journal, &scope, "good");
+            journal
+                .db
+                .execute("DELETE FROM ordinary_metadata_publication", [])
+                .unwrap();
+            match arm {
+                "foreign_scope" => {
+                    journal.db.execute("UPDATE uploads SET body=json_set(body,'$.scope.account','foreign') WHERE id=?1", [bad.id.to_string()]).unwrap();
+                }
+                "missing_owner" => {
+                    journal
+                        .db
+                        .execute(
+                            "DELETE FROM namespace_operations WHERE operation=?1",
+                            [bad.id.to_string()],
+                        )
+                        .unwrap();
+                }
+                "owner_body_id" => {
+                    journal.db.execute("UPDATE namespace_objects SET body=json_set(body,'$.id',?2) WHERE id=(SELECT object FROM namespace_operations WHERE operation=?1)", params![bad.id.to_string(), Uuid::new_v4().to_string()]).unwrap();
+                }
+                "incomplete_queue" => {
+                    journal
+                        .db
+                        .execute(
+                            "UPDATE write_queue SET complete=0 WHERE id=?1",
+                            [bad.id.to_string()],
+                        )
+                        .unwrap();
+                }
+                _ => {
+                    journal.db.execute("UPDATE uploads SET body=json_set(body,'$.identity_handoff.backup.id','foreign') WHERE id=?1", [bad.id.to_string()]).unwrap();
+                }
+            }
+            let before = bodies(&journal);
+            let payloads: Vec<_> = [&bad, &good]
+                .iter()
+                .map(|row| std::fs::read(journal.objects.join(row.id.to_string())).unwrap())
+                .collect();
+            let mut scan = NativeMetadataScan::default();
+            backfill_native_metadata(&journal.db, &scope.account, &mut scan).unwrap();
+            journal.native_metadata_scan.set(scan);
+            journal
+                .db
+                .execute(
+                    "UPDATE ordinary_metadata_publication SET retry_after=1 WHERE operation=?1",
+                    [good.id.to_string()],
+                )
+                .unwrap();
+            assert!(journal.ordinary_metadata_due(0).is_err(), "{arm}");
+            let proof = journal.ordinary_metadata_due(1).unwrap().unwrap();
+            assert!(proof.native);
+            assert_eq!(proof.operation, good.id, "{arm}");
+            journal.finish_ordinary_metadata(&proof, true, 0).unwrap();
+            assert_eq!(journal.db.query_row("SELECT done,failures FROM ordinary_metadata_publication WHERE operation=?1", [bad.id.to_string()], |r| Ok((r.get::<_,bool>(0)?,r.get::<_,i64>(1)?))).unwrap(), (false, 1));
+            assert_eq!(bodies(&journal), before, "{arm}");
+            assert_eq!(
+                [&bad, &good]
+                    .iter()
+                    .map(|row| std::fs::read(journal.objects.join(row.id.to_string())).unwrap())
+                    .collect::<Vec<_>>(),
+                payloads,
+                "{arm}"
+            );
+        }
+    }
+
+    #[test]
+    fn metadata_native_and_ordinary_missing_capture_are_not_promoted_on_history_read() {
+        let (root, mut journal, scope) = fixture();
+        let native = native_ack(root.path(), &mut journal, &scope, "legacy");
+        let ordinary = ordinary_ack(&mut journal, &scope);
+        journal
+            .db
+            .execute("DELETE FROM ordinary_metadata_publication", [])
+            .unwrap();
+        for row in [&native, &ordinary] {
+            journal.db.execute("UPDATE uploads SET body=json_remove(body,'$.identity_handoff.metadata_original') WHERE id=?1", [row.id.to_string()]).unwrap();
+        }
+        let before = bodies(&journal);
+        assert!(journal.ordinary_metadata_due(0).unwrap().is_none());
+        assert!(journal.native_metadata_for_package(native.id).is_err());
+        assert_eq!(
+            journal
+                .db
+                .query_row(
+                    "SELECT count(*) FROM ordinary_metadata_publication",
+                    [],
+                    |r| r.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+        assert_eq!(bodies(&journal), before);
     }
 }

@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "local_fullcheck_passed_live_metadata_backfill_passed_strict_remount_refused_new_revision",
+  "question": "Does completed native replacement publication relocate the exact original item to its receipt-bound Trash backup and expose only new B at the old name, including journal reopen and completed read-only restart, while preserving newer metadata and transfer state?",
+  "prediction": "Existing native publication refreshes only B and leaves cached original A at its original parent/name; desired normal/reopened-journal assertions fail. Receipt-bound metadata relocation and narrowly allowed read-only completed-state repair should converge without name deletion, mutation replay or feed-cursor change.",
+  "arms": [
+    "Same desired native_handoff_publication_ controls against unchanged production code, genuine typed native enqueue/claim/reserve/ack fixture",
+    "Same unchanged assertions after a narrow production correction",
+    "Newer exact-ID observation/absence and completed feed cursor preservation controls",
+    "Completed publication read-only startup acceptance, separately scoped from the initial callback controls"
+  ],
+  "endpoint": "Actual intended failing assertions before production edits, then unchanged passing controls and complete scripts/check.sh; any real provider acceptance separately registered.",
+  "evidence_trigger": "icloud-flat-numbers-native-final-ro-remount-2026-10-06.json",
+  "synthetic_default": true,
+  "provider_calls_in_local_controls": false,
+  "installed_actions": false,
+  "limits": [
+    "Stopped SQL proves stale identity selection; actual failed capture syscall was not retained.",
+    "Callback-only correction does not establish repair of existing done=1 publication on read-only startup.",
+    "Local tests do not turn the failed provider arm into a success or establish installed delivery."
+  ],
+  "initial_control": {
+    "label": "native-handoff-publication-red1",
+    "actual_exit_code": 101,
+    "tests_executed": 2,
+    "tests_passed": 0,
+    "tests_failed": 2,
+    "elapsed_seconds": 15.024505207024049,
+    "failure": "Fixture staging preparation returned Staging before the desired metadata handoff assertion.",
+    "intended_regression_RED_established": false,
+    "source_pins_unchanged": 549,
+    "original_child_reaped": true,
+    "log_sha256": "815455c7837bcf74f35004385804ed92d33002786371a45fffef3c18c0116a5b"
+  },
+  "desired_RED": {
+    "exit_code": 101,
+    "elapsed_seconds": 16.160417853971012,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 549,
+    "log_sha256": "317b8557d2729ed34a407a9f424b77dea011feaf30b30cf3af30a141d5d19052",
+    "label": "native-handoff-publication-red2",
+    "tests_executed": 3,
+    "tests_passed": 0,
+    "tests_failed": 3,
+    "intended_regression_RED_established": true,
+    "failures": [
+      "Normal callback retains old A at original parent/name",
+      "Journal-reopened callback retains old A at original parent/name",
+      "Actual read-only Engine startup does not repair completed native history"
+    ],
+    "preservation_assertions_before_desired_failures_passed": true,
+    "test_region_sha256": "b82c130a6fe8e46f83fa819c3a3579e55b4b9e2faac1b38ac5fb9b1058888b95"
+  },
+  "desired_GREEN": {
+    "exit_code": 0,
+    "elapsed_seconds": 6.638742003007792,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 549,
+    "log_sha256": "683ef44803b0c292d31416470dbd7c0738eeaaf228dc0b56b56065167d05e352",
+    "label": "native-handoff-publication-green1",
+    "tests_executed": 3,
+    "tests_passed": 3,
+    "tests_failed": 0,
+    "desired_test_region_unchanged": true
+  },
+  "additional_negative_controls": [
+    {
+      "exit_code": 101,
+      "elapsed_seconds": 1.5063110489863902,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "098b1b5c6aea391faac582d97c62bf6df74a985de200792ed0d4b5edcd45145f",
+      "label": "native-store-unknown-b-red1",
+      "tests_executed": 7,
+      "tests_passed": 6,
+      "tests_failed": 1,
+      "intended_failure": "Unknown current B in an older complete directory must require a fresh observation",
+      "intended_regression_RED_established": true
+    },
+    {
+      "exit_code": 101,
+      "elapsed_seconds": 44.62468186102342,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "68f0754df7e7a796a03d81d9bb76d43d06cf58b693bd7f6aa5ceb1476373aa9e",
+      "label": "native-metadata-owner-red1",
+      "tests_executed": 1,
+      "tests_passed": 0,
+      "tests_failed": 1,
+      "intended_failure": "owner_body_id must match the SQL operation-owner UUID",
+      "intended_regression_RED_established": true
+    },
+    {
+      "exit_code": 101,
+      "elapsed_seconds": 6.592505980981514,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "f13598e8e03e81487d6e3e31fb4f56ede17ca78c9a73bdb5af6cc1b5927562ee",
+      "label": "native-metadata-highwater-red1",
+      "tests_executed": 1,
+      "tests_passed": 0,
+      "tests_failed": 1,
+      "failure": "Ordinary fixture lacked a genuine working-stream attachment; Stale before cursor endpoint",
+      "intended_regression_RED_established": false
+    },
+    {
+      "exit_code": 101,
+      "elapsed_seconds": 8.555464534030762,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "f928cb71d88c686232136c856c8aad9498961ab26b3080918b2470be263fd30d",
+      "label": "native-metadata-highwater-red2",
+      "tests_executed": 1,
+      "tests_passed": 0,
+      "tests_failed": 1,
+      "intended_failure": "An exhausted fixed startup range must not scan a later row",
+      "intended_regression_RED_established": true
+    },
+    {
+      "exit_code": 101,
+      "elapsed_seconds": 0.6254067540285178,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "82bd8392ac87c019111f6f75178a985d8250f3ee8196988ff030efa1c09244aa",
+      "label": "native-store-unknown-original-red1",
+      "tests_executed": 1,
+      "tests_passed": 0,
+      "tests_failed": 1,
+      "intended_failure": "A never-observed original absent from a B-only directory cannot certify its Trash metadata publication",
+      "intended_regression_RED_established": true
+    }
+  ],
+  "preservation_GREEN": [
+    {
+      "exit_code": 0,
+      "elapsed_seconds": 0.4692845849785954,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "8e67bac8def3a251406c587425e6f30c9dab7eb7a4b10a91fd06b8c83bae182a",
+      "label": "native-store-green1",
+      "tests_executed": 7,
+      "tests_passed": 7,
+      "tests_failed": 0
+    },
+    {
+      "exit_code": 0,
+      "elapsed_seconds": 6.761435958032962,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "a64f3e32340fb0df22f55bc2d2f06223ad85cee8696e4ede1f603c8bd550dd23",
+      "label": "native-metadata-green1",
+      "tests_executed": 3,
+      "tests_passed": 3,
+      "tests_failed": 0
+    },
+    {
+      "exit_code": 0,
+      "elapsed_seconds": 0.5291696130298078,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "e0e11d4abc4100e581960957c799b9e5b748775e184a95eda2535b79c4b8d7c9",
+      "label": "native-store-green2",
+      "tests_executed": 8,
+      "tests_passed": 8,
+      "tests_failed": 0
+    }
+  ],
+  "implementation": [
+    "Exact-ID native Store CAS publishes matching current B and original A backup together; preserves newer/negative views, completed cursors and observation fences",
+    "Genuine typed native proof, namespace owner SQL/body identity, account/collection and completed queue validation",
+    "Schema21 native history repair in fixed startup keyset batches of at most16 indexed package rows; explicit high-water mark retained across readonly handle reopen; schema20 behavior retained",
+    "Future acknowledgments enqueue in their acknowledgement transaction; direct native callback lazily repairs only its exact historical operation",
+    "Native same-proof completion idempotent under racing callbacks; ordinary serialized job shape and transfer rows unchanged"
+  ],
+  "fresh_readonly_acceptance": "icloud-native-package-readonly-backfill-2026-10-06.json",
+  "remaining_local_review": "Original Native3, Store8 and Journal3 controls and entire mandatory fullcheck passed. Fresh37b actual read-only startup repaired the completed history and selected sole B with A in Trash; capture refused a newer current revision. Full semantic remount and installed acceptance remain open.",
+  "initial_fullcheck": {
+    "exit_code": 101,
+    "elapsed_seconds": 172.66185070300708,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 549,
+    "log_sha256": "19c3b816ed3f1802b5a4e831e9284eaf6ded865a5aeb4ee72e598c5e20b82202",
+    "command": "bash scripts/check.sh",
+    "service_tests": {
+      "executed": 518,
+      "passed": 517,
+      "failed": 1,
+      "ignored": 29,
+      "registered": 547
+    },
+    "failure": "Native startup high-water selection encountered the ordinary corruption fixture negative SQL sequence before its existing per-job deferral; bad ordinary job failures remained0 rather than1."
+  },
+  "ordinary_preservation_regression": {
+    "RED": {
+      "exit_code": 101,
+      "elapsed_seconds": 9.283554581052158,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "eea3b80417a99153f81c195439fa9652d513b902dff087a4f23eaae504f5221a",
+      "label": "native-history-ordinary-deferral-red1",
+      "tests_executed": 1,
+      "tests_passed": 0,
+      "tests_failed": 1,
+      "intended_regression_RED_established": true
+    },
+    "GREEN": {
+      "exit_code": 0,
+      "elapsed_seconds": 7.617075572023168,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "3f4ff5ddb72121d412548dddfe5c4af91bd031a0aff49316a7a8eafd01bd21bb",
+      "label": "native-history-ordinary-deferral-green1",
+      "tests_executed": 1,
+      "tests_passed": 1,
+      "tests_failed": 0
+    },
+    "correction": "Native high-water selection excludes corrupt negative SQL sequences; existing ordinary proof rejection and raw-body job backoff still run. No stored sequence is normalized."
+  },
+  "final_fullcheck": {
+    "exit_code": 0,
+    "elapsed_seconds": 691.1665345639922,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 549,
+    "log_sha256": "acb04d499b6d59bb93efebdffd66852e482ad004e8cff5bbaaa792d44631e242",
+    "label": "native-handoff-full2",
+    "command": "bash scripts/check.sh",
+    "entire_command_completed": true,
+    "filesystem": "ext4",
+    "rust_test_threads": 4,
+    "cloud_calls": 0,
+    "installed_actions": false,
+    "service_workspace_tests": {
+      "registered": 547,
+      "executed": 518,
+      "passed": 518,
+      "failed": 0,
+      "ignored": 29
+    },
+    "coverage": "Formatting, Clippy, workspace and required feature/kernel groups, script tests, acceptance ledger and documentation completed in the same command; desktop display scenarios remain outside this command."
+  },
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5
+}

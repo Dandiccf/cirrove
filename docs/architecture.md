@@ -1371,7 +1371,7 @@ The Manager starts the same latched task when its effective connection is read-o
 even if the recorded grant allows writes but no write factory is supplied. Initial
 launch and remount use this mode check; actual writable connections use maintenance.
 That handle validates private ownership, account and schema, and changes only local
-publication completion or retry status. It does not migrate, claim transfers,
+metadata publication jobs and their completion or retry status. It does not migrate, claim transfers,
 reconcile mutations, access the credential vault or issue provider writes. Journal
 ownership and SQLite transactions end before metadata publication or a bounded
 exact-ID provider read; completion reacquires ownership and validates the immutable
@@ -1385,6 +1385,26 @@ rules without scanning the whole directory. In-flight older observations are
 invalidated with the item and affected parents. These mechanisms are under
 validation; the installed schema transition remains held under the
 [deployment policy](development.md#flat-numbers-source-journal-schema21-held-prerelease-policy).
+
+Confirmed native replacements use the same local job table with an explicit native
+qualifier and a separately validated package receipt. The full original, current
+and Trash backup identities must match the uploaded operation, captured reservation,
+scoped namespace owner and completed queue. Native publication commits matching
+current and backup metadata together, preserves newer or absent observations and
+requires unlocked exact-ID reads when either identity is unknown.
+
+Existing schema-21 native receipts with captured originals can also acquire these
+jobs, including replacements whose earlier package callback was already marked
+complete. A volatile startup cursor scans at most 16 indexed package rows per pass
+up to a fixed high-water mark, then stops inspecting history. Read-only startup
+retains that cursor across its short-lived journal handles. Fresh acknowledgments
+enqueue their jobs transactionally; a direct package callback can admit its exact
+historical operation separately. Schema-20 handling and ordinary legacy receipts
+without a captured original keep their existing limits. Local regression evidence
+is recorded in the [native metadata publication trial](benchmarks/icloud-native-package-backup-publication-2026-10-06.json);
+A fresh live read-only startup also repaired completed native history; its mount
+capture refused a newer provider revision. Complete semantic remount and installed
+acceptance remain separate checks.
 
 ## Explicit flat Numbers source archives
 

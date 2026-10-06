@@ -12,6 +12,19 @@ impl Writeback {
         if record.scope != engine.scope(&record.scope.collection) {
             return Err(Errno::EIO);
         }
+        let native = if matches!(
+            &record.representation,
+            cirrove_core::upload::UploadRepresentation::PackageReplacementArchive { .. }
+                | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
+        ) {
+            let id = record.id;
+            Some(
+                self.local(move |journal| journal.native_metadata_for_package(id))
+                    .await?,
+            )
+        } else {
+            None
+        };
         let remote = record.remote.as_ref().ok_or(Errno::EIO)?;
         // Never publish the receipt's potentially stale name/version directly.
         // Engine's observation ticket fences this exact-ID refresh against later
@@ -26,6 +39,19 @@ impl Writeback {
             _ => crate::journal::PackagePublicationStatus::Pending,
         };
         let published = status != crate::journal::PackagePublicationStatus::Pending;
+        if published && let Some(proof) = native {
+            // Current B and the exact original's typed Trash location converge
+            // in one Store commit before either publication is marked complete.
+            if !engine
+                .publish_ordinary_metadata(&proof)
+                .await
+                .map_err(|error| errno(&error))?
+            {
+                return Err(Errno::EIO);
+            }
+            self.local(move |journal| journal.finish_native_metadata(&proof))
+                .await?;
+        }
         let now = publication_now();
         self.local(move |journal| journal.finish_package_publication(&record, status, now))
             .await?;

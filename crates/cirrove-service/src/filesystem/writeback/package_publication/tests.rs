@@ -21,6 +21,7 @@ fn native() -> Node {
     }
 }
 struct Remote {
+    provider_id: &'static str,
     response: Mutex<std::result::Result<Node, ProviderError>>,
     reads: AtomicUsize,
     listings: AtomicUsize,
@@ -32,7 +33,7 @@ struct Remote {
 #[async_trait::async_trait]
 impl MetadataProvider for Remote {
     fn provider_id(&self) -> &'static str {
-        "fixture"
+        self.provider_id
     }
     async fn changes(
         &self,
@@ -40,6 +41,9 @@ impl MetadataProvider for Remote {
         _: Option<&Cursor>,
         _: &CancellationToken,
     ) -> std::result::Result<ChangePage, ProviderError> {
+        if self.provider_id == "icloud" {
+            return Err(ProviderError::Unavailable);
+        }
         panic!("no delta required")
     }
 }
@@ -51,7 +55,7 @@ impl ReadProvider for Remote {
         id: &str,
         _: &CancellationToken,
     ) -> std::result::Result<Node, ProviderError> {
-        assert_eq!(id, "native");
+        assert!(id == "native" || id == "FILE::com.apple.CloudDocs::Z-current");
         self.reads.fetch_add(1, Ordering::SeqCst);
         let journal = self.journal.lock().unwrap().upgrade().unwrap();
         assert!(
@@ -97,6 +101,17 @@ async fn fixture() -> (
     Arc<Mutex<UploadJournal>>,
     Arc<Writeback>,
 ) {
+    fixture_for_provider("fixture").await
+}
+async fn fixture_for_provider(
+    provider_id: &'static str,
+) -> (
+    tempfile::TempDir,
+    Arc<Engine>,
+    Arc<Remote>,
+    Arc<Mutex<UploadJournal>>,
+    Arc<Writeback>,
+) {
     let temp = tempfile::tempdir().unwrap();
     let id = Uuid::new_v4().to_string();
     let account = crate::accounts::Account {
@@ -124,10 +139,16 @@ async fn fixture() -> (
         poll_seconds: 3600,
         cache_bytes: 8 * 1024 * 1024,
     };
+    let journal_root = if provider_id == "icloud" {
+        temp.path().join("state/accounts").join(&id).join("journal")
+    } else {
+        temp.path().join("journal")
+    };
     let journal = Arc::new(Mutex::new(
-        UploadJournal::open(&temp.path().join("journal"), &id, 1024 * 1024).unwrap(),
+        UploadJournal::open(&journal_root, &id, 1024 * 1024).unwrap(),
     ));
     let provider = Arc::new(Remote {
+        provider_id,
         response: Mutex::new(Ok(native())),
         reads: AtomicUsize::new(0),
         listings: AtomicUsize::new(0),
@@ -153,6 +174,260 @@ async fn fixture() -> (
         .unwrap();
     let writer = Writeback::new(&engine, journal.clone()).await.unwrap();
     (temp, engine, provider, journal, writer)
+}
+
+/// Reproduce an exact-ID staged native handoff against a warm old-A directory.
+/// Both normal completion and inspection recovery use this publication callback.
+async fn native_handoff_publication(reopen_before_publication: bool, readonly_after_done: bool) {
+    use cirrove_core::upload::{PackageHandoffReceipt, RecoveryLocation};
+    use std::os::unix::fs::PermissionsExt;
+
+    let (temp, mut engine, remote, mut journal, mut writer) = fixture_for_provider("icloud").await;
+    let scope = engine.scope("drive");
+    let parent = "FOLDER::com.apple.CloudDocs::owned";
+    let original = Node {
+        id: "FILE::com.apple.CloudDocs::A-original".into(),
+        parent_id: Some(parent.into()),
+        content_version: None,
+        ..native()
+    };
+    let current = Node {
+        id: "FILE::com.apple.CloudDocs::Z-current".into(),
+        size: 29,
+        etag: Some("current-v2".into()),
+        ..original.clone()
+    };
+    let backup = Node {
+        parent_id: Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT".into()),
+        etag: Some("trash-v2".into()),
+        ..original.clone()
+    };
+    let mut store = cirrove_store::Store::open(&engine.db).unwrap();
+    store.observe_node(&scope, &original).unwrap();
+    store
+        .observe_directory(&scope, parent, std::slice::from_ref(&original))
+        .unwrap();
+    assert_eq!(
+        engine.child(&scope, parent, &original.name).await.unwrap(),
+        original
+    );
+    *remote.response.lock().unwrap() = Ok(current.clone());
+
+    let source = temp.path().join("source-native.zip");
+    let source_bytes = crate::native_import::synthetic_package_archive(
+        "Source.pages/Document",
+        b"independently sealed edited native content",
+    );
+    std::fs::write(&source, &source_bytes).unwrap();
+    let staging = temp.path().join("native-staging");
+    std::fs::create_dir(&staging).unwrap();
+    std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let archive = crate::native_import::ValidatedPackageArchive::capture(
+        &source,
+        &staging,
+        "Source.pages",
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let original_semantic = PackageSemanticIdentity {
+        version: 1,
+        sha256: "a".repeat(64),
+        entries: 1,
+        files: 1,
+        expanded_bytes: original.size,
+    };
+    let row = {
+        let mut j = journal.lock().unwrap();
+        let queued = j
+            .enqueue_validated_package_replacement(
+                scope.clone(),
+                original.clone(),
+                original_semantic.clone(),
+                archive,
+                &CancellationToken::new(),
+            )
+            .unwrap();
+        let claimed = j.claim_next().unwrap().unwrap();
+        assert_eq!(claimed.id, queued.id);
+        let attempt = claimed.attempt.unwrap();
+        j.reserve_identity_handoff(
+            queued.id,
+            attempt,
+            RecoveryLocation::Trash {
+                local_name: format!("recovery-by-cirrove-{}.pages", queued.id),
+                parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
+            },
+        )
+        .unwrap();
+        let cirrove_core::upload::UploadRepresentation::PackageReplacementArchive {
+            semantic, ..
+        } = &queued.representation
+        else {
+            panic!("actual typed native replacement");
+        };
+        j.acknowledge_package_handoff(
+            queued.id,
+            attempt,
+            PackageHandoffReceipt {
+                original: original.clone(),
+                current: PackageUploadReceipt {
+                    remote: current.clone(),
+                    semantic: semantic.clone(),
+                },
+                backup: PackageUploadReceipt {
+                    remote: backup.clone(),
+                    semantic: original_semantic,
+                },
+            },
+        )
+        .unwrap();
+        j.get(queued.id).unwrap()
+    };
+    let retained = serde_json::to_vec(&row).unwrap();
+    let journal_root = engine.db.parent().unwrap().join("journal");
+    let sealed = journal_root.join("objects").join(row.id.to_string());
+    let sealed_bytes = std::fs::read(&sealed).unwrap();
+    assert_eq!(row.state, UploadState::Uploaded);
+    assert_eq!(
+        row.native_replacement_receipt(),
+        Some((&original, &current, &backup))
+    );
+    assert_eq!(sealed_bytes, source_bytes);
+    if reopen_before_publication {
+        drop(writer);
+        drop(journal);
+        journal = Arc::new(Mutex::new(
+            UploadJournal::open(&journal_root, &engine.account.id, 1024 * 1024).unwrap(),
+        ));
+        *remote.journal.lock().unwrap() = Arc::downgrade(&journal);
+        writer = Writeback::new(&engine, journal.clone()).await.unwrap();
+    }
+    assert!(writer.publish_completed_package(&engine).await.unwrap());
+    // Preservation and genuine completion evidence precede the desired endpoint.
+    assert_eq!(
+        serde_json::to_vec(&journal.lock().unwrap().get(row.id).unwrap()).unwrap(),
+        retained
+    );
+    assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+    assert_eq!(std::fs::read(&sealed).unwrap(), sealed_bytes);
+    assert_eq!(
+        journal
+            .lock()
+            .unwrap()
+            .package_publication_status(row.id)
+            .unwrap(),
+        PackagePublicationStatus::Present(current.clone())
+    );
+    assert_eq!(
+        store.node(&scope, &current.id).unwrap(),
+        Some(current.clone())
+    );
+    assert_eq!(remote.reads.load(Ordering::SeqCst), 1);
+    assert_eq!(remote.listings.load(Ordering::SeqCst), 0);
+
+    if readonly_after_done {
+        // Reproduce the already completed legacy callback: B was observed, A
+        // remained at its original name, and no native dual-identity job existed.
+        store.observe_node(&scope, &original).unwrap();
+        store
+            .observe_directory(&scope, parent, &[original.clone(), current.clone()])
+            .unwrap();
+        let db_path = journal_root.join("uploads.db");
+        let db = rusqlite::Connection::open(&db_path).unwrap();
+        assert!(
+            db.query_row(
+                "SELECT done FROM package_metadata_publication WHERE operation=?1",
+                [row.id.to_string()],
+                |r| r.get::<_, bool>(0)
+            )
+            .unwrap()
+        );
+        db.execute(
+            "DELETE FROM ordinary_metadata_publication WHERE operation=?1",
+            [row.id.to_string()],
+        )
+        .unwrap();
+        drop(db);
+        let mut account = engine.account.clone();
+        account.access = cirrove_auth::AccessMode::ReadOnly;
+        drop(writer);
+        drop(journal);
+        drop(engine);
+        engine = Engine::new(account, remote.clone(), temp.path().join("state"))
+            .await
+            .unwrap();
+        engine.start().await.unwrap();
+        let converged = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+            loop {
+                if cirrove_store::Store::open(&engine.db)
+                    .unwrap()
+                    .node(&scope, &original.id)
+                    .unwrap()
+                    == Some(backup.clone())
+                {
+                    return;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .is_ok();
+        engine.stop().await;
+        let db = rusqlite::Connection::open_with_flags(
+            &db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+        let body: String = db
+            .query_row(
+                "SELECT body FROM uploads WHERE id=?1",
+                [row.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(body.as_bytes(), retained);
+        assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+        assert_eq!(std::fs::read(&sealed).unwrap(), sealed_bytes);
+        assert_eq!(
+            remote.reads.load(Ordering::SeqCst),
+            1,
+            "cached typed history repair must not replay provider work"
+        );
+        assert!(
+            converged,
+            "actual read-only Engine startup must repair completed native publication history"
+        );
+        let store = cirrove_store::Store::open(&engine.db).unwrap();
+        assert_eq!(store.children(&scope, parent).unwrap(), Some(vec![current]));
+        assert_eq!(store.node(&scope, &original.id).unwrap(), Some(backup));
+        return;
+    }
+
+    assert_eq!(
+        engine.child(&scope, parent, &original.name).await.unwrap(),
+        current.clone(),
+        "read-only lookup must select current B, not the cached original now in Trash"
+    );
+    assert_eq!(
+        engine.children(&scope, parent).await.unwrap(),
+        vec![current]
+    );
+    assert_eq!(store.node(&scope, &original.id).unwrap(), Some(backup));
+}
+
+#[tokio::test]
+async fn native_handoff_publication_relocates_exact_original_before_readonly_lookup() {
+    native_handoff_publication(false, false).await;
+}
+
+#[tokio::test]
+async fn native_handoff_publication_after_reopen_relocates_exact_original_before_readonly_lookup() {
+    native_handoff_publication(true, false).await;
+}
+
+#[tokio::test]
+async fn native_handoff_publication_done_history_repairs_at_actual_readonly_start() {
+    native_handoff_publication(false, true).await;
 }
 fn acknowledge(journal: &Arc<Mutex<UploadJournal>>, scope: Scope) -> crate::journal::UploadRecord {
     let semantic = PackageSemanticIdentity {

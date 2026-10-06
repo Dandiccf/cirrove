@@ -2371,12 +2371,22 @@ impl Engine {
             let db = self.db.clone();
             let proof = proof.clone();
             tokio::task::spawn_blocking(move || {
-                Store::open(db)?.publish_ordinary_handoff_backup(
-                    &proof.scope,
-                    &proof.original,
-                    &proof.current,
-                    &proof.backup,
-                )
+                let mut store = Store::open(db)?;
+                if proof.native {
+                    store.publish_native_handoff(
+                        &proof.scope,
+                        &proof.original,
+                        &proof.current,
+                        &proof.backup,
+                    )
+                } else {
+                    store.publish_ordinary_handoff_backup(
+                        &proof.scope,
+                        &proof.original,
+                        &proof.current,
+                        &proof.backup,
+                    )
+                }
             })
         };
         let complete = apply()
@@ -2386,6 +2396,26 @@ impl Engine {
         if complete {
             self.changed.notify_waiters();
             return Ok(true);
+        }
+        if proof.native {
+            // The native CAS refuses an unknown current view; only a fresh
+            // exact-ID observation may populate it. A negative reply is retained
+            // as absence, never replaced by the historical receipt.
+            tokio::select! {biased;
+                _=self.cancel.cancelled()=>return Err(ProviderError::Cancelled),
+                result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&proof.scope,&proof.current.id))=>{
+                    match result {Ok(Ok(_))|Ok(Err(ProviderError::NotFound))=>(),
+                        Ok(Err(error))=>return Err(error),Err(_)=>return Err(ProviderError::Unavailable)}
+                }
+            }
+            let complete = apply()
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
+            if complete {
+                self.changed.notify_waiters();
+                return Ok(true);
+            }
         }
         tokio::select! {biased;
             _=self.cancel.cancelled()=>return Err(ProviderError::Cancelled),
@@ -2405,17 +2435,32 @@ impl Engine {
     }
     /// One due job under the existing exclusive owner, released before Store or
     /// provider work and independently reacquired for immutable status CAS.
+    #[cfg(test)]
     pub(crate) async fn repair_ordinary_metadata_once_at(&self, root: PathBuf) -> Result<bool> {
+        self.repair_metadata_once_with_scan(
+            root,
+            &mut crate::journal::NativeMetadataScan::default(),
+        )
+        .await
+    }
+    async fn repair_metadata_once_with_scan(
+        &self,
+        root: PathBuf,
+        scan: &mut crate::journal::NativeMetadataScan,
+    ) -> Result<bool> {
         let account = self.account.id.clone();
         let read_root = root.clone();
-        let proof = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+        let previous = *scan;
+        let (next, result) = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
             if !read_root.try_exists()? {
-                return Ok(None);
+                return Ok((previous, Ok(None)));
             }
             let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
-            journal.due(now())
+            Ok(journal.due_with_scan(now(), previous))
         })
         .await??;
+        *scan = next;
+        let proof = result?;
         let Some(proof) = proof else { return Ok(false) };
         let result = self.publish_ordinary_metadata(&proof).await;
         let completed = result.as_ref().is_ok_and(|value| *value);
@@ -2430,12 +2475,16 @@ impl Engine {
     }
     async fn repair_ordinary_metadata_readonly(self: Arc<Self>) {
         let mut failed = 0u32;
+        let mut scan = crate::journal::NativeMetadataScan::default();
         loop {
             if self.cancel.is_cancelled() {
                 return;
             }
             let result = self
-                .repair_ordinary_metadata_once_at(self.ordinary_publication_journal.clone())
+                .repair_metadata_once_with_scan(
+                    self.ordinary_publication_journal.clone(),
+                    &mut scan,
+                )
                 .await;
             let delay = match result {
                 Ok(true) => {

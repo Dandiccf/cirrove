@@ -527,3 +527,10 @@ discovery. The [owned live arm](benchmarks/icloud-native-replacement-live-2026-1
 remains separate and incomplete. Two-ID archive replacement does not establish
 ordinary native editor saves, preserved sharing/history, Apple application
 fidelity or installed acceptance; the requirement therefore remains open.
+
+A [fresh genuine flat Numbers B trial](benchmarks/icloud-flat-numbers-native-final-2026-10-06.json)
+now adds actual process-loss recovery: the same operation completed by one
+inspection without replay, independent reads verified new B and original A in
+Trash, and Apple Numbers preserved the edited values and SUM formula after
+reload. This is supporting evidence for the native replacement row, which
+remains open for its broader editing, removal, conflict and release requirements.

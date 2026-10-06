@@ -49,7 +49,7 @@ use cirrove_core::{Node, NodeKind, Scope};
 pub(crate) const JOURNAL_SCHEMA: u32 = 21;
 pub(crate) use export::MetadataPublicationJournal;
 pub use generations::{UploadBase, WriteBase};
-pub(crate) use identity_handoff::OrdinaryHandoffMetadata;
+pub(crate) use identity_handoff::{NativeMetadataScan, OrdinaryHandoffMetadata};
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;
 pub use namespace::{
@@ -307,6 +307,7 @@ pub struct UploadJournal {
     working: PathBuf,
     account: String,
     quota: u64,
+    native_metadata_scan: std::cell::Cell<NativeMetadataScan>,
     // Last: close SQLite and other journal resources before releasing ownership.
     _owner: Arc<JournalOwner>,
 }
@@ -423,6 +424,7 @@ impl UploadJournal {
             working,
             account: account.into(),
             quota,
+            native_metadata_scan: Default::default(),
             _owner: owner,
         };
         journal.recover_preparation_files()?;

@@ -1,0 +1,75 @@
+{
+  "actual": {
+    "automatic_retry": false,
+    "capture_child_failure_class": "FileNotFoundError",
+    "capture_output_created": false,
+    "derived_completed_transfer_rows_unchanged_reported": true,
+    "elapsed_seconds": 33.492257886973675,
+    "independent_closure_audit": {
+      "checks_passed": 34,
+      "sha256": "f04ab900223c0bfb5c13c517bfe3164c001e7903654495fcea4b98ea3a7e6bbe"
+    },
+    "installed19_unit_daemon_birth_unchanged": true,
+    "mount_socket_absent": true,
+    "mounted_capture_exit_code": 1,
+    "normal_RO_daemon_exit_code": 0,
+    "offline_source_proof_dispatched": false,
+    "original_children_reaped_and_absent": 3,
+    "original_state_byte_mode_name_unchanged": true,
+    "outer_exit_code": 1,
+    "private_guard_controls": {
+      "full_module_tests_executed": 7,
+      "full_module_tests_passed": 7,
+      "mocked_clock_process_and_provider_calls_only": true,
+      "same_immutable_test_RED1_then_GREEN1": true
+    },
+    "provider_writes_allowed": false,
+    "runtime549_and4frozen_roles_unchanged": true
+  },
+  "arms": [
+    "Fresh derived state copied only from the closed recovered NativeFinal arm; explicit ReadOnly settings",
+    "One normal read-only daemon remount, exact prior current identity/revision",
+    "One mounted package capture followed by offline complete semantic V2 proof",
+    "Original-handle cleanup; original state and derived completed upload/mutation/queue rows preserved"
+  ],
+  "automatic_retry": false,
+  "build_head": "b64d995fd23d564b907b951d7c18a82a7c859db4",
+  "date": "2026-10-06",
+  "endpoint": "All arms under one original600-second window with45 seconds reserved for cleanup. No automatic retry.",
+  "expected_semantic_v2": {
+    "entries": 46,
+    "expanded_bytes": 133252,
+    "files": 42,
+    "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+    "version": 2
+  },
+  "installed_actions": false,
+  "limits": [
+    "This is a derived copy of recovered state, not a restart of the original writer state or an installed migration.",
+    "Normal read-only startup may change derived Store/cache/sealed-session and metadata-publication job status; original state and derived transfer rows must remain unchanged.",
+    "Original A Trash proof is retained from the independent previous postflight, not freshly read in this arm.",
+    "One remount is bounded acceptance, not sustained provider reliability; five full-iCloud release criteria remain open."
+  ],
+  "next": "Regression-first correction of exact receipt-backed oldA/backup publication; preserve this failed arm and register any later live acceptance separately. No automatic replay.",
+  "original_preregistration_sha256": "a8d4b7effa3afeae2e64cf33acf3a28f51b042e202559c631bf381e6fac43032",
+  "prediction": "Normal read-only startup returns exact prior current Node/ETag, one public mounted archive capture matches B fullV2, all completed transfer rows remain unchanged, original state stays byte-protected. If Apple opening changed the remote revision, refuse rather than substitute a new precondition.",
+  "provider_writes_allowed": false,
+  "question": "Does a normal read-only mount of a coherently copied, closed recovered journal publish the exact prior new Numbers B and read its full semantic V2 content without write replay after Apple open/reload?",
+  "root_filesystem": "btrfs",
+  "run": "c5af9c41-33df-4ad7-b639-07c2584cfc7b",
+  "runtime_source_count": 549,
+  "status": "closed_failed_mounted_capture_no_semantic_remount_acceptance",
+  "stopped_catalog_diagnosis": {
+    "actual_failing_open_syscall_not_retained": true,
+    "cached_B_full_node_matches_recovered_receipt": true,
+    "capture_failed_before_output_creation_or_semantic_scan": true,
+    "diagnosis_sha256": "2c10dd51556136944ee29c7a9d50bb505fe4e0b4114112588387e230952287e6",
+    "exact_canonical_name_query_selects_old_original_A": true,
+    "old_A_retained_at_original_parent_and_name_locally": true,
+    "runtime_cause_status": "source-backed stale name-routing candidate; offline selection proven, exact failing syscall not reconstructed",
+    "typed_backup_receipt_puts_same_old_A_in_Trash": true
+  },
+  "subject_run": "27d24fba-caa3-4454-b504-dc4f33180960",
+  "temporary_filesystem": "ext4",
+  "version": 1
+}

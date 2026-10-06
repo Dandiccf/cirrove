@@ -102,5 +102,11 @@
     "RUST_TEST_THREADS": 4,
     "desired_red_green_region_unchanged": true,
     "desktop_display_scenarios_repeated": false
+  },
+  "later_live_evidence": {
+    "actual_flat_A_preflight_and_B_Trash_A_postflight_acquired": true,
+    "artifact": "icloud-flat-numbers-native-final-2026-10-06.json",
+    "local_controls_not_reclassified_as_live": true,
+    "separate_fresh_arm": true
   }
 }

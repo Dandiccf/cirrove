@@ -3239,3 +3239,115 @@ script coverage included. Desktop display scenarios were not repeated. The
 previous head's CI run separately failed an existing adaptive OneDrive window-count
 assertion (18 expected, 19 observed); its other six jobs passed. This local full
 check does not erase that CI result or close an iCloud release criterion.
+
+### Genuine edited flat Numbers replacement and process recovery on 6 October 2026
+
+A [fresh donor](benchmarks/icloud-numbers-edited-b-donor-2026-10-06.json)
+completed normal CLI import, original warm readback and independent full semantic
+V2 verification. A single browser edit changed A2 from 11 to 17; B2 remained 3
+and C2 retained `SUM(A2:B2)` with result 20. The original 300-second edit/export
+arm closed partial before confirmed export. A separately registered 600-second
+read-only export arm acquired genuine Numbers bytes with zero additional edits.
+The unchanged 139,044-byte export passed full flat V2 proof; an independent local
+importer decoded cached 17/3/20 but emitted no formula. Formula evidence comes
+from Apple Numbers after reload, not from the cached-value importer.
+
+The [separate fresh NativeFinal arm](benchmarks/icloud-flat-numbers-native-final-2026-10-06.json)
+completed once in 382.98 seconds within its original 600/45-second window.
+It imported a distinct protected original through the normal public CLI, acquired
+actual typed Apple metadata and independently verified original A before starting
+one genuine B replacement. The feature-only test process exited 86 after the
+backend returned its final receipt, withholding the local acknowledgement. The
+public replacement CLI exited one as expected when its socket owner disappeared;
+this is not an ordinary successful CLI return or a simulated provider reply loss.
+
+Before reopening, the stopped journal retained the exact Uploading operation,
+encrypted checkpoint and sealed B, without a published terminal receipt.
+Recovery reopened that same operation and completed through one provider inspection:
+zero reconciliation, upload or namespace callbacks and no mutation replay.
+Independent postflight verified new B and original A in Trash against their complete
+46-entry/42-file semantic V2 identities and exact item/revision bindings. This
+proves content-tree preservation; provider-generated ZIP bytes differ from the
+flat input, and raw ZIP equality or restoration is not claimed. Ten original
+children were reaped, the owned mount/socket disappeared and all runtime source
+and source-archive pins remained unchanged. The independent retained audit passed
+32 checks.
+
+Apple Numbers subsequently opened the exact new item, showed 17/3/20 and
+`SUM(A2:B2)`, and retained them after one reload without any cell edits or repair
+dialog. Read-only remount acceptance is a separate next endpoint. This bounded
+fault case closes no additional full-iCloud release row: native editing/removal,
+broader application/format fidelity, installed transitions, Strata preservation
+and sustained reliability remain open. Installed delivery stays on HOLD.
+
+The [separate read-only remount](benchmarks/icloud-flat-numbers-native-final-ro-remount-2026-10-06.json)
+subsequently started from a coherent copy of the closed recovered state but stopped
+at mounted capture with `FileNotFoundError`, before creating an archive or running
+the semantic scanner. It closed in 33.49 seconds, all original children were
+reaped, and original state, completed transfer rows and installed files remained
+unchanged. No automatic retry occurred; semantic remount acceptance is unproved.
+An independent stopped-catalog query proves that effective name lookup selects
+old A at the original parent/name while recovered B is also cached there. The
+typed receipt places that same old A in Trash. This supports a metadata-handoff
+routing defect; the exact failing open was not retained and is not reconstructed.
+The next correction must publish the exact receipt-backed backup identity, rather
+than discard items by name or reorder ambiguous lookup results.
+
+
+### Native replacement metadata correction on 6 October 2026
+
+The [registered local correction](benchmarks/icloud-native-package-backup-publication-2026-10-06.json)
+first reproduced three intended failures against unchanged production: normal
+package publication and journal reopen still selected old A, and actual read-only
+Engine startup did not repair already completed native history. The same three
+assertions now pass without changing the protected transfer row, source or sealed
+payload. Eight Store controls preserve newer/negative identities, completed
+cursors and observation tickets, and three journal controls validate genuine
+receipt/owner authority, ordinary wire compatibility and bounded history repair.
+
+Separate negative controls establish that an older complete directory cannot
+authorize unknown B, that the namespace body's owner ID must match the mapped
+SQL UUID, and that the startup history range cannot reopen at a newer sequence.
+An initial cursor control stopped at an invalid ordinary fixture before its
+desired assertion; that failure remains retained and is not regression proof.
+The corrected fixture uses the existing ordinary working-file write/seal flow.
+
+Native completion now publishes matching B and the exact receipt-bound A backup
+in one metadata commit. Schema-21 read-only startup can admit validated historical
+receipts even when their prior package publication is done. Its retained volatile
+cursor processes at most 16 indexed package rows per pass up to a fixed startup
+high-water mark; it does not rescan all history on each status poll. Ordinary
+legacy receipts without captured originals remain excluded, and schema-20
+metadata-only access does not migrate or query the schema-21 package index.
+
+The complete `bash scripts/check.sh` command passed in 691.17 seconds with all
+549 Rust/Cargo source pins unchanged. The earlier full check remains recorded:
+it failed an existing ordinary corruption control when native startup high-water
+selection encountered a negative SQL sequence before the bad job's normal
+backoff. The same control failed before the correction and passed afterward.
+Native history selection now excludes negative sequences; ordinary corruption
+is still refused and deferred, and no stored sequence is normalized.
+
+The [fresh read-only provider acceptance](benchmarks/icloud-native-package-readonly-backfill-2026-10-06.json)
+ran once in its own 600/45-second window and closed after 18.51 seconds. Its
+normal read-only startup repaired the copied completed history: original A matched
+its receipt-bound Trash backup, and the canonical original-name lookup selected
+only exact B. This adds live evidence for metadata repair, not semantic remount
+acceptance.
+
+The mounted capture then refused a changed revision. Stopped current B and its
+native archive artifact bind a newer ETag and logical size (139,003 rather than
+133,252 bytes). An independent offline scan of the retained 65,019-byte archive
+found a different complete semantic V2 tree: 10 entries, 7 files and 139,003
+expanded bytes, rather than the expected 46/42/133,252. The exact first failing
+capture guard was not retained. The reference was not substituted, the live
+scanner was not dispatched and this arm remains failed. Apple Numbers had been
+opened between earlier postflight and remount, but these records do not establish
+who or what changed the revision.
+
+All original test handles were reaped, the mount/socket disappeared, and original
+state, completed transfer rows, all 19 installed files, unit and daemon identity
+remained unchanged. No cloud write or automatic remount retry occurred. The next
+controlled arm will place strict remount verification before opening Apple Numbers;
+it must use a new owned subject and a fresh preregistered window. Five remaining
+full-integration criteria and installed delivery stay open.
