@@ -1,0 +1,138 @@
+{
+  "actual_outcome": {
+    "closure": {
+      "all_five_original_children_reaped": true,
+      "control_socket_absent": true,
+      "errors": [],
+      "mount_absent": true,
+      "original_controller_reaped": true,
+      "owned_bus_sockets_absent": true
+    },
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-private-v1/controller_v4.py",
+      "sha256": "4c6e1c21fb5b2fef59233c1b66b5dbeec0401badafcaefea7f10e83931dffb4e",
+      "size": 40793
+    },
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-private-v1/result.json",
+      "sha256": "2170f18d8ae80204b6427632ed5748e00a47c8b02d62300cd608a6beb29dab13",
+      "size": 4246
+    },
+    "diagnosis": "The reused local health child requires unix:path=/var/tmp/cirrove-pages-isolated-chooser-<run>/a.bus. The actual bounded Pages Desktop arm registers unix:path=/var/tmp/cirrove-pages-desktop-<run>/a.bus; that exact initial address guard refuses before GI or Desktop launch. This is a test-controller path mismatch, not evidence of a Pages provider import failure.",
+    "failure": {
+      "class": "RuntimeError",
+      "positions": [
+        {
+          "file": "controller_v4.py",
+          "function": "execute",
+          "line": 560
+        },
+        {
+          "file": "controller_v4.py",
+          "function": "gui",
+          "line": 408
+        },
+        {
+          "file": "controller_v4.py",
+          "function": "need",
+          "line": 25
+        }
+      ]
+    },
+    "health_child": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-successor-private-v3/health_child.py",
+      "sha256": "dc372fbdb7ff5fb91506312f71f8f81a75727cf5987a91b463465cd31385b169",
+      "size": 5893
+    },
+    "journal_contract": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-private-v1/journal_contract_v4.py",
+      "sha256": "f3ceaff73ec35d1b6999ddb5275a6dc353a7421a68f225a529ecc7eb02fa9348",
+      "size": 11174
+    },
+    "limits": "One applied owned-folder creation only; no public Desktop import or Pages completion/content/reopen credit. The closed arm will not be replayed. All six full-iCloud acceptance areas remain open.",
+    "manifest": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-root-c334-v1/manifest.json",
+      "sha256": "d9d36591ffdf502d9508cc871f9438f3f3227a092f5ff43cd1334f7e00a1ecec",
+      "size": 2262
+    },
+    "original_tool_session": 95418,
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-root-c334-v1/public-preregistration-byteexact-before-outcome.json",
+      "sha256": "0841c2981c597c9b566e1f8b95b0e8a597507589c0028ec00bf3782fb4ac9e1c",
+      "size": 3114
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-root-c334-v1/registration.json",
+      "sha256": "deeb73022b38c2ef081e67f7fe64fb4142c2887e946f40bc353b5a3bfc9bac87",
+      "size": 72959
+    },
+    "root_terminal": {
+      "automatic_retry": false,
+      "duration_seconds": 44.931926555989776,
+      "errors": [],
+      "exit_code": 1,
+      "full_integration_accepted": false,
+      "installed_actions": false,
+      "original_controller_reaped": true,
+      "run": "c334cdb5-36b4-42e0-89b2-c1efcb8e8e8e",
+      "signals": [],
+      "success": false
+    },
+    "scope": {
+      "apple_pages_open": false,
+      "chooser_opened": false,
+      "desktop_launched": false,
+      "import_submitted": false,
+      "independent_content_read": false,
+      "installed_actions": false,
+      "original_folder_warmed": true,
+      "owned_folder_created_and_applied": true,
+      "uploaded_document": false
+    },
+    "ui_worker": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-private-v1/ui_worker_v2.py",
+      "sha256": "340b96f5853a962442dd7600995be53b2e0a4ef972586f124e750501c31d7454",
+      "size": 54885
+    }
+  },
+  "arms": [
+    {
+      "folder_creation_limit": 1,
+      "name": "fresh-owned-public-desktop-pages-import",
+      "public_import_submission_limit": 1,
+      "source_archive_bytes": 55715,
+      "source_archive_sha256": "96e2dcc2446452229377a55052c107e02b52ee098e48b6bb4cdc826f0289bc6e",
+      "source_semantic": {
+        "entries": 10,
+        "expanded_bytes": 98835,
+        "files": 7,
+        "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
+        "version": 2
+      }
+    }
+  ],
+  "authorization": "Standing user authorization for iCloud writes and tests; this arm remains limited to one fresh owned folder and one public Desktop import.",
+  "automatic_retry": false,
+  "checkout_head_before_preregistration": "6621eaed5275ac048597777b7042376ecbb9786e",
+  "cleanup_reserve_seconds": 45,
+  "cloud_allowed": true,
+  "endpoint": "Actual public UI admission and successful job bound to the exact journal operation; canonical archive captured on the original warm mount; stopped journal receipt authority and independent iCloud version-2 semantic read; complete closure of original child handles, mount and private sockets.",
+  "installed_actions": false,
+  "limits": [
+    "No reopening or replaying earlier writer state, journals or uncertain mutations; reuse only the pinned owned source archive bytes and same-account sealed session ciphertext.",
+    "No CLI submission substituted for the Desktop import. Independent observer calls are read-only.",
+    "Apple Pages open of the exact newly allocated document remains separate evidence unless actually observed.",
+    "A single owned import does not establish broader Pages editing, Numbers/Keynote fidelity, installed transitions or general provider reliability.",
+    "All six full-iCloud release acceptance areas remain open until their complete scopes are verified."
+  ],
+  "original_window_seconds": 600,
+  "prediction": "The already validated local chooser route will reach the real confirmation; exact title-labelled field selection will submit one import. The normal daemon will publish a typed successful receipt, and the original mounted archive and independent provider read will match the registered version-2 content tree. Any uncertain result stops the arm without repeating a cloud mutation.",
+  "question": "Can the normal Desktop import one owned Pages archive through its actual public chooser and confirmation, publish the completed operation on the original warm mount, and match an independent iCloud semantic read?",
+  "run": "c334cdb5-36b4-42e0-89b2-c1efcb8e8e8e",
+  "runtime_build_head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "runtime_source_count": 480,
+  "source_binding_requirement": "All registered runtime sources and checked code/script/policy inputs must match the frozen build and completed full check. Documentation-only checkout differences are recorded separately from the actual build head.",
+  "status": "actual-owned-folder-confirmed-health-prefix-refused-before-desktop",
+  "temporary_filesystem_requirement": "TMPDIR and SQLITE_TMPDIR on ext4, recorded and checked before launch; no tmpfs staging.",
+  "version": 1
+}

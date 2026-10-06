@@ -2798,3 +2798,37 @@ corrections did not change Cirrove behavior or the installed service. Full Pages
 import still needs one fresh actual Desktop submission, public completion and
 publication on its original mount, independent semantic readback and Apple Pages
 open of the exact allocated document. All six full-iCloud criteria remain open.
+
+The [fresh real-provider Desktop arm](benchmarks/icloud-pages-live-desktop-import-2026-10-06.json)
+subsequently created and confirmed one owned iCloud folder and warmed it on the
+original mount. It stopped before launching Desktop: the reused accessibility
+health child required the old local-chooser bus path instead of the newly
+registered Pages Desktop path. Its initial address guard refused before GI
+initialization. No import was submitted and no document was uploaded. The
+original controller and all five children were reaped, and the isolated mount,
+control socket and both private bus sockets closed. The installed service and
+all runtime source pins remained unchanged. This is a test-controller path
+mismatch, not evidence of a failed Pages provider import; the closed cloud arm
+will not be replayed. The corrected exact Pages-path guard subsequently passed
+five source-selected controls after the old guard failed the positive assertion.
+A [fresh local health arm](benchmarks/icloud-pages-desktop-health-prefix-2026-10-06.json)
+also passed the actual registry-owner and empty-desktop handshake. All four
+original children and the parent were reaped; both private sockets closed and
+inputs remained unchanged. This local check made zero provider calls and started
+no Desktop or cloud daemon. It clears that test-infrastructure prerequisite for
+a new owned Desktop import trial, with no full-integration gate credit.
+
+That [new owned arm](benchmarks/icloud-pages-live-desktop-import-health-corrected-2026-10-06.json)
+passed health admission, launched the normal Desktop and opened its public
+chooser after the exact account row was expanded. It stopped at the chooser's
+active-window PID/address check before Ctrl+l, pathname entry, confirmation or
+submission. The operands were not retained, so neither focus-transition timing
+nor external focus changes are established as the cause. The stopped journal
+contains one applied folder creation and no uploads or native imports. Seven
+original children, the controller and 21 compositor utilities were reaped;
+mounts and private sockets closed. All 537 checked source pins, four frozen roles
+and 19 installed files remained unchanged. A separate Root reporting exception
+occurred while hashing the already-written result; its exact metadata mismatch
+is unproved and does not change the retained child or journal results. The arm
+will not be replayed. A fresh local chooser/three-field/Cancel check must now
+validate bounded readiness observation before another cloud submission trial.
