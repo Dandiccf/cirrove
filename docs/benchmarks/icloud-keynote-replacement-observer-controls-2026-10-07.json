@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "status": "closed_local_controls_passed",
+  "question": "Does the explicit read-only Keynote replacement observer bind exact wrapped A/B receipts, scope, publication and independent-proof inputs, and refuse late provider dispatch or successful late synchronous publication under its original deadline?",
+  "prediction": "With the jointly omitted three-guard deadline set, the four named deadline assertions fail while seven unrelated controls pass. Byte-exact restored guards allow all eleven controls to pass.",
+  "registration_provenance": {
+    "private_counterfactual_registration": ".local-state/icloud-keynote-reauth-checks-20261007/keynote-guard-set-red-v1-counterfactual-preregistration.json",
+    "sha256": "e0fb39675aff7acb4fa51a69ade23753190d49800a14b08132e1bff493a05fea",
+    "registered_before_counterfactual": true,
+    "public_record_created_after_local_execution": true
+  },
+  "scope": "Local synthetic journal/receipt/source fixtures and synchronous original-deadline controls only. No provider, browser, session/keyring or installed actions.",
+  "counterfactual": {
+    "kind": "joint_guard_set_sensitivity",
+    "omitted": [
+      "before_dispatch deadline ensure",
+      "publish_result trailing deadline ensure",
+      "fixture_active deadline ensure"
+    ],
+    "predicted_failures": [
+      "owned_keynote_replacement_synchronous_publication_overrun_is_not_success",
+      "owned_keynote_replacement_synchronous_work_cannot_dispatch_after_deadline",
+      "owned_keynote_replacement_nested_sync_work_cannot_dispatch_after_deadline",
+      "owned_keynote_replacement_nested_sync_publication_overrun_is_not_success"
+    ],
+    "actual_failures": [
+      "owned_keynote_replacement_nested_sync_publication_overrun_is_not_success",
+      "owned_keynote_replacement_nested_sync_work_cannot_dispatch_after_deadline",
+      "owned_keynote_replacement_synchronous_publication_overrun_is_not_success",
+      "owned_keynote_replacement_synchronous_work_cannot_dispatch_after_deadline"
+    ],
+    "independent_single_guard_causality": false,
+    "source_restored_byteexact": true
+  },
+  "actual_arms": {
+    "keynote-focused-v1": {
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 773,
+      "test_duration_seconds": 0.66,
+      "elapsed_seconds": 64.0502243139781,
+      "original_owner_reaped": true,
+      "recorded_pid_absent_at_audit": true,
+      "signals": [],
+      "log_sha256": "d7c59e79872113f27b10bc79e477756587474e8c8139d4c1cb9572cbd42ea09b"
+    },
+    "reauth-focused-v1": {
+      "exit_code": 0,
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 569,
+      "test_duration_seconds": 20.2,
+      "elapsed_seconds": 42.38614483800484,
+      "original_owner_reaped": true,
+      "recorded_pid_absent_at_audit": true,
+      "signals": [],
+      "log_sha256": "b35c902c4358788f23ee9933c23f69c3ba90c1da975ab5ea27af4cf834494a00"
+    },
+    "keynote-guard-set-red-v1": {
+      "exit_code": 101,
+      "passed": 7,
+      "failed": 4,
+      "ignored": 0,
+      "filtered": 773,
+      "test_duration_seconds": 0.68,
+      "elapsed_seconds": 21.131437439005822,
+      "original_owner_reaped": true,
+      "recorded_pid_absent_at_audit": true,
+      "signals": [],
+      "log_sha256": "62ccc787f2b9f2ca89c8a9c31672ce9d1f8cd0bf14cb55e899250bac219fd37e"
+    },
+    "keynote-restored-v2": {
+      "exit_code": 0,
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 773,
+      "test_duration_seconds": 0.67,
+      "elapsed_seconds": 18.923953165009152,
+      "original_owner_reaped": true,
+      "recorded_pid_absent_at_audit": true,
+      "signals": [],
+      "log_sha256": "aa5b7739aed10a62338409d2c58c3406eca628041a55a1768b03903e00883ed0"
+    }
+  },
+  "final_source_pins": {
+    "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify.rs": {
+      "size": 38560,
+      "sha256": "353dd189b520432d7e64c1bfbe0d988589cc15529fa4b45006dca4e6611195b0"
+    },
+    "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs": {
+      "size": 21878,
+      "sha256": "afbcc83115ebd9ea9be2bbcd7b613db04c0d9e3843cd707b4cbc06de71701e3f"
+    },
+    "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement/tests.rs": {
+      "size": 17621,
+      "sha256": "472c4f851dba5717e0b99c7254c787aafb497eb52621e9a38f2df156e1653591"
+    }
+  },
+  "independent_audit": {
+    "path": ".local-state/icloud-keynote-next-acceptance-audit-20261007-private-v1/audit-keynote-reauth-focused-and-guard-set-controls-v1.json",
+    "sha256": "1b4933c6f6090d963a21da6e939eae738887c9245f6a85621a04b1fa31927af5"
+  },
+  "implemented_boundary": "Feature-only explicit wrapped Keynote pre/postflight observer; typed SQL/body/queue/account and A/currentB/TrashA receipt authority; current PACKAGE fullV2 and exact-ID Trash fullV2/revision; same original active_end through nested generic reader and syncpublication. Public generic and historical Keynote import scope remain unchanged.",
+  "remaining": "Commit final source and bind fresh actual roles; then separately register and execute a real Keynote A\u2192genuinely edited B replacement, strict RO remount before receipt-ID Apple reopen. No live result here.",
+  "limits": [
+    "Original managed receipts cover four Cargo Popen owners, not all transient compiler/test process PID manifests.",
+    "Registration binary_sha256 binds command tool Cargo, not a separately prehashed test ELF.",
+    "No live Keynote Cirrove replacement/provider read/import/Trash/remount/Apple acceptance; genuine source A/B preparation separate.",
+    "The subsequent full check is recorded separately; these focused arms alone establish no current-role build readiness, installed acceptance or gate closure.",
+    "Reauth tests use synthetic persistence result and local Manager retention, not real credentials/session login or installed downgrade.",
+    "Only milestone485 closed;486\u2013490 remain open and installed HOLD remains."
+  ],
+  "reauth_support": "Separate actual local2PASS: synthetic session-save outcomes with real Manager retire/relaunch, sealed Uploading attempt+dirty bytes preserved. Not real reauthentication or installed downgrade.",
+  "genuine_keynote_source": "Actual bb3eab7e Apple A/B source/preview preparation exists separately; no Cirrove representation inferred.",
+  "mandatory_full_check": {
+    "path": "docs/benchmarks/icloud-keynote-reauth-full-check-2026-10-07.json",
+    "success": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 566,
+    "elapsed_seconds": 653.4765251959907
+  }
+}

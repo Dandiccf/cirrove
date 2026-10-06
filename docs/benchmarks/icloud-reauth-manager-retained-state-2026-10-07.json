@@ -1,0 +1,114 @@
+{
+  "active_measurement": false,
+  "arms": [
+    {
+      "expected_endpoint": "Initial owner retires; same account and credential relaunch read-only; public sealed/dirty exports return exact bound receipts and bytes.",
+      "name": "successful local session-save result with read-only downgrade",
+      "test": "accounts::tests::reauth_manager_retained_coupling::icloud_reauth_manager_downgrade_keeps_active_sealed_and_dirty_exports"
+    },
+    {
+      "expected_endpoint": "Original enabled read-write settings restore; same account relaunches; public RW/no-writer exports refuse; after Manager cancel/join, explicit read-only recovery exports preserve exact payloads.",
+      "name": "failed local session-save result",
+      "test": "accounts::tests::reauth_manager_retained_coupling::icloud_reauth_manager_failed_save_restores_mode_and_retained_exports"
+    }
+  ],
+  "date": "2026-10-07",
+  "evidence": {
+    "accounts_module": {
+      "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/accounts.rs",
+      "sha256": "45be9017f6a03b28d54e57bd5a9d53521ffc4fcd10354b48106907881606dad4",
+      "size": 130471
+    },
+    "controls_source": {
+      "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/accounts/reauth_manager_retained_coupling.rs",
+      "sha256": "888e079c8f09c13ba494f29bc8ed8f9f04c69f94583c5ab5cc928d4d7ca1a2dd",
+      "size": 15237
+    },
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-reauth-checks-20261007/reauth-focused-v1.log",
+      "sha256": "b35c902c4358788f23ee9933c23f69c3ba90c1da975ab5ea27af4cf834494a00",
+      "size": 697
+    },
+    "owner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-reauth-checks-20261007/reauth-focused-v1-owner.json",
+      "sha256": "482aaa4857d033adf873dd9f1f6ddd41ddd2c14d555dd4f131143105c2eb70bd",
+      "size": 421
+    },
+    "private_proposal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/reauth-manager-retained-coupling-private-v1/proposal-v3.json",
+      "sha256": "bf32350af645628f5bd482d01ccfbffeb5f43b5e952c16dc2b86c701f90cd48b",
+      "size": 6224
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-reauth-checks-20261007/reauth-focused-v1-registration.json",
+      "sha256": "9ab0b3c89c3cd6d46135303057b13c334038c5ee0f1feb8849934ddbba71f83e",
+      "size": 724
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-reauth-checks-20261007/reauth-focused-v1-result.json",
+      "sha256": "9e9e857a02a8c8a66d99230d45ab3f165535b85999068400c9a8ebeabff9b6d0",
+      "size": 231
+    }
+  },
+  "full_integration_accepted": false,
+  "gate488_closed": false,
+  "independent_read_only_audit": {
+    "checks": {
+      "actual_exit0_no_error_signals": true,
+      "actual_source_v3_body_pin": true,
+      "command_registration_owner_match": true,
+      "exact_summary": true,
+      "exact_two_named_passes": true,
+      "ext4_same_tmp_and_target_registered": true,
+      "log_binding": true,
+      "manager_join_precedes_result_and_final_preservation": true,
+      "no_provider_install_claim": true,
+      "original_cargo_owner_closed": true
+    },
+    "fixture_closure_scope": "Both named tests execute cancel/join of the original Manager task before outcome propagation and postjoin retained-row/schema/payload assertions. Successful test return establishes those source-bound endpoints; no separate OS descendant census or real mounted kernel session is claimed.",
+    "passed": 10,
+    "result": "PASS",
+    "total": 10
+  },
+  "installed_actions": false,
+  "limits": [
+    "Synthetic session validation and Ok/Err persistence result only: no password, 2FA, live session/keyring persistence, real credentials or provider requests.",
+    "Manager has no WriteFactory; a nonempty private mount sentinel refuses FUSE. This does not prove mounted RW worker drain, native document editing or installed lifecycle acceptance.",
+    "No production defect or fail-before-fix RED is claimed. Both tests passed current production on first execution.",
+    "This historical focused arm used the pre-format source; the later complete check separately validates final formatted source. Neither closes real-provider acceptance."
+  ],
+  "outcome": {
+    "compile_finished_seconds": 22.12,
+    "elapsed_seconds": 42.38614483800484,
+    "exit_code": 0,
+    "failed": 0,
+    "filtered_out": 569,
+    "ignored": 0,
+    "original_Popen_retained": true,
+    "original_owner_reaped": true,
+    "original_pid": 3151277,
+    "original_start_ticks": "35298721",
+    "passed": 2,
+    "pidfd_retained": true,
+    "process_absent": true,
+    "signals": [],
+    "test_seconds": 20.2
+  },
+  "proved_local_endpoints": [
+    "Genuine working write, seal, Uploading attempt and later dirty generation exist before lifecycle; journal rows/schema and both source payloads remain unchanged.",
+    "Initial and relaunched actual Manager Engines hold the account flock; suspension retires the old Engine and releases ownership; final Manager cancellation/join releases ownership.",
+    "Successful read-only downgrade exposes actual public export jobs and strict receipts; failed persistence rolls back policy and preserves recovery bytes without granting configured RW/no-writer public recovery."
+  ],
+  "question": "Do the existing local iCloud reauthentication completion helpers couple to actual Manager account-owner retirement and same-identity relaunch while preserving an active sealed save and its later dirty generation?",
+  "real_provider_calls": false,
+  "registration_scope": "Private command/owner registration preceded focused execution. This record reports synthetic tests, not a publicly preregistered real-provider acceptance measurement.",
+  "status": "completed_synthetic_local_controls",
+  "version": 1,
+  "mandatory_full_check": {
+    "path": "docs/benchmarks/icloud-keynote-reauth-full-check-2026-10-07.json",
+    "success": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 566,
+    "elapsed_seconds": 653.4765251959907
+  }
+}

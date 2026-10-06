@@ -559,3 +559,26 @@ V2 readback preserved original A, stage B and occupant B with the same IDs,
 revisions and locations. It does not close broader editing, atomic races,
 representation coverage, installed transitions or abandoned-stage cleanup.
 The full-iCloud count remains one criterion closed and five open.
+
+The [fresh Keynote source pair](benchmarks/icloud-keynote-edited-source-2026-10-07-bb3eab7e.json)
+now contains two native exports from the same owned Apple presentation, with
+genuine title and subtitle edits between A and B and independently checked
+complete archive contents. Its Cirrove replacement, current/Trash verification,
+read-only remount and exact-item Apple reopen still need their own live arm.
+
+Two [local reauthentication tests](benchmarks/icloud-reauth-manager-retained-state-2026-10-07.json)
+now couple the actual Manager owner retirement and relaunch to unchanged sealed
+and dirty journal bytes. They use synthetic session-save outcomes and no writable
+provider, keyring or successful kernel mount. The installed lifecycle row remains
+open, and installed delivery remains held.
+
+The feature-only [Keynote replacement observer](benchmarks/icloud-keynote-replacement-observer-controls-2026-10-07.json)
+now verifies exact completed-journal authority and independently reads current B
+and original A in Trash. Eleven local controls passed, including four deadline
+checks that failed in a jointly weakened guard-set counterfactual. This provides
+the scoped proof tool for the next owned live replacement; that live endpoint
+and the five open release criteria remain pending.
+
+The complete [mandatory project check](benchmarks/icloud-keynote-reauth-full-check-2026-10-07.json)
+passed on the unchanged final source, including all thirteen new local controls.
+Display scenarios and the real Keynote replacement remain separate checks.

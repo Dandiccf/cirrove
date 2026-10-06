@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "run": "bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+  "registered_at": "2026-10-06T23:06:44.209113+00:00",
+  "question": "Can one fresh owned Apple Keynote document produce a genuinely edited native A/B pair for later scoped Cirrove replacement acceptance?",
+  "prediction": "One own single-slide document can export A, edit registered text, then export B; full native member differences will be observed independently. No inference about provider DATA or PACKAGE representation.",
+  "scope": "Create one fresh own Keynote blank document. Rename exactly, enter title/subtitle A, export native A once, change title/subtitle to B, export native B once. No unrelated document edits, sharing, deletion, Cirrove import, daemon or installed changes. Stop any uncertain cloud creation/edit/export without replay.",
+  "authorization": "Standing direct user authorization for writable iCloud access and tests.",
+  "document_title": "Cirrove-Keynote-Edited-Source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+  "slide_title_a": "Cirrove Keynote A bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+  "slide_subtitle_a": "Owned native replacement source A",
+  "slide_title_b": "Cirrove Keynote B bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+  "slide_subtitle_b": "Owned genuine editor replacement source B",
+  "private_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+  "maximum_archive_bytes": 67108864,
+  "maximum_expanded_bytes": 67108864,
+  "maximum_archive_entries": 10000,
+  "expected_duration_seconds": 600,
+  "maximum_duration_seconds": 1200,
+  "clock_start_monotonic": 352631.332237565,
+  "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+  "status": "genuine-Apple-editor-A-B-source-pair-exported-and-offline-verified",
+  "results": {
+    "recorded_at": "2026-10-06T23:11:21.723345+00:00",
+    "elapsed_seconds": 277.5141809869674,
+    "native_a": {
+      "recorded_at": "2026-10-06T23:08:54.149115+00:00",
+      "download_event_observed": true,
+      "source_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/apple-source-a.key",
+      "size": 525068,
+      "sha256": "ab9097349001cdcb7249084438db6ac96e9ceaf97a7a75b439d217366174c685",
+      "physical_zip_entries": 54,
+      "expanded_bytes": 516888,
+      "zip_crc_complete": true,
+      "preview_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/apple-export-preview-a.jpg",
+      "preview_sha256": "1f07e78992cb5e7de8b251e8d765394fad0f3f41cad6474818491bf2cec0c24e",
+      "download_bytes_equal": true,
+      "Cirrove_import_started": false,
+      "provider_representation_inferred": false
+    },
+    "native_b": {
+      "recorded_at": "2026-10-06T23:09:58.898230+00:00",
+      "download_event_observed": true,
+      "source_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/apple-source-b.key",
+      "size": 527694,
+      "sha256": "3109039377ae445885265e22fe7574f7301bcbb61810a4496f1230848383a9b8",
+      "physical_zip_entries": 54,
+      "expanded_bytes": 519514,
+      "zip_crc_complete": true,
+      "preview_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/apple-export-preview-b.jpg",
+      "preview_sha256": "f7f102d0f2a13d85e6d2dee91219d88839479eac0090a18137f5086100395ec7",
+      "download_bytes_equal": true,
+      "actual_edit": "Same one-slide own Apple Keynote document: title A to B, subtitle Owned native replacement source A to Owned genuine editor replacement source B, exact preregistered nonce preserved. Native A captured before B edits.",
+      "changed_member_contents": [
+        "Index/Document.iwa",
+        "Index/DocumentMetadata.iwa",
+        "Index/Metadata.iwa",
+        "Index/Slide-2652175.iwa",
+        "Metadata/Properties.plist",
+        "preview-micro.jpg",
+        "preview-web.jpg",
+        "preview.jpg"
+      ],
+      "added_members": [
+        "Data/slide-1-9078.jpeg"
+      ],
+      "removed_members": [
+        "Data/slide-1-9076.jpeg"
+      ],
+      "full_archive_equal_to_a": false,
+      "Cirrove_import_started": false,
+      "provider_representation_inferred": false
+    },
+    "wrapped_assets": {
+      "recorded_at": "2026-10-06T23:10:34.914601+00:00",
+      "independent_python_full_v2": true,
+      "historical_known_control_matches_exact_fullV2": {
+        "version": 2,
+        "sha256": "5ab225f68d164e6369cab5bfc6667cced06b77fdb57b65cfb43e55e722c01fb9",
+        "entries": 58,
+        "files": 54,
+        "expanded_bytes": 516253
+      },
+      "source_assets": {
+        "a": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/source-a.key",
+          "size": 526216,
+          "sha256": "2bed3ec20b863ea5ae3cba0e465b26cb40424294b6a33905aa3b7a1fd43d9fc4",
+          "root": "Source.key",
+          "semantic": {
+            "version": 2,
+            "sha256": "d34710b3d81974676ad6c80311bbc187dd0e27ba3d9012ed6f01a5086eba3452",
+            "entries": 58,
+            "files": 54,
+            "expanded_bytes": 516888
+          },
+          "all_physical_members_contents_types_metadata_comment_preserved": true
+        },
+        "b": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/source-b.key",
+          "size": 528842,
+          "sha256": "84e636004bf78cfd6ee5046dd9f1b08bbdf47cebd38dfaea100bfa9c703d978a",
+          "root": "Source.key",
+          "semantic": {
+            "version": 2,
+            "sha256": "75999acac3e1d8f63d46b9038d32a3fd5ff7a12c5ce6cf3fbc83c0d450f5edd7",
+            "entries": 58,
+            "files": 54,
+            "expanded_bytes": 519514
+          },
+          "all_physical_members_contents_types_metadata_comment_preserved": true
+        }
+      },
+      "same_donor_genuine_editor_pair": true,
+      "representation_inferred": false,
+      "production_scanner_run": false,
+      "live_Cirrove_replacement_started": false
+    },
+    "single_slide_title_and_subtitle_a_and_b_visually_confirmed_in_exported_previews": true,
+    "download_event_once_per_arm": true,
+    "a_private_capture_preceded_b_edit": true,
+    "own_browser_tabs_closed": true,
+    "own_donor_document_retained_in_iCloud": true,
+    "no_daemon_service_restart_install_or_Cirrove_mutation": true,
+    "full_iCloud_gate_closures": 0,
+    "scope_limits": "Source preparation only, not Cirrove import/replacement/remount/Apple reopened replacement acceptance. No DATA/PACKAGE provider representation inference, formula/animation/media/general fidelity claim.",
+    "independent_asset_review": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-next-acceptance-audit-20261007-private-v1/audit-genuine-edited-source-assets-v1.json",
+      "sha256": "208189398d6a653f313edb318ff85389a31a2ee4f001ea1ab008d8eb2bce9ac4",
+      "status": "PASS",
+      "scope": "Full new raw/wrapped archives, V2 semantic and previews; no Cirrove import/replacement claim."
+    }
+  },
+  "full_iCloud_gate_closures": 0
+}

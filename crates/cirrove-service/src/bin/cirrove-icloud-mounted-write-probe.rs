@@ -519,6 +519,17 @@ async fn main() -> Result<()> {
         return Ok(());
     }
     if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-keynote-replacement-receipt-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_keynote_replacement_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
         && flag == "--owned-fuse-capture-verify"
     {
         let proof = cirrove_service::validation::icloud_owned_fuse_capture_verify(

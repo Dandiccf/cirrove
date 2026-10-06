@@ -281,19 +281,46 @@ pub async fn icloud_owned_fixture_verify(
     path: &Path,
     manifest_sha256: &str,
 ) -> Result<serde_json::Value> {
-    verify_fixture(path, manifest_sha256, FixtureArm::Generic).await
+    verify_fixture(path, manifest_sha256, FixtureArm::Generic, None).await
 }
 /// Explicit standalone native Trash preflight; no generic ownership widening.
 pub(crate) async fn icloud_owned_native_trash_fixture_verify(
     path: &Path,
     manifest_sha256: &str,
 ) -> Result<serde_json::Value> {
-    verify_fixture(path, manifest_sha256, FixtureArm::NativeTrash).await
+    verify_fixture(path, manifest_sha256, FixtureArm::NativeTrash, None).await
+}
+// Explicit registered caller's ORIGINAL monotonic deadline. Public generic
+// callers retain their historical behavior; no new standalone clock is created.
+async fn icloud_owned_fixture_verify_before(
+    path: &Path,
+    manifest_sha256: &str,
+    active_end: tokio::time::Instant,
+) -> Result<serde_json::Value> {
+    verify_fixture(path, manifest_sha256, FixtureArm::Generic, Some(active_end)).await
+}
+fn fixture_active(active_end: Option<tokio::time::Instant>) -> Result<()> {
+    if let Some(end) = active_end {
+        ensure!(
+            tokio::time::Instant::now() < end,
+            "fixture original deadline expired"
+        );
+    }
+    Ok(())
+}
+fn fixture_publish(
+    active_end: Option<tokio::time::Instant>,
+    publish: impl FnOnce() -> Result<()>,
+) -> Result<()> {
+    fixture_active(active_end)?;
+    publish()?;
+    fixture_active(active_end)
 }
 async fn verify_fixture(
     path: &Path,
     manifest_sha256: &str,
     arm: FixtureArm,
+    active_end: Option<tokio::time::Instant>,
 ) -> Result<serde_json::Value> {
     let directory = path.parent().context("fixture directory missing")?;
     let directory_guard = open_private(directory, true, 0)?;
@@ -352,6 +379,7 @@ async fn verify_fixture(
         }
     }
     // Sealed saved session only: this helper never calls sign_in/account_login.
+    fixture_active(active_end)?;
     let mut remote = session(&f.session_directory, &account)
         .await
         .map_err(|_| anyhow::anyhow!("fixture sealed session unavailable"))?;
@@ -363,6 +391,7 @@ async fn verify_fixture(
         .mode(0o600)
         .open(&output)?;
     let mut sink = DiskSink(tokio::fs::File::from_std(staged.try_clone()?));
+    fixture_active(active_end)?;
     let receipt = remote
         .read_owned_fixture(
             &f.parent,
@@ -407,7 +436,9 @@ async fn verify_fixture(
     }
     same_directory(directory, &directory_guard)?;
     same_directory(&attempt, &attempt_guard)?;
-    record(&attempt.join("receipt.json"), &result)?;
+    fixture_publish(active_end, || {
+        record(&attempt.join("receipt.json"), &result)
+    })?;
     Ok(result)
 }
 
@@ -433,8 +464,9 @@ mod receipt_bound;
 pub use receipt_bound::{
     icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,
     icloud_owned_fuse_source_verify, icloud_owned_keynote_import_receipt_verify,
-    icloud_owned_keynote_source_verify, icloud_owned_numbers_data_receipt_verify,
-    icloud_owned_numbers_data_source_verify, icloud_owned_receipt_verify,
+    icloud_owned_keynote_replacement_receipt_verify, icloud_owned_keynote_source_verify,
+    icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
+    icloud_owned_receipt_verify,
 };
 
 #[cfg(test)]

@@ -777,7 +777,10 @@ pub use fuse::{
 };
 
 mod keynote;
-pub use keynote::{icloud_owned_keynote_import_receipt_verify, icloud_owned_keynote_source_verify};
+pub use keynote::{
+    icloud_owned_keynote_import_receipt_verify, icloud_owned_keynote_replacement_receipt_verify,
+    icloud_owned_keynote_source_verify,
+};
 
 mod numbers_data;
 pub use numbers_data::{

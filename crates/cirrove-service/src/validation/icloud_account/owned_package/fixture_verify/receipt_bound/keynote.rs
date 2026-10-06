@@ -1,5 +1,6 @@
 //! One owned Keynote CLI import: offline source proof and read-only receipt proof.
-//! This does not validate an editor save, replacement, Trash or GUI fidelity.
+//! Import APIs retain their original scope. The separate replacement observer
+//! verifies registered receipts/current/Trash content, never GUI fidelity.
 use super::*;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -342,3 +343,6 @@ pub async fn icloud_owned_keynote_import_receipt_verify(
 
 #[cfg(test)]
 mod tests;
+
+mod replacement;
+pub use replacement::icloud_owned_keynote_replacement_receipt_verify;

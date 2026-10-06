@@ -3192,4 +3192,7 @@ mod tests {
             cache_bytes: 8 * 1024 * 1024,
         }
     }
+    mod reauth_manager_retained_coupling {
+        include!("accounts/reauth_manager_retained_coupling.rs");
+    }
 }
