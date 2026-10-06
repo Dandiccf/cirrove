@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_setup_refusal_host_readonly_catalog_passed_GUI_not_started",
+  "active_measurement": false,
+  "run": "6311c4fb-6160-47d8-bdb0-fac8520d082b",
+  "question": "Does a normal source-bound read-only iCloud daemon expose the owned current native Numbers package and one indexed child through real cached RPC, while Strata offers only availability and preserves the original state, transfer rows and installed service?",
+  "prediction": "Current exact identity remains visible; native can_pin=false and On demand; only Show availability is offered. Child identity and eligibility come from actual cached indexing, without pin activation. Original state and installed files remain unchanged.",
+  "arms": [
+    "One fresh derived-state normal read-only mount and one isolated real Strata GUI; no fake catalog, no provider writes, no repeated uncertain175 inspection"
+  ],
+  "endpoint": [
+    "Bounded owned directory listings then paths-cached only, no fallback paths",
+    "Observe current exact document/parent identity and current revision without substituting old B semantics",
+    "Actual native menu and availability dialog; screenshots; one actual indexed child",
+    "Close exact GUI/container before daemon; original handles reaped and owned mount/socket absent",
+    "Preserve original14 state files, derived transfer rows/settings, current561 source pins, installed19 files and Strata3 host files"
+  ],
+  "lifetime": {
+    "total_seconds": 600,
+    "cleanup_reserve_seconds": 45,
+    "gui_work_seconds": 300,
+    "gui_cleanup_seconds": 30,
+    "single_original_root_clock": true
+  },
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sr-6311c4fb",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sr-6311c4fb",
+  "temporary_filesystem": "ext4",
+  "compiled_head": "3dccbbe19e1ffbd9772bd55cf11add9397713b9f",
+  "daemon": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/cirroved",
+    "size": 475720944,
+    "sha256": "c88ba1681641c4cc142fc6f20be4af5eba1904d6f9303fbc56b154b82843e641"
+  },
+  "source_count": 561,
+  "normal_role_features": [],
+  "supervisor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-real-readonly-preparation-20261006/root_supervise_real_ro_v4.py",
+    "size": 24090,
+    "sha256": "d59aa360da0c65253268df162ab49a0221c800ca5e8b2b9b121e6b4a9d917bad"
+  },
+  "prime": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-real-readonly-preparation-20261006/prime_real_catalog_v2.py",
+    "size": 4035,
+    "sha256": "45930e2ea099d143841411d540c7f225e637215f35619fac6c82e9996635dbb4"
+  },
+  "gui_driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-real-readonly-preparation-20261006/real_catalog_gui_v3.py",
+    "size": 9332,
+    "sha256": "04bbf7d3329fe67efc982bcd6ea24bc0b3460d3cd76299d9e30feb288acadfae"
+  },
+  "role_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/ready-binding-v2.json",
+    "size": 73737,
+    "sha256": "30728da63fdea247f124562b7c38f29b8c034fc45c0250943cc117b90798eeae"
+  },
+  "full_check_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full7-result-v1.json",
+    "size": 346,
+    "sha256": "c95e9667b495ca10bc64f19ad28562e6535d51614789e3b99cc3e4ee01646b7b"
+  },
+  "scope": "Docker networknone; host daemon provider HTTP uninstrumented. Read-only catalog and native availability only, no real pin transitions, installed acceptance, editing or full gate closure.",
+  "real_provider_writes_allowed": false,
+  "installed_actions": false,
+  "gate489_closed": false,
+  "remaining_full_integration_criteria": 5,
+  "original175_no_repeat_preserved": true,
+  "pre_dispatch_binding_correction": {
+    "old_unexecuted_supervisor_sha256": "c58d6be6200d9cd03fdc76754e708b34910b87e19902358bd8625f313261045c",
+    "old_input_sha256": "1f7030c66fb29da08109849e674f4f6342bf251be139786992ef0e71252bf529",
+    "problem": "O_NOFOLLOW pin refused Python launcher symlink; literal alias requirement was incompatible with actual host alias. Found by source-only Root preflight before any runtime invocation.",
+    "correction": "Pin and execute resolved regular Python ELF; retain O_NOFOLLOW refusal. No provider or clock dispatched."
+  },
+  "execution": {
+    "root_success": false,
+    "fixed_failure": {
+      "stage": "gui",
+      "class": "Refusal"
+    },
+    "initial_cleanup_errors": [
+      {
+        "phase": "container",
+        "class": "Refusal"
+      },
+      {
+        "phase": "closure",
+        "class": "Refusal"
+      }
+    ],
+    "host_readonly_catalog": {
+      "passed": true,
+      "actual_directory_listings": 2,
+      "content_open_calls": 0,
+      "fallback_paths_calls": 0,
+      "native_can_pin": false,
+      "native_kind": "folder",
+      "native_size": 139004,
+      "native_resident": 0,
+      "native_pinned": null,
+      "actual_indexed_child_kind": "file",
+      "actual_indexed_child_can_pin": true,
+      "scope": "Real normal read-only daemon cached RPC and indexed canonical archive child; no full content-semantic or GUI claim."
+    },
+    "GUI_setup": {
+      "docker_exit_code": 126,
+      "fixed_category": "Docker bind-mount permission denial on owned user-only FUSE mount",
+      "actual_application_started": false,
+      "actual_GUI_menu_observed": false,
+      "actual_availability_dialog_observed": false,
+      "GUI_acceptance": false,
+      "container_id": null,
+      "container_closed_before_daemon_at_initial_receipt": false,
+      "provider_writes_authorized": false
+    },
+    "original_child_receipts": [
+      {
+        "name": "daemon",
+        "pid": 2799994,
+        "returncode": null,
+        "original_wait_completed": false,
+        "recorded_birth_absent_at_initial_receipt": false
+      },
+      {
+        "name": "prime",
+        "pid": 2800104,
+        "returncode": 0,
+        "original_wait_completed": true,
+        "recorded_birth_absent_at_initial_receipt": true
+      },
+      {
+        "name": "gui",
+        "pid": 2800343,
+        "returncode": 126,
+        "original_wait_completed": true,
+        "recorded_birth_absent_at_initial_receipt": true
+      }
+    ],
+    "residual_cleanup": {
+      "exact_recorded_mount_id": "297",
+      "unmount_exit_code": 0,
+      "unmount_original_handle_reaped": true,
+      "recorded_daemon_absent": true,
+      "mount_absent": true,
+      "socket_absent": true,
+      "single_recorded_socket_unlinked": true,
+      "signals_sent_by_root": [],
+      "within_original_clock": true,
+      "original_daemon_wait_completed": false,
+      "daemon_exit_cause": "uninstrumented"
+    },
+    "later_closure_preservation": {
+      "run": "6311c4fb-6160-47d8-bdb0-fac8520d082b",
+      "recorded_daemon_absent": true,
+      "mount_absent": true,
+      "socket_absent": true,
+      "original_daemon_wait_completed": false,
+      "original_wait_not_reconstructed": true,
+      "signals_sent_by_root": [],
+      "daemon_exit_cause": "uninstrumented",
+      "original_source14_unchanged": true,
+      "packaged19_unchanged": true,
+      "strata_host3_unchanged": true,
+      "runtime_source561_unchanged": true,
+      "derived_transfer_rows_and_settings_unchanged": true,
+      "installed_daemon_birth_unchanged": true,
+      "within_original_clock": true,
+      "no_GUI_acceptance": true
+    },
+    "original_daemon_wait_limit": "The original daemon Popen wait was not completed and its returncode/exit cause remain uninstrumented. Later recorded-PID absence is independently retained; it does not reconstruct an original wait or erase the initial cleanup refusal.",
+    "initial_preservation_limit": "Initial root result did not complete its preservation endpoint. The later explicit preservation record establishes unchanged protected inputs; the initial false flag is retained rather than reinterpreted as a proven data change.",
+    "provider_HTTP_count": "uninstrumented",
+    "real_provider_writes": false,
+    "installed_actions": false,
+    "no_same_arm_retry": true,
+    "retained_artifacts": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/root-result.json",
+        "size": 6299,
+        "sha256": "ba9f416325aa143cc9dece87d8f7bb647b59d73af112e953d8acd32b9504c302"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/prime-result.json",
+        "size": 875,
+        "sha256": "f4a88d0a4b1bb27031679e9d16d113e98271949fb2b1e68e258c5e06186cc146"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/gui-attempt.json",
+        "size": 3369,
+        "sha256": "e9354adf5ab91d17a8d80cc5f7f1f6b13015d7cfb149f6db96b4c56174dafb39"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/gui.log",
+        "size": 219,
+        "sha256": "81964397b86bb78a052f60a80d1265bf19b93ffd5c3bde8781ff0a8d39657adb"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/root-residual-cleanup-registration-v1.json",
+        "size": 1278,
+        "sha256": "21cdd6207345505c1268c76251b531904bf5add3756045c61e0dffd0c8066219"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/root-residual-cleanup-result-v1.json",
+        "size": 344,
+        "sha256": "272efc1e49d0a9907e1560201c47b5ead2207cbac238dd3155268a8e7adb544a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/root-later-closure-preservation-v1.json",
+        "size": 598,
+        "sha256": "37b594336dc2ad9fa7ce6add58ad7ec9f86fe90609991dc7097e637f7ddb77c8"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-6311c4fb-6160-47d8-bdb0-fac8520d082b/public-preregistration-v2.json",
+        "size": 4402,
+        "sha256": "fc384f5d14a5da6e3c2f3696b05f1e9f449404d3cd3e2619aa60df09193e6499"
+      }
+    ]
+  },
+  "post_run_limits": [
+    "Host normal read-only metadata/catalog endpoint passed; the planned actual Strata application never started because Docker refused the FUSE bind mount.",
+    "No GUI availability/menu, native editing, pin transition, installation or companion acceptance is inferred.",
+    "Original daemon wait/exit remain uninstrumented; later exact recorded-PID absence and within-window mount/socket cleanup are separately proven.",
+    "Original question, prediction and first dispatch are preserved. Run6311 is closed; no replay, retry or broad FUSE permission change occurred.",
+    "Pages import remains the only closed release criterion; five remain open, including the companion gate."
+  ],
+  "full7_at_dispatch": {
+    "result_pin": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full7-result-v1.json",
+      "size": 346,
+      "sha256": "c95e9667b495ca10bc64f19ad28562e6535d51614789e3b99cc3e4ee01646b7b"
+    },
+    "exit_code": 0,
+    "elapsed_seconds": 673.1533932239981,
+    "runtime_sources_unchanged": true,
+    "scope": "Source/build validation remains separate from failed GUI acceptance."
+  }
+}
