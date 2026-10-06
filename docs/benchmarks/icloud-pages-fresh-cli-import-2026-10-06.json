@@ -1,0 +1,178 @@
+{
+  "actual_outcome": {
+    "apple_pages_open_record": "icloud-pages-cli-apple-open-2026-10-06.json",
+    "automatic_retry": false,
+    "closure": {
+      "controller_and_outer_reaped_and_absent": true,
+      "installed_daemon_unchanged": true,
+      "mounts_remaining": 0,
+      "original_children_exit_zero_reaped_and_absent": 3,
+      "private_sockets_remaining": 0
+    },
+    "independent_content": {
+      "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+      "cloud_mutated": false,
+      "content_identity_verified": true,
+      "etag": "i1qk::i1qj",
+      "format": "pages",
+      "gui_fidelity_verified": false,
+      "item": "FILE::com.apple.CloudDocs::0A51421C-6456-4D1C-9844-E71F7E90E94F",
+      "parent": "FOLDER::com.apple.CloudDocs::0F539973-1C64-4738-83B5-B9DB2CB55AFD",
+      "representation": "package",
+      "run": "ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+      "semantic": {
+        "entries": 10,
+        "expanded_bytes": 98835,
+        "files": 7,
+        "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
+        "version": 2
+      },
+      "sha256": "7b2f235fedd2164df849b7759f9e675a47d965c791cebbb8e39331bba7c86181",
+      "size": 55695
+    },
+    "independent_observer_exit_code": 0,
+    "installed_actions": false,
+    "journal_audit_caveat": "Read-only audit preserved DB/WAL/SHM bytes; SHM timestamps changed. Full journal stat equality is not claimed.",
+    "original_tool_session": 39063,
+    "original_warm_mount_capture": {
+      "path": "/var/tmp/cirrove-pages-desktop-ab963a3b-1a34-4f25-99d6-7ee5b604626e/mounted-import.pages",
+      "sha256": "3f60a3cb47f58f068512d5906f65e227f9da926f8572c59c45d0a383d3ca731a",
+      "size": 55695
+    },
+    "public_job": {
+      "cli_exit": 0,
+      "cli_import_used": true,
+      "desktop_import_used": false,
+      "import_provenance": "public-normal-cli",
+      "job": "d6d08c39-161e-4b31-9cf5-79892703e1c0",
+      "operation": "d578b5f3-7457-4c7a-9220-7ca74d01af71",
+      "running_observed": true,
+      "state": "succeeded"
+    },
+    "raw_archive_bytes_equal": false,
+    "release_acceptance": "Together with the complete Desktop378 arm, this closes only the public Pages import criterion. Native editing, application representation matrix, installed transitions, Strata deployment and reliability boundaries remain open.",
+    "root_result": {
+      "apple_pages_open_verified": false,
+      "automatic_retry": false,
+      "desktop_import_used": false,
+      "duration_seconds": 138.80174583301414,
+      "errors": [],
+      "exit_code": 0,
+      "full_integration_accepted": false,
+      "import_provenance": "public-normal-cli",
+      "installed_actions": false,
+      "original_controller_reaped": true,
+      "run": "ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+      "signals": [],
+      "success": true
+    },
+    "source_semantic_verified": true,
+    "temporary_filesystem": {
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/pages-ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/pages-ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+      "asserted_type": "ext4",
+      "tmpfs": false
+    },
+    "terminal_audit": {
+      "explicit_checks_passed": 26,
+      "installed_files_unchanged": 19,
+      "mode": "0400",
+      "private_path": "pages-live-cli-import-ab963a3b-1a34-4f25-99d6-7ee5b604626e-private-v1/audit-admission-cli-terminal-proof-closure-installed-v1.json",
+      "sha256": "9c9b3a8c605a0baa0b47d573dbb632d8401f3c663a0748dce50e10d439457ba9",
+      "size": 39462,
+      "source_pins_unchanged": 537
+    },
+    "terminal_audit_pending": false
+  },
+  "arms": [
+    {
+      "mutations": [
+        "one-owned-folder",
+        "one-public-pages-cli-import"
+      ],
+      "name": "fresh-cli-pages-complete",
+      "observers": [
+        "original-warm-FUSE-canonical-capture",
+        "stopped-query-only-exact-journal-frontier",
+        "existing-independent-native-fixture-verifier-once",
+        "root-CUA-Apple-Pages-exact-new-document"
+      ]
+    }
+  ],
+  "authorization": "Standing user authorization for iCloud writes/tests; one fresh owned folder and one CLI Pages import, no uncertain replay.",
+  "automatic_retry": false,
+  "bounds": "No Trash, replacement, native editing/export, installed acceptance, reliability/repetition or other fullgate claim. pages_desktop enum is concrete fixture shape only; no Desktop/UI provenance claimed. No constructed credentials/session decoded.",
+  "checked_sources_unchanged": 537,
+  "checkout_head_before_preregistration": "891f03b8082b12a4bd5d2efda5b1ea2df7e2f40c",
+  "clock": {
+    "cleanup_reserve_seconds": 45,
+    "overall_seconds": 600,
+    "root_clock_only": true
+  },
+  "cloud_allowed": true,
+  "endpoint": {
+    "Apple": "root CUA exact new allocated document mapping and visible expectedbody; read-only open no edit",
+    "cli": "same initial job UUID +same durable operation UUID, public Succeeded exactreceipt +exit0 +exact stdoutcompletion marker",
+    "closure": "alloriginalPopen reaped +mount/socket absent +immutableinputs/source/binary bindings +installed19 unchanged",
+    "independent": "existing pages_desktop typed fixture binding, sourcecapture rawsha/semantic-v2, fresh exactcurrent metadata/content",
+    "mount": "same originalmount/daemon/mountNS/directory/FD, unchanged completefrontier, rawcapture400 before shutdown"
+  },
+  "fixture_shape_provenance": "The existing pages_desktop fixture discriminator binds exact source/root/label names; it does not prove GUI submission. This arm submits only through the actual public normal CLI.",
+  "installed_actions": false,
+  "pending_inputs": [],
+  "pins": {
+    "assets_preparer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-root-ab963-v1/prepare-assets-v1.py",
+      "sha256": "9b52f8ac1f6856bd499cc7793589eadb44ad2b0e7ab4931c5670422fb1a8e23d",
+      "size": 18360
+    },
+    "controller-donor-to-cli-v1.patch": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-import-ab963a3b-1a34-4f25-99d6-7ee5b604626e-private-v1/controller-donor-to-cli-v1.patch",
+      "sha256": "2ba6a8bcd09635cdbf91bc3fb787d1c00c66c8bfa0c6ba227fb4db93ffed57bb",
+      "size": 21872
+    },
+    "controller_cli_v1.py": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-import-ab963a3b-1a34-4f25-99d6-7ee5b604626e-private-v1/controller_cli_v1.py",
+      "sha256": "9f1cdd9d04716c0e07b951c0d2dc955658b89b6fecb8fe642171a9c3ce9654c3",
+      "size": 39087
+    },
+    "inputs-template-v1.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-import-ab963a3b-1a34-4f25-99d6-7ee5b604626e-private-v1/inputs-template-v1.json",
+      "sha256": "98e4689015dd45a50b3f733b031e10d380bf5f8a71c8d28362ba3c22cd859393",
+      "size": 68491
+    },
+    "journal-donor-to-cli-v1.patch": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-import-ab963a3b-1a34-4f25-99d6-7ee5b604626e-private-v1/journal-donor-to-cli-v1.patch",
+      "sha256": "0392999529d72b3985d5c190ad3f32228f21cf4b6cca83d0755a468b76ee6c03",
+      "size": 1271
+    },
+    "journal_contract_cli_v1.py": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-import-ab963a3b-1a34-4f25-99d6-7ee5b604626e-private-v1/journal_contract_cli_v1.py",
+      "sha256": "de878552fbce711f4da991e035387ef4ffef60d74390a26e3f889fcccdb1a6dc",
+      "size": 11177
+    },
+    "root_launcher": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-root-ab963-v1/launch-v1.py",
+      "sha256": "d15d21c997e78c3b203851aa8dc9639d3bc4493a7ee6d99c31e206870fc5b8c4",
+      "size": 10844
+    }
+  },
+  "prediction": "One owned folder +one account-bound public CLI import yield sole Applied folder/Uploaded native PACKAGE operation, completed publication, originalmount capture and revision-fenced semantic-v2 proof; same allocated item opens with expected source body in Apple Pages. Any uncertain/rejected endpoint stops; no replay.",
+  "question": "Does one fresh public normalCLI Pages import reach verified job completion/publication on its original warm mount, independent semantic readback and Apple Pages open of that same new item?",
+  "run": "ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+  "runtime_build_head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "source_expected": {
+    "raw_size": 55715,
+    "root": "Cirrove Package Source ac9e5456-bd10-4b7d-9215-21bbb85dde69.pages",
+    "semantic": {
+      "entries": 10,
+      "expanded_bytes": 98835,
+      "files": 7,
+      "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
+      "version": 2
+    },
+    "sha256": "96e2dcc2446452229377a55052c107e02b52ee098e48b6bb4cdc826f0289bc6e"
+  },
+  "status": "actual-cli-original-mount-independent-read-and-apple-open-pass-audited",
+  "version": 1
+}

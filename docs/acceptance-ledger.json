@@ -655,14 +655,14 @@
       "milestone": 7,
       "milestone_title": "Full iCloud release acceptance",
       "line": 485,
-      "done": false,
+      "done": true,
       "text": "Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.",
       "release_scope": "full-icloud",
       "blocker": "needs-live-account",
       "blocks_release": "yes",
       "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
-      "evidence": "docs/benchmarks/icloud-native-import-watch-2026-10-01.md: retained ec7 public watch, warm mount and exact Apple Pages open passed; original false-failure and missed original mount endpoint remain recorded. docs/benchmarks/icloud-public-native-trash-2026-10-01.md: later fresh f2dec CLI import/readback/mounted access passed. Live desktop chooser-to-completion/publication remains open. docs/benchmarks/icloud-saved-native-import-discovery-2026-10-03.json adds exact-account retained service history; docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json records restored synthetic desktop paging/reconnect/exact observer coverage, all22 host window scenarios, and a sensitive accepted-observer publication omission. No live submission/publication/Apple or installed gate is closed. Source9527ff0 CI37140142769 subsequently passed all7 jobs; the actual tested PR merge ef4ee4fc2c86c4d497b80885d54428a2d3895fd3 has the identical tree c71f293d3edbea01389c713d10e66f05f64ed037. docs/benchmarks/icloud-desktop-saved-native-imports-2026-10-03.json records the completed Linux log hash and explicit Ubuntu GTK4.14.5/libadwaita1.5.0 execution: chooser1, windows1+1+20, native FUSE/HTTPS3 and writable55. This synthetic source validation does not close live/Apple/installed acceptance. All5 saved-history service tests and4 new desktop model/library tests also executed.",
-      "asserted_by": null
+      "evidence": "docs/benchmarks/icloud-pages-live-desktop-import-owned-focus-2026-10-06.json and icloud-pages-desktop-apple-open-2026-10-06.json: fresh Desktop378 actual public Submit, succeeded bound job, original warm-mounted canonical capture, exact independent semantic V2 readback and Apple Pages open of its own allocated document. Original controller exit1 from0400-vs0600 proof mode is preserved; offline control and stopped audit verify all20 bound clauses without cloud replay. docs/benchmarks/icloud-pages-fresh-cli-import-2026-10-06.json and icloud-pages-cli-apple-open-2026-10-06.json: fresh CLIab963 succeeded normal public CLI job, exact uploaded receipt and publication, original warm-mounted capture, independent V2 and exact new-document Apple open; controller/CLI/observer exit0,26 terminal audit checks pass. Each route completes its own endpoints; older partial ec7/f2dec arms are not combined. All537 checked inputs and19 installed files unchanged; native editing, application matrix, installed transitions, Strata delivery and reliability gates stay open.",
+      "asserted_by": "Registered owned-account Desktop378 and CLIab963 live Pages import arms: exact public job/operation/receipt, original-mount capture and independent V2 content checks; identity-guarded Apple Pages opens of each exact newly allocated document, with retained terminal audits. See the four benchmark records in evidence."
     },
     {
       "milestone": 7,
@@ -732,7 +732,7 @@
   ],
   "totals": {
     "boxes": 60,
-    "ticked": 41,
+    "ticked": 42,
     "by_blocker": {
       "autonomous": 36,
       "needs-live-account": 12,

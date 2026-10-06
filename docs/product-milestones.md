@@ -482,24 +482,29 @@ The ordinary-file opt-in is an intermediate milestone, not a reduced definition
 of full support. Synthetic coverage and isolated imports are supporting evidence,
 not permission to tick installed or native-editing requirements.
 
-- [ ] Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.
+- [x] Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.
 - [ ] Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.
 - [ ] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
 - [ ] Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.
 - [ ] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
 - [ ] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
 
-The Pages import row remains open for the live desktop chooser, verified job
-completion and publication on its original mount. The retained ec7 import has
-since passed observer-only public completion, warm mounted visibility and Apple
-Pages open of its exact allocated document; see the
-[retained observation](benchmarks/icloud-native-import-watch-2026-10-01.md).
-Its original false-failure job and missed original post-success mount endpoint
-remain historical failures. The later fresh f2dec CLI arm passed import,
-independent semantic readback and mounted access before native Trash, as recorded
-in [the public Trash arm](benchmarks/icloud-public-native-trash-2026-10-01.md).
-That separate arm does not establish live desktop import or Apple Pages open of
-the f2dec document. No acceptance box is closed by combining those observations.
+The Pages import row is closed by two fresh, separately complete owned arms:
+[Desktop378](benchmarks/icloud-pages-live-desktop-import-owned-focus-2026-10-06.json)
+and [CLIab963](benchmarks/icloud-pages-fresh-cli-import-2026-10-06.json). Each
+verified its own public completion, publication and capture on its original warm
+mount, independent semantic readback and Apple Pages open of the exact newly
+allocated document. The Desktop controller's proof-mode reporting failure is
+retained alongside its offline control and stopped audit; its original exit one
+is not rewritten. The CLI controller and observer both exited zero.
+
+Older ec7 and f2dec observations remain partial: ec7 missed its original
+post-success mount endpoint; f2dec lacks an Apple Pages open and records mounted
+access after restart. Those historical results are retained in the
+[import watch](benchmarks/icloud-native-import-watch-2026-10-01.md) and
+[public Trash arm](benchmarks/icloud-public-native-trash-2026-10-01.md). They were
+not combined to close this criterion. This closure does not establish native
+editing, arbitrary-format fidelity, installed delivery or provider reliability.
 
 Supporting evidence and remaining limits are in
 [the write integration boundary](icloud-write-integration.md),

@@ -1,0 +1,126 @@
+{
+  "actual_outcome": {
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "focus-own-chooser-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once"
+    ],
+    "closure_errors": [],
+    "cloud_called": false,
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-e6c5a25d-bad6-43e0-9139-e864abfdf436/result.json",
+      "sha256": "16c0d4d0f4f7f8502b1f8c80bd04f61aa768c4dfee51731a4f001672378204aa",
+      "size": 4213
+    },
+    "desktop_reaped_and_absent": true,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_owned_focus_v30.py",
+          "function": "main",
+          "line": 1298
+        },
+        {
+          "file": "chooser_owned_focus_v30.py",
+          "function": "run",
+          "line": 981
+        },
+        {
+          "file": "chooser_owned_focus_v30.py",
+          "function": "poll",
+          "line": 307
+        },
+        {
+          "file": "chooser_owned_focus_v30.py",
+          "function": "fresh_confirmation",
+          "line": 963
+        },
+        {
+          "file": "chooser_owned_focus_v30.py",
+          "function": "walk",
+          "line": 281
+        },
+        {
+          "file": "chooser_owned_focus_v30.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "gate485_complete": false,
+    "import_rpc_count": 0,
+    "inputs_unchanged": true,
+    "local_chooser_confirmation_cancel": false,
+    "location-before-open": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-e6c5a25d-bad6-43e0-9139-e864abfdf436/chooser/location-before-open.json",
+      "sha256": "ac5c5485f65d784107c11ee96efe8cc0acd56cc3c0abfa7d0ccc38cfe400f8d9",
+      "size": 166
+    },
+    "original_tool_session": 83151,
+    "outer_original_children_reaped": true,
+    "owned-chooser-focus-once": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-e6c5a25d-bad6-43e0-9139-e864abfdf436/chooser/owned-chooser-focus-once.json",
+      "sha256": "d4adff529835e9daeeee110db48f3c8b3edaa3feb3b8041136ba53e258fb5a8d",
+      "size": 324
+    },
+    "post-open-observation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-e6c5a25d-bad6-43e0-9139-e864abfdf436/chooser/post-open-observation.json",
+      "sha256": "624f44b99b545f8994fb0e2612b9ebf7aee0bb660c6ce07b78fa77501197a587",
+      "size": 286
+    },
+    "private_sockets_absent": true,
+    "root_result": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1436518,
+      "controller_proc_absent": true,
+      "duration_seconds": 3.2749460880295373,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "e6c5a25d-bad6-43e0-9139-e864abfdf436",
+      "signals": []
+    },
+    "three_confirmation_field_readbacks_verified": false,
+    "ui_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-e6c5a25d-bad6-43e0-9139-e864abfdf436/chooser/result.json",
+      "sha256": "4d33a3a6f0cc2d1a7d87caffe3d8c7b62f9bda44ca4b8478354148a5ed437f0b",
+      "size": 5318
+    },
+    "utility_children_reaped": 27,
+    "walk-child-count-before-refusal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-e6c5a25d-bad6-43e0-9139-e864abfdf436/chooser/walk-child-count-before-refusal.json",
+      "sha256": "4923317d19c4ca7af75c7df285a727c45283ff2c1257ec6f11421a243db2237b",
+      "size": 467
+    }
+  },
+  "automatic_retry": false,
+  "baseline": "ActualV29 exactpath/FOCUSED/Open then read-only cache observation threw GLib.Error during traversal. Error detail/cause was not retained. V28 no-refresh observation ended at the active guard with unproved cause. Both closed with zero imports/provider calls.",
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "installed_actions": false,
+  "limits": "Only GLib.Error from read-only fresh confirmation observation is caught. Child liveness/birth/executable/deadline remain mandatory. One trial does not prove general accessibility or provider reliability.",
+  "open_action_limit": 1,
+  "owned_chooser_focus_limit": 1,
+  "prediction": "Fresh owned-cache observation may see a removed chooser node; GLib observation errors will wait within the original deadline and revalidate the child. The confirmation and all three fields will pass once, followed by Cancel. No action retries or provider calls.",
+  "question": "Can bounded read-only observation of the owned chooser-to-confirmation transition tolerate removed accessibility nodes while keeping action limits unchanged?",
+  "run": "e6c5a25d-bad6-43e0-9139-e864abfdf436",
+  "scope": "local-public-pages-isolated-chooser-fields-cancel-only",
+  "status": "actual-local-partial-refused",
+  "utility_limit": 43,
+  "version": 1,
+  "window_seconds": 180
+}

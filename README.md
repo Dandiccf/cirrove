@@ -66,8 +66,11 @@ filesystem operations have their own limits.
 A further bounded Numbers trial recovered a lost final replacement confirmation
 through inspection of the same operation, with no repeated cloud write, and
 independently verified the new document and the original in Trash. See the
-[iCloud validation record](docs/icloud-write-integration.md). Public Desktop iWork
-import, broader native editing, session recovery and installed upgrades remain open.
+[iCloud validation record](docs/icloud-write-integration.md). A fresh Pages Desktop
+import now also passed public completion, original-mount access, independent
+content verification and Apple Pages open. A separate fresh CLI import passed
+the same complete sequence, closing the bounded Pages import criterion. Broader
+native editing, session recovery and installed upgrades remain open.
 A [fresh LibreOffice Calc trial](docs/benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json)
 now completed two actual XLSX saves through an isolated iCloud mount.
 Independent iCloud reads matched both versions byte for byte, and a fresh
@@ -75,7 +78,7 @@ read-only remount returned the second version exactly. This follows corrections
 to atomic-save ordering and publication of the confirmed replacement identities.
 A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
 also verified the exact original bytes in iCloud Trash.
-Native iWork editing and all six full-integration acceptance areas remain open.
+Native iWork editing and five full-integration acceptance areas remain open.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -285,8 +288,18 @@ The public Desktop Pages import interface now passes a separate
 selecting a real archive, checking its confirmation and cancelling without
 submitting an import. A [subsequent local test](docs/benchmarks/icloud-pages-local-chooser-focus-fields-2026-10-06.json)
 also passed exact entry and readback of all three import confirmation fields.
-Actual cloud submission through that interface and its
-independent completion checks remain open.
+A [fresh Desktop import](docs/benchmarks/icloud-pages-live-desktop-import-owned-focus-2026-10-06.json)
+has now submitted one owned Pages document, completed its public job and made
+the document readable on the original mount. An independent iCloud reader
+verified its content tree, and [Apple Pages opened that exact new document](docs/benchmarks/icloud-pages-desktop-apple-open-2026-10-06.json)
+with the expected test text. The controller subsequently refused to read the
+successful observer's evidence because of a file-mode mismatch; the retained
+result and separate offline audit are recorded without repeating the import.
+A [separate fresh CLI arm](docs/benchmarks/icloud-pages-fresh-cli-import-2026-10-06.json)
+then passed public completion, original-mount capture, independent content
+verification and Apple Pages open of its own new document. These two complete
+arms close the public Pages import criterion. Native editing and full release
+acceptance remain open.
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical

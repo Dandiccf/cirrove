@@ -2845,3 +2845,76 @@ unchanged inputs and complete original-handle/socket closure. This verifies the
 local field route, not the cause of the earlier focus refusal or a cloud import.
 The next owned live arm must carry these validated controls through actual
 submission, public completion, original-mount publication and independent reads.
+
+The [subsequent real-account focus observation](benchmarks/icloud-pages-live-desktop-import-focus-fields-2026-10-06.json)
+retained all five active-window samples: another PID and address stayed active
+while the owned chooser remained mapped. It refused before Ctrl+l or submission,
+with one confirmed test folder and no uploads. All seven original children,
+the controller and 25 utilities were reaped; mounts and private sockets closed.
+The Root result writer also completed its corrected immutable identity check.
+
+A [fresh local successor](benchmarks/icloud-pages-local-chooser-defunct-transition-2026-10-06.json)
+then passed all 14 actions in 4.680 seconds: one focus action for the exact
+revalidated owned chooser, strict active-window checks, selection, three field
+setter/readbacks and Cancel. Fresh owned accessibility-cache observations handle
+chooser removal without repeating an action. A descendant returning child
+count -1 is skipped only after rechecking its own PID, DEFUNCT state and absence
+of SHOWING; the existing root, foreign-node and tree bounds remain enforced.
+There were zero import requests or provider calls, with unchanged inputs and
+complete original-handle/socket closure.
+
+The [focus-only local arm](benchmarks/icloud-pages-local-chooser-owned-focus-2026-10-06.json),
+[cache observation arm](benchmarks/icloud-pages-local-chooser-owned-cache-2026-10-06.json)
+and [transition observation arm](benchmarks/icloud-pages-local-chooser-transition-2026-10-06.json)
+remain recorded separately as failed prerequisites. The first refused a joint
+time/liveness guard whose operands were not retained; its specific cause is
+unproved. The second encountered an accessibility error during traversal.
+The third retained the exact removed owned-node state before its count guard
+refused. The successful local successor proves this bounded route, not general
+Desktop reliability or an iCloud import. All six release criteria remain open.
+
+The [fresh actual Desktop arm](benchmarks/icloud-pages-live-desktop-import-owned-focus-2026-10-06.json)
+then submitted exactly one owned Pages import through the normal public UI.
+Its public job succeeded, and the original warm mount yielded a 55,695-byte
+canonical archive before shutdown. An independent provider reader returned zero
+and matched the source semantic V2 tree: ten entries, seven files and 98,835
+expanded bytes. The separately fetched archive differs in raw ZIP bytes, so
+this is a content-tree comparison. [Apple Pages opened the exact newly allocated
+document](benchmarks/icloud-pages-desktop-apple-open-2026-10-06.json) and showed
+the expected text, without typing, saving or exporting.
+
+The historical controller still exited one: its proof reader required mode
+0400 while the successful observer writes private evidence at mode 0600.
+An offline control reproduced the refusal and accepted those same unchanged
+files with the documented mode. A stopped audit verified all 20 bound proof
+clauses, exact journal receipt/publication and complete process/mount/socket
+closure; all 537 checked sources and 19 installed files remained unchanged.
+The read-only audit preserved journal bytes but changed SHM timestamps; full
+stat equality is not claimed. No import was replayed and no historical result
+was rewritten. This completes the bounded Desktop import branch. The first
+release row still needs one fresh CLI arm with all endpoints for the same
+document, including original-mount access and Apple Pages open. Native editing
+and the other full-iCloud criteria remain open.
+
+A [fresh public CLI arm](benchmarks/icloud-pages-fresh-cli-import-2026-10-06.json)
+then completed its own entire import sequence in 138.802 seconds: the normal
+account-bound CLI's initial job, durable operation and completion identifiers
+matched the sole succeeded public job and exact uploaded journal receipt.
+Before shutting down the original daemon, the original warm mount yielded a
+55,695-byte canonical archive. The independent reader matched the source V2
+content tree and exact new identity/revision. Its concrete `pages_desktop` fixture
+discriminator binds source/root/label names; CLI provenance is recorded explicitly
+and no Desktop submission is claimed for this arm. The producer's three private
+JSON outputs are checked at their documented 0600 mode; other evidence remains
+0400. The CLI, daemon, observer and Root controller exited zero and were reaped.
+
+[Apple Pages opened that same CLI-created document](benchmarks/icloud-pages-cli-apple-open-2026-10-06.json)
+with the expected source text, after the listing data ID and editor document UUID
+were matched to the independent receipt. No typing, saving or export occurred.
+The stopped audit passed 26 explicit checks, including all 537 source pins,
+19 installed files and mount/socket closure. Journal bytes stayed unchanged;
+SHM timestamps changed. Together with Desktop378, this closes the first full-iCloud
+criterion using two separately complete fresh arms. The other five criteria
+and installed schema-transition HOLD remain open. Next is the explicit admission
+contract for genuine flat Numbers exports, which the current wrapped-package
+input cannot express; no synthetic success or archive repack closes that gap.

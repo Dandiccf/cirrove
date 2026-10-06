@@ -1,0 +1,139 @@
+{
+  "actual_outcome": {
+    "actual_ui_submit_completed": false,
+    "audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-desktop-assets-preparation-private-c334-v1/audit-admission-72-terminal-partial-v1.json",
+      "sha256": "116118c9417f0a4613029e26a561812c2638b2514252c95d60a9820a0b9a7ab4",
+      "size": 39676
+    },
+    "checked_inputs_unchanged": 537,
+    "cloud_readback": false,
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-72d6d195-3873-4844-9c0c-e214349d36f2-private-v1/result.json",
+      "sha256": "cc9ed3c1f43c4255d75dd4f771aa7aafbe8363d09f70302d192bf3a372777d21",
+      "size": 6115
+    },
+    "diagnosis": "All five actual active-window observations had another PID and another address. The registered chooser remained mapped in the background. No focus action or Ctrl+l was sent. This establishes the active-window mismatch in this arm, without attributing who caused it.",
+    "focus_observations": [
+      {
+        "active_address": "0x5b33cfc3da80",
+        "active_pid": 9315,
+        "candidate_address": "0x5b33cff1ba30",
+        "candidate_pid": 1428092,
+        "ordinal": 1
+      },
+      {
+        "active_address": "0x5b33cfc3da80",
+        "active_pid": 9315,
+        "candidate_address": "0x5b33cff1ba30",
+        "candidate_pid": 1428092,
+        "ordinal": 2
+      },
+      {
+        "active_address": "0x5b33cfc3da80",
+        "active_pid": 9315,
+        "candidate_address": "0x5b33cff1ba30",
+        "candidate_pid": 1428092,
+        "ordinal": 3
+      },
+      {
+        "active_address": "0x5b33cfc3da80",
+        "active_pid": 9315,
+        "candidate_address": "0x5b33cff1ba30",
+        "candidate_pid": 1428092,
+        "ordinal": 4
+      },
+      {
+        "active_address": "0x5b33cfc3da80",
+        "active_pid": 9315,
+        "candidate_address": "0x5b33cff1ba30",
+        "candidate_pid": 1428092,
+        "ordinal": 5
+      }
+    ],
+    "imports": 0,
+    "installed_artifacts_unchanged": 19,
+    "limits": "Closed partial arm; no replay. All six release rows remain open. A fresh local exact-owned focus control is required before another cloud arm.",
+    "mount_and_sockets_absent": true,
+    "one_owned_folder_applied": true,
+    "original_children_reaped_and_absent": 7,
+    "original_tool_exit_code": 1,
+    "original_tool_session": 52521,
+    "root_emit_identity_stamp_completed_without_exception": true,
+    "root_result": {
+      "automatic_retry": false,
+      "duration_seconds": 44.31806640396826,
+      "errors": [],
+      "exit_code": 1,
+      "full_integration_accepted": false,
+      "installed_actions": false,
+      "original_controller_reaped": true,
+      "run": "72d6d195-3873-4844-9c0c-e214349d36f2",
+      "signals": [],
+      "success": false
+    },
+    "ui_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-72d6d195-3873-4844-9c0c-e214349d36f2-private-v1/ui/result.json",
+      "sha256": "f0922b7a06104acdc27da69d010f238151bab26aa01917d62fc45b9b23634528",
+      "size": 1111
+    },
+    "uploads": 0,
+    "utility_children_reaped_and_absent": 25
+  },
+  "arms": [
+    {
+      "folder_creation_limit": 1,
+      "name": "fresh-owned-public-desktop-pages-import",
+      "public_import_submission_limit": 1,
+      "source_archive_bytes": 55715,
+      "source_archive_sha256": "96e2dcc2446452229377a55052c107e02b52ee098e48b6bb4cdc826f0289bc6e",
+      "source_semantic": {
+        "entries": 10,
+        "expanded_bytes": 98835,
+        "files": 7,
+        "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
+        "version": 2
+      }
+    }
+  ],
+  "authorization": "Standing user authorization for iCloud writes and tests; this arm remains limited to one fresh owned folder and one public Desktop import.",
+  "automatic_retry": false,
+  "checkout_head_before_preregistration": "891f03b8082b12a4bd5d2efda5b1ea2df7e2f40c",
+  "cleanup_reserve_seconds": 45,
+  "cloud_allowed": true,
+  "endpoint": "Actual public UI admission and successful job bound to the exact journal operation; canonical archive captured on the original warm mount; stopped journal receipt authority and independent iCloud version-2 semantic read; complete closure of original child handles, mount and private sockets.",
+  "installed_actions": false,
+  "limits": [
+    "No reopening or replaying earlier writer state, journals or uncertain mutations; reuse only the pinned owned source archive bytes and same-account sealed session ciphertext.",
+    "No CLI submission substituted for the Desktop import. Independent observer calls are read-only.",
+    "Apple Pages open of the exact newly allocated document remains separate evidence unless actually observed.",
+    "A single owned import does not establish broader Pages editing, Numbers/Keynote fidelity, installed transitions or general provider reliability.",
+    "All six full-iCloud release acceptance areas remain open until their complete scopes are verified."
+  ],
+  "original_window_seconds": 600,
+  "prediction": "The corrected accessibility bridge and bounded read-only focus observations will allow a single public Desktop submission. Its job will bind to the exact journal operation; original warm-mount capture and independent iCloud read will match the source semantic V2 tree. Any uncertain result stops without repeating a mutation.",
+  "prerequisite": {
+    "actual_health_passed": true,
+    "local_focus_and_three_fields": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-local-chooser-focus-fields-2026-10-06.json",
+      "sha256": "f646ba67476bd919cec3269675c221de4ea9176cfbd36e0542c06fbd7587538c",
+      "size": 5186
+    },
+    "local_health": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-desktop-health-prefix-2026-10-06.json",
+      "sha256": "c73f21fe35d18583f1515327316986778b9fcbe2b612b9f5bcab822eb86a7a78",
+      "size": 4079
+    },
+    "original_11f_cloud_arm_closed_not_replayed": true,
+    "original_c334_cloud_arm_closed_not_replayed": true
+  },
+  "question": "Can the locally validated bounded focus observations and all three title-labelled confirmation fields complete one actual public Pages import and exact mounted/independent semantic readback?",
+  "root_result_pin_policy": "Exact immutable identity/content stamps exclude access time; initial/final/path checks retain device, inode, mode, uid, link count, size, mtime and ctime.",
+  "run": "72d6d195-3873-4844-9c0c-e214349d36f2",
+  "runtime_build_head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "runtime_source_count": 480,
+  "source_binding_requirement": "All registered runtime sources and checked code/script/policy inputs must match the frozen build and completed full check. Documentation-only checkout differences are recorded separately from the actual build head.",
+  "status": "actual-live-chooser-remained-background-refused-before-submission",
+  "temporary_filesystem_requirement": "TMPDIR and SQLITE_TMPDIR on ext4, recorded and checked before launch; no tmpfs staging.",
+  "version": 1
+}
