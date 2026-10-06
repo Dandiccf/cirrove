@@ -2683,8 +2683,9 @@ The exact preregistration bytes were preserved and matched to the actual launch
 manifest before outcomes were appended.
 
 This is one bounded ordinary XLSX arm. Visible-window UNO checks record no human
-GUI witness. Independent original Trash raw bytes and restoration remain
-unverified; native iWork editing, public Desktop import, all six full-iCloud
+GUI witness. That writer arm did not independently read the original in Trash;
+the following observer now confirms its bytes. Restoration remains unverified;
+native iWork editing, public Desktop import, all six full-iCloud
 gates and the schema20/metadata8 installed-migration hold remain open.
 
 The [unchanged-bound desktop diagnostic](benchmarks/icloud-pages-accessibility-walk-diagnostic-2026-10-06.json)
@@ -2695,3 +2696,29 @@ completed that walk but refused ambiguous name-only account selection. No UI
 action or import request occurred; all original owned processes were reaped and
 sockets closed. A fresh selector will require an owned, visible expandable row
 and preserve ambiguity refusal. Public Desktop import remains unverified.
+
+### Independent original Calc Trash read on 6 October 2026
+
+A [new saved-session read-only observer](benchmarks/icloud-calc-trash-original-2026-10-06.json)
+bound the completed target replacement to the exact original A, independently
+of the distinct empty temporary-file shadow. The fresh reader confirmed its
+receipt-bound Trash identity and revision, streamed all 5,281 original bytes,
+and matched SHA-256
+`3645854724d003f2a18ce55f2fc6f1b5a9e761598f5e9d8d93ee23b1c77b1dba`.
+This was one read, with no restore, mutation, old writer reopen or retry.
+
+The CLI exited 0 and its original handle was reaped. The test controller retained
+an overall success result, then caught its own `SystemExit(0)` and reported exit 1.
+That instrumentation false-failure remains in the artifact. Offline controls
+using the actual old and corrected main code reproduce exit 1 versus exit 0,
+with one stubbed run each and no provider calls; an initial missing-stderr harness
+setup failure is retained separately. The future full controller was not rerun.
+
+An independent stopped audit confirmed the proof/fixture/target receipt bindings,
+original child and controller reaps, absent processes/mount/socket, all 480 runtime
+and 537 checked source pins, and the unchanged installed daemon and 19 packaged
+files. The registered 90-second window and 20-second cleanup reserve completed in
+3.644 seconds. README and result documentation were updated after the full check;
+no source/script/policy change followed it. This proves original raw bytes for
+this owned XLSX arm, not restoration, native application fidelity, a complete
+Trash inventory, installed migration or any full-iCloud gate closure.

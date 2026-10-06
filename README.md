@@ -68,30 +68,14 @@ through inspection of the same operation, with no repeated cloud write, and
 independently verified the new document and the original in Trash. See the
 [iCloud validation record](docs/icloud-write-integration.md). Public Desktop iWork
 import, broader native editing, session recovery and installed upgrades remain open.
-A fresh Linux Calc trial completed the first save, all uploads and temporary-file
-and lock-file removal. Independent iCloud DATA readback matched the saved XLSX
-byte for byte. Calc then saved and reopened a second version locally, but its
-cloud confirmation remained unresolved during atomic replacement.
-Guarded corrections now pass synthetic same-directory and cross-directory
-replacement sequences, restart recovery and preservation of newer working bytes.
-The subsequent delayed-Create trial again verified the first save, but exposed
-an additional ordering case: the editor can prepare replacement before iCloud acknowledges its
-temporary file. That case now passes tests that first failed on the original code,
-with identity and receipt refusal controls. A subsequent [owned Calc trial](docs/benchmarks/icloud-calc-after-completed-cleanup-2026-10-06.json)
-independently verified both saved XLSX versions and completed every journal entry,
-including temporary-file cleanup. Its read-only remount stopped at an attribute
-check; the retained index still contained the old and new identities under the
-same name. A durable publication queue now passes the reproduced stale-identity
-regression and synthetic successor/read-only restart checks, including startup
-with a writable grant but an effectively read-only connection. A
-[fresh publication-corrected trial](docs/benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json)
-now passed both saves and independent DATA readbacks, completed all 15 journal
-entries, and captured the exact second XLSX through a distinct normal read-only
-remount. The cache held the original at its receipt-bound Trash identity and only
-the new version at the original name. All owned children were reaped and the
-installed daemon remained unchanged. This Calc arm has no independent original
-Trash-byte proof. Native iWork editing and the six full-integration gates remain
-unverified.
+A [fresh LibreOffice Calc trial](docs/benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json)
+now completed two actual XLSX saves through an isolated iCloud mount.
+Independent iCloud reads matched both versions byte for byte, and a fresh
+read-only remount returned the second version exactly. This follows corrections
+to atomic-save ordering and publication of the confirmed replacement identities.
+A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
+also verified the exact original bytes in iCloud Trash.
+Native iWork editing and all six full-integration acceptance areas remain open.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -279,36 +263,28 @@ editor save fidelity remain unproved by that importer.
 The [browser trial record](docs/benchmarks/icloud-numbers-browser-editor-confirmation-completion-2026-10-05.json)
 keeps that export gap explicit.
 
-A [local Calc trial](docs/benchmarks/icloud-calc-editor-2026-10-05.json)
-now confirms actual XLSX creation, one editor save and reopening with the SUM
-formula preserved. A [subsequent mounted trial](docs/benchmarks/icloud-calc-mounted-editor-2026-10-05.json)
-also saved and reopened its first XLSX through an isolated iCloud mount with
-7/3/SUM=10 intact. It stopped before independent cloud confirmation and never
-performed the second editor save. The local data remains retained; the initiating
-refusal is not yet explained, because stopping the service also marks unfinished
-uploads as unconfirmed. This is partial application evidence, not a confirmed
-cloud-save or remount result.
-The [fresh read-only observation](docs/benchmarks/icloud-calc-retained-read-2026-10-05.json)
-subsequently reached a ready account and verified the owned test folder, but its
-bounded listing did not include the final XLSX. The original pending edits remain
-preserved; the cloud save is still unconfirmed.
-Fresh [diagnostic trials](docs/benchmarks/icloud-calc-mounted-editor-diagnostic-2026-10-05.json)
-retained an upload/Remove lineage that reproduced a local journal refusal in a
-synthetic worker test after unlink of a temporary file. The corrected dependency check passed a regression
-that first failed on the original code, restart and retained-byte checks, and
-hostile identity controls. A new actual cloud save is still required; these
-synthetic results do not confirm the retained trials' cloud outcomes.
-The separate local Calc trial also exposed a native Numbers import limit: LibreOffice Calc opened
-the captured Numbers file with correct values, but imported its SUM result as
-a number rather than a formula. Native Numbers editing in Calc is therefore
-not a validated formula-preserving workflow; see the
+A [fresh mounted Calc trial](docs/benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json)
+now confirms two actual XLSX editor saves and local reopening with the SUM
+formula preserved: 7/3/SUM=10, then 11/3/SUM=14. Independent iCloud DATA reads
+matched each saved version, and a normal read-only remount returned the exact
+second version. A separate [read-only Trash observation](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
+verified the exact original bytes. All uploads and temporary-file cleanup
+completed. The
+[earlier partial mounted trials](docs/benchmarks/icloud-calc-mounted-editor-diagnostic-2026-10-05.json)
+remain retained; their uncertain saves were not replayed to obtain this result.
+
+The [separate local import trial](docs/benchmarks/icloud-calc-editor-2026-10-05.json)
+also exposed a native Numbers limit: LibreOffice Calc opened the captured Numbers
+file with correct values, but imported its SUM result as a number rather than a
+formula. Native Numbers editing in Calc is therefore not a validated
+formula-preserving workflow; see the
 [format limits](docs/compatibility.md#icloud-development-and-linux-editor-formats).
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic
-saves from real editors, broader Pages/Numbers/Keynote editing/reopen fidelity,
-DATA format coverage beyond this Numbers fixture, session retention
+editor workflows beyond the bounded Calc trial, broader Pages/Numbers/Keynote
+editing/reopen fidelity, DATA coverage beyond these owned fixtures, session retention
 and renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;
 [its deployment policy](docs/development.md#ordinary-metadata-publication-journal-schema20-held-prerelease-policy)
