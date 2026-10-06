@@ -1,0 +1,67 @@
+{
+  "TMPDIR_filesystem": "ext4",
+  "arms": [
+    "one fresh isolated health-only arm"
+  ],
+  "automatic_retry": false,
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller_sha256": "ba3b0ccb62648fe92adc6957fbd8560473c64c005593376c339370da5535e114",
+  "endpoint": "exact registry owner and empty Atspi desktop; four original handles reaped; all pinned inputs unchanged",
+  "evidence": {
+    "dispatch_sha256": "4969b6295d14a9917e4034845f06308a6e14eef198f0477672909dcd227534fe",
+    "frozen_prereg_sha256": "a3ab3312846a3a211746b7000e6a64db3356fd168ec5d8c937af178350d4fab3",
+    "launch_result_sha256": "00b697176de227160998fa5dee1922a698b003d40a5eabf63acfc2ed8a300d4d",
+    "result_sha256": "46dd6f8bdc435b18b909e028ba94c09668184f6ac617371afd283c0f2479afb8"
+  },
+  "full_icloud_gate_closed": false,
+  "health_child_sha256": "7761c906b06785079cd439def1a61946743d3529efe11ad393564487ee0ad2a4",
+  "installed_actions": false,
+  "outcome": {
+    "all_recorded_process_ids_absent": true,
+    "automatic_retry": false,
+    "controller_original_handle_reaped": true,
+    "desktop_launched": false,
+    "duration_seconds": 0.38116489397361875,
+    "exact_identity_mismatch_proven": false,
+    "failure_boundary": "first session-bus spawn identity assertion before recording owner",
+    "gi_health_child_launched": false,
+    "launch_exit_code": 1,
+    "registry_launched": false,
+    "result": {
+      "automatic_retry": false,
+      "children": [
+        {
+          "name": "s-bus",
+          "original_handle_reaped": true,
+          "owner": null,
+          "pid": 987154,
+          "returncode": -15
+        }
+      ],
+      "cloud_allowed": false,
+      "errors": [
+        "RuntimeError"
+      ],
+      "gate485_complete": false,
+      "health": false,
+      "health_only": true,
+      "inputs_unchanged": true,
+      "local_public_chooser_complete": false,
+      "overall_success": false,
+      "owned_bus_sockets_absent": true,
+      "provider_verified": false,
+      "run": "57dfd85f-390f-4e17-a72e-8005ba821f81"
+    }
+  },
+  "prediction": "Explicit private AT_SPI_BUS_ADDRESS connects to exact owned registry PID; GI child reports healthy empty desktop, all four original children reaped, private sockets gone; failures retained without retry.",
+  "public_chooser_tested": false,
+  "question": "Can an owned foreground session bus/accessibility bus/registry and disposable GI child provide a healthy empty Atspi desktop, without consulting or repairing the host accessibility bus?",
+  "registered_at": "2026-10-06T00:06:15.428699+00:00",
+  "run": "57dfd85f-390f-4e17-a72e-8005ba821f81",
+  "source_count": 477,
+  "source_head": "3179522bd1a0323bd6937222ae989f0e03fcc957",
+  "status": "refused-before-health-child",
+  "version": 1,
+  "window_seconds": 180
+}

@@ -1,0 +1,104 @@
+{
+  "arms": [
+    {
+      "endpoint": "A real Calc storeAs once, local close/reopen semantic proof, full journal completion and independent DATA bytes; only then B real Calc store once, local close/reopen, full journal completion and independent DATA bytes, followed by read-only remount and byte/semantic verification",
+      "name": "fresh-corrected-calc-two-save"
+    }
+  ],
+  "execution_policy": {
+    "SQLITE_TMPDIR_filesystem": "ext4",
+    "TMPDIR_filesystem": "ext4",
+    "cleanup_reserve_seconds": 45,
+    "explicit_user_authorization": "Standing user authorization for iCloud writes and tests",
+    "installed_actions": false,
+    "one_runtime_lane_no_compilation": true,
+    "one_trial_no_automatic_retry": true,
+    "original_wall_monotonic_boot_window": true,
+    "preserve_all_original_child_handles_and_evidence": true,
+    "stop_on_uncertain_result": true,
+    "window_seconds": 600
+  },
+  "follow_up_source_boundary": {
+    "confirmed_temporary_cleanup_leaf_missing_from_metadata": true,
+    "controlled_regression_required_before_fix": true,
+    "exact_cleanup_owned_current_receipt_matches_completed_source_receipt": true,
+    "historical_exception_reconstructed": false,
+    "strict_parent_chain_fallback_currently_excludes_atomic_cleanup": true
+  },
+  "inputs": {
+    "controller_sha256": "890c7383b89b8ae7c833d63b5d9bcb235563b6b5ec039739b89859a51246161c",
+    "full_check_duration_seconds": 623.1020464269677,
+    "full_check_exit_code": 0,
+    "local_source_regression": "icloud-atomic-source-delayed-create-2026-10-06.json",
+    "production_source_sha256": "a9a5f9a8128db8ef90742472c3ce2d611db0c6c633b2898a7d1dfc75923a132f",
+    "runtime_binding_sha256": "bd9133e7a9c392a2edb58fdf48487d8f9887752cf1e74bb6fb7cb65e7d6247cb",
+    "source_count": 477,
+    "worker_sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106"
+  },
+  "limits": [
+    "One scoped XLSX trial cannot establish native Pages/Numbers/Keynote editing, long-session reliability, all recovery topologies or installed deployment.",
+    "Retained uncertain prior writers remain untouched; this trial never confirms or repairs their outcomes.",
+    "A completed local save is not cloud acknowledgement; independent content verification is required."
+  ],
+  "outcome": {
+    "all_477_sources_unchanged": true,
+    "all_recorded_processes_absent": true,
+    "automatic_retry": false,
+    "duration_seconds": 555.1879944810062,
+    "failure_boundary": "original active cutoff in wait_complete for B; no retry",
+    "failure_cause_proven": false,
+    "first_save_independent_data_verified": true,
+    "first_save_sha256": "6122575765dc7cc008540da293da5e72c8426768c73da6b9399e48bab2a0507b",
+    "first_save_size": 5280,
+    "full_icloud_gate_closed": false,
+    "historical_provider_or_preparation_exception_proven": false,
+    "installed_unit_pid_birth_and_19_files_unchanged": true,
+    "launch_exit_code": 1,
+    "mount_and_socket_absent": true,
+    "original_children_reaped": 10,
+    "original_controller_reaped": true,
+    "readonly_remount_verified": false,
+    "remaining_cleanup_preparation_failures": 7,
+    "remaining_cleanup_sequence": 14,
+    "remaining_cleanup_state": "pending",
+    "second_save_independent_data_verified": false,
+    "second_save_local_reopened_semantics": {
+      "A2": 11.0,
+      "B2": 3.0,
+      "C2": 14.0,
+      "formula": "=SUM(A2:B2)"
+    },
+    "second_save_sha256": "76262b3f791ff36b93288814b8b0149c9d56a51395390dc12fedf6bb674be87d",
+    "second_save_size": 5611,
+    "source_and_target_transferred_bytes": 5611,
+    "source_and_target_upload_receipts_completed": true
+  },
+  "outcome_evidence": {
+    "closure_sha256": "bfb8ef873b23d5320af1ad03de2a2c1d85841010ccdcbd29f1c68510f68cb6fc",
+    "failure_diagnostic_sha256": "e404b9a4e5290754f02edb1ce4ced3ca48973c8f1bbd3ea548cfb55cd4f15f02",
+    "immutable_prereg_sha256": "26523b21df8730566abd61b121ed67f8e2f16efb398cd23decc35439a27d60e9",
+    "independent_first_data_proof_sha256": "6df64b2ca4f466734495868a58c2875daff10cdf279fc01578695f890fc6181a",
+    "independent_stopped_audit_sha256": "50ab109fab268d80fa1421bec2d81139bfe2d908c36b43b620e44ebaf5f46ba2",
+    "launch_result_sha256": "3fb6f28570dd5bfb6adab1b3515c304bccd9abaae32ee07d20256850e5a09b14",
+    "prepared_static_audit_sha256": "cd2bdf3bbff9935c63ce46632041dbf6c33295c16bb6576819d9ec6f4460add9",
+    "terminal_audit_sha256": "78c6a509062a73fbbb6290143321d64b9a0e5fd62216e55ca60623b8b8b93a2c"
+  },
+  "prediction": "The exact creation-time marker should admit the current sealed source even when atomic takeover preceded acknowledgement of its empty Create. One new Calc storeAs and one store should independently settle and match A then B cloud bytes, followed by fresh read-only remount. Any refusal stops this fresh one-shot arm; no automatic retry.",
+  "question": "Does the corrected sealed atomic-source handoff permit one fresh real Calc XLSX creation and one atomic editor replacement through ordinary iCloud FUSE, with complete journal settlement, independent byte-for-byte cloud readback of each saved version and a fresh read-only remount?",
+  "registered_at": "2026-10-05T23:53:05.197704+00:00",
+  "registered_date": "2026-10-06",
+  "run": "8e60a94e-a23a-42c3-9cd6-9625c9fd2103",
+  "scope": {
+    "full_icloud_gate_closed": false,
+    "installed_delivery": false,
+    "native_iwork_editing": false,
+    "old_mutation_replayed": false,
+    "old_writer_reopened": false,
+    "ordinary_xlsx": true,
+    "owned_new_folder_and_document_only": true
+  },
+  "source_head": "3179522bd1a0323bd6937222ae989f0e03fcc957",
+  "status": "first-save-independently-verified-second-save-timeout-unresolved",
+  "timezone": "Europe/Vienna",
+  "version": 1
+}

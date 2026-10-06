@@ -18,13 +18,13 @@ pub(crate) struct Reservation {
     /// Exact pending atomic takeover which authorized its earlier source save.
     /// Old reservation bodies carry no such authority and deserialize as None.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    atomic_source: Option<Uuid>,
+    pub(super) atomic_source: Option<Uuid>,
 }
 
 /// Local directory IDs are stable across provider confirmation. A nested
 /// file's local parent therefore differs from the exact provider parent;
 /// walk only confirmed folder bindings, never infer an owner from a path.
-fn confirmed_parent_route(
+pub(super) fn confirmed_parent_route(
     db: &Connection,
     scope: &Scope,
     local_parent: Option<&str>,

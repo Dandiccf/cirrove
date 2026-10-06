@@ -2554,3 +2554,31 @@ absence. This does not recreate the missing original handle proof. Its stale
 owned socket and fixture remain retained. No global accessibility repair or
 installed activation was performed. The next isolated accessibility session
 must be verified before another fresh actual public chooser trial.
+
+On the subsequent fresh 8e60 Calc arm at `3179522`, both the sealed source and
+final target uploads reached their durable staged acknowledgements and
+transferred all 5,611 bytes. This verifies the corrected source handoff in that
+owned ordinary-file arm. The run still failed at its original active cutoff:
+only temporary-file cleanup sequence 14 remained pending after seven preparation
+backoffs. Its exact confirmed temporary receipt was absent from the evictable
+metadata index; the existing receipt fallback excludes atomic cleanup. This is
+a concrete source-derived reproduction candidate, not a reconstruction of the
+historical exception. Independent B DATA readback and read-only remount were not
+reached. All ten original children were reaped, the mount/socket disappeared,
+and the installed daemon and 19 packaged files remained unchanged; see the
+[fresh delayed-Create trial](benchmarks/icloud-calc-after-delayed-create-2026-10-06.json).
+
+An isolated accessibility health diagnostic separately passed with its own two
+foreground buses, exact registry PID, empty Atspi desktop and four original child
+reaps. It makes no public chooser or provider acceptance claim, and the earlier
+first-bus identity refusal remains unexplained; see the
+[health diagnostic](benchmarks/icloud-pages-accessibility-birth-diagnostic-2026-10-06.json).
+
+The completed-atomic-cleanup receipt correction now passes the same two
+synthetic endpoints that failed with `Conflict` on unchanged production code.
+Four focused tests pass with 30 journal authority and six metadata refusal arms.
+The strict index-first route and independent provider digest/revision checks
+remain in force; no synthetic result confirms the unresolved real cleanup.
+The initial fixture construction failures are recorded separately and are not
+counted as failure-before-fix evidence; see the
+[cleanup regression](benchmarks/icloud-completed-atomic-cleanup-routing-2026-10-06.json).

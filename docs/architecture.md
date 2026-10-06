@@ -1020,6 +1020,22 @@ Independent remote digest/revision verification still precedes the Trash request
 Retry counters and newer local descriptor bytes do not change the sealed receipt.
 See the [controlled source regression](benchmarks/icloud-receipt-remove-source-2026-10-05.json).
 
+A completed ordinary atomic replacement owns its temporary cleanup separately
+from the visible final file. Its unlinked cleanup reservation therefore has no
+working stream. For an unindexed temporary leaf, the journal can supply only
+that exact full source receipt after the source and target uploads are complete,
+the target's typed staged receipt matches its original victim, and the cleanup
+UUID, owner, queue entries, direct source edge and target barrier all agree.
+The captured source route is checked separately from the destination route.
+A retired visible source does not need a live working stream or latest upload;
+its historical operation mapping and the separately owned current cleanup
+receipt provide the binding. Native shapes and incomplete replacements remain
+excluded. The metadata chain still wins when present, explicit absence still
+refuses, and independent remote digest/revision verification is unchanged.
+The [controlled cleanup regression](benchmarks/icloud-completed-atomic-cleanup-routing-2026-10-06.json)
+covers two failure-before-fix endpoints and 36 hostile arms; it does not prove
+real-provider cleanup acceptance.
+
 The normal-build iCloud file-create adapter's `begin_upload` only returns a
 prepared checkpoint; it sends no Apple request. The shared worker may return
 such a create to Pending after a missing checkpoint only if SQLite never

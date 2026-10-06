@@ -1,0 +1,124 @@
+{
+  "TMPDIR_filesystem": "ext4",
+  "arms": [
+    "one fresh birth diagnostic arm"
+  ],
+  "automatic_retry": false,
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "Three exact birth comparison booleans retained before validation and all original child reaps; successful bus/GI health reported separately if actually reached.",
+  "evidence": {
+    "frozen_prereg_sha256": "f312a44182a39155bb2507f37798703b6a69572c988b29b32c2f462cee202627",
+    "health_sha256": "ed58b3693b191db76fcd68fc5191ed9ff5e580548b4528e74727688ecc26ed46",
+    "launch_result_sha256": "a5700660a957bb2c1a953656bb43d5c30548b08a24780c6157ef421738c8f66b",
+    "result_sha256": "9ae7cc0415ab617132d21d727bcdbec6c44a2f1b218df136c39c05e9e10cac52"
+  },
+  "full_icloud_gate_closed": false,
+  "installed_actions": false,
+  "outcome": {
+    "all_current_birth_predicates_match": true,
+    "all_four_original_children_reaped": true,
+    "all_recorded_processes_absent": true,
+    "desktop_launched": false,
+    "full_icloud_gate_closed": false,
+    "original57_exact_failure_cause_proven": false,
+    "public_chooser_complete": false,
+    "result": {
+      "automatic_retry": false,
+      "children": [
+        {
+          "name": "health",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/bin/python3.14",
+              "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-accessibility-private-v1/health_child.py",
+              "--address",
+              "unix:path=/var/tmp/cirrove-pages-a11y-c5c06ab2-a67d-4a08-bf2f-a8babf3ff3a0/a.bus",
+              "--registry-pid",
+              "991688",
+              "--output",
+              "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-a11y-c5c06ab2-a67d-4a08-bf2f-a8babf3ff3a0/health.json",
+              "--deadline-monotonic",
+              "270057.053483712"
+            ],
+            "exe": "/usr/bin/python3.14",
+            "pid": 991689,
+            "ppid": 991683,
+            "startticks": 27002726
+          },
+          "pid": 991689,
+          "returncode": 0
+        },
+        {
+          "name": "registry",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/lib/at-spi2-registryd"
+            ],
+            "exe": "/usr/lib/at-spi2-registryd",
+            "pid": 991688,
+            "ppid": 991683,
+            "startticks": 27002726
+          },
+          "pid": 991688,
+          "returncode": -15
+        },
+        {
+          "name": "a-bus",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/bin/dbus-daemon",
+              "--nofork",
+              "--config-file=/var/tmp/cirrove-pages-a11y-c5c06ab2-a67d-4a08-bf2f-a8babf3ff3a0/a.conf"
+            ],
+            "exe": "/usr/bin/dbus-daemon",
+            "pid": 991687,
+            "ppid": 991683,
+            "startticks": 27002726
+          },
+          "pid": 991687,
+          "returncode": 0
+        },
+        {
+          "name": "s-bus",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/bin/dbus-daemon",
+              "--nofork",
+              "--config-file=/var/tmp/cirrove-pages-a11y-c5c06ab2-a67d-4a08-bf2f-a8babf3ff3a0/s.conf"
+            ],
+            "exe": "/usr/bin/dbus-daemon",
+            "pid": 991686,
+            "ppid": 991683,
+            "startticks": 27002726
+          },
+          "pid": 991686,
+          "returncode": 0
+        }
+      ],
+      "cloud_allowed": false,
+      "errors": [],
+      "gate485_complete": false,
+      "health": true,
+      "health_only": true,
+      "inputs_unchanged": true,
+      "local_public_chooser_complete": false,
+      "overall_success": true,
+      "owned_bus_sockets_absent": true,
+      "provider_verified": false,
+      "run": "c5c06ab2-a67d-4a08-bf2f-a8babf3ff3a0"
+    }
+  },
+  "prediction": "Observed birth receipt distinguishes expected argv, PPID and executable without widening authority. Any refusal stops this fresh diagnostic arm; original child handles must be reaped and no desktop/provider work occurs.",
+  "question": "Which exact argv/parent/executable identity predicate failed before health in closed57? Can a fresh owned session capture birth identity before the unchanged assertion?",
+  "registered_at": "2026-10-06T00:09:59.623119+00:00",
+  "run": "c5c06ab2-a67d-4a08-bf2f-a8babf3ff3a0",
+  "source_head": "3179522bd1a0323bd6937222ae989f0e03fcc957",
+  "status": "fresh-isolated-health-pass-old-mismatch-unresolved",
+  "version": 1,
+  "window_seconds": 180
+}

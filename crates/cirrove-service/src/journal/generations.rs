@@ -380,6 +380,9 @@ impl UploadJournal {
         {
             return Err(JournalError::Stale);
         }
+        if let Some(confirmed) = self.confirmed_atomic_cleanup_base(&remove, &upload, before)? {
+            return Ok(Some(confirmed));
+        }
         let owner = self
             .namespace_for_operation(id)?
             .ok_or(JournalError::Stale)?;
@@ -436,6 +439,225 @@ impl UploadJournal {
                 upload_sequence,
                 sequence,
                 working_id.to_string(),
+            ],
+            |row| row.get(0),
+        )?;
+        if !bound {
+            return Err(JournalError::Stale);
+        }
+        Ok(Some(before.clone()))
+    }
+
+    /// A completed atomic takeover separately owns its old temporary source.
+    /// That cleanup has no working stream: its exact historical source receipt
+    /// and completed target are the authority, even after the visible owner retires.
+    fn confirmed_atomic_cleanup_base(
+        &self,
+        remove: &MutationRecord,
+        source: &UploadRecord,
+        before: &Node,
+    ) -> Result<Option<Node>> {
+        let row: Option<(String, String, String, String, String)> = self
+            .db
+            .query_row(
+                "SELECT id,source,victim,cleanup,body FROM file_replacements WHERE cleanup=?1",
+                [remove.id.to_string()],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let Some((id, source_id, victim_id, cleanup_id, body)) = row else {
+            return Ok(None);
+        };
+        let replacement: ReplacementRecord = serde_json::from_str(&body)?;
+        let roles = [
+            replacement.source,
+            replacement.victim,
+            replacement.cleanup_object,
+        ];
+        if id != replacement.id.to_string()
+            || source_id != replacement.source.to_string()
+            || victim_id != replacement.victim.to_string()
+            || cleanup_id != replacement.cleanup.to_string()
+            || replacement.cleanup != remove.id
+            || replacement.id == source.id
+            || replacement.id == remove.id
+            || source.id == remove.id
+            || roles.iter().collect::<std::collections::HashSet<_>>().len() != roles.len()
+            || !replacement.local_ready
+            || !replacement.remote_applied
+            || replacement.rescued_as.is_some()
+            || remove.working_file.is_some()
+        {
+            return Err(JournalError::Stale);
+        }
+        let (sequence, state, body): (i64, String, String) = self
+            .db
+            .query_row(
+                "SELECT sequence,state,body FROM uploads WHERE id=?1",
+                [replacement.id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?
+            .ok_or(JournalError::Stale)?;
+        let target: UploadRecord = serde_json::from_str(&body)?;
+        let Some((current, backup)) = target.ordinary_handoff_receipt() else {
+            return Err(JournalError::Stale);
+        };
+        let owner = self.namespace_object(replacement.source)?;
+        let victim = self.namespace_object(replacement.victim)?;
+        let cleanup = self.namespace_object(replacement.cleanup_object)?;
+        let original = victim.remote.as_ref().ok_or(JournalError::Stale)?;
+        let UploadIntent::Replace {
+            item,
+            expected_etag,
+        } = &target.intent
+        else {
+            return Err(JournalError::Stale);
+        };
+        let mut expected_cleanup = before.clone();
+        expected_cleanup.id = format!("local-{}", replacement.cleanup_object);
+        if target.id != replacement.id
+            || sequence <= 0
+            || sequence as u64 != target.sequence
+            || state != "uploaded"
+            || target.state != UploadState::Uploaded
+            || target.sequence <= source.sequence
+            || target.sequence >= remove.sequence
+            || target.scope != remove.request.scope
+            || !target.representation.is_file_bytes()
+            || target.intent.validate().is_err()
+            || target.sha256.len() != 64
+            || !target
+                .sha256
+                .bytes()
+                .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+            || target.attempt.is_some()
+            || target.package_completion.is_some()
+            || target.base.as_ref().is_some_and(|base| !base.resolved)
+            || target.transferred_bytes != target.size
+            || target.size != source.size
+            || target.sha256 != source.sha256
+            || target.working_file != source.working_file
+            || current.id == before.id
+            || backup.id == before.id
+            || item != &original.id
+            || Some(expected_etag) != original.etag.as_ref()
+            || backup.id != original.id
+            || backup.size != original.size
+            || original.kind != NodeKind::File
+            || original.package
+            || original.target.is_some()
+            || current.name != victim.node.name
+            || !identity_handoff::confirmed_parent_route(
+                &self.db,
+                &target.scope,
+                victim.node.parent_id.as_deref(),
+                current.parent_id.as_deref(),
+            )?
+            || source.identity_handoff.as_ref().is_some_and(|r| {
+                r.atomic_source
+                    .is_some_and(|target| target != replacement.id)
+            })
+            || target
+                .identity_handoff
+                .as_ref()
+                .is_none_or(|r| r.atomic_source.is_some())
+            || owner.id != replacement.source
+            || victim.id != replacement.victim
+            || cleanup.id != replacement.cleanup_object
+            || owner.scope != target.scope
+            || victim.scope != target.scope
+            || cleanup.scope != target.scope
+            || owner.node.kind != NodeKind::File
+            || owner.node.package
+            || owner.node.target.is_some()
+            || victim.node.kind != NodeKind::File
+            || victim.node.package
+            || victim.node.target.is_some()
+            || owner.native_archive.is_some()
+            || victim.native_archive.is_some()
+            || cleanup.native_archive.is_some()
+            || !victim.unlinked
+            || victim.remote_owned
+            || !cleanup.unlinked
+            || !cleanup.remote_owned
+            || cleanup.follows_remote
+            || cleanup.revision != 1
+            || cleanup.working_file.is_some()
+            || cleanup.latest != Some(remove.id)
+            || cleanup.remote.as_ref() != Some(before)
+            || cleanup.remote_sequence != source.sequence
+            || cleanup.node != expected_cleanup
+            || cleanup.names != owner.names
+        {
+            return Err(JournalError::Stale);
+        }
+        // Preserve the source-before route independently of the destination.
+        // A cross-directory takeover changes the visible owner, not this receipt.
+        let source_original = self.confirmed_upload_base(source.id)?;
+        if let Some(original) = &source_original {
+            if original.kind != NodeKind::File
+                || original.package
+                || original.target.is_some()
+                || original.name != before.name
+                || original.parent_id != before.parent_id
+            {
+                return Err(JournalError::Stale);
+            }
+        } else if !matches!(&source.intent, UploadIntent::Create { parent, name }
+            if before.parent_id.as_ref() == Some(parent) && &before.name == name)
+        {
+            return Err(JournalError::Stale);
+        }
+        let scope = serde_json::to_string(&target.scope)?;
+        let remote_identity = serde_json::to_string(&(&target.scope, &before.id))?;
+        let bound: bool = self.db.query_row(
+            "SELECT
+             EXISTS(SELECT 1 FROM write_queue WHERE id=?1 AND sequence=?4 AND complete=1)
+             AND EXISTS(SELECT 1 FROM write_queue WHERE id=?2 AND sequence=?5 AND complete=1)
+             AND EXISTS(SELECT 1 FROM write_queue WHERE id=?3 AND sequence=?6 AND complete=0)
+             AND EXISTS(SELECT 1 FROM write_successors WHERE predecessor=?1 AND successor=?3)
+             AND EXISTS(SELECT 1 FROM write_prerequisites WHERE operation=?2 AND predecessor=?1)
+             AND EXISTS(SELECT 1 FROM write_prerequisites WHERE operation=?3 AND predecessor=?2)
+             AND EXISTS(SELECT 1 FROM namespace_operations WHERE operation=?1 AND object=?7)
+             AND EXISTS(SELECT 1 FROM namespace_operations WHERE operation=?2 AND object=?7)
+             AND EXISTS(SELECT 1 FROM namespace_operations WHERE operation=?3 AND object=?9)
+             AND (SELECT count(*) FROM namespace_objects
+                  WHERE id IN (?7,?8,?9) AND scope=?10
+                    AND id=json_extract(body,'$.id')
+                    AND working IS json_extract(body,'$.working_file'))=3
+             AND EXISTS(SELECT 1 FROM namespace_remote WHERE identity=?11 AND object=?9)
+             AND NOT EXISTS(SELECT 1 FROM native_working_operations
+                  WHERE operation IN (?1,?2,?3) OR owner IN (?7,?8,?9) OR working IN (?12,?13))
+             AND NOT EXISTS(SELECT 1 FROM native_working_heads
+                  WHERE working IN (?12,?13) OR json_extract(body,'$.owner') IN (?7,?8,?9))
+             AND NOT EXISTS(SELECT 1 FROM native_working_bindings WHERE working IN (?12,?13))
+             AND NOT EXISTS(SELECT 1 FROM native_temporary_streams
+                  WHERE working IN (?12,?13) OR owner IN (?7,?8,?9))
+             AND NOT EXISTS(SELECT 1 FROM native_detached_streams
+                  WHERE working IN (?12,?13) OR owner IN (?7,?8,?9))",
+            params![
+                source.id.to_string(),
+                target.id.to_string(),
+                remove.id.to_string(),
+                source.sequence as i64,
+                target.sequence as i64,
+                remove.sequence as i64,
+                owner.id.to_string(),
+                victim.id.to_string(),
+                cleanup.id.to_string(),
+                scope,
+                remote_identity,
+                source.working_file.map(|id| id.to_string()),
+                target.working_file.map(|id| id.to_string())
             ],
             |row| row.get(0),
         )?;
