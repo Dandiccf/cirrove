@@ -3054,3 +3054,45 @@ translation/policy pins stayed unchanged. Display scenarios were not repeated.
 An earlier full run missed the existing retained-status test's initial deadline;
 the isolated unchanged test and subsequent entire run passed. This deadline
 failure remains recorded without changing the timeout or claiming a proven cause.
+
+
+### Fresh flat Numbers import and Apple open on 6 October 2026
+
+The [separately registered fresh trial](benchmarks/icloud-flat-numbers-wire-fresh-public-cli-import-2026-10-06.json)
+used the unchanged actual Apple flat export through the normal public CLI, with
+`--source-layout flat-numbers` and no source root. One new owned folder and one
+import were dispatched. The public CLI exited zero, its exact job succeeded,
+and journal21 contained the uploaded operation and completed metadata publication.
+The original warm mount and stopped independent provider read both matched the
+source's complete semantic V2: 46 canonical entries, 42 files and 133,153 expanded
+bytes. Index, Metadata, Tables and all three preview images were preserved.
+
+The exact rendered Drive row's item identity matched the completion receipt
+before opening it. Apple Numbers displayed the new document with A2=11, B2=3
+and C2=14; selecting C2 without editing showed `SUM(A2:B2)`. The original
+180-second GUI arm did not retain an individual formula-completion timestamp,
+and its later screenshot file timestamp cannot establish that deadline. Its
+record was preserved. A separately registered 120-second read-only observation
+of the already-open document completed in 9.703 seconds with timestamped formula
+and screenshot evidence, without editing, exporting, reloading or reimporting.
+
+The original controller completed in 106.856 seconds with exit zero; all five
+children exited zero and were reaped. The owned mount, control socket and buses
+were absent. A subsequent read-only journal audit confirmed the same single
+upload and completed publication. All 546 runtime source pins, four binary roles,
+sealed source and immutable inputs remained unchanged. All 19 packaged files,
+unit configuration and installed daemon process identity also stayed unchanged.
+
+This closes no additional release criterion: it establishes one actual flat
+Numbers import and Apple open. Genuine edited B replacement with current-B and
+Trash-A comparison, flat checkpoint-v2 recovery after lost final confirmation,
+and recoverable removal still need their own controlled acceptance arms. The
+historical failed import remains failed. Candidate21/8 installation stays on
+HOLD against the packaged14/7 baseline. Full iCloud acceptance remains open.
+
+The complete `bash scripts/check.sh` passed again before publication in 526.23
+seconds, with all 546 runtime source/translation/policy pins unchanged. It included
+formatting, Clippy, workspace and optional iCloud tests, actual kernel/FUSE groups,
+scripts, translations, ledger and documentation. Display scenarios were not
+repeated. These checks support the bounded result above and leave full acceptance
+open.

@@ -312,7 +312,12 @@ import](docs/benchmarks/icloud-flat-numbers-fresh-public-cli-import-2026-10-06.j
 stopped with a conflict: independent readback found changed internal paths and
 missing preview files. A [subsequent transport correction](docs/benchmarks/icloud-flat-numbers-wire-envelope-2026-10-06.json)
 passes the preservation regression and an offline check with the actual Apple
-export; live upload, Numbers reopening and recovery acceptance remain open.
+export. A [separately registered fresh import](docs/benchmarks/icloud-flat-numbers-wire-fresh-public-cli-import-2026-10-06.json)
+then passed through the normal CLI: original-mount and independent iCloud
+readback preserved all 42 files, including the three previews. Apple Numbers
+opened that exact new document with values 11/3/14 and its `SUM(A2:B2)` formula.
+Edited replacement, Trash verification and restart recovery for this flat source
+format remain open.
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
