@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "run": "3d901c2b-da25-4874-8785-38553e51a628",
+  "status": "closed_genuine_keynote_replacement_passed",
+  "active_measurement": false,
+  "question": "Does one normal public CLI wrapped Keynote replacement publish genuine edited B and preserve original A in Trash with exact receipt identity and full semantic contents?",
+  "arms": [
+    "fresh isolated normal read-write daemon: owned parent, normal import A, stopped independent preflight A, normal replacement B once, stopped independent current B and Trash A proof"
+  ],
+  "prediction": "Normal public jobs succeed and independent full semantic V2 equals registered A before replacement, B as current afterwards and A at the exact original item ID in Trash. Stop on any unclear result without replay.",
+  "endpoint": "One terminal controller receipt with independent current/Trash proofs and all original children, isolated mounts/sockets closed. Strict read-only remount and receipt-ID Apple reopen are separately registered future arms.",
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "same_original_wall_and_monotonic_clock": true,
+  "automatic_retries": 0,
+  "cloud_authorization": "Standing explicit user authorization for own iCloud tests/writes.",
+  "source_head": "69ef4267e6cda7705199545e745c32fbfc7317ea",
+  "genuine_source_pair": "bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+  "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-replacement-3d901c2b-da25-4874-8785-38553e51a628",
+  "temporary_directory": "/home/dandiccf/Storage/cirrove-tmp/keynote-replacement-3d901c2b-da25-4874-8785-38553e51a628",
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-replacement-controller-private-v1/controller_keynote_v3.py",
+    "size": 27635,
+    "sha256": "b4c0e08b87bb16acbd197c7054d57b41b0c547f5a9afce1fce869d92318826af"
+  },
+  "assembler": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-replacement-controller-private-v1/assemble_keynote_v2.py",
+    "size": 9052,
+    "sha256": "c5234c4db1b0d4d3ff3f563bf49a3bdbf0c696577518785581d013fb0b13f7ff"
+  },
+  "no_loss_pause_or_replay_hook": true,
+  "installed_actions": false,
+  "limits": [
+    "One PACKAGE representation trial only; no DATA/atomic/editor/remount/UI/full milestone487 coverage inferred.",
+    "No provider HTTP-count instrument, retained Trash ZIP equality, real reauthentication or installed acceptance claim."
+  ],
+  "full_iCloud_criteria": {
+    "closed": 1,
+    "open": 5
+  },
+  "installed_delivery": "HOLD",
+  "preceding_partial": {
+    "run": "cfd1eb10-87b5-422e-b163-76dde3030ff2",
+    "scope": "Clean stopped startup only, no durable mutation; exact observed refusal unretained. Current-source waiting states now locally validated before this distinct fresh arm."
+  },
+  "original_window": {
+    "version": 1,
+    "run": "3d901c2b-da25-4874-8785-38553e51a628",
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "started_unix": 1791330302.0213327,
+    "deadline_unix": 1791330902.0213327,
+    "started_monotonic": 354929.144411242,
+    "deadline_monotonic": 355529.144411242,
+    "cleanup_reserve_seconds": 45
+  },
+  "registered_definition_sha256": "7ad4073438542388b868f35b13ebaf91d750f7b9c8c213fd104afb61074efba5",
+  "outcome": {
+    "success": true,
+    "elapsed_seconds": 345.2482948770048,
+    "controller_success": true,
+    "failure": null,
+    "cleanup_errors": [],
+    "original_inner_children_closed": 8,
+    "original_outer_finalize_and_controller_closed": 2,
+    "current_b_full_v2": {
+      "entries": 58,
+      "expanded_bytes": 519514,
+      "files": 54,
+      "sha256": "75999acac3e1d8f63d46b9038d32a3fd5ff7a12c5ce6cf3fbc83c0d450f5edd7",
+      "version": 2
+    },
+    "original_a_trash_full_v2": {
+      "entries": 58,
+      "expanded_bytes": 516888,
+      "files": 54,
+      "sha256": "d34710b3d81974676ad6c80311bbc187dd0e27ba3d9012ed6f01a5086eba3452",
+      "version": 2
+    },
+    "exact_original_trash_id_and_revision": true,
+    "mount_absent": true,
+    "socket_absent": true,
+    "automatic_retries": 0,
+    "provider_http_count": "uninstrumented",
+    "RO_remount_verified": false,
+    "Apple_GUI_verified": false,
+    "installed19_and_source566_unchanged": true
+  },
+  "evidence": {
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-replacement-3d901c2b-da25-4874-8785-38553e51a628/controller-result.json",
+      "sha256": "60519b93d7b4abac6a681b801044bba784ac9e2bd00743db52437104d1626927"
+    },
+    "root_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-replacement-3d901c2b-da25-4874-8785-38553e51a628/root-terminal-result.json",
+      "sha256": "3b9d15c7318afea3b2740de2f71c14ab2c015daf150ebe52bc16faa897efad71"
+    }
+  },
+  "independent_provider_proof_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-replacement-3d901c2b-da25-4874-8785-38553e51a628/audit-independent-keynote-provider-proofs-v1.json",
+    "sha256": "e132e7ca79585bb488a2d26d5ce0a99b0ca35a203430dea0e08ee231ce5452f3",
+    "passed": 42,
+    "total": 42
+  },
+  "independent_host_and_lifetime_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-replacement-3d901c2b-da25-4874-8785-38553e51a628/audit-regression-review-keynote-terminal-v2.json",
+    "sha256": "383598a3445703cb874575cb01b769e5de79c52e884f78947424d25b96622cc9",
+    "passed": 73,
+    "total": 73,
+    "source566_and_installed19_unchanged": true,
+    "audit_correction": "Initial reviewer DTO comparison included input-only metadata; corrected exact production Source-field comparison is retained alongside the first audit."
+  }
+}

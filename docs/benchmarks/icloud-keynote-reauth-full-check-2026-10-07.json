@@ -78,7 +78,7 @@
     "No real provider, install, service restart, gate closure or release acceptance."
   ],
   "current_role_build_preregistration": {
-    "status": "registered_not_executed",
+    "status": "registered_before_separately_completed_build_see_outcome",
     "question": "Can normal CLI/daemon and feature-only probe roles be bound to the committed, unchanged 566-source map and this successful full check?",
     "arms": [
       "normal Cargo JSON build of cirrove and cirroved, freeze executable copies",
@@ -90,7 +90,8 @@
       "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/collect_current_roles_v4.py",
       "size": 20653,
       "sha256": "3e88d0b8516ba3c2abd398a9c8513852f83746ccd84f2d197026fd706317cb06"
-    }
+    },
+    "original_public_registration_sha256": "a53b6861cf01d90b0636ee54fd608c9cc97d408c26b1e03306c15bc493cab787"
   },
   "full_iCloud_criteria": {
     "closed": 1,
@@ -102,5 +103,33 @@
     "sha256": "6e373259f2666911a77da577a3394ce3295e1b53d9b853d3e88eb4163365dabb",
     "passed": 21,
     "total": 21
+  },
+  "current_role_build_outcome": {
+    "status": "complete",
+    "source_head": "69ef4267e6cda7705199545e745c32fbfc7317ea",
+    "roles_features": {
+      "cirrove": [],
+      "cirroved": [],
+      "native-trash-probe": [
+        "icloud-write-probe"
+      ]
+    },
+    "normal_copies_frozen_before_feature_build": true,
+    "source_count": 566,
+    "sources_unchanged": true,
+    "binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/roles-after-keynote-reauth-v1/ready-binding-v1.json",
+      "size": 83567,
+      "sha256": "c075cf8de8fca085d30cdbce0b7a8d38f68994233d6fc3e5e9c6c087d1bcbc68"
+    },
+    "independent_audit": {
+      "path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/roles-after-keynote-reauth-v1/audit-regression-review-collector-v4-terminal-v1.json",
+      "sha256": "295a199c6248aa0de947c7af254879705b5d645079ea64e04ec12d5a8c7e843d",
+      "passed": 58,
+      "total": 58
+    },
+    "owner_scope": "Eight registered original collector children closed; collector outer tool session76275 terminal0 observed by Root, no separate outer Popen receipt.",
+    "provider_calls": false,
+    "installed_actions": false
   }
 }

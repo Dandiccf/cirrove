@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "status": "completed_private_controller_local_controls",
+  "active_measurement": false,
+  "question": "Do the private Keynote test controller admission and waiting-state checks refuse mismatched execution authority while accepting the actual daemon startup contract?",
+  "registration_scope": "Private predictions and source pins preceded controlled local execution. Public record after execution.",
+  "scope": "AST-selected actual private source functions with mocked dispatch/lifecycle and ext4 fixtures; no imported candidate whole flow or provider.",
+  "arms": [
+    {
+      "name": "actual feature binding omission baselineV1",
+      "passed": 0,
+      "failed": 1,
+      "error": 0,
+      "corrected_V2_passed": 10
+    },
+    {
+      "name": "actual Manager starting/updating_or_offline/ready sequence withV2",
+      "passed": 0,
+      "failed": 1,
+      "error": 0,
+      "corrected_V3_passed": 7
+    }
+  ],
+  "independent_audits": {
+    "authority": {
+      "path": ".local-state/keynote-package-replacement-controller-private-v1/audit-authority-lifecycle-controls-v1.json",
+      "size": 9281,
+      "sha256": "c2b3bcff89f74fca80b2ced5d7960121b5e6e6670aaf2419f9d0e54731c1319b"
+    },
+    "startup": {
+      "path": ".local-state/keynote-package-replacement-controller-private-v1/audit-startup-status-controls-v1.json",
+      "size": 6605,
+      "sha256": "714c75477ec6b464b080df73c817293a274333d85996d08545b7d454b5f3709e"
+    }
+  },
+  "implemented_controller_fixes": [
+    "Actual mapped compiler feature authority and inherited loader overrides are validated before pinned execution.",
+    "Only actual Manager starting/updating_or_offline/ready are accepted while waiting; readiness still requires own ready account, mount, capabilities and unchanged executable."
+  ],
+  "preregistration_input_rule": "Byte-exact private0400 copy is required before local preparation; public tracked0644 file is not substituted for that authority.",
+  "limits": [
+    "The cfd1 startup-only partial did not retain the status or exact failed guard, so its actual cause is unproved.",
+    "Candidate lifecycle calls in these controls are mocked; only test-runner original ownership is actual.",
+    "No product defect or real cloud replacement/acceptance inferred."
+  ],
+  "full_iCloud_criteria": {
+    "closed": 1,
+    "open": 5
+  },
+  "installed_actions": false,
+  "provider_requests": false
+}

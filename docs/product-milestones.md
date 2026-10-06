@@ -563,8 +563,9 @@ The full-iCloud count remains one criterion closed and five open.
 The [fresh Keynote source pair](benchmarks/icloud-keynote-edited-source-2026-10-07-bb3eab7e.json)
 now contains two native exports from the same owned Apple presentation, with
 genuine title and subtitle edits between A and B and independently checked
-complete archive contents. Its Cirrove replacement, current/Trash verification,
-read-only remount and exact-item Apple reopen still need their own live arm.
+complete archive contents. Its Cirrove replacement and current/Trash verification have since passed in
+a separately registered live arm. Read-only remount and exact-item Apple reopen
+remain pending.
 
 Two [local reauthentication tests](benchmarks/icloud-reauth-manager-retained-state-2026-10-07.json)
 now couple the actual Manager owner retirement and relaunch to unchanged sealed
@@ -576,9 +577,16 @@ The feature-only [Keynote replacement observer](benchmarks/icloud-keynote-replac
 now verifies exact completed-journal authority and independently reads current B
 and original A in Trash. Eleven local controls passed, including four deadline
 checks that failed in a jointly weakened guard-set counterfactual. This provides
-the scoped proof tool for the next owned live replacement; that live endpoint
-and the five open release criteria remain pending.
+the scoped proof tool used by the fresh live replacement below. Read-only
+remount, exact-item Apple reopen and the five release criteria remain pending.
 
 The complete [mandatory project check](benchmarks/icloud-keynote-reauth-full-check-2026-10-07.json)
 passed on the unchanged final source, including all thirteen new local controls.
 Display scenarios and the real Keynote replacement remain separate checks.
+
+A [fresh genuine Keynote replacement](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
+passed in 345.25 seconds: normal public import A and one replacement B, with
+stopped independent full semantic V2 for current B and exact original A in Trash.
+All eight inner and two outer managed processes closed. Read-only remount,
+exact-item Apple reopen and the wider representation/editor matrix remain open;
+the full-iCloud acceptance count is still one closed and five open.
