@@ -52,7 +52,7 @@ def install(config, remove=False, socket=None):
     command = ["/usr/bin/python3", str(target / "cirrove-provider.py")]
     if socket:
         command += ["--socket", str(socket)]
-    manifest = {"version": 1, "id": ID, "command": command,
+    manifest = {"version": 1, "id": ID, "name": "Cirrove", "command": command,
                 "icons": {name: name + ".png" for name in ("kept", "fetching", "mark")}}
     contents = {"provider.json": (json.dumps(manifest, indent=2) + "\n").encode(),
                 "cirrove-provider.py": (REPO / "packaging/strata/cirrove-provider.py").read_bytes()}

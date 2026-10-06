@@ -7,6 +7,7 @@ from pathlib import Path
 import socket
 import tempfile
 import threading
+import unicodedata
 import unittest
 from unittest.mock import patch
 
@@ -115,8 +116,16 @@ class Protocol(unittest.TestCase):
         self.assertEqual(self.ids(), [])
         self.assertNotIn("paths", [v for v,_ in self.daemon.requests])
     def test_activation_rechecks_state_and_preserves_literal_names(self):
-        path = "quotes ' $(echo bad)\nü.txt"
+        controls = "".join(chr(c) for c in range(1, 160)
+                           if unicodedata.category(chr(c)) == "Cc" and chr(c) not in "\r\n\t")
+        path = "quotes ' $(echo bad)\n\r\tü" + controls + ".txt"
         self.daemon.rows[path] = self.state()
+        availability = self.ask("activate", ["/cloud/" + path], action="availability")["message"]
+        self.assertIn("quotes ' $(echo bad)\n\r\tü", availability)
+        self.assertIn(r"\u001b", availability)
+        self.assertIn(r"\u0085", availability)
+        self.assertFalse(any(unicodedata.category(c) == "Cc" and c not in "\r\n\t"
+                             for c in availability))
         result = self.ask("activate", ["/cloud/" + path], action="pin")
         self.assertIn("accepted 1 of 1",result["message"])
         self.assertEqual(self.daemon.requests[-1], ("pin", {"label":"Cloud","path":path,"recursive":False,"expected":self.daemon.rows[path]["identity"]}))
@@ -215,10 +224,13 @@ class Protocol(unittest.TestCase):
         self.assertEqual(self.ids(),["availability"])
 
     def test_explicit_refusal_reports_confirmed_rejection(self):
-        self.daemon.mutations = [{"accepted": False, "refusal": "cache budget exhausted"}]
+        self.daemon.mutations = [{"accepted": False, "refusal": "cache budget exhausted\0\x1b\x85\n\tDetails"}]
         result = self.ask("activate", action="pin")
         self.assertEqual(result["outcome"], {"status": "rejected", "accepted": 0, "total": 1})
         self.assertIn("cache budget exhausted", result["message"])
+        self.assertIn(r"\u0000\u001b\u0085" + "\n\tDetails", result["message"])
+        self.assertFalse(any(unicodedata.category(c) == "Cc" and c not in "\r\n\t"
+                             for c in result["message"]))
         self.assertEqual(sum(v == "pin" for v, _ in self.daemon.requests), 1)
 
     def test_partial_refusal_and_lost_reply_preserve_confirmed_count(self):

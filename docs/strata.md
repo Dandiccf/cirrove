@@ -12,6 +12,10 @@ never imports Cirrove Python code or a cloud SDK into its UI process.
 
 ## Behavior
 
+Actions appear together under the **Cirrove** source subtitle. Their labels stay
+as supplied, without repeated provider suffixes; flat actions and recursive
+submenus can share the group. The heading disappears when no actions are eligible.
+
 - **Keep offline**, or **Keep folder(s) offline**, applies to a fully eligible
   selection within one active account. Folders send `recursive: true`.
 - **Stop keeping offline** appears only if every selected item has a direct pin.
@@ -74,6 +78,11 @@ bound and never causes automatic replay. Explicit service refusals show their
 reason; failed connections report the unsent remainder without obscuring any
 confirmed acceptance. A single submitted job includes its reference. Messages
 are bounded by UTF-8 bytes to fit the host protocol.
+
+Messages preserve newline, carriage-return and tab formatting. Other C0/C1 control
+characters in displayed filenames or refusal reasons are shown as visible Unicode
+escapes before applying the message byte limit. Literal paths and identity contexts
+sent to the daemon remain unchanged.
 
 ## Install and remove
 
@@ -140,8 +149,9 @@ artifact explicitly when using it:
 ```
 
 The synthetic socket advertises both required capabilities and verifies expected
-identities on pin/unpin. The validator checks kept/fetching badges, source-labelled
-actions, pin/unpin, availability and live withdrawal. It writes `result.json`,
+identities on pin/unpin. The validator checks kept/fetching badges, the Cirrove
+source subtitle with unchanged action labels, pin/unpin, availability and live
+withdrawal of the whole group. It writes `result.json`,
 screenshots and the isolated configuration; it does not deploy or restart a daemon.
 This proves the integration wiring on synthetic data, not real-provider
 reliability. Native Wayland, an installed packaged build, multi-window stress and

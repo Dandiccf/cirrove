@@ -114,6 +114,11 @@ def describe(state):
     return text
 
 
+def display_text(text):
+    return "".join(f"\\u{ord(c):04x}" if c not in "\r\n\t" and
+                   (ord(c) < 32 or 127 <= ord(c) <= 159) else c for c in text)
+
+
 def badge(state):
     if state.get("refusal") or state.get("pinned") not in ("direct", "inherited"):
         return None
@@ -354,7 +359,7 @@ class Provider:
                 else:
                     reply["message"] = ("Cirrove accepted {} of {} requests. Remaining actions were not sent.".format(accepted, len(paths)) if accepted else "Cirrove is unavailable. This action was not sent.")
         if "message" in reply:
-            reply["message"] = reply["message"].encode("utf-8")[:16000].decode("utf-8", errors="ignore")
+            reply["message"] = display_text(reply["message"]).encode("utf-8")[:16000].decode("utf-8", errors="ignore")
         return reply
 
     def watch(self):
