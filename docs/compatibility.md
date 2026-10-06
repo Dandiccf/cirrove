@@ -144,14 +144,24 @@ verification from application import and save fidelity.
 | --- | --- | --- |
 | Native Numbers file opened read-only in LibreOffice Calc | One actual iCloud Numbers archive opened in a visible Calc session with A2=11, B2=3 and C2=14; the original archive stayed unchanged. | C2 imported as a numeric VALUE, with `getFormula()` returning `14`, rather than the SUM formula shown in Apple Numbers. Formula-preserving native Numbers editing is not established. |
 | XLSX created and edited in LibreOffice Calc | One local file was created, reopened, saved once and reopened again with `SUM(A2:B2)` preserved and values changing from 7/3/10 to 11/3/14. An independent OOXML inspection confirmed both snapshots. | This local application trial does not establish iCloud upload, atomic replacement, remount or installed acceptance. |
-| XLSX created through an isolated iCloud mount in LibreOffice Calc | One actual editor save and reopen retained 7/3/SUM=10; its source and sealed content remain preserved after the test stopped. A separate fresh read-only mount verified the owned folder, but did not list the final XLSX. | The cloud save remains unconfirmed, and the second editor save was not attempted. The initiating refusal remains unexplained; stopped unconfirmed rows or a bounded listing alone do not establish a provider defect or definite noncommitment. |
-| Calc temporary-file cleanup before a sealed upload completes | Fresh diagnostics retained a lineage that reproduced a local journal refusal in a synthetic worker test. The correction passed a regression that failed before the change, retained-byte/restart checks, and three matrices of 40 hostile identity/dependency controls. | These synthetic controls do not establish a successful actual Calc cloud save; retained cloud outcomes, a second editor save and remount still need validation. |
+| Historical isolated iCloud mount trial, 5 October | One actual Calc save and reopen retained 7/3/SUM=10; its source and sealed content stayed preserved after the trial stopped. A separate fresh read-only mount verified the owned folder, but did not list the final XLSX. | This individual trial's cloud save remains unconfirmed, and its second save was not attempted. The initiating refusal remains unexplained; later successful trials do not retroactively confirm this one. |
+| Historical Calc temporary-file cleanup controls | Diagnostics reproduced a local journal refusal. The correction passed a regression that failed before the change, retained-byte/restart checks, and three matrices of 40 hostile identity/dependency controls. | These synthetic controls alone establish no actual cloud save. The separate 6 October trial below supplies bounded provider evidence. |
+| Two Calc XLSX saves through a fresh isolated iCloud mount, 6 October | Calc saved and reopened 7/3/SUM=10, then 11/3/SUM=14. Independent DATA reads matched both source byte streams; a separate normal read-only remount matched all 5,612 B bytes. A subsequent independent Trash reader matched all 5,281 original A bytes. | One bounded ordinary XLSX workflow, with UNO observations and no human GUI witness. The Trash CLI succeeded, while its controller retained a reporting exit 1. Restoration, native iWork fidelity, repeatability and installed acceptance are not established. |
+| Genuine edited Numbers B imported into Calc and exported once as XLSX, 6 October | A fresh headless, network-isolated Calc session read the genuine Apple-edited export, preserved cached 17/3/20, exported one XLSX copy and reopened it with the same measured cells. The Numbers source stayed unchanged. | Import and reopen both exposed C2 as VALUE with `getFormula()` returning `20`, not SUM. The conversion workflow completed but formula fidelity failed; no native Numbers save or GUI acceptance was tested. |
 
 These results are specific to the tested files and installed LibreOffice build.
 Do not infer general iWork format fidelity from readable cell values. The installed
 Numbers, Pages and Keynote LibreOffice filters are import-only; no native iWork
-save or export is promised. Preserve native originals when testing conversions.
-See the [registered Calc trial](benchmarks/icloud-calc-editor-2026-10-05.json),
+save or export is promised. The same genuine Numbers B has separate
+[Apple edit/export evidence](benchmarks/icloud-numbers-edited-b-donor-2026-10-06.json)
+and [replacement/recovery evidence](benchmarks/icloud-flat-numbers-native-final-2026-10-06.json);
+content preservation there does not establish Linux application formula fidelity.
+The broader native editor matrix remains open. Preserve native originals when
+testing conversions. See the
+[two-save DATA and remount record](benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json),
+[original Trash read](benchmarks/icloud-calc-trash-original-2026-10-06.json),
+[genuine-B Calc conversion and its retained initial setup refusal](benchmarks/icloud-numbers-calc-genuine-export-2026-10-06.json),
+the [registered Calc trial](benchmarks/icloud-calc-editor-2026-10-05.json),
 the [partial mounted trial](benchmarks/icloud-calc-mounted-editor-2026-10-05.json),
 the [fresh read-only observation](benchmarks/icloud-calc-retained-read-2026-10-05.json),
 and [independent Numbers decoding](benchmarks/icloud-numbers-independent-decoder-2026-10-05.json).

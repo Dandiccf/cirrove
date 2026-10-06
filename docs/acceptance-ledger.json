@@ -713,7 +713,7 @@
       "blocker": "needs-machine-window",
       "blocks_release": "yes",
       "release_note": "Blocks the full-iCloud release scope only; does not retroactively change historical OneDrive 1.0 acceptance.",
-      "evidence": "Existing feat/strata-integration commit c60127fb0b1026c6e09862cad632d60cad91de5d provides paths-cached and provider integration. Reconciliation with iCloud and installed compatibility must be checked before daemon replacement; preserve companion Strata/default settings.",
+      "evidence": "Existing feat/strata-integration commit c60127fb0b1026c6e09862cad632d60cad91de5d provides paths-cached and provider integration. Reconciliation with iCloud and installed compatibility must be checked before daemon replacement; preserve companion Strata/default settings. UPDATE 2026-10-06: docs/benchmarks/icloud-strata-private-host-dialog-2026-10-06.json records fresh46f428cd normal read-only native catalog, actual Strata Show availability menu and exact rendered long-filename/On demand dialog success, plus one actual indexed cached archive child. All ten original child waits completed; GUI closed before daemon teardown, mount/socket closed and protected state, source561 and installed artifacts/default settings remained unchanged. Earlier00f1 (docs/benchmarks/icloud-strata-private-host-readonly-catalog-2026-10-06.json) retains its catalog/menu pass and failed dialog locator; the distinct successor does not retroactively prove its dialog. Real direct/inherited pin/fetch/kept transitions, notifications/event behavior and installed deployment compatibility remain unvalidated, so this row stays open; no full gate closure follows from native availability alone.",
       "asserted_by": null
     },
     {

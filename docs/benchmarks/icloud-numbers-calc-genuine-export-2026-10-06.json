@@ -210,6 +210,301 @@
       "https://raw.githubusercontent.com/LibreOffice/core/master/include/desktop/exithelper.h",
       "https://raw.githubusercontent.com/LibreOffice/core/master/desktop/unx/source/start.cxx"
     ],
-    "successor": "Separate fresh offline arm may use the pinned installed standard launcher with explicit bounded launcher semantics and sanitized bootstrap diagnostics; no successor executed."
+    "successor": "At closure of bc792, a separate fresh offline arm was only proposed using the pinned installed standard launcher with bounded launcher semantics and sanitized bootstrap diagnostics; no successor had then executed. The later completed 0516026d outcome is recorded in standard_launcher_successor_0516026d below."
+  },
+  "standard_launcher_successor_0516026d": {
+    "status": "closed_actual_workflow_passed_native_SUM_fidelity_failed",
+    "active_measurement": false,
+    "run": "0516026d-8310-4225-bc9f-66be3cc69f48",
+    "question": "Can the standard installed LibreOffice launcher complete genuine-B read-only Numbers import, exactly one supported XLSX export and reopen in a fresh isolated profile, measuring actual cell value/formula/type/error fidelity while preserving source and process closure?",
+    "prediction": "Standard oosplash manages normal bootstrap restart. Cached17/3/20 may survive; SUM/type flattening is an explicit possible measured result, not a setup precondition. Source is unchanged and no native Numbers save is offered.",
+    "arms": [
+      "One fresh nonce/profile/network-isolated Calc headless application; source-load, one export, close, reopen, compare",
+      "No oldbc792 runtime/profile reuse; no automatic harness relaunch or repeated export"
+    ],
+    "endpoint": [
+      "Actual three-cell import/reopen values/formulas/types/errors, workflow vs fidelity separate",
+      "Only one export; original source bytes+protectedstamps unchanged",
+      "Original launcher and namespace handles reaped, no managed Office process remains",
+      "60-second work plus30-second cleanup, no clock reset; ext4TMP bound over /tmp; buses masked"
+    ],
+    "runtime_root": "/home/dandiccf/Storage/cgB-0516026d",
+    "TMPDIR": "/home/dandiccf/Storage/cgB-0516026d/tmp",
+    "temporary_filesystem": "ext4",
+    "scripts": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-standard-launcher-0516026d-8310-4225-bc9f-66be3cc69f48-private-v1/worker_v5.py",
+        "size": 11718,
+        "sha256": "16780af908874a0f637051924bcab54df0aa7c1a84a01adb5214c14e83f05557"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-standard-launcher-0516026d-8310-4225-bc9f-66be3cc69f48-private-v1/supervise_v6.py",
+        "size": 7418,
+        "sha256": "3fa242e3b24b656f09e9b2ff92aa910b5fa850af92d22213cb88318a13f552b4"
+      }
+    ],
+    "interpreter": {
+      "path": "/usr/bin/python3.14",
+      "size": 14424,
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    },
+    "supporting_pins": [
+      {
+        "path": "/var/tmp/cirrove-numbers-browser-editor-556f8420-3a42-4be4-a3a9-9edbb4122d22/genuine-edited-b-export.numbers",
+        "size": 139044,
+        "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da"
+      },
+      {
+        "path": "/usr/bin/bwrap",
+        "size": 84464,
+        "sha256": "7c44fa8e7326e62e81ab3f70ff682bfc0eb3b447b39cf9fbb779a31948364762"
+      },
+      {
+        "path": "/usr/bin/python3.14",
+        "size": 14424,
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+      },
+      {
+        "path": "/usr/lib/libreoffice/program/soffice.bin",
+        "size": 14424,
+        "sha256": "a26f3d813ee0743cd9f03a74188fe3baa2984b21d2dedee794fa7070703e8372"
+      },
+      {
+        "path": "/usr/lib/libreoffice/share/registry/calc.xcd",
+        "size": 175285,
+        "sha256": "0f80d126c44547ddf22e2e533e7830a71eb4768f4f2690439816fc58a22f4edc"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/uno.py",
+        "size": 17767,
+        "sha256": "b92b8058408cc9b071e0f300631250d707a11c560db9ba3d1346f4d0fe732190"
+      },
+      {
+        "path": "/usr/lib/libreoffice/program/soffice",
+        "size": 6621,
+        "sha256": "3d585422d7cdddf9bcc954e7064da24c7e44d43508a5abaeb11de9d918d24f13"
+      },
+      {
+        "path": "/usr/lib/libreoffice/program/oosplash",
+        "size": 39088,
+        "sha256": "f7cd60dc22cfe97907b461bc647b51daf3fa27a4b498d0180d726337cf121ddc"
+      }
+    ],
+    "standard_internal_restart_count": "uninstrumented",
+    "provider_calls_authorized": 0,
+    "source_writes_authorized": 0,
+    "headless_actual_application": true,
+    "GUI_acceptance": false,
+    "native_numbers_save": false,
+    "gate487_closed": false,
+    "private_pre_dispatch_v5_correction": "V5 pinned regular Python3.14 but command used launcher alias. V6 executes the exact registered resolved ELF. V5 remained unexecuted; regular-file pin refusal unchanged.",
+    "result": {
+      "run": "0516026d-8310-4225-bc9f-66be3cc69f48",
+      "success": true,
+      "error_class": null,
+      "sandbox_exit": 0,
+      "timed_out": false,
+      "interrupted": false,
+      "signals": [],
+      "elapsed_seconds": 0.8042554740095511,
+      "deadline_overrun": false,
+      "original_sandbox_handle_reaped": true,
+      "sandbox_proc_absent": true,
+      "all_pins_unchanged": true,
+      "launcher_symlink_unchanged": true,
+      "all_managed_office_processes_absent": true,
+      "worker": {
+        "run": "0516026d-8310-4225-bc9f-66be3cc69f48",
+        "success": true,
+        "workflow_completed": true,
+        "fidelity_passed": false,
+        "expected_values_match": true,
+        "C2_native_SUM_preserved": false,
+        "export_reopen_equal": true,
+        "all_cell_errors_zero": true,
+        "differences": {},
+        "error_class": null,
+        "failure_stage": null,
+        "imported": {
+          "A2": {
+            "value": 17.0,
+            "formula": "17",
+            "type": "VALUE",
+            "error": 0
+          },
+          "B2": {
+            "value": 3.0,
+            "formula": "3",
+            "type": "VALUE",
+            "error": 0
+          },
+          "C2": {
+            "value": 20.0,
+            "formula": "20",
+            "type": "VALUE",
+            "error": 0
+          }
+        },
+        "reopened": {
+          "A2": {
+            "value": 17.0,
+            "formula": "17",
+            "type": "VALUE",
+            "error": 0
+          },
+          "B2": {
+            "value": 3.0,
+            "formula": "3",
+            "type": "VALUE",
+            "error": 0
+          },
+          "C2": {
+            "value": 20.0,
+            "formula": "20",
+            "type": "VALUE",
+            "error": 0
+          }
+        },
+        "export_calls": 1,
+        "output": {
+          "path": "/home/dandiccf/Storage/cgB-0516026d/exported.xlsx",
+          "bytes": 6483,
+          "sha256": "a973de2d6e7fab09eb0f06c2c12c09db0c2d88b6bf10dc3915184041ed2bb4ba"
+        },
+        "source_before": {
+          "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+          "st_dev": 31,
+          "st_ino": 2727549,
+          "st_size": 139044,
+          "st_mode": 33024,
+          "st_uid": 1000,
+          "st_nlink": 1,
+          "st_mtime_ns": 1791287553860756908,
+          "st_ctime_ns": 1791287553860756908
+        },
+        "source_after": {
+          "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+          "st_dev": 31,
+          "st_ino": 2727549,
+          "st_size": 139044,
+          "st_mode": 33024,
+          "st_uid": 1000,
+          "st_nlink": 1,
+          "st_mtime_ns": 1791287553860756908,
+          "st_ctime_ns": 1791287553860756908
+        },
+        "source_unchanged": true,
+        "office_pid": 3,
+        "office_exit": 0,
+        "office_handle_subject": "standard_launcher_exec_oosplash",
+        "managed_office_children_waited_by_standard_launcher": true,
+        "namespace_remaining_processes": [],
+        "all_managed_office_processes_absent": true,
+        "inner_bootstrap_children_instrumented_individually": false,
+        "original_office_handle_reaped": true,
+        "office_proc_absent": true,
+        "headless_actual_application": true,
+        "GUI": false,
+        "native_numbers_save": false,
+        "provider_calls": 0,
+        "installed_actions": false
+      },
+      "workflow_completed": true,
+      "fidelity_passed": false,
+      "headless_not_GUI": true,
+      "network_namespace": true,
+      "provider_calls": 0,
+      "installed_actions": false,
+      "gate487_closed": false
+    },
+    "bootstrap_diagnostic": {
+      "launcher_exit": 0,
+      "stderr_bytes": 0,
+      "stderr_sample_cap": 8192,
+      "stderr_sample_truncated": false,
+      "stderr_read_error": false,
+      "stderr_drain_complete": true,
+      "fixed_categories": [
+        "empty"
+      ],
+      "raw_stderr_retained": false,
+      "office81_is_standard_internal_restart": true,
+      "harness_relaunches": 0
+    },
+    "retained_artifacts": [
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/attempt.json",
+        "size": 6103,
+        "sha256": "8e37821f061d99d7f45bf10bb90c2bbac34135a7031d03c4fc87f9b3f71e0360"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/owner.json",
+        "size": 959,
+        "sha256": "120563aca44c62343bc4e0a4c25fcada8b2a798107ed5ec91079dfe250fd6bb5"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/office-attempt.json",
+        "size": 556,
+        "sha256": "8a0d2e176370cf20c4da636461d260bfa897a6c256c4db7f22c912fd63cc1831"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/office-owner.json",
+        "size": 415,
+        "sha256": "216e49ed95eaf0bdebab2596b1da8e6036f445d26e17bb987af6b69cf968c91e"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/imported-cells.json",
+        "size": 558,
+        "sha256": "a1d48f7760701dbe04a85b0a4149f78edd2479e811b3431c9ebc086dd261ca94"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/export-attempt.json",
+        "size": 227,
+        "sha256": "abb2b140539072b7d46f72f2961726947bd57d8e857099109b89f380cb70d200"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/work-complete.json",
+        "size": 158,
+        "sha256": "a71ed3bd555375f1c472e8de13deb66de17ca771d54796b7ac2eace13e5ba379"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/office-bootstrap-diagnostic.json",
+        "size": 323,
+        "sha256": "5811c52bf411d251f015f12a31a096066d97f37de2160ed6b0b656ee6789dbc1"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/worker-result.json",
+        "size": 2364,
+        "sha256": "d82d65bc1fc79fca8aceffb7d71957dac430a74eb729352b6fd79e0c99a22009"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/result.json",
+        "size": 3198,
+        "sha256": "428e592f03724e42c2504de91fbc8e4e3798006842c437335a49ba06d9c3a064"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/public-preregistration.json",
+        "size": 14211,
+        "sha256": "a8519be22120b863512b6a61831fc170de1462b223e1c5f7c2cae5c0b3a8fdc5"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-0516026d/exported.xlsx",
+        "size": 6483,
+        "sha256": "a973de2d6e7fab09eb0f06c2c12c09db0c2d88b6bf10dc3915184041ed2bb4ba"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-standard-launcher-0516026d-8310-4225-bc9f-66be3cc69f48-private-v1/root-approved-inputs-v1.json",
+        "size": 2622,
+        "sha256": "76aa7bb30b8642c499d84b77ec3df2bd2b831eb760db29cf331173a8107fdb16"
+      }
+    ],
+    "limits": [
+      "One actual headless offline application arm; no GUI or iCloud upload/remount acceptance.",
+      "Cached17/3/20 survived; C2 imported and exported as numeric VALUE20, not nativeSUM. Actual import/reopen fields match exactly with zero cell errors; native formula fidelity remains failed.",
+      "Read-only Numbers source139044/SHA525b bytes and protected stamps unchanged. Exactly one supported XLSX copy/export6483B; no nativeNumbers save or cell assignment.",
+      "Original standardlauncher handle reaped0, no managed Office process remains in privatePID namespace; outer sandbox reaped0 and absent. Individual internal restart count/child handles were not instrumented.",
+      "Original bc792 setup refusal remains unchanged. The fresh successor was invoked once without timeout/relaunch/export retry.",
+      "No full acceptance gate closes from this format boundary; five remain open."
+    ]
   }
 }
