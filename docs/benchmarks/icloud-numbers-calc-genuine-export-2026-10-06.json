@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_setup_refusal_before_source_load",
+  "run": "bc792928-8935-42be-ada7-9644afda79be",
+  "question": "Can installed LibreOffice Calc import genuine owned flat Numbers B read-only, export one XLSX copy and reopen it with the same actual A2/B2/C2 value/formula/type/error fields, while preserving the Numbers source?",
+  "prediction": "The imported and reopened cached values are17/3/20. Formula/type fields are measured rather than assigned: prior Numbers A import flattened SUM to a VALUE, so no native formula fidelity is assumed. One successful supported XLSX copy/export is expected; any mismatch/refusal/setup failure remains retained.",
+  "arms": [
+    "one fresh headless actual Calc application in a private profile, user/PID/network namespace",
+    "one Numbers import read-only",
+    "one storeToURL XLSX copy, no Numbers save or cell edit",
+    "close and reopen XLSX read-only; exact three-cell comparison",
+    "original Office and sandbox child waits; unchanged immutable source and pinned artifacts"
+  ],
+  "endpoint": {
+    "cached_cells": {
+      "A2": 17,
+      "B2": 3,
+      "C2": 20
+    },
+    "measure_and_compare": [
+      "value",
+      "formula",
+      "type",
+      "error"
+    ],
+    "single_export_calls": 1,
+    "source_bytes_and_protected_stamps_unchanged": true,
+    "original_handles_reaped": true,
+    "namespace_closed": true,
+    "measure_and_compare_not_abort_on_mismatch": true
+  },
+  "source": {
+    "path": "/var/tmp/cirrove-numbers-browser-editor-556f8420-3a42-4be4-a3a9-9edbb4122d22/genuine-edited-b-export.numbers",
+    "size": 139044,
+    "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da"
+  },
+  "candidate_scripts": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-offline-export-private-v1/worker_v3.py",
+      "size": 8587,
+      "sha256": "b2a8ac1054e4df7487873f5eae96070d496a38f3eeb14d061b62b2c7449f730e"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-offline-export-private-v1/supervise_v3.py",
+      "size": 6556,
+      "sha256": "0d4b8f3dd2a32d28d4968339853fd5f2233eff3c91030f88e0004a19d40f6c96"
+    }
+  ],
+  "supporting_pins": [
+    {
+      "path": "/usr/bin/bwrap",
+      "size": 84464,
+      "sha256": "7c44fa8e7326e62e81ab3f70ff682bfc0eb3b447b39cf9fbb779a31948364762"
+    },
+    {
+      "path": "/usr/bin/python3.14",
+      "size": 14424,
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    },
+    {
+      "path": "/usr/lib/libreoffice/program/soffice.bin",
+      "size": 14424,
+      "sha256": "a26f3d813ee0743cd9f03a74188fe3baa2984b21d2dedee794fa7070703e8372"
+    },
+    {
+      "path": "/usr/lib/libreoffice/share/registry/calc.xcd",
+      "size": 175285,
+      "sha256": "0f80d126c44547ddf22e2e533e7830a71eb4768f4f2690439816fc58a22f4edc"
+    },
+    {
+      "path": "/usr/lib/python3.14/site-packages/uno.py",
+      "size": 17767,
+      "sha256": "b92b8058408cc9b071e0f300631250d707a11c560db9ba3d1346f4d0fe732190"
+    }
+  ],
+  "runtime_root": "/home/dandiccf/Storage/cgB-bc792928",
+  "TMPDIR": {
+    "host_backing": "/home/dandiccf/Storage/cgB-bc792928/tmp",
+    "inside_sandbox": "/tmp",
+    "required_filesystem": "ext4"
+  },
+  "maximum_seconds": 90,
+  "work_seconds": 60,
+  "cleanup_reserve_seconds": 30,
+  "clock_starts_once": true,
+  "automatic_restart_or_retry": false,
+  "network_namespace": true,
+  "provider_calls_authorized": 0,
+  "source_writes_authorized": 0,
+  "installed_actions": false,
+  "headless_actual_application": true,
+  "GUI_acceptance": false,
+  "native_Numbers_save_or_edit": false,
+  "formula_fidelity_claim_before_run": false,
+  "gate487_closed": false,
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "limits": [
+    "This is one offline application filter/export/reopen matrix cell, not a cloud save, native Numbers export, Apple formula proof or real GUI witness.",
+    "Available installed Apple Numbers/Pages/Keynote filters are IMPORT only; XLSX filter is IMPORT EXPORT.",
+    "Exact sourceB525b is genuine Apple-edited export from donor556f; prior numbers2raw cached17/3/20 is separate and emitted no formula token.",
+    "New private runtime ROOT/profile only; no existing office, desktop, Cirrove daemon, credentials, provider or failed175 state is used.",
+    "Namespace/filter refusal and all failures remain evidence; no fallback or automatic retry."
+  ],
+  "execution": {
+    "elapsed_seconds": 0.3034214760409668,
+    "supervisor_exit": 1,
+    "sandbox_exit": 1,
+    "worker_error_class": "Refusal",
+    "failure_stage": "uno_connect",
+    "office_exit": 81,
+    "export_calls": 0,
+    "imported": null,
+    "reopened": null,
+    "output": null,
+    "workflow_completed": false,
+    "fidelity_passed": false,
+    "fidelity_measured": false,
+    "source_unchanged": true,
+    "all_pins_unchanged": true,
+    "original_sandbox_handle_reaped": true,
+    "sandbox_proc_absent": true,
+    "original_office_handle_reaped": true,
+    "office_proc_absent": true,
+    "signals": [],
+    "deadline_overrun": false,
+    "provider_calls": 0,
+    "installed_actions": false,
+    "retained_artifacts": [
+      {
+        "path": "/home/dandiccf/Storage/cgB-bc792928/result.json",
+        "sha256": "afaeab7e2cfe70b65bbdee047a7dcee1827c0a27004a00eef7e35cfa0b113b7f",
+        "bytes": 1987
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-bc792928/worker-result.json",
+        "sha256": "12fc98d1ebdb6b00ec274fde9caf7df7d4146786647a7a5101d9e05629190bd4",
+        "bytes": 1330
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-bc792928/office-attempt.json",
+        "sha256": "8c7f2d163ddebe78f477cafecafe0a423293459f104bc937d73e465b057a5ddf",
+        "bytes": 483
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-bc792928/owner.json",
+        "sha256": "8ae4474235ebd6c5fff70e9ae5e34b4fa8a6863abbf4541a35f8fe7577ec7af0",
+        "bytes": 916
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-bc792928/office-owner.json",
+        "sha256": "5f2a897eb741b05bb37834f3365859cd1efe4305664eb93390b35a4583193c86",
+        "bytes": 380
+      },
+      {
+        "path": "/home/dandiccf/Storage/cgB-bc792928/public-preregistration.json",
+        "sha256": "3c8c78f24aa4aec4fd696cc9aac50eb81105864cc6ecd319f8ead52a9984f6e0",
+        "bytes": 6775
+      }
+    ]
+  },
+  "candidate_scripts_v1_retained": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-offline-export-private-v1/worker_v1.py",
+      "size": 6638,
+      "sha256": "36639cf3009cb6b42de95dae319b709213b53b2f7c850c939f0a0ec3d948f3b9"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-offline-export-private-v1/supervise_v1.py",
+      "size": 5687,
+      "sha256": "6bb4908825d343b29f4eaf2bee8fde63b8d160ad979b9c073e6d41f3d19ffe31"
+    }
+  ],
+  "preexecution_corrections_v2": [
+    "Mask host /run/user and /run/dbus inside sandbox in addition to clearing bus/display environment.",
+    "Outer SIGTERM/INT requests original-handle cleanup.",
+    "Application-action completion marker must be before original60s work cutoff; Office shutdown may consume original reserved30s without extending clock."
+  ],
+  "candidate_scripts_v2_retained": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-offline-export-private-v1/worker_v2.py",
+      "size": 6793,
+      "sha256": "99031466f50e9f2aed4ef85e42ed6cd89dd3adf1d5495a423f095e1732f095a6"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-genuine-b-offline-export-private-v1/supervise_v2.py",
+      "size": 6424,
+      "sha256": "25316d43afad86a8c72b5e370538a7e3c58ea25d60ca7c42c45a7561c0941a19"
+    }
+  ],
+  "preexecution_correction_v3": {
+    "measurement": "Unexpected imported values, lost formulas or cell errors are captured rather than aborting before the single export. Reopened observations and exact differences are retained. Structural/mode/source/lifetime guards remain strict.",
+    "workflow_completed": "Load, export once, close, reopen and original process closure; separate from fidelity_passed.",
+    "fidelity_fields": [
+      "expected_values_match",
+      "C2_native_SUM_preserved",
+      "export_reopen_equal",
+      "all_cell_errors_zero",
+      "differences"
+    ],
+    "failures": "Fixed setup/UNO/load/export/reopen/cleanup stage only, no exception text."
+  },
+  "active_measurement": false,
+  "post_run_interpretation": {
+    "facts": "Direct soffice.bin exited81 before UNO connection. Source document was not loaded; no XLSX export or fidelity observation occurred. Original processes were reaped and source/artifact pins preserved. This arm is closed and must not be restarted.",
+    "source_finding": "Installed /usr/bin/libreoffice -> program/soffice execs oosplash. Upstream exithelper defines81 normal restart; oosplash waits/reaps and restarts all args on81. The directbin candidate omitted that launcher lifecycle.",
+    "limits": "The exact reason for the observed restart request was not retained. Fresh-profile configuration bootstrap is an inference, not an observed stderr diagnosis. This is no provider or Numbers fidelity result.",
+    "primary_sources": [
+      "https://raw.githubusercontent.com/LibreOffice/core/master/include/desktop/exithelper.h",
+      "https://raw.githubusercontent.com/LibreOffice/core/master/desktop/unx/source/start.cxx"
+    ],
+    "successor": "Separate fresh offline arm may use the pinned installed standard launcher with explicit bounded launcher semantics and sanitized bootstrap diagnostics; no successor executed."
+  }
+}
