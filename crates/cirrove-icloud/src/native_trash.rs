@@ -114,6 +114,13 @@ impl ICloudNativeTrash {
         *self.session.get_mut() = Session::Ready(Box::new(session));
         Ok(self)
     }
+    /// Fixture checkpoint vault installed after normal construction/identity validation.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn with_synthetic_checkpoint_vault(mut self, vault: Arc<dyn CredentialVault>) -> Self {
+        self.checkpoint = vault;
+        self
+    }
     pub(super) fn identity(scope: &Scope, before: &Node) -> Result<()> {
         let id = before.id.strip_prefix("FILE::com.apple.CloudDocs::");
         let parent = before

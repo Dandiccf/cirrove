@@ -3436,3 +3436,44 @@ source, fixture and script pins remained unchanged; the original process handle
 was reaped and absent. Display scenarios are outside that command. Independent
 code and evidence reviews found no remaining concrete inconsistency. This is
 local development validation, with no real-account mutation or installed action.
+
+
+### Standalone native Trash receipt-loss guard
+
+The [registered local trial](benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json)
+now exercises the actual MutationWorker in a child process against a local TLS
+provider fixture. The normal native Trash adapter stores a real encrypted
+MayHaveSent checkpoint, sends one Trash request and returns its genuine Removed
+receipt. A feature-only guard then exits the process with code 86 before the
+worker acknowledges that receipt locally. The parent reaps that exact child and
+checks the raw journal body, indexed columns and incomplete queue.
+
+Reopening the same operation changes only its interrupted state and attempt.
+Recovery performs one reconciliation and no prepare, mutation or upload call;
+the TLS server still records exactly one Trash request. The original source and
+checkpoint ciphertext remain intact. All nineteen guard, registration, observer, metadata-collector
+and actual-child controls passed. This models process loss after a received
+provider response; it does not model a lost provider response or establish
+real-account reliability.
+
+The finite live driver binds a fresh Numbers import, its original provider
+identity and revision, the immutable flat source and complete semantic V2 proof.
+An explicit read-only preflight bridge accepts this new test namespace while
+keeping existing fixture validation strict. Its three account/scope/content
+controls passed. A separate saved-session-only collector now acquires fresh
+typed parent/document metadata, verifies the exact PACKAGE content and fences
+metadata, settings, source and the original deadline again before exporting
+its proof. All three collector admission controls passed. Actual fresh typed
+provider metadata, new executable bindings and a
+complete overall check remain prerequisites for real-account dispatch. The
+first overall check that reached script smoke tests stopped because its disk
+temporary path exceeded the Linux UNIX-socket length limit; the unchanged-source
+failed result remains recorded. This work closes no additional release gate and
+does not change the installed daemon.
+
+The complete successor `bash scripts/check.sh` passed in 653.92
+seconds under the shorter ext4 temporary path, with all 561 registered
+runtime/source/fixture/script pins unchanged. Its original process handle was
+reaped and absent. Formatting, Clippy, workspace and required feature tests,
+actual kernel/FUSE scenarios, scripts, the ledger and documentation passed;
+display scenarios remain separate. Fresh real-account dispatch is still pending.

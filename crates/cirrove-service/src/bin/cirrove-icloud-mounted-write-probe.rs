@@ -430,6 +430,35 @@ async fn main() -> Result<()> {
     let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
     if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-trash-metadata"
+    {
+        let proof = cirrove_service::validation::icloud_owned_native_trash_metadata(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-trash-loss"
+    {
+        return cirrove_service::validation::icloud_native_trash_loss(
+            Path::new(registration),
+            digest,
+        )
+        .await;
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-trash-recover"
+    {
+        return cirrove_service::validation::icloud_native_trash_recover(
+            Path::new(registration),
+            digest,
+        )
+        .await;
+    }
+    if let [flag, registration, digest] = args.as_slice()
         && flag == "--owned-native-final-loss"
     {
         return cirrove_service::validation::icloud_native_final_loss(

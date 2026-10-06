@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "preregistered_preparation_only",
+  "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+  "question": "Can one publicly admitted removal of a fresh owned flat Numbers PACKAGE survive actual process loss after Apple confirms Trash, then complete the same operation by inspection without a second removal and remain observable from a normal read-only remount?",
+  "prediction": "The encrypted MayHaveSent checkpoint and exact original identity will survive exit86 before local acknowledgement. Reopening the same operation will inspect Trash once, publish metadata absence and retain historical completion without another mutation. The exact original content will independently match full source V2 in Trash.",
+  "arms": [
+    "One fresh owned folder and one public flat Numbers import under a normal isolated daemon",
+    "Read-only actual typed provider metadata and full semantic preflight",
+    "One public trash-native-document admission under the feature-only loss guard; genuine receipt then actual process exit86",
+    "Same UUID inspection-only recovery, with exact raw journal authority and private encrypted-checkpoint verification",
+    "Independent current absence/full original Trash-content read, normal true read-only list/watch and fresh mounted absence"
+  ],
+  "endpoint": [
+    "All child handles reaped by original Popen/pidfd; no stale daemon or mount left live",
+    "Exactly one admitted native Trash operation and one provider dispatch; no automatic resubmit",
+    "Applying with exact prepared original and absent local receipt at process-loss boundary",
+    "Same operation Applied(Removed) using one inspection with zero mutation/upload/preparation",
+    "Full original semantic V2 verified independently in Trash, source unchanged, current parent absence observed separately",
+    "Public historical read-only completion and a fresh normal read-only mount agree on retained operation and observed absence",
+    "Installed file hashes/unit/PID unchanged"
+  ],
+  "authorization": "Standing user authorization for owned iCloud writes and tests; repeated test allowed. No destructive broad cleanup or installed migration.",
+  "root": "/var/tmp/cirrove-native-trash-52959331-7924-4e1d-891b-8e4a79ff67e6",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/nt-52959331",
+  "source": {
+    "layout": "flat_numbers",
+    "root": null,
+    "size": 139044,
+    "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+    "semantic": {
+      "version": 2,
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133252,
+      "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7"
+    }
+  },
+  "maximum_seconds": 600,
+  "closure_grace_seconds": 45,
+  "single_original_clock": true,
+  "automatic_retry": false,
+  "on_unclear_result": "Stop; preserve source, journal, checkpoints and exact operation. Do not submit removal again.",
+  "active_measurement": false,
+  "live_window_started": false,
+  "real_account_dispatched": false,
+  "installed_actions": false,
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "prerequisites": [
+    "Complete current scripts/check.sh passes",
+    "Final exact source/binary roles frozen",
+    "Fresh controller and metadata producer reviewed",
+    "Closed owned session donor verified; only same-AAD saved ciphertext copied, no old journal/cache",
+    "Disk TMPDIR/SQLITE_TMPDIR filesystem asserted"
+  ],
+  "controller_preexecution_notes": {
+    "V1": "Unexecuted initial draft with indentation, driveType and Rust Node digest/order defects; preserved without replay.",
+    "V2": "Syntax parsed only. Scope/schema/digest corrections applied, but public CLI job+operation linkage remained missing. No provider dispatch.",
+    "V3": "Paired integer wall-clock and monotonic bound aligned to the original finite span. Public CLI linkage still requires successor before ready.",
+    "pure_control_preregistration": {
+      "script": "test_node_wire_controls_v1.py",
+      "sha256": "a47ab50a22067ecb006c3a5d3f1e500bdcd99bb8b851eb02664d342f3897fb73",
+      "question": "Does the actual source-selected controller Node hash encode Rust declaration order and false-package omission, refusing foreign fields?",
+      "prediction": "Three pure controls pass for exact package Node wire digest, omitted false package, and unknown-field refusal.",
+      "expected_tests": 3,
+      "provider_calls": false,
+      "subprocesses": false,
+      "production_regression_claim": false
+    },
+    "V4": {
+      "status": "frozen_syntax_parsed_static_review_pending",
+      "controller_sha256": "8a33a8d941af50aba8310bd8bb80045b5bbbfd23e9ee184cad3185b134197cf9",
+      "template_sha256": "afb45202dd6b50d830bd9595ec5aea317b11b49c9fb081fabe711737bbf6d3fa",
+      "actual_public_cli_emissions_required": true,
+      "missing_emission_behavior": "Unclear stop, retain exact operation; never substitute marker for absent public job evidence."
+    }
+  },
+  "controller_node_wire_controls": {
+    "result": {
+      "actual_executed_tests": 3,
+      "baseline_regression_claim": false,
+      "child_processes_spawned_by_control_script": 0,
+      "claim": "Python source-selected wire guard controls; no actual Rust encoder/provider/cross-layer runtime proof",
+      "errors": 0,
+      "failed": 0,
+      "live_controller_executed": false,
+      "log_sha256": "33060fd73862c5e1af97335504d5b45211fce6d229657f556d8deceeadc52ce4",
+      "passed": 3,
+      "phase": "node-wire-pure-controls-v1",
+      "provider_calls": 0,
+      "source_unchanged": true,
+      "test_source_unchanged": true,
+      "tool_chunk_id": "5ae803",
+      "tool_exit_code": 0,
+      "tool_wall_seconds": 1.0919e-05,
+      "version": 1
+    },
+    "result_path": ".local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/node-wire-controls-result-v1.json",
+    "result_sha256": "40a447deca9a5fe9c8c485748747bfd3f3eff2e9c70a8c7b7f44734a62b10758",
+    "live_provider_acceptance": false
+  }
+}

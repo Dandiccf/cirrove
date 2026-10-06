@@ -1,0 +1,526 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "complete_local_validation_passed_live_arm_still_not_dispatched",
+  "question": "Can the actual service MutationWorker lose a genuine standalone native Trash receipt before local acknowledgement and reopen the same UUID for inspection-only recovery, while exact journal authority, encrypted MayHaveSent state and original source remain preserved?",
+  "prediction": "The normal native Trash adapter persists MayHaveSent before its one Trash dispatch; a feature-only post-receipt process exit should leave Applying with an attempt, exact prepared identity and no receipt. Normal reopen should normalize only state and attempt. The recovery guard should permit one exact reconciliation, reject every mutation entrypoint and prevent Uncommitted from requeueing a write.",
+  "arms": [
+    "Synthetic foreign identity, SQL/body/queue, prepared item, receipt and entrypoint controls on the new guard",
+    "Actual child MutationWorker over a parent-owned local TLS server and real encrypted native Trash checkpoint, with host keyring isolated",
+    "Finite private registration, explicit flat Numbers source and independent read-only observer controls",
+    "Complete scripts/check.sh before commit or any live dispatch"
+  ],
+  "endpoint": [
+    "Child actually exits86 after the real adapter returns Removed and before the worker ACK; parent reaps original handle",
+    "Raw checked target remains Applying with attempt and prepared exact original ID, receipt absent and queue incomplete",
+    "Actual sealed checkpoint decrypts privately as MayHaveSent under the same operation/account/request; no plaintext or wrapping key logged",
+    "Same UUID reopen changes only interrupted state and attempt; recovery Applied(Removed) uses exactly one reconciliation and zero preparation/mutation/upload",
+    "Parent-owned TLS server records exactly one total Trash request; checkpoint and source retained",
+    "Registered driver and observer refuse wrong scope/window/private inputs/source semantics; no unsupported full-cloud claim"
+  ],
+  "synthetic_default": true,
+  "real_account_dispatched": false,
+  "provider_mutations": false,
+  "synthetic_server_mutation_expected": true,
+  "installed_actions": false,
+  "migration_allowed": false,
+  "active_measurement": false,
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "limits": [
+    "A local TLS fixture is not real-provider acceptance.",
+    "The loss boundary is process exit after a genuine backend receipt, not provider reply loss.",
+    "Independent full V2 Trash content, current absence and historical public read-only watching are separate live endpoints.",
+    "No installed journal14/metadata7 to candidate21/8 transition or release is authorized by synthetic evidence."
+  ],
+  "local_run": {
+    "original_owner": {
+      "pid": 2432132,
+      "start_ticks": "32650632",
+      "original_Popen_handle": true,
+      "original_pidfd_handle": true,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--lib",
+        "native_trash_recovery",
+        "--locked",
+        "--",
+        "--test-threads=1"
+      ],
+      "expected_seconds": 900
+    },
+    "registration_path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/targeted4-registration-v1.json",
+    "filesystem": {
+      "filesystems": [
+        {
+          "target": "/home/dandiccf/Storage",
+          "source": "/dev/nvme1n1p1",
+          "fstype": "ext4"
+        }
+      ]
+    },
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/native-trash-receipt-loss-20261006",
+    "registered_runtime_source_fixture_script_files": 559
+  },
+  "format_result": {
+    "phase": "fmt",
+    "exit_code": 0,
+    "elapsed_seconds": 1.5788550360011868,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": false,
+    "source_count": 559,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "format_note": "Formatting intentionally changed source pins before the separately pinned targeted command; it is not an unchanged-source proof.",
+  "independent_static_review": "clear after fresh deadline revalidation and source0400 corrections; no execution by reviewer",
+  "first_targeted_result": {
+    "phase": "targeted",
+    "exit_code": 101,
+    "elapsed_seconds": 10.035475713026244,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 559,
+    "log_sha256": "6787bb22f5bae1d71585a468c53ec28a0bc97ced3408cec2ad07227e57c79d67",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "first_targeted_failure": "Rust preflight helper returns Value, while new driver expected unit; compile refused before executing tests. Added explicit ? and Ok(()), no provider action. Separate successor command, original result retained.",
+  "second_targeted_result": {
+    "phase": "targeted2",
+    "exit_code": 101,
+    "elapsed_seconds": 33.60419684497174,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 559,
+    "log_sha256": "a3c53ddf5b7245193297349d4530030057707d57a98bd8b6ede909c0ecc5150a",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "second_targeted_failure": "Four assert_eq! sites required Debug on intentionally non-Debug mutation types. Compile refused before tests; changed only equality assertion syntax to assert!, preserving the exact comparisons and avoiding raw request/receipt Debug output.",
+  "second_format_result": {
+    "phase": "fmt2",
+    "exit_code": 0,
+    "elapsed_seconds": 1.5899317300063558,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 559,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "second_format_manifest_note": "Inherited synthetic_TLS_mutation planned flag is true in fmt2 registration; actual command was cargo fmt only, with no TLS/test execution. Successor runner keys this flag by actual command kind.",
+  "third_format_result": {
+    "phase": "fmt3",
+    "exit_code": 0,
+    "elapsed_seconds": 1.6626828309963457,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 559,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "third_targeted_result": {
+    "phase": "targeted3",
+    "exit_code": 101,
+    "elapsed_seconds": 33.23910484201042,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 559,
+    "log_sha256": "25e2058a29e1207d032762d4855644aed6d8faadce59885ae4fa36f676766834",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "third_targeted_test_counts": {
+    "passed": 15,
+    "failed": 1
+  },
+  "third_targeted_failure": "Actual TLS parent fixture supplied frontier0 instead of the fresh journal committed frontier; native selection refused before child/server dispatch. Corrected fixture reads namespace_publication(0).through and retains all actual endpoint assertions. This is a draft fixture correction, not a shipped production regression.",
+  "fourth_format_result": {
+    "phase": "fmt4",
+    "exit_code": 0,
+    "elapsed_seconds": 1.5871726929908618,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": false,
+    "source_count": 559,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "corrected_targeted_result": {
+    "phase": "targeted4",
+    "exit_code": 0,
+    "elapsed_seconds": 9.313886514981277,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 559,
+    "log_sha256": "ce3e7696a9f86ab918e1df91a7e90580876e0827178473a7f7b88dcb73bb248e",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "corrected_targeted_tests_passed": 16,
+  "actual_TLS_worker_child_endpoint": "Passed real childexit86 before localACK, private real encrypted MayHaveSent checkpoint and sameUUID inspection-only Applied recovery; parent TLS server one total Trash call. Synthetic wrapped PACKAGE transport, not live flat Numbers acceptance.",
+  "fullcheck": {
+    "status": "failed_before_workspace_tests",
+    "original_owner": {
+      "pid": 2433542,
+      "start_ticks": "32656438",
+      "original_Popen_handle": true,
+      "original_pidfd_handle": true,
+      "command": [
+        "bash",
+        "scripts/check.sh"
+      ],
+      "expected_seconds": 1800
+    },
+    "registration_path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/full-registration-v1.json",
+    "result": {
+      "phase": "full",
+      "exit_code": 101,
+      "elapsed_seconds": 11.957038992026355,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 559,
+      "log_sha256": "3b5b41d401f265be0f41a964f77af7d5b66b9f5228449d882c295cdd97cd32cd",
+      "provider_mutations": false,
+      "installed_actions": false
+    }
+  },
+  "fullcheck_failure": "Default-feature Clippy reported the new synthetic checkpoint setter as unused. It is used only by icloud-write-probe tests; corrected cfg to all(test, feature=icloud-write-probe), preserving actual production behavior and the feature TLS control. Complete successor scripts/check.sh required; no prior partial run substituted.",
+  "complete_successor": {
+    "status": "failed_before_workspace_tests",
+    "original_owner": {
+      "pid": 2436789,
+      "start_ticks": "32672210",
+      "original_Popen_handle": true,
+      "original_pidfd_handle": true,
+      "command": [
+        "bash",
+        "scripts/check.sh"
+      ],
+      "expected_seconds": 1800
+    },
+    "registration_path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/full2-registration-v1.json",
+    "result": {
+      "phase": "full2",
+      "exit_code": 101,
+      "elapsed_seconds": 23.62112918298226,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 559,
+      "log_sha256": "5ecc0b3a1b88ae5f30c4a9032ec0b8a75d1bbeceffb62c55eded2231084d9053",
+      "provider_mutations": false,
+      "installed_actions": false
+    }
+  },
+  "fifth_format_result": {
+    "phase": "fmt5",
+    "exit_code": 0,
+    "elapsed_seconds": 1.586523899983149,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": true,
+    "source_count": 559,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "second_fullcheck_failure": "Feature Clippy found two cmp_owned allocations in exact registration path comparisons. Removed redundant PathBuf construction while retaining exact expected strings. No authority check or test assertion removed; separate complete successor required.",
+  "complete_successor3": {
+    "status": "failed_in_script_smoke_after_workspace_and_kernel_tests",
+    "original_owner": {
+      "pid": 2439254,
+      "start_ticks": "32683614",
+      "original_Popen_handle": true,
+      "original_pidfd_handle": true,
+      "command": [
+        "bash",
+        "scripts/check.sh"
+      ],
+      "expected_seconds": 1800
+    },
+    "registration_path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/full3-registration-v1.json",
+    "result": {
+      "phase": "full3",
+      "exit_code": 1,
+      "elapsed_seconds": 679.2864455240197,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 559,
+      "log_sha256": "625494b4acbe4ed0cd3e27cc8fbce9b48453e3d513983a67b3b516f787dd7df5",
+      "provider_mutations": false,
+      "installed_actions": false
+    }
+  },
+  "sixth_format_result": {
+    "phase": "fmt6",
+    "exit_code": 0,
+    "elapsed_seconds": 1.5915780549985357,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": false,
+    "source_count": 559,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "preflight_integration_gap": {
+    "status": "explicit_bridge_and_typed_collector_validated_locally_no_live_dispatch",
+    "source": "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify.rs:123",
+    "observation": "Generic fixture validator requires Cirrove-Native-RUN, while new removal registration requires Cirrove-Native-Trash-RUN. Current preflight delegates to generic validator, so it would refuse before provider access. Local16 controls do not prove that live helper-name composition.",
+    "correction_required": "Add explicitly bound standalone-removal read-only preflight bridge with exact new run/root/parent/document/source/account layout. Keep generic old-arm validation strict; never fabricate old names in provider metadata. Apply only after current full3 terminal to preserve its runtime pins.",
+    "earlier_static_review_limit": "Earlier clear review covered new guard/registration/TLS file contracts; later controller dependency audit exposed this helper composition gap. No live-ready claim or real account dispatch.",
+    "synthetic_fixture_correction": "Unexecuted initial patch artifact had entries1/files1 invalid directory-closure shape. Peer review corrected synthetic fixture to entries2/files1 before first command; original patch retained. Not a production regression result."
+  },
+  "third_fullcheck_failure": "Workspace tests and kernel groups passed. scripts/smoke.py refused control socket because original disk TMPDIR plus generated suffix exceeded Linux SUN_LEN. No provider or installed action. Preserve result; shorter separate disk TMPDIR and a complete successor check are required.",
+  "successor_registration": {
+    "question": "Does the explicit native Trash preflight compose with the finite driver, preserving strict old fixture validation, and does the complete check finish under a disk TMPDIR short enough for UNIX sockets?",
+    "prediction": "The exact new-arm validator should accept only the native Trash owned shape; its pure account/source controls and all sixteen loss/recovery controls should pass. Shortening disk TMPDIR resolves SUN_LEN without a product or smoke code change. The new producer will refuse foreign scope and expired windows before remote calls, and export actual typed metadata for only the fresh owned target.",
+    "commands": [
+      "cargo fmt --all",
+      "cargo test -p cirrove-service --features icloud-write-probe --lib native_trash_preflight_bridge_ --locked -- --test-threads=1",
+      "cargo test -p cirrove-service --features icloud-write-probe --lib native_trash_recovery --locked -- --test-threads=1",
+      "/usr/bin/python3 scripts/smoke.py",
+      "bash scripts/check.sh"
+    ],
+    "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+    "endpoint": "All named controls execute; smoke succeeds; one complete scripts/check.sh passes; source pins unchanged except separately recorded formatting.",
+    "additional_arm": "Explicit fresh native Trash read-only metadata producer: exact finite600s run/account/root/source, actual unique typed Apple parent/document metadata and before-after fences, followed by independent flat-source/wrapped-remote fullV2 proof. Required because old metadata exporters bind different test namespaces."
+  },
+  "seventh_format_result": {
+    "phase": "fmt7",
+    "exit_code": 0,
+    "elapsed_seconds": 1.6090917609981261,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": false,
+    "source_count": 559,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "preflight_bridge_controls": {
+    "result": {
+      "phase": "bridge1",
+      "exit_code": 0,
+      "elapsed_seconds": 59.138512553006876,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 559,
+      "log_sha256": "a04ac138adde4529f6afd0ae11d5305068f9764c83d28b23dd1f1bd7e56fc431",
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "tests_passed": 3,
+    "synthetic_default": true,
+    "production_regression_claim": false,
+    "scope": "Exact new arm accepted, generic old arm rejected; foreign account/capability and real synthetic flat/wrapped semantic controls."
+  },
+  "last_committed_ci": {
+    "head": "e924f5d238491fa0cb0793724ff9f513be5ec05e",
+    "run": 37488250500,
+    "status": "completed",
+    "conclusion": "success",
+    "jobs_success": 7,
+    "current_uncommitted_validation": false
+  },
+  "new_live_nonce_reserved_only": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+  "live_window_started": false,
+  "prepared_bridge_artifact": {
+    "path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-preflight-bridge-v1.patch",
+    "sha256": "15d02c4da61d479614fed82bf01fd5344735f64dda59cef6c37e9fa5ac2aa246",
+    "immutable_initial_proposal_not_final_source": true
+  },
+  "environmental_smoke_preregistration": {
+    "command": [
+      "/usr/bin/python3",
+      "scripts/smoke.py"
+    ],
+    "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+    "question": "Does shorter disk-backed TMPDIR resolve the observed SUN_LEN refusal for predecessor test binaries?",
+    "prediction": "Same smoke script and compiled binaries should start daemon and complete once UNIX-socket path is below SUN_LEN.",
+    "scope": "Environment control only; does not validate current draft source or replace full4.",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "environmental_smoke_result": {
+    "exit_code": 0,
+    "elapsed_seconds": 0.09227992303203791,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "inputs_unchanged": true,
+    "log_sha256": "1e317e233b5432c5a2dc0a85047602632e837f1704489871a3575079e2422909",
+    "environment_only_predecessor_binaries": true,
+    "provider_mutations": false,
+    "installed_actions": false,
+    "note": "Same script and predecessor compiled CLI/daemon passed with shorter ext4 TMPDIR. No current-source or complete-check claim; metadata producer edits remained independent and no Cargo ran."
+  },
+  "fresh_role_build_preregistration": {
+    "question": "Can fresh normal daemon/CLI and feature-only native Trash probe be bound to the exact final fullchecked runtime source?",
+    "prediction": "Both serial builds succeed, all runtime pins match full4, and isolated exclusive copies retain exact binary SHA before any cloud dispatch.",
+    "commands": [
+      [
+        "cargo",
+        "build",
+        "-p",
+        "cirrove-service",
+        "--bin",
+        "cirrove",
+        "--bin",
+        "cirroved",
+        "--locked"
+      ],
+      [
+        "cargo",
+        "build",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--bin",
+        "cirrove-icloud-mounted-write-probe",
+        "--locked"
+      ]
+    ],
+    "runner": ".local-state/icloud-native-trash-receipt-loss-development-20261006/build_local_v2.py",
+    "installed_actions": false,
+    "cloud_dispatched": false
+  },
+  "eighth_format_result": {
+    "phase": "fmt8",
+    "exit_code": 0,
+    "elapsed_seconds": 1.5875941530102864,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": false,
+    "source_count": 561,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "fresh_metadata_preexecution_review_corrections": [
+    "Production socket fence corrected to actual root/control.sock route rather than state/control.sock.",
+    "Two unexecuted synthetic account field names corrected to actual serde provider i_cloud and driveType. No executed regression outcome claimed."
+  ],
+  "ninth_format_result": {
+    "phase": "fmt9",
+    "exit_code": 0,
+    "elapsed_seconds": 1.6355427469825372,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "runtime_sources_unchanged": false,
+    "source_count": 561,
+    "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "provider_mutations": false,
+    "installed_actions": false
+  },
+  "successor_targeted9": {
+    "status": "passed",
+    "original_owner": {
+      "pid": 2499480,
+      "start_ticks": "32841512",
+      "original_Popen_handle": true,
+      "original_pidfd_handle": true,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--lib",
+        "native_trash_recovery",
+        "--locked",
+        "--",
+        "--test-threads=1"
+      ],
+      "expected_seconds": 900
+    },
+    "registration_path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/targeted9-registration-v1.json",
+    "expected_tests": 19,
+    "runtime_source_fixture_script_pins": 561,
+    "result": {
+      "phase": "targeted9",
+      "exit_code": 0,
+      "elapsed_seconds": 30.490331798035186,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 561,
+      "log_sha256": "cef623ffb6bda4023a906ba8b400c86042ff46dbeb58806e9515553dc1adad4d",
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "tests_passed": 19
+  },
+  "complete_successor4": {
+    "status": "passed",
+    "original_owner": {
+      "pid": 2501437,
+      "start_ticks": "32846708",
+      "original_Popen_handle": true,
+      "original_pidfd_handle": true,
+      "command": [
+        "bash",
+        "scripts/check.sh"
+      ],
+      "expected_seconds": 1800
+    },
+    "registration_path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/full4-registration-v1.json",
+    "runtime_source_fixture_script_pins": 561,
+    "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+    "result": {
+      "phase": "full4",
+      "exit_code": 0,
+      "elapsed_seconds": 653.9182576329913,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 561,
+      "log_sha256": "b4f4ca8447555709407bd5e14b3eccb19dd79dd6293732b86d519d046aa565b1",
+      "provider_mutations": false,
+      "installed_actions": false
+    }
+  },
+  "independent_final_static_review": {
+    "status": "clear",
+    "scope": "Final formatted scope guard, finite registration, encrypted recovery binding, independent observer, explicit preflight bridge and typed metadata collector.",
+    "collector_corrections_rechecked": true,
+    "executed_by_reviewer": false,
+    "provider_calls_by_reviewer": false
+  },
+  "independent_targeted9_evidence_audit": {
+    "status": "clear",
+    "actual_tests_passed": 19,
+    "log_sha256_matches": true,
+    "original_handle_reaped_and_absent": true,
+    "runtime_pins_current_and_full4_equal": 561,
+    "complete_fullcheck_inferred": false
+  },
+  "registered_runtime_source_classification": {
+    "rust": 482,
+    "cargo": 11,
+    "fixtures_scripts_other": 68,
+    "total": 561
+  },
+  "display_scenarios_run_by_fullcheck": false
+}

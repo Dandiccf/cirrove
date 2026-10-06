@@ -16,7 +16,7 @@ impl ICloudWriteProvider {
         let staging = self
             .package_staging()
             .map_err(|_| MutationError::Uncertain)?;
-        cirrove_icloud::ICloudNativeTrash::from_sealed_session(
+        let adapter = cirrove_icloud::ICloudNativeTrash::from_sealed_session(
             self.scope.clone(),
             self.apple_id.clone(),
             self.credential_id.clone(),
@@ -24,6 +24,19 @@ impl ICloudWriteProvider {
             before.clone(),
             staging,
         )
-        .map(|adapter| adapter.with_write_staging_budget(self.package_staging_budget.clone()))
+        .map(|adapter| adapter.with_write_staging_budget(self.package_staging_budget.clone()))?;
+        #[cfg(test)]
+        let adapter = if let Some(client) = &self.package_test_transport {
+            adapter.with_synthetic_native_transport(client.clone())?
+        } else {
+            adapter
+        };
+        #[cfg(test)]
+        let adapter = if let Some(vault) = &self.native_trash_test_vault {
+            adapter.with_synthetic_checkpoint_vault(vault.clone())
+        } else {
+            adapter
+        };
+        Ok(adapter)
     }
 }

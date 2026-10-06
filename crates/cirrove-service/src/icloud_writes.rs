@@ -44,6 +44,8 @@ pub struct ICloudWriteProvider {
     package_test_adapter: Option<Arc<dyn UploadProvider>>,
     #[cfg(test)]
     package_test_transport: Option<reqwest::Client>,
+    #[cfg(test)]
+    native_trash_test_vault: Option<Arc<dyn CredentialVault>>,
     #[cfg(feature = "icloud-write-probe")]
     discard_registration: Option<Uuid>,
 }
@@ -81,6 +83,8 @@ impl ICloudWriteProvider {
             package_test_adapter: None,
             #[cfg(test)]
             package_test_transport: None,
+            #[cfg(test)]
+            native_trash_test_vault: None,
             #[cfg(feature = "icloud-write-probe")]
             discard_registration: None,
             scope: Scope {
@@ -105,6 +109,14 @@ impl ICloudWriteProvider {
 
     // Bind loopback only after the normal native factory has validated the
     // account, journal, parent, private staging and any captured checkpoint.
+    #[cfg(all(test, feature = "icloud-write-probe"))]
+    pub(crate) fn synthetic_native_trash_checkpoint(
+        mut self,
+        vault: Arc<dyn CredentialVault>,
+    ) -> Self {
+        self.native_trash_test_vault = Some(vault);
+        self
+    }
     #[cfg(test)]
     pub(crate) fn synthetic_native_transport(mut self, client: reqwest::Client) -> Self {
         self.package_test_transport = Some(client);
@@ -597,6 +609,8 @@ mod tests {
             package_test_adapter: None,
             #[cfg(test)]
             package_test_transport: None,
+            #[cfg(test)]
+            native_trash_test_vault: None,
             #[cfg(feature = "icloud-write-probe")]
             discard_registration: None,
             scope: Scope {

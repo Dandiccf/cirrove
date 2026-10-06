@@ -1504,3 +1504,27 @@ Read-only recovery accepts the supported range without migrating, and narrow
 ordinary metadata repair accepts existing schemas 20 and 21 only. The installed
 transition remains held. Synthetic admission and transport checks do not prove
 Apple Numbers reopening, export fidelity or complete iCloud support.
+
+
+## Feature-only standalone native Trash process-loss validation
+
+The isolated write probe can wrap the real native Trash mutation provider with
+a scope-bound receipt-loss guard. It checks the original account/collection/item,
+prepared identity and raw journal authority before and after provider I/O,
+releasing the journal mutex before every network await. After one genuine Removed
+receipt it fsyncs an exclusive private marker and exits before the worker's local
+acknowledgement. A separate recovery mode binds the same operation and permits
+only reconciliation. An Uncommitted inspection becomes Indeterminate rather
+than returning the operation to the mutation queue. Other mutation and upload
+entrypoints refuse.
+
+The finite registration retains the original 600-second deadline across loss and
+recovery, requires an immutable explicit flat Numbers source and a fresh owned
+public import, and privately verifies the real encrypted MayHaveSent checkpoint.
+Its independent read-only preflight uses an explicit new-arm validator rather
+than weakening older fixture contracts. Post-recovery content inspection checks
+current absence and the exact original's full semantic V2 content in Trash.
+Historical public read-only observation and a fresh mount are separate live
+endpoints. The guard is unavailable in normal builds and does not grant an
+installed account write capability. Synthetic actual-child coverage is recorded
+in the [local trial](benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json).

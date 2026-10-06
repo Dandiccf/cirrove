@@ -104,6 +104,7 @@ pub async fn icloud_account_uploads(run: Uuid) -> Result<()> {
 
 mod mounted;
 pub(crate) mod native_final_recovery;
+pub(crate) mod native_trash_recovery;
 pub use mounted::{
     icloud_account_empty_read, icloud_account_mounted, icloud_account_mounted_applications,
     icloud_account_mounted_atomic, icloud_account_mounted_competing,

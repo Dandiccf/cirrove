@@ -427,6 +427,8 @@ impl CredentialVault for SealedPackageRestoreCheckpointVault {
 pub struct SealedNativeTrashCheckpointVault {
     account_dir: PathBuf,
     account_id: String,
+    #[cfg(feature = "test-support")]
+    test_keys: Option<std::sync::Arc<dyn CredentialVault>>,
 }
 
 impl SealedNativeTrashCheckpointVault {
@@ -438,9 +440,30 @@ impl SealedNativeTrashCheckpointVault {
         Ok(Self {
             account_dir: state.join("accounts").join(account_id),
             account_id: account_id.into(),
+            #[cfg(feature = "test-support")]
+            test_keys: None,
         })
     }
 
+    /// Fixture wrapping keys; persistent checkpoint encryption and AAD are unchanged.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn with_test_key_vault(
+        state: &Path,
+        account_id: &str,
+        key_vault: std::sync::Arc<dyn CredentialVault>,
+    ) -> Result<Self> {
+        let mut vault = Self::new(state, account_id)?;
+        vault.test_keys = Some(key_vault);
+        Ok(vault)
+    }
+    fn key_vault(&self) -> &dyn CredentialVault {
+        #[cfg(feature = "test-support")]
+        if let Some(keys) = &self.test_keys {
+            return keys.as_ref();
+        }
+        &DesktopVault
+    }
     pub(crate) fn key(account: &str, operation: Uuid) -> String {
         format!("icloud-native-trash/{account}/{operation}")
     }
@@ -467,12 +490,12 @@ impl SealedNativeTrashCheckpointVault {
 #[async_trait]
 impl CredentialVault for SealedNativeTrashCheckpointVault {
     async fn load(&self, key: &str) -> Result<Option<SecretString>> {
-        self.operation(key)?.load_with(key, &DesktopVault).await
+        self.operation(key)?.load_with(key, self.key_vault()).await
     }
 
     async fn save(&self, key: &str, value: SecretString) -> Result<()> {
         self.operation(key)?
-            .save_with(key, value, &DesktopVault)
+            .save_with(key, value, self.key_vault())
             .await
     }
 

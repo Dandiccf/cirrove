@@ -9,6 +9,10 @@ pub use icloud_account::native_final_recovery::{
     icloud_native_final_loss, icloud_native_final_recover,
 };
 #[cfg(feature = "icloud-write-probe")]
+pub use icloud_account::native_trash_recovery::{
+    icloud_native_trash_loss, icloud_native_trash_recover, icloud_owned_native_trash_metadata,
+};
+#[cfg(feature = "icloud-write-probe")]
 pub use icloud_account::{
     icloud_account_cold_node, icloud_account_combined, icloud_account_combined_inspect,
     icloud_account_empty, icloud_account_empty_read, icloud_account_metadata_shapes,

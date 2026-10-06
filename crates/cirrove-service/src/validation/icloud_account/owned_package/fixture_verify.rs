@@ -98,7 +98,37 @@ fn decode(bytes: &[u8], expected_hash: &str) -> Result<Fixture> {
     );
     serde_json::from_slice(bytes).map_err(|_| anyhow::anyhow!("fixture schema refused"))
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FixtureArm {
+    Generic,
+    NativeTrash,
+}
 fn validate(f: &Fixture) -> Result<()> {
+    validate_for(f, FixtureArm::Generic)
+}
+fn validate_native_trash(f: &Fixture) -> Result<()> {
+    validate_for(f, FixtureArm::NativeTrash)?;
+    ensure!(
+        f.session_directory == format!("/var/tmp/cirrove-native-trash-{}", f.run)
+            && f.source == f.session_directory.join("source.numbers")
+            && f.format == "numbers"
+            && f.representation == FixtureRepresentation::Package
+            && f.source_root.is_none()
+            && f.expected_root == format!("Cirrove-Numbers-Trash-{}.numbers", f.run)
+            && f.semantic
+                .as_ref()
+                .is_some_and(|v| v.version == 2 && v.files > 0)
+            && f.parent.drivewsid != cirrove_icloud::ROOT_ID
+            && !f.parent.drivewsid.ends_with("::TRASH_ROOT"),
+        "native Trash preflight scope refused"
+    );
+    Ok(())
+}
+fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
+    let parent_name = match arm {
+        FixtureArm::Generic => format!("Cirrove-Native-{}", f.run),
+        FixtureArm::NativeTrash => format!("Cirrove-Native-Trash-{}", f.run),
+    };
     let extension = match f.format.as_str() {
         "pages" => "pages",
         "numbers" => "numbers",
@@ -120,7 +150,7 @@ fn validate(f: &Fixture) -> Result<()> {
             && !f.account.is_nil()
             && f.parent.kind == "FOLDER"
             && f.parent.zone == "com.apple.CloudDocs"
-            && f.parent.name == format!("Cirrove-Native-{}", f.run)
+            && f.parent.name == parent_name
             && f.parent
                 .drivewsid
                 .starts_with("FOLDER::com.apple.CloudDocs::")
@@ -182,6 +212,37 @@ fn account_binding(f: &Fixture, accounts: &[Account]) -> Result<Account> {
     );
     Ok(a)
 }
+fn native_trash_account_binding(f: &Fixture, accounts: &[Account]) -> Result<Account> {
+    let a = account_binding(f, accounts)?;
+    ensure!(
+        a.label == "iCloudNativeTrashLossValidation"
+            && a.enabled
+            && a.access == cirrove_auth::AccessMode::ReadWrite
+            && a.drive.id == "drive"
+            && a.drive.drive_type == "icloud_drive"
+            && a.root_id == cirrove_icloud::ROOT_ID
+            && a.mount_path == f.session_directory.join("mount")
+            && !Uuid::parse_str(&a.credential_id)?.is_nil(),
+        "native Trash preflight account refused"
+    );
+    Ok(a)
+}
+fn native_trash_source_stamp(file: &File) -> Result<(u64, u64, u64, i64, i64, i64, i64)> {
+    let m = file.metadata()?;
+    ensure!(
+        m.is_file() && m.nlink() == 1 && m.mode() & 0o7777 == 0o400,
+        "native Trash preflight immutable source refused"
+    );
+    Ok((
+        m.dev(),
+        m.ino(),
+        m.len(),
+        m.mtime(),
+        m.mtime_nsec(),
+        m.ctime(),
+        m.ctime_nsec(),
+    ))
+}
 fn proof(f: &Fixture, file: &File, receipt: &PackageDownload, source: bool) -> Result<()> {
     if source || f.representation == FixtureRepresentation::Data {
         ensure!(
@@ -220,6 +281,20 @@ pub async fn icloud_owned_fixture_verify(
     path: &Path,
     manifest_sha256: &str,
 ) -> Result<serde_json::Value> {
+    verify_fixture(path, manifest_sha256, FixtureArm::Generic).await
+}
+/// Explicit standalone native Trash preflight; no generic ownership widening.
+pub(crate) async fn icloud_owned_native_trash_fixture_verify(
+    path: &Path,
+    manifest_sha256: &str,
+) -> Result<serde_json::Value> {
+    verify_fixture(path, manifest_sha256, FixtureArm::NativeTrash).await
+}
+async fn verify_fixture(
+    path: &Path,
+    manifest_sha256: &str,
+    arm: FixtureArm,
+) -> Result<serde_json::Value> {
     let directory = path.parent().context("fixture directory missing")?;
     let directory_guard = open_private(directory, true, 0)?;
     let mut bytes = Vec::new();
@@ -227,7 +302,16 @@ pub async fn icloud_owned_fixture_verify(
         .take(32 * 1024 + 1)
         .read_to_end(&mut bytes)?;
     let f = decode(&bytes, manifest_sha256)?;
-    validate(&f)?;
+    match arm {
+        FixtureArm::Generic => validate(&f)?,
+        FixtureArm::NativeTrash => {
+            validate_native_trash(&f)?;
+            ensure!(
+                path == f.session_directory.join("preflight-fixture.json"),
+                "native Trash preflight filename refused"
+            );
+        }
+    }
     let _session_directory = open_private(&f.session_directory, true, 0)?;
     let _state = open_private(&f.session_directory.join("state"), true, 0)?;
     let settings_path = f.session_directory.join("state/accounts.json");
@@ -243,8 +327,16 @@ pub async fn icloud_owned_fixture_verify(
     let settings: Settings = serde_json::from_slice(&settings_bytes)
         .map_err(|_| anyhow::anyhow!("fixture account settings refused"))?;
     ensure!(settings.version == 2, "fixture account schema unsupported");
-    let account = account_binding(&f, &settings.accounts)?;
+    let account = match arm {
+        FixtureArm::Generic => account_binding(&f, &settings.accounts)?,
+        FixtureArm::NativeTrash => native_trash_account_binding(&f, &settings.accounts)?,
+    };
     let mut source = open_private(&f.source, false, LIMIT)?;
+    let source_stamp = if arm == FixtureArm::NativeTrash {
+        Some(native_trash_source_stamp(&source)?)
+    } else {
+        None
+    };
     let source_receipt = PackageDownload {
         size: source.metadata()?.len(),
         sha256: sha256(&mut source)?,
@@ -253,7 +345,12 @@ pub async fn icloud_owned_fixture_verify(
     same_directory(directory, &directory_guard)?;
     let attempt = verification_directory(directory)?;
     let attempt_guard = open_private(&attempt, true, 0)?;
-    manifest(&attempt, f.run, "owned-fixture-read-only")?;
+    match arm {
+        FixtureArm::Generic => manifest(&attempt, f.run, "owned-fixture-read-only")?,
+        FixtureArm::NativeTrash => {
+            manifest_with_duration(&attempt, f.run, "owned-fixture-read-only", 600)?;
+        }
+    }
     // Sealed saved session only: this helper never calls sign_in/account_login.
     let mut remote = session(&f.session_directory, &account)
         .await
@@ -289,7 +386,25 @@ pub async fn icloud_owned_fixture_verify(
         sha256(&mut final_source)? == f.source_sha256,
         "fixture source changed during observation"
     );
-    let result = serde_json::json!({"run":f.run,"account":f.account,"parent":f.parent.drivewsid,"item":f.document.drivewsid,"etag":f.document.etag,"representation":f.representation,"format":f.format,"size":receipt.size,"sha256":receipt.sha256,"semantic":f.semantic,"manifest_sha256":manifest_sha256,"content_identity_verified":true,"gui_fidelity_verified":false,"cloud_mutated":false});
+    if let Some(expected) = source_stamp {
+        ensure!(
+            native_trash_source_stamp(&source)? == expected
+                && native_trash_source_stamp(&final_source)? == expected,
+            "native Trash preflight source stamp changed"
+        );
+        let mut final_settings = Vec::new();
+        open_private(&settings_path, false, 256 * 1024)?
+            .take(256 * 1024 + 1)
+            .read_to_end(&mut final_settings)?;
+        ensure!(
+            final_settings == settings_bytes,
+            "native Trash preflight settings changed"
+        );
+    }
+    let mut result = serde_json::json!({"run":f.run,"account":f.account,"parent":f.parent.drivewsid,"item":f.document.drivewsid,"etag":f.document.etag,"representation":f.representation,"format":f.format,"size":receipt.size,"sha256":receipt.sha256,"semantic":f.semantic,"manifest_sha256":manifest_sha256,"content_identity_verified":true,"gui_fidelity_verified":false,"cloud_mutated":false});
+    if arm == FixtureArm::NativeTrash {
+        result["arm"] = serde_json::json!("native_trash_preflight");
+    }
     same_directory(directory, &directory_guard)?;
     same_directory(&attempt, &attempt_guard)?;
     record(&attempt.join("receipt.json"), &result)?;
@@ -653,6 +768,145 @@ mod tests {
             format!("{}.pages", input["document"]["name"].as_str().unwrap()).into();
         let bytes = serde_json::to_vec(&input)?;
         assert!(validate(&decode(&bytes, &hex::encode(Sha256::digest(&bytes)))?).is_err());
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod native_trash_bridge_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    fn fixture() -> Fixture {
+        let run = Uuid::new_v4();
+        let root = PathBuf::from(format!("/var/tmp/cirrove-native-trash-{run}"));
+        let name = format!("Cirrove-Numbers-Trash-{run}");
+        serde_json::from_value(serde_json::json!({"version":1,"run":run,"account":Uuid::new_v4(),
+            "session_directory":root,"settings_sha256":"a".repeat(64),
+            "parent":{"drivewsid":"FOLDER::com.apple.CloudDocs::owned-parent","name":format!("Cirrove-Native-Trash-{run}"),"zone":"com.apple.CloudDocs","type":"FOLDER"},
+            "document":{"drivewsid":"FILE::com.apple.CloudDocs::doc","docwsid":"doc","parentId":"FOLDER::com.apple.CloudDocs::owned-parent","name":name,"extension":"numbers","zone":"com.apple.CloudDocs","type":"FILE","etag":"selected-E1","size":3},
+            "format":"numbers","representation":"package","source":root.join("source.numbers"),
+            "source_size":3,"source_sha256":"b".repeat(64),"source_root":null,
+            "expected_root":format!("{name}.numbers"),
+            "semantic":{"version":2,"entries":2,"files":1,"expanded_bytes":3,"sha256":"c".repeat(64)}})).unwrap()
+    }
+    fn account(f: &Fixture) -> Account {
+        Account {
+            id: f.account.to_string(),
+            label: "iCloudNativeTrashLossValidation".into(),
+            registration: AppRegistration::ICloud,
+            identity: cirrove_auth::Identity {
+                tenant_id: String::new(),
+                subject: "synthetic".into(),
+                username: "fixture@example.invalid".into(),
+                graph_user_id: String::new(),
+                display_name: "Fixture".into(),
+            },
+            credential_id: Uuid::new_v4().to_string(),
+            access: cirrove_auth::AccessMode::ReadWrite,
+            drive: cirrove_core::CollectionInfo {
+                id: "drive".into(),
+                name: "Fixture".into(),
+                drive_type: "icloud_drive".into(),
+                web_url: String::new(),
+            },
+            root_id: cirrove_icloud::ROOT_ID.into(),
+            mount_path: f.session_directory.join("mount"),
+            enabled: true,
+            poll_seconds: 3600,
+            cache_bytes: 1024 * 1024,
+        }
+    }
+    #[test]
+    fn native_trash_preflight_bridge_is_explicit_and_generic_remains_strict() {
+        let f = fixture();
+        validate_native_trash(&f).unwrap();
+        assert!(validate(&f).is_err());
+        native_trash_account_binding(&f, &[account(&f)]).unwrap();
+        for arm in 0..12 {
+            let mut f = fixture();
+            match arm {
+                0 => f.run = Uuid::new_v4(),
+                1 => f.session_directory = PathBuf::from("/var/tmp/foreign-root"),
+                2 => f.parent.name = format!("Cirrove-Native-{}", f.run),
+                3 => f.document.name = format!("Other-{}", f.run),
+                4 => f.document.parent_id = "FOLDER::com.apple.CloudDocs::foreign".into(),
+                5 => f.representation = FixtureRepresentation::Data,
+                6 => f.source_root = Some("Source.numbers".into()),
+                7 => f.source = f.session_directory.join("source-a.numbers"),
+                8 => f.semantic = None,
+                9 => f.semantic.as_mut().unwrap().version = 1,
+                10 => f.expected_root = format!("Different-{}.numbers", f.run),
+                _ => f.format = "pages".into(),
+            }
+            assert!(
+                validate_native_trash(&f).is_err(),
+                "native preflight arm {arm}"
+            );
+        }
+    }
+    #[test]
+    fn native_trash_preflight_bridge_refuses_foreign_account_and_capability() {
+        let f = fixture();
+        assert!(native_trash_account_binding(&f, &[]).is_err());
+        assert!(native_trash_account_binding(&f, &[account(&f), account(&f)]).is_err());
+        for arm in 0..8 {
+            let mut a = account(&f);
+            match arm {
+                0 => a.id = Uuid::new_v4().to_string(),
+                1 => a.label = "iCloudNumbersBrowserValidation".into(),
+                2 => a.access = cirrove_auth::AccessMode::ReadOnly,
+                3 => a.enabled = false,
+                4 => a.drive.id = "foreign".into(),
+                5 => a.drive.drive_type = "foreign".into(),
+                6 => a.mount_path = PathBuf::from("/var/tmp/foreign-mount"),
+                _ => a.credential_id = Uuid::nil().to_string(),
+            }
+            assert!(
+                native_trash_account_binding(&f, &[a]).is_err(),
+                "native account arm {arm}"
+            );
+        }
+    }
+    #[test]
+    fn native_trash_preflight_bridge_full_flat_source_and_remote_semantic_proof() -> Result<()> {
+        let dir = tempfile::tempdir()?.keep();
+        let raw = crate::native_import::synthetic_package_archive("Document", b"owned content");
+        let mut f = fixture();
+        let wrapped = crate::native_import::synthetic_package_archive(
+            &format!("{}/Document", f.expected_root),
+            b"owned content",
+        );
+        let source = dir.join("source.numbers");
+        let remote = dir.join("remote.numbers");
+        std::fs::write(&source, &raw)?;
+        std::fs::write(&remote, &wrapped)?;
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o400))?;
+        let a = File::open(&source)?;
+        let b = File::open(&remote)?;
+        let ar = PackageDownload {
+            size: raw.len() as u64,
+            sha256: hex::encode(Sha256::digest(&raw)),
+        };
+        let br = PackageDownload {
+            size: wrapped.len() as u64,
+            sha256: hex::encode(Sha256::digest(&wrapped)),
+        };
+        f.source_size = ar.size;
+        f.source_sha256 = ar.sha256.clone();
+        f.semantic = Some(cirrove_icloud::package_flat_archive_semantic_identity_v2(
+            &a,
+            &ar,
+            &CancellationToken::new(),
+        )?);
+        validate_native_trash(&f)?;
+        native_trash_source_stamp(&a)?;
+        proof(&f, &a, &ar, true)?;
+        proof(&f, &b, &br, false)?;
+        f.semantic.as_mut().unwrap().sha256 = "0".repeat(64);
+        assert!(proof(&f, &a, &ar, true).is_err());
+        assert!(proof(&f, &b, &br, false).is_err());
+        assert_eq!(std::fs::read(&source)?, raw);
+        assert_eq!(std::fs::read(&remote)?, wrapped);
         Ok(())
     }
 }

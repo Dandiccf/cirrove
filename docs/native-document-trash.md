@@ -68,6 +68,12 @@ visible again. Listing and watching do not claim to refresh its present cloud
 state. A successful old operation must never be replayed to make current state
 match that history.
 
+A [local actual-process trial](benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json)
+now covers receipt loss before local acknowledgement and inspection-only recovery
+of the same operation against a TLS fixture. Live standalone Numbers acceptance
+still requires its own controlled removal, independent Trash-content verification
+and public read-only observation.
+
 This document describes the explicit API contract. Synthetic tests and a
 successful build do not establish installed-provider reliability; controlled
 normal-service acceptance and release gates remain separately recorded.

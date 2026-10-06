@@ -79,6 +79,10 @@ to atomic-save ordering and publication of the confirmed replacement identities.
 A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
 also verified the exact original bytes in iCloud Trash.
 Native iWork editing and five full-integration acceptance areas remain open.
+A [new local crash-recovery test](docs/benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json)
+also confirms that standalone native-document removal can recover the same
+operation after process loss without sending another Trash request to its TLS
+fixture. Its separate real-iCloud acceptance test is still being prepared.
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to

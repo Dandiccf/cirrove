@@ -71,6 +71,14 @@ fn check_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 fn manifest(dir: &Path, run: Uuid, phase: &str) -> Result<()> {
+    manifest_with_duration(dir, run, phase, 900)
+}
+fn manifest_with_duration(
+    dir: &Path,
+    run: Uuid,
+    phase: &str,
+    expected_max_seconds: u64,
+) -> Result<()> {
     check_directory(dir)?;
     let output = std::process::Command::new("findmnt")
         .args(["-n", "-o", "FSTYPE", "-T"])
@@ -84,7 +92,7 @@ fn manifest(dir: &Path, run: Uuid, phase: &str) -> Result<()> {
     let digest = sha256(&mut File::open(&binary)?)?;
     record(
         &dir.join(format!("{phase}-manifest.json")),
-        &serde_json::json!({"run":run,"phase":phase,"pid":std::process::id(),"binary":binary,"binary_sha256":digest,"filesystem":"btrfs","private_staging":dir,"expected_max_seconds":900,"started_unix_seconds":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),"cloud_mutation":matches!(phase,"import"|"restore")}),
+        &serde_json::json!({"run":run,"phase":phase,"pid":std::process::id(),"binary":binary,"binary_sha256":digest,"filesystem":"btrfs","private_staging":dir,"expected_max_seconds":expected_max_seconds,"started_unix_seconds":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs(),"cloud_mutation":matches!(phase,"import"|"restore")}),
     )?;
     File::open(dir)?.sync_all()?;
     Ok(())
@@ -452,6 +460,7 @@ pub use replacement_live::{
 };
 
 mod fixture_verify;
+pub(super) use fixture_verify::icloud_owned_native_trash_fixture_verify;
 pub use fixture_verify::{
     icloud_owned_calc_metadata, icloud_owned_calc_trash_original, icloud_owned_editor_metadata,
     icloud_owned_editor_source_proof, icloud_owned_fixture_verify,
