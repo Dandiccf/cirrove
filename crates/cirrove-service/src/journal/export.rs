@@ -740,6 +740,23 @@ impl MetadataPublicationJournal {
     pub(crate) fn due(&self, now: u64) -> Result<Option<super::OrdinaryHandoffMetadata>> {
         self.0.journal.ordinary_metadata_due(now)
     }
+    pub(crate) fn due_native_trash(&self, now: u64) -> Result<Option<MutationRecord>> {
+        let exists: bool = self.0.journal.db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='native_trash_metadata_publication')",[],|r|r.get(0))?;
+        if !exists {
+            return Ok(None);
+        }
+        self.0.journal.native_trash_publication_due(now)
+    }
+    pub(crate) fn finish_native_trash(
+        &self,
+        expected: &MutationRecord,
+        status: PackagePublicationStatus,
+        now: u64,
+    ) -> Result<()> {
+        self.0
+            .journal
+            .finish_native_trash_publication(expected, status, now)
+    }
     pub(crate) fn due_with_scan(
         &self,
         now: u64,
@@ -761,5 +778,15 @@ impl MetadataPublicationJournal {
         self.0
             .journal
             .finish_ordinary_metadata(proof, completed, now)
+    }
+}
+
+impl RecoveryJournal {
+    pub(crate) fn native_trash_status(&self, id: Uuid) -> Result<(MutationRecord, bool)> {
+        let record = self.journal.native_trash_record(id)?;
+        let absent = record.state == super::MutationState::Applied
+            && self.journal.native_trash_publication_status(id)?
+                == PackagePublicationStatus::Absent;
+        Ok((record, absent))
     }
 }

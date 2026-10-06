@@ -71,6 +71,19 @@ pub(crate) struct RecoveryCloseProbe {
     pub(crate) release: std::sync::mpsc::Receiver<()>,
 }
 impl RecoveryControl {
+    pub(crate) async fn native_trash_status(&self, id: Uuid) -> Result<(MutationRecord, bool)> {
+        match &self.access {
+            Access::Writer(writer) => {
+                let record = writer.native_trash_record(id).await?;
+                let absent = record.state == MutationState::Applied
+                    && writer.native_trash_publication(id).await?
+                        == PackagePublicationStatus::Absent;
+                Ok((record, absent))
+            }
+            Access::ReadOnly(None) => bail!("no retained native Trash operation"),
+            Access::ReadOnly(Some(_)) => self.local(move |j| j.native_trash_status(id)).await,
+        }
+    }
     pub(crate) fn writer(engine: Arc<Engine>, writer: WriteControl) -> Result<Self> {
         if engine.cancel.is_cancelled() || !writer.belongs_to(&engine) {
             bail!("account changed; refresh before exporting");

@@ -347,6 +347,13 @@ dialog. This closes that bounded semantic remount check; it does not
 establish native Linux editor saves, all iWork
 formats or sustained reliability.
 
+Local validation also exposed two standalone native-removal recovery gaps:
+read-only startup did not finish pending metadata absence, and a historical
+observer required a writer. The [development correction](docs/benchmarks/icloud-native-trash-readonly-publication-2026-10-06.json)
+passes the actual startup regressions and 47 targeted controls, preserving
+retained saves and later restores. Live standalone removal after process loss
+and installed acceptance remain separate next checks.
+
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic

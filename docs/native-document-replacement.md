@@ -5,11 +5,12 @@ validated local ZIP archive. An active writable iCloud connection is required.
 This command is an explicit replacement surface. The separate experimental
 mounted-save path accepts edits to the exact canonical native archive; it does
 not enable arbitrary edits to generated package children. A `.pages` filename alone is not evidence of
-PACKAGE representation. The source archive root and selected destination must
+PACKAGE representation. For a wrapped archive, the source root and selected destination must
 identify the same application format (`.pages`, `.numbers` or `.key`). Extension
 classification ignores ASCII case; exact archive roots and remote names do not.
-Numbers and Keynote admission has synthetic coverage; their live application
-acceptance remains open.
+Explicit flat Numbers exports have a separate source layout. Numbers has bounded
+live replacement, recovery, remount and Apple application evidence; Keynote
+replacement and broader editing/format acceptance remain open.
 
 Replacement creates a **new provider item ID** and retains a verified receipt
 for the original in Trash. It does not preserve the original ID, promise revision
@@ -36,6 +37,22 @@ Current source admission is bounded to 64 MiB archive and expanded content with
 10,000 entries; malformed, unsafe, duplicate or unsupported ZIP entries are
 refused. A different source basename is allowed; it does not rename the selected
 remote document. The optional `--socket` selects an isolated service explicitly.
+
+An actual Numbers export with no enclosing document folder uses
+`--source-layout flat-numbers` instead of `--source-root`:
+
+```sh
+cirrove replace-native-package --label '<connection>' \
+  --account-id '<account-uuid>' --path '<folder/original.numbers>' \
+  --item-id '<FILE::com.apple.CloudDocs::original-id>' --etag '<selected-etag>' \
+  --archive '/absolute/path/edited-export.numbers' --source-layout flat-numbers \
+  --socket '<control-socket>'
+```
+
+This selects the explicit flat Numbers contract; it does not infer a source
+layout from the filename. The selected destination must already be a verified
+Numbers PACKAGE. The raw source stays independently retained while Cirrove
+derives and verifies a bounded transport ZIP that preserves the complete tree.
 
 The command starts a tracked admission job, then follows it. Admission captures
 and verifies the archive, independently verifies the original native content and
@@ -92,3 +109,12 @@ and retained discovery. Synthetic reconstruction is not an actual daemon crash
 or Apple application acceptance. The [owned live arm](benchmarks/icloud-native-replacement-live-2026-10-01.md)
 records the earlier attempt. The subsequent [owned v2 replacement](benchmarks/icloud-native-owned-v2-live-2026-10-01.md) completed with a typed receipt and mounted publication. Independent readback verified the edited current content and original recoverable Trash content, preserving the old proof and abandoned Stage without mutation replay. This is one controlled Pages fixture. The subsequent [Apple reopen check](benchmarks/icloud-native-replacement-apple-open-2026-10-02.md) opened the exact replacement ID in Pages and rendered its version-B marker; broader application acceptance remains open.
 This guide describes implemented interfaces, not installed/full iCloud readiness.
+
+The [fresh Numbers recovery arm](benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json)
+also verified genuine edited B and original A in Trash after final local
+acknowledgement loss, recovering the same operation by inspection without replay.
+Its [normal read-only remount](benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json)
+returned all 42 files and three previews before Apple opening. A
+[separate Numbers open/reload](benchmarks/icloud-native-final-apple-after-remount-2026-10-06.json)
+retained 17/3/20 and `SUM(A2:B2)` without edits or repair. This does not establish
+native Linux editor saves, provider-reply loss or concurrent cloud replacement.

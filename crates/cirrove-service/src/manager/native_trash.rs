@@ -61,8 +61,23 @@ impl Manager {
         if engine.account.id != expected_account_id {
             bail!("native Trash account changed");
         }
-        let control = self.native_import_control(engine).await?;
-        let record = control.native_trash_record(operation).await?;
+        if !engine.account.enabled
+            || engine.cancel.is_cancelled()
+            || engine.account.registration.provider_id() != "icloud"
+        {
+            bail!("native Trash observer account is unavailable");
+        }
+        {
+            let engines = self.engines.read().await;
+            if engines
+                .get(expected_account_id)
+                .is_none_or(|current| !Arc::ptr_eq(current, engine))
+            {
+                bail!("native Trash observer account changed");
+            }
+        }
+        let control = self.recovery_control(engine.clone()).await?;
+        let (record, metadata_absence) = control.native_trash_status(operation).await?;
         let MutationIntent::TrashNativeDocument { before } = &record.request.intent else {
             bail!("operation is not native Trash");
         };
@@ -71,12 +86,15 @@ impl Manager {
         }
         let removal_confirmed = record.state == crate::journal::MutationState::Applied
             && matches!(&record.receipt, Some(MutationReceipt::Removed { item }) if item == &before.id);
-        let metadata_removed = removal_confirmed
-            && matches!(
-                control.native_trash_publication(operation).await?,
-                crate::journal::PackagePublicationStatus::Absent
-            );
-        self.native_import_same_control(engine, &control).await?;
+        let metadata_removed = removal_confirmed && metadata_absence;
+        let engines = self.engines.read().await;
+        if engine.cancel.is_cancelled()
+            || engines
+                .get(expected_account_id)
+                .is_none_or(|current| !Arc::ptr_eq(current, engine))
+        {
+            bail!("native Trash observer account changed");
+        }
         Ok(NativeTrashStatus {
             operation,
             state: record.state,

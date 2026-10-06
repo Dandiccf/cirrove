@@ -3395,3 +3395,44 @@ Installed file hashes, unit and daemon identity were checked again afterward
 and remained unchanged. Application fidelity for this fixture is confirmed;
 provider serialization after Apple opening and broader native editing are not
 claimed by this arm.
+
+### Standalone native Trash recovery metadata in read-only mode
+
+The [registered local correction](benchmarks/icloud-native-trash-readonly-publication-2026-10-06.json)
+reproduced three intended failures: actual read-only Manager startup and effective
+read-only startup with a recorded write grant did not finish an already Applied
+native removal's pending metadata absence; observing completed history required
+a writer. The same unchanged assertions pass after the correction. They preserve
+an unrelated Uploading save, newer dirty working bytes, source bytes, the
+synthetic opaque checkpoint marker, settings, schema and completed feed cursor.
+Marker preservation is not a real encrypted provider-checkpoint proof.
+
+Read-only maintenance now handles one handoff and one standalone-removal job per
+pass. It releases the metadata-only journal owner before the configured-drive
+exact-ID read and finishes only ordered absence. Newer restored observations
+remain visible; invalid jobs receive bounded cooldown so valid siblings progress.
+Historical observers use a read-only recovery lease, with no admission, writer
+construction or provider mutation. Completion records the old receipt and absence
+observation, not the current state after restoration.
+
+Four mapped SQL/body authority controls and two impossible Applied acknowledgement
+controls first failed, then passed with protected transfer data unchanged. Two
+follow-on scope controls exposed issues in the draft helper and then passed:
+foreign provider/collection jobs now cool down without provider reads. The owner
+release/restoration race control passed before those scope changes and is not
+claimed as a new regression. The extended native-removal group passed all 47
+tests, including schema20/21 existing-job repair, missing-table compatibility,
+older-schema refusal and immutable completion checks.
+
+This is controlled synthetic evidence. Live standalone native removal interrupted
+before its local acknowledgement still needs its own exact-operation,
+inspection-only recovery and full Trash-content arm. These changes close no
+additional full-iCloud release row and do not authorize installed migration.
+
+The complete `bash scripts/check.sh` passed in 736.34 seconds, including
+formatting, Clippy, workspace and required feature tests, actual kernel/FUSE
+groups, script checks, the ledger and documentation. All 552 registered runtime,
+source, fixture and script pins remained unchanged; the original process handle
+was reaped and absent. Display scenarios are outside that command. Independent
+code and evidence reviews found no remaining concrete inconsistency. This is
+local development validation, with no real-account mutation or installed action.

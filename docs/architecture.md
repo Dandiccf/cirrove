@@ -1410,6 +1410,25 @@ returned the exact complete B content tree before Apple opening, with the origin
 state and transfer rows preserved. This is bounded live evidence for the metadata
 handoff and semantic remount; installed acceptance remains separate.
 
+Already Applied standalone native Trash receipts use their own metadata queue.
+Effective read-only startup now processes one due handoff and one due native
+removal per pass. The existing schema20/21 metadata-only handle cannot claim
+mutations, open credentials or migrate the journal. It validates the mapped
+operation UUID, sequence, state, completed queue, account and exact typed removal
+receipt before returning a job. Corrupt heads receive only a bounded cooldown;
+their transfer records and receipts remain untouched. Missing publication tables
+are explicitly skipped, and older metadata-writer schemas remain refused.
+
+The exclusive journal owner is released before an exact-ID read. Only Engine's
+ordered `NotFound` can finish removal publication; active or restored observations
+remain visible and pending. Provider and collection must match the configured
+drive; a mismatch is deferred before returning an error. Finishing reacquires the
+owner and compares the complete immutable mutation again. A historical native
+Trash observer can also use a read-only recovery lease, without admission or
+mutation workers. Completion records past receipt and metadata evidence, not
+present cloud absence. The [local validation record](benchmarks/icloud-native-trash-readonly-publication-2026-10-06.json)
+separates these controls from live removal-recovery and installed acceptance.
+
 ## Explicit flat Numbers source archives
 
 The experimental import and exact-revision replacement paths distinguish the

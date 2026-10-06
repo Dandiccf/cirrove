@@ -1521,4 +1521,6 @@ mod write_budget;
 mod recovery_tests;
 
 #[cfg(test)]
+mod native_trash_readonly_tests;
+#[cfg(test)]
 mod retained_status_tests;

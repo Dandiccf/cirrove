@@ -3,6 +3,11 @@
 use super::*;
 use cirrove_core::mutation::{MutationIntent, MutationReceipt};
 
+#[cfg(test)]
+mod authority_tests;
+#[cfg(test)]
+mod readonly_tests;
+
 pub(super) fn migrate(db: &mut Connection) -> Result<()> {
     let tx = db.transaction()?;
     tx.execute_batch("CREATE TABLE IF NOT EXISTS native_trash_metadata_publication(
@@ -27,6 +32,14 @@ pub(super) fn migrate(db: &mut Connection) -> Result<()> {
 }
 fn completed(record: &MutationRecord) -> bool {
     record.state == MutationState::Applied
+        && record.attempt.is_none()
+        && record.prepared_item.as_ref().is_none_or(|item| {
+            record
+                .request
+                .intent
+                .before()
+                .is_some_and(|before| item == &before.id)
+        })
         && matches!(
             record.request.intent,
             MutationIntent::TrashNativeDocument { .. }
@@ -37,11 +50,51 @@ fn completed(record: &MutationRecord) -> bool {
         && matches!(record.receipt.as_ref(), Some(receipt @ MutationReceipt::Removed { .. }) if record.request.accepts(receipt))
 }
 impl UploadJournal {
+    pub(crate) fn native_trash_record(&self, id: Uuid) -> Result<MutationRecord> {
+        let (sequence, state, body, queue_sequence, queue_complete): (
+            i64,
+            String,
+            String,
+            Option<i64>,
+            Option<bool>,
+        ) = self
+            .db
+            .query_row(
+                "SELECT m.sequence,m.state,m.body,q.sequence,q.complete FROM mutations m
+             LEFT JOIN write_queue q ON q.id=m.id WHERE m.id=?1",
+                [id.to_string()],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            )
+            .optional()?
+            .ok_or(JournalError::Missing)?;
+        let record: MutationRecord =
+            serde_json::from_str(&body).map_err(|_| JournalError::Corrupt)?;
+        if sequence <= 0
+            || record.id != id
+            || record.sequence != sequence as u64
+            || queue_sequence != Some(sequence)
+            || queue_complete != Some(record.state == MutationState::Applied)
+            || serde_json::to_value(record.state)?.as_str() != Some(state.as_str())
+            || record.request.scope.account != self.account
+            || record.request.validate().is_err()
+            || record.base.is_some()
+            || record.working_file.is_some()
+        {
+            return Err(JournalError::Corrupt);
+        }
+        if !matches!(
+            record.request.intent,
+            MutationIntent::TrashNativeDocument { .. }
+        ) {
+            return Err(JournalError::Intent);
+        }
+        Ok(record)
+    }
     pub(crate) fn native_trash_publication_status(
         &self,
         id: Uuid,
     ) -> Result<PackagePublicationStatus> {
-        let record = self.mutation(id)?;
+        let record = self.native_trash_record(id)?;
         if !matches!(
             record.request.intent,
             MutationIntent::TrashNativeDocument { .. }
@@ -53,6 +106,10 @@ impl UploadJournal {
         }
         if !completed(&record) {
             return Err(JournalError::Corrupt);
+        }
+        let exists: bool = self.db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='native_trash_metadata_publication')",[],|r|r.get(0))?;
+        if !exists {
+            return Ok(PackagePublicationStatus::Pending);
         }
         let row: Option<(bool, Option<String>)> = self
             .db
@@ -81,19 +138,40 @@ impl UploadJournal {
         }
     }
     pub(crate) fn native_trash_publication_due(&self, now: u64) -> Result<Option<MutationRecord>> {
-        let body: Option<String> = self.db.query_row(
-            "SELECT m.body FROM native_trash_metadata_publication p JOIN mutations m ON m.id=p.operation
+        let now = i64::try_from(now).map_err(|_| JournalError::Stale)?;
+        let tx = self.db.unchecked_transaction()?;
+        let selected: Option<String> = tx
+            .query_row(
+                "SELECT p.operation FROM native_trash_metadata_publication p
              WHERE p.done=0 AND p.retry_after<=?1 ORDER BY p.retry_after,p.operation LIMIT 1",
-            [i64::try_from(now).map_err(|_| JournalError::Stale)?], |r| r.get(0),
-        ).optional()?;
-        body.map(|body| {
-            let record: MutationRecord = serde_json::from_str(&body)?;
-            if !completed(&record) {
-                return Err(JournalError::Corrupt);
-            }
-            Ok(record)
-        })
-        .transpose()
+                [now],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(selected) = selected else {
+            tx.commit()?;
+            return Ok(None);
+        };
+        let result = Uuid::parse_str(&selected)
+            .map_err(|_| JournalError::Corrupt)
+            .and_then(|id| {
+                self.native_trash_record(id)
+                    .map_err(|_| JournalError::Corrupt)
+            })
+            .and_then(|record| {
+                if completed(&record) {
+                    Ok(record)
+                } else {
+                    Err(JournalError::Corrupt)
+                }
+            });
+        if result.is_err() {
+            // Defer only this invalid local job. Its raw owner, transfer rows
+            // and receipt remain retained; a bad head cannot starve its sibling.
+            tx.execute("UPDATE native_trash_metadata_publication SET retry_after=?2+min(60,(1 << min(failures+1,6))),failures=min(failures+1,6) WHERE operation=?1 AND done=0",params![selected,now])?;
+        }
+        tx.commit()?;
+        result.map(Some)
     }
     pub(crate) fn finish_native_trash_publication(
         &self,
@@ -101,7 +179,8 @@ impl UploadJournal {
         status: PackagePublicationStatus,
         now: u64,
     ) -> Result<()> {
-        let current = self.mutation(expected.id)?;
+        let tx = self.db.unchecked_transaction()?;
+        let current = self.native_trash_record(expected.id)?;
         if !completed(&current)
             || serde_json::to_value(&current)? != serde_json::to_value(expected)?
         {
@@ -109,7 +188,7 @@ impl UploadJournal {
         }
         let now = i64::try_from(now).map_err(|_| JournalError::Stale)?;
         let changed = match status {
-            PackagePublicationStatus::Absent => self.db.execute(
+            PackagePublicationStatus::Absent => tx.execute(
                 "UPDATE native_trash_metadata_publication SET done=1,retry_after=0,observed=NULL WHERE operation=?1 AND done=0", [expected.id.to_string()])?,
             status => {
                 let observed = match status {
@@ -121,13 +200,14 @@ impl UploadJournal {
                 };
                 // An active exact ID can be propagation delay or a later restore.
                 // Keep it visible and retry with bounded cooldown, never hide it.
-                self.db.execute("UPDATE native_trash_metadata_publication SET retry_after=?2+min(60,(1 << min(failures+1,6))),failures=min(failures+1,6),observed=?3 WHERE operation=?1 AND done=0",
+                tx.execute("UPDATE native_trash_metadata_publication SET retry_after=?2+min(60,(1 << min(failures+1,6))),failures=min(failures+1,6),observed=?3 WHERE operation=?1 AND done=0",
                     params![expected.id.to_string(), now, observed])?
             }
         };
         if changed != 1 {
             return Err(JournalError::Stale);
         }
+        tx.commit()?;
         Ok(())
     }
 }

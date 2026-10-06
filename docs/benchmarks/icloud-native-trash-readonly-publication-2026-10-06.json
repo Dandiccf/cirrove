@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_local_regressions_extended47_and_fullcheck_passed_live_standalone_removal_open",
+  "question": "Does an effective read-only Manager finish pending exact-ID metadata absence after a genuine already-Applied standalone native Trash receipt, preserving all mutation/upload/working/checkpoint state without provider mutation or migration?",
+  "prediction": "Existing RO metadata startup excludes the standalone native Trash queue; genuine completed removals will stay pending. Adding validated existing-job exact-ID ordered read publication should close pending absence without activating a writer.",
+  "arms": [
+    "Same actual Manager startup assertions against unchanged production, trueRO and recordedRW/effectiveRO without WriteFactory",
+    "Same protected assertions after narrow metadata-only repair",
+    "Mapped SQL/body tuple corruption refusal, restored/newer observations, unavailable/cooldown, sibling progress, immutable finish and compatibility controls"
+  ],
+  "endpoint": [
+    "Intended RED failures before behavior changes and unchanged GREEN afterward",
+    "Only ordered exact-ID NotFound completes job; active/restored observations stay visible and pending",
+    "Immutable mutation/receipt/upload/source/sealed bytes and schema/cursors preserved",
+    "Complete scripts/check.sh before commit; no installed acceptance inferred"
+  ],
+  "synthetic_default": true,
+  "provider_mutations": false,
+  "real_account_dispatched": false,
+  "installed_actions": false,
+  "migration_allowed": false,
+  "scope": "Existing schema20/21 metadata-only journal; no older writer/version change or queued-removal claim",
+  "remaining_release_gates": 5,
+  "full_integration_accepted": false,
+  "active_measurement": false,
+  "local_results": {
+    "red": {
+      "phase": "red",
+      "exit_code": 101,
+      "elapsed_seconds": 22.74077838100493,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 483,
+      "log_sha256": "de4c7f74db3020cf62adf2222f5cf22d14bf3e1f91d23a439d390ec30410ae7d",
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "authority-red": {
+      "phase": "authority-red",
+      "exit_code": 101,
+      "elapsed_seconds": 0.5783079150132835,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 483,
+      "log_sha256": "9405bdb6253f58f17604b51b2f4103fa1444ae5d0362e8c2c5e5a0661dad72c7",
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "green": {
+      "phase": "green",
+      "exit_code": 0,
+      "elapsed_seconds": 32.412436935992446,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 551,
+      "log_sha256": "f5c1453d6ac2443a31d40700247c5cd2af5dc28cce88173ac12e2a01bf1a580e",
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "controls": {
+      "phase": "controls",
+      "exit_code": 0,
+      "elapsed_seconds": 0.6032930120127276,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 551,
+      "log_sha256": "07a308f82dee7fd2f026bf0d507fcbfe165bcfff058871ffd8edf564db0ddd26",
+      "provider_mutations": false,
+      "installed_actions": false
+    }
+  },
+  "desired_RED_counts": {
+    "startup": 3,
+    "SQL_tuple_authority": 4
+  },
+  "GREEN_counts": {
+    "startup": 3,
+    "journal_controls_including_existing": 8
+  },
+  "source_enumeration_note": "Baseline runner pins483 Rust/Cargo sources; separate comparison of original549 runtime pins confirms only two cfg(test) module declarations changed before production. GREEN runner pins551 runtime/source/fixture/script files. Actual recorded counts retained, not substituted.",
+  "fullcheck": {
+    "status": "passed",
+    "original_owner": {
+      "pid": 2370259,
+      "start_ticks": "32446962",
+      "original_Popen_handle": true,
+      "original_pidfd_handle": true,
+      "command": [
+        "bash",
+        "scripts/check.sh"
+      ],
+      "expected_seconds": 1800
+    },
+    "registration_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-readonly-repair-20261006/full-registration-v1.json",
+    "result": {
+      "phase": "full",
+      "exit_code": 0,
+      "elapsed_seconds": 736.3358140610508,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 552,
+      "log_sha256": "c0e81938c8147a0777c75c269398c70608ca340f6868aaaefca2a56731b485a0",
+      "provider_mutations": false,
+      "installed_actions": false
+    }
+  },
+  "additional_actual_results": {
+    "terminal-red": {
+      "phase": "terminal-red",
+      "exit_code": 101,
+      "elapsed_seconds": 18.58199744898593,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 552,
+      "log_sha256": "ca1a55d76b79a164f7b5acb6df3f492333378d09a3f9a17ed06688c47abedeff",
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "scope-red": {
+      "phase": "scope-red",
+      "exit_code": 101,
+      "elapsed_seconds": 0.36000827100360766,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 552,
+      "log_sha256": "ab69cd71ac97ef56631515259c541fd618a821358e6575c46eff2ce6eb3a87c9",
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "extended": {
+      "phase": "extended",
+      "exit_code": 0,
+      "elapsed_seconds": 22.751535328046884,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 552,
+      "log_sha256": "9d8466f4a47867ffcaef70b63d9128a9e51f82a2ca8b462a5baccf9553c168a1",
+      "provider_mutations": false,
+      "installed_actions": false
+    }
+  },
+  "additional_desired_RED_counts": {
+    "impossible_ACK_authority": 2,
+    "follow_on_configured_scope_and_cooldown": 2
+  },
+  "extended_tests_passed": 47,
+  "limits": [
+    "Synthetic controlled local metadata/recovery fixes only; no live standalone native Trash process-loss acceptance.",
+    "Scope follow-on REDs tested the new draft helper, not a previously shipped implementation.",
+    "Opaque synthetic marker preservation is not actual encrypted native provider-checkpoint validation.",
+    "Historical observer completion does not assert current absence after a later restore.",
+    "No extra full-release gate closed; installed journal21/metadata8 delivery remains HOLD."
+  ],
+  "independent_reviews": {
+    "code": "clear, read-only /root/regression_review",
+    "evidence": "7 result objects and log hashes matched, read-only /root/icloud_gate_audit"
+  }
+}

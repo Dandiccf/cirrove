@@ -5,7 +5,7 @@ impl Writeback {
         &self,
         id: Uuid,
     ) -> Result<crate::journal::MutationRecord> {
-        self.local(move |j| j.mutation(id)).await
+        self.local(move |j| j.native_trash_record(id)).await
     }
     pub(in crate::filesystem) fn enqueue_native_trash(
         &self,

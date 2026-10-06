@@ -2480,12 +2480,22 @@ impl Engine {
             if self.cancel.is_cancelled() {
                 return;
             }
-            let result = self
+            let handoff = self
                 .repair_metadata_once_with_scan(
                     self.ordinary_publication_journal.clone(),
                     &mut scan,
                 )
                 .await;
+            // One job of each kind per pass: a due stream of handoffs cannot
+            // starve confirmed standalone removals, or vice versa.
+            let trash = self
+                .repair_native_trash_metadata_once_at(self.ordinary_publication_journal.clone())
+                .await;
+            let result = match (handoff, trash) {
+                (Ok(a), Ok(b)) => Ok(a || b),
+                (Ok(true), Err(_)) | (Err(_), Ok(true)) => Ok(true),
+                (Err(e), _) | (_, Err(e)) => Err(e),
+            };
             let delay = match result {
                 Ok(true) => {
                     failed = 0;
@@ -2502,5 +2512,57 @@ impl Engine {
             };
             tokio::select! {biased;_=self.cancel.cancelled()=>return,_=tokio::time::sleep(delay)=>()}
         }
+    }
+
+    pub(crate) async fn repair_native_trash_metadata_once_at(&self, root: PathBuf) -> Result<bool> {
+        let account = self.account.id.clone();
+        let read_root = root.clone();
+        let record = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            if !read_root.try_exists()? {
+                return Ok(None);
+            }
+            let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            journal.due_native_trash(now())
+        })
+        .await??;
+        let Some(record) = record else {
+            return Ok(false);
+        };
+        let scoped = record.request.scope == self.scope(&self.account.drive.id);
+        let item = &record
+            .request
+            .intent
+            .before()
+            .context("native Trash original unavailable")?
+            .id;
+        // The exclusive journal owner above has been dropped. Only the read
+        // provider and its ordered Store observation run during this await.
+        let status = if scoped {
+            let observed = tokio::select! {biased;
+                _=self.cancel.cancelled()=>return Ok(false),
+                result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&record.request.scope,item))=>result,
+            };
+            match observed {
+                Ok(Err(ProviderError::NotFound)) => {
+                    crate::journal::PackagePublicationStatus::Absent
+                }
+                Ok(Ok(node)) => crate::journal::PackagePublicationStatus::Present(node),
+                _ => crate::journal::PackagePublicationStatus::Pending,
+            }
+        } else {
+            crate::journal::PackagePublicationStatus::Pending
+        };
+        let account = self.account.id.clone();
+        tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            journal.finish_native_trash(&record, status, now())
+        })
+        .await??;
+        anyhow::ensure!(
+            scoped,
+            "native Trash metadata scope changed; local job deferred"
+        );
+        self.changed.notify_waiters();
+        Ok(true)
     }
 }

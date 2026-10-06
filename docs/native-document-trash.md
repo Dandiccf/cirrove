@@ -4,8 +4,9 @@ This experimental service workflow removes an original Pages, Numbers or Keynote
 provider recovery. It is separate from file-manager `unlink` and `rmdir`:
 generated package children and ordinary folders do not acquire this capability.
 It does not add native editing, replacement, permanent deletion or a restore UI.
-The Numbers/Keynote format expansion is under development validation; live Apple
-application acceptance remains open. A matching suffix alone does not establish
+Standalone Numbers/Keynote removal is still under development validation;
+Numbers replacement evidence does not establish this separate removal path.
+A matching suffix alone does not establish
 PACKAGE representation or authorize removal.
 
 A daemon advertising `trash-native-document: 1` accepts an exact account,
@@ -52,6 +53,10 @@ cirrove watch-native-trash --label '<connection>' --account-id '<account-uuid>' 
 
 Watch requests have no path, revision, archive, retry or permanent-delete
 arguments. They cannot enqueue a new operation.
+The development implementation can observe retained operations after reconnecting
+read-only. It uses local journal evidence, without constructing a mutation worker.
+An unconfirmed removal stays pending or requires review; observing it does not
+send or repeat the removal. This remains separate from installed acceptance.
 
 ## Recorded evidence, not current cloud state
 
