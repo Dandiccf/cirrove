@@ -2451,11 +2451,17 @@ impl Engine {
         let account = self.account.id.clone();
         let read_root = root.clone();
         let previous = *scan;
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
         let (next, result) = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
             if !read_root.try_exists()? {
                 return Ok((previous, Ok(None)));
             }
             let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
             Ok(journal.due_with_scan(now(), previous))
         })
         .await??;
@@ -2465,8 +2471,14 @@ impl Engine {
         let result = self.publish_ordinary_metadata(&proof).await;
         let completed = result.as_ref().is_ok_and(|value| *value);
         let account = self.account.id.clone();
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
         tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
             let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
             journal.finish(&proof, completed, now())
         })
         .await??;
@@ -2517,11 +2529,17 @@ impl Engine {
     pub(crate) async fn repair_native_trash_metadata_once_at(&self, root: PathBuf) -> Result<bool> {
         let account = self.account.id.clone();
         let read_root = root.clone();
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
         let record = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
             if !read_root.try_exists()? {
                 return Ok(None);
             }
             let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
             journal.due_native_trash(now())
         })
         .await??;
@@ -2553,8 +2571,14 @@ impl Engine {
             crate::journal::PackagePublicationStatus::Pending
         };
         let account = self.account.id.clone();
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
         tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
             let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
             journal.finish_native_trash(&record, status, now())
         })
         .await??;
@@ -2564,5 +2588,17 @@ impl Engine {
         );
         self.changed.notify_waiters();
         Ok(true)
+    }
+    #[cfg(test)]
+    fn pause_metadata_owner(hooks: &crate::recovery::RecoveryTestHooks) {
+        if let Some(probe) = hooks
+            .metadata_owner
+            .lock()
+            .expect("metadata owner test hook is not poisoned")
+            .take()
+        {
+            let _ = probe.entered.send(());
+            let _ = probe.release.recv_timeout(Duration::from_secs(5));
+        }
     }
 }

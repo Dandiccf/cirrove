@@ -1419,6 +1419,11 @@ receipt before returning a job. Corrupt heads receive only a bounded cooldown;
 their transfer records and receipts remain untouched. Missing publication tables
 are explicitly skipped, and older metadata-writer schemas remain refused.
 
+The four metadata due/finish closures use the existing per-Engine recovery gate
+through local journal open, use and complete drop, so a historical read-only
+observer waits for an in-process metadata owner to close. The gate covers no
+Store or provider await; an external journal owner still causes a refusal.
+
 The exclusive journal owner is released before an exact-ID read. Only Engine's
 ordered `NotFound` can finish removal publication; active or restored observations
 remain visible and pending. Provider and collection must match the configured

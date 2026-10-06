@@ -64,6 +64,7 @@ pub(crate) struct RecoveryTestHooks {
     pub(crate) closing: Mutex<Option<RecoveryCloseProbe>>,
     pub(crate) opening: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     pub(crate) publishing: Mutex<Option<RecoveryCloseProbe>>,
+    pub(crate) metadata_owner: Mutex<Option<RecoveryCloseProbe>>,
 }
 #[cfg(test)]
 pub(crate) struct RecoveryCloseProbe {

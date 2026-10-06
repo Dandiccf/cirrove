@@ -468,7 +468,7 @@ async fn native_trash_startup(access: cirrove_auth::AccessMode, observer_only: b
         assert!(done && page.operations[0].metadata_absence_recorded);
         assert!(
             status.is_ok(),
-            "read-only historical native Trash status must not require an active writer"
+            "read-only historical native Trash status must not require an active writer: {status:?}"
         );
         let status = status?;
         assert_eq!(status.operation, native.id);
@@ -910,4 +910,117 @@ async fn native_trash_scope_ordered_absence_releases_owner_and_preserves_newer_r
         &[(scope, f.original.id)]
     );
     Ok(())
+}
+
+/// Pause a real metadata-only owner, rather than extending startup sleeps.
+async fn historical_status_waits_for_metadata_owner(ordinary: bool) -> Result<()> {
+    let f = scoped_fixture(false).await?;
+    let scope = f.engine.scope(&f.engine.account.drive.id);
+    let mut journal = crate::journal::UploadJournal::open(
+        &f.journal,
+        &f.engine.account.id,
+        f.engine.account.cache_bytes,
+    )?;
+    let removal = applied_native(&mut journal, scope.clone(), f.original.clone())?;
+    drop(journal);
+    assert!(
+        f.engine
+            .repair_native_trash_metadata_once_at(f.journal.clone())
+            .await?
+    );
+    let path = f.journal.join("uploads.db");
+    let rows = retained_rows(&path)?;
+    let schema_before = schema(&path)?;
+    let publication = publication_row(&path, removal.id)?;
+    let source = std::fs::read(&f.source)?;
+    let cursor = Store::open(&f.engine.db)?.cursor(&scope)?;
+    let reads = f.provider.inner.exact_reads.load(Ordering::SeqCst);
+    let manager = Arc::new(Manager::default());
+    manager
+        .engines
+        .write()
+        .await
+        .insert(f.engine.account.id.clone(), f.engine.clone());
+    let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    *f.engine
+        .recovery_test_hooks
+        .metadata_owner
+        .lock()
+        .expect("metadata owner test hook is not poisoned") =
+        Some(crate::recovery::RecoveryCloseProbe {
+            entered: entered_tx,
+            release: release_rx,
+        });
+    let engine = f.engine.clone();
+    let root = f.journal.clone();
+    let repair = tokio::spawn(async move {
+        if ordinary {
+            engine.repair_ordinary_metadata_once_at(root).await
+        } else {
+            engine.repair_native_trash_metadata_once_at(root).await
+        }
+    });
+    let entered = tokio::time::timeout(Duration::from_secs(3), entered_rx).await;
+    let (opening_tx, opening_rx) = tokio::sync::oneshot::channel();
+    *f.engine
+        .recovery_test_hooks
+        .opening
+        .lock()
+        .expect("recovery opener test hook is not poisoned") = Some(opening_tx);
+    let engine = f.engine.clone();
+    let observer = manager.clone();
+    let mut status = tokio::spawn(async move {
+        observer
+            .native_trash_status(&engine, &engine.account.id, removal.id)
+            .await
+    });
+    let opening = tokio::time::timeout(Duration::from_secs(3), opening_rx).await;
+    let early = tokio::time::timeout(Duration::from_millis(200), &mut status).await;
+    let waited_for_owner = early.is_err();
+    let _ = release_tx.send(());
+    let repaired = repair.await?;
+    let observed = match early {
+        Ok(result) => result?,
+        Err(_) => status.await?,
+    };
+    f.engine.stop().await;
+    assert!(matches!(entered, Ok(Ok(()))));
+    assert!(matches!(opening, Ok(Ok(()))));
+    assert!(
+        waited_for_owner,
+        "historical status attempted its opener but did not wait for the actual metadata owner"
+    );
+    assert!(matches!(repaired, Ok(false)));
+    let observed = observed?;
+    assert_eq!(observed.operation, removal.id);
+    assert!(observed.removal_confirmed && observed.metadata_removed);
+    assert!(manager.writers.read().await.is_empty());
+    assert_eq!(retained_rows(&path)?, rows);
+    assert_eq!(schema(&path)?, schema_before);
+    assert_eq!(publication_row(&path, removal.id)?, publication);
+    assert_eq!(std::fs::read(&f.source)?, source);
+    assert_eq!(
+        std::fs::metadata(&f.source)?.permissions().mode() & 0o777,
+        0o400
+    );
+    assert_eq!(Store::open(&f.engine.db)?.cursor(&scope)?, cursor);
+    assert_eq!(
+        Store::open(&f.engine.db)?.node(&scope, &f.original.id)?,
+        None
+    );
+    assert_eq!(f.provider.inner.exact_reads.load(Ordering::SeqCst), reads);
+    assert_eq!(f.provider.inner.content_reads.load(Ordering::SeqCst), 0);
+    assert_eq!(f.provider.inner.mutations.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_trash_historical_status_waits_for_ordinary_metadata_owner() -> Result<()> {
+    historical_status_waits_for_metadata_owner(true).await
+}
+
+#[tokio::test]
+async fn native_trash_historical_status_waits_for_native_metadata_owner() -> Result<()> {
+    historical_status_waits_for_metadata_owner(false).await
 }

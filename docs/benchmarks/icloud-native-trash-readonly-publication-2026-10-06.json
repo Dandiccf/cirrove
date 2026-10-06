@@ -1,7 +1,7 @@
 {
   "version": 1,
   "date": "2026-10-06",
-  "status": "closed_local_regressions_extended47_and_fullcheck_passed_live_standalone_removal_open",
+  "status": "closed_local_owner_race_RED_GREEN_new_completecheck_pending_live_standalone_removal_open",
   "question": "Does an effective read-only Manager finish pending exact-ID metadata absence after a genuine already-Applied standalone native Trash receipt, preserving all mutation/upload/working/checkpoint state without provider mutation or migration?",
   "prediction": "Existing RO metadata startup excludes the standalone native Trash queue; genuine completed removals will stay pending. Adding validated existing-job exact-ID ordered read publication should close pending absence without activating a writer.",
   "arms": [
@@ -163,5 +163,147 @@
   "independent_reviews": {
     "code": "clear, read-only /root/regression_review",
     "evidence": "7 result objects and log hashes matched, read-only /root/icloud_gate_audit"
+  },
+  "owner_race_correction_2026_10_06": {
+    "historical_CI": {
+      "run": 37513542544,
+      "commit": "eb2ca95",
+      "linux": "failed",
+      "workspace_service_library": {
+        "passed": 537,
+        "failed": 1,
+        "ignored": 29
+      },
+      "failed_test": "manager::native_trash_readonly_tests::native_trash_readonly_startup_observes_completed_history_without_writer",
+      "assertion_line": 469,
+      "failure": "read-only historical native Trash status must not require an active writer",
+      "other_jobs_succeeded": 6,
+      "other_job_status_source": "Root retained workflow review; this annex independently read the retained Linux log",
+      "retained_linux_log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/ci-eb2ca95-failed.log",
+        "sha256": "0ce86c701ad65646f98cc58bc891c53b3b0ab1e46e3bb8a6352034c89de97cc6",
+        "bytes": 231513
+      },
+      "cause_limit": "The test discarded its Err operand. The exact historical CI cause is unproven; do not relabel it as a confirmed owner-lock failure."
+    },
+    "preceding_local_full6": {
+      "result": {
+        "phase": "full6",
+        "exit_code": 0,
+        "elapsed_seconds": 554.6508136150078,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "runtime_sources_unchanged": true,
+        "source_count": 561,
+        "log_sha256": "ea20ba267e548ee18ee9e393f5352f025ca53a91d22b1431281e950534ec1606",
+        "provider_mutations": false,
+        "installed_actions": false
+      },
+      "result_pin": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full6-result-v1.json",
+        "sha256": "fa71aa585e50921c9e43b7e4d29a044e58384d7257e9ee0edf9671dca9b694d1",
+        "bytes": 346
+      },
+      "scope": "Full6 passed before the owner-race correction; it does not validate later changed sources."
+    },
+    "source_backed_defect": "RO startup metadata publication and historical status could independently try the same exclusive owner.lock. The metadata-only handle did not participate in the existing recovery owner-lifetime gate. A completed done flag is not a metadata-owner closure barrier.",
+    "controlled_question": "Does historical native Trash status wait for a real in-process metadata journal owner to close, then return the unchanged completed receipt without writer or provider work?",
+    "controls": "Two actual metadata-only owners were paused after successful open: ordinary handoff due scan and standalone native Trash due scan. Existing RO opening notification showed that the status call attempted its opener. The owner was released and both tasks closed before assertions.",
+    "RED": {
+      "phase": "race-red1",
+      "exit_code": 101,
+      "elapsed_seconds": 34.70283937797649,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 561,
+      "log_sha256": "f116a7bc800a3aaf7e99753ca7e26ae703b9d6a8fcc2481a909b23f1aa512382",
+      "provider_mutations": false,
+      "installed_actions": false,
+      "tests": {
+        "passed": 0,
+        "failed": 2,
+        "ignored": 0,
+        "filtered_out": 755,
+        "runtime_seconds": 0.11
+      },
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/race-red1-registration-v1.json",
+        "sha256": "aa0ebaa9da75b55cc45297959cb5ebcf77e68c32300c72df5c00e56af1e65620",
+        "bytes": 73370
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/race-red1-result-v1.json",
+        "sha256": "6694a6b3509a95aa5c15dbf146358737f9a1c9672720e7589f97f5bef4fdfbab",
+        "bytes": 352
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/race-red1-v1.log",
+        "sha256": "f116a7bc800a3aaf7e99753ca7e26ae703b9d6a8fcc2481a909b23f1aa512382",
+        "bytes": 1985
+      }
+    },
+    "GREEN": {
+      "phase": "race-green1",
+      "exit_code": 0,
+      "elapsed_seconds": 27.171046205970924,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "runtime_sources_unchanged": true,
+      "source_count": 561,
+      "log_sha256": "9a46a48792f713afac14e249152e827445e64f2106b0e7e0054a16bb3ee5495c",
+      "provider_mutations": false,
+      "installed_actions": false,
+      "tests": {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "filtered_out": 755,
+        "runtime_seconds": 0.53
+      },
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/race-green1-registration-v1.json",
+        "sha256": "a7e71432b9e6578cfc52b042d5877f01f2a19196d59ddc55d13116077cc95b34",
+        "bytes": 73372
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/race-green1-result-v1.json",
+        "sha256": "7e414157885fee80e21d3ec1c9f9fcc5cc3b760db25e521a522113d238cd746a",
+        "bytes": 353
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/race-green1-v1.log",
+        "sha256": "9a46a48792f713afac14e249152e827445e64f2106b0e7e0054a16bb3ee5495c",
+        "bytes": 659
+      }
+    },
+    "desired_RED_endpoint": "Both baseline tests reached the intended assertion: historical status attempted its opener but did not wait for the actual metadata owner. These are executed assertion failures, not fixture or compilation failures.",
+    "fix_scope": "All four metadata due/finish blocking closures use the existing per-Engine recovery_journal_gate across open, local use and complete journal drop. The gate is released before Store or provider awaits. No new schema, credential access, transfer/mutation claim, provider mutation or generic retry is added.",
+    "external_owner": "External owner.lock Busy still refuses through the existing nonblocking flock; the unchanged real-owner recovery control remains relevant.",
+    "preservation": "GREEN asserts retained mutation/upload/namespace rows, source bytes/mode, schema, publication row, metadata cursor/current absence and provider counters unchanged by historical status.",
+    "completecheck_after_fix": {
+      "status": "passed_complete_scripts_check",
+      "passed": true,
+      "result": {
+        "phase": "full7",
+        "exit_code": 0,
+        "elapsed_seconds": 673.1533932239981,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "runtime_sources_unchanged": true,
+        "source_count": 561,
+        "log_sha256": "888cd1f6e611508ac32f7df8258f1752110eaadfd88e76c4159c87e5e49c7ee3",
+        "provider_mutations": false,
+        "installed_actions": false
+      },
+      "registration_sha256": "de8b8f09b9420ff0f1098f7818ba62e4e806484ee6616ef2cc5d8317b545273a",
+      "result_sha256": "c95e9667b495ca10bc64f19ad28562e6535d51614789e3b99cc3e4ee01646b7b",
+      "scope": "Formatting, Clippy, workspace/feature tests, actual kernel/FUSE groups, script tests, ledger and documentation. Both paused-owner regressions and the existing external-owner refusal test executed and passed. Display scenarios remain separate. A test-hook expect message replaced unwrap after targeted GREEN; final source pins were unchanged throughout full7. No installed or real-account acceptance."
+    },
+    "limits": [
+      "The controlled interleaving is reproduced independently; it does not prove the discarded historical CI error.",
+      "This is local concurrency validation, not real-provider standalone Trash acceptance or installed delivery.",
+      "The original question, prediction and earlier results remain retained; five release gates remain open."
+    ]
   }
 }
