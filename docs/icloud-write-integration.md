@@ -2971,3 +2971,44 @@ translation files were unchanged during that run. Earlier failures and their
 corrections remain in the same validation record. The running packaged daemon
 retained its exact PID/start identity and binary/unit hashes. These local and
 synthetic checks leave the live and installed acceptance endpoints open.
+
+
+### Fresh flat Numbers import stopped on 6 October 2026
+
+The [fresh public CLI arm](benchmarks/icloud-flat-numbers-fresh-public-cli-import-2026-10-06.json)
+submitted the unchanged actual 138,945-byte flat Apple export exactly once into
+one new owned folder. All source bytes transferred, but the durable operation
+ended in `Conflict`. No uploaded completion receipt, successful public job or
+metadata publication was established. The original daemon exited zero; the
+controller terminated and reaped its original CLI. No import was resubmitted.
+
+After shutdown, a separately registered read-only diagnostic found the exact
+new document and downloaded its actual PACKAGE representation with parent,
+item revision and representation fences before and after transfer. The complete
+57,041-byte ZIP passed parsing but failed strict semantic V2 equality. Its 39
+retained files are byte-identical to corresponding source files at changed paths:
+`Index/` and `Metadata/` prefixes are absent, and the three source preview JPEGs
+are missing. The expanded tree is 74,963 bytes instead of 133,153 bytes. This is
+an actual content-tree mismatch, not optional directory-entry spelling.
+
+The provider's requirement for a wrapped transport envelope is a working
+hypothesis. The historical failing verification fence was not persisted, so the
+current readback is not claimed as proof of that historical fence. The new
+document was not opened in Apple Numbers. Strict source equality stays required;
+this result closes no additional release criterion. The journal bytes, original
+source and all 19 installed packaged files remained unchanged during the stopped
+read-only audit, and the installed daemon retained its original process identity.
+
+The metadata helper itself exited zero, but its private Root wrapper then failed
+to parse a merged stdout/stderr log as one JSON document. Its existing typed
+producer artifact was preserved; no metadata request was repeated. The subsequent
+content observer used separate stdout/stderr files. A private launcher settings-key
+error was also corrected before any provider dispatch. Both corrections are
+recorded beside the failed arm rather than hidden in a later success claim.
+
+The complete `bash scripts/check.sh` command passed again before publication in
+530.89 seconds, with all 538 source/translation pins unchanged. The implementation
+head's [GitHub CI](https://github.com/Dandiccf/cirrove/actions/runs/37425658643)
+also completed successfully. These checks preserve the failed live result. A
+private model-based regression draft is prepared but has not been compiled or
+executed; it cannot yet serve as evidence of a correction.

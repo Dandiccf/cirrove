@@ -306,8 +306,11 @@ Apple Numbers exports without an outer document folder. Import and replacement
 use `--source-layout flat-numbers`, with no `--source-root`; wrapped archives
 keep their existing contract. The unchanged archive is checked rather than
 repacked. [The validation record](docs/benchmarks/icloud-flat-numbers-normal-source-2026-10-06.json)
-separates local and synthetic checks from the still-required real iCloud upload,
-Numbers reopening and recovery acceptance.
+separates local and synthetic checks from live acceptance. A [fresh real-account
+import](docs/benchmarks/icloud-flat-numbers-fresh-public-cli-import-2026-10-06.json)
+stopped with a conflict: independent readback found changed internal paths and
+missing preview files. Genuine flat Numbers upload, reopening and recovery
+acceptance therefore remain open.
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
