@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "status": "both_preflights_refused_no_mutations",
+  "run": "367d0815-9b9f-413d-af23-f31bf4e715b6",
+  "subject_run": "158d8df0-fe5d-458f-ad05-b82a1fee9978",
+  "question": "Does a genuine Apple Numbers edit/exportB from an independently owned duplicate permit once exact-revision public flat replacement of unchanged importedA, with completecurrentB/TrashA and exactAppleBopen?",
+  "prediction": "After correctedwireimport andstrictflatreadobserver, unchangedA shouldpassindependentpreflight; truechangedB shouldbeacceptedwithoutsourcewrapping, withnewidentityandfulloriginalinTrash. Applicationfidelity andactualtwo-sidedreadback decideacceptance.",
+  "head": "a8769f5292dda71e712752e51d2d3b20373c6487",
+  "arms": [
+    "Stopped independent read-only exactA revision/content preflight",
+    "One own Numbersduplicate; editonlydonor A2once17, preserveB2=3/SUM andexpectC2=20; save/reopen/export actualnativeB",
+    "Offline rawflatB sourceproof anddistinctA/Bbytes+V2",
+    "Once normalpublic --source-layout flat-numbers replacement with exactpath/account/item/currentetag, no source-root",
+    "OriginalwarmB capture plusstoppedindependentcurrentB/TrashA V2 checks",
+    "IdentityboundnewB AppleNumbersopen"
+  ],
+  "expected_original_values": [
+    11,
+    3,
+    14
+  ],
+  "expected_B_values": [
+    17,
+    3,
+    20
+  ],
+  "expected_formula": "SUM(A2:B2)",
+  "original_A_must_remain_unedited": true,
+  "browser_donor_duplicates_max": 1,
+  "public_replacement_dispatches_max": 1,
+  "automatic_retry": false,
+  "finite_arm_windows_registered_at_dispatch": true,
+  "preflight_window_seconds": 180,
+  "gui_authoring_window_seconds": 600,
+  "replacement_window_seconds": 600,
+  "temporary_filesystem": "ext4",
+  "no_old_journal_cache_or_attempt_copy": true,
+  "installed_delivery": "HOLD unchanged packaged14/7 versus candidate21/8",
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "checkpoint_recovery_and_removal_not_proven_by_normal_replacement": true,
+  "first_attempt": {
+    "run": "367d0815-9b9f-413d-af23-f31bf4e715b6",
+    "helper_exit_code": 1,
+    "helper_elapsed_seconds": 32.54598416900262,
+    "typed_fixture_acquired": false,
+    "gui_authoring_started": false,
+    "cloud_mutations": 0,
+    "original_handle_reaped": true,
+    "helper_process_absent": true,
+    "automatic_retry": false,
+    "failure_phase": "not available; public helper erases inner error",
+    "initial_local_launch_failure": "ELF0400 PermissionError before process or provider request; corrected0500 with unchanged bytes",
+    "private_result_sha256": "0e59bed9a947ceafa58e2684b2439e8e2d6fc88e3535c80717aea6ca6463bff6"
+  },
+  "authorized_fresh_attempt": {
+    "run": "648c1727-a868-412b-ac9a-16f2af8e71e9",
+    "registered_before_provider_dispatch": true,
+    "authorization": "User: you can repeat it",
+    "read_only_preflight_window_seconds": 180,
+    "automatic_retry": false,
+    "same_frozen_a876_binaries": true,
+    "source_A_unchanged": true,
+    "prior_attempt_retained": true,
+    "status": "refused_before_typed_fixture",
+    "helper_exit_code": 1,
+    "helper_elapsed_seconds": 1.2211228480446152,
+    "typed_fixture_acquired": false,
+    "gui_authoring_started": false,
+    "cloud_mutations": 0,
+    "original_handle_reaped": true,
+    "helper_process_absent": true,
+    "source_unchanged": true,
+    "private_result_sha256": "0d189b7af0145473cbae1472c4a1ecaa230ebdba90e855c5faf1055298258d7b"
+  },
+  "outcome": "No B authored, no replacement dispatched; failed attempts retained. Exact failure phase remains unavailable in existing helper; next work is synthetic sanitized-phase diagnostics.",
+  "sanitized_timing_observations": [
+    {
+      "run": "367d0815-9b9f-413d-af23-f31bf4e715b6",
+      "root_folder_seconds": 31.168,
+      "document_folder_seconds": 1.244
+    },
+    {
+      "run": "648c1727-a868-412b-ac9a-16f2af8e71e9",
+      "root_folder_seconds": 0.782,
+      "document_folder_seconds": 0.318
+    }
+  ],
+  "failure_scope": "Both attempts reached document-folder listing; session setup, root-listing and exact-parent admission advanced sufficiently to invoke it. Failure remains in document listing/checks, typed fixture admission or prepublication fences.",
+  "diagnostic_control": {
+    "registered_at": 1791279852.9272141,
+    "question": "Can a refused admitted synthetic source report only its fixed observer phase, retaining a one-entry error chain and refusing before session/provider access?",
+    "prediction": "Existing public wrapper erases the stage and fails the desired assertion; phase-only sanitization should preserve the fixed stage without retaining underlying error details.",
+    "arm_red": "Actual public observer synthetic source with deliberately wrong registered digest, before production change",
+    "arm_green": "Same test after phase-only observer diagnostic change",
+    "endpoint": "Exact fixed public stage text, error chain count1, no attempt/session/typed fixture, source/settings/registration bytes unchanged",
+    "cloud_calls": 0,
+    "temporary_filesystem": "ext4",
+    "no_installed_actions": true,
+    "status": "red_then_green_complete_check_passed_with_declared_threads4",
+    "red": {
+      "exit_code": 101,
+      "elapsed_seconds": 12.582222412980627,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "01a3c6a4b0f13be73bf7acaae41b70346f0026b62193bf67399cd5bb2db7cf27"
+    },
+    "green": {
+      "exit_code": 0,
+      "elapsed_seconds": 58.09842947399011,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "fc9a27ecb99a4a5c1900603ff9b8284103cf076bf82c981a2f667c64d81b7043"
+    },
+    "red_tests": {
+      "passed": 0,
+      "failed": 1,
+      "actual_executed": 1,
+      "desired_failure": "public observer erased the fixed failure stage"
+    },
+    "green_tests": {
+      "passed": 17,
+      "failed": 0,
+      "actual_executed": 17
+    },
+    "same_desired_test_region_sha256": "83afd5e37763f0fd9268a60ff10ef64ab43da12fad141ff3cdc28cca7c2b562b",
+    "test_region_pin_timing": "Captured after terminal RED, checked unchanged after production change and workspace formatting.",
+    "source_sha256": "ae2e862d19dcedeed6a19ddec6199e9d25a0b39781966786eb3bb0f8456880d1",
+    "tests_sha256": "c7081b806ae4bed3dd1dca4241294c9e98e2fd1642cda25c8a412bacf689d48b",
+    "stage_labels": [
+      "fixture_admission",
+      "session",
+      "root_listing",
+      "parent_binding",
+      "document_listing",
+      "document_binding",
+      "content_verification",
+      "trash",
+      "final_fences",
+      "deadline"
+    ],
+    "static_review": "CLEAR after workspace formatting; stage labels locate the failed boundary, not the historical provider cause.",
+    "fixed_binary_live_observation": false,
+    "full_check_initial": {
+      "exit_code": 101,
+      "elapsed_seconds": 13.17300781502854,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "e3f3b44b805c5d0bf09bf34baa718590bae038d21ad34faf7a64fde2cd567d77"
+    },
+    "full_check_initial_cause": "Clippy unnecessary_lazy_evaluations: use ok_or for constant Deadline stage; corrected without changing behavior.",
+    "full_check_second": {
+      "exit_code": 101,
+      "elapsed_seconds": 85.6458358039963,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "d982454fe79f1975d2f5646dc8bd3e237a8db70927630150a2825f81ab35677e"
+    },
+    "full_check_second_cause": "Existing default-feature service test readonly_retained_status_busy_reader_preserves_counts_and_recovers_availability: read-only manager did not publish its status; 511passed1failed29ignored.",
+    "retained_status_control": {
+      "registered_at": 1791280312.8772423,
+      "question": "Does the same unmodified retained-status test reproduce without full-suite concurrency?",
+      "prediction": "The isolated test may pass because publication is bounded under concurrent synthetic load; a passing isolated run alone will not authorize commit.",
+      "endpoint": "Actual same test executes and exits0 with sources unchanged; entire scripts/check.sh must subsequently pass without source or timeout change",
+      "cloud_calls": 0,
+      "status": "isolated_same_test_passed_full_rerun_registered",
+      "isolated": {
+        "exit_code": 0,
+        "elapsed_seconds": 10.271158916002605,
+        "original_handle_reaped": true,
+        "sources_unchanged": true,
+        "source_count": 546,
+        "log_sha256": "27e1a70bdee38337f43f992ffe86933c56c434b9f90143251709105921beaca7"
+      },
+      "actual_executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "source_or_timeout_changed": false,
+      "exact_delayed_await": "not witnessed; both failed during initial10s status publication, before subsequent assertions"
+    },
+    "full_check_third": {
+      "exit_code": 101,
+      "elapsed_seconds": 59.263857168960385,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "dc347e3f4101571aad039ec455a190ecf037cd9557a66a4db0bb51d77ec8d6bf"
+    },
+    "full_check_third_cause": "Same initial status-publication refusal in another existing test readonly_retained_status_reports_failed_stuck_and_unconfirmed_without_replay; 511passed1failed29ignored. This feature-only diagnostic is absent from the default executable.",
+    "bounded_concurrency_control": {
+      "registered_at": 1791280467.399549,
+      "question": "Can the entire unchanged check pass with four concurrent Rust tests instead of the host default16, without skipping tests or changing deadlines?",
+      "prediction": "Reduced test concurrency should let initial status publication meet the existing10s limit; a failure still prevents commit. A pass validates full selected coverage in this declared environment and does not erase default-concurrency failures.",
+      "endpoint": "Entire bash scripts/check.sh exit0, all registered sourcepins unchanged, RUST_TEST_THREADS=4; explicit serial kernel groups remain serial; no --fast/no timeout/sourcechanges",
+      "RUST_TEST_THREADS": 4,
+      "host_default_threads": 16,
+      "temporary_filesystem": "ext4",
+      "status": "entire_check_passed_sources_and_timeouts_unchanged",
+      "cloud_calls": 0
+    },
+    "complete_check": {
+      "exit_code": 0,
+      "elapsed_seconds": 572.769474132976,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "362cddb2dc1e40ecf77347a37b66fc0e59148832cdb04adbccc46b075db74459"
+    },
+    "complete_check_RUST_TEST_THREADS": 4,
+    "full_observer_tests_passed_again": 17,
+    "default_concurrency_failures_remain_recorded": true
+  },
+  "installed19_unit_daemon_birth_unchanged_after_checks": true,
+  "prior_published_head_ci": {
+    "head": "a8769f5292dda71e712752e51d2d3b20373c6487",
+    "run_id": 37442043946,
+    "conclusion": "success"
+  },
+  "fixed_binary_live_observation": false
+}

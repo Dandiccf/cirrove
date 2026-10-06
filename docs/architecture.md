@@ -1422,6 +1422,8 @@ provider-name wrapper. The postflight binds distinct original/current identities
 original Trash revision and both source contents. Existing wrapped/Pages arms
 retain their original scope. This observer does not independently establish the
 writer's journal receipt, perform mutations or claim application acceptance.
+Its public failures retain only fixed observer-stage labels and discard underlying
+errors and contexts; exact identity, revision and content guards remain mandatory.
 
 Journal schema 21 persists distinct `flat_numbers_archive` and
 `flat_numbers_replacement_archive` kinds, with versioned query indexes and

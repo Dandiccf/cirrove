@@ -4,6 +4,58 @@ use super::*;
 use cirrove_core::{Node, NodeKind};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[derive(Clone, Copy, Debug)]
+enum FailureStage {
+    FixtureAdmission,
+    Session,
+    RootListing,
+    ParentBinding,
+    DocumentListing,
+    DocumentBinding,
+    ContentVerification,
+    Trash,
+    FinalFences,
+    Deadline,
+}
+impl FailureStage {
+    fn label(self) -> &'static str {
+        match self {
+            Self::FixtureAdmission => "fixture_admission",
+            Self::Session => "session",
+            Self::RootListing => "root_listing",
+            Self::ParentBinding => "parent_binding",
+            Self::DocumentListing => "document_listing",
+            Self::DocumentBinding => "document_binding",
+            Self::ContentVerification => "content_verification",
+            Self::Trash => "trash",
+            Self::FinalFences => "final_fences",
+            Self::Deadline => "deadline",
+        }
+    }
+}
+// Retain only a fixed local phase. Never retain the original error as a cause.
+#[derive(Debug)]
+struct StageFailure(FailureStage);
+impl std::fmt::Display for StageFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "owned native fixture verification refused (stage={})",
+            self.0.label()
+        )
+    }
+}
+impl std::error::Error for StageFailure {}
+fn in_stage<T>(stage: FailureStage, result: Result<T>) -> Result<T> {
+    result.map_err(|_| StageFailure(stage).into())
+}
+fn sanitized_failure(error: anyhow::Error) -> anyhow::Error {
+    match error.downcast::<StageFailure>() {
+        Ok(stage) => StageFailure(stage.0).into(),
+        Err(_) => anyhow::anyhow!("owned native fixture verification refused"),
+    }
+}
+
 #[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Arm {
@@ -391,25 +443,31 @@ fn fixture_value(
         "source_root":r.source.root,"expected_root":r.document.name,"semantic":r.source.semantic})
 }
 async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
-    let bytes = read_private(path, 32 * 1024)?;
-    let r = registered(&bytes, digest, clock()?)?;
-    ensure!(
-        path == r
-            .session_directory
-            .join(format!("{}-registration.json", r.artifact_stem())),
-        "native fixture registration path refused"
-    );
-    let guard = open_private(&r.session_directory, true, 0)?;
-    let state_guard = open_private(&r.session_directory.join("state"), true, 0)?;
-    let settings_path = r.session_directory.join("state/accounts.json");
-    let settings_bytes = read_private(&settings_path, 256 * 1024)?;
-    ensure!(
-        hex::encode(Sha256::digest(&settings_bytes)) == r.settings_sha256,
-        "native fixture settings differ"
-    );
-    let (settings, account) = bound_settings(&r, &settings_bytes)?;
-    source_verified(&r.source)?;
-    unchanged(path, digest, &r, &settings_path)?;
+    let (r, guard, state_guard, settings_path, settings, account) = in_stage(
+        FailureStage::FixtureAdmission,
+        (|| -> Result<_> {
+            let bytes = read_private(path, 32 * 1024)?;
+            let r = registered(&bytes, digest, clock()?)?;
+            ensure!(
+                path == r
+                    .session_directory
+                    .join(format!("{}-registration.json", r.artifact_stem())),
+                "native fixture registration path refused"
+            );
+            let guard = open_private(&r.session_directory, true, 0)?;
+            let state_guard = open_private(&r.session_directory.join("state"), true, 0)?;
+            let settings_path = r.session_directory.join("state/accounts.json");
+            let settings_bytes = read_private(&settings_path, 256 * 1024)?;
+            ensure!(
+                hex::encode(Sha256::digest(&settings_bytes)) == r.settings_sha256,
+                "native fixture settings differ"
+            );
+            let (settings, account) = bound_settings(&r, &settings_bytes)?;
+            source_verified(&r.source)?;
+            unchanged(path, digest, &r, &settings_path)?;
+            Ok((r, guard, state_guard, settings_path, settings, account))
+        })(),
+    )?;
     // Exclusive attempt is durable before any session/provider access. A failed
     // or expired read is retained, never implicitly retried in this directory.
     let mut attempt_value = serde_json::json!({
@@ -418,31 +476,51 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
     if let Some(subject) = r.subject_run {
         attempt_value["subject_run"] = serde_json::to_value(subject)?;
     }
-    record(
-        &r.session_directory
-            .join(format!("{}.attempt.json", r.artifact_stem())),
-        &attempt_value,
+    in_stage(
+        FailureStage::FinalFences,
+        record(
+            &r.session_directory
+                .join(format!("{}.attempt.json", r.artifact_stem())),
+            &attempt_value,
+        ),
     )?;
-    File::open(&r.session_directory)?.sync_all()?;
+    in_stage(
+        FailureStage::FinalFences,
+        (|| -> Result<()> {
+            File::open(&r.session_directory)?.sync_all()?;
+            Ok(())
+        })(),
+    )?;
     let remaining = r
         .deadline_unix_seconds
-        .checked_sub(clock()?)
-        .context("native fixture window expired")?;
-    ensure!(remaining > 0, "native fixture window expired");
+        .checked_sub(in_stage(FailureStage::Deadline, clock())?)
+        .ok_or(StageFailure(FailureStage::Deadline))?;
+    if remaining == 0 {
+        return Err(StageFailure(FailureStage::Deadline).into());
+    }
     let proof=tokio::time::timeout(Duration::from_secs(remaining),async {
-        let mut remote=session(&r.session_directory,&account).await?;
-        let parent=exact_parent(&remote.list_folder(cirrove_icloud::ROOT_ID).await?,&r)?;
-        let document=exact_entry(&remote.list_folder(&r.parent.id).await?,&r.document)?;
+        let mut remote=in_stage(FailureStage::Session, session(&r.session_directory,&account).await)?;
+        let parents=in_stage(FailureStage::RootListing, remote.list_folder(cirrove_icloud::ROOT_ID).await)?;
+        let parent=in_stage(FailureStage::ParentBinding, exact_parent(&parents,&r))?;
+        let documents=in_stage(FailureStage::DocumentListing, remote.list_folder(&r.parent.id).await)?;
+        let document=in_stage(FailureStage::DocumentBinding, exact_entry(&documents,&r.document))?;
+        let value=in_stage(FailureStage::FixtureAdmission, (|| -> Result<_> {
         let value=fixture_value(&r,&parent,&document);let encoded=serde_json::to_vec(&value)?;
         let fixture:Fixture=serde_json::from_slice(&encoded)?;validate(&fixture)?;
         let _=account_binding(&fixture,&settings.accounts)?;
+        Ok(value)
+        })())?;
+        let (fixture_path, fixture_digest)=in_stage(FailureStage::FinalFences, (|| -> Result<_> {
         same_directory(&r.session_directory,&guard)?;same_directory(&r.session_directory.join("state"),&state_guard)?;
         unchanged(path,digest,&r,&settings_path)?;
         let fixture_path=r.session_directory.join(format!("{}.json", r.artifact_stem()));record(&fixture_path,&value)?;
         let fixture_digest=hex::encode(Sha256::digest(read_private(&fixture_path,32*1024)?));
-        let current=icloud_owned_fixture_verify(&fixture_path,&fixture_digest).await?;
+        Ok((fixture_path, fixture_digest))
+        })())?;
+        let current=in_stage(FailureStage::ContentVerification, icloud_owned_fixture_verify(&fixture_path,&fixture_digest).await)?;
         let mut trash_proof = None;
         if let Some(recovered) = &r.recovered {
+            trash_proof = Some(in_stage(FailureStage::Trash, async {
             let attempt = verification_directory(&r.session_directory)?;
             manifest(&attempt, r.run, if matches!(r.arm, Arm::FlatNumbersPostflight) {
                 "flat-numbers-postflight-Trash-read-only"
@@ -456,10 +534,12 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
                 expected_root: r.document.name.clone(), semantic: recovered.source_a.semantic.clone(),
             }, staging, &CancellationToken::new()).await?;
             trash_binding(&recovered.backup, &recovered.source_a, &observed)?;
-            trash_proof = Some(serde_json::json!({"original":recovered.original,"backup":recovered.backup,
+            Ok::<_,anyhow::Error>(serde_json::json!({"original":recovered.original,"backup":recovered.backup,
                 "item":recovered.backup.id,"etag":observed.trash_etag,"semantic":observed.semantic,
-                "source_a":recovered.source_a,"size":observed.archive.size,"sha256":observed.archive.sha256}));
+                "source_a":recovered.source_a,"size":observed.archive.size,"sha256":observed.archive.sha256}))
+            }.await)?);
         }
+        in_stage(FailureStage::FinalFences, async {
         ensure!(exact_entry(&remote.list_folder(&r.parent.id).await?,&r.document)? == document,
             "native fixture current changed during independent proof");
         ensure!(exact_parent(&remote.list_folder(cirrove_icloud::ROOT_ID).await?,&r)? == parent,
@@ -485,7 +565,8 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         File::open(&r.session_directory)?.sync_all()?;
         same_directory(&r.session_directory,&guard)?;same_directory(&r.session_directory.join("state"),&state_guard)?;
         Ok::<_,anyhow::Error>(result)
-    }).await.map_err(|_|anyhow::anyhow!("native fixture overall deadline exceeded"))??;
+        }.await)
+    }).await.map_err(|_|StageFailure(FailureStage::Deadline))??;
     Ok(proof)
 }
 /// Read-only; the caller separately proves stopped ownership and durable receipt.
@@ -493,9 +574,7 @@ pub async fn icloud_owned_native_import_fixture_verify(
     path: &Path,
     digest: &str,
 ) -> Result<serde_json::Value> {
-    observe(path, digest)
-        .await
-        .map_err(|_| anyhow::anyhow!("owned native fixture verification refused"))
+    observe(path, digest).await.map_err(sanitized_failure)
 }
 #[cfg(test)]
 mod tests;

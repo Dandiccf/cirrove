@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
+use std::{io::Write, os::unix::fs::DirBuilderExt};
 fn plan(arm: Arm) -> Registration {
     let run = Uuid::new_v4();
     let account = Uuid::new_v4();
@@ -733,5 +734,176 @@ fn native_fixture_flat_source_scanner_preserves_bytes_and_refuses_wrapped_or_cha
     mismatched.root = None;
     assert!(source_verified(&mismatched).is_err());
     assert_eq!(std::fs::read(&wrapped_source.path)?, wrapped);
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_fixture_public_failure_keeps_only_fixed_admission_stage() -> Result<()> {
+    let value = flat_registration(false)?;
+    let mut r: Registration = serde_json::from_value(value)?;
+    let now = clock()?;
+    r.started_unix_seconds = now;
+    r.deadline_unix_seconds = now + 60;
+    // Retain this synthetic owned fixture; never recurse through a mount during cleanup.
+    std::fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&r.session_directory)?;
+    std::fs::DirBuilder::new()
+        .mode(0o700)
+        .create(r.session_directory.join("state"))?;
+    let raw = zip_archive("Index/Document.iwa", b"synthetic diagnostic source");
+    let mut source_file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&r.source.path)?;
+    source_file.write_all(&raw)?;
+    source_file.sync_all()?;
+    let receipt = PackageDownload {
+        size: raw.len() as u64,
+        sha256: hex::encode(Sha256::digest(&raw)),
+    };
+    r.source.size = receipt.size;
+    r.source.sha256 = receipt.sha256.clone();
+    r.source.semantic = cirrove_icloud::package_flat_archive_semantic_identity_v2(
+        &source_file,
+        &receipt,
+        &CancellationToken::new(),
+    )?;
+    source_verified(&r.source)?;
+    let settings = account_bytes(&r)?;
+    r.settings_sha256 = hex::encode(Sha256::digest(&settings));
+    bound_settings(&r, &settings)?;
+    // This real source guard must refuse before attempt publication/session access.
+    r.source.sha256 = "0".repeat(64);
+    assert!(source_verified(&r.source).is_err());
+    let registration = serde_json::to_vec(&r)?;
+    let digest = hex::encode(Sha256::digest(&registration));
+    registered(&registration, &digest, now)?;
+    let path = r
+        .session_directory
+        .join("flat-numbers-preflight-registration.json");
+    let settings_path = r.session_directory.join("state/accounts.json");
+    for (target, bytes) in [(&path, &registration), (&settings_path, &settings)] {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(target)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+    }
+    let error = icloud_owned_native_import_fixture_verify(&path, &digest)
+        .await
+        .err()
+        .context("invalid source unexpectedly accepted")?;
+    // Preservation and the no-session/no-output boundary precede the desired assertion.
+    for (target, bytes) in [
+        (&path, &registration),
+        (&settings_path, &settings),
+        (&r.source.path, &raw),
+    ] {
+        assert_eq!(&std::fs::read(target)?, bytes);
+        assert_eq!(
+            std::fs::metadata(target)?.permissions().mode() & 0o777,
+            0o600
+        );
+    }
+    assert!(
+        !r.session_directory
+            .join("flat-numbers-preflight.attempt.json")
+            .exists()
+    );
+    assert!(
+        !r.session_directory
+            .join("flat-numbers-preflight.json")
+            .exists()
+    );
+    assert!(!r.session_directory.join("state/accounts").exists());
+    assert_eq!(
+        error.chain().count(),
+        1,
+        "underlying diagnostic error leaked"
+    );
+    assert_eq!(
+        error.to_string(),
+        "owned native fixture verification refused (stage=fixture_admission)",
+        "public observer erased the fixed failure stage",
+    );
+    Ok(())
+}
+
+#[test]
+fn native_fixture_failure_stage_sanitizer_discards_details_and_context() {
+    let secret = "synthetic-sensitive-detail-must-never-escape";
+    for stage in [
+        FailureStage::FixtureAdmission,
+        FailureStage::Session,
+        FailureStage::RootListing,
+        FailureStage::ParentBinding,
+        FailureStage::DocumentListing,
+        FailureStage::DocumentBinding,
+        FailureStage::ContentVerification,
+        FailureStage::Trash,
+        FailureStage::FinalFences,
+        FailureStage::Deadline,
+    ] {
+        let original = anyhow::anyhow!(secret).context(format!("context-{secret}"));
+        let typed = in_stage::<()>(stage, Err(original)).unwrap_err();
+        let public = sanitized_failure(typed.context(format!("outer-{secret}")));
+        assert_eq!(public.chain().count(), 1);
+        assert_eq!(
+            public.to_string(),
+            format!(
+                "owned native fixture verification refused (stage={})",
+                stage.label(),
+            )
+        );
+        assert!(!format!("{public:?}").contains(secret));
+        assert!(!format!("{public:#}").contains(secret));
+    }
+    // Text resembling a phase never grants authority to expose an arbitrary error.
+    let unknown =
+        anyhow::anyhow!("stage=document_binding {secret}").context(format!("context-{secret}"));
+    let public = sanitized_failure(unknown);
+    assert_eq!(
+        public.to_string(),
+        "owned native fixture verification refused"
+    );
+    assert_eq!(public.chain().count(), 1);
+    assert!(!format!("{public:?}").contains(secret));
+}
+
+#[test]
+fn native_fixture_stale_revision_refuses_with_only_document_binding_stage() -> Result<()> {
+    let r = plan(Arm::NativeFinalPreflight);
+    let (_, original) = entries(&r);
+    assert_eq!(
+        exact_entry(std::slice::from_ref(&original), &r.document)?,
+        original
+    );
+    let mut changed = original.clone();
+    changed.etag = "synthetic-private-current-revision".into();
+    let before = serde_json::to_vec(&changed)?;
+    let failed = in_stage(
+        FailureStage::DocumentBinding,
+        exact_entry(std::slice::from_ref(&changed), &r.document),
+    )
+    .unwrap_err();
+    let public = sanitized_failure(failed);
+    // Real identity/revision guard and complete input preservation precede stage assertion.
+    assert_eq!(serde_json::to_vec(&changed)?, before);
+    assert_eq!(
+        exact_entry(std::slice::from_ref(&original), &r.document)?,
+        original
+    );
+    assert_eq!(public.chain().count(), 1);
+    assert!(!format!("{public:?}").contains(&changed.etag));
+    assert!(!format!("{public:#}").contains(&changed.etag));
+    assert_eq!(
+        public.to_string(),
+        "owned native fixture verification refused (stage=document_binding)",
+    );
     Ok(())
 }

@@ -318,6 +318,8 @@ readback preserved all 42 files, including the three previews. Apple Numbers
 opened that exact new document with values 11/3/14 and its `SUM(A2:B2)` formula.
 Edited replacement, Trash verification and restart recovery for this flat source
 format remain open.
+The [latest replacement trial](docs/benchmarks/icloud-flat-numbers-genuine-editor-replacement-2026-10-06.json)
+stopped at read-only preflight, before editing or changing any cloud document.
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical

@@ -3126,3 +3126,45 @@ iCloud controls, real kernel/FUSE groups, script tests, translations, ledger and
 documentation. All 546 pinned source/script/Cargo/translation/policy files stayed
 unchanged. No cloud call, installed change or additional release criterion is
 claimed by this local observer correction.
+
+
+### Refused flat Numbers replacement preflights on 6 October 2026
+
+The [registered genuine-edit trial](benchmarks/icloud-flat-numbers-genuine-editor-replacement-2026-10-06.json)
+stopped before authoring B or dispatching a replacement. The first exact-original
+read observer exited one after 32.546 seconds. A separate fresh attempt, explicitly
+requested by the owner, exited one after 1.221 seconds. Both retained their own
+attempt records, reached the document-folder query and produced no typed content
+fixture. Their original processes were reaped. No GUI edit, duplicate, export or
+cloud mutation occurred, and neither failed attempt was replayed automatically.
+
+The initial local launch also exposed missing executable permissions on the
+frozen test binaries. It failed before child creation or provider access; the
+permissions were corrected from 0400 to 0500 with unchanged bytes before the
+first actual observer dispatch. That correction is distinct from the subsequent
+provider-observation refusals. The existing public error discarded the inner
+failure phase, so these observations do not identify an expired session, changed
+revision or network failure. The original successful import remains separate;
+genuine B replacement and the five open release criteria remain unproved.
+
+
+The feature-only observer now preserves a fixed failure-stage label while
+immediately discarding underlying errors and context. A synthetic refusal through
+the actual public observer first failed its desired stage assertion without the
+change; the unchanged assertion then passed. All 17 observer tests passed,
+including sensitive-context stripping across every stage and an actual stale-ETag
+refusal. This improves the next diagnosis; it does not determine the cause of the
+two historical refusals or establish a successful live replacement.
+
+
+The entire `bash scripts/check.sh` subsequently passed in 572.77 seconds with
+`RUST_TEST_THREADS=4`, including all 17 observer controls again, kernel/FUSE
+scenarios, scripts, translations, ledger and documentation. All 546 registered
+runtime pins stayed unchanged. An initial Clippy finding was corrected; two
+subsequent default-concurrency runs missed the existing initial status-publication
+wait in different retained-status tests. The unchanged isolated control and full
+four-thread run passed without extending any timeout or skipping additional tests.
+Those failures remain in the same artifact; default-concurrency stability is not
+claimed. Desktop display scenarios were not repeated. All 19 installed files,
+unit configuration and daemon process identity remain unchanged; deployment stays
+on HOLD and no additional full-iCloud criterion closes.
