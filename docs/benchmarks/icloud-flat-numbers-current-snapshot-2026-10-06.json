@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "run": "74e43e03-4a78-49ef-b5be-93997221a1ba",
+  "subject_run": "158d8df0-fe5d-458f-ad05-b82a1fee9978",
+  "registered_at": 1791283364.025904,
+  "status": "complete_current_reference_verified_and_terminally_closed",
+  "question": "What is the actual currently fenced full PACKAGE content of the exact retained owned Numbers identity, regardless of whether its item revision changed since import?",
+  "prediction": "Historical parent revision changed, so acquire its current envelope while retaining exact parent and item identities. An explicit current_snapshot read may show equal content or changed content; both are observations, not evidence of an editor save. Unknown refusal ends this arm without retry.",
+  "admission": [
+    "Production correction passes desired RED/GREEN and complete scripts/check.sh",
+    "Reader ELF and source binding frozen after build",
+    "Fresh singleton read-only account state; same account and credential AAD opaque ciphertext only",
+    "Finite one-shot 300-second registration; original child/pidfd retained"
+  ],
+  "endpoint": "Exact current typed metadata, full strict wrapped semantic V2 and raw PACKAGE receipt, input/cipher/installed baseline unchanged, child reaped and root unmounted; or explicit terminal refusal without retry",
+  "revision_mode": "current_snapshot",
+  "expected_current_etag": null,
+  "cloud_mutations": 0,
+  "automatic_retry": false,
+  "installed_actions": false,
+  "no_browser_actions": true,
+  "temporary_filesystem": "ext4",
+  "root_filesystem_expected": "btrfs",
+  "scope_limits": [
+    "source-b.numbers is a current provider reference, not genuine edited B or browser export",
+    "No cell/formula fidelity, native replacement or full integration gate closes from this read",
+    "Both this reader and previous generic verifier use Cirrove; no independent provider implementation claim"
+  ],
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "actual_outcome": {
+    "run": "74e43e03-4a78-49ef-b5be-93997221a1ba",
+    "helper_exit_code": 0,
+    "elapsed_seconds": 6.425549169012811,
+    "complete_current_reference_verified": true,
+    "failure_class": null,
+    "closure_failure_class": null,
+    "original_handle_reaped": true,
+    "helper_proc_absent": true,
+    "signals": [],
+    "within_original_monotonic_window": true,
+    "inputs_cipher_installed_baseline_unchanged": true,
+    "cloud_mutations": 0,
+    "automatic_retry": false,
+    "stderr_sha256": "c7106df7c28afdc6b0b9a70e70c2dd0d8f1aeb5e9a90cec3ebf00187d84c3f60",
+    "result_sha256": "0eb8ab8b323e45480cd6acb813010b12acc077f0ccf3c9e8882ae93c2e745548",
+    "role_binding_sha256": "97c25cd6a0375d7deb101db4f045c2de6d91d1ed8feb61d93577465d74b0cab4",
+    "controller_sha256": "8dfbfe20bfee7cc95c7069cc37c8038e96e3de0f6271646627310f017ea81fc3",
+    "runtime_source_count": 549,
+    "current_item_etag_equals_retained_A": false,
+    "current_parent_etag_equals_retained_A": false,
+    "current_semantic_equals_retained_A": false,
+    "current_raw_size": 64852,
+    "current_raw_sha256": "08a99b336d8b39f7d1c8254d6e498dd56ff8956e5aa6916db8adf374d7be03eb",
+    "current_semantic": {
+      "entries": 10,
+      "expanded_bytes": 138812,
+      "files": 7,
+      "sha256": "b357a509bee11464acf7d16f612386cd85ea6d08401fe59188015da3f9d7e7a1",
+      "version": 2
+    },
+    "retained_A_semantic_counts": {
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133153
+    },
+    "actual_representation": "package",
+    "cells_or_formula_decoded": false,
+    "browser_actions": 0,
+    "genuine_B_replacement_verified": false,
+    "interpretation": "The currently fenced content tree and item/parent revisions differ from the retained original. This does not attribute the change to browser interference or identify the historical preflight failure cause; the old original cannot be silently substituted as a current revision."
+  },
+  "local_controller_review": {
+    "unexecuted_drafts_retained": 3,
+    "final_version": 4,
+    "paired_original_clock_and_cleanup_reserve": true,
+    "original_popen_pidfd_retained": true,
+    "exact_stdout_result_fixture_source_binding": true
+  }
+}

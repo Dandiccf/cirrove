@@ -109,6 +109,9 @@ impl Fixture {
         Self::new_seeded(false).await
     }
     async fn new_seeded(seed: bool) -> Self {
+        Self::new_layout(seed, false).await
+    }
+    async fn new_layout(seed: bool, flat: bool) -> Self {
         let state = directory();
         let owned = directory();
         let staging = directory();
@@ -151,7 +154,11 @@ impl Fixture {
         };
         let mut old = original();
         old.name = target_name.into();
-        let bytes = archive(source_root, false, false);
+        let bytes = if flat {
+            crate::native_import::synthetic_package_archive("Document", b"new owned content")
+        } else {
+            archive(source_root, false, false)
+        };
         let source = staging.path().join("source.zip");
         std::fs::write(&source, &bytes).unwrap();
         std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o600)).unwrap();
@@ -200,12 +207,28 @@ impl Fixture {
             j.handoff_namespace(local.id, local.revision, owned_parent)
                 .unwrap();
             let a_path = staging.path().join("source-a.zip");
-            std::fs::write(&a_path, archive(source_root, true, false)).unwrap();
+            std::fs::write(
+                &a_path,
+                if flat {
+                    crate::native_import::synthetic_package_archive(
+                        "Document",
+                        b"old owned content",
+                    )
+                } else {
+                    archive(source_root, true, false)
+                },
+            )
+            .unwrap();
             std::fs::set_permissions(&a_path, std::fs::Permissions::from_mode(0o600)).unwrap();
-            let a = ValidatedPackageArchive::capture(
+            let a = ValidatedPackageArchive::capture_with_source_layout(
                 &a_path,
                 staging.path(),
-                source_root,
+                if flat {
+                    cirrove_core::upload::PackageSourceLayout::FlatNumbers
+                } else {
+                    cirrove_core::upload::PackageSourceLayout::Wrapped
+                },
+                if flat { None } else { Some(source_root) },
                 &CancellationToken::new(),
             )
             .unwrap();
@@ -242,7 +265,7 @@ impl Fixture {
             drop(journal);
         }
         drop(context);
-        if seed {
+        if seed && !flat {
             let path = state
                 .path()
                 .join("accounts")
@@ -261,10 +284,15 @@ impl Fixture {
             drop(read);
         }
         let context = WriteContext::open(&engine, state.path()).await.unwrap();
-        let captured = ValidatedPackageArchive::capture(
+        let captured = ValidatedPackageArchive::capture_with_source_layout(
             &source,
             staging.path(),
-            source_root,
+            if flat {
+                cirrove_core::upload::PackageSourceLayout::FlatNumbers
+            } else {
+                cirrove_core::upload::PackageSourceLayout::Wrapped
+            },
+            if flat { None } else { Some(source_root) },
             &CancellationToken::new(),
         )
         .unwrap();
@@ -929,3 +957,6 @@ async fn native_final_actual_completed_frontier_binds_queue_pairs_receipts_and_p
 
 #[path = "derived_snapshot_tests.rs"]
 mod derived_snapshot_tests;
+
+#[path = "flat_tests.rs"]
+mod flat_tests;

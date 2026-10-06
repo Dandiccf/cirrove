@@ -70,12 +70,17 @@ impl Receipt {
         }
     }
     fn check(&self, request: &UploadRequest) -> cirrove_core::upload::Result<()> {
-        let cirrove_core::upload::UploadRepresentation::PackageReplacementArchive {
+        let (cirrove_core::upload::UploadRepresentation::PackageReplacementArchive {
             original,
             original_semantic,
             semantic,
             ..
-        } = &request.representation
+        }
+        | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive {
+            original,
+            original_semantic,
+            semantic,
+        }) = &request.representation
         else {
             return Err(UploadError::Invalid);
         };
@@ -166,7 +171,7 @@ impl Guard {
         mode: Mode,
     ) -> cirrove_core::upload::Result<Self> {
         request.validate()?;
-        if !matches!(&request.representation,cirrove_core::upload::UploadRepresentation::PackageReplacementArchive{semantic,original_semantic,..} if semantic.version==2 && original_semantic.version==2)
+        if !matches!(&request.representation,cirrove_core::upload::UploadRepresentation::PackageReplacementArchive{semantic,original_semantic,..} | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive{semantic,original_semantic,..} if semantic.version==2 && original_semantic.version==2)
             || run.is_nil()
         {
             return Err(UploadError::Invalid);
@@ -662,3 +667,7 @@ pub(crate) fn persist_marker_and_exit(
 }
 pub(crate) mod registration;
 pub use registration::{icloud_native_final_loss, icloud_native_final_recover};
+
+#[cfg(test)]
+#[path = "native_final_recovery/flat_authority_tests.rs"]
+mod flat_authority_tests;

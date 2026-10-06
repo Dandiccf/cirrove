@@ -1425,6 +1425,25 @@ writer's journal receipt, perform mutations or claim application acceptance.
 Its public failures retain only fixed observer-stage labels and discard underlying
 errors and contexts; exact identity, revision and content guards remain mandatory.
 
+The feature-only retained Numbers reader defaults to `changed_only`: the current
+item must have a different revision from the retained reference. Explicit
+`current_snapshot` permits either the same or a different observed revision while
+retaining exact account, collection, parent and item bindings. A supplied expected
+current revision remains mandatory in either mode. The reader acquires the current
+parent envelope and fences the complete PACKAGE transfer against that current
+metadata. Its output is a current provider reference, not an edited source or a
+browser export. Missing mode preserves legacy behavior; null or unknown modes
+are refused.
+
+The feature-only native final-confirmation recovery harness accepts explicit flat
+Numbers sources alongside wrapped sources. Flat registration requires a present
+null root and `flat_numbers` layout for both source proofs; wrapped registration
+keeps its original string root and serialized shape. Both paths bind the original,
+current and Trash identities and their semantic V2 proofs. Recovery delegates
+inspection of the same operation and vetoes mutation entrypoints. This harness
+does not widen the installed daemon's write scope or establish Apple fault
+acceptance by itself.
+
 Journal schema 21 persists distinct `flat_numbers_archive` and
 `flat_numbers_replacement_archive` kinds, with versioned query indexes and
 publication triggers. Existing wrapped records retain their serialized fields.

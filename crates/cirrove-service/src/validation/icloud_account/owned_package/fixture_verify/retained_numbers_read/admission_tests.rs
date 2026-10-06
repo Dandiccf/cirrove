@@ -213,3 +213,229 @@ async fn retained_read_foreign_route_refuses_before_attempt_or_session() {
 async fn retained_read_expired_window_refuses_before_attempt_or_session() {
     refusal_preserves_fixture(0, true, "retained read deadline refused").await;
 }
+
+fn revision_registration() -> Result<(PathBuf, serde_json::Value, Snapshot)> {
+    let (root, registered_digest) = fixture(0, false);
+    let path = root.join("retained-read-registration.json");
+    let raw = std::fs::read(&path)?;
+    assert_eq!(digest(&raw), registered_digest);
+    let original: Registration = serde_json::from_slice(&raw)?;
+    validate(&original)?;
+    let before = snapshot(&root);
+    Ok((root, serde_json::from_slice(&raw)?, before))
+}
+
+fn no_observation_outputs(root: &Path) {
+    for output in [
+        "retained-read.attempt.json",
+        "source-b.numbers",
+        "retained-current-fixture.json",
+        "retained-current-read.json",
+    ] {
+        assert!(
+            !root.join(output).exists(),
+            "schema admission started observation"
+        );
+    }
+}
+
+#[test]
+fn retained_read_explicit_revision_mode_current_snapshot_admits_registered_reference() -> Result<()>
+{
+    let (root, mut wire, before) = revision_registration()?;
+    // The genuine registered reference keeps its original revision. Current
+    // snapshot opts into observing that same revision or an actual newer one;
+    // it does not fabricate an older reference to satisfy changed-only policy.
+    wire["revision_mode"] = serde_json::json!("current_snapshot");
+    wire["expected_current_etag"] = wire["original_document"]["etag"].clone();
+    let admitted = serde_json::from_value::<Registration>(wire);
+    assert_eq!(snapshot(&root), before);
+    no_observation_outputs(&root);
+    assert!(
+        admitted.is_ok(),
+        "explicit current-snapshot registration refused"
+    );
+    validate(&admitted?)?;
+    Ok(())
+}
+
+#[test]
+fn retained_read_explicit_revision_mode_changed_only_preserves_registered_reference() -> Result<()>
+{
+    let (root, mut wire, before) = revision_registration()?;
+    wire["revision_mode"] = serde_json::json!("changed_only");
+    let admitted = serde_json::from_value::<Registration>(wire);
+    assert_eq!(snapshot(&root), before);
+    no_observation_outputs(&root);
+    assert!(
+        admitted.is_ok(),
+        "explicit changed-only registration refused"
+    );
+    validate(&admitted?)?;
+    Ok(())
+}
+
+#[test]
+fn retained_read_legacy_registration_without_revision_mode_stays_admissible() -> Result<()> {
+    let (root, wire, before) = revision_registration()?;
+    assert!(wire.get("revision_mode").is_none());
+    let original: Registration = serde_json::from_value(wire)?;
+    validate(&original)?;
+    assert_eq!(snapshot(&root), before);
+    no_observation_outputs(&root);
+    Ok(())
+}
+
+#[test]
+fn retained_read_unknown_revision_mode_refuses_without_coercion_or_observation() -> Result<()> {
+    let (root, wire, before) = revision_registration()?;
+    for mode in [
+        serde_json::json!("unknown"),
+        serde_json::json!("CurrentSnapshot"),
+        serde_json::json!("current-snapshot"),
+        serde_json::json!(""),
+        serde_json::Value::Null,
+        serde_json::json!(1),
+        serde_json::json!({"current_snapshot": true}),
+        serde_json::json!(["current_snapshot"]),
+    ] {
+        let mut altered = wire.clone();
+        altered["revision_mode"] = mode;
+        assert!(serde_json::from_value::<Registration>(altered).is_err());
+    }
+    assert_eq!(snapshot(&root), before);
+    no_observation_outputs(&root);
+    Ok(())
+}
+
+#[test]
+fn retained_read_current_document_policy_preserves_legacy_and_exact_expected_revision() -> Result<()>
+{
+    let (root, mut wire, before) = revision_registration()?;
+    let legacy: Registration = serde_json::from_value(wire.clone())?;
+    let parent = legacy.original_parent.clone();
+    let original = legacy.original_document.clone();
+    let mut changed = original.clone();
+    changed.etag = "synthetic-current-v2".into();
+    assert!(legacy.revision_mode == RevisionMode::ChangedOnly);
+    assert!(current_document_binding(&legacy, &parent, &original).is_err());
+    current_document_binding(&legacy, &parent, &changed)?;
+
+    wire["revision_mode"] = serde_json::json!("changed_only");
+    let explicit_legacy: Registration = serde_json::from_value(wire.clone())?;
+    assert!(current_document_binding(&explicit_legacy, &parent, &original).is_err());
+    current_document_binding(&explicit_legacy, &parent, &changed)?;
+
+    wire["revision_mode"] = serde_json::json!("current_snapshot");
+    let unpinned: Registration = serde_json::from_value(wire.clone())?;
+    current_document_binding(&unpinned, &parent, &original)?;
+    current_document_binding(&unpinned, &parent, &changed)?;
+    for accepted in [&original, &changed] {
+        wire["expected_current_etag"] = serde_json::json!(accepted.etag);
+        let pinned: Registration = serde_json::from_value(wire.clone())?;
+        current_document_binding(&pinned, &parent, accepted)?;
+        let other = if accepted == &original {
+            &changed
+        } else {
+            &original
+        };
+        let refused = current_document_binding(&pinned, &parent, other)
+            .err()
+            .context("foreign expected revision accepted")?;
+        assert_eq!(
+            refused.to_string(),
+            "retained current identity or revision refused"
+        );
+        assert!(!format!("{refused:#}").contains("synthetic-current-v2"));
+    }
+    assert_eq!(snapshot(&root), before);
+    no_observation_outputs(&root);
+    Ok(())
+}
+
+#[test]
+fn retained_read_current_snapshot_refuses_foreign_or_malformed_current_metadata() -> Result<()> {
+    let (root, mut wire, before) = revision_registration()?;
+    wire["revision_mode"] = serde_json::json!("current_snapshot");
+    let r: Registration = serde_json::from_value(wire)?;
+    let parent = r.original_parent.clone();
+    let original = r.original_document.clone();
+    current_document_binding(&r, &parent, &original)?;
+    let original_bytes = serde_json::to_vec(&original)?;
+    for fault in 0..12 {
+        let mut foreign = original.clone();
+        match fault {
+            0 => foreign.drivewsid = format!("FILE::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            1 => foreign.docwsid = Uuid::new_v4().to_string(),
+            2 => foreign.parent_id = format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            3 => foreign.name = "foreign-document".into(),
+            4 => foreign.zone = "foreign-zone".into(),
+            5 => foreign.kind = "FOLDER".into(),
+            6 => foreign.extension = "pages".into(),
+            7 => foreign.size = LIMIT + 1,
+            8 => foreign.etag.clear(),
+            9 => foreign.etag = "*".into(),
+            10 => foreign.etag = "synthetic\nprivate-revision".into(),
+            _ => foreign.etag = "x".repeat(4097),
+        }
+        let foreign_bytes = serde_json::to_vec(&foreign)?;
+        let refusal = current_document_binding(&r, &parent, &foreign);
+        assert_eq!(serde_json::to_vec(&foreign)?, foreign_bytes);
+        assert_eq!(serde_json::to_vec(&original)?, original_bytes);
+        assert!(
+            refusal.is_err(),
+            "current snapshot accepted foreign metadata arm {fault}"
+        );
+        assert_eq!(
+            refusal.err().context("missing refusal")?.to_string(),
+            "retained current identity or revision refused"
+        );
+    }
+    let mut foreign_parent = parent.clone();
+    foreign_parent.drivewsid = format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4());
+    let mut moved = original.clone();
+    moved.parent_id.clone_from(&foreign_parent.drivewsid);
+    assert!(current_document_binding(&r, &foreign_parent, &moved).is_err());
+    current_document_binding(&r, &parent, &original)?;
+    assert_eq!(snapshot(&root), before);
+    no_observation_outputs(&root);
+    Ok(())
+}
+
+#[tokio::test]
+async fn retained_read_current_snapshot_keeps_actual_account_and_deadline_admission() -> Result<()>
+{
+    for (route_fault, expired) in (1..=6)
+        .map(|fault| (fault, false))
+        .chain(std::iter::once((0, true)))
+    {
+        let (root, _) = fixture(route_fault, expired);
+        let path = root.join("retained-read-registration.json");
+        let mut wire: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+        wire["revision_mode"] = serde_json::json!("current_snapshot");
+        let raw = serde_json::to_vec_pretty(&wire)?;
+        // Change only our retained synthetic setup, before taking the preservation snapshot.
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+        let mut file = OpenOptions::new().write(true).truncate(true).open(&path)?;
+        file.write_all(&raw)?;
+        file.sync_all()?;
+        file.set_permissions(std::fs::Permissions::from_mode(0o400))?;
+        drop(file);
+        let before = snapshot(&root);
+        let refusal = observe(&path, &digest(&raw)).await;
+        assert_eq!(snapshot(&root), before);
+        no_observation_outputs(&root);
+        let error = refusal
+            .err()
+            .context("current snapshot reached session loading")?;
+        assert_eq!(
+            error.to_string(),
+            if expired {
+                "retained read deadline refused"
+            } else {
+                "retained account route refused"
+            }
+        );
+    }
+    Ok(())
+}

@@ -3,6 +3,14 @@ use super::*;
 use anyhow::Context as _;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum RevisionMode {
+    #[default]
+    ChangedOnly,
+    CurrentSnapshot,
+}
+
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Registration {
@@ -19,6 +27,8 @@ struct Registration {
     original_parent: DriveEntry,
     original_document: DriveEntry,
     expected_current_etag: Option<String>,
+    #[serde(default)]
+    revision_mode: RevisionMode,
     started_unix_seconds: u64,
     deadline_unix_seconds: u64,
 }
@@ -123,6 +133,33 @@ fn exact_one(entries: Vec<DriveEntry>, id: &str) -> Result<DriveEntry> {
     let value = found.next().context("retained item absent")?;
     ensure!(found.next().is_none(), "retained identity ambiguous");
     Ok(value)
+}
+fn current_document_binding(
+    r: &Registration,
+    parent: &DriveEntry,
+    document: &DriveEntry,
+) -> Result<()> {
+    // exact_one already binds both selected IDs in the actual observation path;
+    // retain those bindings here as well when checking a supplied typed entry.
+    ensure!(
+        parent.drivewsid == r.original_parent.drivewsid
+            && document.drivewsid == r.original_document.drivewsid
+            && document.kind == "FILE"
+            && document.zone == r.original_document.zone
+            && document.docwsid == r.original_document.docwsid
+            && document.parent_id == parent.drivewsid
+            && document.name == r.original_document.name
+            && document.extension == "numbers"
+            && revision(&document.etag)
+            && (r.revision_mode == RevisionMode::CurrentSnapshot
+                || document.etag != r.original_document.etag)
+            && r.expected_current_etag
+                .as_ref()
+                .is_none_or(|v| v == &document.etag)
+            && document.size <= LIMIT,
+        "retained current identity or revision refused"
+    );
+    Ok(())
 }
 fn sealed_pin(root: &Path, r: &Registration, c: &Context) -> Result<()> {
     let path = root
@@ -229,11 +266,12 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         "retained state is not fresh"
     );
     sealed_pin(root, &r, &c)?;
-    record(
-        &root.join("retained-read.attempt.json"),
-        &serde_json::json!({"observation_run":r.observation_run,
-        "subject_run":r.subject_run,"registration_sha256":digest,"provider_mutation":false,"automatic_retry":false}),
-    )?;
+    let mut attempt_value = serde_json::json!({"observation_run":r.observation_run,
+        "subject_run":r.subject_run,"registration_sha256":digest,"provider_mutation":false,"automatic_retry":false});
+    if r.revision_mode == RevisionMode::CurrentSnapshot {
+        attempt_value["revision_mode"] = serde_json::json!("current_snapshot");
+    }
+    record(&root.join("retained-read.attempt.json"), &attempt_value)?;
     held.sync_all()?;
     let remaining = r
         .deadline_unix_seconds
@@ -248,12 +286,7 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
             && (parent.parent_id.is_empty() || parent.parent_id == cirrove_icloud::ROOT_ID), "retained parent moved");
         parent.items.clear(); parent.number_of_items = None;
         let document = exact_one(remote.list_folder(&parent.drivewsid).await?, &r.original_document.drivewsid)?;
-        ensure!(document.kind == "FILE" && document.zone == r.original_document.zone
-            && document.docwsid == r.original_document.docwsid && document.parent_id == parent.drivewsid
-            && document.name == r.original_document.name && document.extension == "numbers"
-            && revision(&document.etag) && document.etag != r.original_document.etag
-            && r.expected_current_etag.as_ref().is_none_or(|v| v == &document.etag)
-            && document.size <= LIMIT, "retained current identity or revision refused");
+        current_document_binding(&r, &parent, &document)?;
         let output = root.join("source-b.numbers");
         let file = OpenOptions::new().read(true).write(true).create_new(true).mode(0o600).open(&output)?;
         let mut sink = DiskSink(tokio::fs::File::from_std(file.try_clone()?));
@@ -275,12 +308,15 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         let typed: Fixture = serde_json::from_value(fixture.clone())?;
         super::validate(&typed)?;
         let fixture_path = root.join("retained-current-fixture.json"); record(&fixture_path, &fixture)?;
-        let result = serde_json::json!({"version":1,"observation_run":r.observation_run,"subject_run":r.subject_run,
+        let mut result = serde_json::json!({"version":1,"observation_run":r.observation_run,"subject_run":r.subject_run,
             "account":r.account,"collection":"drive","parent":parent,"document":document,"registration_sha256":digest,
             "source":{"path":output,"size":receipt.size,"sha256":receipt.sha256,"root":source_root,"semantic":semantic},
             "fixture_path":fixture_path,"fixture_sha256":hex::encode(Sha256::digest(bytes(&fixture_path,32*1024)?)),
             "reference_origin":"current-provider-read","actual_representation":"package","current_read_fenced":true,
             "browser_export_verified":false,"independently_decoded_cells":false,"cloud_mutated":false,"automatic_retry":false});
+        if r.revision_mode == RevisionMode::CurrentSnapshot {
+            result["revision_mode"] = serde_json::json!("current_snapshot");
+        }
         record(&root.join("retained-current-read.json"), &result)?; held.sync_all()?; Ok(result)
     }).await.map_err(|_| anyhow::anyhow!("retained read deadline"))?
 }

@@ -75,6 +75,9 @@ struct Generation {
 }
 #[derive(Default)]
 struct State {
+    // Only the explicit-flat final-loss fixture populates this from the actual
+    // persisted preparation receipt. Wrapped fixtures retain raw equality.
+    flat_wire: Option<(u64, String, PackageSemanticIdentity)>,
     generation: Option<Generation>,
     registered: bool,
     allocations: usize,
@@ -243,8 +246,13 @@ impl Server {
                 match url.path(){
                     "/retrieveItemDetailsInFolders"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request[0]["drivewsid"],FOLDER);let mut items=if s.registered{vec![entry(&plan,&s,false)]}else{vec![]};if !s.trashed&&!s.moved&&!s.deleted{items.push(entry(&plan,&s,true));}
                     if s.collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");other["name"]=json!("Target");items.push(other);}Some(json!([{"drivewsid":FOLDER,"parentId":ROOT_ID,"name":"Owned","zone":"com.apple.CloudDocs","type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())},
-                    "/ws/com.apple.CloudDocs/upload/web"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],source.len());s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":new_doc,"owner_id":""}]).to_string().into_bytes())},
-                    "/signed-upload"=>{assert_eq!(body,source);s.body_calls+=1;assert_eq!(s.body_calls,1);Some(json!({"hexBrSyntheticChecksum":"aa","ckSectionAssets":[{"hexFileChecksum":"bb","hexReferenceChecksum":"cc","hexWrappingKey":"dd","receiptToken":"YQ==","size":source.len()}]}).to_string().into_bytes())},
+                    "/ws/com.apple.CloudDocs/upload/web"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],s.flat_wire.as_ref().map(|wire|wire.0).unwrap_or(source.len() as u64));s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":new_doc,"owner_id":""}]).to_string().into_bytes())},
+                    "/signed-upload"=>{if let Some((size,sha,semantic))=&s.flat_wire {
+                        assert_eq!(body.len() as u64,*size);
+                        assert_eq!(hex::encode(Sha256::digest(&body)),*sha);
+                        let mut file=tempfile::tempfile().unwrap();file.write_all(&body).unwrap();
+                        assert_eq!(package_archive_semantic_identity_versioned(&file,&PackageDownload{size:*size,sha256:sha.clone()},&plan.staged_name,2,&CancellationToken::new()).unwrap(),*semantic);
+                    }else{assert_eq!(body,source);}s.body_calls+=1;assert_eq!(s.body_calls,1);Some(json!({"hexBrSyntheticChecksum":"aa","ckSectionAssets":[{"hexFileChecksum":"bb","hexReferenceChecksum":"cc","hexWrappingKey":"dd","receiptToken":"YQ==","size":body.len()}]}).to_string().into_bytes())},
                     "/ws/com.apple.CloudDocs/update/documents"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["command"],"add_package");assert_eq!(r["document_id"],new_doc);assert_eq!(r["path"]["path"],plan.staged_name);assert_eq!(r["path"]["starting_document_id"],"owned");assert_eq!(r["allow_conflict"],false);assert_eq!(s.body_calls,1);s.registrations+=1;assert_eq!(s.registrations,1);s.registered=true;if lost_registration{None}else{Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":new_doc,"item_id":format!("{new_doc}-item"),"etag":staged_etag,"size":17,"name":plan.staged_name}}]}).to_string().into_bytes())}},
                     "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==old_id;assert!(old||request["items"][0]["drivewsid"]==new_id);Some(json!({"items":if old&&s.deleted{vec![]}else{vec![entry(&plan,&s,old)]}}).to_string().into_bytes())},
                     "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id==old_doc||id==new_doc);Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},

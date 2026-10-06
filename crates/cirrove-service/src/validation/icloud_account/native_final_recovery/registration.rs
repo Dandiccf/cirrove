@@ -11,7 +11,7 @@ use crate::{
 use cirrove_auth::{AccessMode, AppRegistration};
 use cirrove_core::{
     mutation::{MutationIntent, MutationReceipt},
-    upload::{UploadIntent, UploadRepresentation},
+    upload::{PackageSourceLayout, UploadIntent, UploadRepresentation},
 };
 use std::{
     io::Read,
@@ -25,8 +25,44 @@ struct Source {
     path: PathBuf,
     size: u64,
     sha256: String,
-    root: String,
+    #[serde(deserialize_with = "required_source_root")]
+    root: Option<String>,
+    #[serde(default, skip_serializing_if = "wrapped_source")]
+    source_layout: PackageSourceLayout,
     semantic: PackageSemanticIdentity,
+}
+fn required_source_root<'de, D>(deserializer: D) -> std::result::Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde::Deserialize::deserialize(deserializer)
+}
+fn wrapped_source(layout: &PackageSourceLayout) -> bool {
+    *layout == PackageSourceLayout::Wrapped
+}
+impl Source {
+    fn check_layout(&self) -> Result<()> {
+        ensure!(
+            matches!(
+                (self.source_layout, self.root.as_deref()),
+                (PackageSourceLayout::Wrapped, Some("Source.numbers"))
+                    | (PackageSourceLayout::FlatNumbers, None)
+            ),
+            "native source layout refused"
+        );
+        Ok(())
+    }
+    fn import_representation(&self) -> UploadRepresentation {
+        match self.source_layout {
+            PackageSourceLayout::Wrapped => UploadRepresentation::PackageArchive {
+                expected_root: self.root.clone().unwrap_or_default(),
+                semantic: self.semantic.clone(),
+            },
+            PackageSourceLayout::FlatNumbers => UploadRepresentation::FlatNumbersArchive {
+                semantic: self.semantic.clone(),
+            },
+        }
+    }
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -115,9 +151,9 @@ fn bytes(path: &Path, max: u64) -> Result<Vec<u8>> {
     Ok(value)
 }
 fn source(source: &Source, root: &Path, name: &str) -> Result<()> {
+    source.check_layout()?;
     ensure!(
         source.path == root.join(name)
-            && source.root == "Source.numbers"
             && source.size > 0
             && source.size <= LIMIT
             && hex_digest(&source.sha256)
@@ -131,13 +167,28 @@ fn source(source: &Source, root: &Path, name: &str) -> Result<()> {
         size == source.size && raw == source.sha256,
         "native source bytes changed"
     );
-    let proof = cirrove_icloud::package_archive_semantic_identity_versioned(
-        &file,
-        &cirrove_icloud::PackageDownload { size, sha256: raw },
-        &source.root,
-        2,
-        &CancellationToken::new(),
-    )?;
+    let receipt = cirrove_icloud::PackageDownload { size, sha256: raw };
+    let proof = match source.source_layout {
+        PackageSourceLayout::Wrapped => {
+            cirrove_icloud::package_archive_semantic_identity_versioned(
+                &file,
+                &receipt,
+                source
+                    .root
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("native source root missing"))?,
+                2,
+                &CancellationToken::new(),
+            )?
+        }
+        PackageSourceLayout::FlatNumbers => {
+            cirrove_icloud::package_flat_archive_semantic_identity_v2(
+                &file,
+                &receipt,
+                &CancellationToken::new(),
+            )?
+        }
+    };
     ensure!(proof == source.semantic, "native source v2 content changed");
     Ok(())
 }
@@ -188,17 +239,32 @@ impl Registration {
                 item: self.original.id.clone(),
                 expected_etag: self.original.etag.clone().unwrap_or_default(),
             },
-            representation: UploadRepresentation::PackageReplacementArchive {
-                expected_root: self.source_b.root.clone(),
-                semantic: self.source_b.semantic.clone(),
-                original: Box::new(self.original.clone()),
-                original_semantic: self.source_a.semantic.clone(),
+            representation: match self.source_b.source_layout {
+                PackageSourceLayout::Wrapped => UploadRepresentation::PackageReplacementArchive {
+                    expected_root: self.source_b.root.clone().unwrap_or_default(),
+                    semantic: self.source_b.semantic.clone(),
+                    original: Box::new(self.original.clone()),
+                    original_semantic: self.source_a.semantic.clone(),
+                },
+                PackageSourceLayout::FlatNumbers => {
+                    UploadRepresentation::FlatNumbersReplacementArchive {
+                        semantic: self.source_b.semantic.clone(),
+                        original: Box::new(self.original.clone()),
+                        original_semantic: self.source_a.semantic.clone(),
+                    }
+                }
             },
             size: self.source_b.size,
             sha256: self.source_b.sha256.clone(),
         }
     }
     fn validate(&self, path: &Path) -> Result<()> {
+        self.source_a.check_layout()?;
+        self.source_b.check_layout()?;
+        ensure!(
+            self.source_a.source_layout == self.source_b.source_layout,
+            "native source layouts differ"
+        );
         ensure!(
             self.version == 1
                 && !self.run.is_nil()
@@ -436,11 +502,7 @@ fn initial(registration: &Registration, journal: &RecoveryJournal) -> Result<Vec
                     parent: registration.parent.id.clone(),
                     name: registration.original.name.clone()
                 }
-            && imported.representation
-                == UploadRepresentation::PackageArchive {
-                    expected_root: registration.source_a.root.clone(),
-                    semantic: registration.source_a.semantic.clone()
-                }
+            && imported.representation == registration.source_a.import_representation()
             && imported.size == registration.source_a.size
             && imported.sha256 == registration.source_a.sha256
             && imported.remote.as_ref() == Some(&registration.original)
@@ -516,7 +578,8 @@ async fn loss(path: &Path, digest: &str) -> Result<()> {
             && value["source"] == registration.source_a.path.to_string_lossy().as_ref()
             && value["source_size"] == registration.source_a.size
             && value["source_sha256"] == registration.source_a.sha256
-            && value["source_root"] == registration.source_a.root
+            && value.get("source_root")
+                == Some(&serde_json::to_value(&registration.source_a.root)?)
             && value["expected_root"] == registration.original.name
             && value["semantic"] == serde_json::to_value(&registration.source_a.semantic)?
             && value["document"]["drivewsid"] == registration.original.id
@@ -1096,23 +1159,37 @@ pub(crate) fn test_frontier(
         Some(MutationReceipt::Upsert(n)) => n.clone(),
         _ => anyhow::bail!("test folder missing"),
     };
-    let UploadRepresentation::PackageArchive {
-        expected_root,
-        semantic,
-    } = &imported.representation
-    else {
-        anyhow::bail!("test source missing")
+    let (source_layout, expected_root, semantic) = match &imported.representation {
+        UploadRepresentation::PackageArchive {
+            expected_root,
+            semantic,
+        } => (
+            PackageSourceLayout::Wrapped,
+            Some(expected_root.clone()),
+            semantic,
+        ),
+        UploadRepresentation::FlatNumbersArchive { semantic } => {
+            (PackageSourceLayout::FlatNumbers, None, semantic)
+        }
+        _ => anyhow::bail!("test source missing"),
     };
     let b = target
         .map(|id| journal.native_validation_upload(id))
         .transpose()?;
-    let (root_b, semantic_b) = match b.as_ref().map(|b| &b.representation) {
+    let (layout_b, root_b, semantic_b) = match b.as_ref().map(|b| &b.representation) {
         Some(UploadRepresentation::PackageReplacementArchive {
             expected_root,
             semantic,
             ..
-        }) => (expected_root.clone(), semantic.clone()),
-        _ => (expected_root.clone(), semantic.clone()),
+        }) => (
+            PackageSourceLayout::Wrapped,
+            Some(expected_root.clone()),
+            semantic.clone(),
+        ),
+        Some(UploadRepresentation::FlatNumbersReplacementArchive { semantic, .. }) => {
+            (PackageSourceLayout::FlatNumbers, None, semantic.clone())
+        }
+        _ => (source_layout, expected_root.clone(), semantic.clone()),
     };
     let registration = Registration {
         version: 1,
@@ -1138,6 +1215,7 @@ pub(crate) fn test_frontier(
             size: imported.size,
             sha256: imported.sha256.clone(),
             root: expected_root.clone(),
+            source_layout,
             semantic: semantic.clone(),
         },
         source_b: Source {
@@ -1147,6 +1225,7 @@ pub(crate) fn test_frontier(
                 .as_ref()
                 .map_or_else(|| imported.sha256.clone(), |b| b.sha256.clone()),
             root: root_b,
+            source_layout: layout_b,
             semantic: semantic_b,
         },
         preflight_sha256: String::new(),
@@ -1160,3 +1239,7 @@ pub(crate) fn test_frontier(
     frontier(&registration, journal, complete)?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "flat_registration_tests.rs"]
+mod flat_registration_tests;

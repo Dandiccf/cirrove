@@ -3168,3 +3168,50 @@ Those failures remain in the same artifact; default-concurrency stability is not
 claimed. Desktop display scenarios were not repeated. All 19 installed files,
 unit configuration and daemon process identity remain unchanged; deployment stays
 on HOLD and no additional full-iCloud criterion closes.
+
+### Current Numbers reference and flat recovery controls on 6 October 2026
+
+A [separate read-only diagnosis](benchmarks/icloud-flat-numbers-current-reference-diagnostic-2026-10-06.json)
+refused the historical parent ETag before checking document metadata or content.
+It therefore establishes neither a document change nor the cause of the earlier
+replacement preflight refusals. Its conditional content-acquisition arm was not
+dispatched, and the closed diagnosis was not repeated.
+
+The retained reader now has an explicit `current_snapshot` mode; omission retains
+the previous changed-revision requirement. The two admission assertions first
+failed against the unchanged consumer and subsequently passed without changing
+their test bodies. All nine local reader controls passed, including exact expected
+revision, foreign identity/account routes and expired-window refusal. A
+[fresh current-reference read](benchmarks/icloud-flat-numbers-current-snapshot-2026-10-06.json)
+completed once in 6.43 seconds after the full check and pinned reader build. Its
+current parent and item revisions differ from the retained original, as does its
+complete semantic V2 tree: 10 entries / 7 files / 138,812 expanded bytes versus
+46 entries / 42 files / 133,153 bytes. Exact read fences passed; the original child
+was reaped, all input/cipher/installed-baseline guards remained unchanged and no
+cloud mutation occurred. This does not attribute the change to browser input or
+retrospectively identify either historical preflight failure. A separate
+[independent offline decode](benchmarks/icloud-current-numbers-cached-cells-2026-10-06.json)
+then verified cached A2=11, B2=3 and C2=14 on the unchanged captured archive. The
+importer emitted no formula; SUM and editor/export fidelity remain unproved. A
+different content tree does not by itself establish changes to those cell values.
+This current reference cannot stand in for a genuine edited B or browser export,
+and the old original revision cannot be silently substituted as the current
+precondition.
+
+A [local flat recovery control](benchmarks/icloud-flat-numbers-final-recovery-controls-2026-10-06.json)
+also first failed the intended admission assertion after actual TLS handoff,
+encrypted checkpoint persistence and exclusive journal reopen. With the correction,
+the unchanged test passed: the same operation completed by one inspection, with
+no additional allocation, body transfer, registration, Trash or rename callback.
+Both source archives stayed unchanged. This withholds a local acknowledgement
+after the backend returned its final receipt; it does not simulate provider reply
+loss or process death. Metadata publication and a read-only remount are outside
+this control. The complete `bash scripts/check.sh` passed in 619.95 seconds with
+`RUST_TEST_THREADS=4`, all 549 runtime pins unchanged, both new parser/receipt
+controls, all nine reader controls and all seven native recovery runtime controls.
+The initial standalone parser filter executed zero tests because it omitted the
+actual module namespace; this is recorded separately and supplies no passing
+evidence. Desktop display scenarios were not repeated. The NativeFinal metadata
+producer still needs explicit flat-source acquisition before a real flat loss arm
+is ready. Apple fault acceptance, genuine edited replacement and the five open
+release criteria remain separate; installed delivery stays on HOLD.
