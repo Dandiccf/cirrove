@@ -86,6 +86,8 @@ struct Registration {
     source_b: Source,
     preflight_sha256: String,
     recovery: Option<Recovery>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pause_seconds: Option<u64>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -316,6 +318,21 @@ impl Registration {
                 && self.source_a.semantic != self.source_b.semantic,
             "native sources do not differ"
         );
+        if let Some(seconds) = self.pause_seconds {
+            ensure!(
+                self.recovery.is_none()
+                    && (1..=120).contains(&seconds)
+                    && self
+                        .deadline_unix
+                        .checked_sub(self.started_unix)
+                        .is_some_and(|span| span > 0 && span <= 600)
+                    && self
+                        .deadline_unix
+                        .checked_sub(45)
+                        .is_some_and(|end| now() < end),
+                "native pre-Trash pause scope refused"
+            );
+        }
         if let Some(recovery) = &self.recovery {
             ensure!(
                 !recovery.operation.is_nil()
@@ -603,6 +620,7 @@ async fn loss(path: &Path, digest: &str) -> Result<()> {
     let expected_account = account.id.clone();
     let cancel = CancellationToken::new();
     let deadline = registration.deadline_unix;
+    let pause_seconds = registration.pause_seconds;
     let shutdown = cancel.clone();
     tokio::spawn(async move {
         let mut terminate =
@@ -619,7 +637,7 @@ async fn loss(path: &Path, digest: &str) -> Result<()> {
                 a.id == expected_account,
                 "native write factory account changed"
             );
-            Ok(Arc::new(Guard::new(
+            let guard = Guard::new(
                 ICloudWriteProvider::new(a, context)?,
                 request.clone(),
                 context.journal(),
@@ -627,7 +645,22 @@ async fn loss(path: &Path, digest: &str) -> Result<()> {
                 directory.clone(),
                 run,
                 Mode::Lose,
-            )?))
+            )?;
+            let guard = if let Some(seconds) = pause_seconds {
+                // Couple the original epoch deadline to a monotonic instant,
+                // retaining fractional wall time and no renewed phase clock.
+                let monotonic = tokio::time::Instant::now();
+                let wall = SystemTime::now().duration_since(UNIX_EPOCH)?;
+                let remaining = deadline
+                    .checked_sub(45)
+                    .and_then(|end| Duration::from_secs(end).checked_sub(wall))
+                    .filter(|remaining| !remaining.is_zero())
+                    .ok_or_else(|| anyhow::anyhow!("native pre-Trash active window expired"))?;
+                guard.with_pre_trash_pause(monotonic + remaining, Duration::from_secs(seconds))?
+            } else {
+                guard
+            };
+            Ok(Arc::new(guard))
         })),
     );
     let result = crate::serve_managed(
@@ -1229,6 +1262,7 @@ pub(crate) fn test_frontier(
             semantic: semantic_b,
         },
         preflight_sha256: String::new(),
+        pause_seconds: None,
         recovery: target.map(|operation| Recovery {
             operation,
             marker_sha256: String::new(),

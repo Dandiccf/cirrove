@@ -960,3 +960,420 @@ mod derived_snapshot_tests;
 
 #[path = "flat_tests.rs"]
 mod flat_tests;
+
+// Proposed controls use the existing genuine TLS fixture and actual worker/vault.
+mod pre_trash_pause_controls {
+    use super::*;
+    use anyhow::Context as _;
+    struct Paused {
+        fixture: Fixture,
+        cancel: CancellationToken,
+        task: Option<tokio::task::JoinHandle<anyhow::Result<crate::transfers::TransferResult>>>,
+        marker: serde_json::Value,
+        source: Vec<u8>,
+    }
+    impl Paused {
+        async fn new(limit: Duration) -> anyhow::Result<Self> {
+            let mut fixture = Fixture::new_layout(true, true).await;
+            fixture.state.disable_cleanup(true);
+            fixture.directory.disable_cleanup(true);
+            fixture._staging.disable_cleanup(true);
+            // Bind the unchanged server to the actual deterministic flat wire receipt.
+            // This disposable preparation reads the original and prepares local bytes;
+            // the real TransferWorker still claims, persists and drives every transfer.
+            let (wire_size, wire_sha, semantic) = {
+                let req = request(&fixture.row);
+                let cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive {
+                    semantic,
+                    ..
+                } = &req.representation
+                else {
+                    return Err(anyhow::anyhow!(
+                        "explicit flat replacement fixture required"
+                    ));
+                };
+                let semantic = semantic.clone();
+                let journal = fixture.context.journal();
+                let (payload, before) = {
+                    let journal = journal
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("journal poisoned"))?;
+                    let row = journal.get(fixture.row.id)?;
+                    anyhow::ensure!(
+                        row.state == UploadState::Pending
+                            && row.attempt.is_none()
+                            && row.session_key.is_none()
+                            && row.remote.is_none()
+                    );
+                    (journal.payload(row.id)?, serde_json::to_vec(&row)?)
+                };
+                let router = fixture.router();
+                let prepared = router
+                    .begin_upload_from_payload_for_operation(
+                        &fixture.row.id.to_string(),
+                        &req,
+                        payload,
+                        &CancellationToken::new(),
+                    )
+                    .await
+                    .map_err(|_| anyhow::anyhow!("flat fixture wire preparation refused"))?;
+                let cirrove_core::upload::UploadStep::Allocate(saved) = prepared else {
+                    return Err(anyhow::anyhow!(
+                        "flat fixture did not prepare allocation checkpoint"
+                    ));
+                };
+                let prepared: serde_json::Value = serde_json::from_str(saved.expose_secret())?;
+                let inner = &prepared["phase"]["Stage"]["inner"];
+                anyhow::ensure!(
+                    inner["version"] == 2
+                        && inner["wire"]["version"] == 1
+                        && inner["wire"]["expected_root"]
+                            == format!("staged-by-cirrove-{}.numbers", fixture.row.id)
+                );
+                let size = inner["wire"]["size"]
+                    .as_u64()
+                    .context("flat wire size absent")?;
+                let sha = inner["wire"]["sha256"]
+                    .as_str()
+                    .context("flat wire hash absent")?
+                    .to_owned();
+                anyhow::ensure!(
+                    size > 0
+                        && size <= 64 * 1024 * 1024
+                        && sha.len() == 64
+                        && sha.bytes().all(|byte| byte.is_ascii_hexdigit())
+                        && sha != req.sha256
+                );
+                let after = journal
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("journal poisoned"))?
+                    .get(fixture.row.id)?;
+                anyhow::ensure!(serde_json::to_vec(&after)? == before);
+                anyhow::ensure!(counts(&fixture.server) == (0, 0, 0, 0, 0));
+                // All disposable router/checkpoint/preparation values drop here.
+                (size, sha, semantic)
+            };
+            fixture
+                .server
+                .state
+                .lock()
+                .map_err(|_| anyhow::anyhow!("TLS state poisoned"))?
+                .flat_wire = Some((wire_size, wire_sha, semantic));
+            let guard = Arc::new(
+                fixture
+                    .loss()
+                    .with_pre_trash_pause(
+                        tokio::time::Instant::now() + Duration::from_secs(60),
+                        limit,
+                    )
+                    .map_err(|_| anyhow::anyhow!("pause configuration refused"))?,
+            );
+            let cancel = CancellationToken::new();
+            let worker = TransferWorker::new(
+                fixture.context.journal(),
+                guard,
+                fixture.vault(),
+                cancel.clone(),
+            );
+            let mut task = tokio::spawn(async move {
+                worker
+                    .run_once()
+                    .await
+                    .map_err(|_| anyhow::anyhow!("worker transport error"))?
+                    .context("worker found no operation")
+            });
+            let path = fixture.directory.path().join("pre-trash-paused.json");
+            let observed = tokio::time::timeout(Duration::from_secs(20), async {
+                loop {
+                    if path.exists() {
+                        // record() publishes the name before its JSON write completes.
+                        // Wait only for an incomplete write; malformed JSON is a setup error.
+                        match serde_json::from_slice::<serde_json::Value>(&std::fs::read(&path)?) {
+                            Ok(marker) => return Ok::<_, anyhow::Error>(marker),
+                            Err(error) if error.is_eof() => {}
+                            Err(error) => return Err(error.into()),
+                        }
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await;
+            let marker = match observed {
+                Ok(Ok(marker)) => marker,
+                _ => {
+                    cancel.cancel();
+                    let _ = tokio::time::timeout(Duration::from_secs(5), &mut task).await;
+                    task.abort();
+                    return Err(anyhow::anyhow!("TLS pause marker not reached"));
+                }
+            };
+            let mut paused = Self {
+                fixture,
+                cancel,
+                task: Some(task),
+                marker,
+                source: Vec::new(),
+            };
+            let prepared = async {
+                let journal = paused.fixture.context.journal();
+                let row = journal
+                    .try_lock()
+                    .map_err(|_| anyhow::anyhow!("journal mutex held across pause"))?
+                    .get(paused.fixture.row.id)?;
+                anyhow::ensure!(
+                    row.state == UploadState::Uploading
+                        && row.attempt.is_some()
+                        && row.session_key == Some(row.id)
+                        && row.remote.is_none()
+                );
+                anyhow::ensure!(
+                    paused.marker["operation"] == row.id.to_string()
+                        && paused.marker["phase"] == "handoff-move-old-armed"
+                        && paused.marker["inner_commit_called"] == false
+                );
+                let saved = paused
+                    .fixture
+                    .vault()
+                    .load(&format!("upload/{}", row.id))
+                    .await?
+                    .context("persisted encrypted checkpoint absent")?;
+                anyhow::ensure!(
+                    hex::encode(Sha256::digest(saved.expose_secret().as_bytes()))
+                        == paused.marker["checkpoint_sha256"]
+                );
+                anyhow::ensure!(paused.marker["original_id"] != paused.marker["staged_id"]);
+                anyhow::ensure!(counts(&paused.fixture.server) == (1, 1, 1, 0, 0));
+                paused.source = std::fs::read(
+                    journal
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("journal poisoned"))?
+                        .objects
+                        .join(row.id.to_string()),
+                )?;
+                Ok::<(), anyhow::Error>(())
+            }
+            .await;
+            if let Err(error) = prepared {
+                paused.cancel.cancel();
+                let _ = paused.finished().await;
+                return Err(error);
+            }
+            Ok(paused)
+        }
+        fn release(&self) -> serde_json::Value {
+            serde_json::json!({"version":1,"run":self.marker["run"],"operation":self.marker["operation"],
+                "attempt":self.marker["attempt"],"checkpoint_sha256":self.marker["checkpoint_sha256"]})
+        }
+        fn publish(&self, value: &serde_json::Value) -> anyhow::Result<()> {
+            let path = self.fixture.directory.path();
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o400)
+                .open(path.join("release.prepared.json"))?;
+            file.write_all(&serde_json::to_vec(value)?)?;
+            file.sync_all()?;
+            drop(file);
+            std::fs::rename(
+                path.join("release.prepared.json"),
+                path.join("pre-trash-release.json"),
+            )?;
+            std::fs::File::open(path)?.sync_all()?;
+            Ok(())
+        }
+        async fn finished(&mut self) -> anyhow::Result<crate::transfers::TransferResult> {
+            let mut task = self.task.take().context("worker already joined")?;
+            match tokio::time::timeout(Duration::from_secs(5), &mut task).await {
+                Ok(result) => result?,
+                Err(_) => {
+                    self.cancel.cancel();
+                    task.abort();
+                    let _ = task.await;
+                    Err(anyhow::anyhow!("worker close timeout"))
+                }
+            }
+        }
+        fn preserved_before_trash(&self) -> anyhow::Result<()> {
+            anyhow::ensure!(counts(&self.fixture.server) == (1, 1, 1, 0, 0));
+            let journal = self.fixture.context.journal();
+            let journal = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal poisoned"))?;
+            let row = journal.get(self.fixture.row.id)?;
+            anyhow::ensure!(row.remote.is_none() && row.package_completion.is_none());
+            anyhow::ensure!(
+                std::fs::read(journal.objects.join(row.id.to_string()))? == self.source
+            );
+            Ok(())
+        }
+    }
+    impl Drop for Paused {
+        fn drop(&mut self) {
+            self.cancel.cancel();
+            if let Some(task) = self.task.take() {
+                task.abort();
+            }
+        }
+    }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn native_final_pre_trash_pause_fifo_refuses_without_waiting_for_writer()
+    -> anyhow::Result<()> {
+        let mut p = Paused::new(Duration::from_secs(120)).await?;
+        let path = p.fixture.directory.path().join("pre-trash-release.json");
+        anyhow::ensure!(
+            std::process::Command::new("mkfifo")
+                .args(["--mode=400", "--"])
+                .arg(&path)
+                .status()?
+                .success(),
+            "FIFO fixture creation failed"
+        );
+        // The omission can block a Tokio worker in open(2). Its watchdog must
+        // use an independent OS-thread clock, never the runtime's stalled timer.
+        let completion = p.task.as_ref().context("worker missing")?.abort_handle();
+        let (done_tx, done_rx) = std::sync::mpsc::sync_channel::<()>(1);
+        let (joined_tx, joined_rx) = std::sync::mpsc::sync_channel::<()>(1);
+        let watchdog = std::thread::Builder::new()
+            .name("pre-trash-fifo-watchdog".into())
+            .spawn(move || -> anyhow::Result<bool> {
+                match done_rx.recv_timeout(Duration::from_secs(2)) {
+                    Ok(()) => return Ok(true),
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        // A completed task whose join continuation was delayed is
+                        // not evidence of a blocking release-file open.
+                        if completion.is_finished() {
+                            return Ok(true);
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                        return Err(anyhow::anyhow!("worker completion channel closed"));
+                    }
+                }
+                // Rescue the blocking counterfactual independently of Tokio.
+                // RDWR opens without a peer and retains the writer through join.
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+                let mut writer = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .custom_flags(libc::O_NONBLOCK)
+                    .open(&path)?;
+                writer.write_all(b"{}")?;
+                joined_rx
+                    .recv_timeout(Duration::from_secs(10))
+                    .context("rescued worker was not joined")?;
+                drop(writer);
+                Ok(false)
+            })?;
+        let task = p.task.take().context("worker missing")?;
+        let worker_result = task.await;
+        // Notify before propagating any worker error; always join the watchdog.
+        let _ = done_tx.send(());
+        let _ = joined_tx.send(());
+        let watchdog_result = watchdog.join();
+        let completed_before_writer =
+            watchdog_result.map_err(|_| anyhow::anyhow!("FIFO watchdog panicked"))??;
+        worker_result??;
+        p.preserved_before_trash()?;
+        anyhow::ensure!(
+            completed_before_writer,
+            "release open waited for a FIFO writer"
+        );
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_pre_trash_pause_symlink_release_refuses() -> anyhow::Result<()> {
+        let mut p = Paused::new(Duration::from_secs(120)).await?;
+        let target = p.fixture.directory.path().join("synthetic-target.json");
+        let bytes = serde_json::to_vec(&p.release())?;
+        std::fs::write(&target, &bytes)?;
+        std::os::unix::fs::symlink(
+            &target,
+            p.fixture.directory.path().join("pre-trash-release.json"),
+        )?;
+        p.finished().await?;
+        p.preserved_before_trash()?;
+        anyhow::ensure!(std::fs::read(target)? == bytes);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_pre_trash_pause_invalid_release_tuple_refuses() -> anyhow::Result<()> {
+        for field in [
+            "run",
+            "operation",
+            "attempt",
+            "checkpoint_sha256",
+            "unknown",
+        ] {
+            let mut p = Paused::new(Duration::from_secs(120)).await?;
+            let mut value = p.release();
+            value[field] = if field == "checkpoint_sha256" {
+                "0".repeat(64).into()
+            } else if field == "unknown" {
+                true.into()
+            } else {
+                Uuid::new_v4().to_string().into()
+            };
+            p.publish(&value)?;
+            p.finished().await?;
+            p.preserved_before_trash()?;
+        }
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_pre_trash_pause_cancel_refuses_before_commit() -> anyhow::Result<()> {
+        let mut p = Paused::new(Duration::from_secs(120)).await?;
+        p.cancel.cancel();
+        p.finished().await?;
+        p.preserved_before_trash()?;
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_pre_trash_pause_expiry_never_grants_release() -> anyhow::Result<()> {
+        let mut p = Paused::new(Duration::from_secs(1)).await?;
+        p.finished().await?;
+        p.publish(&p.release())?;
+        p.preserved_before_trash()?;
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_pre_trash_pause_valid_release_delegates_once() -> anyhow::Result<()> {
+        let mut p = Paused::new(Duration::from_secs(120)).await?;
+        p.publish(&p.release())?;
+        let row = p.finished().await?;
+        anyhow::ensure!(row.id == p.fixture.row.id && row.state == UploadState::VerifyRequired);
+        anyhow::ensure!(counts(&p.fixture.server) == (1, 1, 1, 1, 1));
+        let lost = p.fixture.marker();
+        anyhow::ensure!(lost.operation == row.id && !lost.acknowledgement_returned);
+        let journal = p.fixture.context.journal();
+        anyhow::ensure!(
+            std::fs::read(
+                journal
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("journal poisoned"))?
+                    .objects
+                    .join(row.id.to_string())
+            )? == p.source
+        );
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_pre_trash_pause_changed_frontier_refuses() -> anyhow::Result<()> {
+        let mut p = Paused::new(Duration::from_secs(120)).await?;
+        let journal = p.fixture.context.journal();
+        {
+            let journal = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal poisoned"))?;
+            let mut row = journal.get(p.fixture.row.id)?;
+            row.failed_attempts += 1;
+            journal.db.execute(
+                "UPDATE uploads SET body=?1 WHERE id=?2",
+                rusqlite::params![serde_json::to_string(&row)?, row.id.to_string()],
+            )?;
+        }
+        p.publish(&p.release())?;
+        p.finished().await?;
+        p.preserved_before_trash()?;
+        Ok(())
+    }
+}

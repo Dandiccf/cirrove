@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{File, OpenOptions},
-    io::Write,
-    os::unix::fs::OpenOptionsExt,
+    io::{Read, Write},
+    os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
@@ -146,6 +146,18 @@ impl Counts {
         serde_json::json!({"inspections":self.inspections.load(Ordering::SeqCst),"reconciliations":self.reconciliations.load(Ordering::SeqCst),"refused_uploads":self.refused_uploads.load(Ordering::SeqCst),"refused_namespace":self.refused_namespace.load(Ordering::SeqCst)})
     }
 }
+/// Only a separately registered developer competitor arm may configure this.
+/// The deadline is the original arm's active deadline, never a renewed clock.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PreTrashRelease {
+    version: u32,
+    run: Uuid,
+    operation: Uuid,
+    attempt: Uuid,
+    checkpoint_sha256: String,
+}
+
 pub(crate) struct Guard {
     inner: ICloudWriteProvider,
     request: UploadRequest,
@@ -157,6 +169,9 @@ pub(crate) struct Guard {
     run: Uuid,
     mode: Mode,
     pub counts: Counts,
+    pre_trash_deadline: Option<tokio::time::Instant>,
+    pre_trash_limit: Duration,
+    pre_trash_used: std::sync::atomic::AtomicBool,
     #[cfg(test)]
     pub hold_instead_of_exit: bool,
 }
@@ -199,9 +214,183 @@ impl Guard {
             run,
             mode,
             counts: Counts::default(),
+            pre_trash_deadline: None,
+            pre_trash_limit: Duration::ZERO,
+            pre_trash_used: std::sync::atomic::AtomicBool::new(false),
             #[cfg(test)]
             hold_instead_of_exit: false,
         })
+    }
+    /// A future explicit competitor registration supplies its already bounded clock.
+    /// Existing loss/recovery callers never opt in and retain their exact behavior.
+    pub(crate) fn with_pre_trash_pause(
+        mut self,
+        active_deadline: tokio::time::Instant,
+        pause_limit: Duration,
+    ) -> cirrove_core::upload::Result<Self> {
+        let remaining = active_deadline.saturating_duration_since(tokio::time::Instant::now());
+        if !matches!(self.mode, Mode::Lose)
+            || remaining.is_zero()
+            || remaining > Duration::from_secs(600)
+            || pause_limit < Duration::from_secs(1)
+            || pause_limit > Duration::from_secs(120)
+        {
+            return Err(UploadError::Invalid);
+        }
+        self.pre_trash_deadline = Some(active_deadline);
+        self.pre_trash_limit = pause_limit;
+        Ok(self)
+    }
+    async fn pause_before_trash(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::upload::Result<()> {
+        let Some(active_deadline) = self.pre_trash_deadline else {
+            return Ok(());
+        };
+        let id = self.operation(operation, request)?;
+        let adapter = self
+            .inner
+            .native_package_adapter(operation, request, Some(checkpoint))
+            .await?;
+        let diagnostic = adapter.native_checkpoint_diagnostic(operation, request, checkpoint)?;
+        // Drop the concrete adapter before awaiting any competitor/release event.
+        drop(adapter);
+        let phase = diagnostic.get("phase").and_then(serde_json::Value::as_str);
+        if phase != Some("handoff-move-old-armed") {
+            if phase.is_some_and(|v| v.starts_with("handoff-"))
+                && !self.pre_trash_used.load(Ordering::SeqCst)
+            {
+                return Err(UploadError::CheckpointInvalid);
+            }
+            return Ok(());
+        }
+        if self.pre_trash_used.swap(true, Ordering::SeqCst) {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let original = match &request.representation {
+            cirrove_core::upload::UploadRepresentation::PackageReplacementArchive {
+                original,
+                ..
+            }
+            | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive {
+                original,
+                ..
+            } => original,
+            _ => return Err(UploadError::Invalid),
+        };
+        let original_id = diagnostic
+            .get("original_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or(UploadError::CheckpointInvalid)?;
+        let staged_id = diagnostic
+            .get("staged_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or(UploadError::CheckpointInvalid)?;
+        let parent_id = diagnostic
+            .get("parent_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or(UploadError::CheckpointInvalid)?;
+        if original_id != original.id
+            || Some(parent_id) != original.parent_id.as_deref()
+            || staged_id == original_id
+            || !staged_id.starts_with("FILE::com.apple.CloudDocs::")
+            || staged_id.len() > 4096
+        {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let row = self
+            .journal
+            .lock()
+            .map_err(|_| UploadError::Uncertain)?
+            .get(id)
+            .map_err(|_| UploadError::CheckpointInvalid)?;
+        let attempt = row.attempt.ok_or(UploadError::CheckpointInvalid)?;
+        if row.state != UploadState::Uploading || row.session_key != Some(id) {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let frozen = serde_json::to_vec(&row).map_err(|_| UploadError::Invalid)?;
+        let checkpoint_sha256 = hash(checkpoint.expose_secret().as_bytes());
+        let until = active_deadline.min(tokio::time::Instant::now() + self.pre_trash_limit);
+        if cancel.is_cancelled() || tokio::time::Instant::now() >= until {
+            return Err(UploadError::Uncertain);
+        }
+        match std::fs::symlink_metadata(self.directory.join("pre-trash-release.json")) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            _ => return Err(UploadError::CheckpointInvalid),
+        }
+        record(&self.directory.join("pre-trash-paused.json"), &serde_json::json!({
+            "version":1,"run":self.run,"operation":id,"attempt":attempt,
+            "checkpoint_sha256":checkpoint_sha256,"phase":"handoff-move-old-armed",
+            "inner_commit_called":false,"original_id":original_id,"staged_id":staged_id,"parent_id":parent_id
+        })).map_err(|_| UploadError::Uncertain)?;
+        loop {
+            // Also catches time consumed by durable marker publication.
+            if cancel.is_cancelled() || tokio::time::Instant::now() >= until {
+                return Err(UploadError::Uncertain);
+            }
+            let release = OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+                .open(self.directory.join("pre-trash-release.json"));
+            match release {
+                Ok(mut file) => {
+                    let meta = file.metadata().map_err(|_| UploadError::Uncertain)?;
+                    let uid = std::fs::metadata("/proc/self")
+                        .map_err(|_| UploadError::Uncertain)?
+                        .uid();
+                    if !meta.is_file()
+                        || meta.uid() != uid
+                        || meta.nlink() != 1
+                        || meta.permissions().mode() & 0o7777 != 0o400
+                        || meta.len() > 2048
+                    {
+                        return Err(UploadError::CheckpointInvalid);
+                    }
+                    let mut bytes = Vec::new();
+                    std::io::Read::by_ref(&mut file)
+                        .take(2049)
+                        .read_to_end(&mut bytes)
+                        .map_err(|_| UploadError::Uncertain)?;
+                    if bytes.len() > 2048 {
+                        return Err(UploadError::CheckpointInvalid);
+                    }
+                    let release: PreTrashRelease = serde_json::from_slice(&bytes)
+                        .map_err(|_| UploadError::CheckpointInvalid)?;
+                    if release.version != 1
+                        || release.run != self.run
+                        || release.operation != id
+                        || release.attempt != attempt
+                        || release.checkpoint_sha256 != checkpoint_sha256
+                    {
+                        return Err(UploadError::CheckpointInvalid);
+                    }
+                    self.operation(operation, request)?;
+                    let current = self
+                        .journal
+                        .lock()
+                        .map_err(|_| UploadError::Uncertain)?
+                        .get(id)
+                        .map_err(|_| UploadError::CheckpointInvalid)?;
+                    if serde_json::to_vec(&current).map_err(|_| UploadError::Invalid)? != frozen {
+                        return Err(UploadError::CheckpointInvalid);
+                    }
+                    if cancel.is_cancelled() || tokio::time::Instant::now() >= until {
+                        return Err(UploadError::Uncertain);
+                    }
+                    return Ok(());
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => return Err(UploadError::CheckpointInvalid),
+            }
+            tokio::select! {
+                _ = cancel.cancelled() => return Err(UploadError::Uncertain),
+                _ = tokio::time::sleep(Duration::from_millis(50)) => {},
+            }
+        }
     }
     fn refuse<T>(&self) -> cirrove_core::upload::Result<T> {
         self.counts.refused_uploads.fetch_add(1, Ordering::SeqCst);
@@ -519,6 +708,7 @@ impl UploadProvider for Guard {
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
         self.mutation_allowed(o, r)?;
+        self.pause_before_trash(o, r, s, c).await?;
         let step = self.inner.commit_upload_for_operation(o, r, s, c).await?;
         if let UploadStep::PackageHandoffComplete(receipt) = &step {
             self.armed(o, r, s).await?;

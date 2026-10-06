@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_counterfactual_timeout",
+  "active_measurement": false,
+  "question": "Does the feature-only persisted pre-Trash pause refuse blocking or unauthorized releases within its original lifetime, while valid authority delegates once?",
+  "prediction": "The exact FIFO control fails at its intended before-writer assertion when only O_NONBLOCK is omitted, passes when restored, and all seven actual TLS worker/vault controls pass with registered source and mutation counters preserved.",
+  "arms": [
+    "counterfactual_nonblock_flag_omitted",
+    "nonblock_flag_restored"
+  ],
+  "endpoints": [
+    "Exactly one intended test executes in each arm.",
+    "Counterfactual fails at the specific completed-before-FIFO-writer assertion after bounded rescue and original worker join.",
+    "Restored guard passes exact FIFO plus seven controls for FIFO, symlink, invalid tuple, cancellation, expiry, valid release and changed journal frontier."
+  ],
+  "control_group": "native_final_pre_trash_pause_",
+  "control_count": 7,
+  "factory_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery/registration.rs",
+    "size": 50754,
+    "sha256": "3a345e66d8895dff0ef53ff99f8230faa3658e1f7b6b72060be938b38e12c2c7"
+  },
+  "test": "journal::package_replacement::worker_transport::native_final_tests::pre_trash_pause_controls::native_final_pre_trash_pause_fifo_refuses_without_waiting_for_writer",
+  "source_before": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery.rs",
+    "size": 31100,
+    "sha256": "e9ed095990e2cd9ad376f932890ac5904ac2e34405a0db6350cc579c07cf2f1d"
+  },
+  "test_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery/tls_tests.rs",
+    "size": 48696,
+    "sha256": "2594d2a8a4873c2de5201e5a72e1e155322c386301d8b773d186ea70f5bd4c2a"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v3/run_controls_v2.py",
+    "size": 9024,
+    "sha256": "1477256db6526308f24cf8cc6f3b438d9ba04f3720443ce37b78983a4ff01106"
+  },
+  "build_command": [
+    "cargo",
+    "test",
+    "-p",
+    "cirrove-service",
+    "--lib",
+    "--features",
+    "icloud-write-probe",
+    "--locked",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "test_command": [
+    "<exact-built-test-executable>",
+    "journal::package_replacement::worker_transport::native_final_tests::pre_trash_pause_controls::native_final_pre_trash_pause_fifo_refuses_without_waiting_for_writer",
+    "--exact",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "temporary_filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "maximum_seconds_per_child": 600,
+  "provider_calls": false,
+  "installed_actions": false,
+  "limits": [
+    "Controlled synthetic TLS worker/vault responses, not a live iCloud conflict or atomic race.",
+    "No full acceptance gate closes."
+  ],
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "outcome": {
+    "build_succeeded": true,
+    "exact_one_FIFO_test_started": true,
+    "expected_FIFO_assertion_observed": false,
+    "counterfactual_test_timeout_seconds": 60,
+    "test_exit_code": -15,
+    "test_signals": [
+      "SIGTERM"
+    ],
+    "test_original_handle_reaped_and_absent": true,
+    "reason": "Without O_NONBLOCK, the selected FIFO control did not reach its intended assertion or bounded rescue before the registered external60s child deadline. The original child received SIGTERM and was reaped. The async rescue clock may itself be stalled; this remains a controlled timeout, not the intended RED proof.",
+    "root_exit_code": 1,
+    "root_elapsed_seconds": 119.26960247301031,
+    "root_handle_reaped_and_process_absent": true,
+    "guard_restored": true,
+    "provider_calls": false,
+    "installed_actions": false
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "date": "2026-10-07",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "question": "Do the actual selected controller functions refuse partial markers and dispatch after a consumed pause budget, while preserving the original clock and existing release/import controls?",
+  "prediction": "OldV3 fails the exact partial-marker assertion, oldV4 fails the actual Runner.spawn late-dispatch assertion, correctedV5 passes all9 selected controls.",
+  "arms": [
+    "old_partial_marker_v3",
+    "old_late_dispatch_v4",
+    "corrected_v5"
+  ],
+  "controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/test_controller_controls_v5.py",
+    "size": 12997,
+    "sha256": "2515f407d6b0f14be5c520ad00a179ff4a69644bd51b1a174d606703640e7a28"
+  },
+  "controller_sources": {
+    "v3": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/controller_pre_trash_competitor_v3.py",
+      "size": 20729,
+      "sha256": "523e5d59b9e536b7a3bb258746896de96e0f1412ed56952fb5ea9d97e85ca977"
+    },
+    "v4": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/controller_pre_trash_competitor_v4.py",
+      "size": 21840,
+      "sha256": "68ca96ced903b257023b2d3ff013c20f001a15f99f0075a6fd4776c87d9b2ba3"
+    },
+    "v5": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/controller_pre_trash_competitor_v5.py",
+      "size": 22031,
+      "sha256": "3cd5d045e9c58087c67832162876808786995aa28c94ae8036ef166fc78a905a"
+    }
+  },
+  "lifecycle_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/lifecycle_source_v1.py",
+    "size": 66575,
+    "sha256": "a694ef0c78376ff89445bdba0478b4801ce62569524fdc7493e416a452a56fe1"
+  },
+  "python_binary": {
+    "path": "/usr/bin/python3.14",
+    "size": 14424,
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/run_controls_v1.py",
+    "size": 7003,
+    "sha256": "8363f822c03ff581573265ed5f5517084ed3a067185942e0e4c9a3a68fa0ca29"
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "temporary_filesystem": "ext4",
+  "expected_test_counts": [
+    1,
+    1,
+    9
+  ],
+  "provider_calls": false,
+  "installed_actions": false,
+  "limits": [
+    "Source-selected actual functions with synthetic collaborators; Runner.spawn uses a fake Popen and dispatch recorder.",
+    "No full controller lifecycle or real-provider acceptance is claimed.",
+    "No integration gate closes."
+  ],
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "outcome": {
+    "success": true,
+    "outcomes": [
+      {
+        "name": "red-marker",
+        "result": {
+          "exit_code": 1,
+          "elapsed_seconds": 0.11457535001682118,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/red-marker.log",
+            "size": 1102,
+            "sha256": "fd0645f51b8848ed0957d60165236529fe2ce28f2865041edebe35bd14d99139"
+          }
+        },
+        "expected_endpoint_observed": true
+      },
+      {
+        "name": "red-dispatch",
+        "result": {
+          "exit_code": 1,
+          "elapsed_seconds": 0.11446096102008596,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/red-dispatch.log",
+            "size": 1175,
+            "sha256": "319a077d1e2fad653f6acaac3a4e89033798a04a882008b1abf45640b3985978"
+          }
+        },
+        "expected_endpoint_observed": true
+      },
+      {
+        "name": "green-nine-controls",
+        "result": {
+          "exit_code": 0,
+          "elapsed_seconds": 0.16455890098586679,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/green-nine-controls.log",
+            "size": 107,
+            "sha256": "f2b7cdf24bb38094da8d1374d60e290ad23eb5733cbf544eb7e390233f1417cc"
+          }
+        },
+        "expected_endpoint_observed": true
+      }
+    ],
+    "sources_unchanged": true,
+    "provider_calls": false,
+    "installed_actions": false
+  },
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/controls-result-v1.json",
+    "size": 1925,
+    "sha256": "14ecbd6f6815549db84b57c772e59d875d40c1c44c2a5ff82ffad0e413a97527"
+  },
+  "root_controller": {
+    "exit_code": 0,
+    "elapsed_seconds": 0.46585720602888614,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/root-controls-v1.log",
+      "size": 80,
+      "sha256": "89c71a67637fc6bcd77431ee9842704a91679cf8860de724ca4db06f764731bd"
+    }
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/audit-gate-agent-terminal-v2.json",
+    "size": 9101,
+    "sha256": "e4347824d15473bcb8f001cc7db131c7d8dbf8c51ab19e4b340b69a39fcdac40",
+    "result": "PASS",
+    "checks": 11
+  }
+}

@@ -560,6 +560,17 @@ async fn main() -> Result<()> {
         println!("{}", serde_json::to_string(&proof)?);
         return Ok(());
     }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-pre-trash-preservation"
+    {
+        let proof = cirrove_service::validation::icloud_owned_native_pre_trash_preservation(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
     if let [flag, manifest, digest] = args.as_slice()
         && flag == "--owned-fixture-verify"
     {

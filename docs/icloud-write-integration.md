@@ -3705,3 +3705,65 @@ installed delivery remains held.
 The reserved recovery-name guard also has a new [controlled TLS regression](benchmarks/icloud-native-recovery-name-occupant-controls-2026-10-06.json). Omitting only that name from the foreign-occupant guard made the exact test fail before its expected refusal; restoring the unchanged guard made it pass, with original, staged and occupant metadata preserved and zero Trash/rename calls. These are synthetic responses, not a live competing-name or atomic-race result.
 
 The complete `bash scripts/check.sh` subsequently passed in 621.01 seconds, with 87 completed test groups and no failures, including formatting, Clippy, workspace/feature tests, kernel/FUSE groups, scripts, ledger and documentation. The formatter only expanded the new test's final equality assertion; all 561 after-format source pins were preserved through closure. The original process was reaped and absent. Display scenarios were not repeated, and this source validation does not close live conflict or installed acceptance.
+
+### Controlled preparation for a competing recovery name
+
+The isolated write probe now has an optional pause at the persisted
+`handoff-move-old-armed` checkpoint, before committing the original to Trash.
+It is disabled by default. An explicit registration can request up to 120
+seconds within the original operation deadline. Releasing it requires the same
+run, operation, attempt and checkpoint digest in a complete private regular
+file; cancellation, expiration or a changed journal frontier refuses release.
+The adapter performs its fresh preflight after release.
+
+The [actual controlled test](benchmarks/icloud-native-pre-trash-pause-controls-watchdog-2026-10-06.json)
+first omitted only the nonblocking-open flag. Exactly one FIFO test failed at
+the intended assertion after an independent OS-thread watchdog released and
+joined the worker. Restoring the flag passed that test and all seven TLS
+worker/checkpoint controls. Five additional local tests passed for the
+read-only observer that binds original, stage and competitor identities,
+revisions, completed import authority and complete journal queue ownership.
+The independent terminal audit passed 54 checks; all seven original managed
+handles closed, and the registered production source was restored.
+
+Three [offline controller controls](benchmarks/icloud-native-pre-trash-controller-controls-2026-10-06.json)
+also passed for completed competitor-import binding, atomic release-file
+publication and expiration refusal. These controls do not execute the full
+cloud controller. Earlier compilation, fixture-calibration and timeout failures
+remain in their own artifacts and are not treated as the intended failing arm.
+
+The next live trial must independently verify the complete A/B/B content and
+captured revisions after refusing a reserved-name competitor. No such live
+trial is established by these synthetic results. The pause tests a competitor
+present before the fresh preflight; it cannot establish atomic protection from
+a change after that final preflight. Row 486 and the five remaining release
+criteria stay open; installed delivery remains held.
+
+The observer's final synchronous disk publication now checks the original
+monotonic deadline before and after recording its result. An actual
+[disk control](benchmarks/icloud-native-pre-trash-observer-deadline-controls-2026-10-07.json)
+showed that omitting only the final check accepted a late publication and failed
+the intended assertion. Restoring it passed the same test, both publication
+controls and all seven observer controls. All 563 registered inputs were
+restored and the seven managed handles closed. A late private result file can
+remain as evidence, but the observer returns refusal rather than success.
+
+The [controller correction controls](benchmarks/icloud-native-pre-trash-controller-corrections-fresh-2026-10-07.json)
+also established two intended failing endpoints followed by nine passing
+controls: incomplete marker observation and enforcing the original pause bound
+at actual process dispatch. The preceding fixture setup error is retained in
+its separate artifact. A [lifecycle control](benchmarks/icloud-native-pre-trash-lifecycle-ownership-controls-2026-10-07.json)
+used actual small local children to show the missing-pidfd cleanup failure in
+both dispatch paths, then passed both corrected controls, including natural
+exit without signals. Individual fixture PID records were not captured; the
+tests retained and waited on their original process objects. These are isolated
+test-controller checks, with no iCloud request or installed service change.
+
+The final [complete project check](benchmarks/icloud-native-pre-trash-full11-check-2026-10-07.json)
+passed in 550.83 seconds with 87 Rust test groups and no failures. Formatting,
+Clippy, workspace/feature suites, kernel/FUSE tests, script tests, ledger and
+documentation completed; all 563 registered inputs stayed unchanged and the
+original check process was reaped and absent. It includes all seven pause and
+seven observer tests on the final source. Desktop display scenarios were not
+repeated. This supersedes the earlier full10 source validation for the observer
+deadline fix; neither check establishes a new live or installed result.

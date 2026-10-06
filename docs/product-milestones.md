@@ -542,3 +542,11 @@ subsequently returned the exact complete B semantic tree, including all 42 files
 and three previews, before any Apple opening. This supports the bounded replacement
 and remount behavior; it does not close the broader row or the five remaining
 full-iCloud release gates. Installed delivery remains held.
+
+The feature-only pre-Trash pause and independent three-identity observer now
+have [controlled local coverage](benchmarks/icloud-native-pre-trash-pause-controls-watchdog-2026-10-06.json):
+one intended failing FIFO arm, the restored passing arm, seven TLS pause
+controls and five observer controls. Their purpose is to make the next owned
+competing-recovery-name trial controlled and independently verifiable.
+They do not establish a live conflict, atomic cloud replacement or installed
+acceptance; all five open criteria above remain unchanged.

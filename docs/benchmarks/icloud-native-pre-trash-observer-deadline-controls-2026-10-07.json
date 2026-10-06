@@ -1,0 +1,460 @@
+{
+  "version": 1,
+  "date": "2026-10-07",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "question": "Does the native pre-Trash read-only observer refuse a synchronous durable-result publication that consumes its original deadline?",
+  "prediction": "Omitting only the final post-publication clock fence causes exactly one intended overrun assertion failure after real disk record checks; restoring it passes the same test, both publication controls, and all seven observer controls.",
+  "arms": [
+    "post_publication_clock_fence_omitted",
+    "original_clock_fence_restored"
+  ],
+  "endpoints": [
+    "Compiled exact test RED0pass1fail with specific overrun message; setup errors/timeouts do not count.",
+    "Restored exact1PASS, publication group2PASS, observer group7PASS.",
+    "All563 source pins restored; every original child reaped and absent."
+  ],
+  "test": "validation::icloud_account::owned_package::fixture_verify::native_pre_trash_preservation::tests::native_pre_trash_publication_synchronous_overrun_refuses_after_disk_record",
+  "desired_assertion_message": "native preservation synchronous publication overrun was accepted",
+  "source_before": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/native_pre_trash_preservation.rs",
+    "size": 24248,
+    "sha256": "54af5d5c88d77e38436c4ca1259a87a63ac24b0106d3dbce933b9ec82b9a0b1a"
+  },
+  "test_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/native_pre_trash_preservation/tests.rs",
+    "size": 12504,
+    "sha256": "ca042cbf4d535e677d9a2db3b1217e0efa3a389ca5333af383478da6c38cf691"
+  },
+  "source_baseline_snapshot": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/observer-baseline-v1.rs",
+    "size": 24248,
+    "sha256": "54af5d5c88d77e38436c4ca1259a87a63ac24b0106d3dbce933b9ec82b9a0b1a"
+  },
+  "counterfactual_source_sha256": "107d869aec7e8214f5d8b243c83808affae982b1af31779e657b1bf2115aabd1",
+  "counterfactual": "Remove only the post-publication ensure and its comment; original precheck, timeout, identity and result recorder unchanged.",
+  "source_count": 563,
+  "runtime_source_map": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/runtime-source-map-before-v1.json",
+    "size": 73256,
+    "sha256": "dbdaab2294e253af4b652d7ff05edc214face04f36f7ee8d1ebde7cb98cb2be6"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-private-v1/run_observer_deadline_controls_v2.py",
+    "size": 18062,
+    "sha256": "f45a76520a29c2cf4b40b841a15b9e773d47b1b720d03c63303390c880177d4f"
+  },
+  "build_command": [
+    "cargo",
+    "test",
+    "-p",
+    "cirrove-service",
+    "--lib",
+    "--features",
+    "icloud-write-probe",
+    "--locked",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "python_binary": {
+    "path": "/usr/bin/python3.14",
+    "size": 14424,
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+  },
+  "cargo_binary": {
+    "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+    "size": 40680304,
+    "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14"
+  },
+  "rustc_binary": {
+    "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+    "size": 645952,
+    "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "temporary_filesystem": {
+    "backing_path": "/home/dandiccf/Storage/ct-nt1006",
+    "mount_point": "/home/dandiccf/Storage",
+    "filesystem": "ext4",
+    "device": "259:1",
+    "source": "/proc/self/mountinfo"
+  },
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "maximum_work_seconds_per_build": 600,
+  "maximum_work_seconds_per_test": 120,
+  "cleanup_reserve_seconds_per_child": 20,
+  "provider_calls": false,
+  "keys_accessed": false,
+  "installed_actions": false,
+  "limits": [
+    "Local real disk recorder and deterministic synchronous delay; no provider or credentials.",
+    "No live deadline reliability or release gate acceptance claim."
+  ],
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "outcome": {
+    "success": true,
+    "failure": null,
+    "arms": {
+      "red": {
+        "build": {
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "cirrove-service",
+            "--lib",
+            "--features",
+            "icloud-write-probe",
+            "--locked",
+            "--no-run",
+            "--message-format=json"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 22.562509480980225,
+          "timed_out": false,
+          "error_class": null,
+          "owner_receipt_written": true,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/red-build.log",
+            "size": 333947,
+            "sha256": "602c8b9ae60cb0a6cb3a6aa5db42d802a968b914fc18619cde52d3d53c1c93fa"
+          }
+        },
+        "test": {
+          "command": [
+            "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+            "validation::icloud_account::owned_package::fixture_verify::native_pre_trash_preservation::tests::native_pre_trash_publication_synchronous_overrun_refuses_after_disk_record",
+            "--exact",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 101,
+          "elapsed_seconds": 0.06461504998151213,
+          "timed_out": false,
+          "error_class": null,
+          "owner_receipt_written": true,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/red-test.log",
+            "size": 576,
+            "sha256": "2475d08a17d490c26254b6718df44b77c0956c734d44cd88ab27e4b2200bab53"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642610832,
+          "sha256": "d20629a2e5a47fb18d0a740aa18e41b3e0d86aafe2c35c7ab667b7c5ddbd3fa4"
+        },
+        "executed_test_count": 1,
+        "expected_result_observed": true
+      },
+      "green": {
+        "build": {
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "cirrove-service",
+            "--lib",
+            "--features",
+            "icloud-write-probe",
+            "--locked",
+            "--no-run",
+            "--message-format=json"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 14.848966485005803,
+          "timed_out": false,
+          "error_class": null,
+          "owner_receipt_written": true,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-build.log",
+            "size": 333947,
+            "sha256": "e35ae7fa49f1e6b677c1a5abf6cd14d277ed2bcbcbd08e9efb0ffc25e241a288"
+          }
+        },
+        "test": {
+          "command": [
+            "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+            "validation::icloud_account::owned_package::fixture_verify::native_pre_trash_preservation::tests::native_pre_trash_publication_synchronous_overrun_refuses_after_disk_record",
+            "--exact",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.06443507701624185,
+          "timed_out": false,
+          "error_class": null,
+          "owner_receipt_written": true,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-test.log",
+            "size": 298,
+            "sha256": "0b70a7444256cc73b7b4f78b12f671cf54270a8744f6d3379942259803604abe"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642611808,
+          "sha256": "1f68504f36ff7f3634b7094865bce394a9f56c26cf97455c8fda5af05d8cbe0d"
+        },
+        "executed_test_count": 1,
+        "expected_result_observed": true
+      },
+      "publication_controls": {
+        "test": {
+          "command": [
+            "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+            "native_pre_trash_publication_",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.06459853303385898,
+          "timed_out": false,
+          "error_class": null,
+          "owner_receipt_written": true,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-two-publication-controls.log",
+            "size": 475,
+            "sha256": "3a3d9f0d3b771c770a16920a7886188a4c6705317858b37cddb11bed8a2ef843"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642611808,
+          "sha256": "1f68504f36ff7f3634b7094865bce394a9f56c26cf97455c8fda5af05d8cbe0d"
+        },
+        "executed_test_count": 2,
+        "expected_result_observed": true
+      },
+      "observer_controls": {
+        "test": {
+          "command": [
+            "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+            "native_pre_trash_",
+            "--test-threads=1",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 0.1147093930048868,
+          "timed_out": false,
+          "error_class": null,
+          "owner_receipt_written": true,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-seven-observer-controls.log",
+            "size": 1368,
+            "sha256": "d1efd7ad96198853b050a9859e15155d4d3de35d78fd509cecace336b376393e"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642611808,
+          "sha256": "1f68504f36ff7f3634b7094865bce394a9f56c26cf97455c8fda5af05d8cbe0d"
+        },
+        "executed_test_count": 7,
+        "expected_result_observed": true
+      }
+    },
+    "children": [
+      {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "cirrove-service",
+          "--lib",
+          "--features",
+          "icloud-write-probe",
+          "--locked",
+          "--no-run",
+          "--message-format=json"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 22.562509480980225,
+        "timed_out": false,
+        "error_class": null,
+        "owner_receipt_written": true,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "signals": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/red-build.log",
+          "size": 333947,
+          "sha256": "602c8b9ae60cb0a6cb3a6aa5db42d802a968b914fc18619cde52d3d53c1c93fa"
+        }
+      },
+      {
+        "command": [
+          "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "validation::icloud_account::owned_package::fixture_verify::native_pre_trash_preservation::tests::native_pre_trash_publication_synchronous_overrun_refuses_after_disk_record",
+          "--exact",
+          "--test-threads=1",
+          "--nocapture"
+        ],
+        "exit_code": 101,
+        "elapsed_seconds": 0.06461504998151213,
+        "timed_out": false,
+        "error_class": null,
+        "owner_receipt_written": true,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "signals": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/red-test.log",
+          "size": 576,
+          "sha256": "2475d08a17d490c26254b6718df44b77c0956c734d44cd88ab27e4b2200bab53"
+        }
+      },
+      {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "cirrove-service",
+          "--lib",
+          "--features",
+          "icloud-write-probe",
+          "--locked",
+          "--no-run",
+          "--message-format=json"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 14.848966485005803,
+        "timed_out": false,
+        "error_class": null,
+        "owner_receipt_written": true,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "signals": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-build.log",
+          "size": 333947,
+          "sha256": "e35ae7fa49f1e6b677c1a5abf6cd14d277ed2bcbcbd08e9efb0ffc25e241a288"
+        }
+      },
+      {
+        "command": [
+          "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "validation::icloud_account::owned_package::fixture_verify::native_pre_trash_preservation::tests::native_pre_trash_publication_synchronous_overrun_refuses_after_disk_record",
+          "--exact",
+          "--test-threads=1",
+          "--nocapture"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 0.06443507701624185,
+        "timed_out": false,
+        "error_class": null,
+        "owner_receipt_written": true,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "signals": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-test.log",
+          "size": 298,
+          "sha256": "0b70a7444256cc73b7b4f78b12f671cf54270a8744f6d3379942259803604abe"
+        }
+      },
+      {
+        "command": [
+          "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "native_pre_trash_publication_",
+          "--test-threads=1",
+          "--nocapture"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 0.06459853303385898,
+        "timed_out": false,
+        "error_class": null,
+        "owner_receipt_written": true,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "signals": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-two-publication-controls.log",
+          "size": 475,
+          "sha256": "3a3d9f0d3b771c770a16920a7886188a4c6705317858b37cddb11bed8a2ef843"
+        }
+      },
+      {
+        "command": [
+          "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "native_pre_trash_",
+          "--test-threads=1",
+          "--nocapture"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1147093930048868,
+        "timed_out": false,
+        "error_class": null,
+        "owner_receipt_written": true,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "signals": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/green-seven-observer-controls.log",
+          "size": 1368,
+          "sha256": "d1efd7ad96198853b050a9859e15155d4d3de35d78fd509cecace336b376393e"
+        }
+      }
+    ],
+    "production_source_restored": true,
+    "runtime_source_map_restored": true,
+    "source_count": 563,
+    "provider_calls": false,
+    "keys_accessed": false,
+    "installed_actions": false
+  },
+  "result_pin": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/controls-result-v1.json",
+    "size": 12557,
+    "sha256": "359e6ae0c29ac98b503b9860f9bc2ae9ddbf4d3a78ce16919432d121b6efe6ec"
+  },
+  "root_controller": {
+    "success": true,
+    "exit_code": 0,
+    "elapsed_seconds": 39.911578565021046,
+    "timed_out": false,
+    "error_class": null,
+    "controls_receipt_error_class": null,
+    "owner_receipt_written": true,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "signals": [],
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/root-controls-v1.log",
+      "size": 104,
+      "sha256": "9bf740256c5f3874deb9953621485cd8a37ba6ab8f3f2c73e6adaaff2d96a503"
+    },
+    "provider_calls": false,
+    "keys_accessed": false,
+    "installed_actions": false,
+    "source_restored": true,
+    "descendant_closure_inferred": false
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/audit-regression-review-terminal-v1.json",
+    "size": 15685,
+    "sha256": "78300af75c84a1b994c1299774621def92dd018286976f2442b6daa4904fe86c",
+    "result": "PASS",
+    "checks": 131
+  }
+}

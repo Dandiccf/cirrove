@@ -1,0 +1,78 @@
+{
+  "phase": "full10",
+  "command": [
+    "bash",
+    "scripts/check.sh"
+  ],
+  "expected_seconds": 1800,
+  "started_unix": 1791323612.4748595,
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "filesystem": {
+    "filesystems": [
+      {
+        "target": "/home/dandiccf/Storage",
+        "source": "/dev/nvme1n1p1",
+        "fstype": "ext4"
+      }
+    ]
+  },
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "source_count": 563,
+  "checkout_head": "b84c45a49c2edb6fd694a8326995437ee2bbe490",
+  "purpose": "Full required precommit check for feature-only pre-Trash pause and triple identity observer with actual controls.",
+  "real_provider_calls": false,
+  "synthetic_TLS_mutation": true,
+  "installed_actions": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/run_full10_v1.py",
+    "size": 4424,
+    "sha256": "366fcc9cda58ef1d73f4a4283cd936d45a03a6f2d81ac1e64a63b2c094eb389f"
+  },
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "prediction": "Formatting, clippy, complete workspace and feature suites, kernel mounts, script tests, ledger and docs pass with 563 pinned inputs.",
+  "limits": [
+    "No display scenario or live-provider acceptance is implied.",
+    "No full integration gate closes and installed schema transition remains on HOLD."
+  ],
+  "full_integration_accepted": false,
+  "outcome": {
+    "exit_code": 0,
+    "elapsed_seconds": 641.0994774039718,
+    "source_count": 563,
+    "sources_unchanged": true,
+    "changed_sources": [],
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full10-v1.log",
+      "size": 289014,
+      "sha256": "31a977f26a1e115e81b9427d647a9d413eb67db2863f2131fe6f27801b54f846"
+    },
+    "rust_test_result_groups": 87,
+    "all_checks_passed_marker": true,
+    "NOT_RUN_marker_present": false,
+    "real_provider_calls": false,
+    "installed_actions": false
+  },
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full10-registration-v1.json",
+    "size": 74035,
+    "sha256": "9aca53923b84b3a2a7fae8ee8cd64d3a6bb0c5cdc4741627457f29ccce6b08df"
+  },
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full10-result-v1.json",
+    "size": 605,
+    "sha256": "a7b30abb4172480924022e460e7d345837c2bede778df30fbe12fa57395430e8"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/audit-gate-agent-full10-terminal-v1.json",
+    "size": 3563,
+    "sha256": "6240158ba20e0fc873622226e66a5b8faae2530c81b85c7590986297d30fbdbe",
+    "result": "PASS",
+    "checks": 14
+  }
+}

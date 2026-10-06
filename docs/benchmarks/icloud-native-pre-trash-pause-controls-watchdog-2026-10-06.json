@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "question": "Does the feature-only persisted pre-Trash pause refuse blocking or unauthorized releases within its original lifetime, while valid authority delegates once?",
+  "prediction": "The exact FIFO control fails at its intended before-writer assertion when only O_NONBLOCK is omitted, passes when restored, and all seven actual TLS worker/vault controls pass with registered source and mutation counters preserved.",
+  "arms": [
+    "counterfactual_nonblock_flag_omitted",
+    "nonblock_flag_restored"
+  ],
+  "endpoints": [
+    "Exactly one intended test executes in each arm.",
+    "Counterfactual fails at the specific completed-before-FIFO-writer assertion after bounded rescue and original worker join.",
+    "Restored guard passes exact FIFO plus seven controls for FIFO, symlink, invalid tuple, cancellation, expiry, valid release and changed journal frontier."
+  ],
+  "control_group": "native_final_pre_trash_pause_",
+  "control_count": 7,
+  "observer_control_count": 5,
+  "factory_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery/registration.rs",
+    "size": 50754,
+    "sha256": "3a345e66d8895dff0ef53ff99f8230faa3658e1f7b6b72060be938b38e12c2c7"
+  },
+  "test": "journal::package_replacement::worker_transport::native_final_tests::pre_trash_pause_controls::native_final_pre_trash_pause_fifo_refuses_without_waiting_for_writer",
+  "source_before": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery.rs",
+    "size": 31100,
+    "sha256": "e9ed095990e2cd9ad376f932890ac5904ac2e34405a0db6350cc579c07cf2f1d"
+  },
+  "test_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery/tls_tests.rs",
+    "size": 50234,
+    "sha256": "613b8772d1d8768169cb9e5a4d19cb2db8d35188f373994807d5bc770ddc6fce"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/run_controls_v3.py",
+    "size": 9480,
+    "sha256": "542bbd263801326b8ee29602b8536f7c2ce749072c29f537bd1dfc310ee14e3d"
+  },
+  "build_command": [
+    "cargo",
+    "test",
+    "-p",
+    "cirrove-service",
+    "--lib",
+    "--features",
+    "icloud-write-probe",
+    "--locked",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "test_command": [
+    "<exact-built-test-executable>",
+    "journal::package_replacement::worker_transport::native_final_tests::pre_trash_pause_controls::native_final_pre_trash_pause_fifo_refuses_without_waiting_for_writer",
+    "--exact",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "temporary_filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "maximum_seconds_per_child": 600,
+  "provider_calls": false,
+  "installed_actions": false,
+  "limits": [
+    "Controlled synthetic TLS worker/vault responses, not a live iCloud conflict or atomic race.",
+    "No full acceptance gate closes."
+  ],
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "outcome": {
+    "success": true,
+    "arms": {
+      "red": {
+        "build": {
+          "exit_code": 0,
+          "elapsed_seconds": 17.405035145988222,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/red-build.log",
+            "size": 333947,
+            "sha256": "b2001a44ecb1acfe20763063fe7f06bc559fcd25bf83e629af00a4eecc0a081c"
+          }
+        },
+        "test": {
+          "exit_code": 101,
+          "elapsed_seconds": 2.568251473014243,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/red-test.log",
+            "size": 2507,
+            "sha256": "844b024c1988abe662088de4c9737f1d3d2d23bd1a2e5f68f8630106fff126eb"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642604808,
+          "sha256": "1570b0ed0834e98234c44747e983bfbe913dc9708c0c824cc4191aa0891bdddd"
+        },
+        "executed_test_count": 1,
+        "expected_result_observed": true
+      },
+      "green": {
+        "build": {
+          "exit_code": 0,
+          "elapsed_seconds": 14.902644225978293,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/green-build.log",
+            "size": 333947,
+            "sha256": "7b4a67cf1aed086d06fc759ce4317bb3695516ad5c6b1725f064230a5614e4fc"
+          }
+        },
+        "test": {
+          "exit_code": 0,
+          "elapsed_seconds": 0.8715326610254124,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/green-test.log",
+            "size": 2265,
+            "sha256": "f745b95567b1a24238d961d6cd75e97cc81255a65e046592e6a6154c6adfa2ad"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642604808,
+          "sha256": "38abf49e910ef480f6da189c1d8dfccd3e350bda9d4914d215d9d38872a4072e"
+        },
+        "executed_test_count": 1,
+        "expected_result_observed": true
+      },
+      "seven_controls": {
+        "test": {
+          "exit_code": 0,
+          "elapsed_seconds": 8.029499833995942,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/green-seven-controls.log",
+            "size": 25753,
+            "sha256": "9ffe446f3850bf9344530d119b63769f8e5aaa2ae52e7ca2e67eadc41882bf5a"
+          }
+        },
+        "executed_test_count": 7,
+        "expected_result_observed": true,
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642604808,
+          "sha256": "38abf49e910ef480f6da189c1d8dfccd3e350bda9d4914d215d9d38872a4072e"
+        }
+      },
+      "observer_controls": {
+        "test": {
+          "exit_code": 0,
+          "elapsed_seconds": 0.009422916977200657,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/green-five-observer-controls.log",
+            "size": 1008,
+            "sha256": "3e629602368a01110ec5eb9945a5d55c41313b5f3556400d78d15b5f0922ae71"
+          }
+        },
+        "executed_test_count": 5,
+        "expected_result_observed": true,
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+          "size": 642604808,
+          "sha256": "38abf49e910ef480f6da189c1d8dfccd3e350bda9d4914d215d9d38872a4072e"
+        }
+      }
+    },
+    "production_source_restored": true,
+    "test_source_unchanged": true,
+    "provider_calls": false,
+    "installed_actions": false
+  },
+  "result_pin": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/controls-result-v1.json",
+    "size": 4688,
+    "sha256": "ae03eff645c85df2db2af1f75d139de733640c5b3b1431506c889b06c1e4b8ef"
+  },
+  "root_controller": {
+    "exit_code": 0,
+    "elapsed_seconds": 44.871252854005434,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/root-controls-v1.log",
+      "size": 81,
+      "sha256": "1e404233fbcbdd3eeef635f485be99f39cccd8218801c58b9f894981e2c58bed"
+    }
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/audit-regression-review-terminal-v1.json",
+    "size": 22130,
+    "sha256": "ecef6d35444c1d18bad47bcc8a8339a7fa0c17493547698e7cfc85176d241712",
+    "result": "PASS",
+    "checks": 54
+  }
+}
