@@ -1,0 +1,134 @@
+{
+  "active_measurement": false,
+  "arms": [
+    "saved-session connect default read-only",
+    "normal daemon configured/effective RO mount ready, disable and stop",
+    "explicit write opt-in with target disabled and empty local journal",
+    "exact owned ordinary5612B read/list fences, local pending sealed5658B plus dirty5701B",
+    "same-account saved-session reauthenticate with disabled writable grant preserved",
+    "downgrade disabled target to read-only",
+    "normal daemon retained RO mount ready, disable and stop, exact retained frontier",
+    "offline recovery export pending and dirty exact bytes"
+  ],
+  "bindings": {
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ssl-ebbd9f71",
+    "TMPDIR": "/home/dandiccf/Storage/ct/ssl-ebbd9f71",
+    "executor": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/root_saved_session_once_v5.py",
+      "sha256": "f5f859d7f651a0a5e7c2b5feb2f77217786eb299254a68b0d83c4ccac0eee1c2",
+      "size": 26077
+    },
+    "filesystem": "ext4",
+    "filesystem_proof": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/execution-ebbd9f71-ec22-4904-8f77-8d2224487346/tmp-filesystem-proof.json",
+      "sha256": "100ee17fff355a086e37e3d262d0862cf7f21ca24b612e3da69b66df55fe45c4",
+      "size": 75
+    },
+    "helper_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/main-v5.rs.proposed",
+      "sha256": "61ffc334f3c493d65ad34eda8c2049c9921427fdd3df335d5c824c24d3bf61d0",
+      "size": 25754
+    },
+    "installed_before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/execution-ebbd9f71-ec22-4904-8f77-8d2224487346/installed-before.json",
+      "sha256": "7a78444d211a872cbeb7191debd0ef003520c794331e58963ddc20761ed4cb50",
+      "size": 4323
+    },
+    "receiver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/receiver_v5.py",
+      "sha256": "a7c5a59dd59d3cd797bdee5f7e9049322cc0899e4d9d056f36ae70ce26697f65",
+      "size": 12305
+    },
+    "roles_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/normal56-lifecycle-build-v1/roles-binding.json",
+      "sha256": "c18ed4355c750e0a2b96b60376d2cb38e730ad0ce1ea2f99027bf9c5da5d23e5",
+      "size": 7480
+    },
+    "runtime_sources": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-b640ce19-8011-434c-a37d-2b4f86004798/source-pins-terminal.json",
+      "sha256": "4dbf845a526479b8aee4cf39ab8ac81592747bec7a6ab4d1f834e5045e73f2e7",
+      "size": 72732
+    },
+    "selected": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-own-file-inputs-7e-private-v1/selected-ordinary-historical-driveentry-v1.json",
+      "sha256": "d7811aad8df1f8ec5b92676a364a64634f864a5d704c52fc86c45f8e8a9922e6",
+      "size": 489
+    }
+  },
+  "original_window": {
+    "boot": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_seconds": 45,
+    "deadline": 1791350526.0,
+    "mono_end": 375153.1230788231,
+    "mono_start": 374553.947987542,
+    "started": 1791349926.0
+  },
+  "prediction": "Six helper phases accepted in order, both configured/effective read-only mounts reach ready, pending sealed5658B and dirty5701B stay unattempted and export exactly; installed service and original donor stay unchanged.",
+  "preregistration_corrections": [
+    {
+      "new_executor": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/root_saved_session_once_v5.py",
+        "sha256": "f5f859d7f651a0a5e7c2b5feb2f77217786eb299254a68b0d83c4ccac0eee1c2",
+        "size": 26077
+      },
+      "old_executor": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/root_saved_session_once_v4.py",
+        "sha256": "d1280a139a266b5f9011bc97e8810761605e150bcf49f80ae11cb0cdec8fb33f",
+        "size": 25775
+      },
+      "prior_executor_invoked": false,
+      "question_prediction_phases_window_unchanged": true,
+      "reason": "Reserve descendant owner index before a fallible signal; final original-deadline check after synchronous pins",
+      "recorded_at": "2026-10-07T05:08:53.764346+00:00"
+    }
+  ],
+  "preservation": "Original saved Cirrove donor/settings remain unchanged; own isolated test state retained; installed nineteen files/unit/PID birth unchanged; no recursive deletion/move.",
+  "question": "Does a genuine saved iCloud session support default read-only connection and two normal read-only mounts while explicit disabled write opt-in, local pending/dirty data, same-account reauthentication, read-only downgrade and exact recovery exports preserve the journal?",
+  "registered_at": "2026-10-07T05:07:48.785046+00:00",
+  "result_pin": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/execution-ebbd9f71-ec22-4904-8f77-8d2224487346/result.json",
+    "sha256": "6664a85168b1120bc44a7af4eb1ac9ec1a1c441867ffaf28a2f4afc7747b4cdc",
+    "size": 1018
+  },
+  "run": "ebbd9f71-ec22-4904-8f77-8d2224487346",
+  "scope": {
+    "cloud_mutations_intended": 0,
+    "enabled_writable_daemon_started": false,
+    "expired_session_renewal_proved": false,
+    "fresh_password_or_2FA_login_proved": false,
+    "gate488_closed": false,
+    "http_request_count_instrumented": false,
+    "installed_delivery": false
+  },
+  "source_head": "56a2496a284434e94be9cce70f290a95c9f45d83",
+  "status": "closed_refused",
+  "stop_rule": "Any refusal, changed exact selection, expired credentials or ambiguous result stops; no automatic phase retry, password fallback, substituted item or repeat of a completed arm.",
+  "version": 1,
+  "window": {
+    "cleanup_reserve_seconds": 45,
+    "deadline_before_first_vault_or_provider": true,
+    "renewed": false,
+    "total_seconds": 600
+  },
+  "independent_assessment": {
+    "audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/execution-ebbd9f71-ec22-4904-8f77-8d2224487346/audit-independent-closed-saved-session-startup-v1.json",
+      "size": 4275,
+      "sha256": "b4402e82a6c07ce8dc712581282e6a6040034bb62071bafb3621c26add344d05"
+    },
+    "audit_checks_passed": 14,
+    "audit_is_not_trial_success": true,
+    "actual_trial_success": false,
+    "accepted_helper_phases": [
+      "connect"
+    ],
+    "default_RO_ready_proved": false,
+    "following_five_phases": "NOTRUN",
+    "original_handles_closed": 3,
+    "owned_groups_sessions_and_streams_closed": true,
+    "actual_failing_startup_operand": "not retained; no historical cause attribution",
+    "cloud_mutations_intended": 0,
+    "gate488_closed": false,
+    "installed_HOLD_unchanged": true
+  }
+}

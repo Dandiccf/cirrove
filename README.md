@@ -395,7 +395,26 @@ A [genuine Pages replacement](docs/benchmarks/icloud-pages-direct-flat-replaceme
 also accepted the unchanged Apple export without an outer document folder.
 Independent full content checks verified the new document and its original in
 Trash. A [fresh read-only remount](docs/benchmarks/icloud-pages-direct-flat-readonly-remount-2026-10-07-805f4b1e.json)
-returned the complete new content; [Apple Pages opened the exact replacement and retained its text after reload](docs/benchmarks/icloud-pages-direct-flat-apple-reopen-2026-10-07-3a054fad.json).
+returned the complete new content; [Apple Pages reopened the exact replacement](docs/benchmarks/icloud-pages-direct-flat-apple-reopen-2026-10-07-3a054fad.json)
+with its genuine 93-byte paragraph unchanged after one reload. This validates
+explicit `flat-pages` archive input, not native Pages editing in a Linux editor.
+A [separate offline Writer trial](docs/benchmarks/icloud-pages-writer-source-load-2026-10-07-30098796.json)
+could not load this Pages export on this host: no document or DOCX was produced.
+A [direct parser check](docs/benchmarks/icloud-pages-direct-parser-2026-10-07-61778150.json)
+recovered its exact paragraph with one trailing newline. The Writer loading
+failure remains under investigation; native Linux editing acceptance is open.
+
+An [isolated saved-session connection](docs/benchmarks/icloud-saved-session-real-lifecycle-2026-10-07-ebbd9f71.json)
+completed but stopped before read-only startup became ready. A
+[separately registered follow-up](docs/benchmarks/icloud-saved-session-existing-account-2026-10-07-b8483086.json)
+reused that connected account without connecting again. It preserved sealed and
+dirty edits through disabled write opt-in, same-account reauthentication and
+read-only downgrade, then passed normal read-only mounts and exact local exports.
+No writable daemon was started. Fresh password/2FA, expired-session recovery and
+installed upgrade/downgrade acceptance remain open.
+
+The [CI run for development commit `56a2496a`](https://github.com/Dandiccf/cirrove/actions/runs/37573118522)
+passed all seven jobs; the installed release remains unchanged and on HOLD.
 The [dated acceptance assessment](docs/benchmarks/icloud-native-replacement-removal-criterion-closure-2026-10-07.json)
 closes the bounded native replacement/removal criterion, including conflict
 refusal and recovery after process loss without repeating the cloud mutation.
@@ -404,8 +423,8 @@ These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic
 editor workflows beyond the bounded Calc trial, broader Pages/Numbers/Keynote
-editing/reopen fidelity, DATA coverage beyond these owned fixtures, session retention
-and renewal, installed read/write transitions, and sustained account-scale use
+editing/reopen fidelity, DATA coverage beyond these owned fixtures, long-session
+renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;
 [its deployment policy](docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
 requires keeping it separate from the installed release. Read the

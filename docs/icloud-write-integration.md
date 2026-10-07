@@ -3877,11 +3877,12 @@ window, and independent source, replacement, remount and UI audits passed. No ne
 Trash read was inferred from the remount, and no post-Apple unchanged revision or
 archive claim follows from the UI check.
 
-This completes one genuine Pages text/PACKAGE replacement workflow. Direct native
-export input, the wider DATA/editor/formatting/media matrix, installed upgrades and
-remaining full-iCloud criteria stay open. The installed service was not changed.
+This completes one genuine Pages text/PACKAGE replacement workflow using wrapped
+input. That arm alone does not establish direct native export input. The wider
+DATA/editor/formatting/media matrix, installed upgrades and remaining full-iCloud
+criteria stay open. The installed service was not changed.
 
-### Direct native Pages source under local validation on 7 October 2026
+### Direct native Pages source and completed bounded workflow on 7 October 2026
 
 The development source now adds explicit `flat-pages` input for the normal CLI
 import and replacement paths. Use `--source-layout flat-pages` instead of
@@ -3898,12 +3899,68 @@ explicit import/replacement path, not general editing of generated archive
 children or an ordinary Pages editor save on Linux.
 
 The [registered local controls](benchmarks/icloud-direct-flat-pages-local-controls-2026-10-07.json)
-record the actual test outcomes, earlier test-fixture/compile failures and their
-corrections. A fresh live trial with the unmodified native exports is still
-pending. The completed genuine Pages trial above used separately wrapped input
-and cannot be credited to this new direct-source path. Neither this addition nor
-local test success changes the held installation policy or closes the complete
-native-document acceptance criterion.
+retain their actual outcomes and earlier fixture/compile failures. A subsequent
+[fresh normal CLI trial](benchmarks/icloud-pages-direct-flat-replacement-2026-10-07-ab8555d8.json)
+imported genuine A and replaced it with genuine B directly from the unchanged
+flat Apple exports. Independent complete semantic V2 reads verified all twelve
+files in current B and original A in Trash. No local size-mirror normalization
+was applied to these source exports; the separately derived transport envelope
+remains distinct from the protected raw source.
+
+A [fresh normal read-only remount](benchmarks/icloud-pages-direct-flat-readonly-remount-2026-10-07-805f4b1e.json)
+returned the complete B content tree before Apple opening.
+[Apple Pages then opened the exact receipt-bound replacement](benchmarks/icloud-pages-direct-flat-apple-reopen-2026-10-07-3a054fad.json)
+and retained the genuine 93-byte paragraph before and after one actual reload.
+All three bounded arms closed and passed independent audits. Semantic content
+identity is established; identical remote ZIP encoding, a post-Apple unchanged
+revision, general formatting/media fidelity and native Linux Pages saves are not.
+Installed delivery remains on HOLD and the complete native-document matrix stays open.
+
+### Saved-session lifecycle observation on 7 October 2026
+
+The [first isolated trial](benchmarks/icloud-saved-session-real-lifecycle-2026-10-07-ebbd9f71.json)
+completed the genuine saved-session connection but refused during default read-only
+startup before Ready. Its exact failing startup operand was not retained; all
+original processes closed and the remaining five phases were not run. Pure
+source-selected controls subsequently demonstrated initial-empty-status waiting,
+strict scoped Ready and the original startup deadline, without attributing the
+historical failure to a particular operand.
+
+A [separately registered existing-account follow-up](benchmarks/icloud-saved-session-existing-account-2026-10-07-b8483086.json)
+closed successfully in 21.04 seconds under its own window. It did not reconnect or
+repeat the prior trial. Its five new helper phases passed disabled write opt-in,
+creation of unattempted sealed/dirty ordinary-file generations, same-account
+saved-session reauthentication, read-only downgrade and exact offline export.
+Both normal read-only daemon starts reached Ready; retained journal and payload
+proofs stayed equal. The 5,658-byte sealed and 5,701-byte dirty exports matched their
+registered hashes. No writable daemon/upload worker was started. Original child
+handles closed, and the nineteen installed artifacts, unit and daemon birth stayed
+unchanged. This does not prove fresh password/2FA, expiry recovery, installed
+upgrade/downgrade, or general repeatability; HTTP counts remain uninstrumented and
+row488 remains open.
+
+### Offline Pages-to-Writer source refusal on 7 October 2026
+
+The [separate diagnostic trial](benchmarks/icloud-pages-writer-source-load-2026-10-07-30098796.json)
+used the protected genuine Pages B export with the installed Writer import filter.
+The loader returned no document; text-service and read-only property getters were
+therefore not reached, and no DOCX export occurred. Its independent audit passed
+27 checks, with all owned processes closed and the original source unchanged.
+This specimen could not be imported in this environment; the underlying null-load
+cause remains unproved, and this is not a claim that every Pages format is
+unsupported. The import/export workflow did not complete; fidelity was not measured,
+and row487 remains open.
+
+A [separately registered direct parser trial](benchmarks/icloud-pages-direct-parser-2026-10-07-61778150.json)
+then read the same unchanged source with installed `pages2text`. It exited
+successfully and returned exactly the registered 93-byte paragraph plus one
+newline, with empty stderr. The source and executable/library pins were unchanged,
+and the original isolated child closed. This narrows the investigation to the
+Writer loading path; direct text extraction supplies no DOCX, native save or
+formatting/media fidelity proof.
+
+Development commit `56a2496a` passed all seven CI jobs. That source/CI
+result does not deploy the candidate or change the installed HOLD.
 
 
 ### Bounded native replacement and removal criterion closed on 7 October

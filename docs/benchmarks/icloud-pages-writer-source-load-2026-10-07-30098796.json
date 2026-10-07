@@ -1,0 +1,154 @@
+{
+  "version": 2,
+  "status": "closed_refused",
+  "active_measurement": false,
+  "run": "30098796-8142-4dc6-ad12-6a050a4fe6af",
+  "question": "Can one fresh isolated Writer import the immutable genuine Pages B, retain exact source-load operand classifications, then export exactly one DOCX and readonly reopen with measured93-byte paragraph fidelity?",
+  "prediction": "A successful import should preserve text through one supported DOCX export/reopen. Null/false source-load operands or text loss remain retained false endpoints; no source edits, retries or native Pages export.",
+  "arms": [
+    {
+      "label": "genuine raw Pages B to one DOCX export/reopen",
+      "maximum_seconds": 100,
+      "work_seconds": 60,
+      "cleanup_seconds": 30,
+      "source": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages",
+        "size": 101769,
+        "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc"
+      },
+      "source_readback": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/text-b-reloaded-readback.txt",
+        "size": 93,
+        "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+      },
+      "expected_text": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+      "import_filter": "Apple Pages",
+      "export_filter": "MS Word 2007 XML",
+      "document_service": "com.sun.star.text.TextDocument",
+      "application_maximum_seconds": 90,
+      "outer_closure_seconds": 10
+    }
+  ],
+  "endpoints": [
+    "Actual imported text/paragraphs captured without editing",
+    "Exactly one DOCX storeToURL then source close and DOCX reopen read-only",
+    "Independent bounded full CRC scan and word/document.xml paragraph extraction",
+    "Workflow versus text fidelity separately reported",
+    "Original launcher/oosplash and sandbox handles reaped; namespace empty; source and executable pins unchanged; no overrun"
+  ],
+  "limits": [
+    "Headless real application, not GUI",
+    "Pages filter is import-only; no native Pages save/export",
+    "Text/paragraph fidelity only; no font/layout/image/general format fidelity",
+    "Private bwrap user/pid/net isolation; no provider/installed actions; source read-only",
+    "One run, no automatic relaunch or content correction",
+    "Gate487 stays open; prior successful mutations not repeated",
+    "100s outer includes the90s application/sandbox budget plus10s final original-handle closure; no deadline renewal."
+  ],
+  "execution": {
+    "root": "/home/dandiccf/Storage/pgD-30098796",
+    "TMPDIR_backing": "/home/dandiccf/Storage/pgD-30098796/tmp",
+    "fs_required": "ext4",
+    "clock": null,
+    "registration": null,
+    "original_Root_owner": null,
+    "result": null,
+    "outer_maximum_seconds": 100
+  },
+  "prior_stopped_arm": {
+    "run": "a88d9efe-82f7-4eb9-88f9-6c5c068b9ceb",
+    "scope": "Actual source_load Refusal with zero exports and unretained guard operands; closed evidence immutable, actual cause not inferred",
+    "public_artifact": "docs/benchmarks/icloud-pages-writer-genuine-docx-2026-10-07-a88d9efe.json"
+  },
+  "source_load_diagnostic": {
+    "fields": [
+      "document_present",
+      "text_document_service",
+      "read_only",
+      "original_clock_active"
+    ],
+    "unreached_property_getters": null,
+    "short_circuit_order_preserved": true,
+    "raw_UNO_exception_name_URL_body": false,
+    "preexisting_guard_relaxation": false
+  },
+  "registered_at": "2026-10-07T05:22:30.244560+00:00",
+  "source_head": "56a2496a284434e94be9cce70f290a95c9f45d83",
+  "tools": {
+    "worker": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-source-operands-30098796-8142-4dc6-ad12-6a050a4fe6af-private-v1/worker_v5.py",
+      "size": 16089,
+      "sha256": "cb96af1b2e2d9e5fbe4ee820017df7cbcdd66d939ae681ad8f5c03d97ad7339a"
+    },
+    "supervisor": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-source-operands-30098796-8142-4dc6-ad12-6a050a4fe6af-private-v1/supervise_v5.py",
+      "size": 8950,
+      "sha256": "d567cae5bc87c56ec9184ce0f45e9e4b0e728f054e21c4f5af1d53ec085a83cf"
+    },
+    "outer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-source-operands-30098796-8142-4dc6-ad12-6a050a4fe6af-private-v1/root_owned_execution_v5.py",
+      "size": 9723,
+      "sha256": "541571659968bf766764239a80dbef4dd1bcb878f4d602d151a2ecb380aae64c"
+    }
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-source-operands-30098796-8142-4dc6-ad12-6a050a4fe6af-private-v1/root-outer-registration-v1.json",
+    "size": 2984,
+    "sha256": "79fa02c239089b9e666edcb00ac1a80cb53ff5d425cd6709d7dad735b42fa2e7",
+    "protected_stat": [
+      57,
+      75142257,
+      33024,
+      1000,
+      1,
+      1791350576558868160,
+      1791350576558868160
+    ]
+  },
+  "outcome": {
+    "root_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-source-operands-30098796-8142-4dc6-ad12-6a050a4fe6af-private-v1/root-outer-result-v1.json",
+      "size": 1135,
+      "sha256": "447e33da9ab1c53e1ca79d8ab080d73969b0316171b56bd28a01cc2b42bd4e3c",
+      "protected_stat": [
+        57,
+        75142260,
+        33024,
+        1000,
+        1,
+        1791350577114120601,
+        1791350577114120601
+      ]
+    },
+    "workflow_completed": false,
+    "fidelity_passed": false,
+    "all_owned_processes_closed": true,
+    "gate487_closed": false
+  },
+  "independent_outcome_assessment": {
+    "audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-source-operands-30098796-8142-4dc6-ad12-6a050a4fe6af-private-v1/audit-independent-closed-writer-source-operands-v1.json",
+      "size": 6530,
+      "sha256": "ed95756c9376da1e542a6c66ae2c640cb782369002263e3ec176896d1a82c38d"
+    },
+    "passed": 27,
+    "total": 27,
+    "document_present": false,
+    "text_document_service": null,
+    "read_only": null,
+    "original_clock_active": true,
+    "workflow_completed": false,
+    "fidelity_classification": "unmeasured",
+    "export_calls": 0,
+    "pure_controls_passed": 12,
+    "relative_input_preflight": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-source-operands-30098796-8142-4dc6-ad12-6a050a4fe6af-private-v1/root-relative-input-preflight-refusal-v1.json",
+      "size": 409,
+      "sha256": "d06facf09b21d168d8ea09bee9b32ddb1a69011f4846dd789c679afcce08ded1"
+    },
+    "registered_filter_present": true,
+    "actual_null_document_cause_unproved": true,
+    "minimum_next": "A separately registered offline direct pages2text parse of the immutable same genuine B; no repeat of closed Writer arm or provider mutation",
+    "gate487_closed": false
+  }
+}
