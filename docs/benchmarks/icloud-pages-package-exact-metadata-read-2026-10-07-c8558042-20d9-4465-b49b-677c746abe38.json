@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "status": "closed_read_success",
+  "active_measurement": false,
+  "run": "c8558042-20d9-4465-b49b-677c746abe38",
+  "question": "What known metadata categories does the exact successful ab855 Pages PACKAGE item expose through the same exact-ID drivews read used for the failed e5ed DATA item?",
+  "prediction": "One scoped response yields shortGUID and known-field categories or a fixed refusal. Neither a category difference nor the historical opaque-vs-docws navigation difference proves the cause of Apple editor refusal.",
+  "scope": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "collection": "drive",
+    "item": "FILE::com.apple.CloudDocs::1B10580E-325E-48FD-8EB7-830077D19717",
+    "parent": "FOLDER::com.apple.CloudDocs::E7AA29D7-3B62-4B94-A7D2-32999B22157D",
+    "expected_name": "Cirrove-Pages-Replacement-ab8555d8-15cf-4f56-af80-56e4592db479.pages",
+    "latest_retained_RO_etag": "i1xb::i1xa",
+    "metadata_size": 100205
+  },
+  "prior_successes": [
+    "ab855 completed PACKAGE fullV2/currentB+TrashA",
+    "805f normal RO fullV2 plus actual cached current Node/ETag",
+    "3a054 exact-row Apple open and one same-tab reload, both exact93-byte text"
+  ],
+  "reference_observation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-real-once-c912d2f6-428e-4b86-bb30-70d7bf19abef/sanitized-observation.json",
+    "size": 1000,
+    "sha256": "d8829f896cf3576e0533a5e70b0413ece25545c782b51fa60a4a9dc62425e3e1"
+  },
+  "endpoint": "One authenticated POST retrieveItemDetails with the exact FILE1B10580 identity. No folder enumeration, manifest/model/read-download request, session persistence, write, worker, ACK, replay or Apple action.",
+  "maximum_exact_metadata_method_calls": 1,
+  "http_request_count": "uninstrumented",
+  "original_window": "Fresh original600 seconds,45 cleanup reserve; one request <=min(60 seconds, remaining original active time). No prior window reopens.",
+  "safe_output": "Only exact ID/bounded current ETag/FILE kind, recorded-revision match and grounded field categories; no GUID value, untrusted field name, sharing token, URL, raw body or native-app readiness claim.",
+  "same_source": "Both historical representation cases used the same genuine nativeB101769/b512fbcc\u2026; PACKAGE metadata100205 and archive60039 are separate units.",
+  "limits": [
+    "Current representation after Apple success remains unobserved by this metadata-only diagnostic.",
+    "Prior shortGUID absence in serialized typed DriveEntry cannot be used as raw-provider absence evidence.",
+    "No single read establishes metadata stability; second=null and metadata_stable=false are explicit.",
+    "No protocol fix or causal editor-admission inference follows from this comparison."
+  ],
+  "actual_result": {
+    "version": 1,
+    "run": "c8558042-20d9-4465-b49b-677c746abe38",
+    "classification": "receipt_revision_changed",
+    "first": {
+      "item": "FILE::com.apple.CloudDocs::1B10580E-325E-48FD-8EB7-830077D19717",
+      "etag": "i1xg::i1xd",
+      "kind": "FILE",
+      "receipt_revision_matches": false,
+      "short_guid": "nonempty_bounded_string",
+      "last_open_time": "nonempty_bounded_string",
+      "file_count": "absent",
+      "direct_children_count": "absent",
+      "asset_quota": "absent",
+      "exact_docwsid": true,
+      "extension_pages": true,
+      "zone_clouddocs": true,
+      "native_app_readiness_evaluated": false,
+      "manifest_requested": false
+    },
+    "second": null,
+    "metadata_stable": false,
+    "authenticated_pinned_ciphertext": true,
+    "legacy_fallback_used": false,
+    "exact_metadata_method_calls": 1,
+    "input_bytes_and_protected_stamps_unchanged": true,
+    "cloud_mutations": 0,
+    "journal_opened": false,
+    "manifest_requested": false,
+    "editor_ready_proved": false,
+    "http_request_count": "uninstrumented"
+  },
+  "active": false,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-real-once-c8558042-20d9-4465-b49b-677c746abe38/original-window.json",
+    "size": 196,
+    "sha256": "d0147449dabf2dae0606b96c95a826cd7f96e9a29b07659e7d6af849a0f193c9"
+  },
+  "case": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-approved-package-real-case-v1.json",
+    "size": 83164,
+    "sha256": "e4a79b4239f591608b52ab4eedfb7c70275b9fe7d5ecc6a84ba5610af377c2f4"
+  },
+  "provider_mutations": false,
+  "installed_actions": false,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-real-once-c8558042-20d9-4465-b49b-677c746abe38/terminal-v1.json",
+    "size": 566,
+    "sha256": "6edd18a6a787324723683c1fce4f2289000ca53b0431cc7a33a50f936fd16dc5"
+  },
+  "assessment": "One exact metadata read observed a changed revision and nonempty shortGUID category for the historically Apple-openable PACKAGE item. The failed DATA item previously had absent shortGUID. This correlation does not prove editor refusal cause, current representation, bytes or current editor readiness. No values, raw bodies, downloads, manifests or mutations retained/executed.",
+  "original_elapsed_seconds": 4.180383643019013,
+  "independent_terminal_audit_pending": false,
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 15,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-real-once-c8558042-20d9-4465-b49b-677c746abe38/audit-independent-terminal-v1.json",
+      "size": 5561,
+      "sha256": "6e678047b62994159f59add2ff381b3caaaad108e26103a5cac40ed8a4fae503"
+    }
+  },
+  "independent_audit_completed_after_dispatch": true
+}

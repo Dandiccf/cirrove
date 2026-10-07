@@ -1,0 +1,55 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/npr7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/npr7v1",
+  "active": false,
+  "active_measurement": false,
+  "cleanup_reserve_seconds": 45,
+  "endpoint": "One original read process, complete currentB/TrashA V2 proofs and closure/preservation within new600/45; original failed writer case remains failed",
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "observer_run": "60fc4036-f746-4f74-a796-052cd70d276a",
+  "original_seconds": 600,
+  "original_writer_case_success": false,
+  "prediction": "Exact typed receipt, current identity/revision and Trash identity/content all match. One known clean detached original passes the bounded new validator; no cloud write/recovery replay occurs.",
+  "provider_mutations": false,
+  "question": "Does independent read-only inspection confirm full V2 current B and exact original A in Trash after the completed once-only atomic promotion?",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-atomic-postflight-read-60fc4036-f746-4f74-a796-052cd70d276a-private-v1/owned-read-v2/registration-v1.json",
+    "sha256": "fa57ceb88d10bd8d54e83d994f5cbb87e86da224f70a5f546e5caa28a472d375",
+    "size": 153475
+  },
+  "status": "closed_readonly_success",
+  "subject_run": "33711731-75c5-4d9e-bc26-aa385cab9748",
+  "version": 1,
+  "writer_replays": 0,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-atomic-postflight-read-60fc4036-f746-4f74-a796-052cd70d276a-private-v1/owned-read-v2/terminal-v1.json",
+    "size": 2762,
+    "sha256": "4018e0eab0430af932d51a601c17a96b8e6dd86f576b167264f18d1fdfa78eaf"
+  },
+  "closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-atomic-postflight-read-60fc4036-f746-4f74-a796-052cd70d276a-private-v1/owned-read-v2/closure-v1.json",
+    "size": 371,
+    "sha256": "eed3c3c4b74ec3124a2dffc72443b55402f8b4ced0bea5666b308645429c9bef"
+  },
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-atomic-postflight-read-60fc4036-f746-4f74-a796-052cd70d276a-private-v1/owned-read-v2/original-window-v1.json",
+    "size": 362,
+    "sha256": "098feccc18048e1f4e6c30a829bad397060a4f45404eacdba27436ae619bda20"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-atomic-postflight-read-60fc4036-f746-4f74-a796-052cd70d276a-private-v1/owned-read-v2/audit-independent-postflight-read-v1.json",
+    "size": 9416,
+    "sha256": "b9cc6d1c5f446f20437c207743ec6b52d20ca5fe1a5af2f26128ac6943f404f7",
+    "passed": 28,
+    "total": 28
+  },
+  "assessment": {
+    "current_B_full_semantic_v2": true,
+    "original_A_Trash_full_semantic_v2": true,
+    "normal_readonly_remount": false,
+    "Apple_reopen": false,
+    "original_writer_outcome_preserved": "failed"
+  }
+}

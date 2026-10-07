@@ -448,6 +448,133 @@ impl RecoveryJournal {
             [], |row| Ok((row.get(0)?, row.get(1)?)),
         )?)
     }
+    /// Validation-only exception for one clean original stream retained by one
+    /// committed atomic native promotion. The canonical inventory stays strict.
+    pub(crate) fn native_validation_detached_original(
+        &self,
+        operation: Uuid,
+        working: Uuid,
+        owner: Uuid,
+    ) -> Result<()> {
+        #[derive(Deserialize)]
+        struct DetachedBinding {
+            scope: Scope,
+            archive: Node,
+            source: Node,
+            semantic: cirrove_core::upload::PackageSemanticIdentity,
+        }
+        let db = &self.journal.db;
+        let counts: (i64, i64, i64, i64, i64) = db.query_row(
+            "SELECT (SELECT count(*) FROM native_detached_streams),
+             (SELECT count(*) FROM native_working_transfers),
+             (SELECT count(*) FROM native_temporary_streams),
+             (SELECT count(*) FROM native_backup_streams),
+             (SELECT count(*) FROM native_backup_gaps)",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+        )?;
+        if counts != (1, 1, 0, 0, 0) {
+            return Err(JournalError::Stale);
+        }
+        let previous: String = db.query_row(
+            "SELECT previous_working FROM native_working_transfers
+             WHERE next_working=?1 AND owner=?2 AND successor=?3 AND predecessor IS NULL",
+            params![
+                working.to_string(),
+                owner.to_string(),
+                operation.to_string()
+            ],
+            |r| r.get(0),
+        )?;
+        let previous = Uuid::parse_str(&previous).map_err(|_| JournalError::Corrupt)?;
+        if previous == working {
+            return Err(JournalError::Corrupt);
+        }
+        let object = self.journal.namespace_object(previous)?;
+        let local = super::working::native::atomic::snapshot_role(db, &object)?
+            .ok_or(JournalError::Corrupt)?;
+        let binding: String = db.query_row(
+            "SELECT binding FROM native_detached_streams WHERE working=?1 AND owner=?2",
+            params![previous.to_string(), owner.to_string()],
+            |r| r.get(0),
+        )?;
+        // snapshot_role has already run the production Binding::validate.
+        let binding: DetachedBinding = serde_json::from_str(&binding)?;
+        let source = self.journal.namespace_object(owner)?;
+        let file = self.journal.working_file(previous)?;
+        let row = self.journal.get(operation)?;
+        let (original, _, _) = row
+            .native_replacement_receipt()
+            .ok_or(JournalError::Corrupt)?;
+        let UploadRepresentation::PackageReplacementArchive {
+            original_semantic, ..
+        } = &row.representation
+        else {
+            return Err(JournalError::Corrupt);
+        };
+        let inactive: bool = db.query_row(
+            "SELECT NOT (EXISTS(SELECT 1 FROM native_working_heads WHERE working=?1)
+             OR EXISTS(SELECT 1 FROM native_working_bindings WHERE working=?1)
+             OR EXISTS(SELECT 1 FROM namespace_operations WHERE object=?1))",
+            [previous.to_string()],
+            |r| r.get(0),
+        )?;
+        if !inactive
+            || local.source_owner != owner
+            || !local.detached
+            || local.backup
+            || object.id != previous
+            || !object.unlinked
+            || object.follows_remote
+            || object.remote_sequence != 0
+            || object.working_file != Some(previous)
+            || object.latest.is_some()
+            || object.native_archive.is_some()
+            || object.remote_owned
+            || object.remote.is_some()
+            || object.scope != binding.scope
+            || source.scope != binding.scope
+            || binding.scope != row.scope
+            || binding.scope.account != self.journal.account
+            || binding.source != *original
+            || binding.semantic != *original_semantic
+            || row.base.is_some()
+            || file.id != previous
+            || file.scope != object.scope
+            || file.node != object.node
+            || !file.native
+            || !file.unlinked
+            || file.dirty
+            || file.latest.is_some()
+            || file.initial_remote.is_some()
+            || file.node.id != format!("local-native-archive-{previous}")
+            || file.node.parent_id.as_ref() != Some(&source.node.id)
+            || file.node.name != source.node.name
+            || file.node.kind != NodeKind::File
+            || file.node.package
+            || file.node.target.is_some()
+            || file.node.etag.is_some()
+            || file.node.size != binding.archive.size
+            || !matches!(&file.intent, UploadIntent::Replace { item, expected_etag }
+                if item == &binding.source.id && Some(expected_etag) == binding.source.etag.as_ref())
+        {
+            return Err(JournalError::Stale);
+        }
+        let revision: serde_json::Value = serde_json::from_str(
+            binding
+                .archive
+                .content_version
+                .as_deref()
+                .and_then(|v| v.strip_prefix("icloud-artifact-v2:"))
+                .ok_or(JournalError::Corrupt)?,
+        )?;
+        let expected_sha = revision["sha256"].as_str().ok_or(JournalError::Corrupt)?;
+        let (size, sha256) = self.ordinary_validation_working_digest(previous)?;
+        if size != binding.archive.size || sha256 != expected_sha {
+            return Err(JournalError::Stale);
+        }
+        Ok(())
+    }
     /// Import-only validation: one owned folder and no native-save association.
     pub(crate) fn native_validation_import_auxiliary_inventory(&self) -> Result<(i64, i64, i64)> {
         Ok(self.journal.db.query_row(

@@ -251,7 +251,23 @@ fn fuse_journal_binding(
         None
     };
     let inventory = journal.native_validation_working_inventory()?;
-    working_inventory_binding(association.as_ref(), inventory)?;
+    if inventory == (2, 1) {
+        let actual = association
+            .as_ref()
+            .context("owned FUSE detached association missing")?;
+        ensure!(
+            actual.4.is_some(),
+            "owned FUSE detached canonical bytes missing"
+        );
+        journal.native_validation_detached_original(
+            plan.save.context("owned FUSE detached save missing")?,
+            actual.0,
+            actual.1,
+        )?;
+        working_inventory_binding(association.as_ref(), (inventory.0 - 1, inventory.1 - 1))?;
+    } else {
+        working_inventory_binding(association.as_ref(), inventory)?;
+    }
     Ok((rows, parent, current, backup, association, inventory))
 }
 fn working_inventory_binding(

@@ -1,0 +1,49 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ndfc7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/ndfc7v1",
+  "active_measurement": false,
+  "actual_root_tool_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-complete-check-v1/root-actual-tool-terminal-v1.json",
+    "sha256": "128f7687fccfa5e8dbbad711b5229db97d5e708c256d56ebd1c35e65aa2b9d42",
+    "size": 597
+  },
+  "arms": [
+    "One full scripts/check.sh; no --fast"
+  ],
+  "assessment": {
+    "Root_source_equivalence": true,
+    "completion_appended_after_check": true,
+    "new_named_tests_executed": 2,
+    "rust_result_groups": 87,
+    "sections": 10,
+    "source_count": 571,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-complete-check-v1/terminal-v1.json",
+      "sha256": "5802db374940d1ff29127f91647f04da3faa5430e6d81f46288feea2adb3187a",
+      "size": 179671
+    }
+  },
+  "cleanup_allowance_seconds": 10,
+  "compile_checkout": "/home/dandiccf/Storage/cirrove-numbers-atomic-postflight-reader-20261007-v1",
+  "date": "2026-10-07",
+  "endpoint": "Exit0, all ten sections, both new test names, all Rust result groups green, original owner closure and identical final source/document maps.",
+  "expected_seconds": 1800,
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "independent_audit": {
+    "passed": 21,
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-complete-check-v1/audit-independent-complete-check-v1.json",
+    "sha256": "4da48e2c59dbc1e75e55ea23876e149f3d2deecba8e28328d039f0139d22ec17",
+    "size": 6682,
+    "total": 21
+  },
+  "installed_actions": false,
+  "maximum_seconds": 5400,
+  "maximum_seconds_meaning": "5400 active child seconds plus bounded10 cleanup; actual child890.351037seconds",
+  "prediction": "All ten check sections pass, both new named controls execute, and formatted571 sources stay identical in Root and the isolated compile checkout.",
+  "provider_actions": false,
+  "question": "Does the exact adopted validation-only detached-original fix pass the complete contributor check without changing production contracts?",
+  "status": "complete_check_passed",
+  "version": 1
+}

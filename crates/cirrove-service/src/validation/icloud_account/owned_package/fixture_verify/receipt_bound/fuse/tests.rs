@@ -85,6 +85,14 @@ fn fixture(
     native: bool,
     retired: bool,
 ) -> (tempfile::TempDir, FuseRegistration, UploadJournal) {
+    fixture_mode(save, native, retired, false)
+}
+fn fixture_mode(
+    save: bool,
+    native: bool,
+    retired: bool,
+    atomic: bool,
+) -> (tempfile::TempDir, FuseRegistration, UploadJournal) {
     let (temp, sources) = sources();
     let (old, mut parent, _, _, old_rows) = super::super::tests::fixture();
     let mut plan = FuseRegistration {
@@ -203,16 +211,39 @@ fn fixture(
                 .publish_native_working(hydration.validate(&CancellationToken::new()).unwrap())
                 .unwrap();
             plan.working = Some(file.id);
-            j.truncate_working(file.id, 0).unwrap();
-            j.write_working(file.id, 0, &std::fs::read(&plan.source_b.path).unwrap())
+            if atomic {
+                let temporary = j
+                    .create_native_temporary(file.id, ".atomic-save".into())
+                    .unwrap();
+                j.write_working(
+                    temporary.id,
+                    0,
+                    &std::fs::read(&plan.source_b.path).unwrap(),
+                )
                 .unwrap();
-            let captured = j
-                .capture_native_working(file.id)
-                .unwrap()
-                .capture(&CancellationToken::new())
-                .unwrap();
-            j.seal_captured_native_working(captured, &CancellationToken::new())
-                .unwrap()
+                j.sync_native_temporary(temporary.id).unwrap();
+                let captured = j
+                    .capture_native_temporary(temporary.id, file.id)
+                    .unwrap()
+                    .capture(&CancellationToken::new())
+                    .unwrap();
+                let queued = j
+                    .replace_native_temporary(captured, &CancellationToken::new())
+                    .unwrap();
+                plan.working = Some(temporary.id);
+                queued
+            } else {
+                j.truncate_working(file.id, 0).unwrap();
+                j.write_working(file.id, 0, &std::fs::read(&plan.source_b.path).unwrap())
+                    .unwrap();
+                let captured = j
+                    .capture_native_working(file.id)
+                    .unwrap()
+                    .capture(&CancellationToken::new())
+                    .unwrap();
+                j.seal_captured_native_working(captured, &CancellationToken::new())
+                    .unwrap()
+            }
         } else {
             j.enqueue_validated_package_replacement(
                 plan.receipt_plan().scope(),
@@ -484,4 +515,92 @@ fn owned_fuse_association_refuses_detached_owner_and_changed_original() {
     assert!(working_inventory_binding(None, (1, 0)).is_err());
     assert!(working_inventory_binding(actual.as_ref(), (2, 0)).is_err());
     assert!(working_inventory_binding(actual.as_ref(), (1, 1)).is_err());
+}
+
+#[test]
+fn owned_fuse_atomic_detached_original_is_verified_without_replay() {
+    let (temp, plan, j) = fixture_mode(true, true, false, true);
+    let journal = ro(&temp, &plan, j);
+    assert_eq!(
+        journal.native_validation_working_inventory().unwrap(),
+        (2, 1)
+    );
+    let association = journal
+        .native_validation_fuse_association(plan.save.unwrap())
+        .unwrap();
+    assert!(working_inventory_binding(association.as_ref(), (2, 1)).is_err());
+    let result = fuse_journal_binding(&plan, &journal);
+    assert!(result.is_ok(), "exact retained atomic original refused");
+    assert_eq!(
+        result.unwrap().5,
+        (2, 1),
+        "raw inventory must remain observable"
+    );
+}
+#[test]
+fn owned_fuse_atomic_detached_original_refuses_changed_provenance_and_bytes() {
+    for arm in 0..9 {
+        let (temp, plan, j) = fixture_mode(true, true, false, true);
+        drop(j);
+        let db = rusqlite::Connection::open(temp.path().join("journal/uploads.db")).unwrap();
+        let old: String = db
+            .query_row(
+                "SELECT previous_working FROM native_working_transfers",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        match arm {
+            0 => {
+                db.execute("UPDATE working_files SET body=json_set(body,'$.dirty',json('true')) WHERE id=?1", [&old]).unwrap();
+            }
+            1 => {
+                db.execute(
+                    "UPDATE native_detached_streams SET owner=?1",
+                    [Uuid::new_v4().to_string()],
+                )
+                .unwrap();
+            }
+            2 => {
+                db.execute(
+                    "UPDATE native_working_transfers SET successor=?1",
+                    [Uuid::new_v4().to_string()],
+                )
+                .unwrap();
+            }
+            3 => {
+                db.execute(
+                    "UPDATE native_working_transfers SET predecessor=?1",
+                    [Uuid::new_v4().to_string()],
+                )
+                .unwrap();
+            }
+            4 => {
+                db.execute("UPDATE namespace_objects SET body=json_set(body,'$.follows_remote',json('true')) WHERE id=?1", [&old]).unwrap();
+            }
+            5 => {
+                db.execute("UPDATE native_detached_streams SET binding=json_set(binding,'$.source.etag','changed')", []).unwrap();
+            }
+            6 => {
+                let path = temp.path().join("journal/working").join(&old);
+                let mut bytes = std::fs::read(&path).unwrap();
+                bytes[0] ^= 1;
+                std::fs::write(path, bytes).unwrap();
+            }
+            7 => {
+                db.execute("DELETE FROM native_detached_streams", [])
+                    .unwrap();
+            }
+            _ => {
+                db.execute("UPDATE namespace_objects SET body=json_set(body,'$.node.parent_id','foreign') WHERE id=?1", [&old]).unwrap();
+            }
+        }
+        drop(db);
+        let journal =
+            RecoveryJournal::open(&temp.path().join("journal"), &plan.account.to_string()).unwrap();
+        assert!(
+            fuse_journal_binding(&plan, &journal).is_err(),
+            "detached arm {arm} accepted"
+        );
+    }
 }

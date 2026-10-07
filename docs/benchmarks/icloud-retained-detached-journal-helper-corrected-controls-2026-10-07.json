@@ -1,0 +1,69 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfch7v3",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfch7v3",
+  "active": false,
+  "active_measurement": false,
+  "endpoint": "One actual assertion RED101, six GREEN tests, actual normal CargoJSON-selected ELF and all original command owners closed",
+  "failed_predecessor": {
+    "classification": "compile_error_Member_missing_Debug",
+    "closure": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v2/owned-command-closure-v1.json",
+      "sha256": "a8b01c8289275b05878dbd390d15ffd870057c9473a523fad63e566cb72ef410",
+      "size": 1594
+    },
+    "compiler_stderr": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v2/direct-reader-RED-stderr.log",
+      "sha256": "aebfceab7a67bb27ba114d2a8a6258f0a9a7b9aa3639e5af98d22a32acbebb15",
+      "size": 2096
+    },
+    "desired_RED_proved": false,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v2/terminal-v1.json",
+      "sha256": "5d976f73b0b0621970159b19319db10af9cb9e0b9998ce3027ec664ae2ec8b68",
+      "size": 3991
+    },
+    "tests_executed": 0
+  },
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "maximum_seconds_per_child": 1200,
+  "normal_source_count": 571,
+  "prediction": "Actual direct-reader omission fails input preservation after SQLite creates SHM; six finalV6 controls pass with detached journal observers and unchanged input. No real backup, provider, credentials or installed state is opened",
+  "private_copy_unmodified": true,
+  "provider_actions": false,
+  "question": "Does the actual normal-source detached recovery-only clone verifier observe committed WAL rows without changing retained journal files?",
+  "real_retained_clone_run": false,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v3/registration-v1.json",
+    "sha256": "c385cd964d241c24c9e9c53fd104a862830674d5149a700e17a8bf118759e5e1",
+    "size": 338892
+  },
+  "root_head": "b498af7d3b363b4e0bb255fad336a029aed3d7fb",
+  "status": "closed_local_controls_success",
+  "vault_actions": false,
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v3/terminal-v1.json",
+    "size": 9255,
+    "sha256": "147ddf8eca50737de349650a5ca4dbf470fcbf52fdb599c956612d0db0cd8df7"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v3/owned-command-closure-v1.json",
+    "size": 3107,
+    "sha256": "0d248c29fe38d9be302a6aca70c4a17c06995df63bc89d27fa01e6d8bff08624"
+  },
+  "actual_scope": "One actual committed-WAL/input-preservation assertion RED and six final V6 unit controls plus normal frozen ELF; no real retained clone or daemon run.",
+  "actual_controls": {
+    "RED": 1,
+    "GREEN": 6
+  },
+  "independent_terminal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v3/audit-independent-terminal-v1.json",
+    "size": 7258,
+    "sha256": "ab7b2a9414d3bdf729231a6a1d6ad0bce5cd9ad385713dc5e9709bb3e4f95088"
+  },
+  "independent_passed": 12,
+  "independent_total": 12,
+  "gate488_closed": false
+}

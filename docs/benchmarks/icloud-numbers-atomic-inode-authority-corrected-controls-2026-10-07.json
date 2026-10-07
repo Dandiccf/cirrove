@@ -1,0 +1,60 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/na337c8v3",
+  "TMPDIR": "/home/dandiccf/Storage/ct/na337c8v3",
+  "active": false,
+  "active_measurement": false,
+  "cloud_mutations": 0,
+  "correction": "Test fixture connect argument renamed filename to accept actual SQLite uri keyword; V8 controller and worker unchanged; prior real V7 RED/same V8 GREEN preserved.",
+  "endpoint": "One exact selected FD/path assertion RED, sameGREEN and actual26 local AST/source controls; all original command handles closed",
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "predecessor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v1/terminal-v1.json",
+    "sha256": "58dd4b7b3f7dec869adbf343aab7f9bc59b5f9db3e11501a5ef057fabbb09d07",
+    "size": 5704
+  },
+  "prediction": "The actual old-worker guard fails same FD101/path202 positive; exact own-key V8 passes it and all26 controls, including all prior20 and foreign/missing/owner/frontier negatives. No FUSE/provider actions occur.",
+  "provider_actions": false,
+  "question": "Does the exact native archive/local inode-key guard admit legitimate post-hydration lookup while refusing foreign inode and changed authority?",
+  "real_atomic_run": false,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v3/registration-v1.json",
+    "sha256": "2ba37c85fce4491c68daf148e9fa9b9044ae33fce7a222de6eb651e54168f5dc",
+    "size": 77809
+  },
+  "status": "closed_local_controls_success",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v3/terminal-v1.json",
+    "size": 2090,
+    "sha256": "844b853a834691533e1961b43f9942b100f98459570c1f656d0f09f8f50ed304"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v3/owned-command-closure-v1.json",
+    "size": 460,
+    "sha256": "eff871c8eb61d4eceb1fa939155f62252afe6e62bd2f6c390e47db36f1c6f6c1"
+  },
+  "actual_prior_RED": 1,
+  "prior_same_GREEN": 1,
+  "actual_this_attempt_GREEN_suite": 26,
+  "prior_fixture_error": "Original full26 had25 passes and one connect(uri,uri=True) mock error; fixture only renamed positional parameter filename.",
+  "intermediate_predispatch_failure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v2/recovery-predispatch-assessment-v1.json",
+    "size": 573,
+    "sha256": "7d8d08b1cce64cc22412c9948a64ac8a3f9f067d6abcffc309483d04d1f5748e"
+  },
+  "controller_worker_unchanged": true,
+  "independent_source_admission": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-v8-source-admission-v1.json",
+    "size": 3366,
+    "sha256": "4999c919df0b8f11030f9d513ab7d029be659786a81b5d16d91c48368efee5dc"
+  },
+  "independent_source_passed_checks": 13,
+  "independent_actual_inodes_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-inode-controls-v1.json",
+    "size": 11267,
+    "sha256": "cc342c9b46d41ba2cac5d2d04df70e49c63d18f17702c9c77141db69fb931371"
+  },
+  "independent_actual_passed_checks": 33
+}

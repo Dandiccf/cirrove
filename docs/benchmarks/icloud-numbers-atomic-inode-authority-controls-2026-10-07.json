@@ -1,0 +1,32 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/na337c8v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/na337c8v1",
+  "active": false,
+  "active_measurement": false,
+  "cloud_mutations": 0,
+  "endpoint": "One exact selected FD/path assertion RED, sameGREEN and actual26 local AST/source controls; all original command handles closed",
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "prediction": "The actual old-worker guard fails same FD101/path202 positive; exact own-key V8 passes it and all26 controls, including all prior20 and foreign/missing/owner/frontier negatives. No FUSE/provider actions occur.",
+  "provider_actions": false,
+  "question": "Does the exact native archive/local inode-key guard admit legitimate post-hydration lookup while refusing foreign inode and changed authority?",
+  "real_atomic_run": false,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v1/registration-v1.json",
+    "sha256": "ab57d3870eee9a0a5e8dfd63aa66d98f48e59dfa36c242698ad357237a3c4fdf",
+    "size": 79516
+  },
+  "status": "closed_failure",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v1/terminal-v1.json",
+    "size": 5704,
+    "sha256": "58dd4b7b3f7dec869adbf343aab7f9bc59b5f9db3e11501a5ef057fabbb09d07"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-inode-controls-v1/owned-command-closure-v1.json",
+    "size": 1296,
+    "sha256": "75cf7863b0ad74b937a6c8f8f8a1f84a248aeb40e6f7b468c1c292b51f1385e6"
+  }
+}

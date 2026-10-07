@@ -4275,3 +4275,38 @@ development checkout after the original check finished; its final source hashes
 match the compile checkout. These are synthetic validation and source checks.
 The genuine Keynote DATA cloud case, its normal remount and Apple reopening remain
 pending. No installed service changed and no full-iCloud acceptance criterion closed.
+
+### Numbers PACKAGE atomic save on 7 October 2026
+
+The [once-only atomic-save trial](benchmarks/icloud-numbers-package-atomic-save-2026-10-07-33711731-75c5-4d9e-bc26-aa385cab9748.json)
+created one owned folder, imported A and replaced it with B through a native
+temporary-file write, fsync and rename on the normal FUSE mount. The public save
+completed, a held reader retained A, the canonical stream read B, and a clean
+fsync produced no additional operation. The controller nevertheless exited with
+a verification failure: it incorrectly required the current B metadata index to
+equal the immutable original A hydration binding. The failed overall trial is
+retained; its writer has not been replayed.
+
+The [validation-only reader correction](benchmarks/icloud-numbers-atomic-detached-reader-controls-2026-10-07.json)
+admits the clean detached original stream only after checking its exact atomic
+transfer, original receipt, scope, owner, revision and complete archive digest.
+The canonical inventory predicate remains strict. Removing this handling caused
+the intended one-test assertion failure; restoring it passed the same test and
+all ten receipt-bound FUSE tests, including changed-provenance and byte-tamper
+refusals. The isolated build audit passed 36/36 checks. No mutation, schema or
+normal filesystem behavior changed.
+
+A [fresh separate read-only observation](benchmarks/icloud-numbers-atomic-postflight-read-2026-10-07-60fc4036-f746-4f74-a796-052cd70d276a.json)
+then verified full semantic V2 current B and the exact original A in Trash.
+Its independent audit passed 28/28, including receipt and revision bindings,
+original process closure, source provenance and preservation of the installed
+daemon and all nineteen installed artifacts. The original 600-second window and
+45-second cleanup reserve were retained. No provider mutation or writer replay
+occurred. Provider ZIP encodings differ from local source ZIPs; full content-tree
+identity establishes the A/B comparisons.
+
+This supports one bounded archive-copy atomic replacement and independent
+current/Trash readback. A fresh normal read-only remount and exact-receipt Apple
+Numbers reopen for this case remain pending. It does not establish native Linux
+Numbers editing, repeatability, installed acceptance or the complete application
+matrix. Acceptance row 487 remains open and installed delivery remains on HOLD.

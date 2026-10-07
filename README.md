@@ -254,6 +254,14 @@ the expected replacement values and formula. The
 [registered result](docs/benchmarks/icloud-numbers-fuse-save-confirmation-2026-10-04.json)
 records the precise scope and retained evidence.
 
+A [new Numbers PACKAGE atomic-save trial](docs/benchmarks/icloud-numbers-package-atomic-save-2026-10-07-33711731-75c5-4d9e-bc26-aa385cab9748.json)
+completed one temporary-file write, flush and rename through FUSE, preserving a
+held reader of the original. Its controller stopped at a local verification
+error after the upload completed. A [separate read-only verification](docs/benchmarks/icloud-numbers-atomic-postflight-read-2026-10-07-60fc4036-f746-4f74-a796-052cd70d276a.json)
+confirmed the complete replacement content and exact original in Trash without
+repeating the write. This archive-copy trial still needs its own fresh read-only
+remount and Apple reopen; it does not establish native Linux editor fidelity.
+
 The [subsequent Numbers DATA trial](docs/benchmarks/icloud-numbers-data-revision-confirmation-2026-10-04.json)
 created a genuine Apple export as an ordinary file through FUSE. An independent
 reader confirmed its actual DATA representation and exact original bytes before
