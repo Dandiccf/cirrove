@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "run": "a0c382a4-5179-4bb6-8bb3-17094f7a8b18",
+  "status": "closed_Apple_Keynote_open_and_reload_passed",
+  "active_measurement": false,
+  "question": "Does the exact receipt-ID Keynote replacement current B open and survive one reload in Apple Keynote with the registered genuine B title/subtitle?",
+  "prediction": "Unique actual Drive DOM row matches exact current B item ID, parent and name; one observed Open follows to Apple Keynote and genuine B title/subtitle remain after one reload.",
+  "endpoint": "Actual receipt-ID row and observed Apple navigation; visible one-slide B title/subtitle before and after one reload. No edit/upload or fallback guessed URL.",
+  "maximum_seconds": 600,
+  "automatic_retries": 0,
+  "read_only": true,
+  "no_cloud_mutation": true,
+  "subject_run": "3d901c2b-da25-4874-8785-38553e51a628",
+  "RO_remount_run": "f9923c49-8495-4f6e-93b6-e5ac58e17838",
+  "RO_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-ro-remount-f9923c49-8495-4f6e-93b6-e5ac58e17838/root-terminal-result.json",
+    "size": 799,
+    "sha256": "deabae2e06ff4914ffe3341deedae79fb65834282b9939a0ea97494371284275"
+  },
+  "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-apple-reopen-a0c382a4-5179-4bb6-8bb3-17094f7a8b18",
+  "full487_closed": false,
+  "installed_delivery": "HOLD",
+  "limits": [
+    "One presentation/representation only; no broader editor, DATA, export, installed or full-iCloud acceptance.",
+    "Browser UI is the observer; no hidden application state or fetch injection."
+  ],
+  "original_window": {
+    "run": "a0c382a4-5179-4bb6-8bb3-17094f7a8b18",
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "started_unix": 1791331963.844745,
+    "deadline_unix": 1791332563.844745,
+    "started_monotonic": 356590.967824557,
+    "deadline_monotonic": 357190.967824557,
+    "maximum_seconds": 600
+  },
+  "outcome": {
+    "version": 1,
+    "run": "a0c382a4-5179-4bb6-8bb3-17094f7a8b18",
+    "success": true,
+    "elapsed_seconds": 127.64380129601341,
+    "exact_receipt_drive_id_verified": true,
+    "own_parent_verified": true,
+    "once_open_observed_route": true,
+    "one_reload_same_B": true,
+    "visible_title": "Cirrove Keynote B bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+    "visible_subtitle": "Owned genuine editor replacement source B",
+    "slides": 1,
+    "visual_observer": "Root screenshot inspection",
+    "edits": 0,
+    "uploads": 0,
+    "automatic_retries": 0,
+    "own_tabs_closed": true,
+    "full487_closed": false
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-apple-reopen-a0c382a4-5179-4bb6-8bb3-17094f7a8b18/root-ui-terminal-result.json",
+    "size": 2601,
+    "sha256": "af40ecc2f9726daf5a729ec162b892ac521a110efe8ee821036bc38029dd3f5c"
+  },
+  "screenshots": {
+    "drive-row.png": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-apple-reopen-a0c382a4-5179-4bb6-8bb3-17094f7a8b18/drive-row.png",
+      "size": 60206,
+      "sha256": "f66eadb5a0471bed4af71e7caa2c57f3adc73cb4f6f6d79a79b70c6301211bb5"
+    },
+    "apple-before-reload.png": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-apple-reopen-a0c382a4-5179-4bb6-8bb3-17094f7a8b18/apple-before-reload.png",
+      "size": 140643,
+      "sha256": "745e51dd7f7f9c5c225af7c1a83c9051224e160e908477e0c9609719708987ba"
+    },
+    "apple-after-reload.png": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-apple-reopen-a0c382a4-5179-4bb6-8bb3-17094f7a8b18/apple-after-reload.png",
+      "size": 140643,
+      "sha256": "745e51dd7f7f9c5c225af7c1a83c9051224e160e908477e0c9609719708987ba"
+    }
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-apple-reopen-a0c382a4-5179-4bb6-8bb3-17094f7a8b18/audit-independent-apple-keynote-reopen-v2.json",
+    "size": 9433,
+    "sha256": "398dca8bbc8c21fc7c86309925f363b6dbab2af8ede6b8fadf9de48899da6e77",
+    "passed": 32,
+    "total": 32
+  },
+  "screenshot_encoding": {
+    "actual_media_type": "image/jpeg",
+    "historical_filenames": "*.png retained byte-exact; no conversion or image edit.",
+    "dimensions": [
+      2376,
+      1157
+    ],
+    "before_and_after_bytes_equal": true,
+    "scope": "Visible B content confirmed independently on both retained screenshots; distinct open/reload actions are recorded in the Root CUA receipts, not inferred from identical pixels."
+  },
+  "local_browser_guard_correction": "Apple redirects the actual receipt-ID docws route to an opaque Keynote route on the same opened tab. The initial overstrict loaded-URL assertion refused before reload; verification then used the captured initial route, same-tab navigation and visible B content. No second Open or cloud replay."
+}

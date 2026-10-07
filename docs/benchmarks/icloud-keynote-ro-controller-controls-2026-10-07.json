@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "status": "closed_local_controls_passed",
+  "active_measurement": false,
+  "question": "Do the private read-only Keynote controls preserve exact endpoint authority across legitimate directory refresh and reject malformed host receipts, unsafe capture and cancellation?",
+  "registered_controls": {
+    "coordinate_and_host": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/ro-controls-preregistration-v1.json",
+      "size": 4720,
+      "sha256": "8b916a54a5476613d329104fe92e4d1d8cedbd3fa3269f9812a399b4d1797cf1"
+    },
+    "cancellation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/ro-cancellation-controls-preregistration-v1.json",
+      "size": 4833,
+      "sha256": "1cc3953a6959caffb6aa1885bd82f5a4741c83f6b3f10212dc4bd39b33a182d4"
+    }
+  },
+  "result": {
+    "coordinate_and_host": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/ro-controls-result-v1.json",
+      "size": 3736,
+      "sha256": "7551d92dab29b61aa2cb6f8603ad9428bf93f99bfa1ef4ec5029b7f544bcadf6"
+    },
+    "cancellation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/ro-cancellation-controls-result-v1.json",
+      "size": 2386,
+      "sha256": "09795b17bbe233e680ec377fa2ba1c897aaaf41162f0b9ced01afc300cbf5258"
+    }
+  },
+  "baseline": {
+    "coordinate_equality": "One intended failure under historical V1 when only the local directory counter changed.",
+    "host_check_shape": "One intended failure under V2 on the actual retained 73-check list.",
+    "cancellation": "One intended failure under V3 for missing active cancellation handler."
+  },
+  "corrected": {
+    "supervisor_v3_capture_v2": 17,
+    "supervisor_v4_capture_v2": 18,
+    "all_passed": true,
+    "original_python_runners_closed": 5
+  },
+  "scope": "Source-selected Python AST controls with mocked provider/process/mount/status/signal collaborators; full actual admission only reads pinned source, receipts, binary metadata, installed baseline and mount/proc metadata. No provider or candidate daemon invocation.",
+  "scanner": {
+    "source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/captured_keynote_v2.rs",
+      "sha256": "3660363480924e3773d30e0ae22b4cc4c983ff286e843d0490e74883624a5d20",
+      "size": 2464
+    },
+    "binary": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/scanner-build-controls-v1/captured-keynote-v2",
+      "sha256": "11422ac260539cd9d810d3811b38075ec5f0336da257e9f12d8c6fedbd834621",
+      "size": 161195592
+    },
+    "compile_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/scanner-build-controls-v1/compile-registration.json",
+      "sha256": "2bb98ef59e01be5e965b93117cd5a05bd521e4329c390ccba88aeec00bcf6f14",
+      "size": 2281
+    },
+    "compile_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/scanner-build-controls-v1/compile-result.json",
+      "sha256": "e53573e379e4858548c8fd0b5b3924c9afa12e05d5e6848664ffb40b91d48e09",
+      "size": 672
+    },
+    "controls_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/scanner-build-controls-v1/controls-result.json",
+      "sha256": "607325d65473d457db3f39c2cfac36a9415cd7e4de73d17da11b3ab0870d66d8",
+      "size": 4202
+    },
+    "controls_passed": 5,
+    "cases": [
+      "genuine native A",
+      "genuine native B",
+      "wrong raw digest refused",
+      "wrong package root refused",
+      "changed member with recomputed raw digest refused"
+    ],
+    "explicit_changed_member_argv_annex": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/scanner-build-controls-v1/changed-member-explicit-v2-result.json",
+      "size": 747,
+      "sha256": "c4552d3b64e633dfce5c46479b49359e5a001250ec02b96582e9bca6d587e366"
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-readonly-remount-preparation-private-v1/scanner-build-controls-v1/audit-regression-review-scanner-controls-v2.json",
+      "size": 18954,
+      "sha256": "b445b85acbd005068f65dee4a5f18f3ff0e573374a03e6705be45e2b8b477e6d",
+      "passed": 53,
+      "total": 53
+    }
+  },
+  "preserved_local_prepare_failure": {
+    "run": "f9923c49-8495-4f6e-93b6-e5ac58e17838",
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-ro-remount-f9923c49-8495-4f6e-93b6-e5ac58e17838/prepare-result.json",
+      "size": 171,
+      "sha256": "ab18c319a523434017dba48c8e91d5769ba30964723f6f3f01e79badadd66ef0"
+    },
+    "cause": "V2 incorrectly assumed the retained host check receipt was a dictionary rather than a list.",
+    "clock_started": false,
+    "provider_dispatched": false,
+    "repaired_prepare_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-ro-remount-f9923c49-8495-4f6e-93b6-e5ac58e17838/prepare-v2-result.json",
+      "size": 214,
+      "sha256": "25d238e17f89933fd237e41c5f991d631ccdb92077bc323baf9049779d95a73a"
+    }
+  },
+  "outer_review": "V1/V2 retained; V3 validates source before import, immediate original active dispatch boundary, cleanup reserve, pidfd natural-exit races and both clocks before signaling. Static peer review; no broad outer fault-injection proof claimed.",
+  "limits": [
+    "These controls are private supervisory checks and supply no real-provider reliability, installed, display or full-iCloud gate acceptance.",
+    "Scanner controls are real offline processes; mocked cancellation is not a real daemon-signal trial."
+  ],
+  "runtime_source_changed": false,
+  "installed_actions": false,
+  "full487_closed": false
+}

@@ -118,6 +118,26 @@ async fn finished(engine: &crate::engine::Engine, id: &str) -> Result<crate::job
     })
     .await?
 }
+// A withdrawn engine/expired Weak does not prove its File fields have closed.
+// Match reauthentication's existing bounded acquisition of the actual owner.
+async fn retired_account_owner<F, Fut>(directory: &Path, mut retired: F) -> Result<std::fs::File>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            if retired().await
+                && let Ok(owner) = account_lock(directory)
+            {
+                return Ok::<_, anyhow::Error>(owner);
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .context("actual account owner did not release within the retirement bound")?
+}
 async fn coupled(session_saved: bool) -> Result<()> {
     let root = tempfile::tempdir()?.keep(); // Retain synthetic evidence on failure; no recursive cleanup.
     let state = root.join("state");
@@ -221,19 +241,16 @@ async fn coupled(session_saved: bool) -> Result<()> {
         anyhow::ensure!(!Settings::load(&state)?.accounts[0].enabled,"suspended account enabled before completion");
         // Keep the actual operation lock held; Manager's healer must not
         // undo this live sign-in's disable or hold the retired account owner.
-        tokio::time::timeout(Duration::from_secs(30),async {
-            loop {
-                if old_weak.upgrade().is_none() && manager.engine(&account.label).await.is_err() {break;}
-                tokio::time::sleep(Duration::from_millis(20)).await;
-            }
-        }).await?;
+        let owner=retired_account_owner(&state.join("accounts").join(&account.id),||async {
+            old_weak.upgrade().is_none() && manager.engine(&account.label).await.is_err()
+        }).await.context("retired Manager account owner acquisition")?;
         anyhow::ensure!(!Settings::load(&state)?.accounts[0].enabled,"suspended account enabled before completion");
-        let owner=account_lock(&state.join("accounts").join(&account.id))?;drop(owner);
         anyhow::ensure!(rows(&journal_root.join("uploads.db"))?==before_rows,
             "Manager retirement normalized retained active authority");
         anyhow::ensure!(std::fs::read(&sealed_path)?==sealed_bytes
             && std::fs::read(&dirty_path)?==dirty_bytes,
             "Manager retirement changed sealed or dirty bytes");
+        drop(owner);
         // No fake successful session/provider call: only the persistence
         // result supplied to this existing local completion helper is synthetic.
         let result=complete_icloud_session_save(desired,pending.requested,
@@ -283,8 +300,9 @@ async fn coupled(session_saved: bool) -> Result<()> {
     cancel.cancel();
     tokio::time::timeout(Duration::from_secs(10), task).await??;
     outcome?;
-    let owner = account_lock(&state.join("accounts").join(&account.id))?;
-    drop(owner);
+    let owner = retired_account_owner(&state.join("accounts").join(&account.id), || async { true })
+        .await
+        .context("joined Manager account owner acquisition")?;
     if !session_saved {
         // After the original Manager joins, inspect/export explicitly under
         // the existing read-only owner lease; this is not a public RW job.
@@ -330,6 +348,7 @@ async fn coupled(session_saved: bool) -> Result<()> {
         b"no-FUSE-no-kernel-mount"
     );
     assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    drop(owner);
     Ok(())
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -339,4 +358,73 @@ async fn icloud_reauth_manager_downgrade_keeps_active_sealed_and_dirty_exports()
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn icloud_reauth_manager_failed_save_restores_mode_and_retained_exports() -> Result<()> {
     coupled(false).await
+}
+
+#[tokio::test]
+async fn icloud_reauth_manager_owner_acquisition_waits_for_actual_release() -> Result<()> {
+    use std::future::Future;
+    use std::task::{Poll, Waker};
+
+    let root = tempfile::tempdir()?.keep();
+    let directory = root.join("account");
+    crate::private_dir(&directory)?;
+    let account = uuid::Uuid::new_v4().to_string();
+    let journal_root = directory.join("journal");
+    let mut journal = crate::journal::UploadJournal::open(&journal_root, &account, 1024 * 1024)?;
+    let working = journal.create_working(
+        Scope { account, provider: "icloud".into(), collection: "drive".into() },
+        Node {
+            id: "FILE::com.apple.CloudDocs::synthetic-owner-retention".into(),
+            parent_id: Some("FOLDER::com.apple.CloudDocs::root".into()),
+            name: "retained.txt".into(),
+            kind: NodeKind::File,
+            package: false,
+            size: 0,
+            modified_unix: 1,
+            etag: Some("synthetic-revision-1".into()),
+            content_version: None,
+            target: None,
+        },
+        false,
+        &b""[..],
+    )?;
+    journal.write_working(working.id, 0, b"sealed owner retention")?;
+    let sealed = journal.seal_working(working.id)?.context("sealed actual working generation")?;
+    let active = journal.claim_next()?.context("actual active saved attempt")?;
+    assert_eq!(active.id, sealed.id);
+    assert_eq!(active.state, UploadState::Uploading);
+    assert!(active.attempt.is_some());
+    journal.write_working(working.id, 0, b"dirty owner retention")?;
+    let dirty = journal.working_file(working.id)?;
+    assert!(dirty.dirty);
+    assert_eq!(dirty.latest, Some(sealed.id));
+    drop(journal);
+    let before_rows = rows(&journal_root.join("uploads.db"))?;
+    let sealed_path = journal_root.join("objects").join(sealed.id.to_string());
+    let dirty_path = journal_root.join("working").join(dirty.id.to_string());
+    let sealed_bytes = std::fs::read(&sealed_path)?;
+    let dirty_bytes = std::fs::read(&dirty_path)?;
+    let held = account_lock(&directory)?;
+
+    // Controlled boundary: retirement predicates have passed, but the real
+    // filesystem lease is still held. No scheduler sleep supplies the proof.
+    let mut acquiring = Box::pin(retired_account_owner(&directory, || async { true }));
+    let first = acquiring.as_mut().poll(&mut std::task::Context::from_waker(Waker::noop()));
+    assert!(matches!(first, Poll::Pending),
+        "actual account-owner acquisition must remain pending while the lease is held");
+    assert_eq!(rows(&journal_root.join("uploads.db"))?, before_rows);
+    assert_eq!(std::fs::read(&sealed_path)?, sealed_bytes);
+    assert_eq!(std::fs::read(&dirty_path)?, dirty_bytes);
+
+    drop(held);
+    let acquired = tokio::time::timeout(Duration::from_secs(5), acquiring)
+        .await.context("actual owner acquisition after controlled release")??;
+    assert!(account_lock(&directory).is_err(), "returned guard must own the actual filesystem lease");
+    assert_eq!(rows(&journal_root.join("uploads.db"))?, before_rows);
+    assert_eq!(std::fs::read(&sealed_path)?, sealed_bytes);
+    assert_eq!(std::fs::read(&dirty_path)?, dirty_bytes);
+    drop(acquired);
+    let released = account_lock(&directory)?;
+    drop(released);
+    Ok(())
 }

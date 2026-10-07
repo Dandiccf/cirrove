@@ -563,9 +563,9 @@ The full-iCloud count remains one criterion closed and five open.
 The [fresh Keynote source pair](benchmarks/icloud-keynote-edited-source-2026-10-07-bb3eab7e.json)
 now contains two native exports from the same owned Apple presentation, with
 genuine title and subtitle edits between A and B and independently checked
-complete archive contents. Its Cirrove replacement and current/Trash verification have since passed in
-a separately registered live arm. Read-only remount and exact-item Apple reopen
-remain pending.
+complete archive contents. Its Cirrove replacement, current/Trash verification,
+normal read-only remount and exact-item Apple reopen with one reload have since
+passed in separately registered arms. The wider application matrix remains open.
 
 Two [local reauthentication tests](benchmarks/icloud-reauth-manager-retained-state-2026-10-07.json)
 now couple the actual Manager owner retirement and relaunch to unchanged sealed
@@ -577,8 +577,8 @@ The feature-only [Keynote replacement observer](benchmarks/icloud-keynote-replac
 now verifies exact completed-journal authority and independently reads current B
 and original A in Trash. Eleven local controls passed, including four deadline
 checks that failed in a jointly weakened guard-set counterfactual. This provides
-the scoped proof tool used by the fresh live replacement below. Read-only
-remount, exact-item Apple reopen and the five release criteria remain pending.
+the scoped proof tool used by the fresh live replacement below. The five release
+criteria remain open.
 
 The complete [mandatory project check](benchmarks/icloud-keynote-reauth-full-check-2026-10-07.json)
 passed on the unchanged final source, including all thirteen new local controls.
@@ -587,6 +587,21 @@ Display scenarios and the real Keynote replacement remain separate checks.
 A [fresh genuine Keynote replacement](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
 passed in 345.25 seconds: normal public import A and one replacement B, with
 stopped independent full semantic V2 for current B and exact original A in Trash.
-All eight inner and two outer managed processes closed. Read-only remount,
-exact-item Apple reopen and the wider representation/editor matrix remain open;
-the full-iCloud acceptance count is still one closed and five open.
+All eight inner and two outer managed processes closed. A separate
+[normal read-only remount](benchmarks/icloud-keynote-readonly-remount-2026-10-07-f9923c49.json)
+passed in 15.41 seconds, with the exact complete B semantic tree and unchanged
+source state, journal frontier, runtime source and installed artifacts.
+[Apple Keynote then opened the exact receipt-bound item](benchmarks/icloud-keynote-apple-reopen-2026-10-07-a0c382a4.json)
+and retained the one-slide B title and subtitle after one reload, with no edits.
+This bounded PACKAGE case supports rows 486 and 487. DATA, ordinary/atomic
+editor workflows, broader export fidelity and installed acceptance remain open;
+the full-iCloud count stays one closed and five open, with installed delivery on HOLD.
+
+The [reauthentication owner-readiness correction](benchmarks/icloud-reauth-owner-readiness-ci-2026-10-07.json)
+addresses a premature lock probe in the test module after the Linux CI job
+failed. The controlled old algorithm failed its intended assertion; the same
+corrected control and all three coupled tests passed. The complete
+`scripts/check.sh` then passed in 574.77 seconds with 87 Rust test groups, scripts,
+ledger and docs, preserving all 566 final-source hashes. Production sign-in
+policy is unchanged; the historical CI interleaving remains unidentified.
+Display, real session and installed acceptance remain separate.

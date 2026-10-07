@@ -10,6 +10,19 @@ full iCloud support is not yet achieved.
 See [application evidence](benchmarks/icloud-real-applications-acceptance-2026-10-01.md)
 and [selected-file admission](benchmarks/icloud-selected-write-admission-2026-10-01.md).
 
+The latest [genuine Keynote PACKAGE replacement](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
+completed normal CLI import A and one replacement by Apple-edited B. Stopped
+independent full semantic V2 reads verified current B and exact original A in
+Trash. A separate [normal read-only remount](benchmarks/icloud-keynote-readonly-remount-2026-10-07-f9923c49.json)
+returned complete B before any Apple opening; [Apple Keynote then opened that
+exact receipt-bound item](benchmarks/icloud-keynote-apple-reopen-2026-10-07-a0c382a4.json)
+and retained its one-slide B title and subtitle after one reload, with no edits.
+The original managed processes closed and protected source/installed artifacts
+remained unchanged. This is one bounded PACKAGE workflow, with no claim for
+DATA coverage, ordinary/atomic editor saves, broader export fidelity or repeated
+reliability. Full-iCloud acceptance stays one closed and five open; installed
+delivery remains on HOLD.
+
 ## Document packages remain a release gate
 
 Google native Docs/Sheets are deliberately projected as read-only export folders
@@ -3808,3 +3821,11 @@ passing and all 563 source hashes unchanged. Both independent live-case audits
 also passed: sixteen bounded provider-proof checks and 96 terminal/closure
 checks. Display scenarios, installed migration and full-iCloud acceptance
 remain separate.
+
+
+The [owner-readiness test correction](benchmarks/icloud-reauth-owner-readiness-ci-2026-10-07.json)
+requires the actual account lease to release, alongside Manager withdrawal,
+before inspecting retained edits or completing simulated sign-in. A controlled
+held lease showed the intended old-algorithm failure; the restored control,
+three coupled tests and complete project check passed. This changes test
+synchronization, with no new live reauthentication or installed claim.

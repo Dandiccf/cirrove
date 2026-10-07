@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "status": "closed_check_passed",
+  "active_measurement": false,
+  "question": "Does reauthentication test readiness require the actual filesystem owner to release while preserving active sealed and dirty authority?",
+  "prediction": "The old one-shot owner probe yields exactly one intended Pending assertion failure with the actual lease held. Corrected readiness stays Pending then acquires the actual guard after controlled release; all three retained-coupling tests and complete scripts/check.sh pass.",
+  "arms": [
+    "old-readiness algorithm counterfactual, exact selected control",
+    "restored same selected control",
+    "restored all3 module tests",
+    "complete scripts/check.sh from beginning on final source"
+  ],
+  "endpoint": "Actual desired1RED and same1GREEN, module3GREEN, complete project check, all original runners closed and final source restored.",
+  "temporary_directory": "/home/dandiccf/Storage/cirrove-tmp/reauth-owner-readiness-20261007",
+  "filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007",
+  "base_head": "f6abb575e2b4905cb31d3c0901fbf5bc3fb8d01f",
+  "failed_CI": {
+    "run": 37549304461,
+    "linux": "failure",
+    "other_jobs": 6,
+    "failure_test": "accounts::tests::reauth_manager_retained_coupling::icloud_reauth_manager_downgrade_keeps_active_sealed_and_dirty_exports",
+    "failure": "Cirrove account is still stopping",
+    "site": "Original two positive acquisition sites were not distinguished; historical interleaving remains unproven.",
+    "preceding_source_CI": {
+      "run": 37547645054,
+      "conclusion": "cancelled"
+    }
+  },
+  "correction_scope": "Test module only; production owner lock and reauthentication policy unchanged. Retirement requires both existing Manager/Weak predicates and actual account owner acquisition; postjoin uses actual owner and checks retained evidence under its lease.",
+  "controlled_failure_limit": "The counterfactual reinstates the old retirement-then-one-shot-probe algorithm in the shared test helper. It proves this boundary, not the specific historical CI scheduling.",
+  "no_provider_or_installed_actions": true,
+  "display_scenarios_repeated": false,
+  "full487_closed": false,
+  "full_iCloud_criteria": {
+    "closed": 1,
+    "open": 5
+  },
+  "installed_delivery": "HOLD",
+  "current_phase": "full",
+  "current_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/full-registration.json",
+    "size": 1168,
+    "sha256": "76a8dbde426f4ce70fc8bb6d4b4a130a0f7871772b82aa2e14dc154c499d269a"
+  },
+  "current_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/full-owner.json",
+    "size": 130,
+    "sha256": "116173b7200e1402d75ee50214d74fc36c0644d4c7f37f86ea8b90039d104326"
+  },
+  "outcome": {
+    "success": true,
+    "results": [
+      {
+        "phase": "desired-red",
+        "exit_code": 101,
+        "elapsed_seconds": 11.451994403963909,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/desired-red.log",
+          "size": 1286,
+          "sha256": "9b16a04f123878356371d766c5734beb752e05becf31c5df66aa64e0af14c0d6"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/accounts/reauth_manager_retained_coupling.rs",
+          "size": 20422,
+          "sha256": "8210cb693e15b3e72233163b929a3caadd8c45d741877c3a36922e3661a9d27c"
+        },
+        "success": true,
+        "expected_test_count_verified": true,
+        "desired_failure_verified": true
+      },
+      {
+        "phase": "desired-green",
+        "exit_code": 0,
+        "elapsed_seconds": 7.287503739004023,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/desired-green.log",
+          "size": 557,
+          "sha256": "6c49fa973164b9e5329a109936a9952af8e7a3f5df5d4c75b596994504099e4b"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/accounts/reauth_manager_retained_coupling.rs",
+          "size": 20499,
+          "sha256": "599d1dacd1796ef481c3f3573bc4495f644fbdcbc16308ca4720d9e2db0139dd"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "module-green",
+        "exit_code": 0,
+        "elapsed_seconds": 20.428785285970662,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/module-green.log",
+          "size": 731,
+          "sha256": "a3441d5523b7d23892ece41e7dd649b6e46eecc44c8ba4ce05a19ca1ae825d70"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/accounts/reauth_manager_retained_coupling.rs",
+          "size": 20499,
+          "sha256": "599d1dacd1796ef481c3f3573bc4495f644fbdcbc16308ca4720d9e2db0139dd"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "full",
+        "exit_code": 0,
+        "elapsed_seconds": 574.7681027340004,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/full.log",
+          "size": 290249,
+          "sha256": "3c5d78d77db2e8adf3b288d2c96da1d02d40567ca48e3c8219723654a654239b"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/accounts/reauth_manager_retained_coupling.rs",
+          "size": 20499,
+          "sha256": "599d1dacd1796ef481c3f3573bc4495f644fbdcbc16308ca4720d9e2db0139dd"
+        },
+        "success": true
+      }
+    ],
+    "source_restored": true,
+    "source_count": 566,
+    "all_source_pins_unchanged": true,
+    "all_original_handles_closed": true,
+    "no_provider_or_installed_actions": true
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/root-check-terminal-result.json",
+    "size": 3587,
+    "sha256": "bff8a58d692dcd03e18ad6d4bb8b6bd7a5434bdd08b30e7c0c37dc7d22edfb08"
+  },
+  "completed_validation": {
+    "desired_old_algorithm": "101, exactly1 intended assertion failure",
+    "corrected_same_control": "0, exactly1 pass",
+    "corrected_existing_coupled_module": "0, exactly3 passes",
+    "complete_command": "scripts/check.sh (no --fast)",
+    "full_elapsed_seconds": 574.7681027340004,
+    "completed_Rust_test_groups": 87,
+    "scripts_ledger_and_docs_completed": true,
+    "all566_source_pins_preserved_on_restored_source": true,
+    "all4_original_child_handles_closed": true,
+    "desktop_display_scenarios_repeated": false,
+    "new_CI": "pending subsequent commit",
+    "production_reauthentication_policy_changed": false
+  },
+  "source_evidence": {
+    "before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/source-pins-before.json",
+      "size": 72350,
+      "sha256": "1f31a2d980e31447e17d0404740b801ea723ec7885432b4ab92c3c339850b276"
+    },
+    "after": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/source-pins-after.json",
+      "size": 72350,
+      "sha256": "1f31a2d980e31447e17d0404740b801ea723ec7885432b4ab92c3c339850b276"
+    },
+    "corrected": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/corrected-formatted-source-v1.rs",
+      "size": 20499,
+      "sha256": "599d1dacd1796ef481c3f3573bc4495f644fbdcbc16308ca4720d9e2db0139dd"
+    },
+    "counterfactual": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/counterfactual-formatted-source-v1.rs",
+      "size": 20422,
+      "sha256": "8210cb693e15b3e72233163b929a3caadd8c45d741877c3a36922e3661a9d27c"
+    },
+    "interim_independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/audit-regression-review-controls-interim-v1.json",
+      "size": 8065,
+      "sha256": "a4cacfdabaad279ceb9cb27281ffecb68d902a88d5a217bb47400f6d0ddb3c71",
+      "passed": 26,
+      "total": 26
+    }
+  },
+  "independent_final_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reauth-owner-readiness-checks-20261007/audit-regression-review-controls-and-full-terminal-v3.json",
+    "size": 18597,
+    "sha256": "920f681d200f54560a1783b70685236d80df87b9a0221a84b07071ae1dd3d675",
+    "passed": 48,
+    "total": 48,
+    "installed19_unit_and_daemon_birth_unchanged": true,
+    "no_post_correction_CI_credit": true
+  }
+}

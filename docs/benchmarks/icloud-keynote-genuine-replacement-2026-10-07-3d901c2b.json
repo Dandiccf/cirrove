@@ -108,5 +108,10 @@
     "total": 73,
     "source566_and_installed19_unchanged": true,
     "audit_correction": "Initial reviewer DTO comparison included input-only metadata; corrected exact production Source-field comparison is retained alongside the first audit."
+  },
+  "completed_followup_arms": {
+    "normal_readonly_remount": "docs/benchmarks/icloud-keynote-readonly-remount-2026-10-07-f9923c49.json",
+    "exact_receipt_Apple_Keynote_open_reload": "docs/benchmarks/icloud-keynote-apple-reopen-2026-10-07-a0c382a4.json",
+    "scope": "These separately registered arms passed; the historical replacement outcome above retains its original endpoint. Full487 remains open."
   }
 }
