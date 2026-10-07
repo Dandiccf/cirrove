@@ -466,7 +466,7 @@ pub use receipt_bound::{
     icloud_owned_fuse_source_verify, icloud_owned_keynote_import_receipt_verify,
     icloud_owned_keynote_replacement_receipt_verify, icloud_owned_keynote_source_verify,
     icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
-    icloud_owned_receipt_verify,
+    icloud_owned_pages_replacement_receipt_verify, icloud_owned_receipt_verify,
 };
 
 #[cfg(test)]

@@ -229,7 +229,7 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Development update, 6 October 2026:** iCloud has moved beyond a feasibility
+**Development update, 7 October 2026:** iCloud has moved beyond a feasibility
 study. Cirrove has its own native adapter using Apple's undocumented web
 transport, with no rclone or Stratosync runtime, configuration or credential
 import. Live checks have covered sign-in, directory browsing, on-demand and

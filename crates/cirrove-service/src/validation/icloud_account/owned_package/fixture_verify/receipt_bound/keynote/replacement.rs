@@ -1,6 +1,52 @@
-//! Explicit wrapped Keynote A/B receipt observer; no enqueue, reconcile or mutation.
+//! Explicit wrapped Keynote/Pages A/B receipt observer; no enqueue, reconcile or mutation.
 use super::*;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+// The public entry point selects one of these two implemented contracts. The
+// registration wire has no inferred format or caller-selected format field.
+#[derive(Clone, Copy)]
+enum Format {
+    Keynote,
+    Pages,
+}
+impl Format {
+    fn application(self) -> &'static str {
+        match self {
+            Self::Keynote => "Keynote",
+            Self::Pages => "Pages",
+        }
+    }
+    fn fixture_format(self) -> &'static str {
+        match self {
+            Self::Keynote => "keynote",
+            Self::Pages => "pages",
+        }
+    }
+    fn extension(self) -> &'static str {
+        match self {
+            Self::Keynote => "key",
+            Self::Pages => "pages",
+        }
+    }
+    fn source_root(self) -> &'static str {
+        match self {
+            Self::Keynote => "Source.key",
+            Self::Pages => "Source.pages",
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Self::Keynote => "iCloudKeynoteReplacementValidation",
+            Self::Pages => "iCloudPagesReplacementValidation",
+        }
+    }
+    fn failure(self) -> &'static str {
+        match self {
+            Self::Keynote => "owned Keynote replacement observation refused; no mutation submitted",
+            Self::Pages => "owned Pages replacement observation refused; no mutation submitted",
+        }
+    }
+}
 
 #[derive(Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -43,8 +89,13 @@ fn revision(n: &Node) -> bool {
         })
 }
 impl Plan {
-    fn name(&self) -> String {
-        format!("Cirrove-Keynote-Replacement-{}.key", self.run)
+    fn name(&self, format: Format) -> String {
+        format!(
+            "Cirrove-{}-Replacement-{}.{}",
+            format.application(),
+            self.run,
+            format.extension()
+        )
     }
     // Only the format-neutral settings, parent and typed replacement helpers
     // use this view. Never invoke the historical Numbers validator/import name.
@@ -63,14 +114,18 @@ impl Plan {
             source_b: self.source_b.clone(),
         }
     }
-    fn validate_at(&self, time: u64) -> Result<()> {
+    fn validate_at(&self, time: u64, format: Format) -> Result<()> {
         ensure!(
             self.version == 1
                 && !self.run.is_nil()
                 && !self.account.is_nil()
-                && self.label == "iCloudKeynoteReplacementValidation"
+                && self.label == format.label()
                 && self.session_directory
-                    == format!("/var/tmp/cirrove-keynote-replacement-{}", self.run)
+                    == format!(
+                        "/var/tmp/cirrove-{}-replacement-{}",
+                        format.fixture_format(),
+                        self.run
+                    )
                 && hex_digest(&self.settings_sha256)
                 && !self.parent_creation.is_nil()
                 && !self.import.is_nil()
@@ -88,13 +143,13 @@ impl Plan {
             "owned Keynote replacement registration refused"
         );
         for (source, filename) in [
-            (&self.source_a, "source-a.key"),
-            (&self.source_b, "source-b.key"),
+            (&self.source_a, format!("source-a.{}", format.extension())),
+            (&self.source_b, format!("source-b.{}", format.extension())),
         ] {
             source.semantic.validate()?;
             ensure!(
                 source.path == self.session_directory.join(filename)
-                    && source.root == "Source.key"
+                    && source.root == format.source_root()
                     && source.size > 0
                     && source.size <= LIMIT
                     && hex_digest(&source.sha256)
@@ -106,7 +161,7 @@ impl Plan {
             self.source_a.sha256 != self.source_b.sha256
                 && self.source_a.semantic != self.source_b.semantic
                 && revision(&self.original)
-                && self.original.name == self.name()
+                && self.original.name == self.name(format)
                 && self.original.size == self.source_a.semantic.expanded_bytes,
             "owned Keynote original/source pair refused"
         );
@@ -230,7 +285,7 @@ fn snapshot(path: &Path, account: Uuid) -> Result<Snapshot> {
         publications,
     })
 }
-fn admitted(plan: &Plan, s: &Snapshot) -> Result<(Node, Node, Option<Node>)> {
+fn admitted(plan: &Plan, s: &Snapshot, format: Format) -> Result<(Node, Node, Option<Node>)> {
     let post = plan.phase == Phase::Postflight;
     let count = if post { 2 } else { 1 };
     ensure!(
@@ -278,11 +333,11 @@ fn admitted(plan: &Plan, s: &Snapshot) -> Result<(Node, Node, Option<Node>)> {
         original.intent
             == UploadIntent::Create {
                 parent: parent.id.clone(),
-                name: plan.name()
+                name: plan.name(format)
             }
             && original.representation
                 == UploadRepresentation::PackageArchive {
-                    expected_root: "Source.key".into(),
+                    expected_root: format.source_root().into(),
                     semantic: plan.source_a.semantic.clone()
                 }
             && original.size == plan.source_a.size
@@ -380,10 +435,11 @@ async fn observe(
     path: &Path,
     digest: &str,
     active_end: tokio::time::Instant,
+    format: Format,
 ) -> Result<serde_json::Value> {
     let bytes = read_private(path, 32 * 1024)?;
     let plan: Plan = decode_keynote(&bytes, digest)?;
-    plan.validate_at(now()?)?;
+    plan.validate_at(now()?, format)?;
     ensure!(
         path == plan
             .session_directory
@@ -405,7 +461,7 @@ async fn observe(
     // snapshots/statements below close before session/provider awaits.
     let _lease = RecoveryJournal::open(&journal_path, &account.id)?;
     let state = snapshot(&journal_path.join("uploads.db"), plan.account)?;
-    let (parent, current, backup) = admitted(&plan, &state)?;
+    let (parent, current, backup) = admitted(&plan, &state, format)?;
     let frozen = serde_json::to_vec(&state)?;
     before_dispatch(active_end)?;
     let mut remote = session(&plan.session_directory, &account).await?;
@@ -433,8 +489,8 @@ async fn observe(
         &plan.source_a
     };
     let fixture = serde_json::json!({"version":1,"run":plan.run,"account":plan.account,"session_directory":plan.session_directory,
-        "settings_sha256":plan.settings_sha256,"parent":parent_entry,"document":document,"format":"keynote","representation":"package",
-        "source":source.path,"source_size":source.size,"source_sha256":source.sha256,"source_root":source.root,"expected_root":plan.name(),"semantic":source.semantic});
+        "settings_sha256":plan.settings_sha256,"parent":parent_entry,"document":document,"format":format.fixture_format(),"representation":"package",
+        "source":source.path,"source_size":source.size,"source_sha256":source.sha256,"source_root":source.root,"expected_root":plan.name(format),"semantic":source.semantic});
     let fixture_path = plan
         .session_directory
         .join(format!("{}-fixture.json", plan.stem()));
@@ -446,7 +502,11 @@ async fn observe(
     let mut trash_proof = None;
     if let Some(backup) = &backup {
         let attempt = verification_directory(&plan.session_directory)?;
-        manifest(&attempt, plan.run, "keynote-replacement-Trash-read-only")?;
+        manifest(
+            &attempt,
+            plan.run,
+            &format!("{}-replacement-Trash-read-only", format.fixture_format()),
+        )?;
         let staging = tempfile::tempfile_in(&attempt)?;
         staging.set_permissions(std::fs::Permissions::from_mode(0o600))?;
         before_dispatch(active_end)?;
@@ -460,7 +520,7 @@ async fn observe(
                         .strip_prefix("FILE::com.apple.CloudDocs::")
                         .context("owned Keynote Trash ID refused")?
                         .into(),
-                    expected_root: plan.name(),
+                    expected_root: plan.name(format),
                     semantic: plan.source_a.semantic.clone(),
                 },
                 staging,
@@ -490,7 +550,7 @@ async fn observe(
         matching.next().is_none() && end_parent == parent_entry,
         "owned Keynote parent changed during proof"
     );
-    plan.validate_at(now()?)?;
+    plan.validate_at(now()?, format)?;
     settings(&plan.parent_plan())?;
     source_verified(&plan.source_a)?;
     source_verified(&plan.source_b)?;
@@ -515,27 +575,38 @@ async fn observe(
     })?;
     Ok(result)
 }
-pub async fn icloud_owned_keynote_replacement_receipt_verify(
+async fn verify_with_format(
     path: &Path,
     digest: &str,
+    format: Format,
 ) -> Result<serde_json::Value> {
     let result = async {
         let plan: Plan = decode_keynote(&read_private(path, 32 * 1024)?, digest)?;
-        plan.validate_at(now()?)?;
+        plan.validate_at(now()?, format)?;
         let monotonic = tokio::time::Instant::now();
         let wall = SystemTime::now().duration_since(UNIX_EPOCH)?;
         let remaining = Duration::from_secs(plan.deadline_unix)
             .checked_sub(wall)
             .context("owned Keynote deadline expired")?;
         let active_end = monotonic + remaining;
-        tokio::time::timeout_at(active_end, observe(path, digest, active_end))
+        tokio::time::timeout_at(active_end, observe(path, digest, active_end, format))
             .await
             .map_err(|_| anyhow::anyhow!("owned Keynote deadline expired"))?
     }
     .await;
-    result.map_err(|_| {
-        anyhow::anyhow!("owned Keynote replacement observation refused; no mutation submitted")
-    })
+    result.map_err(|_| anyhow::anyhow!(format.failure()))
 }
+// Existing public Keynote entry point retains its exact contract and output.
+pub async fn icloud_owned_keynote_replacement_receipt_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    verify_with_format(path, digest, Format::Keynote).await
+}
+pub(in super::super) async fn verify_pages(path: &Path, digest: &str) -> Result<serde_json::Value> {
+    verify_with_format(path, digest, Format::Pages).await
+}
+#[cfg(test)]
+mod pages_tests;
 #[cfg(test)]
 mod tests;

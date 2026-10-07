@@ -203,5 +203,19 @@
     "total": 48,
     "installed19_unit_and_daemon_birth_unchanged": true,
     "no_post_correction_CI_credit": true
+  },
+  "published_corrected_source_CI": {
+    "run": 37552968784,
+    "head": "8fca356754c841c2cc66c91c96f6972192c516e2",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs_passed": 7,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37552968784",
+    "private_observation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/ci8fca-completed-private-v1.json",
+      "size": 24503,
+      "sha256": "47baab7867b9186f6cf07ee8e9cfed8df38bd1328908385b00754802ee679c36"
+    },
+    "scope": "Exact committed owner-readiness/Keynote snapshot; subsequent Pages observer working-tree changes excluded."
   }
 }

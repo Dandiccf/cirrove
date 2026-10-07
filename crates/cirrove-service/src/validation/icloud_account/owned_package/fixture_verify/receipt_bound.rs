@@ -786,3 +786,6 @@ mod numbers_data;
 pub use numbers_data::{
     icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
 };
+
+mod pages;
+pub use pages::icloud_owned_pages_replacement_receipt_verify;

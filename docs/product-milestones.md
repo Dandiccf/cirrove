@@ -605,3 +605,19 @@ corrected control and all three coupled tests passed. The complete
 ledger and docs, preserving all 566 final-source hashes. Production sign-in
 policy is unchanged; the historical CI interleaving remains unidentified.
 Display, real session and installed acceptance remain separate.
+
+The explicit [Pages PACKAGE receipt observer](benchmarks/icloud-pages-replacement-observer-controls-2026-10-07.json)
+passed eight synthetic controls while retaining all eleven existing Keynote
+controls. Two narrow counterfactuals failed at their intended assertions and
+passed after restoration: missing Pages admission and a disabled SQL tuple guard.
+This prepares independent current-B/original-A verification for a fresh genuine
+Pages replacement. It supplies no new live, DATA, editor or installed acceptance;
+the full-iCloud count remains one closed and five open.
+
+The complete Pages-observer `scripts/check.sh` passed in 555.04 seconds with
+87 Rust test groups, kernel/FUSE scenarios, scripts, ledger and docs, preserving
+all 568 source hashes. An earlier complete command stopped at the smoke test
+because the chosen temporary path exceeded the Unix socket limit. Its failure
+and closed owners remain recorded; a shorter disk-backed temporary directory
+allowed the unchanged source to pass the complete command from the beginning.
+No new live Pages or installed acceptance follows from this local check.

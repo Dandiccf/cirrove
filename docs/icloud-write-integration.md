@@ -3829,3 +3829,22 @@ before inspecting retained edits or completing simulated sign-in. A controlled
 held lease showed the intended old-algorithm failure; the restored control,
 three coupled tests and complete project check passed. This changes test
 synchronization, with no new live reauthentication or installed claim.
+
+The explicit [Pages PACKAGE replacement observer](benchmarks/icloud-pages-replacement-observer-controls-2026-10-07.json)
+now checks completed journal, queue and publication authority before independently
+reading current B and original A in Trash. Eight synthetic Pages controls and all
+eleven existing Keynote controls passed. A Keynote-only admission counterfactual
+failed the positive Pages test; omitting the SQL tuple guard failed the test that
+rejects a borrowed completed receipt. Both exact tests passed after byte-exact
+restoration. The first counterfactual demonstrates the newly added Pages contract,
+not a previously shipped Pages defect. The complete project check is recorded in
+the same artifact. This prepares a fresh genuine Pages replacement workflow;
+no new live Pages result, DATA coverage or full-iCloud criterion is claimed here.
+
+The complete Pages-observer `scripts/check.sh` passed in 555.04 seconds with
+87 Rust test groups, kernel/FUSE scenarios, scripts, ledger and docs, preserving
+all 568 source hashes. An earlier complete command stopped at the smoke test
+because the chosen temporary path exceeded the Unix socket limit. Its failure
+and closed owners remain recorded; a shorter disk-backed temporary directory
+allowed the unchanged source to pass the complete command from the beginning.
+No new live Pages or installed acceptance follows from this local check.

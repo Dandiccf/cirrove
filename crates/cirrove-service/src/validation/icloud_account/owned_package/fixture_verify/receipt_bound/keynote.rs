@@ -344,5 +344,5 @@ pub async fn icloud_owned_keynote_import_receipt_verify(
 #[cfg(test)]
 mod tests;
 
-mod replacement;
+pub(super) mod replacement;
 pub use replacement::icloud_owned_keynote_replacement_receipt_verify;
