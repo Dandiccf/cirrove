@@ -1,0 +1,58 @@
+{
+  "TMPDIR_filesystem": "ext4",
+  "active_measurement": false,
+  "captured_archive_layout": "wrapped",
+  "cleanup_reserve_seconds": 45,
+  "cloud_mutations": false,
+  "endpoint": "Fresh RO mount, read exact B archive, offline full V2 identity, preserve source state and completed transfer frontier, close original handles and mount/socket.",
+  "evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-ro-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef",
+  "expected_duration_seconds": 600,
+  "full_487_closed": false,
+  "installed_changes": false,
+  "new_Trash_read": false,
+  "postflight": {
+    "path": "/var/tmp/cirrove-pages-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/replacement-postflight-verified.json",
+    "sha256": "570441ca560caf26e9442141d256b1d4c27dabcd45029217ade6a4292e3662f3",
+    "size": 3209
+  },
+  "prediction": "Canonical sole current B is readable from a read-only mount and strict wrapped full V2 equals original flat B. Original A in Trash proof remains the separately completed stopped postflight.",
+  "private_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/pf-ro-805f4b1e",
+  "question": "Does a separate fresh normal read-only remount return exact current B after unchanged original FlatPages import and replacement?",
+  "roles_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-current-build-collector-private-v1/roles-after-direct-flat-pages-v1/ready-binding-v1.json",
+    "sha256": "357a6ff038b3b97fc202dee8bcbe9c60cab724e29278b972f47e116696a42ac5",
+    "size": 85434
+  },
+  "root": "/var/tmp/cirrove-pages-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef",
+  "run": "805f4b1e-ad9f-4d65-8d81-fbecf28c05ef",
+  "scanner_controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-direct-flat-readonly-remount-preparation-private-v1/scanner-link-controls-private-v1/root-execution-v1/controls/controls-result.json",
+    "sha256": "5d6ae1f090ea9038ff955e9f7f6e9d9db750ed580919f5db66b33996380dcbab",
+    "size": 7793
+  },
+  "source_layout": "flat_pages",
+  "status": "closed-success-independently-audited",
+  "subject_run": "ab8555d8-15cf-4f56-af80-56e4592db479",
+  "version": 1,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-ro-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef/original-window.json",
+    "size": 314,
+    "sha256": "3179477a70989dcf44508d86ec6edb4b90feda8a9ff642d93fa6ddda5e2810bc"
+  },
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-ro-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef/observe-outer-owner.json",
+    "size": 369,
+    "sha256": "15ce5c45c32a57bb7b3bac2f40939725fe30778ac9e35e983292e54de463ea1b"
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-ro-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef/root-terminal-result.json",
+    "size": 819,
+    "sha256": "077af0af6f62dc94bbbbb0f83f76fd2710b56f4456e0923357539bb9f6cea7bb"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-ro-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef/audit-independent-readonly-terminal-v1.json",
+    "size": 3331,
+    "sha256": "ebbf06df4d881eb25be9155c941971e2d82e3240af146706db5a004adc2bfb34"
+  },
+  "audit_scope": "Actual new normal readonly daemon, mount, exact current identity and strict full V2 capture; all original children closed; original source and installed daemon preserved. No provider replay."
+}

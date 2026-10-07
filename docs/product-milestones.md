@@ -483,7 +483,7 @@ of full support. Synthetic coverage and isolated imports are supporting evidence
 not permission to tick installed or native-editing requirements.
 
 - [x] Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.
-- [ ] Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.
+- [x] Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.
 - [ ] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
 - [ ] Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.
 - [ ] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
@@ -518,7 +518,25 @@ replacement. Evidence from these scopes must not be reused as proof of arbitrary
 formats, live quota behavior or atomic cloud replacement.
 
 
-For the unchecked native editing/replacement row (486), the explicit public
+The native replacement/removal row (486) is now closed by separately registered
+real-account endpoints: genuine edited [Numbers](benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json),
+[Keynote](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
+and [Pages](benchmarks/icloud-pages-direct-flat-replacement-2026-10-07-ab8555d8.json)
+archive replacements, [standalone native Trash](benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json),
+[exact selection refusal](benchmarks/icloud-native-replacement-mismatched-selection-fresh-2026-10-06.json)
+and [competing-name Conflict](benchmarks/icloud-native-pre-trash-recovery-name-occupant-fresh-2026-10-07.json).
+Independent full semantic V2 reads bind current B and original A in Trash;
+actual exit86/reopen recovery completes the same retained operation without
+repeating mutations. Original preservation concerns the complete file-content
+tree, not identical transport ZIP bytes; loss was local acknowledgement loss,
+not unobserved provider reply loss. Native Linux editor/representation fidelity,
+installed lifecycle, complete Strata delivery and broader reliability remain
+rows 487–490. Two of six criteria are closed and four remain open; installed
+delivery stays on HOLD.
+
+The following historical checkpoints retain their original open-row counts.
+
+At the earlier unchecked native editing/replacement checkpoint (486), the explicit public
 Pages replacement CLI/socket and retained list/watch interfaces are now present;
 see [the workflow contract](native-document-replacement.md).
 [Recorded synthetic evidence](benchmarks/icloud-native-package-replacement-2026-10-01.md)

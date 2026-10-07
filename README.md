@@ -61,7 +61,7 @@ filesystem operations have their own limits.
 | **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
 | **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
 | **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
-| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. Owned ordinary-file saves and Pages/Numbers/Keynote imports have passed bounded checks. Genuine Numbers and Keynote PACKAGE replacements preserved their originals in Trash, passed read-only remount and reopened with the expected content in Apple's editors. Broader native editing, application fidelity and installed acceptance remain under validation. This integration is not yet part of `main` or a release; see [the progress and limits](#icloud-integration-progress). |
+| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. Owned ordinary-file saves and Pages/Numbers/Keynote imports have passed bounded checks. Genuine Pages, Numbers and Keynote PACKAGE replacements preserved their originals in Trash, passed read-only remount and reopened with the expected content in Apple's editors. Broader native editing, application fidelity and installed acceptance remain under validation. This integration is not yet part of `main` or a release; see [the progress and limits](#icloud-integration-progress). |
 
 A further bounded Numbers trial recovered a lost final replacement confirmation
 through inspection of the same operation, with no repeated cloud write, and
@@ -78,14 +78,17 @@ read-only remount returned the second version exactly. This follows corrections
 to atomic-save ordering and publication of the confirmed replacement identities.
 A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
 also verified the exact original bytes in iCloud Trash.
-Native iWork editing and five full-integration acceptance areas remain open.
+Bounded native archive replacement and recoverable removal are now validated;
+four full-integration acceptance areas remain open, and installed delivery stays on HOLD.
 A [fresh standalone removal trial](docs/benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json)
 recovered a controlled process exit without repeating the mutation, verified the
 complete original content in Trash and passed normal read-only absence checks.
 A separate [mismatched-selection trial](docs/benchmarks/icloud-native-replacement-mismatched-selection-fresh-2026-10-06.json)
 refused replacement with a deliberately wrong revision and independently confirmed
-the original unchanged. Naturally stale revisions, concurrent conflicts, broader
-native editing and release acceptance remain open. Earlier uncertain and partial
+the original unchanged. A separate [competing-name trial](docs/benchmarks/icloud-native-pre-trash-recovery-name-occupant-fresh-2026-10-07.json)
+refused a real conflict and independently verified all three documents unchanged.
+Naturally stale revisions, races after the final preflight, broader native editing
+and release acceptance remain open. Earlier uncertain and partial
 outcomes remain in the [validation record](docs/icloud-write-integration.md).
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
@@ -387,6 +390,15 @@ returned the complete B content tree before Apple opening.
 and retained its one-slide B title and subtitle after one reload, with no edits.
 This completes that bounded PACKAGE workflow; wider format and editor fidelity
 remain unproved.
+
+A [genuine Pages replacement](docs/benchmarks/icloud-pages-direct-flat-replacement-2026-10-07-ab8555d8.json)
+also accepted the unchanged Apple export without an outer document folder.
+Independent full content checks verified the new document and its original in
+Trash. A [fresh read-only remount](docs/benchmarks/icloud-pages-direct-flat-readonly-remount-2026-10-07-805f4b1e.json)
+returned the complete new content; [Apple Pages opened the exact replacement and retained its text after reload](docs/benchmarks/icloud-pages-direct-flat-apple-reopen-2026-10-07-3a054fad.json).
+The [dated acceptance assessment](docs/benchmarks/icloud-native-replacement-removal-criterion-closure-2026-10-07.json)
+closes the bounded native replacement/removal criterion, including conflict
+refusal and recovery after process loss without repeating the cloud mutation.
 
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical

@@ -58,7 +58,7 @@ impl Window {
         let dialog = adw::AlertDialog::new(
             Some(&gettext("Import an iWork document")),
             Some(&gettext(
-                "Choose a wrapped Pages, Numbers or Keynote archive, or explicitly choose a flat Numbers export. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document.",
+                "Choose a wrapped Pages, Numbers or Keynote archive, or explicitly choose a flat Numbers or Pages export. Import creates a new document, up to 64 MiB. It does not replace or edit an existing document.",
             )),
         );
         let group = adw::PreferencesGroup::new();
@@ -76,6 +76,7 @@ impl Window {
             .model(&gtk::StringList::new(&[
                 &gettext("Document folder (wrapped)"),
                 &gettext("Flat Numbers export"),
+                &gettext("Flat Pages export"),
             ]))
             .selected(0)
             .build();
@@ -109,7 +110,7 @@ impl Window {
         group.add(&parent);
         group.add(&name);
         let help = gtk::Label::builder()
-            .label(gettext("For a wrapped archive, use its exact document folder name and the same extension for the new name. A flat Numbers export has no document folder and requires a .numbers name. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."))
+            .label(gettext("For a wrapped archive, use its exact document folder name and the same extension for the new name. A flat export has no document folder. Choose Flat Numbers for a .numbers name or Flat Pages for a .pages name. Leave the destination blank for the top level, or enter a folder such as Documents/Reports."))
             .wrap(true)
             .xalign(0.0)
             .build();
@@ -141,6 +142,7 @@ impl Window {
                 let selected = match layout.selected() {
                     0 => PackageSourceLayout::Wrapped,
                     1 => PackageSourceLayout::FlatNumbers,
+                    2 => PackageSourceLayout::FlatPages,
                     _ => return false,
                 };
                 crate::model::native_import_source_fields_valid(
@@ -193,6 +195,7 @@ impl Window {
                 let selected_layout = match layout.selected() {
                     0 => PackageSourceLayout::Wrapped,
                     1 => PackageSourceLayout::FlatNumbers,
+                    2 => PackageSourceLayout::FlatPages,
                     _ => return,
                 };
                 ui.submit_native_import_with_layout(

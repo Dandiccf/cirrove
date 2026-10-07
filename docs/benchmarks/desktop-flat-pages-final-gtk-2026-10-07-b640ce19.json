@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "run": "b640ce19-8011-434c-a37d-2b4f86004798",
+  "active_measurement": false,
+  "status": "closed_passed",
+  "question": "Does the same actual GTK scenario pass on exactly the formatted sources already covered by the complete passing scripts/check.sh?",
+  "prediction": "One actual GTK test passes; all original handles close and all568 sources remain unchanged.",
+  "prior_complete_check": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-2486a57f-7995-46b8-a6a1-49e3b44df253/whole-check-closure.json",
+    "size": 434,
+    "sha256": "a77e06ddc526583c9b608e8018e79c2e44b42bc607892d3536b8cce195d18f78"
+  },
+  "complete_check_log": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-2486a57f-7995-46b8-a6a1-49e3b44df253/whole-check.log",
+    "size": 307179,
+    "sha256": "de390ace740bc281956c7176bea0e48a7319085c855fddc281bf77d183e40c12"
+  },
+  "prior_outer_failure_preserved": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-2486a57f-7995-46b8-a6a1-49e3b44df253/root-terminal-result.json",
+    "size": 1897,
+    "sha256": "e8ba3fade947a6559137df8e2c5bf610217a5b706615efcb44058f85c75e6eb8"
+  },
+  "formatting_diagnostic": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/formatting-diagnostic-private-v1/terminal-result.json",
+    "size": 382,
+    "sha256": "c1101a9456ae5340289f06076a732488d6e04e463f86ead4d4a718c239964776"
+  },
+  "source_map": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-2486a57f-7995-46b8-a6a1-49e3b44df253/source-pins-terminal.json",
+    "size": 72732,
+    "sha256": "4dbf845a526479b8aee4cf39ab8ac81592747bec7a6ab4d1f834e5045e73f2e7"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/run_desktop_root_v5_final_gtk.py",
+    "size": 15502,
+    "sha256": "ee7c66b004caf87f4f0ef4713249013632a0f11ddeb2e30e5a7cca59e441361d"
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct/dfd-b640ce19",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/dfd-b640ce19",
+  "expected_duration_seconds": 15,
+  "GUI_work_seconds": 300,
+  "cleanup_seconds": 30,
+  "provider_actions": false,
+  "installed_actions": false,
+  "automatic_retry": false,
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-b640ce19-8011-434c-a37d-2b4f86004798/outer-registration.json",
+    "size": 1720,
+    "sha256": "49d96e49ad4f04698f3a29549bf724b3321c083b53a7d6de1507161880f8638b"
+  },
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-b640ce19-8011-434c-a37d-2b4f86004798/outer-terminal-result.json",
+    "size": 888,
+    "sha256": "e6df84c654b6cd235ca90db09d6a67abb0389acaf5948e579051404987683422"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-b640ce19-8011-434c-a37d-2b4f86004798/audit-independent-formatted-full-and-gtk-v1.json",
+    "size": 6553,
+    "sha256": "fd76301d27b93cdc696dc893a5a90f7f6b7a6dccd2259fb987c463f33757a863",
+    "passed": 14,
+    "total": 14
+  },
+  "observed": {
+    "one_actual_GTK_test_passed": true,
+    "all568_formatted_sources_unchanged": true,
+    "all7_original_handles_closed": true,
+    "complete_check_on_same_final_source_passed": true,
+    "cloud_actions": 0,
+    "installed_actions": false
+  }
+}

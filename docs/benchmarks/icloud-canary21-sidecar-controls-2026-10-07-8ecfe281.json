@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "run": "8ecfe281-6d2b-4b38-8077-97ea95c4a4b0",
+  "question": "Can exact refusal-state preservation retain the actual four SQLite sidecar timestamp deltas while refusing every byte, logical-table, membership and other protected-stat difference?",
+  "prediction": [
+    "old intended RED1",
+    "same corrected GREEN1",
+    "eight controls pass"
+  ],
+  "commands": [
+    {
+      "arm": "red",
+      "environment": {
+        "SOURCE": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot21-v2.py.proposed",
+        "SOURCE_SHA256": "484f3db9c508ee24bc08b1d91f254fa685a69f7c7d4e5010c0085870271bd689"
+      },
+      "argv": [
+        "/usr/bin/python3",
+        "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot-sidecar-controls-private-v1/test_snapshot_sidecar_controls_v1.py",
+        "SidecarControls.test_actual_timestamp_only_pair_preserves_bytes_logical_and_stable_stats"
+      ],
+      "prediction": "exit1, one intended assertion failure, zero setup errors"
+    },
+    {
+      "arm": "green",
+      "environment": {
+        "SOURCE": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot21-v3.py.proposed",
+        "SOURCE_SHA256": "f01c360eaef316e3ca4ae180a49172ba6eacbd7d0dc4928bbc2253bdab5bcf24"
+      },
+      "argv": [
+        "/usr/bin/python3",
+        "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot-sidecar-controls-private-v1/test_snapshot_sidecar_controls_v1.py",
+        "SidecarControls.test_actual_timestamp_only_pair_preserves_bytes_logical_and_stable_stats"
+      ],
+      "prediction": "exit0, one passed"
+    },
+    {
+      "arm": "all",
+      "environment": {
+        "SOURCE": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot21-v3.py.proposed",
+        "SOURCE_SHA256": "f01c360eaef316e3ca4ae180a49172ba6eacbd7d0dc4928bbc2253bdab5bcf24"
+      },
+      "argv": [
+        "/usr/bin/python3",
+        "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot-sidecar-controls-private-v1/test_snapshot_sidecar_controls_v1.py"
+      ],
+      "prediction": "exit0, eight passed"
+    }
+  ],
+  "actual_captured_pair": {
+    "before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/execution-ec3a3520-d701-46c4-a4a9-08fe8f29ab49/before-refusal-snapshot.json",
+      "size": 17910,
+      "sha256": "06a9789a0db474a99214a5438e1db51c983810f9867c09042554cb62d17ac52a"
+    },
+    "after": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/execution-ec3a3520-d701-46c4-a4a9-08fe8f29ab49/independent-stopped-postrefusal-snapshot-v1.json",
+      "size": 18224,
+      "sha256": "aad576812d099be832cb6130d381655164c45af9aded44df216c2a09f80c9232"
+    }
+  },
+  "status": "closed_passed",
+  "active_measurement": false,
+  "provider_actions": false,
+  "installed_actions": false,
+  "gate488_closed": false,
+  "results": [
+    {
+      "arm": "red",
+      "exit_code": 1,
+      "expected_tests": 1,
+      "elapsed_seconds": 0.06415644002845511,
+      "original_pid": 3664116,
+      "original_owner_reaped": true,
+      "process_absent": true,
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot-sidecar-controls-private-v1/execution-8ecfe281-6d2b-4b38-8077-97ea95c4a4b0/red.log",
+        "size": 1160,
+        "sha256": "a1ee601a60cc0caaae6bc86e87ae6b4963a244f5c130048401f8984e869ef880"
+      }
+    },
+    {
+      "arm": "green",
+      "exit_code": 0,
+      "expected_tests": 1,
+      "elapsed_seconds": 0.06401845102664083,
+      "original_pid": 3664118,
+      "original_owner_reaped": true,
+      "process_absent": true,
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot-sidecar-controls-private-v1/execution-8ecfe281-6d2b-4b38-8077-97ea95c4a4b0/green.log",
+        "size": 98,
+        "sha256": "fb184ea57734512b1f088f9181209901b9cd46df3eb7eaa2500ea9e48dde20b5"
+      }
+    },
+    {
+      "arm": "all",
+      "exit_code": 0,
+      "expected_tests": 8,
+      "elapsed_seconds": 0.0639646440395154,
+      "original_pid": 3664119,
+      "original_owner_reaped": true,
+      "process_absent": true,
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/snapshot-sidecar-controls-private-v1/execution-8ecfe281-6d2b-4b38-8077-97ea95c4a4b0/all.log",
+        "size": 106,
+        "sha256": "fc23540c8545d4075fe2f0420accd022e74e5566176c3bd4c597964ff02c2e14"
+      }
+    }
+  ],
+  "all_original_handles_closed": true
+}

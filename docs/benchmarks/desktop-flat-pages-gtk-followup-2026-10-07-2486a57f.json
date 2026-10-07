@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "run": "2486a57f-7995-46b8-a6a1-49e3b44df253",
+  "status": "closed_refused",
+  "active_measurement": false,
+  "question": "Can the identical actual GTK request scenario pass after waiting for the mapped invalid-name Import button, preserving all semantic checks, followed by complete scripts/check.sh?",
+  "prediction": "GTK1 then full local check pass; all original owners close; no provider/installed acceptance",
+  "prior_failed_arm": "5c50bd40-8126-4c32-a1d3-4593404ce842",
+  "prior_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-5c50bd40-8126-4c32-a1d3-4593404ce842/root-terminal-result.json",
+    "size": 3388,
+    "sha256": "6f0b1b4da6e88379e06208fa7febfcdacaa136d8c994c55fe7c3962a3a1513f4"
+  },
+  "source_map": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-2486a57f-7995-46b8-a6a1-49e3b44df253/source-pins-before.json",
+    "size": 72732,
+    "sha256": "5a9783f86883ef4086ad22c85745c1af4ba0892ea0b57dfa504d2113e0548a3d"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/run_desktop_root_v4_followup.py",
+    "size": 15660,
+    "sha256": "4644181b06289851f9399e5a309e9df4902369cf6609cee6cb79f7b73dc14627"
+  },
+  "only_followup_source_change": "window.rs immediate invalid-name button assertion uses existing pump_until bounded5seconds; buttons() requires is_mapped whereas EntryRow lookup does not. Root cause hypothesis, not inferred from prior failure alone.",
+  "TMPDIR": "/home/dandiccf/Storage/ct/dfd-2486a57f",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/dfd-2486a57f",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-direct-flat-pages-observer-20261007",
+  "original_GUI_work_seconds": 300,
+  "GUI_cleanup_seconds": 30,
+  "full_check_maximum_seconds": 3600,
+  "provider_actions": false,
+  "installed_actions": false,
+  "automatic_retry": false,
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-2486a57f-7995-46b8-a6a1-49e3b44df253/outer-registration.json",
+    "size": 1717,
+    "sha256": "cb8aad42923aece356d9f17d37f62c4651fcc843221081f3f19bc186086b4627"
+  },
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-2486a57f-7995-46b8-a6a1-49e3b44df253/outer-terminal-result.json",
+    "size": 889,
+    "sha256": "2b5209ca09b381ed61d4f6bf0c8c3db3008f3291189bc144ee0fd51de8f0891c"
+  },
+  "terminal_clarification": {
+    "original_wrapper_result": "FAILED; unchanged source fence detected formatter change, outcome preserved",
+    "actual_complete_check": "PASS exit0/all10sections/87Rustgroups/scripts/ledger/docs",
+    "formatter_only_difference": "Three whitespace-only assertion wraps in window.rs; exact pinned rustfmt stdout reconstruction matches final bytes. No product-code change.",
+    "source_before": "71fd706754e3b47c53ca20504e9eaa9dc5097600de12271d0cb38fb6e291390c",
+    "source_after": "3d3fb3d258fef9eeac45c96a55e7a6b55e3e0b574157edd8b453f8200b8bbb98",
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-b640ce19-8011-434c-a37d-2b4f86004798/audit-independent-formatted-full-and-gtk-v1.json",
+      "size": 6553,
+      "sha256": "fd76301d27b93cdc696dc893a5a90f7f6b7a6dccd2259fb987c463f33757a863",
+      "passed": 14,
+      "total": 14
+    },
+    "final_GTK_followup": "desktop-flat-pages-final-gtk-2026-10-07-b640ce19.json",
+    "full_iCloud_open_criteria": 4,
+    "installed_HOLD": true
+  }
+}

@@ -1387,9 +1387,9 @@ msgstr "Wählen Sie ein auf diesem Computer gespeichertes Archiv aus."
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:61
 msgid ""
 "Choose a wrapped Pages, Numbers or Keynote archive, or explicitly choose a "
-"flat Numbers export. Import creates a new document, up to 64 MiB. It does "
+"flat Numbers or Pages export. Import creates a new document, up to 64 MiB. It does "
 "not replace or edit an existing document."
-msgstr "Wählen Sie ein Pages-, Numbers- oder Keynote-Archiv mit einem äußeren Dokumentordner oder ausdrücklich einen Numbers-Export ohne äußeren Ordner. Der Import erstellt ein neues Dokument mit bis zu 64 MiB. Vorhandene Dokumente werden weder ersetzt noch bearbeitet."
+msgstr "Wählen Sie ein Pages-, Numbers- oder Keynote-Archiv mit einem äußeren Dokumentordner oder ausdrücklich einen Numbers- oder Pages-Export ohne äußeren Ordner. Der Import erstellt ein neues Dokument mit bis zu 64 MiB. Vorhandene Dokumente werden weder ersetzt noch bearbeitet."
 
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:66
 msgid "Local archive"
@@ -1411,6 +1411,10 @@ msgstr "Dokumentordner (mit äußerem Ordner)"
 msgid "Flat Numbers export"
 msgstr "Numbers-Export ohne äußeren Ordner"
 
+#: crates/cirrove-desktop/src/ui/native_import.rs:79
+msgid "Flat Pages export"
+msgstr "Pages-Export ohne äußeren Ordner"
+
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:83
 msgid "Destination folder"
 msgstr "Zielordner"
@@ -1422,10 +1426,11 @@ msgstr "Neuer Dokumentname"
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:112
 msgid ""
 "For a wrapped archive, use its exact document folder name and the same "
-"extension for the new name. A flat Numbers export has no document folder and "
-"requires a .numbers name. Leave the destination blank for the top level, or "
+"extension for the new name. A flat export has no document folder. Choose "
+"Flat Numbers for a .numbers name or Flat Pages for a .pages name. Leave the "
+"destination blank for the top level, or "
 "enter a folder such as Documents/Reports."
-msgstr "Verwenden Sie bei einem Archiv mit äußerem Ordner den genauen Dokumentordnernamen und dieselbe Dateiendung für den neuen Namen. Ein Numbers-Export ohne äußeren Ordner benötigt einen Namen mit .numbers. Lassen Sie das Ziel für die oberste Ebene leer oder geben Sie einen Ordner wie Dokumente/Berichte an."
+msgstr "Verwenden Sie bei einem Archiv mit äußerem Ordner den genauen Dokumentordnernamen und dieselbe Dateiendung für den neuen Namen. Ein Export ohne äußeren Ordner hat keinen Dokumentordner. Wählen Sie Numbers für einen Namen mit .numbers oder Pages für einen Namen mit .pages. Lassen Sie das Ziel für die oberste Ebene leer oder geben Sie einen Ordner wie Dokumente/Berichte an."
 
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:122
 msgid "Import"

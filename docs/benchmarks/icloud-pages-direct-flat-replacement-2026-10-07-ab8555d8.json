@@ -1,0 +1,130 @@
+{
+  "TMPDIR_filesystem": "ext4",
+  "active": false,
+  "authorization": "Standing explicit user authorization for own iCloud writes and tests",
+  "binary_sha256": {
+    "cirrove": "cc29802d436aba777193bd495ce53f5ef1d86f264c81c6c6e8d03ec3c0a20ac2",
+    "cirroved": "da7aebf00ce0324632371fa5e665bc86558263deeeefb874a95075564a658557",
+    "native-trash-probe": "47811757ebeb04a9486a72e0e563f4be051e093fb29e61862ca9b8cfd6cb3789"
+  },
+  "checkout_head": "7e727bc89adbc8b5c19c1f86fc31873eb0c3af48",
+  "cleanup_reserve_seconds": 45,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-direct-flat-replacement-preparation-private-v1/controller_pages_flat_v1.py",
+    "sha256": "4e4dfe1913cc115598297d776403ed71c3f9e103d114f4d77b5b804f78fc2958",
+    "size": 30664
+  },
+  "encoding_normalization_applied": false,
+  "evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479",
+  "full_iCloud_gate_closures": 0,
+  "installed_changes": false,
+  "maximum_duration_seconds": 600,
+  "original_exports_modified": false,
+  "prediction": "Both original exports pass explicit FlatPages admission; current B and Trash A have their original full V2 identities. Stop on any unclear outcome without mutation replay.",
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/pf-ab8555d8",
+  "question": "Can unchanged genuine native flat Pages exports pass the normal public CLI import and one replacement, retaining current B and original A in Trash?",
+  "registered_at": "2026-10-07T03:07:24.124664+00:00",
+  "roles_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-current-build-collector-private-v1/roles-after-direct-flat-pages-v1/ready-binding-v1.json",
+    "sha256": "357a6ff038b3b97fc202dee8bcbe9c60cab724e29278b972f47e116696a42ac5",
+    "size": 85434
+  },
+  "root": "/var/tmp/cirrove-pages-replacement-ab8555d8-15cf-4f56-af80-56e4592db479",
+  "run": "ab8555d8-15cf-4f56-af80-56e4592db479",
+  "scope": "One new own folder, one original native A import, one original native B replacement; separate RO remount and Apple reopening remain later endpoints.",
+  "source_assets_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-direct-flat-replacement-preparation-private-v1/original-raw-source-assets-v1.json",
+    "sha256": "e07f07c3da1c56060b361bd4171deebb44e8e25822d4d95fd0612e1ef5206073",
+    "size": 1982
+  },
+  "source_guards": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/root-local-source-guards-v1.json",
+    "sha256": "42aa78f92ea1fc3135588bfd13c3e1dcc2b6a1a7fc8a0e58350a2d9ab883bbf5",
+    "size": 972
+  },
+  "source_layout": "flat_pages",
+  "status": "closed-success-independently-audited",
+  "version": 1,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/original-window.json",
+    "size": 314,
+    "sha256": "9924a3b54a523809328d05368766138f3b667d320a04fc5c2c8fa635bfa005f9"
+  },
+  "actual_controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-direct-flat-replacement-preparation-private-v1/controller_pages_flat_v1.py",
+    "sha256": "4e4dfe1913cc115598297d776403ed71c3f9e103d114f4d77b5b804f78fc2958",
+    "size": 30664
+  },
+  "root_launcher": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/launch_root_once_v1.py",
+    "size": 9020,
+    "sha256": "5fdacd1b68909e96623b5a47dd5f5d900f664d35a027f3bf20d83dc040291cf7"
+  },
+  "source_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/audit-independent-canonical-pages-source-admission-v1.json",
+    "size": 105785,
+    "sha256": "7ed734b721d5984f3912eff77e7fa271865d650f86aa83d1004d1ea44a68df69"
+  },
+  "elapsed_seconds": 309.58622677100357,
+  "automatic_retries": 0,
+  "root_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/root-terminal-result.json",
+    "size": 3251,
+    "sha256": "f72c796b5ca20d290503b3b7fb04af24f7372983ddc63bf5a922a967a1f1d98a"
+  },
+  "controller_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/controller-result.json",
+    "size": 7938,
+    "sha256": "a7bfecf11cbdf92c1061efdf8096bb746b54f2c09c121ee16d8196e991f40b9d"
+  },
+  "root_verified_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/root-verified-terminal-v1.json",
+    "size": 713,
+    "sha256": "f9c6debb310444c2ac352922e6f654b0f8cd3be2c856c07c72c1194bb73bd650"
+  },
+  "observed": {
+    "version": 1,
+    "root_terminal_verified": true,
+    "all8_inner_and2_outer_closed": true,
+    "source_count": 568,
+    "sources_unchanged": true,
+    "installed19_and_PID_birth_unchanged": true,
+    "source_originals_unchanged": true,
+    "source_layout": "flat_pages",
+    "current_B_full_V2": {
+      "entries": 15,
+      "expanded_bytes": 100205,
+      "files": 12,
+      "sha256": "a30087186f914633fe5d511b44b0ea398f717fae3922a683da5ec8414d07e3ba",
+      "version": 2
+    },
+    "Trash_A_full_V2": {
+      "entries": 15,
+      "expanded_bytes": 99260,
+      "files": 12,
+      "sha256": "d34d523a821e0b55d3a834a37033d5be37e26a57a61acb8f2ed55db15f4db9a3",
+      "version": 2
+    },
+    "full_487_closed": false,
+    "provider_calls_by_verifier": 0
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/audit-independent-terminal-v1.json",
+    "size": 5034,
+    "sha256": "c9cea93355d29fd4819e996b45d21cce8e782e9837f1fea3bb6c91a7ee9678f6"
+  },
+  "audit_scope": "43 stopped-state checks bind this one live raw FlatPages case; these are not additional integration acceptance gates.",
+  "separate_followups": {
+    "normal_RO_remount": {
+      "run": "805f4b1e-ad9f-4d65-8d81-fbecf28c05ef",
+      "status": "closed-success-independently-audited",
+      "benchmark": "icloud-pages-direct-flat-readonly-remount-2026-10-07-805f4b1e.json"
+    },
+    "Apple_Pages_one_open_one_reload": {
+      "run": "3a054fad-6089-4e05-bb50-7bc68b6866b8",
+      "status": "closed-success-independently-audited",
+      "benchmark": "icloud-pages-direct-flat-apple-reopen-2026-10-07-3a054fad.json"
+    },
+    "full_487_closed": false
+  }
+}

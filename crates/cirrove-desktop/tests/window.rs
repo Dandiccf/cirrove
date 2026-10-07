@@ -2971,6 +2971,104 @@ fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() 
         "Desktop must not open or rewrite the archive"
     );
     drop(requests);
+    pump_until("flat Numbers refusal answered", || {
+        button(window.upcast_ref(), "Import document…").is_some_and(|b| b.is_sensitive())
+    });
+    let pages_archive = temp.as_path().join("actual-flat-export.pages");
+    assert!(!pages_archive.exists());
+    ui.native_import_dialog(selected.clone(), pages_archive.clone());
+    pump_until("explicit Pages archive layout", || {
+        combo_row(window.upcast_ref(), "Archive layout").is_some()
+    });
+    let layout = combo_row(window.upcast_ref(), "Archive layout").unwrap();
+    assert_eq!(
+        layout.selected(),
+        0,
+        "Pages filenames do not select a layout"
+    );
+    let root = entry_row(window.upcast_ref(), "Document folder").unwrap();
+    assert!(root.is_sensitive());
+    layout.set_selected(2);
+    assert!(!root.is_sensitive());
+    root.set_text("This must not become a fabricated wrapper.pages");
+    let name = entry_row(window.upcast_ref(), "New document name").unwrap();
+    name.set_text("Wrong format.numbers");
+    pump_until("flat Pages wrong format refused", || {
+        button(window.upcast_ref(), "Import").is_some_and(|b| !b.is_sensitive())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        2
+    );
+    name.set_text("Explicit copy.pages");
+    entry_row(window.upcast_ref(), "Destination folder")
+        .unwrap()
+        .set_text("Reports");
+    pump_until("flat Pages import enabled", || {
+        button(window.upcast_ref(), "Import").is_some_and(|b| b.is_sensitive())
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("one additional explicit flat Pages request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count()
+            == 3
+    });
+    let requests = service.requests.lock().unwrap();
+    let line = requests
+        .iter()
+        .filter(|line| line.starts_with("import-native-package "))
+        .nth(2)
+        .unwrap();
+    let wire: serde_json::Value =
+        serde_json::from_str(line.strip_prefix("import-native-package ").unwrap()).unwrap();
+    let pages: cirrove_service::ImportNativePackageRequest =
+        serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(
+        pages.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::FlatPages
+    );
+    assert!(pages.expected_root.is_none());
+    assert!(wire["expected_root"].is_null());
+    assert_eq!(wire["source_layout"], "flat_pages");
+    assert_eq!(
+        pages.expected_account_id.as_deref(),
+        Some(selected.id.as_str())
+    );
+    assert_eq!(pages.archive, pages_archive);
+    assert_eq!(pages.name, "Explicit copy.pages");
+    assert_eq!(pages.parent, "Reports");
+    assert!(
+        !pages.archive.exists(),
+        "Desktop must not open or rewrite the archive"
+    );
+    drop(requests);
+    pump_until("flat Pages refusal answered", || {
+        button(window.upcast_ref(), "Import document…").is_some_and(|b| b.is_sensitive())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        3,
+        "a refused Pages import must not be retried"
+    );
     window.close();
     service.task.abort();
 }

@@ -186,6 +186,54 @@ fn native_import_flat_numbers_form_requires_explicit_layout_and_no_wrapper_root(
 }
 
 #[test]
+fn native_import_flat_pages_form_requires_explicit_layout_and_no_wrapper_root() {
+    use cirrove_desktop::model::native_import_source_fields_valid as valid;
+    use cirrove_service::native_import::PackageSourceLayout::{FlatNumbers, FlatPages, Wrapped};
+    let source = Path::new("/var/tmp/actual-export.pages");
+    assert!(valid(
+        source,
+        FlatPages,
+        None,
+        "Owned/Reports",
+        "New 'document'.pages"
+    ));
+    assert!(valid(source, FlatPages, None, "", "COPY.PAGES"));
+    for name in [
+        "Copy.numbers",
+        "Copy.key",
+        "Copy.pages.zip",
+        "../Copy.pages",
+        "",
+    ] {
+        assert!(!valid(source, FlatPages, None, "Owned", name));
+    }
+    assert!(!valid(
+        source,
+        FlatPages,
+        Some("Invented.pages"),
+        "Owned",
+        "Copy.pages"
+    ));
+    assert!(!valid(source, Wrapped, None, "Owned", "Copy.pages"));
+    assert!(!valid(source, FlatNumbers, None, "Owned", "Copy.pages"));
+    assert!(!valid(source, FlatPages, None, "../Owned", "Copy.pages"));
+    assert!(!valid(
+        Path::new("relative.pages"),
+        FlatPages,
+        None,
+        "Owned",
+        "Copy.pages"
+    ));
+    assert!(valid(
+        source,
+        Wrapped,
+        Some("Actual.pages"),
+        "Owned",
+        "Copy.pages"
+    ));
+}
+
+#[test]
 fn native_import_progress_never_claims_offline_pinning() {
     use cirrove_desktop::model::RunningJob;
     use cirrove_service::jobs::{Job, JobKind, JobState};

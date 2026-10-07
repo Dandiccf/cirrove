@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "status": "dated-root-closure-assessment",
+  "tracked_changes_applied": true,
+  "literal_row": {
+    "path": "docs/product-milestones.md",
+    "line": 486,
+    "text": "Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay."
+  },
+  "recommendation": "Literal row486 is satisfied by the combined separately preregistered bounded functional endpoints. Root can tick486 without ticking487\u2013490 or lifting installed HOLD. Do not describe this as full native editor fidelity or general reliability.",
+  "clauses": [
+    {
+      "clause": "Implement and validate existing native-document editing/replacement",
+      "assessment": "met for explicit existing-PACKAGE archive replacement",
+      "evidence": [
+        "numbers",
+        "keynote",
+        "pages"
+      ],
+      "endpoint": "Genuine Apple-edited B replaced the exact selected existing A through normal public CLI admission; independent current B matches its complete source V2. Native Linux ordinary/atomic editing belongs to row487 and is not inferred."
+    },
+    {
+      "clause": "recoverable removal",
+      "assessment": "met",
+      "evidence": [
+        "removal"
+      ],
+      "endpoint": "Fresh a17e public standalone native Trash, exact same operation cff15f45-aae8-45d8-be36-22fd47efa6ed, full original A verified in Trash; current absence and normal RO list/watch/mounted absence passed."
+    },
+    {
+      "clause": "exact old/new identity and revision binding",
+      "assessment": "met",
+      "evidence": [
+        "numbers",
+        "keynote",
+        "pages",
+        "conflict"
+      ],
+      "endpoint": "Typed two-identity receipts and independent exact-ID/current-revision reads bind new B at original name/parent and original-ID A in Trash. Conflict preserves exact A/stageB/occupantB identities and captured revisions."
+    },
+    {
+      "clause": "preserved original bytes",
+      "assessment": "met for complete original file-content/semantic tree, not raw transport ZIP equality",
+      "evidence": [
+        "numbers",
+        "keynote",
+        "pages",
+        "removal",
+        "conflict"
+      ],
+      "endpoint": "Full canonical V2 independently checks every expanded original member and complete normalized tree against immutable source A. Numbers42 files/46entries; Keynote54/58; Pages12/15. Transport archive raw ZIPs can differ. This is the established native archive contract, not a new raw ZIP identity guarantee."
+    },
+    {
+      "clause": "conflict refusal",
+      "assessment": "met for measured selection and preflight conflicts",
+      "evidence": [
+        "selection_refusal",
+        "conflict"
+      ],
+      "endpoint": "One wrong non-wildcard ETag refused before durable replacement admission, with SQL/payload/currentA unchanged. Separate real reserved-name occupant forced same-operation Conflict after staging, no completion receipt, full A/B/B preservation. Natural stale ETag and races inserted after final preflight remain unmeasured reliability limits."
+    },
+    {
+      "clause": "durable restart",
+      "assessment": "met for measured process-loss/reopen and subsequent normal RO startup",
+      "evidence": [
+        "numbers",
+        "removal",
+        "numbers_ro",
+        "keynote_ro",
+        "pages_ro"
+      ],
+      "endpoint": "Actual exit86 leaves incomplete persisted operation/checkpoint/sealed source; a distinct recovery process reopens it, and separately normal read-only daemons expose the completed publication or absence without mutation replay."
+    },
+    {
+      "clause": "uncertain-outcome recovery without mutation replay",
+      "assessment": "met for controlled local acknowledgement loss",
+      "evidence": [
+        "numbers",
+        "removal"
+      ],
+      "endpoint": "Numbers a643 genuine final two-identity receipt withheld by exit86; same-operation inspection-only completion, no replacement upload/namespace mutation callbacks. Standalone Trash performs one inspection and one reconciliation, preparations0/mutations0. This is actual local process/ACK loss, not proof of provider reply-loss or expired-session recovery."
+    }
+  ],
+  "evidence_pins": {
+    "numbers": {
+      "path": "docs/benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json",
+      "size": 9958,
+      "sha256": "73601f6a94b1d71d541d81e73f75ab26264992ed170a8a22361478f116840541"
+    },
+    "keynote": {
+      "path": "docs/benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json",
+      "size": 6092,
+      "sha256": "3832affc416146033b5ec6b045b0a2bf5a248c9a95318985cb7060af7ae29fc2"
+    },
+    "pages": {
+      "path": "docs/benchmarks/icloud-pages-direct-flat-replacement-2026-10-07-ab8555d8.json",
+      "size": 6620,
+      "sha256": "34fc2f591bc3bd1ddda9d4e69fd366a1ab8612f6143b0e9253760da64ffbf4ff"
+    },
+    "removal": {
+      "path": "docs/benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json",
+      "size": 21937,
+      "sha256": "8262695904623091ded7d095ccf2f00f4f76b827435c2b5c2312b8f05dd18818"
+    },
+    "selection_refusal": {
+      "path": "docs/benchmarks/icloud-native-replacement-mismatched-selection-fresh-2026-10-06.json",
+      "size": 21840,
+      "sha256": "c1f6eb1e18c0a6c12b9040b2b84497ae2d150b14a9c83a03256be288c904e9e4"
+    },
+    "conflict": {
+      "path": "docs/benchmarks/icloud-native-pre-trash-recovery-name-occupant-fresh-2026-10-07.json",
+      "size": 23103,
+      "sha256": "d82194e7de4e4f6c7daee99411b29b080cf324ff299a1b2521088c04e3dc80c0"
+    },
+    "numbers_ro": {
+      "path": "docs/benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json",
+      "size": 7483,
+      "sha256": "bb62d382450bf032f0d6dc1bbeb87df5f0aad2c75fc87c9e3981a1c18a6d9cfe"
+    },
+    "keynote_ro": {
+      "path": "docs/benchmarks/icloud-keynote-readonly-remount-2026-10-07-f9923c49.json",
+      "size": 9654,
+      "sha256": "f2db24c6c805c8bf620f8d41b3f316b21af8eaa11b3b0b307e8a353a4a36680f"
+    },
+    "pages_ro": {
+      "path": "docs/benchmarks/icloud-pages-direct-flat-readonly-remount-2026-10-07-805f4b1e.json",
+      "size": 3525,
+      "sha256": "a1488b072fe9a2a9d9f85be9c20c347051db579a34d5ba2a5e9cfbca80aa10d8"
+    }
+  },
+  "remaining": {
+    "487": "Actual DATA/PACKAGE application, ordinary/atomic Linux save and supported export-fidelity matrix; Calc genuine Numbers SUM flattening is a known limit.",
+    "488": "Installed lifecycle and real saved-session/credential transitions remain open. Separate fresh synthetic Canary compatibility fddc completed18steps; this does not establish installed acceptance.",
+    "489": "Installed Strata conditional pin transitions, branded badges and stable event refresh; bounded menu/dialog endpoints alone are not the full row.",
+    "490": "Wider uncertainty/session/slow-link/storage/abandoned-stage/reliability limits, including after-final-preflight races and retained175 uncertainty."
+  },
+  "future_count_if_root_adopts": {
+    "closed": 2,
+    "open": 4,
+    "installed_delivery": "HOLD"
+  },
+  "historical_records": "Do not rewrite past arm gate486_closed:false/counts1closed5open, failure exits or outcomes. Add a dated closure assessment; historical paragraphs below a marker retain their original checkpoint counts.",
+  "material_doc_precision_notes": [
+    "Conflict public benchmark retains stale prereg limits saying no real outcome yet, despite its actual verified_provider_endpoint; do not use those future-tense limits as current outcome. A small outcome clarification annex can retain the original prereg wording.",
+    "Old replacement/trash guide validation summaries are stale (Keynote replacement open; standalone Numbers removal requires live arm). Their documented public workflow and guarantees remain valid; update only status sentences alongside closure, if Root includes those guides."
+  ],
+  "source_reads_only": true,
+  "new_test_or_provider_execution": false,
+  "root_private_evidence_pins_verified": 74,
+  "current_criteria": {
+    "closed": 2,
+    "open": 4
+  },
+  "cloud_mutations_in_this_assessment": 0
+}

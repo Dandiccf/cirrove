@@ -1204,7 +1204,7 @@ msgstr ""
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:61
 msgid ""
 "Choose a wrapped Pages, Numbers or Keynote archive, or explicitly choose a "
-"flat Numbers export. Import creates a new document, up to 64 MiB. It does "
+"flat Numbers or Pages export. Import creates a new document, up to 64 MiB. It does "
 "not replace or edit an existing document."
 msgstr ""
 
@@ -1228,6 +1228,10 @@ msgstr ""
 msgid "Flat Numbers export"
 msgstr ""
 
+#: crates/cirrove-desktop/src/ui/native_import.rs:79
+msgid "Flat Pages export"
+msgstr ""
+
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:83
 msgid "Destination folder"
 msgstr ""
@@ -1239,8 +1243,9 @@ msgstr ""
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/native_import.rs:112
 msgid ""
 "For a wrapped archive, use its exact document folder name and the same "
-"extension for the new name. A flat Numbers export has no document folder and "
-"requires a .numbers name. Leave the destination blank for the top level, or "
+"extension for the new name. A flat export has no document folder. Choose "
+"Flat Numbers for a .numbers name or Flat Pages for a .pages name. Leave the "
+"destination blank for the top level, or "
 "enter a folder such as Documents/Reports."
 msgstr ""
 

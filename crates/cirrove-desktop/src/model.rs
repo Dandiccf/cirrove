@@ -840,6 +840,9 @@ pub fn native_import_source_fields_valid(
             (cirrove_service::native_import::PackageSourceLayout::FlatNumbers, None) => {
                 name.to_ascii_lowercase().ends_with(".numbers")
             }
+            (cirrove_service::native_import::PackageSourceLayout::FlatPages, None) => {
+                name.to_ascii_lowercase().ends_with(".pages")
+            }
             _ => false,
         }
         && parent.len() <= 4096

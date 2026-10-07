@@ -20,8 +20,10 @@ and retained its one-slide B title and subtitle after one reload, with no edits.
 The original managed processes closed and protected source/installed artifacts
 remained unchanged. This is one bounded PACKAGE workflow, with no claim for
 DATA coverage, ordinary/atomic editor saves, broader export fidelity or repeated
-reliability. Full-iCloud acceptance stays one closed and five open; installed
-delivery remains on HOLD.
+reliability. Full-iCloud acceptance is now two criteria closed and four open; installed
+delivery remains on HOLD. The dated closure assessment below combines the
+measured replacement, removal, refusal and process-loss endpoints; historical
+open-row counts later in this record retain their original checkpoint meaning.
 
 ## Document packages remain a release gate
 
@@ -3902,3 +3904,25 @@ pending. The completed genuine Pages trial above used separately wrapped input
 and cannot be credited to this new direct-source path. Neither this addition nor
 local test success changes the held installation policy or closes the complete
 native-document acceptance criterion.
+
+
+### Bounded native replacement and removal criterion closed on 7 October
+
+Full-iCloud row486 is closed by genuine edited Pages, Numbers and Keynote
+archive replacements with exact typed old/new/recovery identity and revision
+bindings, independent complete source-B/current and source-A/Trash semantic V2
+verification, real mismatched-selection and reserved-name Conflict refusal,
+and actual process exit86 followed by same-operation inspection-only recovery
+without mutation replay. The separate standalone native Trash arm also passed
+complete original-content verification and normal read-only list/watch/mounted
+absence. The linked registered arms above retain their original outcomes,
+failed predecessors and independent audits.
+
+This closes the bounded explicit native archive replacement/removal workflow.
+It preserves complete original file contents, not raw transport ZIP encoding,
+and proves local acknowledgement loss rather than an unobserved provider reply
+loss. Arbitrary generated-child writes, after-final-preflight atomic races,
+natural stale-revision acceptance and sustained reliability are not inferred.
+Rows487–490 remain open for the application/representation matrix, installed
+lifecycle, full Strata delivery and remaining reliability boundaries. The current
+count is two of six criteria closed and four open; installed delivery stays on HOLD.

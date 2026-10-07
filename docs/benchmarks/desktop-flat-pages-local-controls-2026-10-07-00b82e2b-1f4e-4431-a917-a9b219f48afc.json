@@ -1,0 +1,243 @@
+{
+  "version": 1,
+  "run": "00b82e2b-1f4e-4431-a917-a9b219f48afc",
+  "status": "closed_refused_preflight",
+  "active_measurement": false,
+  "question": "Does the explicit Desktop FlatPages choice preserve wrapped/FlatNumbers behavior and dispatch exactly one typed flat_pages/null-root request through the actual GTK form, while refusing unsupported selections?",
+  "prediction": "Tests-only exact new model control fails at the positive FlatPages validation assertion; identical test passes after the scoped UI/model correction. Full model target executes seven passing controls; private actual GTK custom harness executes one passing scenario; complete local check passes. No real-provider acceptance prediction.",
+  "source": {
+    "checkout": "/home/dandiccf/Storage/.cirrove-worktrees/direct-flat-pages-observer-20261007",
+    "base_head": "7e727bc89adbc8b5c19c1f86fc31873eb0c3af48",
+    "runtime_source_count": 568,
+    "runtime_source_map": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/source-pins-terminal.json",
+      "size": 72732,
+      "sha256": "4714da7fe8f5d5bc935797543c743d159c9ee189575c13d77835b8b5f34d64bb"
+    },
+    "desktop_proposal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-import-development-20261007-private-v1/current-7e-v3/proposal-v3.json",
+      "size": 8612,
+      "sha256": "3de936f3678e973994d5f2a0f3e457791a4ba3ff0f33315d2ce4b8ffa1bba9c6"
+    },
+    "patches": {
+      "tests_only": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-import-development-20261007-private-v1/current-7e-v3/tests-only-v3.patch",
+        "size": 5334,
+        "sha256": "9627f6d3dc0b912b1c17bf621f0d2fa50d4b1744c502d5e481386affe56ca4bf"
+      },
+      "production_only": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-import-development-20261007-private-v1/current-7e-v3/ui-and-validation-only-v3.patch",
+        "size": 3128,
+        "sha256": "392517ad3f9fc62a7628013b54bdc6d553e2e96fd3c49940a4a2ae380cf36c47"
+      },
+      "translations_only": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-import-development-20261007-private-v1/current-7e-v3/translations-only-v3.patch",
+        "size": 4231,
+        "sha256": "1e6771c307e845f3920c180aaf690b5af45e33f41ff4f00f969eb256fec37f2f"
+      },
+      "all": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-import-development-20261007-private-v1/current-7e-v3/desktop-only-v3.patch",
+        "size": 12693,
+        "sha256": "47c7936f37ef1e29cf98a6d39cc62872655e8b703d427c1f5413406be6a7abaa"
+      }
+    },
+    "executor": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/run_desktop_root_v3.py",
+      "size": 17014,
+      "sha256": "e6cbfd05fe69174acd31bf5532092d070c2c82d808789327d20b87a168c9f8f6"
+    }
+  },
+  "toolchain": {
+    "cargo": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "size": 40680304,
+      "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14"
+    },
+    "rustc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+      "size": 645952,
+      "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+    },
+    "RUSTUP_TOOLCHAIN": "1.98.1",
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-direct-flat-pages-observer-20261007"
+  },
+  "paths": {
+    "evidence": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-00b82e2b-1f4e-4431-a917-a9b219f48afc",
+    "TMPDIR": "/home/dandiccf/Storage/ct/dfd-00b82e2b",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/dfd-00b82e2b"
+  },
+  "arms": [
+    {
+      "name": "desired-red1",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-desktop",
+        "--test",
+        "native_import",
+        "--locked",
+        "native_import_flat_pages_form_requires_explicit_layout_and_no_wrapper_root",
+        "--",
+        "--exact"
+      ],
+      "expected_exit": 101,
+      "expected_executed_tests": 1,
+      "desired_failure_marker": "assertion failed: valid(",
+      "compiler_errors_or_zero_tests_are_failure": true
+    },
+    {
+      "name": "same-green1",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-desktop",
+        "--test",
+        "native_import",
+        "--locked",
+        "native_import_flat_pages_form_requires_explicit_layout_and_no_wrapper_root",
+        "--",
+        "--exact"
+      ],
+      "expected_exit": 0,
+      "expected_executed_tests": 1
+    },
+    {
+      "name": "model7",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-desktop",
+        "--test",
+        "native_import",
+        "--locked"
+      ],
+      "expected_exit": 0,
+      "expected_executed_tests": 7
+    },
+    {
+      "name": "gtk-build-only",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-desktop",
+        "--test",
+        "window",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "expected_exit": 0,
+      "endpoint": "Unique actual CargoJSON window test executable from this checkout/target, pinned before runtime"
+    },
+    {
+      "name": "gtk-actual1",
+      "actual_pinned_executable_args": [
+        "native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "expected_exit": 0,
+      "expected_executed_tests": 1,
+      "display_asset": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/bin/Xvfb",
+        "size": 1973888,
+        "sha256": "567a9b39284e303522fdc178059fe60d0e9917b811bd5066fb63260fd198a97c"
+      },
+      "private_bus_asset": {
+        "path": "/usr/bin/dbus-daemon",
+        "size": 199176,
+        "sha256": "e9ffeaea83965fa53077f716e352d3038794200bacb8eee043fe55117ce2c7d7"
+      }
+    },
+    {
+      "name": "translations",
+      "command": [
+        "python3",
+        "scripts/test-translations.py"
+      ],
+      "expected_exit": 0
+    },
+    {
+      "name": "whole-check",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "expected_exit": 0
+    }
+  ],
+  "phase_bounds": {
+    "build_or_model_seconds_each": 1800,
+    "whole_check_seconds": 3600,
+    "original_command_cleanup_seconds": 20,
+    "gui_work_seconds": 300,
+    "gui_cleanup_seconds": 30,
+    "GUI_clock_starts_after_compilation": true
+  },
+  "endpoint": {
+    "ordered_exact_counts": [
+      1,
+      1,
+      7,
+      1
+    ],
+    "expected_original_children": 15,
+    "all_original_Popen_retained_before_pidfd_and_owner_IO": true,
+    "all_original_children_reaped_and_proc_absent": true,
+    "all_original_process_groups_empty": true,
+    "gtk_closes_before_own_bus_and_display": true,
+    "unresolved_GTK_preserves_own_bus_display": true,
+    "source_changes_scoped_to_six_desktop_files": true,
+    "no_host_desktop_configuration": true
+  },
+  "execution_prerequisites": [
+    "Canary executor original closure confirmed; no compiler or measurement active",
+    "Root creates fresh evidence and TMP0700 on disk ext4, verifies actual filesystem",
+    "Root publishes these exact preregistration bytes at registered public path",
+    "Root independently fills approval+ready true in a new private input file and retains original executor handle",
+    "W39 remains HEAD7e and actual568 source bytes unchanged before tests-only apply"
+  ],
+  "actions": {
+    "provider": false,
+    "session_or_keyring": false,
+    "normal_daemon": false,
+    "installed_or_service": false,
+    "host_system_changes": false
+  },
+  "limitations": [
+    "Synthetic form and fake local service request, not real Pages upload, scan or application acceptance",
+    "No test/build/GTK invocation yet; written RED prediction is not an observed proof",
+    "Host libraries are not a hermetic image; privately pinned existing Xvfb is reused without a global package install",
+    "No release or milestone gate is closed by this local run"
+  ],
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-00b82e2b-1f4e-4431-a917-a9b219f48afc/outer-terminal-result.json",
+    "size": 618,
+    "sha256": "b54d06095c8dc796d367d4d81017c7d1911b87a41e41162c2395a35a9b53e36f"
+  },
+  "private_bus_contract": {
+    "config": "TMPDIR/dbus.conf immutable private create_new",
+    "listen": "unix:path=TMPDIR/private-bus",
+    "auth": "EXTERNAL",
+    "servicedir": false,
+    "standard_session_servicedirs": false,
+    "policy": "default allow own/send/eavesdrop in isolated synthetic session",
+    "actual_config_address_DISPLAY_recorded": true
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-00b82e2b-1f4e-4431-a917-a9b219f48afc/outer-registration.json",
+    "size": 1690,
+    "sha256": "bb48b17918933abbc144524f62cd3c2b5ecbf379cb1d6a60bd27eb9443f49444"
+  },
+  "inner_originals_started": 0,
+  "closure_correction": "Inner Refusal occurred before suite registration and before Owners.run; no inner child could have started. Root original reaped/absent. Prior closure_incomplete flag was conservative.",
+  "failure_correction": {
+    "cause": "Mutable public active-status rewrite invalidated the exact original preregistration SHA checked by inner executor.",
+    "no_build_or_patch_or_provider_started": true,
+    "success_claimed": false
+  }
+}
