@@ -9,8 +9,12 @@ use std::path::PathBuf;
 #[command(version, about = "Cirrove user service — pre-release preview")]
 struct Args {
     /// Report compiled storage formats without opening state or starting service.
-    #[arg(long, conflicts_with_all = ["state_dir", "socket"])]
+    #[arg(long, conflicts_with_all = ["state_dir", "socket", "recovery_only"])]
     storage_format_json: bool,
+    /// Mount read-only and expose local recovery without changing saved grants.
+    /// Retained uploads are not migrated, claimed, retried or published.
+    #[arg(long)]
+    recovery_only: bool,
     #[arg(long)]
     state_dir: Option<PathBuf>,
     #[arg(long)]
@@ -61,9 +65,34 @@ async fn main() -> Result<()> {
         version = env!("CARGO_PKG_VERSION"),
         "starting Cirrove account service"
     );
-    let (manager, worker) = cirrove_service::manager::Manager::start(state, cancel.clone());
+    let (manager, worker) = if args.recovery_only {
+        cirrove_service::manager::Manager::start_recovery_only(state, cancel.clone())
+    } else {
+        cirrove_service::manager::Manager::start(state, cancel.clone())
+    };
     let result = serve_managed(db, socket, cancel.clone(), Some(manager)).await;
     cancel.cancel();
     worker.await?;
     result
+}
+
+#[cfg(test)]
+mod recovery_only_cli_tests {
+    use super::*;
+    #[test]
+    fn recovery_only_cli_is_explicit_and_storage_report_is_exclusive() {
+        assert!(
+            !Args::try_parse_from(["cirroved"])
+                .expect("default daemon arguments")
+                .recovery_only
+        );
+        assert!(
+            Args::try_parse_from(["cirroved", "--recovery-only"])
+                .expect("explicit recovery-only arguments")
+                .recovery_only
+        );
+        assert!(
+            Args::try_parse_from(["cirroved", "--storage-format-json", "--recovery-only"]).is_err()
+        );
+    }
 }

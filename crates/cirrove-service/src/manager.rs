@@ -25,6 +25,10 @@ pub struct AccountStatus {
     /// Does not imply retained changes exist or authorize cloud writes.
     #[serde(default)]
     pub local_recovery: bool,
+    /// This daemon enforces read-only mounts and local recovery even when the
+    /// saved grant allows changes. Desired account settings are not downgraded.
+    #[serde(default)]
+    pub recovery_only: bool,
     /// Stable settings identity for desktop actions. Older daemon responses omit it.
     #[serde(default)]
     pub account_id: String,
@@ -225,6 +229,8 @@ struct NativeReplaceCaptureFixture {
     calls: std::sync::atomic::AtomicUsize,
 }
 pub struct Manager {
+    // Run-wide: reloads, re-enables and healed sign-ins cannot start a writer.
+    recovery_only: bool,
     pub status: RwLock<Vec<AccountStatus>>,
     /// Changes to `status`, as edges, for desktop clients that cannot poll.
     ///
@@ -258,6 +264,7 @@ pub struct Manager {
 impl Default for Manager {
     fn default() -> Self {
         Self {
+            recovery_only: false,
             status: RwLock::default(),
             engines: RwLock::default(),
             writers: RwLock::default(),
@@ -835,6 +842,22 @@ impl Manager {
             })),
         )
     }
+    /// Start read-only mounts and local recovery without changing saved grants.
+    /// No write factory, writable journal migration or write worker is started.
+    /// The selection lasts for the whole Manager run, including account reloads.
+    pub fn start_recovery_only(
+        state: PathBuf,
+        cancel: CancellationToken,
+    ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
+        let provider_state = state.clone();
+        Self::start_with_providers_mode(
+            state,
+            cancel,
+            Arc::new(move |account| crate::accounts::provider_with_state(account, &provider_state)),
+            None,
+            true,
+        )
+    }
     /// The same account lifecycle is used for production and deterministic providers.
     pub fn start_with_provider(
         state: PathBuf,
@@ -852,7 +875,19 @@ impl Manager {
         factory: ProviderFactory,
         writes: Option<WriteFactory>,
     ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
-        let manager = Arc::new(Self::default());
+        Self::start_with_providers_mode(state, cancel, factory, writes, false)
+    }
+    fn start_with_providers_mode(
+        state: PathBuf,
+        cancel: CancellationToken,
+        factory: ProviderFactory,
+        writes: Option<WriteFactory>,
+        recovery_only: bool,
+    ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
+        let manager = Arc::new(Self {
+            recovery_only,
+            ..Self::default()
+        });
         let worker = manager.clone();
         let task = tokio::spawn(async move {
             worker.run(state, cancel, factory, writes).await;
@@ -925,6 +960,7 @@ impl Manager {
                             state.clone(),
                             &factory,
                             writes.as_ref(),
+                            self.recovery_only,
                         )
                         .await
                         {
@@ -955,6 +991,7 @@ impl Manager {
                     for account in &settings.accounts {
                         let mut status = AccountStatus {
                             local_recovery: false,
+                            recovery_only: self.recovery_only,
                             wastebasket: None,
                             account_id: account.id.clone(),
                             provider: account.registration.provider_id().into(),
@@ -992,7 +1029,7 @@ impl Manager {
                             indexed_items: 0,
                         };
                         if let Some(active) = running.get_mut(&account.id) {
-                            if account.access == cirrove_auth::AccessMode::ReadOnly
+                            if active.engine.account.access == cirrove_auth::AccessMode::ReadOnly
                                 && let Some(old) = previous.iter().find(|old| {
                                     old.account_id == status.account_id
                                         && old.provider == status.provider
@@ -1051,10 +1088,10 @@ impl Manager {
                                             let writable = prepare_write(
                                                 &active.engine,
                                                 &state,
-                                                writes.as_ref(),
+                                                writes.as_ref().filter(|_| !self.recovery_only),
                                             )
                                             .await?;
-                                            if writable.is_none() {
+                                            if writable.is_none() && !self.recovery_only {
                                                 active.engine.start_ordinary_metadata_readonly();
                                             }
                                             mount_checked(active.engine.clone(), writable).await
@@ -1087,7 +1124,8 @@ impl Manager {
                             }
                             status.local_recovery = account.enabled
                                 && !active.engine.cancel.is_cancelled()
-                                && (account.access == cirrove_auth::AccessMode::ReadOnly
+                                && (active.engine.account.access
+                                    == cirrove_auth::AccessMode::ReadOnly
                                     || active.writers.is_some());
                             status.feeds = active.engine.health().await;
                             status.directory_freshness = active.engine.directory_freshness();
@@ -1105,7 +1143,9 @@ impl Manager {
                                 status.stuck_changes = writers.stuck_changes().await;
                                 status.unconfirmed_changes = writers.unconfirmed_changes().await;
                                 status.failed_uploads = writers.failed_uploads().await;
-                            } else if account.access == cirrove_auth::AccessMode::ReadOnly {
+                            } else if active.engine.account.access
+                                == cirrove_auth::AccessMode::ReadOnly
+                            {
                                 let inspected = async {
                                     self.recovery_control(active.engine.clone())
                                         .await?
@@ -1173,23 +1213,36 @@ impl Manager {
         state: PathBuf,
         factory: &ProviderFactory,
         writes: Option<&WriteFactory>,
+        recovery_only: bool,
     ) -> Result<Running> {
+        // Resolve the read provider using the original grant/session. Only the
+        // in-memory engine policy is restricted; Running.config stays desired.
         let graph = factory(&account)?;
-        let engine = Engine::new(account.clone(), graph, state.clone()).await?;
+        let mut effective = account.clone();
+        if recovery_only {
+            effective.access = cirrove_auth::AccessMode::ReadOnly;
+        }
+        let engine = Engine::new(effective, graph, state.clone()).await?;
         // The grant selects write mode; ownership and the index must exist
         // before a factory can resolve identities or retain operation state.
-        let writable = match prepare_write(&engine, &state, writes).await {
+        let writable = match prepare_write(&engine, &state, writes.filter(|_| !recovery_only)).await
+        {
             Ok(prepared) => prepared,
             Err(error) => {
                 engine.stop().await;
                 return Err(error);
             }
         };
-        if let Err(error) = engine.start().await {
+        let started = if recovery_only {
+            engine.start_recovery_only().await
+        } else {
+            engine.start().await
+        };
+        if let Err(error) = started {
             engine.stop().await;
             return Err(error);
         }
-        if writable.is_none() {
+        if writable.is_none() && !recovery_only {
             engine.start_ordinary_metadata_readonly();
         }
         let (session, writers, mount_error) = match mount_checked(engine.clone(), writable).await {
@@ -1524,3 +1577,6 @@ mod recovery_tests;
 mod native_trash_readonly_tests;
 #[cfg(test)]
 mod retained_status_tests;
+
+#[cfg(test)]
+mod recovery_only_tests;

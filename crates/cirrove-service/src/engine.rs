@@ -1346,11 +1346,18 @@ impl Engine {
         }
     }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
+        self.start_with_publication(true).await
+    }
+    /// Recovery-only startup must not acknowledge retained journal publications.
+    pub(crate) async fn start_recovery_only(self: &Arc<Self>) -> Result<()> {
+        self.start_with_publication(false).await
+    }
+    async fn start_with_publication(self: &Arc<Self>, repair_publication: bool) -> Result<()> {
         // Before anything can evict, so a restart never spends the window
         // between mounting and the first pin change treating pinned blocks as
         // ordinary ones.
         self.refresh_reservations().await?;
-        if self.account.access == cirrove_auth::AccessMode::ReadOnly {
+        if repair_publication && self.account.access == cirrove_auth::AccessMode::ReadOnly {
             self.start_ordinary_metadata_readonly();
         }
         if !self.discovery_started.swap(true, Ordering::SeqCst) {

@@ -632,6 +632,35 @@ Upgrading properly is: install the new binaries first, then restart the service,
 then use the new commands.
 
 
+### Explicit recovery-only startup on the iCloud development branch
+
+`cirroved --recovery-only` enforces read-only mounts for the entire daemon run,
+including account reloads, re-enabling and interrupted-sign-in healing. It keeps
+the saved account's access grant, session and identity intact. The read provider
+uses that saved grant; the effective filesystem policy permits reads and local
+recovery only. No write factory, writable upload-journal migration or upload worker
+starts, and pending ordinary metadata publications are not repaired on startup
+or remount. Existing sealed-save and dirty-working export commands remain available.
+Account status exposes `recovery_only: true` separately from `local_recovery`.
+
+For development validation, use only an explicitly isolated state, private socket
+and separate mount paths:
+
+```sh
+./target/debug/cirroved --recovery-only \
+  --state-dir /absolute/path/to/isolated-state \
+  --socket /absolute/path/to/private-socket
+```
+
+This mode still performs provider reads and normal metadata-index/cache work;
+it does not promise zero network activity or an unchanged metadata database.
+The restriction is temporary: restarting without the flag resumes normal startup
+according to the saved grants. It is not a downgrade procedure, installer-policy
+release or permission to open installed state with a development binary. The
+schema21 hold below continues to apply. The
+[registered controls](benchmarks/icloud-recovery-only-startup-2026-10-07.json)
+distinguish synthetic journal-preservation evidence from installed acceptance.
+
 <a id="ordinary-metadata-publication-journal-schema20-held-prerelease-policy"></a>
 
 ### Flat Numbers source journal schema21: held prerelease policy

@@ -1,26 +1,29 @@
-//! Feature-only receipt-selected ordinary XLSX and DOCX metadata capture. No mutation or journal claim.
+//! Feature-only receipt-selected ordinary XLSX, DOCX and PPTX metadata capture. No mutation or journal claim.
 use super::super::public_verify::exact_entry;
 use super::*;
 use cirrove_core::{Node, NodeKind};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-/// Only the two implemented ordinary editor validation cases; callers choose
+/// Only the three implemented ordinary editor validation cases; callers choose
 /// an explicit CLI entrypoint, never infer a format from provider data.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum EditorArm {
     Calc,
     Writer,
+    Impress,
 }
 impl EditorArm {
     pub(super) fn stem(self) -> &'static str {
         match self {
             Self::Calc => "calc",
             Self::Writer => "writer",
+            Self::Impress => "impress",
         }
     }
     pub(super) fn extension(self) -> &'static str {
         match self {
             Self::Calc => "xlsx",
             Self::Writer => "docx",
+            Self::Impress => "pptx",
         }
     }
     pub(super) fn editor_root(self, run: Uuid) -> PathBuf {
@@ -30,6 +33,7 @@ impl EditorArm {
         match self {
             Self::Calc => format!("Cirrove-Calc-{run}.xlsx"),
             Self::Writer => format!("Cirrove-Writer-{run}.docx"),
+            Self::Impress => format!("Cirrove-Impress-{run}.pptx"),
         }
     }
     pub(super) fn source_name(self, phase: &str) -> String {
@@ -148,11 +152,11 @@ fn registered_for(bytes: &[u8], digest: &str, clock: u64, arm: EditorArm) -> Res
             && r.started_unix_seconds <= clock
             && clock
                 < r.deadline_unix_seconds
-                    .saturating_sub(if arm == EditorArm::Writer { 45 } else { 0 })
+                    .saturating_sub(if arm != EditorArm::Calc { 45 } else { 0 })
             && r.deadline_unix_seconds
                 .checked_sub(r.started_unix_seconds)
-                .is_some_and(|n| n > (if arm == EditorArm::Writer { 45 } else { 0 })
-                    && n <= (if arm == EditorArm::Writer { 600 } else { 1800 })),
+                .is_some_and(|n| n > (if arm != EditorArm::Calc { 45 } else { 0 })
+                    && n <= (if arm != EditorArm::Calc { 600 } else { 1800 })),
         "Calc finite window refused"
     );
     Ok(r)
@@ -164,20 +168,21 @@ fn registered(bytes: &[u8], digest: &str, clock: u64) -> Result<Registration> {
 fn active_remaining(r: &Registration, arm: EditorArm) -> Result<u64> {
     let end = r
         .deadline_unix_seconds
-        .checked_sub(if arm == EditorArm::Writer { 45 } else { 0 })
+        .checked_sub(if arm != EditorArm::Calc { 45 } else { 0 })
         .context("editor cleanup reserve refused")?;
     let remaining = end.checked_sub(now()?).context("editor window expired")?;
     ensure!(remaining > 0, "editor window expired");
     Ok(remaining)
 }
-// This is the actual Writer-only final synchronous path. The last source/settings
+// This is the bounded Writer/Impress final synchronous path. The last source/settings
 // verification may itself overrun; a retained result then remains failed evidence.
-fn writer_after_publication(
+fn editor_after_publication(
     r: &Registration,
+    arm: EditorArm,
     finish_verification: impl FnOnce() -> Result<()>,
 ) -> Result<()> {
     finish_verification()?;
-    active_remaining(r, EditorArm::Writer)?;
+    active_remaining(r, arm)?;
     Ok(())
 }
 fn bytes(path: &Path, cap: u64) -> Result<Vec<u8>> {
@@ -253,7 +258,9 @@ fn account(r: &Registration, raw: &[u8]) -> Result<Account> {
 fn account_for(r: &Registration, raw: &[u8], arm: EditorArm) -> Result<Account> {
     let a = account(r, raw)?;
     ensure!(
-        arm == EditorArm::Calc || a.label == "iCloudWriterValidation",
+        arm == EditorArm::Calc
+            || (arm == EditorArm::Writer && a.label == "iCloudWriterValidation")
+            || (arm == EditorArm::Impress && a.label == "iCloudImpressValidation"),
         "Writer account label refused"
     );
     Ok(a)
@@ -365,7 +372,7 @@ async fn observe(path: &Path, digest: &str, arm: EditorArm) -> Result<serde_json
             "current_content_verified":false,"gui_fidelity_verified":false,"journal_receipt_verified":false,
             "cloud_mutated":false,"automatic_retry":false});
         unchanged(path,digest,&r,&root,&state,arm)?;
-        record(&r.session_directory.join(format!("{}-{letter}-metadata.json", arm.stem())),&result)?;root.sync_all()?;if arm == EditorArm::Writer { writer_after_publication(&r, || unchanged(path,digest,&r,&root,&state,arm))?; } Ok(result)
+        record(&r.session_directory.join(format!("{}-{letter}-metadata.json", arm.stem())),&result)?;root.sync_all()?;if arm != EditorArm::Calc { editor_after_publication(&r, arm, || unchanged(path,digest,&r,&root,&state,arm))?; } Ok(result)
     }).await.map_err(|_| anyhow::anyhow!("Calc metadata window expired"))?
 }
 /// Independent read-only metadata; generic DATA readback proves representation/content later.
@@ -382,3 +389,9 @@ pub async fn icloud_owned_writer_metadata(path: &Path, digest: &str) -> Result<s
 }
 #[cfg(test)]
 mod tests;
+
+pub async fn icloud_owned_impress_metadata(path: &Path, digest: &str) -> Result<serde_json::Value> {
+    observe(path, digest, EditorArm::Impress)
+        .await
+        .map_err(|_| anyhow::anyhow!("owned Impress metadata refused; retained evidence; no retry"))
+}

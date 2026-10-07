@@ -97,10 +97,10 @@ fn fixture_for(arm: EditorArm) -> Result<FixtureInputs> {
     )?;
     let account = Account {
         id: account_id.to_string(),
-        label: if arm == EditorArm::Calc {
-            "iCloudCalcTrashValidation"
-        } else {
-            "iCloudWriterTrashValidation"
+        label: match arm {
+            EditorArm::Calc => "iCloudCalcTrashValidation",
+            EditorArm::Writer => "iCloudWriterTrashValidation",
+            EditorArm::Impress => "iCloudImpressTrashValidation",
         }
         .into(),
         registration: AppRegistration::ICloud,
@@ -421,6 +421,123 @@ fn owned_writer_trash_refuses_rw_foreign_label_and_expired_reserve() -> Result<(
             &hex::encode(Sha256::digest(&raw)),
             1001,
             EditorArm::Writer
+        )
+        .is_err()
+    );
+    Ok(())
+}
+
+fn impress_check(r: &Registration, f: &[u8], p: &[u8], u: &[u8]) -> Result<()> {
+    let raw = serde_json::to_vec(r)?;
+    let checked = registered_for(
+        &raw,
+        &hex::encode(Sha256::digest(&raw)),
+        1001,
+        EditorArm::Impress,
+    )?;
+    historical_for(&checked, f, p, u, EditorArm::Impress)
+}
+#[test]
+fn owned_impress_trash_accepts_genuine_completed_pptx_handoff_not_calc_route() -> Result<()> {
+    let (r, f, p, u, _, _retained) = fixture_for(EditorArm::Impress)?;
+    impress_check(&r, &f, &p, &u)?;
+    assert_eq!(active_remaining_for(&r, 1001, EditorArm::Impress)?, 554);
+    assert!(
+        check_values(&r, &f, &p, &u).is_err(),
+        "Impress Trash accepted by Calc"
+    );
+    let (calc, cf, cp, cu, _, _calc_retained) = fixture()?;
+    assert!(
+        impress_check(&calc, &cf, &cp, &cu).is_err(),
+        "Calc Trash accepted by Impress"
+    );
+    Ok(())
+}
+#[test]
+fn owned_impress_trash_refuses_rebound_fixture_and_completed_receipt_drift() -> Result<()> {
+    let (r, f, p, u, _, _retained) = fixture_for(EditorArm::Impress)?;
+    for arm in 0..8 {
+        let mut value: serde_json::Value = serde_json::from_slice(&u)?;
+        match arm {
+            0 => value["scope"]["account"] = Uuid::new_v4().to_string().into(),
+            1 => value["scope"]["collection"] = "foreign".into(),
+            2 => value["state"] = "uploading".into(),
+            3 => value["identity_handoff"]["backup"]["etag"] = "changed-Trash-revision".into(),
+            4 => value["identity_handoff"]["backup"]["package"] = true.into(),
+            5 => {
+                value["identity_handoff"]["old_item"] = "FILE::com.apple.CloudDocs::foreign".into()
+            }
+            6 => value["id"] = Uuid::new_v4().to_string().into(),
+            _ => value["transferred_bytes"] = 0.into(),
+        }
+        assert!(
+            historical_for(&r, &f, &p, &serde_json::to_vec(&value)?, EditorArm::Impress).is_err(),
+            "Impress target arm {arm}"
+        );
+    }
+    for arm in 0..4 {
+        let mut value: serde_json::Value = serde_json::from_slice(&f)?;
+        match arm {
+            0 => value["format"] = "xlsx".into(),
+            1 => {
+                value["source"] = serde_json::to_value(
+                    EditorArm::Calc
+                        .editor_root(r.writer_run)
+                        .join("source-a.xlsx"),
+                )?
+            }
+            2 => value["representation"] = "package".into(),
+            _ => value["document"]["etag"] = "changed-A-revision".into(),
+        }
+        let raw = serde_json::to_vec(&value)?;
+        let mut rebound = r.clone();
+        rebound.prior_a_fixture.sha256 = hex::encode(Sha256::digest(&raw));
+        // Re-pin both the changed fixture and its read receipt to reach identity/format checks.
+        let mut proof: serde_json::Value = serde_json::from_slice(&p)?;
+        proof["manifest_sha256"] = rebound.prior_a_fixture.sha256.clone().into();
+        let proof = serde_json::to_vec(&proof)?;
+        rebound.prior_a_read_receipt.sha256 = hex::encode(Sha256::digest(&proof));
+        assert!(
+            historical_for(&rebound, &raw, &proof, &u, EditorArm::Impress).is_err(),
+            "Impress A fixture arm {arm}"
+        );
+    }
+    Ok(())
+}
+#[test]
+fn owned_impress_trash_refuses_rw_foreign_label_and_expired_reserve() -> Result<()> {
+    let (r, _, _, _, a, _retained) = fixture_for(EditorArm::Impress)?;
+    for arm in 0..5 {
+        let mut account = a.clone();
+        match arm {
+            0 => {}
+            1 => account.access = AccessMode::ReadWrite,
+            2 => account.label = "iCloudCalcTrashValidation".into(),
+            3 => account.id = Uuid::new_v4().to_string(),
+            _ => account.label = "iCloudWriterTrashValidation".into(),
+        }
+        let raw = serde_json::to_vec(&Settings {
+            version: 2,
+            accounts: vec![account],
+        })?;
+        let mut checked = r.clone();
+        checked.settings_sha256 = hex::encode(Sha256::digest(&raw));
+        assert_eq!(
+            account_for(&checked, &raw, EditorArm::Impress).is_ok(),
+            arm == 0,
+            "Impress Trash settings arm {arm}"
+        );
+    }
+    assert!(active_remaining_for(&r, 1555, EditorArm::Impress).is_err());
+    let mut extended = r.clone();
+    extended.deadline_unix_seconds = 1601;
+    let raw = serde_json::to_vec(&extended)?;
+    assert!(
+        registered_for(
+            &raw,
+            &hex::encode(Sha256::digest(&raw)),
+            1001,
+            EditorArm::Impress
         )
         .is_err()
     );

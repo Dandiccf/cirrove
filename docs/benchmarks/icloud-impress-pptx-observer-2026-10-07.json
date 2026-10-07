@@ -1,0 +1,31 @@
+{
+  "active_measurement": false,
+  "assessment": {
+    "all_runtime_sources_restored": true,
+    "cloud_application_case_executed": false,
+    "focused_executed": 9,
+    "omission_RED_GREEN_pairs": 4,
+    "regression_executed": [
+      9,
+      10,
+      2
+    ],
+    "terminal_sha256": "5e433f60d8009f46c9428a664336f73e3b2f51201088bcda0f363eadb424c503"
+  },
+  "complete_check": {
+    "benchmark": "icloud-impress-recovery-complete-check-2026-10-07.json",
+    "completion_field_appended_after_check": true,
+    "runtime_sources_final_count": 569,
+    "sections": 10,
+    "terminal_sha256": "ace43758930d342406cde33e9790f3dbcca0e24dc038122fc6e8801ec9599194"
+  },
+  "date": "2026-10-07",
+  "endpoint": "12 sequential test arms; executed counts, intended assertions, actual original owners closed, exact568 source map restored. Complete check required separately before commit.",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "prediction": "9 Impress,9 Writer,10 Calc and2 XLSX controls pass; four omissions each fail the registered assertion and exactly1 restored test passes.",
+  "provider_actions": false,
+  "question": "Do explicit ordinary Impress PPTX proof commands reject cross-arm identities, wrong roots, typed backup drift and final synchronous deadline overrun?",
+  "status": "focused_controls_and_complete_check_passed",
+  "version": 1
+}

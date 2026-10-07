@@ -1,0 +1,37 @@
+{
+  "active_measurement": false,
+  "assessment": {
+    "completion_field_appended_after_check": true,
+    "formatter_changed_paths": [
+      "crates/cirrove-service/src/bin/cirroved.rs"
+    ],
+    "new_named_tests_executed": 11,
+    "runtime_source_count": 569,
+    "rust_result_groups": 87,
+    "sections": 10,
+    "terminal_sha256": "ace43758930d342406cde33e9790f3dbcca0e24dc038122fc6e8801ec9599194"
+  },
+  "date": "2026-10-07",
+  "endpoint": "Full check exit0, executed test names/counts, final569 source map, original process-group closure; focused21 arms were completed separately.",
+  "full_487_closed": false,
+  "full_488_closed": false,
+  "installed_actions": false,
+  "prediction": "Formatting changes only the14 integrated files; whole scripts/check.sh passes all10 sections including new Impress9 and recovery Manager/CLI controls without skip.",
+  "previous_attempts": [
+    {
+      "all_recorded_owners_closed": true,
+      "attempt": 1,
+      "exit": 101,
+      "failed_terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/recovery-only-startup-development-20261007-a9c47-private-v1/root-fullcheck-composed-run-v1/failed-terminal-v1.json",
+        "sha256": "6e1e63b0284a3a465c1d8bb0a7680fcd09063b8b2e1265f9dfebd7494afea775",
+        "size": 74457
+      },
+      "reason": "CLI test unwrap_used lint; corrected to diagnostic expect without production behavior change"
+    }
+  ],
+  "provider_actions": false,
+  "question": "Does composed explicit recovery-only startup and Impress ordinary PPTX proof tooling pass the complete required project check with all new and existing tests?",
+  "status": "complete_check_passed",
+  "version": 1
+}

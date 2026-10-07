@@ -542,6 +542,22 @@ enum Command {
         #[arg(long)]
         sha256: String,
     },
+    /// Capture read-only metadata for one receipt-bound ordinary Impress PPTX file.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudImpressMetadata {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
+    /// Independently read an exact completed ordinary Impress original in Trash.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudImpressTrashOriginal {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
     /// Compare bounded Google adapter reads with the mount and classify shortcuts (GET-only).
     ValidateGoogleRead {
         #[arg(long)]
@@ -1345,6 +1361,28 @@ async fn main() -> Result<()> {
             sha256,
         } => {
             let proof = cirrove_service::validation::icloud_owned_writer_trash_original(
+                &registration,
+                &sha256,
+            )
+            .await?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudImpressMetadata {
+            registration,
+            sha256,
+        } => {
+            let proof =
+                cirrove_service::validation::icloud_owned_impress_metadata(&registration, &sha256)
+                    .await?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudImpressTrashOriginal {
+            registration,
+            sha256,
+        } => {
+            let proof = cirrove_service::validation::icloud_owned_impress_trash_original(
                 &registration,
                 &sha256,
             )

@@ -409,6 +409,12 @@ it read-only with the exact 93-byte paragraph preserved. Independent OOXML check
 agreed. This is text-only conversion evidence; fonts, layout, media and native
 Pages saving remain unproved. The host dependency remains absent: no system
 package repair or installation was performed.
+A [fresh mounted Writer trial](docs/benchmarks/icloud-writer-mounted-docx-2026-10-07-f015bd4d-44a1-4676-88ca-a0a0445ed9ab.json)
+then created and edited an ordinary DOCX through an isolated iCloud mount.
+Independent iCloud reads matched both saved versions, a normal read-only remount
+returned the second version exactly, and the original was verified in Trash.
+All 29 independent checks passed. This validates the bounded DOCX workflow;
+native Pages saving, document layout and installed acceptance remain open.
 A [fresh offline Impress conversion](docs/benchmarks/icloud-keynote-impress-pptx-2026-10-07-20d21b4e-a918-41db-b7f5-e1a0fb3c593c.json)
 likewise preserved the exact one-slide title and subtitle through one PPTX export
 and read-only reopen, with 28 independent checks passed. This does not establish
@@ -423,7 +429,7 @@ read-only downgrade, then passed normal read-only mounts and exact local exports
 No writable daemon was started. Fresh password/2FA, expired-session recovery and
 installed upgrade/downgrade acceptance remain open.
 
-The [CI run for development commit `56a2496a`](https://github.com/Dandiccf/cirrove/actions/runs/37573118522)
+The [CI run for development commit `19f604d`](https://github.com/Dandiccf/cirrove/actions/runs/37585373652)
 passed all seven jobs; the installed release remains unchanged and on HOLD.
 The [dated acceptance assessment](docs/benchmarks/icloud-native-replacement-removal-criterion-closure-2026-10-07.json)
 closes the bounded native replacement/removal criterion, including conflict
@@ -432,7 +438,7 @@ refusal and recovery after process loss without repeating the cloud mutation.
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic
-editor workflows beyond the bounded Calc trial, broader Pages/Numbers/Keynote
+editor workflows beyond the bounded Calc and Writer trials, broader Pages/Numbers/Keynote
 editing/reopen fidelity, DATA coverage beyond these owned fixtures, long-session
 renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;

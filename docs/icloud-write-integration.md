@@ -4033,3 +4033,66 @@ natural stale-revision acceptance and sustained reliability are not inferred.
 Rows487–490 remain open for the application/representation matrix, installed
 lifecycle, full Strata delivery and remaining reliability boundaries. The current
 count is two of six criteria closed and four open; installed delivery stays on HOLD.
+
+### Actual mounted Writer DOCX create/save on 7 October 2026
+
+The [separately registered Writer trial](benchmarks/icloud-writer-mounted-docx-2026-10-07-f015bd4d-44a1-4676-88ca-a0a0445ed9ab.json)
+used the completed genuine Pages-to-DOCX conversion as an unchanged seed. Writer
+loaded a private writable copy, called `storeAsURL` once into the fresh isolated
+iCloud mount, and reopened A read-only with the exact 93-byte paragraph. It then
+loaded mounted A, appended the registered own marker, called `store` once and
+reopened B read-only with the exact 158-byte paragraph. Both actual ZIP archives
+passed all member CRCs and independent OOXML paragraph checks.
+
+Independent iCloud DATA readers matched the complete 5,829-byte A and 5,906-byte B
+sources. A normal read-only remount returned exact B bytes and the selected current
+Node. A separate typed Trash observer verified the completed replacement's original
+A identity, revision, size and raw hash. The complete stopped journal frontier
+stayed unchanged across the read-only remount and Trash observation; no mutation
+was retried. The observer did not retain another downloadable ZIP for separate CRC
+inspection, and provider HTTP counts were not instrumented.
+
+The controller completed in 472.41 seconds within its original 600-second window
+and 45-second cleanup reserve. All twelve controller-owned children and both outer
+original owners closed; mounts and sockets were absent, with no cleanup error.
+The independent retained-evidence audit passed 29/29 checks. All bound sources,
+role binaries, Office modules and protected seed stamps remained exact, and the
+nineteen installed artifacts, service unit and daemon birth stayed unchanged.
+
+The feature proof binaries were freshly built from the formatter-final568 source
+map, before commit `19f604d`, from `97bee0e` plus its exact tested pending changes.
+The normal read-only daemon remains the distinct frozen `56a2496a` role. The Writer
+application ran headless with network access disabled; its authorized mounted
+saves used the host daemon's provider operations. This is one bounded ordinary
+DOCX create/save workflow, not native Pages saving, fonts/layout/media fidelity,
+GUI, sustained reliability, installed delivery or full row487 closure. The four
+remaining acceptance criteria and installed HOLD remain open.
+
+### Explicit recovery-only startup controls on 7 October 2026
+
+The [registered recovery-only controls](benchmarks/icloud-recovery-only-startup-2026-10-07.json)
+exercise the actual Manager with a saved writable synthetic iCloud account, an
+uncertain sealed generation, a newer dirty working generation and a genuine
+completed handoff whose ordinary metadata publication remains due. An explicit
+`cirroved --recovery-only` run keeps desired settings and credentials intact,
+restricts the effective mount policy to read-only, and exposes local recovery
+without starting writers or repairing retained journal publications. The same
+restriction applies to remount retries, manual disable/enable and interrupted
+sign-in healing.
+
+The actual Manager and CLI controls passed, together with sixteen existing
+recovery, five retained-status and three reauthentication controls. Omitting the
+run-wide selection caused the intended WriteFactory assertion to fail; omitting
+only the remount publication guard caused the intended pending-publication
+preservation assertion to fail. Each executed exactly one test and passed again
+when its exact source bytes were restored. All nine original test-process owners
+closed, and all569 source paths, including the new fixture module, were restored.
+
+The Manager fixture exports exact sealed and dirty bytes and compares every
+journal table/DDL and retained file against its baseline. It deliberately uses
+DELETE journaling; this proves neither installed WAL coordination nor migration,
+real credentials, a live provider, FUSE readiness or row488 acceptance. Recovery
+mode still permits provider reads and ordinary index/cache work. It preserves
+saved write grants, so a later normal start without the flag can start writers.
+The [complete composed check](benchmarks/icloud-impress-recovery-complete-check-2026-10-07.json)
+records whole-project validation separately; installed HOLD remains in force.

@@ -132,13 +132,13 @@ fn active_remaining_for(r: &Registration, clock: u64, arm: EditorArm) -> Result<
             && r.started_unix_seconds <= clock
             && r.deadline_unix_seconds
                 .checked_sub(r.started_unix_seconds)
-                .is_some_and(|n| n > (if arm == EditorArm::Writer { 45 } else { 20 })
-                    && n <= (if arm == EditorArm::Writer { 600 } else { 90 })),
+                .is_some_and(|n| n > (if arm != EditorArm::Calc { 45 } else { 20 })
+                    && n <= (if arm != EditorArm::Calc { 600 } else { 90 })),
         "Calc Trash original window refused"
     );
     let active_end = r
         .deadline_unix_seconds
-        .checked_sub(if arm == EditorArm::Writer { 45 } else { 20 })
+        .checked_sub(if arm != EditorArm::Calc { 45 } else { 20 })
         .context("Calc Trash window refused")?;
     ensure!(clock < active_end, "Calc Trash cleanup reserve reached");
     Ok(active_end - clock)
@@ -271,7 +271,9 @@ fn account(r: &Registration, raw: &[u8]) -> Result<Account> {
 fn account_for(r: &Registration, raw: &[u8], arm: EditorArm) -> Result<Account> {
     let a = account(r, raw)?;
     ensure!(
-        arm == EditorArm::Calc || a.label == "iCloudWriterTrashValidation",
+        arm == EditorArm::Calc
+            || (arm == EditorArm::Writer && a.label == "iCloudWriterTrashValidation")
+            || (arm == EditorArm::Impress && a.label == "iCloudImpressTrashValidation"),
         "Writer Trash label refused"
     );
     Ok(a)
@@ -540,3 +542,14 @@ pub async fn icloud_owned_writer_trash_original(
 }
 #[cfg(test)]
 mod tests;
+
+pub async fn icloud_owned_impress_trash_original(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    observe(path, digest, EditorArm::Impress)
+        .await
+        .map_err(|_| {
+            anyhow::anyhow!("owned Impress Trash original refused; retained evidence; no retry")
+        })
+}
