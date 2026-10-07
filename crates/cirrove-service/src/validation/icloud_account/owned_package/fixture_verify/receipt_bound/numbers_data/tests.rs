@@ -89,28 +89,52 @@ impl Actual {
     }
 }
 fn actual() -> Actual {
+    actual_for(DataArm::Numbers)
+}
+fn actual_for(arm: DataArm) -> Actual {
     let run = Uuid::new_v4();
-    let temp = tempfile::Builder::new()
-        .prefix(&format!("cirrove-numbers-data-{run}"))
+    let mut temp = tempfile::Builder::new()
+        .prefix(&format!("cirrove-{}-data-{run}", arm.format()))
         .rand_bytes(0)
         .permissions(std::fs::Permissions::from_mode(0o700))
         .tempdir_in("/var/tmp")
         .unwrap();
+    if arm == DataArm::Pages {
+        temp.disable_cleanup(true);
+    }
     let source = |name: &str, bytes: &[u8]| {
         let path = temp.path().join(name);
         std::fs::write(&path, bytes).unwrap();
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        std::fs::set_permissions(
+            &path,
+            std::fs::Permissions::from_mode(if arm == DataArm::Pages { 0o400 } else { 0o600 }),
+        )
+        .unwrap();
         RawSource {
             path,
             size: bytes.len() as u64,
             sha256: hex::encode(Sha256::digest(bytes)),
         }
     };
+    let start = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let original_window = (arm == DataArm::Pages).then_some(OriginalWindow {
+        started_unix_ms: start,
+        deadline_unix_ms: start + 600_000,
+        cleanup_seconds: 45,
+    });
     let mut plan = Registration {
+        arm,
+        active_end: original_window
+            .as_ref()
+            .map(|window| window.active_end().unwrap()),
+        original_window,
         version: 1,
         run,
         account: Uuid::new_v4(),
-        label: "iCloudNumbersDataValidation".into(),
+        label: arm.label().into(),
         session_directory: temp.path().to_owned(),
         settings_sha256: "a".repeat(64),
         parent_creation: Uuid::nil(),
@@ -121,8 +145,11 @@ fn actual() -> Actual {
         working_b: None,
         phase: Phase::CreatedA,
         created_proof_sha256: None,
-        source_a: source("source-a.numbers", b"synthetic raw Numbers A"),
-        source_b: source("source-b.numbers", b"synthetic raw Numbers replacement B"),
+        source_a: source(&arm.source_name(false), b"synthetic raw Numbers A"),
+        source_b: source(
+            &arm.source_name(true),
+            b"synthetic raw Numbers replacement B",
+        ),
     };
     let path = temp.path().join("journal");
     let mut journal =
@@ -411,7 +438,7 @@ fn prior_artifacts(actual: &mut Actual) -> serde_json::Value {
         "working_a":prior.working_a,"working_b":null,"created_proof_sha256":null,
         "registration_sha256":hex::encode(Sha256::digest(registration)),"fixture_manifest_sha256":fixture_sha,
         "current":{"run":prior.run,"account":prior.account,"parent":actual.parent.id,
-            "item":actual.original.id,"etag":actual.original.etag,"representation":"data","format":"numbers",
+            "item":actual.original.id,"etag":actual.original.etag,"representation":"data","format":prior.arm.format(),
             "size":prior.source_a.size,"sha256":prior.source_a.sha256,"semantic":null,
             "manifest_sha256":fixture_sha,"content_identity_verified":true,"gui_fidelity_verified":false,"cloud_mutated":false},
         "trash":null,"ordinary_data_create_verified":true,"ordinary_data_save_verified":false,
@@ -656,3 +683,6 @@ fn owned_numbers_data_retired_etag_token_omission_preserves_exact_revision() {
         );
     }
 }
+
+#[path = "pages_tests.rs"]
+mod pages_tests;

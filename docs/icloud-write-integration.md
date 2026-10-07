@@ -4096,3 +4096,64 @@ mode still permits provider reads and ordinary index/cache work. It preserves
 saved write grants, so a later normal start without the flag can start writers.
 The [complete composed check](benchmarks/icloud-impress-recovery-complete-check-2026-10-07.json)
 records whole-project validation separately; installed HOLD remains in force.
+
+### Actual mounted Impress PPTX create/save on 7 October 2026
+
+The [separately registered Impress trial](benchmarks/icloud-impress-mounted-pptx-2026-10-07-85ee1211-763d-46b7-b7a7-2886e6867e0d.json)
+used the genuine Keynote-to-PPTX conversion as an unchanged seed. Impress called
+`storeAsURL` once through a fresh isolated iCloud mount, then loaded mounted A,
+edited its title and subtitle and called `store` once. Both versions reopened
+read-only with their exact registered text on one slide. Independent checks
+verified every ZIP member's CRC and the slide XML.
+
+Independent iCloud DATA readers matched all 8,304 A and 8,416 B bytes. A normal
+read-only remount returned exact B and its selected current identity. The genuine
+completed atomic replacement retained original A as its Trash backup; a separate
+typed observer verified its exact identity, revision, size and raw hash. The
+complete stopped journal stayed unchanged across the remount and Trash observation,
+with nine Uploaded rows, six Applied mutations and fifteen completed queue entries.
+These are journal counts, not provider HTTP counts. No mutation was retried.
+
+The trial completed in 465.65 seconds within its original 600-second window and
+45-second cleanup reserve. All twelve controller children, both outer owners and
+both private Office owners closed. Mounts and sockets were absent; the independent
+retained-evidence audit passed 24/24 checks. All 569 bound sources, role binaries,
+Office modules, protected seed and donor pins remained exact. The nineteen
+installed artifacts, service unit and daemon birth remained unchanged.
+
+All four binaries were freshly built in W39 from `19f604d` plus the exact tested
+pending source, identical to committed Root `a28dd0f`; they were not built from a
+clean `a28dd0f` checkout. Normal daemon/CLI binaries were frozen before the feature
+CLI/probe build. Impress ran headless with network access disabled; authorized
+mounted saves used the host daemon. Trash verification retained a typed raw-byte
+receipt, without a second archive CRC parse or whole Trash inventory. This is one
+ordinary PPTX workflow with exact slide text, not native Keynote saving, broader
+presentation fidelity, GUI, repeatability, installed acceptance or full row487
+closure. The four remaining criteria and installed HOLD remain open.
+
+### Explicit native Pages DATA observer controls on 7 October 2026
+
+The [scoped Pages DATA observer](benchmarks/icloud-pages-data-observer-2026-10-07.json)
+adds a feature-only route for genuine raw Pages files created and overwritten
+through an ordinary FUSE mount. It requires actual provider DATA with no package
+source root or semantic claim. The saved-version observer binds the prior
+independently verified A, exact current B and the completed original-A Trash
+receipt. The Pages route carries one original 600-second deadline and 45-second
+cleanup reserve through nested reads and final publication. Existing Numbers
+wire shapes, its default 900-second observer and native PACKAGE contracts remain
+separate.
+
+Twelve Pages and twelve Numbers controls passed. Five guard removals each failed
+the intended one-test assertion, and the same tests passed after exact restoration;
+eight wrapped Pages and eleven Keynote regressions also passed. The initial
+harness rejected Cargo's standard expected test-failure trailer. That completed
+negative result was retained, the classifier was corrected, and only the eleven
+remaining arms ran. The combined retained-evidence audit passed 17/17 checks.
+All compiler owners closed and all 570 sources were restored. The subsequent
+[complete project check](benchmarks/icloud-pages-data-complete-check-2026-10-07.json)
+passed all ten sections, 87 Rust result groups and all twelve new test names.
+
+These are synthetic observer controls, not real Pages DATA acceptance. A fresh
+owned-cloud create/save, independent readbacks, normal read-only remount and exact
+Apple reopening remain required. No provider representation override, native
+Linux Pages save, installed change or full row487 closure is claimed.

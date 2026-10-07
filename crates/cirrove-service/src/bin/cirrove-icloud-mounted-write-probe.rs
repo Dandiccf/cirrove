@@ -477,6 +477,27 @@ async fn main() -> Result<()> {
         .await;
     }
     if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-pages-data-source-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_pages_data_source_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-pages-data-receipt-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_pages_data_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
         && flag == "--owned-numbers-data-source-verify"
     {
         let proof = cirrove_service::validation::icloud_owned_numbers_data_source_verify(

@@ -1,7 +1,69 @@
-//! Owned Numbers raw DATA create and one ordinary in-place FUSE save.
+//! Explicit owned Numbers or Pages raw DATA create and one ordinary FUSE save.
 //! Never a PACKAGE, editor-fidelity, mutation or checkpoint-replay observer.
 use super::*;
 use crate::journal::WorkingFile;
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum DataArm {
+    #[default]
+    Numbers,
+    Pages,
+}
+impl DataArm {
+    fn format(self) -> &'static str {
+        match self {
+            Self::Numbers => "numbers",
+            Self::Pages => "pages",
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Self::Numbers => "iCloudNumbersDataValidation",
+            Self::Pages => "iCloudPagesDataValidation",
+        }
+    }
+    fn root(self, run: Uuid) -> String {
+        format!("/var/tmp/cirrove-{}-data-{run}", self.format())
+    }
+    fn source_name(self, saved: bool) -> String {
+        format!("source-{}.{}", if saved { "b" } else { "a" }, self.format())
+    }
+    fn document(self, run: Uuid) -> String {
+        match self {
+            Self::Numbers => format!("Cirrove-Numbers-Data-{run}.numbers"),
+            Self::Pages => format!("Cirrove-Pages-Data-{run}.pages"),
+        }
+    }
+}
+// Only the explicit Pages route accepts this original, non-renewable clock.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OriginalWindow {
+    started_unix_ms: u64,
+    deadline_unix_ms: u64,
+    cleanup_seconds: u64,
+}
+impl OriginalWindow {
+    fn active_end(&self) -> Result<tokio::time::Instant> {
+        use std::time::{Duration, SystemTime, UNIX_EPOCH};
+        let monotonic = tokio::time::Instant::now();
+        let wall = SystemTime::now().duration_since(UNIX_EPOCH)?;
+        ensure!(
+            self.cleanup_seconds == 45
+                && self.deadline_unix_ms.checked_sub(self.started_unix_ms) == Some(600_000)
+                && Duration::from_millis(self.started_unix_ms) <= wall,
+            "owned Pages DATA original window refused"
+        );
+        let active_wall = Duration::from_millis(self.deadline_unix_ms)
+            .checked_sub(Duration::from_secs(self.cleanup_seconds))
+            .context("owned Pages DATA original window underflow")?;
+        let remaining = active_wall
+            .checked_sub(wall)
+            .filter(|duration| !duration.is_zero())
+            .context("owned Pages DATA original deadline expired")?;
+        Ok(monotonic + remaining)
+    }
+}
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -12,9 +74,18 @@ struct RawSource {
 }
 impl RawSource {
     fn verify(&self) -> Result<()> {
+        self.verify_for(DataArm::Numbers)
+    }
+    fn verify_for(&self, arm: DataArm) -> Result<()> {
         use std::os::unix::fs::MetadataExt;
         let mut file = open_private(&self.path, false, LIMIT)?;
         let before = file.metadata()?;
+        if arm == DataArm::Pages {
+            ensure!(
+                before.nlink() == 1 && before.mode() & 0o7777 == 0o400,
+                "owned Pages DATA immutable source refused"
+            );
+        }
         ensure!(
             self.size > 0
                 && self.size <= LIMIT
@@ -54,6 +125,8 @@ impl RawSource {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Sources {
+    #[serde(skip)]
+    arm: DataArm,
     version: u32,
     run: Uuid,
     session_directory: PathBuf,
@@ -65,12 +138,12 @@ impl Sources {
         ensure!(
             self.version == 1
                 && !self.run.is_nil()
-                && self.session_directory == format!("/var/tmp/cirrove-numbers-data-{}", self.run),
+                && self.session_directory == self.arm.root(self.run),
             "owned DATA source registration refused"
         );
         for (source, name) in [
-            (&self.source_a, "source-a.numbers"),
-            (&self.source_b, "source-b.numbers"),
+            (&self.source_a, self.arm.source_name(false)),
+            (&self.source_b, self.arm.source_name(true)),
         ] {
             ensure!(
                 source.path == self.session_directory.join(name)
@@ -88,8 +161,13 @@ impl Sources {
     }
     fn verify(&self) -> Result<()> {
         self.validate()?;
-        self.source_a.verify()?;
-        self.source_b.verify()
+        if self.arm == DataArm::Numbers {
+            self.source_a.verify()?;
+            self.source_b.verify()
+        } else {
+            self.source_a.verify_for(self.arm)?;
+            self.source_b.verify_for(self.arm)
+        }
     }
 }
 #[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -101,6 +179,12 @@ enum Phase {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Registration {
+    #[serde(skip)]
+    arm: DataArm,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    original_window: Option<OriginalWindow>,
+    #[serde(skip)]
+    active_end: Option<tokio::time::Instant>,
     version: u32,
     run: Uuid,
     account: Uuid,
@@ -121,6 +205,7 @@ struct Registration {
 impl Registration {
     fn sources(&self) -> Sources {
         Sources {
+            arm: self.arm,
             version: self.version,
             run: self.run,
             session_directory: self.session_directory.clone(),
@@ -136,7 +221,7 @@ impl Registration {
         }
     }
     fn name(&self) -> String {
-        format!("Cirrove-Numbers-Data-{}.numbers", self.run)
+        self.arm.document(self.run)
     }
     fn parent_name(&self) -> String {
         format!("Cirrove-Native-{}", self.run)
@@ -147,11 +232,34 @@ impl Registration {
             Phase::SavedB => "saved",
         }
     }
+    fn active(&self) -> Result<()> {
+        if self.arm == DataArm::Pages {
+            ensure!(
+                self.active_end.is_some(),
+                "owned Pages DATA clock not bound"
+            );
+            fixture_active(self.active_end)?;
+        }
+        Ok(())
+    }
     fn validate(&self) -> Result<()> {
         self.sources().validate()?;
+        match self.arm {
+            DataArm::Numbers => ensure!(
+                self.original_window.is_none(),
+                "Numbers DATA clock schema changed"
+            ),
+            DataArm::Pages => {
+                self.original_window
+                    .as_ref()
+                    .context("owned Pages DATA original window absent")?
+                    .active_end()?;
+                self.active()?;
+            }
+        }
         ensure!(
             !self.account.is_nil()
-                && self.label == "iCloudNumbersDataValidation"
+                && self.label == self.arm.label()
                 && hex_digest(&self.settings_sha256)
                 && !self.parent_creation.is_nil()
                 && !self.create.is_nil()
@@ -191,9 +299,31 @@ fn decode<T: serde::de::DeserializeOwned>(bytes: &[u8], digest: &str) -> Result<
     );
     serde_json::from_slice(bytes).map_err(|_| anyhow::anyhow!("owned DATA schema refused"))
 }
-fn source_observation(path: &Path, digest: &str) -> Result<serde_json::Value> {
+fn registration(bytes: &[u8], digest: &str, arm: DataArm) -> Result<Registration> {
+    let mut plan: Registration = decode(bytes, digest)?;
+    if arm == DataArm::Numbers {
+        let fields: serde_json::Value = serde_json::from_slice(bytes)?;
+        ensure!(
+            fields.get("original_window").is_none(),
+            "Numbers DATA clock field refused"
+        );
+    }
+    plan.arm = arm;
+    if arm == DataArm::Pages {
+        plan.active_end = Some(
+            plan.original_window
+                .as_ref()
+                .context("owned Pages DATA original window absent")?
+                .active_end()?,
+        );
+    }
+    plan.validate()?;
+    Ok(plan)
+}
+fn source_observation(path: &Path, digest: &str, arm: DataArm) -> Result<serde_json::Value> {
     let bytes = read_private(path, 32 * 1024)?;
-    let sources: Sources = decode(&bytes, digest)?;
+    let mut sources: Sources = decode(&bytes, digest)?;
+    sources.arm = arm;
     sources.validate()?;
     ensure!(
         path == sources.session_directory.join("source-registration.json"),
@@ -220,8 +350,15 @@ pub fn icloud_owned_numbers_data_source_verify(
     path: &Path,
     digest: &str,
 ) -> Result<serde_json::Value> {
-    source_observation(path, digest)
+    source_observation(path, digest, DataArm::Numbers)
         .map_err(|_| anyhow::anyhow!("owned Numbers DATA source refused; no cloud access"))
+}
+pub fn icloud_owned_pages_data_source_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    source_observation(path, digest, DataArm::Pages)
+        .map_err(|_| anyhow::anyhow!("owned Pages DATA source refused; no cloud access"))
 }
 fn account_binding(plan: &Registration) -> Result<Account> {
     let _state = open_private(&plan.session_directory.join("state"), true, 0)?;
@@ -251,6 +388,13 @@ fn account_binding(plan: &Registration) -> Result<Account> {
             && account.mount_path == plan.session_directory.join("mount"),
         "owned DATA account changed"
     );
+    if plan.arm == DataArm::Pages {
+        ensure!(
+            account.drive.drive_type == "icloud_drive"
+                && !Uuid::parse_str(&account.credential_id)?.is_nil(),
+            "owned Pages DATA account route changed"
+        );
+    }
     Ok(account)
 }
 fn parent_binding(
@@ -722,7 +866,7 @@ fn created_proof_binding(
             && current.item == original.id
             && Some(current.etag.as_str()) == original.etag.as_deref()
             && current.representation == FixtureRepresentation::Data
-            && current.format == "numbers"
+            && current.format == plan.arm.format()
             && current.size == plan.source_a.size
             && current.sha256 == plan.source_a.sha256
             && current.semantic.is_none()
@@ -747,7 +891,7 @@ fn prior_created(plan: &Registration, original: &Node, parent: &Node) -> Result<
         &plan.session_directory.join("created-registration.json"),
         32 * 1024,
     )?;
-    let prior: Registration = decode(&prior_bytes, &proof.registration_sha256)?;
+    let prior = registration(&prior_bytes, &proof.registration_sha256, plan.arm)?;
     prior.validate()?;
     let mut expected = plan.clone();
     expected.phase = Phase::CreatedA;
@@ -770,7 +914,20 @@ fn prior_created(plan: &Registration, original: &Node, parent: &Node) -> Result<
 }
 async fn observation(path: &Path, digest: &str) -> Result<serde_json::Value> {
     let bytes = read_private(path, 32 * 1024)?;
-    let plan: Registration = decode(&bytes, digest)?;
+    let plan = registration(&bytes, digest, DataArm::Numbers)?;
+    observe(path, digest, bytes, plan).await
+}
+fn publish_result(plan: &Registration, publish: impl FnOnce() -> Result<()>) -> Result<()> {
+    plan.active()?;
+    publish()?;
+    plan.active()
+}
+async fn observe(
+    path: &Path,
+    digest: &str,
+    bytes: Vec<u8>,
+    plan: Registration,
+) -> Result<serde_json::Value> {
     plan.validate()?;
     ensure!(
         path == plan
@@ -795,7 +952,11 @@ async fn observation(path: &Path, digest: &str) -> Result<serde_json::Value> {
         .as_ref()
         .context("owned DATA original receipt absent")?;
     let prior_proof = prior_created(&plan, original, &parent)?;
+    // RecoveryJournal's exclusive advisory account-owner lease prevents a writer;
+    // no SQLite transaction or shared content mutex spans these awaits.
+    plan.active()?;
     let mut remote = session(&plan.session_directory, &account).await?;
+    plan.active()?;
     let entries = remote.list_folder(cirrove_icloud::ROOT_ID).await?;
     let mut matching = entries.iter().filter(|e| e.drivewsid == parent.id);
     let mut parent_entry = matching.next().context("owned DATA parent absent")?.clone();
@@ -808,6 +969,7 @@ async fn observation(path: &Path, digest: &str) -> Result<serde_json::Value> {
     );
     parent_entry.items.clear();
     parent_entry.number_of_items = None;
+    plan.active()?;
     let document = exact_entry(&remote.list_folder(&parent.id).await?, &current)?;
     let source = if plan.phase == Phase::SavedB {
         &plan.source_b
@@ -821,15 +983,21 @@ async fn observation(path: &Path, digest: &str) -> Result<serde_json::Value> {
         &fixture_path,
         &serde_json::json!({"version":1,"run":plan.run,"account":plan.account,
         "session_directory":plan.session_directory,"settings_sha256":plan.settings_sha256,"parent":parent_entry,
-        "document":document,"format":"numbers","representation":"data","source":source.path,
+        "document":document,"format":plan.arm.format(),"representation":"data","source":source.path,
         "source_size":source.size,"source_sha256":source.sha256,
-        "source_root":if plan.phase == Phase::SavedB { "source-b.numbers" } else { "source-a.numbers" },
+        "source_root":if plan.arm == DataArm::Pages { None } else { Some(plan.arm.source_name(plan.phase == Phase::SavedB)) },
         "expected_root":plan.name(),"semantic":null}),
     )?;
     let fixture_digest = hex::encode(Sha256::digest(read_private(&fixture_path, 32 * 1024)?));
-    let current_proof = icloud_owned_fixture_verify(&fixture_path, &fixture_digest).await?;
+    plan.active()?;
+    let current_proof = if let Some(end) = plan.active_end {
+        icloud_owned_pages_data_fixture_verify_before(&fixture_path, &fixture_digest, end).await?
+    } else {
+        icloud_owned_fixture_verify(&fixture_path, &fixture_digest).await?
+    };
     let trash_proof = if let Some(backup) = &backup {
         // Narrow read-only API; exact saved original revision comes from create A.
+        plan.active()?;
         let observed = remote
             .verify_owned_data_in_trash(original, backup, &plan.source_a.sha256)
             .await?;
@@ -841,10 +1009,12 @@ async fn observation(path: &Path, digest: &str) -> Result<serde_json::Value> {
     } else {
         None
     };
+    plan.active()?;
     ensure!(
         exact_entry(&remote.list_folder(&parent.id).await?, &current)? == document,
         "owned DATA current changed during proof"
     );
+    plan.active()?;
     let end_entries = remote.list_folder(cirrove_icloud::ROOT_ID).await?;
     let mut matching = end_entries.iter().filter(|e| e.drivewsid == parent.id);
     let mut end_parent = matching
@@ -884,12 +1054,31 @@ async fn observation(path: &Path, digest: &str) -> Result<serde_json::Value> {
         "fixture_manifest_sha256":fixture_digest,"current":current_proof,"trash":trash_proof,
         "ordinary_data_create_verified":true,"ordinary_data_save_verified":plan.phase == Phase::SavedB,
         "cloud_mutated":false,"gui_fidelity_verified":false});
-    record(
-        &plan
-            .session_directory
-            .join(format!("{}-verified.json", plan.prefix())),
-        &proof,
-    )?;
+    publish_result(&plan, || {
+        if plan.arm == DataArm::Pages {
+            ensure!(
+                serde_json::to_vec(&proof)?.len() <= 32 * 1024,
+                "owned Pages DATA result bounds changed"
+            );
+        }
+        record(
+            &plan
+                .session_directory
+                .join(format!("{}-verified.json", plan.prefix())),
+            &proof,
+        )?;
+        if plan.arm == DataArm::Pages {
+            same_directory(&plan.session_directory, &held)?;
+            same_directory(&journal_path, &journal_held)?;
+            ensure!(
+                read_private(path, 32 * 1024)? == bytes,
+                "owned Pages DATA registration changed during publication"
+            );
+            account_binding(&plan)?;
+            plan.sources().verify()?;
+        }
+        Ok(())
+    })?;
     Ok(proof)
 }
 pub async fn icloud_owned_numbers_data_receipt_verify(
@@ -905,6 +1094,25 @@ pub async fn icloud_owned_numbers_data_receipt_verify(
         anyhow::anyhow!("owned Numbers DATA observation timed out; no mutation submitted")
     })?
     .map_err(|_| anyhow::anyhow!("owned Numbers DATA observation refused; no mutation submitted"))
+}
+
+pub async fn icloud_owned_pages_data_receipt_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    let outcome = async {
+        let bytes = read_private(path, 32 * 1024)?;
+        let plan = registration(&bytes, digest, DataArm::Pages)?;
+        let end = plan
+            .active_end
+            .context("owned Pages DATA original window absent")?;
+        tokio::time::timeout_at(end, observe(path, digest, bytes, plan))
+            .await
+            .map_err(|_| anyhow::anyhow!("owned Pages DATA original deadline expired"))?
+    }
+    .await;
+    outcome
+        .map_err(|_| anyhow::anyhow!("owned Pages DATA observation refused; no mutation submitted"))
 }
 
 #[cfg(test)]

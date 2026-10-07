@@ -470,6 +470,7 @@ pub use fixture_verify::{
     icloud_owned_keynote_replacement_receipt_verify, icloud_owned_keynote_source_verify,
     icloud_owned_native_import_fixture_verify, icloud_owned_native_pre_trash_preservation,
     icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
+    icloud_owned_pages_data_receipt_verify, icloud_owned_pages_data_source_verify,
     icloud_owned_pages_replacement_receipt_verify, icloud_owned_receipt_verify,
     icloud_owned_retained_numbers_read, icloud_owned_writer_metadata,
     icloud_owned_writer_trash_original,

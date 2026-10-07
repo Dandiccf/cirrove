@@ -419,6 +419,12 @@ A [fresh offline Impress conversion](docs/benchmarks/icloud-keynote-impress-pptx
 likewise preserved the exact one-slide title and subtitle through one PPTX export
 and read-only reopen, with 28 independent checks passed. This does not establish
 layout, fonts, media, animations or native Keynote saving.
+A [fresh mounted Impress trial](docs/benchmarks/icloud-impress-mounted-pptx-2026-10-07-85ee1211-763d-46b7-b7a7-2886e6867e0d.json)
+then created and edited an ordinary PPTX through an isolated iCloud mount.
+Independent DATA reads matched both versions, a normal read-only remount returned
+the second version exactly, and the original was verified in Trash. All 24
+independent checks passed. This validates one slide's title and subtitle;
+native Keynote saving and broader presentation fidelity remain open.
 
 An [isolated saved-session connection](docs/benchmarks/icloud-saved-session-real-lifecycle-2026-10-07-ebbd9f71.json)
 completed but stopped before read-only startup became ready. A
@@ -429,7 +435,7 @@ read-only downgrade, then passed normal read-only mounts and exact local exports
 No writable daemon was started. Fresh password/2FA, expired-session recovery and
 installed upgrade/downgrade acceptance remain open.
 
-The [CI run for development commit `19f604d`](https://github.com/Dandiccf/cirrove/actions/runs/37585373652)
+The [CI run for development commit `a28dd0f`](https://github.com/Dandiccf/cirrove/actions/runs/37593423323)
 passed all seven jobs; the installed release remains unchanged and on HOLD.
 The [dated acceptance assessment](docs/benchmarks/icloud-native-replacement-removal-criterion-closure-2026-10-07.json)
 closes the bounded native replacement/removal criterion, including conflict
@@ -438,7 +444,7 @@ refusal and recovery after process loss without repeating the cloud mutation.
 These are bounded development results. **Full iCloud support is still open:**
 the successful Numbers trials confirm bounded CLI replacement and canonical
 archive-copy FUSE saves, plus one ordinary DATA create/save. Ordinary and atomic
-editor workflows beyond the bounded Calc and Writer trials, broader Pages/Numbers/Keynote
+editor workflows beyond the bounded Calc, Writer and Impress trials, broader Pages/Numbers/Keynote
 editing/reopen fidelity, DATA coverage beyond these owned fixtures, long-session
 renewal, installed read/write transitions, and sustained account-scale use
 still require acceptance. Test the iCloud branch with isolated state and mounts;

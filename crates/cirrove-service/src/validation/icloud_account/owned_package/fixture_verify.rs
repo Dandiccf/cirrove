@@ -103,6 +103,7 @@ enum FixtureArm {
     Generic,
     NativeTrash,
     FlatPages,
+    PagesData,
 }
 fn validate(f: &Fixture) -> Result<()> {
     validate_for(f, FixtureArm::Generic)
@@ -127,7 +128,9 @@ fn validate_native_trash(f: &Fixture) -> Result<()> {
 }
 fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
     let parent_name = match arm {
-        FixtureArm::Generic | FixtureArm::FlatPages => format!("Cirrove-Native-{}", f.run),
+        FixtureArm::Generic | FixtureArm::FlatPages | FixtureArm::PagesData => {
+            format!("Cirrove-Native-{}", f.run)
+        }
         FixtureArm::NativeTrash => format!("Cirrove-Native-Trash-{}", f.run),
     };
     let extension = match f.format.as_str() {
@@ -197,7 +200,8 @@ fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
                     || f.format == "xlsx"
                     || f.format == "docx"
                     || f.format == "pptx"
-                    || (arm == FixtureArm::FlatPages && f.format == "pages"),
+                    || (matches!(arm, FixtureArm::FlatPages | FixtureArm::PagesData)
+                        && f.format == "pages"),
                 |root| root.ends_with(&format!(".{extension}"))
                     && !root.contains(['/', '\\'])
                     && !root.chars().any(char::is_control)
@@ -356,8 +360,32 @@ async fn icloud_owned_fixture_verify_before(
 ) -> Result<serde_json::Value> {
     verify_fixture(path, manifest_sha256, FixtureArm::Generic, Some(active_end)).await
 }
-// Only an explicitly validated Pages FlatPages replacement can select this
-// internal route. The public generic fixture contract stays unchanged.
+// Only the explicit receipt-selected ordinary Pages DATA route selects this
+// reader; FlatPages PACKAGE and public generic contracts stay unchanged.
+async fn icloud_owned_pages_data_fixture_verify_before(
+    path: &Path,
+    digest: &str,
+    active_end: tokio::time::Instant,
+) -> Result<serde_json::Value> {
+    verify_fixture(path, digest, FixtureArm::PagesData, Some(active_end)).await
+}
+fn validate_pages_data(f: &Fixture) -> Result<()> {
+    validate_for(f, FixtureArm::PagesData)?;
+    ensure!(
+        f.format == "pages"
+            && f.representation == FixtureRepresentation::Data
+            && f.source_root.is_none()
+            && f.semantic.is_none()
+            && f.session_directory == format!("/var/tmp/cirrove-pages-data-{}", f.run)
+            && ["source-a.pages", "source-b.pages"]
+                .iter()
+                .any(|name| f.source == f.session_directory.join(name))
+            && f.expected_root == format!("Cirrove-Pages-Data-{}.pages", f.run),
+        "explicit Pages DATA fixture refused"
+    );
+    Ok(())
+}
+// Only an explicitly validated Pages FlatPages replacement selects this route.
 async fn icloud_owned_flat_pages_fixture_verify_before(
     path: &Path,
     digest: &str,
@@ -409,6 +437,7 @@ async fn verify_fixture(
     match arm {
         FixtureArm::Generic => validate(&f)?,
         FixtureArm::FlatPages => validate_flat_pages(&f)?,
+        FixtureArm::PagesData => validate_pages_data(&f)?,
         FixtureArm::NativeTrash => {
             validate_native_trash(&f)?;
             ensure!(
@@ -434,10 +463,27 @@ async fn verify_fixture(
     ensure!(settings.version == 2, "fixture account schema unsupported");
     let account = match arm {
         FixtureArm::Generic | FixtureArm::FlatPages => account_binding(&f, &settings.accounts)?,
+        FixtureArm::PagesData => {
+            let a = account_binding(&f, &settings.accounts)?;
+            ensure!(
+                a.label == "iCloudPagesDataValidation"
+                    && a.enabled
+                    && a.access == cirrove_auth::AccessMode::ReadWrite
+                    && a.drive.id == "drive"
+                    && a.drive.drive_type == "icloud_drive"
+                    && a.root_id == cirrove_icloud::ROOT_ID
+                    && a.mount_path == f.session_directory.join("mount")
+                    && !Uuid::parse_str(&a.credential_id)?.is_nil(),
+                "Pages DATA fixture account refused"
+            );
+            a
+        }
         FixtureArm::NativeTrash => native_trash_account_binding(&f, &settings.accounts)?,
     };
     let mut source = open_private(&f.source, false, LIMIT)?;
-    let source_stamp = if arm == FixtureArm::NativeTrash || f.format == "docx" || f.format == "pptx"
+    let source_stamp = if matches!(arm, FixtureArm::NativeTrash | FixtureArm::PagesData)
+        || f.format == "docx"
+        || f.format == "pptx"
     {
         Some(native_trash_source_stamp(&source)?)
     } else {
@@ -453,7 +499,7 @@ async fn verify_fixture(
     let attempt_guard = open_private(&attempt, true, 0)?;
     match arm {
         FixtureArm::Generic => manifest(&attempt, f.run, "owned-fixture-read-only")?,
-        FixtureArm::FlatPages => {
+        FixtureArm::FlatPages | FixtureArm::PagesData => {
             manifest_with_duration(&attempt, f.run, "owned-fixture-read-only", 600)?
         }
         FixtureArm::NativeTrash => {
@@ -556,6 +602,7 @@ pub use receipt_bound::{
     icloud_owned_fuse_source_verify, icloud_owned_keynote_import_receipt_verify,
     icloud_owned_keynote_replacement_receipt_verify, icloud_owned_keynote_source_verify,
     icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
+    icloud_owned_pages_data_receipt_verify, icloud_owned_pages_data_source_verify,
     icloud_owned_pages_replacement_receipt_verify, icloud_owned_receipt_verify,
 };
 
