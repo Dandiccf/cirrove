@@ -254,6 +254,7 @@ impl ICloudPackageCreate {
                 request.representation,
                 UploadRepresentation::PackageArchive { .. }
                     | UploadRepresentation::FlatNumbersArchive { .. }
+                    | UploadRepresentation::FlatPagesArchive { .. }
             )
         {
             return Err(UploadError::Invalid);
@@ -311,8 +312,14 @@ impl ICloudPackageCreate {
         let flat = matches!(
             request.representation,
             UploadRepresentation::FlatNumbersArchive { .. }
+                | UploadRepresentation::FlatPagesArchive { .. }
         );
-        if (saved.version == 2 && (!flat || saved.wire.is_none()))
+        if (saved.version == 1
+            && matches!(
+                request.representation,
+                UploadRepresentation::FlatPagesArchive { .. }
+            ))
+            || (saved.version == 2 && (!flat || saved.wire.is_none()))
             || (saved.version == 1 && saved.wire.is_some())
         {
             return Err(UploadError::CheckpointInvalid);
@@ -321,6 +328,7 @@ impl ICloudPackageCreate {
             && (!matches!(
                 request.representation,
                 UploadRepresentation::FlatNumbersArchive { .. }
+                    | UploadRepresentation::FlatPagesArchive { .. }
             ) || wire.validate(self.request(request)?).is_err())
         {
             return Err(UploadError::CheckpointInvalid);
@@ -437,7 +445,8 @@ impl ICloudPackageCreate {
         tokio::task::spawn_blocking(move || {
             let semantic = match &request.representation {
                 UploadRepresentation::PackageArchive { semantic, .. }
-                | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+                | UploadRepresentation::FlatNumbersArchive { semantic }
+                | UploadRepresentation::FlatPagesArchive { semantic } => semantic,
                 _ => return Err(UploadError::Invalid),
             };
             if !source
@@ -489,7 +498,8 @@ impl ICloudPackageCreate {
                         &cancel,
                     )?
                 }
-                UploadRepresentation::FlatNumbersArchive { .. } => {
+                UploadRepresentation::FlatNumbersArchive { .. }
+                | UploadRepresentation::FlatPagesArchive { .. } => {
                     crate::package_flat_archive_semantic_identity_v2(
                         target.borrowed_file(),
                         &receipt,
@@ -513,9 +523,15 @@ impl ICloudPackageCreate {
         cancel: &CancellationToken,
     ) -> Result<(Arc<WriteStagingFile>, crate::package_wire::WireReceipt)> {
         let name = self.request(request)?.to_owned();
-        let UploadRepresentation::FlatNumbersArchive { semantic } = &request.representation else {
+        let (UploadRepresentation::FlatNumbersArchive { semantic }
+        | UploadRepresentation::FlatPagesArchive { semantic }) = &request.representation
+        else {
             return Err(UploadError::Invalid);
         };
+        let pages = matches!(
+            request.representation,
+            UploadRepresentation::FlatPagesArchive { .. }
+        );
         let semantic = semantic.clone();
         let original = crate::PackageDownload {
             size: request.size,
@@ -529,9 +545,15 @@ impl ICloudPackageCreate {
             .map_err(|_| UploadError::Uncertain)?;
         let cancel = cancel.clone();
         tokio::task::spawn_blocking(move || {
-            let receipt = crate::package_wire::flat_numbers_wire(
-                &source, &original, &name, &semantic, &wire, &cancel,
-            )?;
+            let receipt = if pages {
+                crate::package_wire::flat_pages_wire(
+                    &source, &original, &name, &semantic, &wire, &cancel,
+                )?
+            } else {
+                crate::package_wire::flat_numbers_wire(
+                    &source, &original, &name, &semantic, &wire, &cancel,
+                )?
+            };
             Ok((wire, receipt))
         })
         .await
@@ -541,6 +563,7 @@ impl ICloudPackageCreate {
         if matches!(
             saved.request.representation,
             UploadRepresentation::FlatNumbersArchive { .. }
+                | UploadRepresentation::FlatPagesArchive { .. }
         ) {
             let wire = saved.wire.as_ref().ok_or(UploadError::CheckpointInvalid)?;
             wire.validate(self.request(&saved.request)?)
@@ -624,7 +647,8 @@ impl ICloudPackageCreate {
         let root = name.to_owned();
         let expected = match &saved.request.representation {
             UploadRepresentation::PackageArchive { semantic, .. }
-            | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+            | UploadRepresentation::FlatNumbersArchive { semantic }
+            | UploadRepresentation::FlatPagesArchive { semantic } => semantic,
             _ => return Err(UploadError::Invalid),
         };
         let version = expected.version;
@@ -641,7 +665,8 @@ impl ICloudPackageCreate {
         .map_err(|_| UploadError::Uncertain)??;
         let expected = match &saved.request.representation {
             UploadRepresentation::PackageArchive { semantic, .. }
-            | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+            | UploadRepresentation::FlatNumbersArchive { semantic }
+            | UploadRepresentation::FlatPagesArchive { semantic } => semantic,
             _ => return Err(UploadError::Invalid),
         };
         progress.fence = "archive-semantic-equality";
@@ -711,6 +736,7 @@ impl UploadProvider for ICloudPackageCreate {
         matches!(
             request.representation,
             UploadRepresentation::FlatNumbersArchive { .. }
+                | UploadRepresentation::FlatPagesArchive { .. }
         )
     }
     fn begin_is_mutation_free_until_checkpoint(&self, request: &UploadRequest) -> bool {
@@ -975,7 +1001,11 @@ impl ICloudPackageCreate {
         match (&request.representation, source_root.as_deref()) {
             (UploadRepresentation::PackageArchive { expected_root, .. }, Some(root))
                 if root == expected_root => {}
-            (UploadRepresentation::FlatNumbersArchive { .. }, None) => {}
+            (
+                UploadRepresentation::FlatNumbersArchive { .. }
+                | UploadRepresentation::FlatPagesArchive { .. },
+                None,
+            ) => {}
             _ => return Err(UploadError::CheckpointInvalid),
         }
         if saved.slot.is_none() {

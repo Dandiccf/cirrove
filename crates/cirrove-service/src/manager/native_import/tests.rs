@@ -640,3 +640,71 @@ async fn flat_numbers_manager_enqueues_exact_layout_bytes_without_wrapper_infere
     assert_eq!(wire["kind"], "flat_numbers_archive");
     assert!(wire.get("expected_root").is_none());
 }
+
+#[test]
+fn flat_pages_input_requires_explicit_layout_and_absent_root() {
+    let mut input = NativeImportInput {
+        source: "/owned/source.pages".into(),
+        source_layout: crate::native_import::PackageSourceLayout::FlatPages,
+        expected_root: None,
+        parent: String::new(),
+        name: "Import.pages".into(),
+    };
+    assert!(validate_input(&input).is_ok());
+    input.expected_root = Some("Source.pages".into());
+    assert!(validate_input(&input).is_err());
+    input.expected_root = None;
+    for name in [
+        "Import.numbers",
+        "Import.key",
+        "../Import.pages",
+        "bad\n.pages",
+    ] {
+        input.name = name.into();
+        assert!(validate_input(&input).is_err());
+    }
+    input.name = "Import.pages".into();
+    input.source_layout = crate::native_import::PackageSourceLayout::Wrapped;
+    assert!(validate_input(&input).is_err());
+}
+
+#[tokio::test]
+async fn flat_pages_manager_enqueues_exact_layout_bytes_without_wrapper_inference() {
+    use std::io::Read;
+    let f = Fixture::new().await;
+    let bytes = crate::native_import::synthetic_package_archive(
+        "Index/Document.iwa",
+        b"owned Pages source",
+    );
+    std::fs::write(&f.source, &bytes).unwrap();
+    // The path still ends in .pages: layout is chosen explicitly, never inferred.
+    let mut input = f.input();
+    input.source_layout = crate::native_import::PackageSourceLayout::FlatPages;
+    input.expected_root = None;
+    input.name = "Imported.pages".into();
+    let row = f
+        .manager
+        .enqueue_native_package(f.engine.clone(), input, CancellationToken::new())
+        .await
+        .unwrap();
+    let UploadRepresentation::FlatPagesArchive { semantic } = &row.representation else {
+        panic!("explicit flat representation missing")
+    };
+    assert_eq!(semantic.version, 2);
+    let mut captured = Vec::new();
+    f.journal
+        .lock()
+        .unwrap()
+        .payload(row.id)
+        .unwrap()
+        .read_to_end(&mut captured)
+        .unwrap();
+    assert_eq!(captured, bytes);
+    assert_eq!(std::fs::read(&f.source).unwrap(), bytes);
+    assert_eq!(row.size, bytes.len() as u64);
+    assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
+    assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+    let wire = serde_json::to_value(&row.representation).unwrap();
+    assert_eq!(wire["kind"], "flat_pages_archive");
+    assert!(wire.get("expected_root").is_none());
+}

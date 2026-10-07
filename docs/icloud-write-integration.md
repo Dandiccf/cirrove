@@ -3848,3 +3848,57 @@ because the chosen temporary path exceeded the Unix socket limit. Its failure
 and closed owners remain recorded; a shorter disk-backed temporary directory
 allowed the unchanged source to pass the complete command from the beginning.
 No new live Pages or installed acceptance follows from this local check.
+
+### Genuine Pages PACKAGE replacement, remount and Apple reopen on 7 October 2026
+
+A [fresh native Apple Pages donor](benchmarks/icloud-pages-edited-source-2026-10-07-80e1cb43.json)
+produced genuine A and edited B exports. The originals stayed unchanged. Separate
+transport archives removed only two validated redundant local size-mirror fields
+per source; production flat-original and wrapped-transport semantic V2 identities
+matched. This explicit transformation does not establish direct import of an
+unmodified native Pages export.
+
+The separately registered [public PACKAGE replacement](benchmarks/icloud-pages-genuine-replacement-2026-10-07-96aa715d.json)
+imported A once, replaced it with B once, and independently verified the exact new
+current identity/content and the same original A in Trash. The original run closed
+in 289.13 seconds without automatic replay. Its stopped journal, completed queue,
+typed receipts and namespace publication agreed. A [fresh normal read-only
+remount](benchmarks/icloud-pages-readonly-remount-2026-10-07-7f9c92b1.json) then
+returned the complete B content tree, preserving the original state and transfer
+frontier. These are semantic content comparisons; differing ZIP encodings do not
+establish raw archive-byte preservation.
+
+[Apple Pages opened the exact receipt-bound replacement](benchmarks/icloud-pages-apple-reopen-2026-10-07-60aa8a2c.json)
+from its verified Drive item and parent. Its genuine 93-byte B paragraph matched
+before and after one actual reload. Both owned tabs closed inside the original
+window, and independent source, replacement, remount and UI audits passed. No new
+Trash read was inferred from the remount, and no post-Apple unchanged revision or
+archive claim follows from the UI check.
+
+This completes one genuine Pages text/PACKAGE replacement workflow. Direct native
+export input, the wider DATA/editor/formatting/media matrix, installed upgrades and
+remaining full-iCloud criteria stay open. The installed service was not changed.
+
+### Direct native Pages source under local validation on 7 October 2026
+
+The development source now adds explicit `flat-pages` input for the normal CLI
+import and replacement paths. Use `--source-layout flat-pages` instead of
+`--source-root` for an original Apple Pages export with no enclosing document
+folder. The destination must be a `.pages` document; replacement still requires
+the exact selected identity and revision of an Apple-confirmed PACKAGE. Wrapped
+Pages archives and explicit flat Numbers input retain their existing contracts.
+
+Cirrove captures the original source bytes unchanged, checks their complete V2
+content identity, and generates a separate bounded upload envelope with the same
+content identity. It persists both receipts for restart validation; changing the
+source, wire, format or checkpoint does not authorize a replacement. This is an
+explicit import/replacement path, not general editing of generated archive
+children or an ordinary Pages editor save on Linux.
+
+The [registered local controls](benchmarks/icloud-direct-flat-pages-local-controls-2026-10-07.json)
+record the actual test outcomes, earlier test-fixture/compile failures and their
+corrections. A fresh live trial with the unmodified native exports is still
+pending. The completed genuine Pages trial above used separately wrapped input
+and cannot be credited to this new direct-source path. Neither this addition nor
+local test success changes the held installation policy or closes the complete
+native-document acceptance criterion.

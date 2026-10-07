@@ -32,7 +32,9 @@ pub(super) fn migrate(db: &Connection) -> Result<()> {
     // Additive performance index; representation/schema compatibility stays 17.
     db.execute_batch(
         "CREATE INDEX IF NOT EXISTS native_package_replacement_operations_v21 ON uploads(sequence)
-        WHERE json_extract(body,'$.representation.kind') IN('package_replacement_archive','flat_numbers_replacement_archive');",
+        WHERE json_extract(body,'$.representation.kind') IN('package_replacement_archive','flat_numbers_replacement_archive');
+        CREATE INDEX IF NOT EXISTS native_package_replacement_operations_flat_pages_v21 ON uploads(sequence)
+        WHERE json_extract(body,'$.representation.kind') IN('package_replacement_archive','flat_numbers_replacement_archive','flat_pages_replacement_archive');",
     )?;
     Ok(())
 }
@@ -76,6 +78,9 @@ fn selection(row: UploadRecord) -> Result<NativeReplacementSelection> {
             original, semantic, ..
         }
         | UploadRepresentation::FlatNumbersReplacementArchive {
+            original, semantic, ..
+        }
+        | UploadRepresentation::FlatPagesReplacementArchive {
             original, semantic, ..
         } => (original, semantic),
         _ => return Err(JournalError::Corrupt),
@@ -140,9 +145,9 @@ impl UploadJournal {
             return Err(JournalError::Intent);
         }
         let after = i64::try_from(after.unwrap_or(0)).map_err(|_| JournalError::Intent)?;
-        let indexed:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='index' AND name='native_package_replacement_operations_v21')",[],|r|r.get(0))?;
+        let indexed:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='index' AND name='native_package_replacement_operations_flat_pages_v21')",[],|r|r.get(0))?;
         let sql = if indexed {
-            "SELECT id,sequence,state,CASE WHEN length(CAST(body AS BLOB))<=?3 THEN body END FROM uploads INDEXED BY native_package_replacement_operations_v21 WHERE sequence>?1 AND json_extract(body,'$.representation.kind') IN('package_replacement_archive','flat_numbers_replacement_archive') ORDER BY sequence LIMIT ?2"
+            "SELECT id,sequence,state,CASE WHEN length(CAST(body AS BLOB))<=?3 THEN body END FROM uploads INDEXED BY native_package_replacement_operations_flat_pages_v21 WHERE sequence>?1 AND json_extract(body,'$.representation.kind') IN('package_replacement_archive','flat_numbers_replacement_archive','flat_pages_replacement_archive') ORDER BY sequence LIMIT ?2"
         } else {
             "SELECT id,sequence,state,CASE WHEN length(CAST(body AS BLOB))<=?3 THEN body END FROM uploads WHERE sequence>?1 ORDER BY sequence LIMIT ?2"
         };
@@ -176,6 +181,7 @@ impl UploadJournal {
                     row.representation,
                     UploadRepresentation::PackageReplacementArchive { .. }
                         | UploadRepresentation::FlatNumbersReplacementArchive { .. }
+                        | UploadRepresentation::FlatPagesReplacementArchive { .. }
                 )
             {
                 let item = selection(row)?;

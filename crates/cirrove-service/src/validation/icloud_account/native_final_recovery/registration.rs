@@ -61,6 +61,10 @@ impl Source {
             PackageSourceLayout::FlatNumbers => UploadRepresentation::FlatNumbersArchive {
                 semantic: self.semantic.clone(),
             },
+            // check_layout rejects this format before this Numbers-only driver runs.
+            PackageSourceLayout::FlatPages => UploadRepresentation::FlatPagesArchive {
+                semantic: self.semantic.clone(),
+            },
         }
     }
 }
@@ -190,6 +194,7 @@ fn source(source: &Source, root: &Path, name: &str) -> Result<()> {
                 &CancellationToken::new(),
             )?
         }
+        PackageSourceLayout::FlatPages => anyhow::bail!("native source layout refused"),
     };
     ensure!(proof == source.semantic, "native source v2 content changed");
     Ok(())
@@ -250,6 +255,14 @@ impl Registration {
                 },
                 PackageSourceLayout::FlatNumbers => {
                     UploadRepresentation::FlatNumbersReplacementArchive {
+                        semantic: self.source_b.semantic.clone(),
+                        original: Box::new(self.original.clone()),
+                        original_semantic: self.source_a.semantic.clone(),
+                    }
+                }
+                // validate calls the unchanged Numbers-only source layout fence first.
+                PackageSourceLayout::FlatPages => {
+                    UploadRepresentation::FlatPagesReplacementArchive {
                         semantic: self.source_b.semantic.clone(),
                         original: Box::new(self.original.clone()),
                         original_semantic: self.source_a.semantic.clone(),

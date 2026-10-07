@@ -96,10 +96,21 @@ impl UploadRequest {
         self.intent.validate()?;
         self.representation.validate()?;
         if let UploadRepresentation::PackageReplacementArchive { original, .. }
-        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. } =
+        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }
+        | UploadRepresentation::FlatPagesReplacementArchive { original, .. } =
             &self.representation
             && !matches!(&self.intent, UploadIntent::Replace { item, expected_etag }
                 if item == &original.id && original.etag.as_ref() == Some(expected_etag))
+        {
+            return Err(UploadError::Invalid);
+        }
+        if matches!(
+            self.representation,
+            UploadRepresentation::FlatPagesArchive { .. }
+        ) && !matches!(&self.intent, UploadIntent::Create { name, .. }
+                if name.to_ascii_lowercase().ends_with(".pages")
+                    && name.len() <= 255
+                    && !name.chars().any(|c| c.is_control() || matches!(c, '\\' | ':')))
         {
             return Err(UploadError::Invalid);
         }

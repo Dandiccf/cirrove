@@ -189,7 +189,7 @@ fn native_replacement_list_legacy_empty_pages_and_byte_overflow_never_skip_rows(
             .map(|i| append(&mut j, i, true, UploadState::Uploaded, true).id)
             .collect::<Vec<_>>();
         if !indexed {
-            j.db.execute_batch("DROP INDEX native_package_replacement_operations_v21")
+            j.db.execute_batch("DROP INDEX native_package_replacement_operations_v21; DROP INDEX native_package_replacement_operations_flat_pages_v21;")
                 .unwrap();
         }
         drop(j);
@@ -277,5 +277,51 @@ fn native_replacement_list_refuses_malformed_receipts_and_row_bindings() {
             j.native_replacement_list(&scope(), None, 100).is_err(),
             "{corrupt}"
         );
+    }
+}
+
+#[test]
+fn flat_pages_replacement_receipt_discovery_is_typed_and_readonly_with_legacy_index() {
+    for legacy in [false, true] {
+        let path = temp().keep();
+        let mut j = UploadJournal::open(&path, "owned", 1024 * 1024).unwrap();
+        let mut row = append(&mut j, 1, true, UploadState::Uploaded, false);
+        let UploadRepresentation::PackageReplacementArchive { original, .. } = &row.representation
+        else {
+            panic!("native fixture");
+        };
+        let mut proof = semantic();
+        proof.version = 2;
+        proof.entries = 2;
+        row.representation = UploadRepresentation::FlatPagesReplacementArchive {
+            semantic: proof.clone(),
+            original: original.clone(),
+            original_semantic: proof.clone(),
+        };
+        row.package_completion = Some(proof);
+        j.db.execute(
+            "DELETE FROM package_metadata_publication WHERE operation=?1",
+            [row.id.to_string()],
+        )
+        .unwrap();
+        save(&j, &row);
+        let pending: bool = j.db.query_row("SELECT EXISTS(SELECT 1 FROM package_metadata_publication WHERE operation=?1 AND done=0)", [row.id.to_string()], |r|r.get(0)).unwrap();
+        assert!(pending);
+        if legacy {
+            j.db.execute_batch("DROP INDEX native_package_replacement_operations_flat_pages_v21")
+                .unwrap();
+        }
+        drop(j);
+        let before = std::fs::read(path.join("uploads.db")).unwrap();
+        let ro = RecoveryJournal::open(&path, "owned").unwrap();
+        let page = ro.native_replacement_list(&scope(), None, 100).unwrap();
+        assert_eq!(page.operations.len(), 1);
+        let actual = &page.operations[0];
+        assert_eq!(actual.operation, row.id);
+        assert!(actual.handoff_receipt_recorded);
+        assert_eq!(actual.original.item, actual.recovery.as_ref().unwrap().item);
+        assert_ne!(actual.original.item, actual.current.as_ref().unwrap().item);
+        drop(ro);
+        assert_eq!(std::fs::read(path.join("uploads.db")).unwrap(), before);
     }
 }

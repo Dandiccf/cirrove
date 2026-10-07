@@ -136,14 +136,24 @@ fn source_verified(source: &Source) -> Result<()> {
     Ok(())
 }
 fn settings(plan: &Registration) -> Result<Account> {
-    let _directory = open_private(&plan.session_directory, true, 0)?;
-    let _state = open_private(&plan.session_directory.join("state"), true, 0)?;
-    let bytes = read_private(
-        &plan.session_directory.join("state/accounts.json"),
-        256 * 1024,
-    )?;
+    settings_for(
+        plan.account,
+        &plan.label,
+        &plan.session_directory,
+        &plan.settings_sha256,
+    )
+}
+fn settings_for(
+    account_id: Uuid,
+    label: &str,
+    directory: &Path,
+    settings_sha256: &str,
+) -> Result<Account> {
+    let _directory = open_private(directory, true, 0)?;
+    let _state = open_private(&directory.join("state"), true, 0)?;
+    let bytes = read_private(&directory.join("state/accounts.json"), 256 * 1024)?;
     ensure!(
-        hex::encode(Sha256::digest(&bytes)) == plan.settings_sha256,
+        hex::encode(Sha256::digest(&bytes)) == settings_sha256,
         "owned settings changed"
     );
     let settings: Settings =
@@ -154,14 +164,14 @@ fn settings(plan: &Registration) -> Result<Account> {
     );
     let account = settings.accounts[0].clone();
     ensure!(
-        account.id == plan.account.to_string()
-            && account.label == plan.label
+        account.id == account_id.to_string()
+            && account.label == label
             && account.enabled
             && account.access == cirrove_auth::AccessMode::ReadWrite
             && matches!(account.registration, cirrove_auth::AppRegistration::ICloud)
             && account.drive.id == "drive"
             && account.root_id == cirrove_icloud::ROOT_ID
-            && account.mount_path == plan.session_directory.join("mount"),
+            && account.mount_path == directory.join("mount"),
         "owned account binding refused"
     );
     Ok(account)
@@ -171,14 +181,29 @@ fn parent_binding(
     mutations: &[MutationRecord],
     parent: &NamespaceObject,
 ) -> Result<Node> {
+    parent_binding_for(
+        &plan.scope(),
+        plan.parent_creation,
+        &plan.parent_name(),
+        mutations,
+        parent,
+    )
+}
+fn parent_binding_for(
+    scope: &Scope,
+    parent_creation: Uuid,
+    parent_name: &str,
+    mutations: &[MutationRecord],
+    parent: &NamespaceObject,
+) -> Result<Node> {
     ensure!(
         mutations.len() == 1,
         "owned folder mutation inventory changed"
     );
     let mutation = &mutations[0];
     ensure!(
-        mutation.id == plan.parent_creation
-            && mutation.request.scope == plan.scope()
+        mutation.id == parent_creation
+            && mutation.request.scope == *scope
             && mutation.state == MutationState::Applied
             && mutation.attempt.is_none()
             && mutation.base.is_none()
@@ -186,7 +211,7 @@ fn parent_binding(
             && mutation.request.intent
                 == MutationIntent::CreateFolder {
                     parent: cirrove_icloud::ROOT_ID.into(),
-                    name: plan.parent_name()
+                    name: parent_name.to_owned()
                 },
         "owned folder receipt refused"
     );
@@ -200,7 +225,7 @@ fn parent_binding(
     let mut local = remote.clone();
     local.id = parent.node.id.clone();
     ensure!(
-        parent.scope == plan.scope()
+        parent.scope == *scope
             && parent.follows_remote
             && parent.remote_owned
             && !parent.unlinked
@@ -214,7 +239,7 @@ fn parent_binding(
             && !remote.package
             && remote.target.is_none()
             && remote.parent_id.as_deref() == Some(cirrove_icloud::ROOT_ID)
-            && remote.name == plan.parent_name()
+            && remote.name == parent_name
             && remote.id.starts_with("FOLDER::com.apple.CloudDocs::")
             && !remote.id.ends_with("::")
             && created.kind == remote.kind
@@ -291,9 +316,31 @@ fn replacement<'a>(
     original: &Node,
     rows: &'a [UploadRecord],
 ) -> Result<(&'a Node, &'a Node)> {
-    let id = plan
-        .replacement
-        .context("owned replacement identity missing")?;
+    replacement_bound(
+        plan.replacement
+            .context("owned replacement identity missing")?,
+        original,
+        UploadRepresentation::PackageReplacementArchive {
+            expected_root: plan.source_b.root.clone(),
+            semantic: plan.source_b.semantic.clone(),
+            original: Box::new(original.clone()),
+            original_semantic: plan.source_a.semantic.clone(),
+        },
+        plan.source_b.size,
+        &plan.source_b.sha256,
+        &plan.source_b.semantic,
+        rows,
+    )
+}
+fn replacement_bound<'a>(
+    id: Uuid,
+    original: &Node,
+    expected_representation: UploadRepresentation,
+    size: u64,
+    sha256: &str,
+    semantic: &PackageSemanticIdentity,
+    rows: &'a [UploadRecord],
+) -> Result<(&'a Node, &'a Node)> {
     let row = rows
         .iter()
         .find(|row| row.id == id)
@@ -307,16 +354,10 @@ fn replacement<'a>(
                     .clone()
                     .context("owned original revision absent")?
             }
-            && row.representation
-                == UploadRepresentation::PackageReplacementArchive {
-                    expected_root: plan.source_b.root.clone(),
-                    semantic: plan.source_b.semantic.clone(),
-                    original: Box::new(original.clone()),
-                    original_semantic: plan.source_a.semantic.clone()
-                }
-            && row.size == plan.source_b.size
-            && row.sha256 == plan.source_b.sha256
-            && row.package_completion.as_ref() == Some(&plan.source_b.semantic),
+            && row.representation == expected_representation
+            && row.size == size
+            && row.sha256 == sha256
+            && row.package_completion.as_ref() == Some(semantic),
         "owned replacement source binding changed"
     );
     let (before, current, backup) = row

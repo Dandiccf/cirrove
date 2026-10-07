@@ -24,7 +24,7 @@ fn source(root: &Path, name: &str, text: &[u8]) -> Source {
         path,
         size: receipt.size,
         sha256: receipt.sha256,
-        root: "Source.key".into(),
+        root: Some("Source.key".into()),
         semantic,
     }
 }
@@ -65,6 +65,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
             size: a.semantic.expanded_bytes,
             modified_unix: 0,
         },
+        source_layout: PackageSourceLayout::Wrapped,
         source_a: a,
         source_b: b,
         started_unix: time,
@@ -73,7 +74,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
     let parent = Node {
         id: "FOLDER::com.apple.CloudDocs::parent".into(),
         parent_id: Some(cirrove_icloud::ROOT_ID.into()),
-        name: plan.parent_plan().parent_name(),
+        name: plan.parent_name(),
         kind: NodeKind::Folder,
         package: false,
         target: None,
@@ -90,7 +91,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
     .unwrap();
     let object = journal
         .create_namespace_directory(
-            plan.parent_plan().scope(),
+            plan.scope(),
             cirrove_icloud::ROOT_ID.into(),
             parent.name.clone(),
         )
@@ -117,7 +118,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
     .unwrap();
     plan.import = journal
         .enqueue_validated_package_archive(
-            plan.parent_plan().scope(),
+            plan.scope(),
             UploadIntent::Create {
                 parent: parent.id.clone(),
                 name: plan.name(Format::Keynote),
@@ -159,7 +160,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
         .unwrap();
         let row = journal
             .enqueue_validated_package_replacement(
-                plan.parent_plan().scope(),
+                plan.scope(),
                 plan.original.clone(),
                 plan.source_a.semantic.clone(),
                 archive,
@@ -248,7 +249,7 @@ fn owned_keynote_replacement_rejects_scope_layout_and_unchanged_pair() {
         match arm {
             0 => bad.account = Uuid::new_v4(),
             1 => bad.original.etag = Some("*".into()),
-            2 => bad.source_b.root = "Source.numbers".into(),
+            2 => bad.source_b.root = Some("Source.numbers".into()),
             3 => bad.source_b.semantic = bad.source_a.semantic.clone(),
             4 => bad.source_b.sha256 = bad.source_a.sha256.clone(),
             5 => bad.replacement = Some(bad.import),

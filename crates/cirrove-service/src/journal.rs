@@ -538,13 +538,16 @@ impl UploadJournal {
         representation
             .validate()
             .map_err(|_| JournalError::Intent)?;
-        if matches!(
-            &representation,
-            UploadRepresentation::FlatNumbersArchive { .. }
-        ) && (scope.provider != "icloud"
-            || scope.collection != "drive"
-            || !matches!(&intent, UploadIntent::Create { name, .. }
-                    if cirrove_core::upload::native_package_suffix(&name.to_ascii_lowercase()) == Some(".numbers")))
+        let flat_suffix = match &representation {
+            UploadRepresentation::FlatNumbersArchive { .. } => Some(".numbers"),
+            UploadRepresentation::FlatPagesArchive { .. } => Some(".pages"),
+            _ => None,
+        };
+        if let Some(suffix) = flat_suffix
+            && (scope.provider != "icloud"
+                || scope.collection != "drive"
+                || !matches!(&intent, UploadIntent::Create { name, .. }
+                    if cirrove_core::upload::native_package_suffix(name) == Some(suffix)))
         {
             return Err(JournalError::Intent);
         }

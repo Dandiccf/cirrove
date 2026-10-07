@@ -43,6 +43,7 @@ impl Manager {
                 row.representation,
                 UploadRepresentation::PackageReplacementArchive { .. }
                     | UploadRepresentation::FlatNumbersReplacementArchive { .. }
+                    | UploadRepresentation::FlatPagesReplacementArchive { .. }
             )
             || !matches!(row.intent, UploadIntent::Replace { .. })
             || row.representation.validate().is_err()

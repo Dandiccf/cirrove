@@ -735,6 +735,7 @@ impl UploadProvider for ICloudFileReplace {
             && matches!(
                 request.representation,
                 cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
+                    | cirrove_core::upload::UploadRepresentation::FlatPagesReplacementArchive { .. }
             )
     }
     async fn begin_upload_from_payload_for_operation(

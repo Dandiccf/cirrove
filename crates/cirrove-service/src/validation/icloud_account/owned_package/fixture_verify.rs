@@ -102,6 +102,7 @@ fn decode(bytes: &[u8], expected_hash: &str) -> Result<Fixture> {
 enum FixtureArm {
     Generic,
     NativeTrash,
+    FlatPages,
 }
 fn validate(f: &Fixture) -> Result<()> {
     validate_for(f, FixtureArm::Generic)
@@ -126,7 +127,7 @@ fn validate_native_trash(f: &Fixture) -> Result<()> {
 }
 fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
     let parent_name = match arm {
-        FixtureArm::Generic => format!("Cirrove-Native-{}", f.run),
+        FixtureArm::Generic | FixtureArm::FlatPages => format!("Cirrove-Native-{}", f.run),
         FixtureArm::NativeTrash => format!("Cirrove-Native-Trash-{}", f.run),
     };
     let extension = match f.format.as_str() {
@@ -163,13 +164,15 @@ fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
             && !f.document.etag.contains('*')
             && f.document.extension == extension
             && f.document.name.contains(&f.run.to_string())
-            && f.source_root
-                .as_ref()
-                .map_or(f.format == "numbers" || f.format == "xlsx", |root| root
-                    .ends_with(&format!(".{extension}"))
+            && f.source_root.as_ref().map_or(
+                f.format == "numbers"
+                    || f.format == "xlsx"
+                    || (arm == FixtureArm::FlatPages && f.format == "pages"),
+                |root| root.ends_with(&format!(".{extension}"))
                     && !root.contains(['/', '\\'])
                     && !root.chars().any(char::is_control)
-                    && root.len() <= 255)
+                    && root.len() <= 255
+            )
             && f.expected_root.ends_with(&format!(".{extension}"))
             && f.expected_root == format!("{}.{}", f.document.name, extension)
             && !f.expected_root.contains(['/', '\\'])
@@ -299,6 +302,26 @@ async fn icloud_owned_fixture_verify_before(
 ) -> Result<serde_json::Value> {
     verify_fixture(path, manifest_sha256, FixtureArm::Generic, Some(active_end)).await
 }
+// Only an explicitly validated Pages FlatPages replacement can select this
+// internal route. The public generic fixture contract stays unchanged.
+async fn icloud_owned_flat_pages_fixture_verify_before(
+    path: &Path,
+    digest: &str,
+    active_end: tokio::time::Instant,
+) -> Result<serde_json::Value> {
+    verify_fixture(path, digest, FixtureArm::FlatPages, Some(active_end)).await
+}
+fn validate_flat_pages(f: &Fixture) -> Result<()> {
+    validate_for(f, FixtureArm::FlatPages)?;
+    ensure!(
+        f.format == "pages"
+            && f.representation == FixtureRepresentation::Package
+            && f.source_root.is_none()
+            && f.semantic.as_ref().is_some_and(|v| v.version == 2),
+        "explicit flat Pages fixture refused"
+    );
+    Ok(())
+}
 fn fixture_active(active_end: Option<tokio::time::Instant>) -> Result<()> {
     if let Some(end) = active_end {
         ensure!(
@@ -331,6 +354,7 @@ async fn verify_fixture(
     let f = decode(&bytes, manifest_sha256)?;
     match arm {
         FixtureArm::Generic => validate(&f)?,
+        FixtureArm::FlatPages => validate_flat_pages(&f)?,
         FixtureArm::NativeTrash => {
             validate_native_trash(&f)?;
             ensure!(
@@ -355,7 +379,7 @@ async fn verify_fixture(
         .map_err(|_| anyhow::anyhow!("fixture account settings refused"))?;
     ensure!(settings.version == 2, "fixture account schema unsupported");
     let account = match arm {
-        FixtureArm::Generic => account_binding(&f, &settings.accounts)?,
+        FixtureArm::Generic | FixtureArm::FlatPages => account_binding(&f, &settings.accounts)?,
         FixtureArm::NativeTrash => native_trash_account_binding(&f, &settings.accounts)?,
     };
     let mut source = open_private(&f.source, false, LIMIT)?;
@@ -374,6 +398,9 @@ async fn verify_fixture(
     let attempt_guard = open_private(&attempt, true, 0)?;
     match arm {
         FixtureArm::Generic => manifest(&attempt, f.run, "owned-fixture-read-only")?,
+        FixtureArm::FlatPages => {
+            manifest_with_duration(&attempt, f.run, "owned-fixture-read-only", 600)?
+        }
         FixtureArm::NativeTrash => {
             manifest_with_duration(&attempt, f.run, "owned-fixture-read-only", 600)?;
         }
@@ -433,6 +460,9 @@ async fn verify_fixture(
     let mut result = serde_json::json!({"run":f.run,"account":f.account,"parent":f.parent.drivewsid,"item":f.document.drivewsid,"etag":f.document.etag,"representation":f.representation,"format":f.format,"size":receipt.size,"sha256":receipt.sha256,"semantic":f.semantic,"manifest_sha256":manifest_sha256,"content_identity_verified":true,"gui_fidelity_verified":false,"cloud_mutated":false});
     if arm == FixtureArm::NativeTrash {
         result["arm"] = serde_json::json!("native_trash_preflight");
+    }
+    if arm == FixtureArm::FlatPages {
+        result["source_layout"] = serde_json::json!("flat_pages");
     }
     same_directory(directory, &directory_guard)?;
     same_directory(&attempt, &attempt_guard)?;
@@ -761,6 +791,115 @@ mod tests {
         validate(&f)?;
         proof(&f, &a, &ar, true)?;
         proof(&f, &b, &br, false)?;
+        assert_ne!(ar.sha256, br.sha256);
+        // Only the source may be flat; provider package read retains its exact root.
+        assert!(proof(&f, &a, &ar, false).is_err());
+        for (name, body) in [
+            ("../Index/Document.iwa", b"fixed content".as_slice()),
+            ("/Index/Document.iwa", b"fixed content".as_slice()),
+            ("Index\\Document.iwa", b"fixed content".as_slice()),
+            ("Index/Other.iwa", b"fixed content".as_slice()),
+            ("Index/Document.iwa", b"changed bytes".as_slice()),
+        ] {
+            let bad = zip_archive(name, body);
+            let bad_path = dir.join(format!("negative-{}", hex::encode(Sha256::digest(&bad))));
+            std::fs::write(&bad_path, &bad)?;
+            let bad_file = File::open(&bad_path)?;
+            let bad_receipt = PackageDownload {
+                size: bad.len() as u64,
+                sha256: hex::encode(Sha256::digest(&bad)),
+            };
+            // Bind independent raw identity, then exercise flat parser/content proof.
+            let mut bad_input = input.clone();
+            bad_input["source_size"] = bad_receipt.size.into();
+            bad_input["source_sha256"] = bad_receipt.sha256.clone().into();
+            let raw = serde_json::to_vec(&bad_input)?;
+            let bad_fixture = decode(&raw, &hex::encode(Sha256::digest(&raw)))?;
+            assert!(
+                proof(&bad_fixture, &bad_file, &bad_receipt, true).is_err(),
+                "flat content/path guard"
+            );
+        }
+        input.as_object_mut().unwrap().remove("source_root");
+        let missing = serde_json::to_vec(&input)?;
+        assert!(decode(&missing, &hex::encode(Sha256::digest(&missing))).is_err());
+        input["source_root"] = serde_json::Value::Null;
+        input["format"] = "pages".into();
+        input["document"]["extension"] = "pages".into();
+        input["expected_root"] =
+            format!("{}.pages", input["document"]["name"].as_str().unwrap()).into();
+        let bytes = serde_json::to_vec(&input)?;
+        assert!(validate(&decode(&bytes, &hex::encode(Sha256::digest(&bytes)))?).is_err());
+        Ok(())
+    }
+    #[test]
+    fn owned_pages_flat_fixture_requires_explicit_internal_arm_and_exact_wrapped_remote_v2()
+    -> Result<()> {
+        let dir = tempfile::tempdir()?.keep();
+        let (raw, _) = fixture()?;
+        let mut input: serde_json::Value = serde_json::from_slice(&raw)?;
+        input["format"] = "pages".into();
+        input["document"]["extension"] = "pages".into();
+        let expected = format!("{}.pages", input["document"]["name"].as_str().unwrap());
+        input["expected_root"] = expected.clone().into();
+        input["representation"] = "package".into();
+        input["source_root"] = serde_json::Value::Null;
+        let flat = zip_archive("Index/Document.iwa", b"fixed content");
+        let wrapped = zip_archive(&format!("{expected}/Index/Document.iwa"), b"fixed content");
+        let a_path = dir.join("flat.pages");
+        let b_path = dir.join("wrapped.pages");
+        std::fs::write(&a_path, &flat)?;
+        std::fs::write(&b_path, &wrapped)?;
+        let a = File::open(&a_path)?;
+        let b = File::open(&b_path)?;
+        let ar = PackageDownload {
+            size: flat.len() as u64,
+            sha256: hex::encode(Sha256::digest(&flat)),
+        };
+        let br = PackageDownload {
+            size: wrapped.len() as u64,
+            sha256: hex::encode(Sha256::digest(&wrapped)),
+        };
+        input["source_size"] = ar.size.into();
+        input["source_sha256"] = ar.sha256.clone().into();
+        input["source"] = a_path.to_string_lossy().as_ref().into();
+        input["semantic"] =
+            serde_json::to_value(cirrove_icloud::package_archive_semantic_identity_versioned(
+                &b,
+                &br,
+                &expected,
+                2,
+                &CancellationToken::new(),
+            )?)?;
+        let bytes = serde_json::to_vec(&input)?;
+        let result = decode(&bytes, &hex::encode(Sha256::digest(&bytes)));
+        assert_eq!(std::fs::read(&a_path)?, flat);
+        assert_eq!(std::fs::read(&b_path)?, wrapped);
+        let f = result.expect("flat source fixture rejected before actual content proof");
+        assert!(
+            validate(&f).is_err(),
+            "public generic fixture silently inferred flat Pages"
+        );
+        validate_flat_pages(&f)?;
+        proof(&f, &a, &ar, true)?;
+        proof(&f, &b, &br, false)?;
+        for arm in 0..3 {
+            let mut bad = input.clone();
+            match arm {
+                0 => bad["source_root"] = "Source.pages".into(),
+                1 => {
+                    bad["format"] = "keynote".into();
+                    bad["document"]["extension"] = "key".into();
+                }
+                _ => bad["representation"] = "data".into(),
+            }
+            let raw = serde_json::to_vec(&bad)?;
+            assert!(
+                validate_flat_pages(&decode(&raw, &hex::encode(Sha256::digest(&raw)))?).is_err(),
+                "explicit Pages fixture borrowed format/layout arm {arm}"
+            );
+        }
+
         assert_ne!(ar.sha256, br.sha256);
         // Only the source may be flat; provider package read retains its exact root.
         assert!(proof(&f, &a, &ar, false).is_err());

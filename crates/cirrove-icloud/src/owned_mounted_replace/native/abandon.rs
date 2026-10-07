@@ -20,7 +20,8 @@ impl NativeReplacementAbandonRecord {
     pub fn validate(&self) -> UploadResult<()> {
         self.request.validate()?;
         let (UploadRepresentation::PackageReplacementArchive { original, .. }
-        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }) =
+        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }
+        | UploadRepresentation::FlatPagesReplacementArchive { original, .. }) =
             &self.request.representation
         else {
             return Err(UploadError::Invalid);

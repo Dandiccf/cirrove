@@ -1,4 +1,4 @@
-//! Deterministic, disk-backed wire representation for an explicitly flat Numbers source.
+//! Deterministic, disk-backed wire representation for explicitly flat Numbers and Pages sources.
 //! The immutable source and wire archive have distinct raw receipts but identical V2 trees.
 use crate::{
     PackageDownload,
@@ -47,7 +47,7 @@ impl WireReceipt {
     }
 }
 fn invalid() -> ProviderError {
-    ProviderError::Protocol("invalid flat Numbers wire archive")
+    ProviderError::Protocol("invalid flat native wire archive")
 }
 fn check(cancel: &CancellationToken) -> Result<()> {
     if cancel.is_cancelled() {
@@ -58,8 +58,12 @@ fn check(cancel: &CancellationToken) -> Result<()> {
 }
 fn validate_root(root: &str) -> Result<()> {
     if root.len() > 1024
-        || cirrove_core::upload::native_package_suffix(root) != Some(".numbers")
+        || !matches!(
+            cirrove_core::upload::native_package_suffix(root),
+            Some(".numbers" | ".pages")
+        )
         || root.eq_ignore_ascii_case(".numbers")
+        || root.eq_ignore_ascii_case(".pages")
         || root
             .chars()
             .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
@@ -74,6 +78,33 @@ fn validate_root(root: &str) -> Result<()> {
 /// Call again from the original source for stream rederivation; validate and
 /// compare the returned receipt with the recorded receipt before any HTTP.
 pub(crate) fn flat_numbers_wire(
+    source: &WriteStagingFile,
+    original: &PackageDownload,
+    expected_root: &str,
+    semantic: &PackageSemanticIdentity,
+    wire: &WriteStagingFile,
+    cancel: &CancellationToken,
+) -> Result<WireReceipt> {
+    if cirrove_core::upload::native_package_suffix(expected_root) != Some(".numbers") {
+        return Err(invalid());
+    }
+    flat_native_wire(source, original, expected_root, semantic, wire, cancel)
+}
+/// Explicit Pages entrance; never guesses a format from archive members.
+pub(crate) fn flat_pages_wire(
+    source: &WriteStagingFile,
+    original: &PackageDownload,
+    expected_root: &str,
+    semantic: &PackageSemanticIdentity,
+    wire: &WriteStagingFile,
+    cancel: &CancellationToken,
+) -> Result<WireReceipt> {
+    if cirrove_core::upload::native_package_suffix(expected_root) != Some(".pages") {
+        return Err(invalid());
+    }
+    flat_native_wire(source, original, expected_root, semantic, wire, cancel)
+}
+fn flat_native_wire(
     source: &WriteStagingFile,
     original: &PackageDownload,
     expected_root: &str,
@@ -378,6 +409,70 @@ mod tests {
     }
 
     #[test]
+    fn flat_pages_mirrored_wire_preserves_all_content_and_is_deterministic() {
+        let original = mirror(archive(&[
+            ("Index/Document.iwa", b"native"),
+            ("Empty/", b""),
+            ("previews/preview.png", b"preview"),
+            ("Metadata/Info.plist", b"info"),
+        ]));
+        let reordered = archive(&[
+            ("Metadata/Info.plist", b"info"),
+            ("previews/preview.png", b"preview"),
+            ("Empty/", b""),
+            ("Index/Document.iwa", b"native"),
+        ]);
+        let budget = WriteStagingBudget::new();
+        let source = stage(&original, &budget);
+        let other = stage(&reordered, &budget);
+        let wire = stage(&[], &budget);
+        let second = stage(&[], &budget);
+        let cancel = CancellationToken::new();
+        let semantic = package_flat_archive_semantic_identity_v2(
+            source.borrowed_file(),
+            &receipt(&original),
+            &cancel,
+        )
+        .unwrap();
+        let first = flat_pages_wire(
+            &source,
+            &receipt(&original),
+            "Owned.pages",
+            &semantic,
+            &wire,
+            &cancel,
+        )
+        .unwrap();
+        let next = flat_pages_wire(
+            &other,
+            &receipt(&reordered),
+            "Owned.pages",
+            &semantic,
+            &second,
+            &cancel,
+        )
+        .unwrap();
+        assert_eq!(raw(&source), original);
+        assert_eq!(raw(&other), reordered);
+        assert_eq!(first, next);
+        assert_eq!(raw(&wire), raw(&second));
+        first.validate("Owned.pages").unwrap();
+        let mut zip = zip::ZipArchive::new(Cursor::new(raw(&wire))).unwrap();
+        assert_eq!(zip.len(), 5);
+        for (name, value) in [
+            ("Index/Document.iwa", b"native".as_slice()),
+            ("Empty/", b""),
+            ("previews/preview.png", b"preview"),
+            ("Metadata/Info.plist", b"info"),
+        ] {
+            let mut entry = zip.by_name(&format!("Owned.pages/{name}")).unwrap();
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes).unwrap();
+            assert_eq!(bytes, value);
+        }
+    }
+
+    #[test]
     fn bad_crc_path_receipt_semantic_and_root_refuse_before_wire_write() {
         let valid = archive(&[("Index/a", b"content")]);
         let mut bad_crc = valid.clone();
@@ -600,5 +695,42 @@ mod tests {
         json.as_object_mut().unwrap().remove("extra");
         json.as_object_mut().unwrap().remove("version");
         assert!(serde_json::from_value::<WireReceipt>(json).is_err());
+    }
+    #[test]
+    fn flat_pages_wire_wrong_format_refuses_before_writing_source_or_wire() {
+        let bytes = mirror(archive(&[
+            ("Index/Document.iwa", b"content"),
+            ("Empty/", b""),
+        ]));
+        let budget = WriteStagingBudget::new();
+        let source = stage(&bytes, &budget);
+        let cancel = CancellationToken::new();
+        let semantic = package_flat_archive_semantic_identity_v2(
+            source.borrowed_file(),
+            &receipt(&bytes),
+            &cancel,
+        )
+        .unwrap();
+        for root in ["Owned.numbers", "Owned.key", "../Owned.pages", ".pages"] {
+            let wire = stage(&[], &budget);
+            assert!(
+                flat_pages_wire(&source, &receipt(&bytes), root, &semantic, &wire, &cancel)
+                    .is_err()
+            );
+            assert_eq!(raw(&source), bytes);
+            assert!(raw(&wire).is_empty());
+        }
+        let wire = stage(&[], &budget);
+        flat_pages_wire(
+            &source,
+            &receipt(&bytes),
+            "Owned.pages",
+            &semantic,
+            &wire,
+            &cancel,
+        )
+        .unwrap();
+        assert_eq!(raw(&source), bytes);
+        assert!(!raw(&wire).is_empty());
     }
 }

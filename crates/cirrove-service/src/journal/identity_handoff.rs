@@ -342,6 +342,11 @@ impl UploadJournal {
                     original,
                     semantic,
                     original_semantic,
+                }
+                | UploadRepresentation::FlatPagesReplacementArchive {
+                    original,
+                    semantic,
+                    original_semantic,
                 },
                 Some((selected, current_semantic, backup_semantic)),
             ) if selected == original.as_ref()
@@ -1168,6 +1173,11 @@ impl UploadRecord {
                 original,
                 semantic,
                 original_semantic,
+            }
+            | UploadRepresentation::FlatPagesReplacementArchive {
+                original,
+                semantic,
+                original_semantic,
             } => (original, semantic, original_semantic),
             _ => return None,
         };
@@ -1414,7 +1424,11 @@ fn queue_native_history(db: &Connection, account: &str, id: &str, body: &str) ->
     let value: serde_json::Value = serde_json::from_str(body)?;
     if !matches!(
         value["representation"]["kind"].as_str(),
-        Some("package_replacement_archive" | "flat_numbers_replacement_archive")
+        Some(
+            "package_replacement_archive"
+                | "flat_numbers_replacement_archive"
+                | "flat_pages_replacement_archive"
+        )
     ) || !value["identity_handoff"]["metadata_original"].is_object()
     {
         return Ok(());
@@ -1477,7 +1491,7 @@ fn backfill_native_metadata(
     }
     let mut query = db.prepare(
         "SELECT u.sequence,u.id,u.body FROM uploads u WHERE u.sequence>?1 AND u.sequence<=?2 AND u.state='uploaded'
-         AND json_extract(u.body,'$.representation.kind') IN('package_archive','package_replacement_archive','flat_numbers_archive','flat_numbers_replacement_archive')
+         AND json_extract(u.body,'$.representation.kind') IN('package_archive','package_replacement_archive','flat_numbers_archive','flat_numbers_replacement_archive','flat_pages_archive','flat_pages_replacement_archive')
          AND json_type(u.body,'$.package_completion')='object'
          ORDER BY u.sequence LIMIT 16")?;
     let rows = query

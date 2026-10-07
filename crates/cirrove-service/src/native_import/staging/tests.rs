@@ -134,6 +134,63 @@ fn explicit_flat_numbers_source_is_captured_without_rewriting() {
     assert_eq!(wire["semantic"]["files"], 1);
     assert_eq!(wire["semantic"]["entries"], 3);
 }
+// Exact Apple-style local-only classic-size mirror, no central ZIP64 or sentinel.
+fn local_size_mirror(mut bytes: Vec<u8>) -> Vec<u8> {
+    let end = bytes.len() - 22;
+    let central = u32::from_le_bytes(bytes[end + 16..end + 20].try_into().unwrap());
+    let name = u16::from_le_bytes(bytes[26..28].try_into().unwrap()) as usize;
+    let size = u32::from_le_bytes(bytes[22..26].try_into().unwrap());
+    assert_eq!(u32::from_le_bytes(bytes[18..22].try_into().unwrap()), size);
+    let mut extra = vec![1, 0, 16, 0];
+    extra.extend(u64::from(size).to_le_bytes());
+    extra.extend(u64::from(size).to_le_bytes());
+    bytes[28..30].copy_from_slice(&20u16.to_le_bytes());
+    bytes.splice(30 + name..30 + name, extra);
+    bytes[end + 36..end + 40].copy_from_slice(&(central + 20).to_le_bytes());
+    bytes
+}
+#[test]
+fn explicit_flat_pages_source_is_captured_without_rewriting() {
+    let retained = disk_temp().keep();
+    let path = retained.join("source.pages");
+    let original = local_size_mirror(archive(
+        "Index/Document.iwa",
+        b"owned synthetic Pages content",
+    ));
+    std::fs::write(&path, &original).unwrap();
+    std::fs::set_permissions(&path, Permissions::from_mode(0o400)).unwrap();
+    let before = std::fs::metadata(&path).unwrap();
+    let result = ValidatedPackageArchive::capture_with_source_layout(
+        &path,
+        &retained,
+        serde_json::from_str::<PackageSourceLayout>("\"flat_pages\"")
+            .expect("explicit Pages layout"),
+        None,
+        &CancellationToken::new(),
+    );
+    let after = std::fs::metadata(&path).unwrap();
+    assert!(same_source(&before, &after));
+    assert_eq!(after.mode() & 0o777, 0o400);
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    assert!(!retained.join("journal").exists());
+    let snapshot = result.expect("explicit flat Pages admission must succeed");
+    assert_eq!(snapshot.file.metadata().unwrap().mode() & 0o777, 0o400);
+    assert_eq!(snapshot.file.metadata().unwrap().nlink(), 0);
+    assert!(snapshot.file.write_at(b"bad", 0).is_err());
+    let (mut file, representation, size, sha256) = snapshot.into_parts();
+    let mut captured = Vec::new();
+    file.read_to_end(&mut captured).unwrap();
+    assert_eq!(captured, original);
+    assert_eq!(size, original.len() as u64);
+    assert_eq!(sha256, hex::encode(Sha256::digest(&original)));
+    representation.validate().unwrap();
+    let wire = serde_json::to_value(representation).unwrap();
+    assert_eq!(wire["kind"], "flat_pages_archive");
+    assert!(wire.get("expected_root").is_none());
+    assert_eq!(wire["semantic"]["version"], 2);
+    assert_eq!(wire["semantic"]["files"], 1);
+    assert_eq!(wire["semantic"]["entries"], 3);
+}
 #[test]
 fn validated_snapshot_is_private_read_only_and_independent_of_original() {
     let temp = disk_temp();
@@ -404,6 +461,8 @@ fn flat_layout_requires_explicit_absent_root_and_preserves_source_on_refusal() {
         (PackageSourceLayout::Wrapped, Some("Document.numbers")),
         (PackageSourceLayout::FlatNumbers, Some("Document.numbers")),
         (PackageSourceLayout::FlatNumbers, Some("")),
+        (PackageSourceLayout::FlatPages, Some("Source.pages")),
+        (PackageSourceLayout::FlatPages, Some("")),
     ] {
         assert!(matches!(
             ValidatedPackageArchive::capture_with_source_layout(

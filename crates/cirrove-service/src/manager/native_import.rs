@@ -29,6 +29,7 @@ fn validate_input(input: &NativeImportInput) -> Result<()> {
                 && cirrove_core::upload::native_package_suffix(&root.to_ascii_lowercase()) == format
         }
         (PackageSourceLayout::FlatNumbers, None) => format == Some(".numbers"),
+        (PackageSourceLayout::FlatPages, None) => format == Some(".pages"),
         _ => false,
     };
     if !input.source.is_absolute()
@@ -126,6 +127,7 @@ impl Manager {
                 record.representation,
                 UploadRepresentation::PackageArchive { .. }
                     | UploadRepresentation::FlatNumbersArchive { .. }
+                    | UploadRepresentation::FlatPagesArchive { .. }
             )
         {
             bail!("native import publication does not belong to this account");
@@ -298,6 +300,7 @@ impl Manager {
                 record.representation,
                 UploadRepresentation::PackageArchive { .. }
                     | UploadRepresentation::FlatNumbersArchive { .. }
+                    | UploadRepresentation::FlatPagesArchive { .. }
             )
         {
             bail!("native import receipt does not belong to this account");

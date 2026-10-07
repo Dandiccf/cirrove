@@ -5,7 +5,8 @@ use rusqlite::Transaction;
 pub(super) fn original(representation: &UploadRepresentation) -> Option<&Node> {
     match representation {
         UploadRepresentation::PackageReplacementArchive { original, .. }
-        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. } => Some(original),
+        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }
+        | UploadRepresentation::FlatPagesReplacementArchive { original, .. } => Some(original),
         _ => None,
     }
 }
@@ -23,6 +24,9 @@ pub(super) fn validate(
         UploadRepresentation::FlatNumbersReplacementArchive { .. } => {
             cirrove_core::upload::native_package_suffix(&before.name.to_ascii_lowercase())
                 == Some(".numbers")
+        }
+        UploadRepresentation::FlatPagesReplacementArchive { .. } => {
+            cirrove_core::upload::native_package_suffix(&before.name) == Some(".pages")
         }
         _ => false,
     };
@@ -71,6 +75,13 @@ impl UploadJournal {
             },
             UploadRepresentation::FlatNumbersArchive { semantic } => {
                 UploadRepresentation::FlatNumbersReplacementArchive {
+                    semantic,
+                    original: Box::new(before.clone()),
+                    original_semantic,
+                }
+            }
+            UploadRepresentation::FlatPagesArchive { semantic } => {
+                UploadRepresentation::FlatPagesReplacementArchive {
                     semantic,
                     original: Box::new(before.clone()),
                     original_semantic,

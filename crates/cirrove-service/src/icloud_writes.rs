@@ -275,7 +275,9 @@ impl UploadProvider for ICloudWriteProvider {
         matches!(
             request.representation,
             cirrove_core::upload::UploadRepresentation::FlatNumbersArchive { .. }
+                | cirrove_core::upload::UploadRepresentation::FlatPagesArchive { .. }
                 | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
+                | cirrove_core::upload::UploadRepresentation::FlatPagesReplacementArchive { .. }
         )
     }
     fn staged_recovery_location(
@@ -292,6 +294,10 @@ impl UploadProvider for ICloudWriteProvider {
             ..
         }
         | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive {
+            original,
+            ..
+        }
+        | cirrove_core::upload::UploadRepresentation::FlatPagesReplacementArchive {
             original,
             ..
         } = &request.representation
@@ -335,6 +341,7 @@ impl UploadProvider for ICloudWriteProvider {
                         UploadIntent::Replace { .. },
                         cirrove_core::upload::UploadRepresentation::PackageReplacementArchive { .. }
                             | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
+        | cirrove_core::upload::UploadRepresentation::FlatPagesReplacementArchive { .. }
                     )
                 ))
     }

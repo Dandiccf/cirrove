@@ -628,7 +628,11 @@ fn validate_package_source_shape(
 ) -> std::result::Result<(), &'static str> {
     match (layout, root) {
         (native_import::PackageSourceLayout::Wrapped, Some(_))
-        | (native_import::PackageSourceLayout::FlatNumbers, None) => Ok(()),
+        | (
+            native_import::PackageSourceLayout::FlatNumbers
+            | native_import::PackageSourceLayout::FlatPages,
+            None,
+        ) => Ok(()),
         _ => Err("source layout and archive root disagree"),
     }
 }

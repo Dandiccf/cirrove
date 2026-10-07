@@ -260,10 +260,33 @@ async fn arm(
     remote_directories: bool,
     flat: bool,
 ) {
+    arm_format(
+        lose_registration,
+        changed_remote,
+        version,
+        remote_directories,
+        flat,
+        false,
+    )
+    .await;
+}
+async fn arm_format(
+    lose_registration: bool,
+    changed_remote: bool,
+    version: u32,
+    remote_directories: bool,
+    flat: bool,
+    pages: bool,
+) {
     let expected_conflict = changed_remote || (version == 1 && remote_directories);
-    let (_dir, provider, mut request, saved) = fixture();
+    let (dir, provider, mut request, saved) = fixture();
+    let (_fixture_root, _owner) = if pages {
+        (dir.keep(), None)
+    } else {
+        (dir.path().to_owned(), Some(dir))
+    };
     let source_root = if flat { None } else { Some("Source.pages") };
-    let target = if flat {
+    let target = if flat && !pages {
         "Target.numbers"
     } else {
         "Target.pages"
@@ -299,7 +322,11 @@ async fn arm(
         )
         .unwrap()
     };
-    request.representation = if flat {
+    request.representation = if pages {
+        UploadRepresentation::FlatPagesArchive {
+            semantic: semantic.clone(),
+        }
+    } else if flat {
         UploadRepresentation::FlatNumbersArchive {
             semantic: semantic.clone(),
         }
@@ -813,10 +840,22 @@ impl WireControl {
     }
 }
 async fn wire_control() -> WireControl {
+    wire_control_format(false).await
+}
+async fn wire_control_format(pages: bool) -> WireControl {
     let (dir, provider, mut request, saved) = fixture();
     let root = dir.keep();
     let source = numbers_tree(None);
-    let source_path = root.join("checkpoint-source.numbers");
+    let target = if pages {
+        "Target.pages"
+    } else {
+        "Target.numbers"
+    };
+    let source_path = root.join(if pages {
+        "checkpoint-source.pages"
+    } else {
+        "checkpoint-source.numbers"
+    });
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -829,7 +868,7 @@ async fn wire_control() -> WireControl {
     let cancel = CancellationToken::new();
     request.intent = UploadIntent::Create {
         parent: ROOT_ID.into(),
-        name: "Target.numbers".into(),
+        name: target.into(),
     };
     request.size = source.len() as u64;
     request.sha256 = hex::encode(Sha256::digest(&source));
@@ -838,8 +877,12 @@ async fn wire_control() -> WireControl {
         sha256: request.sha256.clone(),
     };
     let semantic = crate::package_flat_archive_semantic_identity_v2(&file, &raw, &cancel).unwrap();
-    request.representation = UploadRepresentation::FlatNumbersArchive { semantic };
-    let server = Server::start_import_model(source.clone(), "Target.numbers").await;
+    request.representation = if pages {
+        UploadRepresentation::FlatPagesArchive { semantic }
+    } else {
+        UploadRepresentation::FlatNumbersArchive { semantic }
+    };
+    let server = Server::start_import_model(source.clone(), target).await;
     {
         let mut state = provider.session.lock().await;
         let Session::Ready(session) = &mut *state else {
@@ -1223,6 +1266,194 @@ async fn package_create_flat_wire_checkpoint_legacy_inspects_without_mutating_an
         ] {
             assert_eq!(calls.iter().filter(|(_, path)| path == route).count(), 1);
         }
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn package_create_flat_pages_real_https_and_lost_reply_keep_layout_bound() {
+    for lost in [false, true] {
+        tokio::time::timeout(
+            Duration::from_secs(15),
+            arm_format(lost, false, 2, true, true, true),
+        )
+        .await
+        .unwrap();
+    }
+}
+#[tokio::test]
+async fn package_create_flat_pages_wrong_remote_content_is_not_a_receipt() {
+    tokio::time::timeout(
+        Duration::from_secs(15),
+        arm_format(false, true, 2, true, true, true),
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn package_create_flat_pages_checkpoint_structural_corruption_refuses_before_http() {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        let control = wire_control_format(true).await;
+        let before = control.server.state.lock().unwrap().calls.len();
+        assert!(matches!(
+            control
+                .provider
+                .inspect_upload_for_operation(
+                    &control.operation,
+                    &control.request,
+                    &control.allocation,
+                    &control.cancel
+                )
+                .await,
+            Err(UploadError::Uncertain)
+        )); // Valid unallocated checkpoint, no guess of success.
+        assert_eq!(control.server.state.lock().unwrap().calls.len(), before);
+        for arm in 0..10 {
+            let mut value = control.checkpoint();
+            match arm {
+                0 => {
+                    value.as_object_mut().unwrap().remove("wire");
+                }
+                1 => value["wire"] = serde_json::Value::Null,
+                2 => value["wire"]["version"] = 99.into(),
+                3 => value["wire"]["expected_root"] = "Foreign.pages".into(),
+                4 => value["wire"]["sha256"] = "A".repeat(64).into(),
+                5 => value["wire"]["sha256"] = "a".repeat(63).into(),
+                6 => value["wire"]["size"] = 0.into(),
+                7 => {
+                    value["wire"]["size"] =
+                        (crate::write_staging::WRITE_STAGING_FILE_LIMIT + 1).into()
+                }
+                8 => value["version"] = 1.into(),
+                _ => {
+                    value["version"] = 1.into();
+                    value.as_object_mut().unwrap().remove("wire");
+                }
+            }
+            let checkpoint = wire_checkpoint(&value);
+            assert!(matches!(
+                control
+                    .provider
+                    .inspect_upload_for_operation(
+                        &control.operation,
+                        &control.request,
+                        &checkpoint,
+                        &control.cancel
+                    )
+                    .await,
+                Err(UploadError::CheckpointInvalid)
+            ));
+            assert!(matches!(
+                control
+                    .provider
+                    .allocate_upload_for_operation(
+                        &control.operation,
+                        &control.request,
+                        &checkpoint,
+                        &control.cancel
+                    )
+                    .await,
+                Err(UploadError::CheckpointInvalid)
+            ));
+            assert_eq!(control.server.state.lock().unwrap().calls.len(), before);
+            assert_eq!(
+                checkpoint.expose_secret(),
+                wire_checkpoint(&value).expose_secret()
+            );
+            control.preserve();
+        }
+        let calls = control.server.finish().await;
+        assert_eq!(calls.len(), before);
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn package_create_flat_pages_checkpoint_rederived_receipt_refuses_before_body_http() {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        let control = wire_control_format(true).await;
+        let UploadStep::Stream(body) = control
+            .provider
+            .allocate_upload_for_operation(
+                &control.operation,
+                &control.request,
+                &control.allocation,
+                &control.cancel,
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("genuine allocated body checkpoint");
+        };
+        let before = control.server.state.lock().unwrap().calls.len();
+        for arm in 0..2 {
+            let mut value: serde_json::Value = serde_json::from_str(body.expose_secret()).unwrap();
+            if arm == 0 {
+                value["wire"]["sha256"] = "0".repeat(64).into();
+            } else {
+                let size = value["wire"]["size"].as_u64().unwrap();
+                value["wire"]["size"] = (size + 1).into();
+            }
+            let checkpoint = wire_checkpoint(&value);
+            // Both receipts are syntactically valid. Actual stream rederivation,
+            // not a pure field validator, must refuse them before body dispatch.
+            assert!(
+                control
+                    .provider
+                    .decode(&control.operation, &control.request, &checkpoint)
+                    .is_ok()
+            );
+            assert!(matches!(
+                control
+                    .provider
+                    .upload_stream_for_operation(
+                        &control.operation,
+                        &control.request,
+                        &checkpoint,
+                        control.file(),
+                        &control.cancel
+                    )
+                    .await,
+                Err(UploadError::CheckpointInvalid)
+            ));
+            assert_eq!(control.server.state.lock().unwrap().calls.len(), before);
+            control.preserve();
+        }
+        assert!(matches!(
+            control
+                .provider
+                .upload_stream_for_operation(
+                    &control.operation,
+                    &control.request,
+                    &body,
+                    control.file(),
+                    &control.cancel
+                )
+                .await
+                .unwrap(),
+            UploadStep::Commit(_)
+        ));
+        control.preserve();
+        let calls = control.server.finish().await;
+        assert_eq!(
+            calls
+                .iter()
+                .filter(|(_, path)| path == "/signed-upload")
+                .count(),
+            1
+        );
+        assert_eq!(
+            calls
+                .iter()
+                .filter(|(_, path)| path.starts_with("/ws/com.apple.CloudDocs/upload/web"))
+                .count(),
+            1
+        );
+        // No assertion that a forged-but-valid receipt refuses allocation HTTP:
+        // this test starts from the genuine already allocated body checkpoint.
     })
     .await
     .unwrap();

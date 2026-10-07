@@ -81,6 +81,15 @@ async fn scenario_with_layout(
     reply: Reply,
     flat: bool,
 ) -> (std::process::Output, Seen) {
+    scenario_format(binding, capability, reply, flat, false).await
+}
+async fn scenario_format(
+    binding: Option<&str>,
+    capability: Option<u32>,
+    reply: Reply,
+    flat: bool,
+    pages: bool,
+) -> (std::process::Output, Seen) {
     let temp = tempfile::Builder::new()
         .prefix("cirrove-import-binding-")
         .tempdir_in("/var/tmp")
@@ -171,12 +180,21 @@ async fn scenario_with_layout(
     command
         .args(["import-native-package", "--label", LABEL, "--archive"])
         .arg(&archive)
-        .args(["--parent", "Owned", "--name", "Copy.numbers", "--socket"])
+        .args([
+            "--parent",
+            "Owned",
+            "--name",
+            if pages { "Copy.pages" } else { "Copy.numbers" },
+            "--socket",
+        ])
         .arg(&socket)
         .env("RUST_LOG", "off")
         .kill_on_drop(true);
     if flat {
-        command.args(["--source-layout", "flat-numbers"]);
+        command.args([
+            "--source-layout",
+            if pages { "flat-pages" } else { "flat-numbers" },
+        ]);
     } else {
         command.args(["--source-root", "Source.numbers"]);
     }
@@ -362,4 +380,39 @@ async fn cli_explicit_flat_numbers_old_daemon_refusal_does_not_observe_or_retry(
             .unwrap()
             .contains("legacy source layout unsupported")
     );
+}
+
+#[tokio::test]
+async fn cli_explicit_flat_pages_dispatches_null_root_once_and_never_retries_refusal() {
+    for reply in [Reply::Refusal, Reply::LegacyRefusal] {
+        let (output, seen) = scenario_format(Some(SELECTED), Some(1), reply, true, true).await;
+        assert!(!output.status.success());
+        assert_eq!(seen.verbs, vec!["capabilities", "import-native-package"]);
+        assert_eq!(seen.imports.len(), 1);
+        assert_eq!(
+            seen.imports[0].expected_account_id.as_deref(),
+            Some(SELECTED)
+        );
+        assert_eq!(
+            seen.imports[0].source_layout,
+            cirrove_service::native_import::PackageSourceLayout::FlatPages
+        );
+        assert!(seen.imports[0].expected_root.is_none());
+        assert_eq!(seen.imports[0].name, "Copy.pages");
+        assert_eq!(seen.serialized_imports[0]["source_layout"], "flat_pages");
+        assert!(seen.serialized_imports[0]["expected_root"].is_null());
+        let expected = if matches!(reply, Reply::LegacyRefusal) {
+            "legacy source layout unsupported"
+        } else {
+            REFUSAL
+        };
+        assert!(String::from_utf8(output.stderr).unwrap().contains(expected));
+    }
+    for capability in [None, Some(2)] {
+        let (output, seen) =
+            scenario_format(Some(SELECTED), capability, Reply::Refusal, true, true).await;
+        assert!(!output.status.success());
+        assert_eq!(seen.verbs, vec!["capabilities"]);
+        assert!(seen.imports.is_empty());
+    }
 }

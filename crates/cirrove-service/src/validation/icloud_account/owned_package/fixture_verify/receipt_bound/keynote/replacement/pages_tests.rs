@@ -3,32 +3,64 @@ use super::*;
 use crate::journal::UploadJournal;
 use cirrove_core::upload::{PackageHandoffReceipt, PackageUploadReceipt, RecoveryLocation};
 
-fn source(root: &Path, name: &str, text: &[u8]) -> Source {
+fn source_for(root: &Path, name: &str, text: &[u8], layout: PackageSourceLayout) -> Source {
     let path = root.join(name);
-    let bytes = crate::native_import::synthetic_package_archive("Source.pages/Metadata/data", text);
+    let bytes = match layout {
+        PackageSourceLayout::Wrapped => {
+            crate::native_import::synthetic_package_archive("Source.pages/Metadata/data", text)
+        }
+        PackageSourceLayout::FlatPages => local_size_mirror(
+            crate::native_import::synthetic_package_archive("Metadata/data", text),
+        ),
+        _ => panic!("unsupported synthetic source layout"),
+    };
     std::fs::write(&path, &bytes).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    std::fs::set_permissions(
+        &path,
+        std::fs::Permissions::from_mode(if layout == PackageSourceLayout::FlatPages {
+            0o400
+        } else {
+            0o600
+        }),
+    )
+    .unwrap();
     let receipt = PackageDownload {
         size: bytes.len() as u64,
         sha256: hex::encode(Sha256::digest(&bytes)),
     };
-    let semantic = cirrove_icloud::package_archive_semantic_identity_versioned(
-        &File::open(&path).unwrap(),
-        &receipt,
-        "Source.pages",
-        2,
-        &CancellationToken::new(),
-    )
-    .unwrap();
+    let semantic = match layout {
+        PackageSourceLayout::Wrapped => {
+            cirrove_icloud::package_archive_semantic_identity_versioned(
+                &File::open(&path).unwrap(),
+                &receipt,
+                "Source.pages",
+                2,
+                &CancellationToken::new(),
+            )
+            .unwrap()
+        }
+        PackageSourceLayout::FlatPages => {
+            cirrove_icloud::package_flat_archive_semantic_identity_v2(
+                &File::open(&path).unwrap(),
+                &receipt,
+                &CancellationToken::new(),
+            )
+            .unwrap()
+        }
+        _ => panic!("unsupported synthetic source layout"),
+    };
     Source {
         path,
         size: receipt.size,
         sha256: receipt.sha256,
-        root: "Source.pages".into(),
+        root: (layout == PackageSourceLayout::Wrapped).then(|| "Source.pages".into()),
         semantic,
     }
 }
 fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
+    fixture_for(post, PackageSourceLayout::Wrapped)
+}
+fn fixture_for(post: bool, layout: PackageSourceLayout) -> (PathBuf, Plan, Node, Option<Node>) {
     let run = Uuid::new_v4();
     let temp = tempfile::Builder::new()
         .prefix(&format!("cirrove-pages-replacement-{run}"))
@@ -38,8 +70,8 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
         .unwrap()
         .keep();
     let root = temp.as_path();
-    let a = source(root, "source-a.pages", b"owned title A");
-    let b = source(root, "source-b.pages", b"owned edited title B");
+    let a = source_for(root, "source-a.pages", b"owned title A", layout);
+    let b = source_for(root, "source-b.pages", b"owned edited title B", layout);
     let account = Uuid::new_v4();
     let time = now().unwrap();
     let mut plan = Plan {
@@ -65,6 +97,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
             size: a.semantic.expanded_bytes,
             modified_unix: 0,
         },
+        source_layout: layout,
         source_a: a,
         source_b: b,
         started_unix: time,
@@ -73,7 +106,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
     let parent = Node {
         id: "FOLDER::com.apple.CloudDocs::parent".into(),
         parent_id: Some(cirrove_icloud::ROOT_ID.into()),
-        name: plan.parent_plan().parent_name(),
+        name: plan.parent_name(),
         kind: NodeKind::Folder,
         package: false,
         target: None,
@@ -90,7 +123,7 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
     .unwrap();
     let object = journal
         .create_namespace_directory(
-            plan.parent_plan().scope(),
+            plan.scope(),
             cirrove_icloud::ROOT_ID.into(),
             parent.name.clone(),
         )
@@ -108,16 +141,17 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
     journal
         .handoff_namespace(local.id, local.revision, parent.clone())
         .unwrap();
-    let archive = crate::native_import::ValidatedPackageArchive::capture(
+    let archive = crate::native_import::ValidatedPackageArchive::capture_with_source_layout(
         &plan.source_a.path,
         root,
-        "Source.pages",
+        layout,
+        plan.source_a.root.as_deref(),
         &CancellationToken::new(),
     )
     .unwrap();
     plan.import = journal
         .enqueue_validated_package_archive(
-            plan.parent_plan().scope(),
+            plan.scope(),
             UploadIntent::Create {
                 parent: parent.id.clone(),
                 name: plan.name(Format::Pages),
@@ -150,16 +184,17 @@ fn fixture(post: bool) -> (PathBuf, Plan, Node, Option<Node>) {
     let mut backup = None;
     if post {
         plan.phase = Phase::Postflight;
-        let archive = crate::native_import::ValidatedPackageArchive::capture(
+        let archive = crate::native_import::ValidatedPackageArchive::capture_with_source_layout(
             &plan.source_b.path,
             root,
-            "Source.pages",
+            layout,
+            plan.source_b.root.as_deref(),
             &CancellationToken::new(),
         )
         .unwrap();
         let row = journal
             .enqueue_validated_package_replacement(
-                plan.parent_plan().scope(),
+                plan.scope(),
                 plan.original.clone(),
                 plan.source_a.semantic.clone(),
                 archive,
@@ -261,7 +296,7 @@ fn owned_pages_replacement_rejects_other_format_scope_and_unchanged_pair() {
                 bad.session_directory =
                     PathBuf::from(format!("/var/tmp/cirrove-keynote-replacement-{}", bad.run))
             }
-            3 => bad.source_b.root = "Source.key".into(),
+            3 => bad.source_b.root = Some("Source.key".into()),
             4 => bad.source_b.path = bad.session_directory.join("source-b.key"),
             5 => bad.source_b.semantic = bad.source_a.semantic.clone(),
             6 => bad.source_b.sha256 = bad.source_a.sha256.clone(),
@@ -473,4 +508,271 @@ async fn owned_pages_replacement_public_failure_discards_untrusted_causes() {
     );
     assert_eq!(error.chain().count(), 1);
     assert!(!format!("{error:?}").contains("untrusted"));
+}
+
+fn local_size_mirror(mut bytes: Vec<u8>) -> Vec<u8> {
+    let end = bytes.len() - 22;
+    let central = u32::from_le_bytes(bytes[end + 16..end + 20].try_into().unwrap());
+    let name = u16::from_le_bytes(bytes[26..28].try_into().unwrap()) as usize;
+    let size = u32::from_le_bytes(bytes[22..26].try_into().unwrap());
+    assert_eq!(u32::from_le_bytes(bytes[18..22].try_into().unwrap()), size);
+    let mut extra = vec![1, 0, 16, 0];
+    extra.extend(u64::from(size).to_le_bytes());
+    extra.extend(u64::from(size).to_le_bytes());
+    bytes[28..30].copy_from_slice(&20u16.to_le_bytes());
+    bytes.splice(30 + name..30 + name, extra);
+    bytes[end + 36..end + 40].copy_from_slice(&(central + 20).to_le_bytes());
+    bytes
+}
+
+#[test]
+fn owned_pages_flat_replacement_actual_ack_preserves_original_bytes_and_exact_handoff() {
+    for post in [false, true] {
+        let (_retained, plan, current, backup) = fixture_for(post, PackageSourceLayout::FlatPages);
+        let a = std::fs::read(&plan.source_a.path).unwrap();
+        let b = std::fs::read(&plan.source_b.path).unwrap();
+        assert_eq!(
+            &a[30 + u16::from_le_bytes(a[26..28].try_into().unwrap()) as usize..][..4],
+            &[1, 0, 16, 0]
+        );
+        let db = plan.session_directory.join("journal/uploads.db");
+        let before = std::fs::read(&db).unwrap();
+        let owner = RecoveryJournal::open(db.parent().unwrap(), &plan.account.to_string()).unwrap();
+        source_verified_for(&plan.source_a, plan.source_layout).unwrap();
+        source_verified_for(&plan.source_b, plan.source_layout).unwrap();
+        let (_, observed_current, observed_backup) = bound(&plan).unwrap();
+        assert_eq!(observed_current, current);
+        assert_eq!(observed_backup, backup);
+        let state = snapshot(&db, plan.account).unwrap();
+        assert!(
+            state
+                .uploads
+                .iter()
+                .find(|r| r.id == plan.import)
+                .unwrap()
+                .representation
+                == UploadRepresentation::FlatPagesArchive {
+                    semantic: plan.source_a.semantic.clone()
+                },
+            "flat Pages import representation changed"
+        );
+        if post {
+            assert!(
+                state
+                    .uploads
+                    .iter()
+                    .find(|r| Some(r.id) == plan.replacement)
+                    .unwrap()
+                    .representation
+                    == UploadRepresentation::FlatPagesReplacementArchive {
+                        semantic: plan.source_b.semantic.clone(),
+                        original: Box::new(plan.original.clone()),
+                        original_semantic: plan.source_a.semantic.clone()
+                    },
+                "flat Pages replacement representation changed"
+            );
+        }
+        drop(owner);
+        assert_eq!(std::fs::read(&db).unwrap(), before);
+        assert_eq!(std::fs::read(&plan.source_a.path).unwrap(), a);
+        assert_eq!(std::fs::read(&plan.source_b.path).unwrap(), b);
+        for source in [&plan.source_a, &plan.source_b] {
+            assert_eq!(
+                std::fs::metadata(&source.path)
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o400
+            );
+        }
+    }
+}
+
+#[test]
+fn owned_pages_flat_replacement_layout_is_explicit_null_root_and_v2_only() {
+    let (_retained, plan, _, _) = fixture_for(false, PackageSourceLayout::FlatPages);
+    bound(&plan).unwrap();
+    let wire = serde_json::to_value(&plan).unwrap();
+    assert_eq!(wire["source_layout"], "flat_pages");
+    assert!(wire["source_a"]["root"].is_null());
+    for arm in 0..7 {
+        let mut bad = wire.clone();
+        match arm {
+            0 => {
+                bad.as_object_mut().unwrap().remove("source_layout");
+            }
+            1 => bad["source_layout"] = "wrapped".into(),
+            2 => bad["source_layout"] = "flat_numbers".into(),
+            3 => bad["source_a"]["root"] = "Source.pages".into(),
+            4 => {
+                bad["source_b"].as_object_mut().unwrap().remove("root");
+            }
+            5 => bad["source_a"]["semantic"]["version"] = 1.into(),
+            _ => bad["source_b"]["semantic"]["version"] = 1.into(),
+        }
+        let admitted = serde_json::from_value::<Plan>(bad)
+            .ok()
+            .is_some_and(|p| p.validate_at(p.started_unix, Format::Pages).is_ok());
+        assert!(!admitted, "flat Pages explicit source arm {arm} accepted");
+    }
+    assert!(
+        plan.validate_at(plan.started_unix, Format::Keynote)
+            .is_err()
+    );
+}
+
+#[test]
+fn owned_pages_flat_replacement_typed_sql_receipt_cannot_be_relabelled_wrapped() {
+    let (_retained, plan, _, _) = fixture_for(true, PackageSourceLayout::FlatPages);
+    bound(&plan).unwrap();
+    for replacing in [false, true] {
+        let mut changed = snapshot(
+            &plan.session_directory.join("journal/uploads.db"),
+            plan.account,
+        )
+        .unwrap();
+        let row = changed
+            .uploads
+            .iter_mut()
+            .find(|r| {
+                r.id == if replacing {
+                    plan.replacement.unwrap()
+                } else {
+                    plan.import
+                }
+            })
+            .unwrap();
+        row.representation = if replacing {
+            UploadRepresentation::PackageReplacementArchive {
+                expected_root: "Source.pages".into(),
+                semantic: plan.source_b.semantic.clone(),
+                original: Box::new(plan.original.clone()),
+                original_semantic: plan.source_a.semantic.clone(),
+            }
+        } else {
+            UploadRepresentation::PackageArchive {
+                expected_root: "Source.pages".into(),
+                semantic: plan.source_a.semantic.clone(),
+            }
+        };
+        assert!(
+            admitted(&plan, &changed, Format::Pages).is_err(),
+            "wrapped receipt borrowed flat Pages authority"
+        );
+    }
+}
+
+#[test]
+fn owned_pages_flat_replacement_original_current_and_trash_identity_fences_remain_strict() {
+    let (_retained, plan, _, _) = fixture_for(true, PackageSourceLayout::FlatPages);
+    bound(&plan).unwrap();
+    for arm in 0..6 {
+        let mut state = snapshot(
+            &plan.session_directory.join("journal/uploads.db"),
+            plan.account,
+        )
+        .unwrap();
+        let row = state
+            .uploads
+            .iter_mut()
+            .find(|r| Some(r.id) == plan.replacement)
+            .unwrap();
+        let mut wire = serde_json::to_value(&*row).unwrap();
+        match arm {
+            0 => wire["scope"]["account"] = Uuid::new_v4().to_string().into(),
+            1 => wire["intent"]["expected_etag"] = "foreign-revision".into(),
+            2 => {
+                wire["representation"]["original"]["id"] =
+                    "FILE::com.apple.CloudDocs::foreign-a".into()
+            }
+            3 => {
+                wire["identity_handoff"]["backup"]["parent_id"] =
+                    "FOLDER::com.apple.CloudDocs::not-trash".into()
+            }
+            4 => {
+                wire["package_completion"] = serde_json::to_value(&plan.source_a.semantic).unwrap()
+            }
+            _ => wire["remote"]["etag"] = "*".into(),
+        }
+        *row = serde_json::from_value(wire).unwrap();
+        assert!(
+            admitted(&plan, &state, Format::Pages).is_err(),
+            "flat Pages identity arm {arm} accepted"
+        );
+    }
+}
+
+#[test]
+fn owned_pages_flat_replacement_raw_hash_and_semantic_tamper_refuse_without_rewriting() {
+    let (_retained, plan, _, _) = fixture_for(false, PackageSourceLayout::FlatPages);
+    source_verified_for(&plan.source_b, plan.source_layout).unwrap();
+    let a = std::fs::read(&plan.source_a.path).unwrap();
+    let mut wrong_raw = plan.source_b.clone();
+    wrong_raw.sha256 = "b".repeat(64);
+    assert!(source_verified_for(&wrong_raw, plan.source_layout).is_err());
+    let changed = local_size_mirror(crate::native_import::synthetic_package_archive(
+        "Metadata/data",
+        b"complete foreign content",
+    ));
+    std::fs::set_permissions(&plan.source_b.path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    std::fs::write(&plan.source_b.path, &changed).unwrap();
+    std::fs::set_permissions(&plan.source_b.path, std::fs::Permissions::from_mode(0o400)).unwrap();
+    let mut changed_source = plan.source_b.clone();
+    changed_source.size = changed.len() as u64;
+    changed_source.sha256 = hex::encode(Sha256::digest(&changed));
+    assert!(source_verified_for(&changed_source, plan.source_layout).is_err());
+    assert_eq!(std::fs::read(&plan.source_b.path).unwrap(), changed);
+    assert_eq!(std::fs::read(&plan.source_a.path).unwrap(), a);
+}
+
+#[test]
+fn owned_pages_flat_replacement_queue_sequence_and_completion_cannot_borrow_receipt() {
+    for sequence in [false, true] {
+        let (_retained, plan, _, _) = fixture_for(true, PackageSourceLayout::FlatPages);
+        bound(&plan).unwrap();
+        let path = plan.session_directory.join("journal/uploads.db");
+        let db = rusqlite::Connection::open(&path).unwrap();
+        if sequence {
+            db.execute(
+                "UPDATE uploads SET sequence=sequence+50 WHERE id=?1",
+                [plan.replacement.unwrap().to_string()],
+            )
+            .unwrap();
+        } else {
+            db.execute(
+                "UPDATE write_queue SET complete=0 WHERE id=?1",
+                [plan.replacement.unwrap().to_string()],
+            )
+            .unwrap();
+        }
+        drop(db);
+        let before = std::fs::read(&path).unwrap();
+        assert!(bound(&plan).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+}
+
+#[test]
+fn owned_pages_flat_replacement_requires_readonly_original_source() {
+    let (_retained, plan, _, _) = fixture_for(false, PackageSourceLayout::FlatPages);
+    source_verified_for(&plan.source_a, plan.source_layout).unwrap();
+    let bytes = std::fs::read(&plan.source_a.path).unwrap();
+    std::fs::set_permissions(&plan.source_a.path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    assert!(source_verified_for(&plan.source_a, plan.source_layout).is_err());
+    assert_eq!(std::fs::read(&plan.source_a.path).unwrap(), bytes);
+}
+
+#[test]
+fn owned_pages_flat_replacement_preserves_wrapped_default_wire_and_authority() {
+    let (_retained, plan, _, _) = fixture(false);
+    let wire = serde_json::to_value(&plan).unwrap();
+    assert!(wire.get("source_layout").is_none());
+    assert_eq!(wire["source_a"]["root"], "Source.pages");
+    let decoded: Plan = serde_json::from_value(wire).unwrap();
+    bound(&decoded).unwrap();
+    source_verified_for(&decoded.source_a, decoded.source_layout).unwrap();
+    let mut wrongly_selected = decoded;
+    wrongly_selected.source_layout = PackageSourceLayout::FlatPages;
+    assert!(bound(&wrongly_selected).is_err());
 }

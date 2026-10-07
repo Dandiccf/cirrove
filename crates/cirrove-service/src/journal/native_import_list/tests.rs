@@ -232,7 +232,7 @@ fn native_import_list_legacy_pages_and_escaped_byte_overflow_do_not_skip_operati
             .map(|i| append(&mut j, i, true, UploadState::Uploaded, true).id)
             .collect();
         if !indexed {
-            j.db.execute_batch("DROP INDEX native_package_import_operations_v21")
+            j.db.execute_batch("DROP INDEX native_package_import_operations_v21; DROP INDEX native_package_import_operations_flat_pages_v21;")
                 .unwrap();
         }
         drop(j);
@@ -324,5 +324,48 @@ fn native_import_list_refuses_nonimport_owners_malformed_receipts_and_row_bindin
             .unwrap();
         }
         assert!(j.native_import_list(&scope(), None, 100).is_err(), "{arm}");
+    }
+}
+
+#[test]
+fn flat_pages_import_receipt_discovery_is_scoped_and_readonly_with_legacy_index() {
+    for legacy in [false, true] {
+        let path = temp().keep();
+        let mut j = UploadJournal::open(&path, "owned", 1024 * 1024).unwrap();
+        let mut row = append(&mut j, 1, true, UploadState::Uploaded, false);
+        let mut proof = semantic();
+        proof.version = 2;
+        proof.entries = 2;
+        row.representation = UploadRepresentation::FlatPagesArchive {
+            semantic: proof.clone(),
+        };
+        row.package_completion = Some(proof);
+        j.db.execute(
+            "DELETE FROM package_metadata_publication WHERE operation=?1",
+            [row.id.to_string()],
+        )
+        .unwrap();
+        save(&j, &row);
+        let pending: bool = j.db.query_row("SELECT EXISTS(SELECT 1 FROM package_metadata_publication WHERE operation=?1 AND done=0)", [row.id.to_string()], |r|r.get(0)).unwrap();
+        assert!(
+            pending,
+            "new flat Pages acknowledgement must schedule metadata publication"
+        );
+        if legacy {
+            j.db.execute_batch("DROP INDEX native_package_import_operations_flat_pages_v21")
+                .unwrap();
+        }
+        drop(j);
+        let before = std::fs::read(path.join("uploads.db")).unwrap();
+        let ro = RecoveryJournal::open(&path, "owned").unwrap();
+        let page = ro.native_import_list(&scope(), None, 100).unwrap();
+        assert_eq!(page.operations.len(), 1);
+        assert_eq!(page.operations[0].operation, row.id);
+        assert!(page.operations[0].completion_receipt_recorded);
+        let mut foreign = scope();
+        foreign.collection = "other".into();
+        assert!(ro.native_import_list(&foreign, None, 100).is_err());
+        drop(ro);
+        assert_eq!(std::fs::read(path.join("uploads.db")).unwrap(), before);
     }
 }

@@ -16,6 +16,7 @@ impl Writeback {
             &record.representation,
             cirrove_core::upload::UploadRepresentation::PackageReplacementArchive { .. }
                 | cirrove_core::upload::UploadRepresentation::FlatNumbersReplacementArchive { .. }
+                | cirrove_core::upload::UploadRepresentation::FlatPagesReplacementArchive { .. }
         ) {
             let id = record.id;
             Some(

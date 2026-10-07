@@ -44,12 +44,14 @@ impl ICloudWriteProvider {
         match (&request.representation, &request.intent) {
             (
                 UploadRepresentation::PackageArchive { .. }
-                | UploadRepresentation::FlatNumbersArchive { .. },
+                | UploadRepresentation::FlatNumbersArchive { .. }
+                | UploadRepresentation::FlatPagesArchive { .. },
                 UploadIntent::Create { .. },
             ) => {}
             (
                 UploadRepresentation::PackageReplacementArchive { .. }
-                | UploadRepresentation::FlatNumbersReplacementArchive { .. },
+                | UploadRepresentation::FlatNumbersReplacementArchive { .. }
+                | UploadRepresentation::FlatPagesReplacementArchive { .. },
                 UploadIntent::Replace { .. },
             ) => {}
             _ => return Err(UploadError::Unsupported("invalid native package operation")),
@@ -62,6 +64,7 @@ impl ICloudWriteProvider {
             &request.representation,
             UploadRepresentation::PackageReplacementArchive { .. }
                 | UploadRepresentation::FlatNumbersReplacementArchive { .. }
+                | UploadRepresentation::FlatPagesReplacementArchive { .. }
         ) {
             return Ok(Arc::new(
                 self.native_package_adapter(operation, request, checkpoint)
@@ -112,7 +115,8 @@ impl ICloudWriteProvider {
         let operation_id = self.validate_operation(operation, request)?;
         let original = match &request.representation {
             UploadRepresentation::PackageReplacementArchive { original, .. }
-            | UploadRepresentation::FlatNumbersReplacementArchive { original, .. } => original,
+            | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }
+            | UploadRepresentation::FlatPagesReplacementArchive { original, .. } => original,
             _ => return Err(UploadError::Invalid),
         };
         let staging = self.package_staging()?;

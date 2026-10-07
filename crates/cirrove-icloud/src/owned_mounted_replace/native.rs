@@ -270,7 +270,8 @@ impl ICloudFileReplace {
         account_hash: String,
     ) -> UploadResult<Self> {
         let (UploadRepresentation::PackageReplacementArchive { original, .. }
-        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }) =
+        | UploadRepresentation::FlatNumbersReplacementArchive { original, .. }
+        | UploadRepresentation::FlatPagesReplacementArchive { original, .. }) =
             &request.representation
         else {
             return Err(UploadError::Invalid);
@@ -331,6 +332,12 @@ impl ICloudFileReplace {
             {
                 original
             }
+            UploadRepresentation::FlatPagesReplacementArchive { original, .. }
+                if cirrove_core::upload::native_package_suffix(&original.name)
+                    == Some(".pages") =>
+            {
+                original
+            }
             _ => return Err(UploadError::Invalid),
         };
         if request.scope.provider != "icloud"
@@ -387,6 +394,11 @@ impl ICloudFileReplace {
             },
             UploadRepresentation::FlatNumbersReplacementArchive { semantic, .. } => {
                 UploadRepresentation::FlatNumbersArchive {
+                    semantic: semantic.clone(),
+                }
+            }
+            UploadRepresentation::FlatPagesReplacementArchive { semantic, .. } => {
+                UploadRepresentation::FlatPagesArchive {
                     semantic: semantic.clone(),
                 }
             }
@@ -477,6 +489,11 @@ impl ICloudFileReplace {
             semantic,
             original_semantic,
             ..
+        }
+        | UploadRepresentation::FlatPagesReplacementArchive {
+            semantic,
+            original_semantic,
+            ..
         }) = &context.request.representation
         else {
             return Err(UploadError::Invalid);
@@ -513,6 +530,11 @@ impl ICloudFileReplace {
             ..
         }
         | UploadRepresentation::FlatNumbersReplacementArchive {
+            semantic,
+            original_semantic,
+            ..
+        }
+        | UploadRepresentation::FlatPagesReplacementArchive {
             semantic,
             original_semantic,
             ..
@@ -614,6 +636,9 @@ impl ICloudFileReplace {
             original_semantic, ..
         }
         | UploadRepresentation::FlatNumbersReplacementArchive {
+            original_semantic, ..
+        }
+        | UploadRepresentation::FlatPagesReplacementArchive {
             original_semantic, ..
         }) = &context.request.representation
         else {
@@ -1017,7 +1042,8 @@ impl ICloudFileReplace {
                 semantic,
                 ..
             } => (Some(expected_root.clone()), semantic),
-            UploadRepresentation::FlatNumbersReplacementArchive { semantic, .. } => {
+            UploadRepresentation::FlatNumbersReplacementArchive { semantic, .. }
+            | UploadRepresentation::FlatPagesReplacementArchive { semantic, .. } => {
                 (None, semantic)
             }
             _ => return Err(UploadError::Invalid),

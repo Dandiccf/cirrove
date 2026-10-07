@@ -164,7 +164,11 @@ impl ValidatedPackageArchive {
         check(cancel)?;
         if !matches!(
             (source_layout, expected_root),
-            (PackageSourceLayout::Wrapped, Some(_)) | (PackageSourceLayout::FlatNumbers, None)
+            (PackageSourceLayout::Wrapped, Some(_))
+                | (
+                    PackageSourceLayout::FlatNumbers | PackageSourceLayout::FlatPages,
+                    None
+                )
         ) {
             return Err(ImportAdmissionError::Archive);
         }
@@ -269,7 +273,7 @@ impl ValidatedPackageArchive {
                     cancel,
                 )
             }
-            (PackageSourceLayout::FlatNumbers, None) => {
+            (PackageSourceLayout::FlatNumbers | PackageSourceLayout::FlatPages, None) => {
                 package_flat_archive_semantic_identity_v2(&file, &receipt, cancel)
             }
             _ => return Err(ImportAdmissionError::Archive),
@@ -293,6 +297,9 @@ impl ValidatedPackageArchive {
                 }
                 (PackageSourceLayout::FlatNumbers, None) => {
                     UploadRepresentation::FlatNumbersArchive { semantic }
+                }
+                (PackageSourceLayout::FlatPages, None) => {
+                    UploadRepresentation::FlatPagesArchive { semantic }
                 }
                 _ => return Err(ImportAdmissionError::Archive),
             },

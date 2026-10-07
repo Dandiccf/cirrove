@@ -259,7 +259,8 @@ pub(super) fn same_publication(
 fn confirmed_import(queued: &UploadRecord, row: &UploadRecord) -> bool {
     let semantic = match &queued.representation {
         cirrove_core::upload::UploadRepresentation::PackageArchive { semantic, .. }
-        | cirrove_core::upload::UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+        | cirrove_core::upload::UploadRepresentation::FlatNumbersArchive { semantic }
+        | cirrove_core::upload::UploadRepresentation::FlatPagesArchive { semantic } => semantic,
         _ => return false,
     };
     let cirrove_core::upload::UploadIntent::Create { parent, name } = &queued.intent else {

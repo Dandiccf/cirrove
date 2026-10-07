@@ -107,9 +107,12 @@ fn flat_wire_expectation(source: &[u8], root: &str) -> (u64, PackageSemanticIden
     let semantic =
         crate::package_flat_archive_semantic_identity_v2(original.borrowed_file(), &raw, &cancel)
             .unwrap();
-    let receipt =
+    let receipt = if cirrove_core::upload::native_package_suffix(root) == Some(".pages") {
+        crate::package_wire::flat_pages_wire(&original, &raw, root, &semantic, &wire, &cancel)
+    } else {
         crate::package_wire::flat_numbers_wire(&original, &raw, root, &semantic, &wire, &cancel)
-            .unwrap();
+    }
+    .unwrap();
     let mut unchanged = vec![0; source.len()];
     original
         .borrowed_file()
@@ -407,20 +410,35 @@ fn counts(server: &Server) -> (usize, usize, usize, usize, usize) {
     )
 }
 async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bool, flat: bool) {
+    complete_arm_format(lost_registration, lost_trash, lost_rename, flat, false).await;
+}
+async fn complete_arm_format(
+    lost_registration: bool,
+    lost_trash: bool,
+    lost_rename: bool,
+    flat: bool,
+    pages: bool,
+) {
     let operation = Uuid::new_v4();
     let mut plan = plan();
     plan.staged_name = format!("staged-by-cirrove-{operation}.pages");
     plan.recovery_name = format!("recovery-by-cirrove-{operation}.pages");
     if flat {
-        plan.target_name = "Target.numbers".into();
-        plan.staged_name = format!("staged-by-cirrove-{operation}.numbers");
-        plan.recovery_name = format!("recovery-by-cirrove-{operation}.numbers");
+        let suffix = if pages { "pages" } else { "numbers" };
+        plan.target_name = format!("Target.{suffix}");
+        plan.staged_name = format!("staged-by-cirrove-{operation}.{suffix}");
+        plan.recovery_name = format!("recovery-by-cirrove-{operation}.{suffix}");
         let proof = plan.package.as_mut().unwrap();
         proof.original = semantic_v2(&plan.target_name, true);
         proof.staged = semantic_v2("", false);
     }
     let source = archive(if flat { "" } else { "Source.pages" }, false, false);
     let dir = directory();
+    let (fixture_root, _owner) = if pages {
+        (dir.keep(), None)
+    } else {
+        (dir.path().to_owned(), Some(dir))
+    };
     let scope = Scope {
         account: Uuid::new_v4().to_string(),
         provider: "icloud".into(),
@@ -433,11 +451,25 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
             panic!("wrapped fixture")
         };
         let mut original = original.clone();
-        original.name = "Target.numbers".into();
-        r.representation = UploadRepresentation::FlatNumbersReplacementArchive {
-            semantic: semantic_v2("", false),
-            original,
-            original_semantic: semantic_v2("Target.numbers", true),
+        original.name = if pages {
+            "Target.pages"
+        } else {
+            "Target.numbers"
+        }
+        .into();
+        let original_semantic = semantic_v2(&original.name, true);
+        r.representation = if pages {
+            UploadRepresentation::FlatPagesReplacementArchive {
+                semantic: semantic_v2("", false),
+                original,
+                original_semantic,
+            }
+        } else {
+            UploadRepresentation::FlatNumbersReplacementArchive {
+                semantic: semantic_v2("", false),
+                original,
+                original_semantic,
+            }
         };
     }
     assert_ne!(r.size, 17); // archive bytes are not logical package size
@@ -450,7 +482,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         flat,
     )
     .await;
-    let mut owner = coordinator(&server, dir.path(), r.clone(), operation);
+    let mut owner = coordinator(&server, &fixture_root, r.clone(), operation);
     let op = operation.to_string();
     let cancel = CancellationToken::new();
     let mut initial = tempfile::tempfile().unwrap();
@@ -476,11 +508,16 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         for outer in [false, true] {
             let mut changed: Value = serde_json::from_str(armed.expose_secret()).unwrap();
             if outer {
-                let UploadRepresentation::FlatNumbersReplacementArchive {
+                let (UploadRepresentation::FlatNumbersReplacementArchive {
                     semantic,
                     original,
                     original_semantic,
-                } = &r.representation
+                }
+                | UploadRepresentation::FlatPagesReplacementArchive {
+                    semantic,
+                    original,
+                    original_semantic,
+                }) = &r.representation
                 else {
                     panic!("flat")
                 };
@@ -520,8 +557,8 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
                         apple_id: "fixture@example.com".into(),
                         credential_id: Uuid::new_v4().to_string()
                     },
-                    dir.path(),
-                    dir.path(),
+                    &fixture_root,
+                    &fixture_root,
                     &changed,
                 ),
                 Err(UploadError::CheckpointInvalid)
@@ -529,7 +566,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         }
     }
     // Restart with an armed allocation, no returned slot: strictly read-only.
-    owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &armed, flat);
+    owner = restart_coordinator(&server, &fixture_root, r.clone(), operation, &armed, flat);
     assert!(matches!(
         owner
             .inspect_upload_for_operation(&op, &r, &armed, &cancel)
@@ -566,7 +603,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         assert!(step.is_err());
         owner = restart_coordinator(
             &server,
-            dir.path(),
+            &fixture_root,
             r.clone(),
             operation,
             &registration,
@@ -595,7 +632,14 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         .await;
     let inspect = if lost_trash {
         assert!(step.is_err());
-        owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &move_old, flat);
+        owner = restart_coordinator(
+            &server,
+            &fixture_root,
+            r.clone(),
+            operation,
+            &move_old,
+            flat,
+        );
         take_commit(
             owner
                 .inspect_upload_for_operation(&op, &r, &move_old, &cancel)
@@ -612,7 +656,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
             .await
             .unwrap(),
     );
-    owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &install, flat);
+    owner = restart_coordinator(&server, &fixture_root, r.clone(), operation, &install, flat);
     assert!(matches!(
         owner
             .inspect_upload_for_operation(&op, &r, &install, &cancel)
@@ -625,7 +669,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
         .await;
     let step = if lost_rename {
         assert!(step.is_err());
-        owner = restart_coordinator(&server, dir.path(), r.clone(), operation, &install, flat);
+        owner = restart_coordinator(&server, &fixture_root, r.clone(), operation, &install, flat);
         owner
             .inspect_upload_for_operation(&op, &r, &install, &cancel)
             .await
@@ -641,7 +685,7 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
     assert_eq!(receipt.backup.remote.id, OLD);
     assert_eq!(
         receipt.current.remote.name,
-        if flat {
+        if flat && !pages {
             "Target.numbers"
         } else {
             "Target.pages"
@@ -660,7 +704,14 @@ async fn complete_arm(lost_registration: bool, lost_trash: bool, lost_rename: bo
     assert_eq!(
         receipt.backup.semantic,
         if flat {
-            semantic_v2("Target.numbers", true)
+            semantic_v2(
+                if pages {
+                    "Target.pages"
+                } else {
+                    "Target.numbers"
+                },
+                true,
+            )
         } else {
             semantic("Target.pages", true)
         }
@@ -1656,4 +1707,16 @@ async fn flat_numbers_inner_layout_tamper_refuses_before_original_http() {
         requests_before,
         "inner source-layout tamper must refuse before any original verification HTTP"
     );
+}
+
+#[tokio::test]
+async fn flat_pages_typed_handoff_and_checkpoint_restore_keep_source_layout() {
+    for lost in [false, true] {
+        tokio::time::timeout(
+            Duration::from_secs(30),
+            complete_arm_format(lost, lost, lost, true, true),
+        )
+        .await
+        .unwrap();
+    }
 }

@@ -739,6 +739,11 @@ fn flat_numbers_schema20_migration_preserves_wrapped_history_and_publishes_flat_
     j.db.execute_batch("DROP INDEX native_package_import_operations_v21;
         DROP INDEX native_package_replacement_operations_v21;
         DROP INDEX uploaded_package_receipts_v21;
+        DROP INDEX native_package_import_operations_flat_pages_v21;
+        DROP INDEX native_package_replacement_operations_flat_pages_v21;
+        DROP INDEX uploaded_package_receipts_flat_pages_v21;
+        DROP TRIGGER package_metadata_on_insert_flat_pages_v21;
+        DROP TRIGGER package_metadata_on_update_flat_pages_v21;
         DROP TRIGGER package_metadata_on_insert_v21;
         DROP TRIGGER package_metadata_on_update_v21;
         CREATE INDEX native_package_import_operations ON uploads(sequence) WHERE json_extract(body,'$.representation.kind')='package_archive';

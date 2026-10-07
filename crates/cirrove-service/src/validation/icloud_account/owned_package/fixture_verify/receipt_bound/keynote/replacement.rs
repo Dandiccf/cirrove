@@ -1,5 +1,6 @@
-//! Explicit wrapped Keynote/Pages A/B receipt observer; no enqueue, reconcile or mutation.
+//! Explicit wrapped Keynote and wrapped/flat Pages A/B receipt observer; no enqueue, reconcile or mutation.
 use super::*;
+use cirrove_core::upload::PackageSourceLayout;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // The public entry point selects one of these two implemented contracts. The
@@ -48,6 +49,67 @@ impl Format {
     }
 }
 
+// This source wire belongs only to replacement observers. Historical import and
+// Numbers registrations keep their existing required string root unchanged.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Source {
+    path: PathBuf,
+    size: u64,
+    sha256: String,
+    #[serde(deserialize_with = "required_source_root")]
+    root: Option<String>,
+    semantic: PackageSemanticIdentity,
+}
+fn wrapped_layout(layout: &PackageSourceLayout) -> bool {
+    *layout == PackageSourceLayout::Wrapped
+}
+#[cfg(test)]
+fn source_verified(source: &Source) -> Result<()> {
+    source_verified_for(source, PackageSourceLayout::Wrapped)
+}
+fn source_verified_for(source: &Source, layout: PackageSourceLayout) -> Result<()> {
+    let mut file = open_private(&source.path, false, LIMIT)?;
+    if layout == PackageSourceLayout::FlatPages {
+        ensure!(
+            file.metadata()?.permissions().mode() & 0o777 == 0o400,
+            "owned flat Pages source must remain read-only"
+        );
+    }
+    let receipt = PackageDownload {
+        size: file.metadata()?.len(),
+        sha256: sha256(&mut file)?,
+    };
+    ensure!(
+        receipt.size == source.size && receipt.sha256 == source.sha256,
+        "owned source digest changed"
+    );
+    let proof = match (layout, source.root.as_deref()) {
+        (PackageSourceLayout::Wrapped, Some(root)) => {
+            cirrove_icloud::package_archive_semantic_identity_versioned(
+                &file,
+                &receipt,
+                root,
+                2,
+                &CancellationToken::new(),
+            )?
+        }
+        (PackageSourceLayout::FlatPages, None) => {
+            cirrove_icloud::package_flat_archive_semantic_identity_v2(
+                &file,
+                &receipt,
+                &CancellationToken::new(),
+            )?
+        }
+        _ => bail!("owned replacement source layout refused"),
+    };
+    ensure!(
+        proof == source.semantic,
+        "owned source semantic content changed"
+    );
+    Ok(())
+}
+
 #[derive(Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 enum Phase {
@@ -68,6 +130,8 @@ struct Plan {
     import: Uuid,
     replacement: Option<Uuid>,
     original: Node,
+    #[serde(default, skip_serializing_if = "wrapped_layout")]
+    source_layout: PackageSourceLayout,
     source_a: Source,
     source_b: Source,
     started_unix: u64,
@@ -97,21 +161,53 @@ impl Plan {
             format.extension()
         )
     }
-    // Only the format-neutral settings, parent and typed replacement helpers
-    // use this view. Never invoke the historical Numbers validator/import name.
-    fn parent_plan(&self) -> Registration {
-        Registration {
-            version: 1,
-            run: self.run,
-            account: self.account,
-            label: self.label.clone(),
-            session_directory: self.session_directory.clone(),
-            settings_sha256: self.settings_sha256.clone(),
-            parent_creation: self.parent_creation,
-            import: self.import,
-            replacement: self.replacement,
-            source_a: self.source_a.clone(),
-            source_b: self.source_b.clone(),
+    fn scope(&self) -> Scope {
+        Scope {
+            account: self.account.to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        }
+    }
+    fn parent_name(&self) -> String {
+        format!("Cirrove-Native-{}", self.run)
+    }
+    fn settings(&self) -> Result<Account> {
+        settings_for(
+            self.account,
+            &self.label,
+            &self.session_directory,
+            &self.settings_sha256,
+        )
+    }
+    fn representation(&self, source: &Source, replacing: bool) -> Result<UploadRepresentation> {
+        match (self.source_layout, source.root.as_deref(), replacing) {
+            (PackageSourceLayout::Wrapped, Some(root), false) => {
+                Ok(UploadRepresentation::PackageArchive {
+                    expected_root: root.into(),
+                    semantic: source.semantic.clone(),
+                })
+            }
+            (PackageSourceLayout::Wrapped, Some(root), true) => {
+                Ok(UploadRepresentation::PackageReplacementArchive {
+                    expected_root: root.into(),
+                    semantic: source.semantic.clone(),
+                    original: Box::new(self.original.clone()),
+                    original_semantic: self.source_a.semantic.clone(),
+                })
+            }
+            (PackageSourceLayout::FlatPages, None, false) => {
+                Ok(UploadRepresentation::FlatPagesArchive {
+                    semantic: source.semantic.clone(),
+                })
+            }
+            (PackageSourceLayout::FlatPages, None, true) => {
+                Ok(UploadRepresentation::FlatPagesReplacementArchive {
+                    semantic: source.semantic.clone(),
+                    original: Box::new(self.original.clone()),
+                    original_semantic: self.source_a.semantic.clone(),
+                })
+            }
+            _ => bail!("owned replacement source layout refused"),
         }
     }
     fn validate_at(&self, time: u64, format: Format) -> Result<()> {
@@ -149,7 +245,12 @@ impl Plan {
             source.semantic.validate()?;
             ensure!(
                 source.path == self.session_directory.join(filename)
-                    && source.root == format.source_root()
+                    && match (format, self.source_layout, source.root.as_deref()) {
+                        (_, PackageSourceLayout::Wrapped, Some(root)) =>
+                            root == format.source_root(),
+                        (Format::Pages, PackageSourceLayout::FlatPages, None) => true,
+                        _ => false,
+                    }
                     && source.size > 0
                     && source.size <= LIMIT
                     && hex_digest(&source.sha256)
@@ -305,7 +406,13 @@ fn admitted(plan: &Plan, s: &Snapshot, format: Format) -> Result<(Node, Node, Op
                 .is_some_and(|n| n.kind == NodeKind::Folder && !n.package)
         })
         .context("owned Keynote parent namespace absent")?;
-    let parent = parent_binding(&plan.parent_plan(), &s.mutations, parent_object)?;
+    let parent = parent_binding_for(
+        &plan.scope(),
+        plan.parent_creation,
+        &plan.parent_name(),
+        &s.mutations,
+        parent_object,
+    )?;
     ensure!(
         s.associations.contains(&(
             plan.parent_creation.to_string(),
@@ -320,7 +427,7 @@ fn admitted(plan: &Plan, s: &Snapshot, format: Format) -> Result<(Node, Node, Op
         .context("owned Keynote import absent")?;
     for row in &s.uploads {
         ensure!(
-            row.scope == plan.parent_plan().scope()
+            row.scope == plan.scope()
                 && row.state == UploadState::Uploaded
                 && row.attempt.is_none()
                 && row.base.is_none()
@@ -335,11 +442,7 @@ fn admitted(plan: &Plan, s: &Snapshot, format: Format) -> Result<(Node, Node, Op
                 parent: parent.id.clone(),
                 name: plan.name(format)
             }
-            && original.representation
-                == UploadRepresentation::PackageArchive {
-                    expected_root: format.source_root().into(),
-                    semantic: plan.source_a.semantic.clone()
-                }
+            && original.representation == plan.representation(&plan.source_a, false)?
             && original.size == plan.source_a.size
             && original.sha256 == plan.source_a.sha256
             && original.package_completion.as_ref() == Some(&plan.source_a.semantic)
@@ -348,8 +451,16 @@ fn admitted(plan: &Plan, s: &Snapshot, format: Format) -> Result<(Node, Node, Op
         "owned Keynote imported original refused"
     );
     let (current, backup) = if post {
-        let (current, backup) =
-            super::super::replacement(&plan.parent_plan(), &plan.original, &s.uploads)?;
+        let (current, backup) = replacement_bound(
+            plan.replacement
+                .context("owned replacement identity missing")?,
+            &plan.original,
+            plan.representation(&plan.source_b, true)?,
+            plan.source_b.size,
+            &plan.source_b.sha256,
+            &plan.source_b.semantic,
+            &s.uploads,
+        )?;
         ensure!(
             revision(current)
                 && revision(backup)
@@ -368,7 +479,7 @@ fn admitted(plan: &Plan, s: &Snapshot, format: Format) -> Result<(Node, Node, Op
             .context("owned Keynote backup owner absent")?;
         ensure!(
             owner.id != recovery.id
-                && owner.scope == plan.parent_plan().scope()
+                && owner.scope == plan.scope()
                 && recovery.scope == owner.scope
                 && owner.remote_owned
                 && owner.latest.is_none_or(|id| Some(id) == plan.replacement)
@@ -447,9 +558,9 @@ async fn observe(
         "owned Keynote replacement manifest location refused"
     );
     let guard = open_private(&plan.session_directory, true, 0)?;
-    let account = settings(&plan.parent_plan())?;
-    source_verified(&plan.source_a)?;
-    source_verified(&plan.source_b)?;
+    let account = plan.settings()?;
+    source_verified_for(&plan.source_a, plan.source_layout)?;
+    source_verified_for(&plan.source_b, plan.source_layout)?;
     let journal_path = plan
         .session_directory
         .join("state/accounts")
@@ -476,7 +587,7 @@ async fn observe(
         matching.next().is_none()
             && parent_entry.kind == "FOLDER"
             && parent_entry.zone == "com.apple.CloudDocs"
-            && parent_entry.name == plan.parent_plan().parent_name(),
+            && parent_entry.name == plan.parent_name(),
         "owned Keynote parent changed"
     );
     parent_entry.items.clear();
@@ -497,8 +608,12 @@ async fn observe(
     record(&fixture_path, &fixture)?;
     let fixture_digest = hex::encode(Sha256::digest(read_private(&fixture_path, 32 * 1024)?));
     before_dispatch(active_end)?;
-    let current_proof =
-        icloud_owned_fixture_verify_before(&fixture_path, &fixture_digest, active_end).await?;
+    let current_proof = if plan.source_layout == PackageSourceLayout::FlatPages {
+        icloud_owned_flat_pages_fixture_verify_before(&fixture_path, &fixture_digest, active_end)
+            .await?
+    } else {
+        icloud_owned_fixture_verify_before(&fixture_path, &fixture_digest, active_end).await?
+    };
     let mut trash_proof = None;
     if let Some(backup) = &backup {
         let attempt = verification_directory(&plan.session_directory)?;
@@ -551,9 +666,9 @@ async fn observe(
         "owned Keynote parent changed during proof"
     );
     plan.validate_at(now()?, format)?;
-    settings(&plan.parent_plan())?;
-    source_verified(&plan.source_a)?;
-    source_verified(&plan.source_b)?;
+    plan.settings()?;
+    source_verified_for(&plan.source_a, plan.source_layout)?;
+    source_verified_for(&plan.source_b, plan.source_layout)?;
     ensure!(
         read_private(path, 32 * 1024)? == bytes
             && serde_json::to_vec(&snapshot(&journal_path.join("uploads.db"), plan.account)?)?
@@ -562,9 +677,12 @@ async fn observe(
     );
     same_directory(&plan.session_directory, &guard)?;
     same_directory(&journal_path, &journal_guard)?;
-    let result = serde_json::json!({"run":plan.run,"account":plan.account,"phase":plan.phase,"parent_creation":plan.parent_creation,"import":plan.import,
+    let mut result = serde_json::json!({"run":plan.run,"account":plan.account,"phase":plan.phase,"parent_creation":plan.parent_creation,"import":plan.import,
         "replacement":plan.replacement,"registration_sha256":digest,"fixture_manifest_sha256":fixture_digest,"original":plan.original,"current_node":current,"backup_node":backup,
         "current":current_proof,"original_trash":trash_proof,"cloud_mutated":false,"gui_fidelity_verified":false});
+    if plan.source_layout == PackageSourceLayout::FlatPages {
+        result["source_layout"] = serde_json::json!("flat_pages");
+    }
     publish_result(active_end, || {
         record(
             &plan

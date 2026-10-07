@@ -5,13 +5,15 @@ use serde::{Deserialize, Serialize};
 /// contract. Unknown versions must be rejected, not silently reinterpreted.
 pub const PACKAGE_SEMANTIC_IDENTITY_VERSION: u32 = 1;
 /// Caller-selected local archive layout, independent of the provider's remote
-/// DATA/PACKAGE representation. Flat Numbers never supplies a wrapper root.
+/// DATA/PACKAGE representation. Explicit flat layouts never supply a wrapper root.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PackageSourceLayout {
     #[default]
     Wrapped,
     FlatNumbers,
+    /// Explicit Apple Pages export with no enclosing document folder.
+    FlatPages,
 }
 /// A content identity, not upload authority or a remote revision receipt. Bind
 /// this separately to the account, operation, expected root and source revision.
@@ -82,7 +84,12 @@ pub enum UploadRepresentation {
     },
     /// Explicit local Numbers export without an outer directory. The remote
     /// representation is still verified separately as a native package.
-    FlatNumbersArchive { semantic: PackageSemanticIdentity },
+    FlatNumbersArchive {
+        semantic: PackageSemanticIdentity,
+    },
+    FlatPagesArchive {
+        semantic: PackageSemanticIdentity,
+    },
     /// Explicit two-ID archive replacement. Original content/revision is retained
     /// separately from the sealed replacement bytes; neither is a path alias.
     PackageReplacementArchive {
@@ -92,6 +99,11 @@ pub enum UploadRepresentation {
         original_semantic: PackageSemanticIdentity,
     },
     FlatNumbersReplacementArchive {
+        semantic: PackageSemanticIdentity,
+        original: Box<crate::Node>,
+        original_semantic: PackageSemanticIdentity,
+    },
+    FlatPagesReplacementArchive {
         semantic: PackageSemanticIdentity,
         original: Box<crate::Node>,
         original_semantic: PackageSemanticIdentity,
@@ -124,7 +136,9 @@ impl UploadRepresentation {
             semantic.validate()?;
         }
         if let Self::FlatNumbersArchive { semantic }
-        | Self::FlatNumbersReplacementArchive { semantic, .. } = self
+        | Self::FlatNumbersReplacementArchive { semantic, .. }
+        | Self::FlatPagesArchive { semantic }
+        | Self::FlatPagesReplacementArchive { semantic, .. } = self
         {
             semantic.validate()?;
             if semantic.version != 2 {
@@ -137,6 +151,11 @@ impl UploadRepresentation {
             ..
         }
         | Self::FlatNumbersReplacementArchive {
+            original,
+            original_semantic,
+            ..
+        }
+        | Self::FlatPagesReplacementArchive {
             original,
             original_semantic,
             ..
@@ -166,6 +185,16 @@ impl UploadRepresentation {
         }
         if let Self::FlatNumbersReplacementArchive { original, .. } = self
             && !original.name.to_ascii_lowercase().ends_with(".numbers")
+        {
+            return Err(super::UploadError::Invalid);
+        }
+        if let Self::FlatPagesReplacementArchive {
+            original,
+            original_semantic,
+            ..
+        } = self
+            && (!original.name.to_ascii_lowercase().ends_with(".pages")
+                || original_semantic.version != 2)
         {
             return Err(super::UploadError::Invalid);
         }
@@ -318,6 +347,108 @@ mod format_tests {
         };
         original.package = true;
         original.name = "Selected.pages".into();
+        assert!(request.validate().is_err());
+    }
+    #[test]
+    fn flat_pages_source_requires_explicit_v2() {
+        let proof = PackageSemanticIdentity {
+            version: 2,
+            sha256: "a".repeat(64),
+            entries: 3,
+            files: 1,
+            expanded_bytes: 1,
+        };
+        let value = UploadRepresentation::FlatPagesArchive { semantic: proof };
+        value.validate().unwrap();
+        let UploadRepresentation::FlatPagesArchive { mut semantic } = value else {
+            unreachable!()
+        };
+        semantic.version = 1;
+        assert!(
+            UploadRepresentation::FlatPagesArchive { semantic }
+                .validate()
+                .is_err()
+        );
+    }
+    #[test]
+    fn flat_pages_replacement_requires_selected_package_identity_and_revision() {
+        let proof = PackageSemanticIdentity {
+            version: 2,
+            sha256: "a".repeat(64),
+            entries: 3,
+            files: 1,
+            expanded_bytes: 1,
+        };
+        let original = crate::Node {
+            id: "selected-id".into(),
+            parent_id: Some("selected-parent".into()),
+            name: "Selected.pages".into(),
+            kind: crate::NodeKind::Folder,
+            size: 1,
+            modified_unix: 0,
+            etag: Some("selected-etag".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        };
+        let mut request = super::super::UploadRequest {
+            representation: UploadRepresentation::FlatPagesReplacementArchive {
+                semantic: proof.clone(),
+                original: Box::new(original),
+                original_semantic: proof,
+            },
+            scope: crate::Scope {
+                account: "owned".into(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            },
+            intent: super::super::UploadIntent::Replace {
+                item: "selected-id".into(),
+                expected_etag: "selected-etag".into(),
+            },
+            size: 1,
+            sha256: "b".repeat(64),
+        };
+        request.validate().unwrap();
+        request.intent = super::super::UploadIntent::Replace {
+            item: "different-id".into(),
+            expected_etag: "selected-etag".into(),
+        };
+        assert!(request.validate().is_err());
+        request.intent = super::super::UploadIntent::Replace {
+            item: "selected-id".into(),
+            expected_etag: "different-etag".into(),
+        };
+        assert!(request.validate().is_err());
+        request.intent = super::super::UploadIntent::Replace {
+            item: "selected-id".into(),
+            expected_etag: "selected-etag".into(),
+        };
+        let UploadRepresentation::FlatPagesReplacementArchive { original, .. } =
+            &mut request.representation
+        else {
+            unreachable!()
+        };
+        original.package = false;
+        assert!(request.validate().is_err());
+        let UploadRepresentation::FlatPagesReplacementArchive { original, .. } =
+            &mut request.representation
+        else {
+            unreachable!()
+        };
+        original.package = true;
+        original.name = "Selected.numbers".into();
+        assert!(request.validate().is_err());
+        let UploadRepresentation::FlatPagesReplacementArchive {
+            original,
+            original_semantic,
+            ..
+        } = &mut request.representation
+        else {
+            unreachable!()
+        };
+        original.name = "Selected.pages".into();
+        original_semantic.version = 1;
         assert!(request.validate().is_err());
     }
     #[test]

@@ -23,9 +23,20 @@ pub(super) fn migrate(db: &mut Connection) -> Result<()> {
         WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind') IN('package_archive','package_replacement_archive','flat_numbers_archive','flat_numbers_replacement_archive')
           AND json_type(NEW.body,'$.package_completion')='object'
         BEGIN INSERT OR IGNORE INTO package_metadata_publication(operation) VALUES(NEW.id); END;
+        CREATE INDEX IF NOT EXISTS uploaded_package_receipts_flat_pages_v21 ON uploads(sequence)
+        WHERE state='uploaded' AND json_extract(body,'$.representation.kind') IN('package_archive','package_replacement_archive','flat_numbers_archive','flat_numbers_replacement_archive','flat_pages_archive','flat_pages_replacement_archive')
+          AND json_type(body,'$.package_completion')='object';
+        CREATE TRIGGER IF NOT EXISTS package_metadata_on_update_flat_pages_v21 AFTER UPDATE OF state,body ON uploads
+        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind') IN('flat_pages_archive','flat_pages_replacement_archive')
+          AND json_type(NEW.body,'$.package_completion')='object'
+        BEGIN INSERT OR IGNORE INTO package_metadata_publication(operation) VALUES(NEW.id); END;
+        CREATE TRIGGER IF NOT EXISTS package_metadata_on_insert_flat_pages_v21 AFTER INSERT ON uploads
+        WHEN NEW.state='uploaded' AND json_extract(NEW.body,'$.representation.kind') IN('flat_pages_archive','flat_pages_replacement_archive')
+          AND json_type(NEW.body,'$.package_completion')='object'
+        BEGIN INSERT OR IGNORE INTO package_metadata_publication(operation) VALUES(NEW.id); END;
         INSERT OR IGNORE INTO package_metadata_publication(operation)
         SELECT id FROM uploads WHERE state='uploaded'
-          AND json_extract(body,'$.representation.kind') IN('package_archive','package_replacement_archive','flat_numbers_archive','flat_numbers_replacement_archive')
+          AND json_extract(body,'$.representation.kind') IN('package_archive','package_replacement_archive','flat_numbers_archive','flat_numbers_replacement_archive','flat_pages_archive','flat_pages_replacement_archive')
           AND json_type(body,'$.package_completion')='object';")?;
     tx.commit()?;
     Ok(())
@@ -45,9 +56,11 @@ fn completed(record: &UploadRecord) -> bool {
     }
     let semantic = match &record.representation {
         UploadRepresentation::PackageArchive { semantic, .. }
-        | UploadRepresentation::FlatNumbersArchive { semantic } => semantic,
+        | UploadRepresentation::FlatNumbersArchive { semantic }
+        | UploadRepresentation::FlatPagesArchive { semantic } => semantic,
         UploadRepresentation::PackageReplacementArchive { semantic, .. }
         | UploadRepresentation::FlatNumbersReplacementArchive { semantic, .. }
+        | UploadRepresentation::FlatPagesReplacementArchive { semantic, .. }
             if record
                 .identity_handoff
                 .as_ref()

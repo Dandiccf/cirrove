@@ -1017,8 +1017,8 @@ enum Command {
         archive: PathBuf,
         #[arg(long, required_unless_present = "source_layout", conflicts_with = "source_layout", value_parser = clap::builder::NonEmptyStringValueParser::new())]
         source_root: Option<String>,
-        /// Explicit flat Apple Numbers ZIP; no enclosing document folder.
-        #[arg(long, value_parser = ["flat-numbers"], conflicts_with = "source_root")]
+        /// Explicit flat Apple Numbers or Pages ZIP; no enclosing document folder.
+        #[arg(long, value_parser = ["flat-numbers", "flat-pages"], conflicts_with = "source_root")]
         source_layout: Option<String>,
         #[arg(long)]
         socket: Option<PathBuf>,
@@ -1130,8 +1130,8 @@ enum Command {
         /// Exact enclosing directory name inside a wrapped source archive.
         #[arg(long, required_unless_present = "source_layout", conflicts_with = "source_layout", value_parser = clap::builder::NonEmptyStringValueParser::new())]
         source_root: Option<String>,
-        /// Explicit flat Apple Numbers ZIP; no enclosing document folder.
-        #[arg(long, value_parser = ["flat-numbers"], conflicts_with = "source_root")]
+        /// Explicit flat Apple Numbers or Pages ZIP; no enclosing document folder.
+        #[arg(long, value_parser = ["flat-numbers", "flat-pages"], conflicts_with = "source_root")]
         source_layout: Option<String>,
         /// Visible relative destination directory; empty means the drive root.
         #[arg(long, default_value = "")]
@@ -2310,7 +2310,7 @@ async fn main() -> Result<()> {
             }
             let account = account_id.to_string();
             let selected = (item_id.clone(), etag.clone());
-            let reply=cirrove_service::replace_native_package(&socket,&cirrove_service::ReplaceNativePackageRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag,archive,source_layout:if source_layout.is_some(){cirrove_service::native_import::PackageSourceLayout::FlatNumbers}else{cirrove_service::native_import::PackageSourceLayout::Wrapped},expected_root:source_root}).await.context("replacement reply unavailable; use list-native-replacements for this account before submitting again")?;
+            let reply=cirrove_service::replace_native_package(&socket,&cirrove_service::ReplaceNativePackageRequest{label:label.clone(),expected_account_id:account.clone(),path,item_id,etag,archive,source_layout:match source_layout.as_deref(){Some("flat-numbers")=>cirrove_service::native_import::PackageSourceLayout::FlatNumbers,Some("flat-pages")=>cirrove_service::native_import::PackageSourceLayout::FlatPages,_=>cirrove_service::native_import::PackageSourceLayout::Wrapped},expected_root:source_root}).await.context("replacement reply unavailable; use list-native-replacements for this account before submitting again")?;
             if let Some(refusal) = reply.refusal {
                 bail!("{refusal}");
             }
@@ -2683,10 +2683,14 @@ async fn main() -> Result<()> {
                     label: label.clone(),
                     expected_account_id: account_id.clone(),
                     archive,
-                    source_layout: if source_layout.is_some() {
-                        cirrove_service::native_import::PackageSourceLayout::FlatNumbers
-                    } else {
-                        cirrove_service::native_import::PackageSourceLayout::Wrapped
+                    source_layout: match source_layout.as_deref() {
+                        Some("flat-numbers") => {
+                            cirrove_service::native_import::PackageSourceLayout::FlatNumbers
+                        }
+                        Some("flat-pages") => {
+                            cirrove_service::native_import::PackageSourceLayout::FlatPages
+                        }
+                        _ => cirrove_service::native_import::PackageSourceLayout::Wrapped,
                     },
                     expected_root: source_root,
                     parent,
@@ -3173,6 +3177,44 @@ mod icloud_access_tests {
             unknown.extend(["--source-layout", "auto"]);
             assert!(Args::try_parse_from(unknown).is_err());
             args.extend(["--source-root", "Source.numbers"]);
+            assert!(Args::try_parse_from(args).is_ok());
+        }
+    }
+    #[test]
+    fn native_archive_cli_flat_pages_choice_is_explicit_and_excludes_source_root() {
+        for verb in ["import-native-package", "replace-native-package"] {
+            let mut args = vec![
+                "cirrove",
+                verb,
+                "--label",
+                "Owned",
+                "--archive",
+                "/var/tmp/source.pages",
+            ];
+            if verb == "import-native-package" {
+                args.extend(["--name", "Copy.pages"]);
+            } else {
+                args.extend([
+                    "--account-id",
+                    "11111111-1111-4111-8111-111111111111",
+                    "--path",
+                    "Owned.pages",
+                    "--item-id",
+                    "owned-id",
+                    "--etag",
+                    "v1",
+                ]);
+            }
+            assert!(Args::try_parse_from(&args).is_err());
+            let mut flat = args.clone();
+            flat.extend(["--source-layout", "flat-pages"]);
+            assert!(Args::try_parse_from(&flat).is_ok());
+            flat.extend(["--source-root", "Invented.pages"]);
+            assert!(Args::try_parse_from(flat).is_err());
+            let mut unknown = args.clone();
+            unknown.extend(["--source-layout", "auto"]);
+            assert!(Args::try_parse_from(unknown).is_err());
+            args.extend(["--source-root", "Source.pages"]);
             assert!(Args::try_parse_from(args).is_ok());
         }
     }

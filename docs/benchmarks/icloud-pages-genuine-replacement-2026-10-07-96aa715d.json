@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "run": "96aa715d-5a55-46f8-934f-fb4feae0190f",
+  "registered_at": "2026-10-07T01:44:51.950262+00:00",
+  "question": "Can a genuinely edited native Pages content pair pass one normal public CLI PACKAGE import/replacement and stopped exact currentB/originalA-in-Trash proof?",
+  "prediction": "A imports, one B replaces it, completed actual queue/body/namespace agrees, currentB and originalA fullV2 match independent source proofs. Any unclear result stops without automatic mutation replay.",
+  "scope": "One unique own Cirrove-Native folder, one Source.pages canonical transport A import, one canonical transport B replacement. Genuine Apple original flat native exports preserved; only explicitly validated redundant local size mirrors removed from separate transport. No direct unmodified native-export import/layout/general fidelity claim. Normal RO remount and Apple UI reopening require separate registered arms.",
+  "authorization": "Standing direct user own iCloud writes/tests authorization",
+  "source_admission_annex": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/root-production-source-admission-annex-v1.json",
+    "size": 5537,
+    "sha256": "54f708e8305546417cde754e6e4e67528745f8f1be19ab5a27138fe79961dd91"
+  },
+  "roles_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/roles-after-pages-v2/ready-binding-v1.json",
+    "size": 85652,
+    "sha256": "b71adcf4148066507f4343a3660f53d60043ed83c8c098edd6638ca2870c2682"
+  },
+  "binary_sha256": {
+    "cirrove": "7617f7a7da712d28dbda9be831dc284b7e59cb8f71875a0c443e8f3e1a98e533",
+    "cirroved": "cf5c136f63b55d7d4a973f269fab7927b46ef0d96708b0ae582d25efeb755ac4",
+    "native-trash-probe": "1ab233ccdd3f8ed03e57d91765d8a827758cec0c49a7a4f35a98491af347534b"
+  },
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-replacement-controller-private-v1/controller_pages_v2.py",
+    "size": 30333,
+    "sha256": "3c827b1f94c3706d64d14e4d724139a6c97259311778c4556dc2888d15054c7c"
+  },
+  "expected_duration_seconds": 600,
+  "maximum_duration_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "root": "/var/tmp/cirrove-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f",
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/pr-96aa715d",
+  "TMPDIR_filesystem": "ext4",
+  "evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f",
+  "installed_changes": false,
+  "full_iCloud_gate_closures": 0,
+  "active": false,
+  "status": "closed-success-independently-audited",
+  "command": "Root original Popen/pidfd supervised controller --run, no automatic replay",
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/original-window.json",
+    "size": 312,
+    "sha256": "a4b034af6db69caa0294c1956f78b310d08586ba4b7fe2a4ecc5f3eac33f9065"
+  },
+  "actual_controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-replacement-controller-private-v1/controller_pages_v3.py",
+    "size": 30525,
+    "sha256": "503459b133703971a26359e69674dfd478024c7995d3aafd07c6720e77466e18"
+  },
+  "root_launcher": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/launch_root_once_v2.py",
+    "size": 7095,
+    "sha256": "db06799936a40b0c5bd7c963021bb9ed2e2e3173dd6e76add14d19ce7c993d64"
+  },
+  "source_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/audit-independent-canonical-pages-source-admission-v1.json",
+    "size": 105785,
+    "sha256": "7ed734b721d5984f3912eff77e7fa271865d650f86aa83d1004d1ea44a68df69"
+  },
+  "elapsed_seconds": 289.1327500930056,
+  "automatic_retries": 0,
+  "root_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/root-terminal-result.json",
+    "size": 2752,
+    "sha256": "b917d0e1ce442b3286f28a8c618a880cfa5e023b65619d2c8e93a558de721a16"
+  },
+  "controller_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/controller-result.json",
+    "size": 7786,
+    "sha256": "1a8f74ba9df128b68240ff32b5d55edc7a39aaa66e817532527a2123fe501168"
+  },
+  "installed_after": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/installed-after-root-v1.json",
+    "size": 4169,
+    "sha256": "df2fb480159b1703fea57c6f430ce2e6325b2f3c4803e0056c123beef01698a6"
+  },
+  "observed": {
+    "current_B_exact_full_V2": {
+      "entries": 15,
+      "expanded_bytes": 100205,
+      "files": 12,
+      "sha256": "a30087186f914633fe5d511b44b0ea398f717fae3922a683da5ec8414d07e3ba",
+      "version": 2
+    },
+    "original_A_in_Trash_exact_full_V2": {
+      "entries": 15,
+      "expanded_bytes": 99260,
+      "files": 12,
+      "sha256": "d34d523a821e0b55d3a834a37033d5be37e26a57a61acb8f2ed55db15f4db9a3",
+      "version": 2
+    },
+    "mount_absent": true,
+    "socket_absent": true,
+    "all_eight_inner_original_handles_reaped": true,
+    "cleanup_errors": [],
+    "normal_RO_remount": false,
+    "Apple_UI_reopened": false,
+    "full_487_closed": false
+  },
+  "subject_closure_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/subject-closure-audit-v1.json",
+    "size": 78468,
+    "sha256": "f9df0e5e40992e8597b8a2e9a18d562c9702cb5694fb35a5a3ef2a96345c5f81"
+  },
+  "subject_host_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/subject-host-audit-v1.json",
+    "size": 106725,
+    "sha256": "d53c56c4397a27c76a27ed97c659a431fb2a32218cd40796f9244e5a5f7c3b10"
+  },
+  "audit_limits": "852 local receipt/hash/typedSQL/preservation checks describe this one cell, not full integration acceptance. Exact eight inner original process owners and two outer originals closed; the two daemon TERM signals are orderly cleanup. No full487, normalROremount, AppleUI reopen, direct unmodified native-export import or installed rollout credit.",
+  "separately_registered_followups": {
+    "normal_readonly_remount": "icloud-pages-readonly-remount-2026-10-07-7f9c92b1.json",
+    "Apple_Pages_open_and_one_reload": "icloud-pages-apple-reopen-2026-10-07-60aa8a2c.json",
+    "both_closed_successfully_and_independently_audited": true,
+    "full_487_closed": false
+  }
+}
