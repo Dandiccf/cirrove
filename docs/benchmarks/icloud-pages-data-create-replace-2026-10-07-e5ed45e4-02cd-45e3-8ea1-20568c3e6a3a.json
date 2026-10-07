@@ -1,0 +1,137 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pd-e5ed45e4",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pd-e5ed45e4",
+  "active": false,
+  "active_measurement": false,
+  "actual_build_heads": {
+    "cirrove": "19f604d1694c1914c265c1f95aa446775b548b74",
+    "cirroved": "19f604d1694c1914c265c1f95aa446775b548b74",
+    "probe": "19f604d1694c1914c265c1f95aa446775b548b74"
+  },
+  "actual_controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-real-cloud-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a-preparation-private-v1/controller_pages_data_v2.py",
+    "sha256": "eff91dee134dca41d1e4456df81178a6a697bd526f91607fd826bbe84217d75a",
+    "size": 37932
+  },
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a/root-terminal-result.json",
+    "sha256": "56f2c02a9c4c47288e60c07e2a059383cd2402a6bb506db2e1cb3212ba1c194c",
+    "size": 2593
+  },
+  "application_scope": "Genuine Apple-exported Pages archives copied through ordinary FUSE create and truncate-overwrite; no native Linux Pages save.",
+  "arms": [
+    "fresh normal RW own folder",
+    "once FUSE O_EXCL create A",
+    "stopped independent DATA A receipt/raw proof",
+    "once FUSE descriptor-checked truncate-overwrite B",
+    "stopped independent current DATA B and original DATA A-in-Trash raw proof"
+  ],
+  "assessment": {
+    "A": {
+      "sha256": "e2323fab788a34a15ac68c127d04597cfcf7adafeea40093146aaf51e61c3a46",
+      "size": 100824
+    },
+    "B": {
+      "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
+      "size": 101769
+    },
+    "FUSE_create_A_dispatches": 1,
+    "FUSE_truncate_overwrite_B_dispatches": 1,
+    "actual_DATA_A_proven_before_sole_B_write": true,
+    "actual_DATA_current_B_raw_verified": true,
+    "automatic_retries": 0,
+    "case_success": true,
+    "elapsed_seconds": 205.5155486530275,
+    "exact_Apple_Pages_reopen_verified": false,
+    "exact_original_A_Trash_raw_verified": true,
+    "full_487_closed": false,
+    "genuine_original_exports_unchanged": true,
+    "independent_audit": {
+      "passed": 53,
+      "sha256": "a6edaac9916713c74165a46babc8ce9ca8f68cbdcba2f5cbafef20bd78e33758",
+      "total": 53
+    },
+    "inner_owned_processes_closed": 9,
+    "installed_artifacts_unchanged": 19,
+    "installed_unit_and_daemon_birth_unchanged": true,
+    "journal_counts_are_provider_HTTP_counts": false,
+    "journal_frontier": {
+      "Applied_folder_mutations": 1,
+      "Uploaded": 2,
+      "completed_queue_entries": 3,
+      "file_replacements": 0,
+      "native_associations": 0,
+      "package_publications": 0
+    },
+    "mount_and_socket_absent": true,
+    "native_Linux_Pages_save": false,
+    "normal_read_only_remount_verified": false,
+    "outer_owned_processes_closed": 2,
+    "raw_encoding_normalization": false,
+    "runtime_source_count": 570
+  },
+  "automatic_retries": 0,
+  "cleanup_reserve_seconds": 45,
+  "encoding_normalization_applied": false,
+  "endpoint": "Actual DATA A independent raw proof before sole B dispatch; current DATA B and exact original DATA A in Trash independently bound to completed journal and provider identities.",
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "installed_delivery": "HOLD",
+  "limitations": [
+    "This is genuine content copying over ordinary FUSE writes, not a native Linux Pages save",
+    "DATA proof requires actual provider representation; PACKAGE is a refusal, not success",
+    "No semantic PACKAGE claim, HTTP-count instrumentation, sharing/layout/media/general format or installed gate credit",
+    "No arbitrary Trash selection/replay/uncertainty ACK; no full487/full488/HOLD closure",
+    "normal read-only remount of exact completed currentB and raw byte parity",
+    "exact currentB receipt-ID Apple Pages reopen/reload under a fresh separately preregistered read-only UI trial"
+  ],
+  "original_exports_modified": false,
+  "original_window_seconds": 600,
+  "prediction": "One folder, one ordinary create A and one overwrite B complete; independently read DATA A must be proven before sole B dispatch. PACKAGE/unclear/conflict/failure stops without replay.",
+  "preparation_correction": {
+    "cloud_calls_in_failed_local_check": false,
+    "controls": "Eight actual-footer controls reproduced the old success-exit failure and verified both corrected success and retained error behavior; real corrected --check-local returned one success JSON and exit0.",
+    "corrected": "Only the final catches changed to Exception in preserved V2 successors; original failed logs retained.",
+    "observed": "The original private controller --check-local emitted success, then its final BaseException handler caught SystemExit(0) and incorrectly reported failure. The private writer had the same defect.",
+    "production_source_changed_by_correction": false
+  },
+  "question": "Can the genuine own native Pages A and edited B remain ordinary DATA under one normal writable FUSE create then one truncate-overwrite, with independent exact Created A then current B and original A in Trash?",
+  "remaining_endpoints": [
+    "Exact current-B Apple Pages receipt-ID reopen/reload"
+  ],
+  "representation": "ordinary_file_bytes",
+  "result_scope": "One genuine Pages content-copy create and later truncate-overwrite through ordinary FUSE writes with independently observed DATA; no native Linux Pages editor save, general fidelity, repeatability or installed acceptance.",
+  "root_launcher": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-real-cloud-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a-preparation-private-v1/launch_root_pages_data_once_v2.py",
+    "sha256": "75ea604b86befbc6862c3f7dc544a19f69964f3a51231eeeb0e362e87b04e362",
+    "size": 10537
+  },
+  "run": "e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a",
+  "separate_followup_acceptance": {
+    "exact_Apple_Pages_reopen_verified": false,
+    "normal_read_only_remount": {
+      "benchmark": "icloud-pages-data-readonly-remount-2026-10-07-e751e06a-51e0-48be-b964-f510b3e78f1b.json",
+      "independent_audit_sha256": "4e1b48c20c948554e62cd1fa0909168c5eaffff40c3e76279e669dfa5fde88d0",
+      "independent_checks": 37,
+      "passed": true,
+      "run": "e751e06a-51e0-48be-b964-f510b3e78f1b",
+      "source_sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
+      "source_size": 101769
+    }
+  },
+  "source_count": 570,
+  "source_equivalent_published_head": "7230383fa745d315a7495d8540ad69f318cfbd31",
+  "source_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-real-cloud-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a-preparation-private-v1/audit-independent-composition-v1.json",
+    "sha256": "03450bf3270d28ccbea010310db338057b021ea3feda8d2ee923c52fda4b357d",
+    "size": 6113
+  },
+  "status": "closed_success",
+  "version": 1,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a/original-window.json",
+    "sha256": "8bd1025cceaeb1d9b7afa0a3efbeeba8c64999d714fa91d4d24b4c6fb1b869ca",
+    "size": 314
+  }
+}

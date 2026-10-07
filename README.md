@@ -426,6 +426,16 @@ the second version exactly, and the original was verified in Trash. All 24
 independent checks passed. This validates one slide's title and subtitle;
 native Keynote saving and broader presentation fidelity remain open.
 
+A [fresh native Pages DATA trial](docs/benchmarks/icloud-pages-data-create-replace-2026-10-07-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a.json)
+created one genuine Apple-exported Pages file through the ordinary iCloud mount,
+independently verified it as DATA, then overwrote it once with the edited export.
+Independent readbacks matched the complete new version and the exact original
+in Trash. All 53 retained-evidence checks passed, without a retry. A
+[separate normal read-only remount](docs/benchmarks/icloud-pages-data-readonly-remount-2026-10-07-e751e06a-51e0-48be-b964-f510b3e78f1b.json)
+returned the exact B identity and all 101,769 bytes; its independent audit passed
+37/37. Exact Apple Pages reopening remains pending for this fixture. This is
+bounded raw content copying; native Linux Pages saving is not established.
+
 An [isolated saved-session connection](docs/benchmarks/icloud-saved-session-real-lifecycle-2026-10-07-ebbd9f71.json)
 completed but stopped before read-only startup became ready. A
 [separately registered follow-up](docs/benchmarks/icloud-saved-session-existing-account-2026-10-07-b8483086.json)
@@ -435,7 +445,7 @@ read-only downgrade, then passed normal read-only mounts and exact local exports
 No writable daemon was started. Fresh password/2FA, expired-session recovery and
 installed upgrade/downgrade acceptance remain open.
 
-The [CI run for development commit `a28dd0f`](https://github.com/Dandiccf/cirrove/actions/runs/37593423323)
+The [CI run for development commit `7230383`](https://github.com/Dandiccf/cirrove/actions/runs/37599833161)
 passed all seven jobs; the installed release remains unchanged and on HOLD.
 The [dated acceptance assessment](docs/benchmarks/icloud-native-replacement-removal-criterion-closure-2026-10-07.json)
 closes the bounded native replacement/removal criterion, including conflict

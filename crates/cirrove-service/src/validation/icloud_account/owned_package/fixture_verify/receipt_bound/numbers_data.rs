@@ -1,4 +1,4 @@
-//! Explicit owned Numbers or Pages raw DATA create and one ordinary FUSE save.
+//! Explicit owned Numbers, Pages or Keynote raw DATA create and one ordinary FUSE save.
 //! Never a PACKAGE, editor-fidelity, mutation or checkpoint-replay observer.
 use super::*;
 use crate::journal::WorkingFile;
@@ -8,34 +8,52 @@ enum DataArm {
     #[default]
     Numbers,
     Pages,
+    Keynote,
 }
 impl DataArm {
     fn format(self) -> &'static str {
         match self {
             Self::Numbers => "numbers",
             Self::Pages => "pages",
+            Self::Keynote => "keynote",
         }
+    }
+    fn extension(self) -> &'static str {
+        match self {
+            Self::Numbers => "numbers",
+            Self::Pages => "pages",
+            Self::Keynote => "key",
+        }
+    }
+    fn bounded(self) -> bool {
+        matches!(self, Self::Pages | Self::Keynote)
     }
     fn label(self) -> &'static str {
         match self {
             Self::Numbers => "iCloudNumbersDataValidation",
             Self::Pages => "iCloudPagesDataValidation",
+            Self::Keynote => "iCloudKeynoteDataValidation",
         }
     }
     fn root(self, run: Uuid) -> String {
         format!("/var/tmp/cirrove-{}-data-{run}", self.format())
     }
     fn source_name(self, saved: bool) -> String {
-        format!("source-{}.{}", if saved { "b" } else { "a" }, self.format())
+        format!(
+            "source-{}.{}",
+            if saved { "b" } else { "a" },
+            self.extension()
+        )
     }
     fn document(self, run: Uuid) -> String {
         match self {
             Self::Numbers => format!("Cirrove-Numbers-Data-{run}.numbers"),
             Self::Pages => format!("Cirrove-Pages-Data-{run}.pages"),
+            Self::Keynote => format!("Cirrove-Keynote-Data-{run}.key"),
         }
     }
 }
-// Only the explicit Pages route accepts this original, non-renewable clock.
+// Only the explicit Pages and Keynote routes accept this original, non-renewable clock.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct OriginalWindow {
@@ -80,7 +98,7 @@ impl RawSource {
         use std::os::unix::fs::MetadataExt;
         let mut file = open_private(&self.path, false, LIMIT)?;
         let before = file.metadata()?;
-        if arm == DataArm::Pages {
+        if arm.bounded() {
             ensure!(
                 before.nlink() == 1 && before.mode() & 0o7777 == 0o400,
                 "owned Pages DATA immutable source refused"
@@ -233,7 +251,7 @@ impl Registration {
         }
     }
     fn active(&self) -> Result<()> {
-        if self.arm == DataArm::Pages {
+        if self.arm.bounded() {
             ensure!(
                 self.active_end.is_some(),
                 "owned Pages DATA clock not bound"
@@ -249,7 +267,7 @@ impl Registration {
                 self.original_window.is_none(),
                 "Numbers DATA clock schema changed"
             ),
-            DataArm::Pages => {
+            DataArm::Pages | DataArm::Keynote => {
                 self.original_window
                     .as_ref()
                     .context("owned Pages DATA original window absent")?
@@ -309,7 +327,7 @@ fn registration(bytes: &[u8], digest: &str, arm: DataArm) -> Result<Registration
         );
     }
     plan.arm = arm;
-    if arm == DataArm::Pages {
+    if arm.bounded() {
         plan.active_end = Some(
             plan.original_window
                 .as_ref()
@@ -360,6 +378,13 @@ pub fn icloud_owned_pages_data_source_verify(
     source_observation(path, digest, DataArm::Pages)
         .map_err(|_| anyhow::anyhow!("owned Pages DATA source refused; no cloud access"))
 }
+pub fn icloud_owned_keynote_data_source_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    source_observation(path, digest, DataArm::Keynote)
+        .map_err(|_| anyhow::anyhow!("owned Keynote DATA source refused; no cloud access"))
+}
 fn account_binding(plan: &Registration) -> Result<Account> {
     let _state = open_private(&plan.session_directory.join("state"), true, 0)?;
     let bytes = read_private(
@@ -388,7 +413,7 @@ fn account_binding(plan: &Registration) -> Result<Account> {
             && account.mount_path == plan.session_directory.join("mount"),
         "owned DATA account changed"
     );
-    if plan.arm == DataArm::Pages {
+    if plan.arm.bounded() {
         ensure!(
             account.drive.drive_type == "icloud_drive"
                 && !Uuid::parse_str(&account.credential_id)?.is_nil(),
@@ -985,13 +1010,23 @@ async fn observe(
         "session_directory":plan.session_directory,"settings_sha256":plan.settings_sha256,"parent":parent_entry,
         "document":document,"format":plan.arm.format(),"representation":"data","source":source.path,
         "source_size":source.size,"source_sha256":source.sha256,
-        "source_root":if plan.arm == DataArm::Pages { None } else { Some(plan.arm.source_name(plan.phase == Phase::SavedB)) },
+        "source_root":if plan.arm.bounded() { None } else { Some(plan.arm.source_name(plan.phase == Phase::SavedB)) },
         "expected_root":plan.name(),"semantic":null}),
     )?;
     let fixture_digest = hex::encode(Sha256::digest(read_private(&fixture_path, 32 * 1024)?));
     plan.active()?;
     let current_proof = if let Some(end) = plan.active_end {
-        icloud_owned_pages_data_fixture_verify_before(&fixture_path, &fixture_digest, end).await?
+        match plan.arm {
+            DataArm::Pages => {
+                icloud_owned_pages_data_fixture_verify_before(&fixture_path, &fixture_digest, end)
+                    .await?
+            }
+            DataArm::Keynote => {
+                icloud_owned_keynote_data_fixture_verify_before(&fixture_path, &fixture_digest, end)
+                    .await?
+            }
+            DataArm::Numbers => anyhow::bail!("Numbers DATA original clock changed"),
+        }
     } else {
         icloud_owned_fixture_verify(&fixture_path, &fixture_digest).await?
     };
@@ -1055,7 +1090,7 @@ async fn observe(
         "ordinary_data_create_verified":true,"ordinary_data_save_verified":plan.phase == Phase::SavedB,
         "cloud_mutated":false,"gui_fidelity_verified":false});
     publish_result(&plan, || {
-        if plan.arm == DataArm::Pages {
+        if plan.arm.bounded() {
             ensure!(
                 serde_json::to_vec(&proof)?.len() <= 32 * 1024,
                 "owned Pages DATA result bounds changed"
@@ -1067,7 +1102,7 @@ async fn observe(
                 .join(format!("{}-verified.json", plan.prefix())),
             &proof,
         )?;
-        if plan.arm == DataArm::Pages {
+        if plan.arm.bounded() {
             same_directory(&plan.session_directory, &held)?;
             same_directory(&journal_path, &journal_held)?;
             ensure!(
@@ -1113,6 +1148,26 @@ pub async fn icloud_owned_pages_data_receipt_verify(
     .await;
     outcome
         .map_err(|_| anyhow::anyhow!("owned Pages DATA observation refused; no mutation submitted"))
+}
+
+pub async fn icloud_owned_keynote_data_receipt_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    let outcome = async {
+        let bytes = read_private(path, 32 * 1024)?;
+        let plan = registration(&bytes, digest, DataArm::Keynote)?;
+        let end = plan
+            .active_end
+            .context("owned Keynote DATA original window absent")?;
+        tokio::time::timeout_at(end, observe(path, digest, bytes, plan))
+            .await
+            .map_err(|_| anyhow::anyhow!("owned Keynote DATA original deadline expired"))?
+    }
+    .await;
+    outcome.map_err(|_| {
+        anyhow::anyhow!("owned Keynote DATA observation refused; no mutation submitted")
+    })
 }
 
 #[cfg(test)]

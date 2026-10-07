@@ -825,6 +825,7 @@ pub use keynote::{
 
 mod numbers_data;
 pub use numbers_data::{
+    icloud_owned_keynote_data_receipt_verify, icloud_owned_keynote_data_source_verify,
     icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
     icloud_owned_pages_data_receipt_verify, icloud_owned_pages_data_source_verify,
 };

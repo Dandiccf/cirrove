@@ -4157,3 +4157,87 @@ These are synthetic observer controls, not real Pages DATA acceptance. A fresh
 owned-cloud create/save, independent readbacks, normal read-only remount and exact
 Apple reopening remain required. No provider representation override, native
 Linux Pages save, installed change or full row487 closure is claimed.
+
+### Actual native Pages DATA create/overwrite on 7 October 2026
+
+The [fresh registered Pages DATA trial](benchmarks/icloud-pages-data-create-replace-2026-10-07-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a.json)
+created one genuine Apple-exported A through an ordinary writable FUSE mount.
+A stopped independent reader proved actual DATA and matched all 100,824 bytes
+before the sole B write became eligible. The writer then verified mounted A,
+opened the same file without following symlinks, checked its descriptor identity
+and truncated/overwrote it once with the genuine edited 101,769-byte B export.
+Stopped independent readbacks verified complete current B and the exact original
+A identity, revision, size and raw SHA-256 in Trash. No package representation or
+semantic normalization was accepted as DATA proof.
+
+The run completed in 205.52 seconds within its original 600-second window and
+45-second cleanup reserve. All nine inner and two outer process owners closed;
+mount and socket were absent. Two ordinary daemon stops used orderly TERM.
+The stopped journal contained two Uploaded rows, one Applied folder mutation and
+three completed queue entries, with no native association, package publication
+or file-replacement rows. These are journal counts, not provider HTTP counts.
+The independent retained-evidence audit passed 53/53 checks. All 570 bound sources,
+frozen roles, genuine original exports, donor and nineteen installed artifacts
+remained exact; the installed service unit and daemon birth stayed unchanged.
+
+Before cloud dispatch, a local check exposed a private-driver footer catching
+its own successful SystemExit. The controller and writer successors changed only
+that final catch from BaseException to Exception. Eight actual-footer controls
+reproduced the old failure and verified corrected success and retained refusal;
+the corrected real local check passed. Original failed logs were preserved, and
+that failure performed no cloud access.
+
+This is raw content copying through ordinary FUSE create and truncate-overwrite,
+not a native Linux Pages editor save. The separate normal read-only remount below
+has passed; exact Apple Pages reopening remains pending. Typed raw Trash verification
+does not establish a second retained archive CRC check, whole Trash inventory,
+general fidelity or repeatability. Row487 and the other three remaining criteria
+stay open; installation remains on HOLD.
+
+### Normal read-only remount of Pages DATA B on 7 October 2026
+
+A [separate registered read-only trial](benchmarks/icloud-pages-data-readonly-remount-2026-10-07-e751e06a-51e0-48be-b964-f510b3e78f1b.json)
+started the normal daemon with fresh read-only settings and an empty account
+state, copying only the audited saved-session ciphertext from the closed donor.
+No prior journal, index or cache was copied. Normal path lookup and the typed
+cached-path reply selected the exact completed B identity. A descriptor-bound
+read from the actual read-only FUSE mount matched all 101,769 genuine B bytes.
+The complete scoped Node matched the saved receipt, allowing only omission of
+its redundant content_version equal to the same ETag; every other field stayed
+exact. No new journal or cloud mutation occurred.
+
+The trial completed in 12.22 seconds within its separate original 600/45 window.
+All three inner and one explicit outer original owners closed, along with the
+unified launcher handle; mount and socket were absent. An attempted later
+launcher PID snapshot found that it had already completed, so no reconstructed
+PID/ownership receipt is claimed. The independent terminal audit passed 37/37.
+Complete stopped donor and writer-state inventories, 570 Root sources, frozen
+normal binaries and nineteen installed artifacts remained exact; installed unit
+and daemon birth were preserved.
+
+Source review first caught a proof-body-versus-pin comparison in the private
+supervisor. Its original local prepare refused before fixture creation; the
+narrow correction then passed actual local preparation and checks before the
+clock/provider phase. Both outcomes remain retained. This completes the separate
+normal remount endpoint for this DATA fixture. Exact Apple Pages reopening,
+native Linux Pages saving, broader fidelity and full row487 acceptance remain
+unproved; the four remaining criteria and installed HOLD stay unchanged.
+
+### Keynote DATA validation controls on 7 October 2026
+
+The [registered focused controls](benchmarks/icloud-keynote-data-observer-2026-10-07.json)
+passed all fifteen test stages. Twelve new Keynote DATA tests and the existing
+twelve Pages and twelve Numbers DATA tests passed. Five individual guard removals
+each caused the intended single assertion failure; restoring each guard made the
+same test pass. The existing eight Pages and eleven Keynote PACKAGE controls also
+passed. All original child owners closed and all 571 candidate source hashes were
+restored. The independent retained-result audit passed 112/112 checks.
+
+The [complete project check](benchmarks/icloud-keynote-data-complete-check-2026-10-07.json)
+then passed all ten sections, including 87 Rust result groups, actual kernel/FUSE
+tests, script checks and documentation generation. All twelve new named Keynote
+tests executed. Only the nine proposed source paths were integrated into the main
+development checkout after the original check finished; its final source hashes
+match the compile checkout. These are synthetic validation and source checks.
+The genuine Keynote DATA cloud case, its normal remount and Apple reopening remain
+pending. No installed service changed and no full-iCloud acceptance criterion closed.

@@ -99,7 +99,7 @@ fn actual_for(arm: DataArm) -> Actual {
         .permissions(std::fs::Permissions::from_mode(0o700))
         .tempdir_in("/var/tmp")
         .unwrap();
-    if arm == DataArm::Pages {
+    if arm.bounded() {
         temp.disable_cleanup(true);
     }
     let source = |name: &str, bytes: &[u8]| {
@@ -107,7 +107,7 @@ fn actual_for(arm: DataArm) -> Actual {
         std::fs::write(&path, bytes).unwrap();
         std::fs::set_permissions(
             &path,
-            std::fs::Permissions::from_mode(if arm == DataArm::Pages { 0o400 } else { 0o600 }),
+            std::fs::Permissions::from_mode(if arm.bounded() { 0o400 } else { 0o600 }),
         )
         .unwrap();
         RawSource {
@@ -120,7 +120,7 @@ fn actual_for(arm: DataArm) -> Actual {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
-    let original_window = (arm == DataArm::Pages).then_some(OriginalWindow {
+    let original_window = (arm.bounded()).then_some(OriginalWindow {
         started_unix_ms: start,
         deadline_unix_ms: start + 600_000,
         cleanup_seconds: 45,
@@ -686,3 +686,6 @@ fn owned_numbers_data_retired_etag_token_omission_preserves_exact_revision() {
 
 #[path = "pages_tests.rs"]
 mod pages_tests;
+
+#[path = "keynote_tests.rs"]
+mod keynote_tests;

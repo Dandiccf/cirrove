@@ -104,6 +104,7 @@ enum FixtureArm {
     NativeTrash,
     FlatPages,
     PagesData,
+    KeynoteData,
 }
 fn validate(f: &Fixture) -> Result<()> {
     validate_for(f, FixtureArm::Generic)
@@ -128,7 +129,10 @@ fn validate_native_trash(f: &Fixture) -> Result<()> {
 }
 fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
     let parent_name = match arm {
-        FixtureArm::Generic | FixtureArm::FlatPages | FixtureArm::PagesData => {
+        FixtureArm::Generic
+        | FixtureArm::FlatPages
+        | FixtureArm::PagesData
+        | FixtureArm::KeynoteData => {
             format!("Cirrove-Native-{}", f.run)
         }
         FixtureArm::NativeTrash => format!("Cirrove-Native-Trash-{}", f.run),
@@ -201,7 +205,8 @@ fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
                     || f.format == "docx"
                     || f.format == "pptx"
                     || (matches!(arm, FixtureArm::FlatPages | FixtureArm::PagesData)
-                        && f.format == "pages"),
+                        && f.format == "pages")
+                    || (arm == FixtureArm::KeynoteData && f.format == "keynote"),
                 |root| root.ends_with(&format!(".{extension}"))
                     && !root.contains(['/', '\\'])
                     && !root.chars().any(char::is_control)
@@ -385,6 +390,31 @@ fn validate_pages_data(f: &Fixture) -> Result<()> {
     );
     Ok(())
 }
+// Only the explicit receipt-selected ordinary Keynote DATA route selects this
+// reader; Keynote PACKAGE and public generic contracts stay unchanged.
+async fn icloud_owned_keynote_data_fixture_verify_before(
+    path: &Path,
+    digest: &str,
+    active_end: tokio::time::Instant,
+) -> Result<serde_json::Value> {
+    verify_fixture(path, digest, FixtureArm::KeynoteData, Some(active_end)).await
+}
+fn validate_keynote_data(f: &Fixture) -> Result<()> {
+    validate_for(f, FixtureArm::KeynoteData)?;
+    ensure!(
+        f.format == "keynote"
+            && f.representation == FixtureRepresentation::Data
+            && f.source_root.is_none()
+            && f.semantic.is_none()
+            && f.session_directory == format!("/var/tmp/cirrove-keynote-data-{}", f.run)
+            && ["source-a.key", "source-b.key"]
+                .iter()
+                .any(|name| f.source == f.session_directory.join(name))
+            && f.expected_root == format!("Cirrove-Keynote-Data-{}.key", f.run),
+        "explicit Keynote DATA fixture refused"
+    );
+    Ok(())
+}
 // Only an explicitly validated Pages FlatPages replacement selects this route.
 async fn icloud_owned_flat_pages_fixture_verify_before(
     path: &Path,
@@ -438,6 +468,7 @@ async fn verify_fixture(
         FixtureArm::Generic => validate(&f)?,
         FixtureArm::FlatPages => validate_flat_pages(&f)?,
         FixtureArm::PagesData => validate_pages_data(&f)?,
+        FixtureArm::KeynoteData => validate_keynote_data(&f)?,
         FixtureArm::NativeTrash => {
             validate_native_trash(&f)?;
             ensure!(
@@ -463,10 +494,15 @@ async fn verify_fixture(
     ensure!(settings.version == 2, "fixture account schema unsupported");
     let account = match arm {
         FixtureArm::Generic | FixtureArm::FlatPages => account_binding(&f, &settings.accounts)?,
-        FixtureArm::PagesData => {
+        FixtureArm::PagesData | FixtureArm::KeynoteData => {
             let a = account_binding(&f, &settings.accounts)?;
             ensure!(
-                a.label == "iCloudPagesDataValidation"
+                a.label
+                    == if arm == FixtureArm::PagesData {
+                        "iCloudPagesDataValidation"
+                    } else {
+                        "iCloudKeynoteDataValidation"
+                    }
                     && a.enabled
                     && a.access == cirrove_auth::AccessMode::ReadWrite
                     && a.drive.id == "drive"
@@ -481,8 +517,10 @@ async fn verify_fixture(
         FixtureArm::NativeTrash => native_trash_account_binding(&f, &settings.accounts)?,
     };
     let mut source = open_private(&f.source, false, LIMIT)?;
-    let source_stamp = if matches!(arm, FixtureArm::NativeTrash | FixtureArm::PagesData)
-        || f.format == "docx"
+    let source_stamp = if matches!(
+        arm,
+        FixtureArm::NativeTrash | FixtureArm::PagesData | FixtureArm::KeynoteData
+    ) || f.format == "docx"
         || f.format == "pptx"
     {
         Some(native_trash_source_stamp(&source)?)
@@ -499,7 +537,7 @@ async fn verify_fixture(
     let attempt_guard = open_private(&attempt, true, 0)?;
     match arm {
         FixtureArm::Generic => manifest(&attempt, f.run, "owned-fixture-read-only")?,
-        FixtureArm::FlatPages | FixtureArm::PagesData => {
+        FixtureArm::FlatPages | FixtureArm::PagesData | FixtureArm::KeynoteData => {
             manifest_with_duration(&attempt, f.run, "owned-fixture-read-only", 600)?
         }
         FixtureArm::NativeTrash => {
@@ -599,7 +637,8 @@ pub use native_import_fixture::icloud_owned_native_import_fixture_verify;
 mod receipt_bound;
 pub use receipt_bound::{
     icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,
-    icloud_owned_fuse_source_verify, icloud_owned_keynote_import_receipt_verify,
+    icloud_owned_fuse_source_verify, icloud_owned_keynote_data_receipt_verify,
+    icloud_owned_keynote_data_source_verify, icloud_owned_keynote_import_receipt_verify,
     icloud_owned_keynote_replacement_receipt_verify, icloud_owned_keynote_source_verify,
     icloud_owned_numbers_data_receipt_verify, icloud_owned_numbers_data_source_verify,
     icloud_owned_pages_data_receipt_verify, icloud_owned_pages_data_source_verify,
