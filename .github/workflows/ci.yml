@@ -23,10 +23,10 @@ concurrency:
 jobs:
   linux:
     runs-on: ubuntu-24.04
-    # Run37145716828 exhausted 30 minutes in the final cargo doc step after
-    # every preceding check passed. Leave cold builds time to finish the whole
+    # Runs 37145716828 and 37608761744 exhausted 30 and 40 minutes, respectively,
+    # at the end of the job. Leave cold builds time to finish the whole
     # job; the individual test-group timeout commands remain unchanged.
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

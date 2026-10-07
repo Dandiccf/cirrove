@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "status": "closed_read_success",
+  "active_measurement": false,
+  "question": "Does the exact stopped e5ed current Pages DATA item expose the known shortGUID field through the existing authenticated exact-ID Drive metadata read, and is its captured revision still current after the failed Apple open?",
+  "prediction": "The read returns the scoped item metadata categories or a fixed refusal. shortGUID absence or presence alone does not establish the cause of Apple refusal or native editor readiness.",
+  "endpoint": {
+    "method": "POST",
+    "service": "saved authenticated drivews endpoint",
+    "relative_path": "retrieveItemDetails",
+    "request": {
+      "items": [
+        {
+          "drivewsid": "FILE::com.apple.CloudDocs::2B50C8EB-CB06-4AF2-BB00-B579F5E11BE3",
+          "partialData": false,
+          "includeHierarchy": false
+        }
+      ]
+    },
+    "calls": "One exact-ID call. A second exact-ID read only if the first retains the recorded revision. No parent/app-container enumeration, download, manifest or model request."
+  },
+  "time": "Fresh Root-owned original 600 seconds with 45 seconds cleanup reserve; each exact metadata call capped by remaining original active time and 60 seconds. This does not reopen either prior write/UI window.",
+  "safe_output": "Exact item, bounded revision and FILE type; receipt revision match; fixed categories for shortGUID and historically evidenced primitive fields; fixed docwsid/extension/zone matches. No field values, arbitrary field names, URLs, sharing tokens, cookies or raw bodies.",
+  "limits": [
+    "No editor readiness or manifest/model initialization result.",
+    "No inference that shortGUID absence caused the failed Apple open.",
+    "No claim that metadata-only fields prove DATA or PACKAGE representation.",
+    "No cloud mutation, journal, writer, ACK, replay, Apple reopen or session persistence.",
+    "Actual HTTP request count is uninstrumented; only method-call count is reported."
+  ],
+  "real_execution": null,
+  "production_changes": false,
+  "output_scope": {
+    "metadata_stable": "Equality of sanitized metadata projections only. It does not prove raw metadata, shortGUID value or lastOpenTime unchanged.",
+    "exact_metadata_stable": "The same limited projection equality, not editor admission or full provider-body preservation.",
+    "receipt_revision_changed": "Stops after the first exact metadata call if captured ETag differs. No second call or old-revision byte claim."
+  },
+  "run": "c912d2f6-428e-4b86-bb30-70d7bf19abef",
+  "active": false,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-real-once-c912d2f6-428e-4b86-bb30-70d7bf19abef/original-window.json",
+    "size": 196,
+    "sha256": "83be94805fd82ed0425dad9fca19993c632f78a3d03040798cfa0b34673cd16b"
+  },
+  "case": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-approved-real-case-v1.json",
+    "size": 80904,
+    "sha256": "6f378a75e06eac31c10d4feb8849ee01c619262aaffd9f01f61a92e36f009106"
+  },
+  "provider_mutations": false,
+  "installed_actions": false,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-real-once-c912d2f6-428e-4b86-bb30-70d7bf19abef/terminal-v1.json",
+    "size": 567,
+    "sha256": "8edffac9242d3a934450322fc3717a7faede737eb97186b544a5b462e6df1f71"
+  },
+  "sanitized_observation": {
+    "version": 1,
+    "run": "c912d2f6-428e-4b86-bb30-70d7bf19abef",
+    "classification": "receipt_revision_changed",
+    "first": {
+      "item": "FILE::com.apple.CloudDocs::2B50C8EB-CB06-4AF2-BB00-B579F5E11BE3",
+      "etag": "i22n::i22l",
+      "kind": "FILE",
+      "receipt_revision_matches": false,
+      "short_guid": "absent",
+      "last_open_time": "nonempty_bounded_string",
+      "file_count": "absent",
+      "direct_children_count": "absent",
+      "asset_quota": "absent",
+      "exact_docwsid": true,
+      "extension_pages": true,
+      "zone_clouddocs": true,
+      "native_app_readiness_evaluated": false,
+      "manifest_requested": false
+    },
+    "second": null,
+    "metadata_stable": false,
+    "authenticated_pinned_ciphertext": true,
+    "legacy_fallback_used": false,
+    "exact_metadata_method_calls": 1,
+    "input_bytes_and_protected_stamps_unchanged": true,
+    "cloud_mutations": 0,
+    "journal_opened": false,
+    "manifest_requested": false,
+    "editor_ready_proved": false,
+    "http_request_count": "uninstrumented"
+  },
+  "assessment": "Subsequent exact metadata reports a changed ETag and absent shortGUID. Neither absence nor revision change establishes the Apple refusal cause, DATA/PACKAGE representation or current raw bytes. One metadata method call; second refused by design on revision change.",
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 21,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-real-once-c912d2f6-428e-4b86-bb30-70d7bf19abef/audit-independent-terminal-v1.json",
+      "size": 6566,
+      "sha256": "163b1c5d552c43dc869e4b2cfa9ce077e6666a6ef2152a6224f49866dbce3f14"
+    }
+  },
+  "completion_evidence_appended_after_check": true
+}

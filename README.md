@@ -259,7 +259,13 @@ created a genuine Apple export as an ordinary file through FUSE. An independent
 reader confirmed its actual DATA representation and exact original bytes before
 one in-place save. Further independent reads verified the exact replacement
 bytes and the original in Trash. This was a file copy and overwrite; it did not
-exercise a real editor or Apple Numbers reopen.
+exercise a real editor or Apple Numbers reopen. A [separate normal read-only
+remount](docs/benchmarks/icloud-numbers-data-readonly-remount-2026-10-07-8d791c0c-5902-44e6-b184-d39a2ad5935e.json)
+matched the exact current B revision and all 138,943 bytes in 41.56 seconds;
+its independent audit passed 49/49. A [separate exact-ID Apple Numbers open](docs/benchmarks/icloud-numbers-data-apple-reopen-2026-10-07-d6466c5a-d307-4552-90a1-887a91ff9300.json)
+then failed with “This spreadsheet can’t be opened right now.” Its cause remains
+unproved; no values, formula or reload were observed, and there was no retry.
+Independent audit 22/22 verified the retained refusal and owned-tab closure.
 
 A fresh Numbers browser trial also confirmed that an edit and its formula
 survived closing and reopening in Apple's editor, and produced a native export.
@@ -433,8 +439,12 @@ Independent readbacks matched the complete new version and the exact original
 in Trash. All 53 retained-evidence checks passed, without a retry. A
 [separate normal read-only remount](docs/benchmarks/icloud-pages-data-readonly-remount-2026-10-07-e751e06a-51e0-48be-b964-f510b3e78f1b.json)
 returned the exact B identity and all 101,769 bytes; its independent audit passed
-37/37. Exact Apple Pages reopening remains pending for this fixture. This is
-bounded raw content copying; native Linux Pages saving is not established.
+37/37. A [separate exact-ID Apple open](docs/benchmarks/icloud-pages-data-apple-reopen-2026-10-07-df50f6ee-f23c-4229-860d-0c209fe78821.json)
+then failed with “This document can’t be opened right now.” Its independent audit
+passed 28/28 for the retained failure and closure; the cause remains unresolved.
+There was no reload or retry. The successful PACKAGE reopen above is a separate
+case. Raw DATA byte parity does not establish Apple editor admission or native
+Linux Pages saving.
 
 An [isolated saved-session connection](docs/benchmarks/icloud-saved-session-real-lifecycle-2026-10-07-ebbd9f71.json)
 completed but stopped before read-only startup became ready. A

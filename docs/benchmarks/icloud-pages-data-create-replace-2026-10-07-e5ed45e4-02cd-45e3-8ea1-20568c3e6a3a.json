@@ -83,8 +83,8 @@
     "DATA proof requires actual provider representation; PACKAGE is a refusal, not success",
     "No semantic PACKAGE claim, HTTP-count instrumentation, sharing/layout/media/general format or installed gate credit",
     "No arbitrary Trash selection/replay/uncertainty ACK; no full487/full488/HOLD closure",
-    "normal read-only remount of exact completed currentB and raw byte parity",
-    "exact currentB receipt-ID Apple Pages reopen/reload under a fresh separately preregistered read-only UI trial"
+    "The separate normal read-only remount passed; the later exact-ID Apple open failed. Raw DATA parity does not establish Apple editor admission.",
+    "The successful Pages PACKAGE reopen is a separate representation case, not evidence for this DATA fixture."
   ],
   "original_exports_modified": false,
   "original_window_seconds": 600,
@@ -98,7 +98,7 @@
   },
   "question": "Can the genuine own native Pages A and edited B remain ordinary DATA under one normal writable FUSE create then one truncate-overwrite, with independent exact Created A then current B and original A in Trash?",
   "remaining_endpoints": [
-    "Exact current-B Apple Pages receipt-ID reopen/reload"
+    "Successful exact current-B Apple Pages reopen/reload remains unproved after one failed open. Its cause is unresolved; no automatic retry is authorized by this record."
   ],
   "representation": "ordinary_file_bytes",
   "result_scope": "One genuine Pages content-copy create and later truncate-overwrite through ordinary FUSE writes with independently observed DATA; no native Linux Pages editor save, general fidelity, repeatability or installed acceptance.",
@@ -109,6 +109,27 @@
   },
   "run": "e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a",
   "separate_followup_acceptance": {
+    "exact_Apple_Pages_open_attempt": {
+      "Apple_message": "This document can\u2019t be opened right now.",
+      "all_owned_tabs_closed": true,
+      "benchmark": "icloud-pages-data-apple-reopen-2026-10-07-df50f6ee-f23c-4229-860d-0c209fe78821.json",
+      "cause": "unresolved",
+      "exact_current_and_parent_DOM_ids_verified": true,
+      "independent_audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-apple-reopen-df50f6ee-f23c-4229-860d-0c209fe78821/audit-independent-pages-data-apple-failure-v1.json",
+        "sha256": "f7d5b6512b610c7eba0c6c38223813a113e67e06a3a11c989d94c87ea8ae83e4",
+        "size": 4130
+      },
+      "independent_checks": 28,
+      "opens": 1,
+      "post_open_etag": null,
+      "post_open_representation": null,
+      "reloads": 0,
+      "retries": 0,
+      "run": "df50f6ee-f23c-4229-860d-0c209fe78821",
+      "status": "closed_Apple_open_refused",
+      "success": false
+    },
     "exact_Apple_Pages_reopen_verified": false,
     "normal_read_only_remount": {
       "benchmark": "icloud-pages-data-readonly-remount-2026-10-07-e751e06a-51e0-48be-b964-f510b3e78f1b.json",
@@ -118,6 +139,16 @@
       "run": "e751e06a-51e0-48be-b964-f510b3e78f1b",
       "source_sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
       "source_size": 101769
+    },
+    "subsequent_exact_metadata_read": {
+      "benchmark": "icloud-pages-data-exact-metadata-read-2026-10-07-c912d2f6-428e-4b86-bb30-70d7bf19abef.json",
+      "run": "c912d2f6-428e-4b86-bb30-70d7bf19abef",
+      "etag": "i22n::i22l",
+      "previous_etag": "i22m::i22l",
+      "short_guid_category": "absent",
+      "method_calls": 1,
+      "cause_proved": false,
+      "current_bytes_or_representation_verified": false
     }
   },
   "source_count": 570,

@@ -1,0 +1,132 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "assessment": {
+    "Apple_message": "This document can\u2019t be opened right now.",
+    "active_measurement": false,
+    "all571_sources_preserved": true,
+    "all_owned_tabs_closed": true,
+    "cause": "not yet established; representation/routing/transient failure not distinguished",
+    "elapsed_seconds_to_owned_tab_closure": 236.35662007331848,
+    "exact_body_verification_completed": false,
+    "exact_current_and_parent_DOM_ids_verified": true,
+    "explicit_edits": 0,
+    "exports": 0,
+    "full487_closed": false,
+    "installed_actions": false,
+    "mutation_replays": 0,
+    "opens": 1,
+    "original_600_45_window_preserved": true,
+    "post_open_etag": null,
+    "post_open_representation": null,
+    "prior_cloud_and_RO_proof_pins_preserved": true,
+    "reloads": 0,
+    "retries": 0,
+    "status": "closed_Apple_open_refused",
+    "success": false
+  },
+  "clock": {
+    "cleanup_reserve_seconds": 45,
+    "started_monotonic_ns": 394295263459254,
+    "started_wall_unix": 1791369668.14038,
+    "total_seconds": 600
+  },
+  "compiler_overlap": false,
+  "endpoint": "Exact DATA-B row open, exact93-byte body, one same-tab reload retaining text, own tabs closed before original600/45 deadline",
+  "evidence_sha256": {
+    "current-row-before-open.png": "515b80ea107df2c014f9f651fce56817750ba6c389951c2072800d2b1ca428ca",
+    "current-row-v1.json": "8106b874c87b2a6a2f913525bf972bc82e4c063116811552a8860a960f59727f",
+    "editor-binding-v1.json": "74731992b32b1c1e440d0c370929b87139bc5f90b4c2cc6cf4563987cd84b5c0",
+    "editor-open-failure-ax.txt": "c180e3bfc83ecee6eaf122702d2ea8129059f0f086c92aca4d7660e80e0e536c",
+    "editor-open-failure.png": "a8a0745c7f7bdbf30f0a74142bde05e218a37c4060f32d39c62fb95141a5abd6",
+    "failure-observation-v1.json": "74af655892569f435117f2039683c5c88b9489d177187161c31682b7ed2947f7",
+    "open-event-v1.json": "957f56e6e255cf06e1a064b7c6c4800e927bbf4380f3cdc65b26e92be69aad95",
+    "parent-row-v1.json": "fd1422cb42a56ce99ee14f027a63d992ab98210de184ba60c690347a19681e9b",
+    "registration-v1.json": "f52f7bfdefd2eefa91a3c731d66ac6eb6eba24b5b887790b99e9a62bb6a10d65",
+    "tab-closure-v1.json": "109a4a247b30759bf5f9e3b36290f6fccdaefe4e1945d5e6c94ef3eb4440aa52"
+  },
+  "expected_content": {
+    "genuine_pair_witness": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/genuine-pair-witness-v1.json",
+      "sha256": "c8d4e10ebe85aacf60fa88787e7dff63b48c1217b17959e76cad6bccf03315d0",
+      "size": 2343
+    },
+    "registered_one_paragraph_scope": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/one-paragraph-scope-amendment-v1.json",
+      "sha256": "07bdc9cec8c7bacc3ebe4a3ed801832b960c81e20a075c6941ea91e87f7d4718",
+      "size": 682
+    },
+    "scope": "Exact single-paragraph text, including the donor nonce. No whitespace normalization, added newline, layout, media or general Pages fidelity claim.",
+    "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97",
+    "text": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+    "text_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/text-b-reloaded-readback.txt",
+      "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97",
+      "size": 93
+    },
+    "utf8_bytes": 93
+  },
+  "explicit_edits": 0,
+  "full487_closed": false,
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 28,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-apple-reopen-df50f6ee-f23c-4229-860d-0c209fe78821/audit-independent-pages-data-apple-failure-v1.json",
+      "size": 4130,
+      "sha256": "f7d5b6512b610c7eba0c6c38223813a113e67e06a3a11c989d94c87ea8ae83e4"
+    }
+  },
+  "installed_actions": false,
+  "mutation_replay": false,
+  "operator": "Root through cua",
+  "plan": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-apple-reopen-e5ed-e751-preparation-20261007-private-v1/plan-v1.json",
+    "sha256": "0379b47f1e75da6f86a4a648919a76af690b73c1cec3f5a64507ea97f1111423",
+    "size": 12247
+  },
+  "post_open_representation": null,
+  "prediction": "The exact owned DATA-B item opens with the 93-byte B paragraph and the same paragraph remains after one reload. Apple may normalize storage when opening; no post-open raw byte or representation preservation is predicted.",
+  "provider_post_open_revision": null,
+  "question": "Does the exact completed native Pages DATA-B item open in Apple Pages and retain the genuine edited paragraph through one reload of the same owned editor tab?",
+  "run": "df50f6ee-f23c-4229-860d-0c209fe78821",
+  "status": "closed_Apple_open_refused",
+  "subject": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "actual_ro_node": {
+      "content_version": null,
+      "etag": "i22m::i22l",
+      "id": "FILE::com.apple.CloudDocs::2B50C8EB-CB06-4AF2-BB00-B579F5E11BE3",
+      "kind": "file",
+      "modified_unix": 0,
+      "name": "Cirrove-Pages-Data-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a.pages",
+      "parent_id": "FOLDER::com.apple.CloudDocs::3C39D8D5-06D6-40E3-B71A-3CA44D723184",
+      "size": 101769,
+      "target": null
+    },
+    "cloud_zone": "com.apple.CloudDocs",
+    "collection": "drive",
+    "current": {
+      "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+      "cloud_mutated": false,
+      "content_identity_verified": true,
+      "etag": "i22m::i22l",
+      "format": "pages",
+      "gui_fidelity_verified": false,
+      "item": "FILE::com.apple.CloudDocs::2B50C8EB-CB06-4AF2-BB00-B579F5E11BE3",
+      "manifest_sha256": "0525fa360dfeb81078fdde444776e0b668db213cb834b260cd04f1a11f2d9a53",
+      "parent": "FOLDER::com.apple.CloudDocs::3C39D8D5-06D6-40E3-B71A-3CA44D723184",
+      "representation": "data",
+      "run": "e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a",
+      "semantic": null,
+      "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
+      "size": 101769
+    },
+    "document_name": "Cirrove-Pages-Data-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a.pages",
+    "parent_folder_name": "Cirrove-Native-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a",
+    "readonly_run": "e751e06a-51e0-48be-b964-f510b3e78f1b",
+    "write_run": "e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a"
+  },
+  "terminal_sha256": "baa61c0c3b5c59b88988c202f413501c0ae595c87264d6be8c93b9cfc1dee471",
+  "version": 1
+}

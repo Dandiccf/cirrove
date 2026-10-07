@@ -4189,7 +4189,8 @@ that failure performed no cloud access.
 
 This is raw content copying through ordinary FUSE create and truncate-overwrite,
 not a native Linux Pages editor save. The separate normal read-only remount below
-has passed; exact Apple Pages reopening remains pending. Typed raw Trash verification
+has passed. The later exact-ID Apple open failed, as recorded below; its cause is
+unresolved. Typed raw Trash verification
 does not establish a second retained archive CRC check, whole Trash inventory,
 general fidelity or repeatability. Row487 and the other three remaining criteria
 stay open; installation remains on HOLD.
@@ -4219,9 +4220,42 @@ Source review first caught a proof-body-versus-pin comparison in the private
 supervisor. Its original local prepare refused before fixture creation; the
 narrow correction then passed actual local preparation and checks before the
 clock/provider phase. Both outcomes remain retained. This completes the separate
-normal remount endpoint for this DATA fixture. Exact Apple Pages reopening,
-native Linux Pages saving, broader fidelity and full row487 acceptance remain
-unproved; the four remaining criteria and installed HOLD stay unchanged.
+normal remount endpoint for this DATA fixture.
+
+The [separately registered Apple trial](benchmarks/icloud-pages-data-apple-reopen-2026-10-07-df50f6ee-f23c-4229-860d-0c209fe78821.json)
+verified the exact owned parent and current FILE identity, then opened that row
+once. Apple displayed “This document can’t be opened right now.” There was no
+content verification, reload, typing, export or retry. Both owned tabs closed
+within the original 600/45 window; independent audit passed 28/28. The cause is
+unresolved, and no post-open provider revision or representation was retained.
+The successful PACKAGE reopen is a separate representation case. Raw DATA and
+normal remount byte parity establish neither Apple editor admission nor native
+Linux Pages saving. Broader fidelity and full row487 acceptance remain unproved;
+the four remaining criteria and installed HOLD stay unchanged.
+
+A [separate normal Numbers DATA remount](benchmarks/icloud-numbers-data-readonly-remount-2026-10-07-8d791c0c-5902-44e6-b184-d39a2ad5935e.json)
+completed in 41.56 seconds, matching the exact current B item, revision
+`i1bm::i1bl`, all 138,943 bytes and SHA-256
+`223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724`.
+Its independent audit passed 49/49. The [subsequent exact-ID Apple Numbers
+open](benchmarks/icloud-numbers-data-apple-reopen-2026-10-07-d6466c5a-d307-4552-90a1-887a91ff9300.json)
+failed with “This spreadsheet can’t be opened right now.” Its exact parent and
+current FILE row, and the opened editor document UUID, were verified. Both
+owned tabs closed after 106.59 seconds within the original 600/45 window.
+Independent audit 22/22 verified the retained refusal and owned-tab closure.
+No values, formula, reload, typing or retry were observed. Pages and Numbers DATA
+therefore have exact raw storage and
+normal RO remount evidence but failed Apple editor opens in these two cases.
+Genuine PACKAGE reopen successes remain separate; neither the cause nor a
+provider representation change after these DATA opens is established.
+
+A [subsequent exact Pages metadata read](benchmarks/icloud-pages-data-exact-metadata-read-2026-10-07-c912d2f6-428e-4b86-bb30-70d7bf19abef.json)
+reported revision `i22n::i22l`, changed from the pre-open `i22m::i22l`, and an
+absent `shortGUID` field. It stopped after one call because the revision changed.
+Only fixed metadata categories were retained; no GUID values or provider bodies
+were logged. Neither observation proves why Apple refused the document, its
+current representation or its current bytes. The earlier raw proofs remain
+evidence for the revisions they actually observed.
 
 ### Keynote DATA validation controls on 7 October 2026
 

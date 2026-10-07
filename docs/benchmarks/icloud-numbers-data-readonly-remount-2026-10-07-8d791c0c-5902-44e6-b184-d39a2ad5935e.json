@@ -1,0 +1,67 @@
+{
+  "Apple_fidelity": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ndro-8d791c0c",
+  "TMPDIR": "/home/dandiccf/Storage/ct/ndro-8d791c0c",
+  "active": false,
+  "active_measurement": false,
+  "cleanup_reserve_seconds": 45,
+  "command": "once normal daemon/read-only path lookup/descriptor-bound read",
+  "endpoint": "Original600/45 closure, full scoped Node and rawB match, no new journal, donor/subject/installed state preserved",
+  "expected_seconds": 600,
+  "filesystem_required": "ext4",
+  "full487_closed": false,
+  "fullcheck": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-data-proof-development-20261007-private-v1/root-fullcheck-keynote-data-run-v1/terminal-v1.json",
+    "sha256": "c6182a353a938cbf0eb17531f08344c66d96a9a3c96cc709a72e5e33bcf09dbd",
+    "size": 79344
+  },
+  "installed_actions": false,
+  "normal_roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-data-proof-development-20261007-private-v1/root-current-roles-build-v1/frozen/cirrove",
+      "sha256": "ca342b8325e92db4464f984566d922ba4638fbd18d25126d4f66d721f59372ef",
+      "size": 474599920
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-data-proof-development-20261007-private-v1/root-current-roles-build-v1/frozen/cirroved",
+      "sha256": "ccd51a88541ebac555b7e24b7deb3aca7dd3b13d5d55bef0b81488e0fc0d3a75",
+      "size": 476259448
+    }
+  },
+  "prediction": "Exact920F2C08 identity, i1bm::i1bl and138943 bytes/SHA223e4267 retained; any changed identity/revision/bytes refuses with no writes",
+  "provider_mutations": false,
+  "question": "Does a fresh normal read-only mount return exact0803 Numbers DATA B at the completed scoped identity/revision?",
+  "run": "8d791c0c-5902-44e6-b184-d39a2ad5935e",
+  "status": "closed_success",
+  "subject_run": "0803e72b-bba6-4f25-acb1-2b407b1befc4",
+  "supervisor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/supervise_numbers_data_ro_v1.py",
+    "sha256": "7adb75b12fdbcab9f85d2e48aadcdc5b7fe5b7f78151f4a08035f68985583d4d",
+    "size": 22974
+  },
+  "version": 1,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/original-window.json",
+    "size": 314,
+    "sha256": "1fe770d93d881388c172bf2eaffbdaabe43f2447fd5822eeb5f7b7a527983244"
+  },
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/observe-outer-owner.json",
+    "size": 993,
+    "sha256": "b09dafaf53fb5550726daa4e6bbb2b7ae955d5087a70dcd32de3890afbef7e2a"
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/root-terminal-result.json",
+    "size": 345,
+    "sha256": "875015ec2824d438b8b557899cfca5ce80b2f48ddb63cc908c7950c008af5e73"
+  },
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 49,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/audit-independent-numbers-data-readonly-terminal-v1.json",
+      "size": 5043,
+      "sha256": "59dbac1252b52d8727d7b1d995e7404656c752c76bcb76dcaafc08d3455b9c22"
+    }
+  }
+}
