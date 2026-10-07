@@ -398,11 +398,21 @@ Trash. A [fresh read-only remount](docs/benchmarks/icloud-pages-direct-flat-read
 returned the complete new content; [Apple Pages reopened the exact replacement](docs/benchmarks/icloud-pages-direct-flat-apple-reopen-2026-10-07-3a054fad.json)
 with its genuine 93-byte paragraph unchanged after one reload. This validates
 explicit `flat-pages` archive input, not native Pages editing in a Linux editor.
-A [separate offline Writer trial](docs/benchmarks/icloud-pages-writer-source-load-2026-10-07-30098796.json)
-could not load this Pages export on this host: no document or DOCX was produced.
-A [direct parser check](docs/benchmarks/icloud-pages-direct-parser-2026-10-07-61778150.json)
-recovered its exact paragraph with one trailing newline. The Writer loading
-failure remains under investigation; native Linux editing acceptance is open.
+Earlier Writer trials could not load that export; a
+[service probe](docs/benchmarks/icloud-pages-uno-filter-probe-2026-10-07-697c1f07-ba06-40c4-a420-e3b7340c3177.json)
+stopped at filter construction on a host missing `libwpg`. A
+[verified private library capsule](docs/benchmarks/icloud-pages-uno-private-library-2026-10-07-8e73eb0d-fe0e-497b-9a81-ad266a96d4d5.json)
+restored service activation and type detection. A
+[fresh offline Writer conversion](docs/benchmarks/icloud-pages-writer-private-library-2026-10-07-2f2fec37-6b7c-40aa-b8db-49fa98d5192c.json)
+then imported the genuine Pages export read-only, produced one DOCX and reopened
+it read-only with the exact 93-byte paragraph preserved. Independent OOXML checks
+agreed. This is text-only conversion evidence; fonts, layout, media and native
+Pages saving remain unproved. The host dependency remains absent: no system
+package repair or installation was performed.
+A [fresh offline Impress conversion](docs/benchmarks/icloud-keynote-impress-pptx-2026-10-07-20d21b4e-a918-41db-b7f5-e1a0fb3c593c.json)
+likewise preserved the exact one-slide title and subtitle through one PPTX export
+and read-only reopen, with 28 independent checks passed. This does not establish
+layout, fonts, media, animations or native Keynote saving.
 
 An [isolated saved-session connection](docs/benchmarks/icloud-saved-session-real-lifecycle-2026-10-07-ebbd9f71.json)
 completed but stopped before read-only startup became ready. A

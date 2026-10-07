@@ -1,5 +1,6 @@
 //! Feature-only exact original Calc DATA Trash read. No journal open or mutation.
 use super::super::public_verify::exact_entry;
+use super::calc_metadata::EditorArm;
 use super::*;
 use crate::journal::UploadRecord;
 use cirrove_core::upload::UploadIntent;
@@ -125,23 +126,24 @@ fn ordinary(n: &Node) -> bool {
         })
         && n.content_revision().is_some()
 }
-fn active_remaining(r: &Registration, clock: u64) -> Result<u64> {
+fn active_remaining_for(r: &Registration, clock: u64, arm: EditorArm) -> Result<u64> {
     ensure!(
         r.started_unix_seconds > 0
             && r.started_unix_seconds <= clock
             && r.deadline_unix_seconds
                 .checked_sub(r.started_unix_seconds)
-                .is_some_and(|n| n > 20 && n <= 90),
+                .is_some_and(|n| n > (if arm == EditorArm::Writer { 45 } else { 20 })
+                    && n <= (if arm == EditorArm::Writer { 600 } else { 90 })),
         "Calc Trash original window refused"
     );
     let active_end = r
         .deadline_unix_seconds
-        .checked_sub(20)
+        .checked_sub(if arm == EditorArm::Writer { 45 } else { 20 })
         .context("Calc Trash window refused")?;
     ensure!(clock < active_end, "Calc Trash cleanup reserve reached");
     Ok(active_end - clock)
 }
-fn registered(raw: &[u8], digest: &str, clock: u64) -> Result<Registration> {
+fn registered_for(raw: &[u8], digest: &str, clock: u64, arm: EditorArm) -> Result<Registration> {
     ensure!(
         raw.len() <= 32 * 1024 && hex_digest(digest) && hex::encode(Sha256::digest(raw)) == digest,
         "Calc Trash registration digest refused"
@@ -157,11 +159,7 @@ fn registered(raw: &[u8], digest: &str, clock: u64) -> Result<Registration> {
             && !r.account.is_nil()
             && !r.target_operation.is_nil()
             && r.collection == "drive"
-            && r.session_directory
-                == Path::new(&format!(
-                    "/var/tmp/cirrove-calc-trash-observer-{}",
-                    r.observer_run
-                ))
+            && r.session_directory == arm.trash_root(r.observer_run)
             && r.root_dev > 0
             && r.root_ino > 0
             && hex_digest(&r.settings_sha256),
@@ -186,7 +184,7 @@ fn registered(raw: &[u8], digest: &str, clock: u64) -> Result<Registration> {
         ordinary(&r.original_a)
             && ordinary(&r.backup_a)
             && r.original_a.parent_id.as_ref() == Some(&parent.id)
-            && r.original_a.name == format!("Cirrove-Calc-{}.xlsx", r.writer_run)
+            && r.original_a.name == arm.document_name(r.writer_run)
             && r.backup_a.parent_id.as_deref() == Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT")
             && r.backup_a.id == r.original_a.id
             && r.backup_a.name == r.original_a.name
@@ -196,7 +194,7 @@ fn registered(raw: &[u8], digest: &str, clock: u64) -> Result<Registration> {
             && r.source_a.size <= LIMIT
             && hex_digest(&r.source_a.sha256)
             && r.source_a.root.is_none()
-            && r.source_a.path == r.session_directory.join("source-a.xlsx"),
+            && r.source_a.path == r.session_directory.join(arm.source_name("a")),
         "Calc Trash original DATA identity refused"
     );
     for (pin, name) in [
@@ -209,8 +207,16 @@ fn registered(raw: &[u8], digest: &str, clock: u64) -> Result<Registration> {
             "Calc Trash proof path refused"
         );
     }
-    active_remaining(&r, clock)?;
+    active_remaining_for(&r, clock, arm)?;
     Ok(r)
+}
+#[cfg(test)]
+fn active_remaining(r: &Registration, clock: u64) -> Result<u64> {
+    active_remaining_for(r, clock, EditorArm::Calc)
+}
+#[cfg(test)]
+fn registered(raw: &[u8], digest: &str, clock: u64) -> Result<Registration> {
+    registered_for(raw, digest, clock, EditorArm::Calc)
 }
 fn read_bytes(path: &Path, cap: u64, immutable: bool) -> Result<Vec<u8>> {
     let file = open_private(path, false, cap)?;
@@ -262,11 +268,20 @@ fn account(r: &Registration, raw: &[u8]) -> Result<Account> {
     );
     Ok(a)
 }
-fn historical(
+fn account_for(r: &Registration, raw: &[u8], arm: EditorArm) -> Result<Account> {
+    let a = account(r, raw)?;
+    ensure!(
+        arm == EditorArm::Calc || a.label == "iCloudWriterTrashValidation",
+        "Writer Trash label refused"
+    );
+    Ok(a)
+}
+fn historical_for(
     r: &Registration,
     fixture_raw: &[u8],
     proof_raw: &[u8],
     upload_raw: &[u8],
+    arm: EditorArm,
 ) -> Result<()> {
     let f = decode(fixture_raw, &r.prior_a_fixture.sha256)?;
     validate(&f)?;
@@ -279,13 +294,12 @@ fn historical(
     ensure!(
         f.run == r.writer_run
             && f.account == r.account
-            && f.session_directory
-                == Path::new(&format!("/var/tmp/cirrove-calc-editor-{}", r.writer_run))
-            && f.format == "xlsx"
+            && f.session_directory == arm.editor_root(r.writer_run)
+            && f.format == arm.extension()
             && f.representation == FixtureRepresentation::Data
             && f.semantic.is_none()
             && f.source_root.is_none()
-            && f.source == f.session_directory.join("source-a.xlsx")
+            && f.source == f.session_directory.join(arm.source_name("a"))
             && f.source_size == r.source_a.size
             && f.source_sha256 == r.source_a.sha256
             && f.parent.drivewsid == r.parent.id
@@ -302,7 +316,7 @@ fn historical(
             && p.item == r.original_a.id
             && Some(&p.etag) == r.original_a.etag.as_ref()
             && p.representation == FixtureRepresentation::Data
-            && p.format == "xlsx"
+            && p.format == arm.extension()
             && p.size == r.source_a.size
             && p.sha256 == r.source_a.sha256
             && p.semantic.is_none()
@@ -343,6 +357,15 @@ fn historical(
     Ok(())
 }
 
+#[cfg(test)]
+fn historical(
+    r: &Registration,
+    fixture_raw: &[u8],
+    proof_raw: &[u8],
+    upload_raw: &[u8],
+) -> Result<()> {
+    historical_for(r, fixture_raw, proof_raw, upload_raw, EditorArm::Calc)
+}
 type SourceStamp = (u64, u64, u64, u32, u32, i64, i64, i64, i64);
 fn source_stamp(m: &std::fs::Metadata) -> SourceStamp {
     (
@@ -405,28 +428,31 @@ fn end_fences(
     root: &File,
     state: &File,
     held: &mut File,
+    arm: EditorArm,
 ) -> Result<()> {
-    registered(&read_bytes(path, 32 * 1024, true)?, digest, now()?)?;
-    account(
+    registered_for(&read_bytes(path, 32 * 1024, true)?, digest, now()?, arm)?;
+    account_for(
         r,
         &read_bytes(
             &r.session_directory.join("state/accounts.json"),
             256 * 1024,
             false,
         )?,
+        arm,
     )?;
-    historical(
+    historical_for(
         r,
         &pinned(&r.prior_a_fixture, 32 * 1024)?,
         &pinned(&r.prior_a_read_receipt, 32 * 1024)?,
         &pinned(&r.completed_target_upload, 128 * 1024)?,
+        arm,
     )?;
     source(r, held)?;
     same_directory(&r.session_directory, root)?;
     same_directory(&r.session_directory.join("state"), state)
 }
-async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
-    let r = registered(&read_bytes(path, 32 * 1024, true)?, digest, now()?)?;
+async fn observe(path: &Path, digest: &str, arm: EditorArm) -> Result<serde_json::Value> {
+    let r = registered_for(&read_bytes(path, 32 * 1024, true)?, digest, now()?, arm)?;
     ensure!(
         path == r.session_directory.join("trash-original-registration.json"),
         "Calc Trash registration path refused"
@@ -438,16 +464,17 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         "Calc Trash root changed"
     );
     let state = open_private(&r.session_directory.join("state"), true, 0)?;
-    let a = account(
+    let a = account_for(
         &r,
         &read_bytes(
             &r.session_directory.join("state/accounts.json"),
             256 * 1024,
             false,
         )?,
+        arm,
     )?;
     let mut held = open_private(&r.source_a.path, false, LIMIT)?;
-    end_fences(path, digest, &r, &root, &state, &mut held)?;
+    end_fences(path, digest, &r, &root, &state, &mut held, arm)?;
     let initial_source_stamp = source_stamp(&held.metadata()?);
     immutable_record(
         &r.session_directory.join("trash-original.attempt.json"),
@@ -455,9 +482,11 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
             "registration_sha256":digest,"cloud_mutated":false,"automatic_retry":false}),
     )?;
     root.sync_all()?;
-    let remaining = active_remaining(&r, now()?)?;
+    let remaining = active_remaining_for(&r, now()?, arm)?;
     let observed = tokio::time::timeout(Duration::from_secs(remaining), async {
+        active_remaining_for(&r, now()?, arm)?;
         let mut remote = session(&r.session_directory, &a).await?;
+        active_remaining_for(&r, now()?, arm)?;
         remote
             .verify_owned_data_in_trash(&r.original_a, &r.backup_a, &r.source_a.sha256)
             .await
@@ -469,7 +498,7 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         source_stamp(&held.metadata()?) == initial_source_stamp,
         "Calc Trash source changed during observation"
     );
-    end_fences(path, digest, &r, &root, &state, &mut held)?;
+    end_fences(path, digest, &r, &root, &state, &mut held, arm)?;
     let result = serde_json::json!({"version":1,"observer_run":r.observer_run,"writer_run":r.writer_run,
         "account":r.account,"collection":r.collection,"node_zone":"com.apple.CloudDocs",
         "original_item":r.original_a.id,"backup":observed,"source_a_size":r.source_a.size,
@@ -483,7 +512,7 @@ async fn observe(path: &Path, digest: &str) -> Result<serde_json::Value> {
         &result,
     )?;
     root.sync_all()?;
-    active_remaining(&r, now()?)?;
+    active_remaining_for(&r, now()?, arm)?;
     ensure!(
         source_stamp(&held.metadata()?) == initial_source_stamp,
         "Calc Trash source changed during result publication"
@@ -496,8 +525,17 @@ pub async fn icloud_owned_calc_trash_original(
     path: &Path,
     digest: &str,
 ) -> Result<serde_json::Value> {
-    observe(path, digest).await.map_err(|_| {
+    observe(path, digest, EditorArm::Calc).await.map_err(|_| {
         anyhow::anyhow!("owned Calc Trash original refused; retained evidence; no retry")
+    })
+}
+/// Explicit ordinary DOCX original-A Trash observer; no replay or mutation.
+pub async fn icloud_owned_writer_trash_original(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    observe(path, digest, EditorArm::Writer).await.map_err(|_| {
+        anyhow::anyhow!("owned Writer Trash original refused; retained evidence; no retry")
     })
 }
 #[cfg(test)]

@@ -526,6 +526,22 @@ enum Command {
         #[arg(long)]
         sha256: String,
     },
+    /// Capture read-only metadata for one receipt-bound ordinary Writer DOCX file.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudWriterMetadata {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
+    /// Independently read an exact completed ordinary Writer original in Trash.
+    #[cfg(feature = "icloud-write-probe")]
+    OwnedIcloudWriterTrashOriginal {
+        #[arg(long)]
+        registration: PathBuf,
+        #[arg(long)]
+        sha256: String,
+    },
     /// Compare bounded Google adapter reads with the mount and classify shortcuts (GET-only).
     ValidateGoogleRead {
         #[arg(long)]
@@ -1307,6 +1323,28 @@ async fn main() -> Result<()> {
             sha256,
         } => {
             let proof = cirrove_service::validation::icloud_owned_calc_trash_original(
+                &registration,
+                &sha256,
+            )
+            .await?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudWriterMetadata {
+            registration,
+            sha256,
+        } => {
+            let proof =
+                cirrove_service::validation::icloud_owned_writer_metadata(&registration, &sha256)
+                    .await?;
+            println!("{}", serde_json::to_string(&proof)?);
+        }
+        #[cfg(feature = "icloud-write-probe")]
+        Command::OwnedIcloudWriterTrashOriginal {
+            registration,
+            sha256,
+        } => {
+            let proof = cirrove_service::validation::icloud_owned_writer_trash_original(
                 &registration,
                 &sha256,
             )

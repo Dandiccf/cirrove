@@ -3636,6 +3636,16 @@ is accepted. All six local children were reaped and all 561 source pins and
 thirteen dependency pins matched. V5 has not performed a real read, and the
 earlier cloud classification and failed operand remain unretained.
 
+A [fresh current-source exact-ID read](benchmarks/icloud-folder-exact-id-current-read-2026-10-07-810056f7-4d38-4d0f-8c38-a4131b428e82.json)
+then observed the exact owned folder currently present with its registered parent
+and name, returning `Applied`. Its independent audit passed all 20 checks;
+all thirteen stopped state files and 568 current source pins stayed unchanged,
+and the original handles closed. No mutation or journal acknowledgement occurred;
+HTTP request counts were not instrumented. This verifies current presence only:
+the original `VerifyRequired` journal and first failed read retain their historical
+outcomes, without acknowledgement, replay or retrospective completion. Row490
+remains open.
+
 
 ### Fresh standalone native Trash recovery on 6 October
 
@@ -3939,7 +3949,7 @@ unchanged. This does not prove fresh password/2FA, expiry recovery, installed
 upgrade/downgrade, or general repeatability; HTTP counts remain uninstrumented and
 row488 remains open.
 
-### Offline Pages-to-Writer source refusal on 7 October 2026
+### Offline Pages-to-Writer loading and text conversion on 7 October 2026
 
 The [separate diagnostic trial](benchmarks/icloud-pages-writer-source-load-2026-10-07-30098796.json)
 used the protected genuine Pages B export with the installed Writer import filter.
@@ -3958,6 +3968,46 @@ newline, with empty stderr. The source and executable/library pins were unchange
 and the original isolated child closed. This narrows the investigation to the
 Writer loading path; direct text extraction supplies no DOCX, native save or
 formatting/media fidelity proof.
+
+A [fresh UNO service probe](benchmarks/icloud-pages-uno-filter-probe-2026-10-07-697c1f07-ba06-40c4-a420-e3b7340c3177.json)
+confirmed the registered Pages filter properties but stopped when constructing
+its service. Dependency inspection identified the host's missing `libwpg` library;
+that probe performed no document load or export. A
+[separately registered private-library probe](benchmarks/icloud-pages-uno-private-library-2026-10-07-8e73eb0d-fe0e-497b-9a81-ad266a96d4d5.json)
+used an exact library capsule verified from a signed official package. It passed
+service construction, source stream length/seekability and Pages type detection
+for the same unchanged specimen. Its independent audit passed 21 checks. Service
+and detection success alone did not establish document load or conversion.
+
+The [fresh conversion trial](benchmarks/icloud-pages-writer-private-library-2026-10-07-2f2fec37-6b7c-40aa-b8db-49fa98d5192c.json)
+then used that private capsule to import genuine Pages B read-only, export exactly
+one DOCX, close it and reopen the DOCX read-only. Both actual Writer observations
+matched the registered 93-byte text as one paragraph; independent ZIP CRC and
+OOXML inspection agreed. The independent terminal audit passed all 24 checks.
+The original source and executable/library pins stayed
+unchanged, all owned processes closed without signals, and the run completed in
+0.805 seconds. The earlier failed arms retain their outcomes; the exact historical
+null-load operand is not retroactively supplied by this successful arm.
+
+This establishes one offline text-conversion endpoint, not fonts, layout, media,
+native Pages saving, general format compatibility or GUI acceptance. The host
+`libwpg` dependency remains absent; no system package, installed Cirrove service
+or provider state was changed. Row487 and installed delivery remain open/on HOLD.
+
+### Offline Keynote-to-Impress text conversion on 7 October 2026
+
+A [fresh offline Impress trial](benchmarks/icloud-keynote-impress-pptx-2026-10-07-20d21b4e-a918-41db-b7f5-e1a0fb3c593c.json)
+loaded the unchanged genuine Keynote B export read-only, exported exactly one
+PPTX and reopened it read-only. The actual import and reopen retained the exact
+registered title and subtitle on one slide. Independent inspection checked all
+14 ZIP member CRCs and the exact slide XML paragraphs; the terminal audit passed
+all 28 checks. The outer run completed in 0.905 seconds, with all owned handles
+closed, no signals, and source bytes, protected stamps and tool pins unchanged.
+
+This is a headless, network-isolated text-conversion result. It does not establish
+layout, fonts, media, transitions, animations, native Keynote saving, GUI or
+installed acceptance. Row487 remains open; no provider or installed state was
+changed.
 
 Development commit `56a2496a` passed all seven CI jobs. That source/CI
 result does not deploy the candidate or change the installed HOLD.

@@ -2,13 +2,13 @@ use super::*;
 use crate::journal::UploadJournal;
 use cirrove_core::upload::RecoveryLocation;
 type FixtureInputs = (Registration, Vec<u8>, Vec<u8>, Vec<u8>, Account, PathBuf);
-fn fixture() -> Result<FixtureInputs> {
+fn fixture_for(arm: EditorArm) -> Result<FixtureInputs> {
     let retained_root = tempfile::tempdir()?.keep();
     std::fs::set_permissions(&retained_root, std::fs::Permissions::from_mode(0o700))?;
     let account_id = Uuid::new_v4();
     let writer = Uuid::new_v4();
     let observer = Uuid::new_v4();
-    let root = PathBuf::from(format!("/var/tmp/cirrove-calc-trash-observer-{observer}"));
+    let root = arm.trash_root(observer);
     let parent = Node {
         id: "FOLDER::com.apple.CloudDocs::parent".into(),
         parent_id: Some(cirrove_icloud::ROOT_ID.into()),
@@ -24,7 +24,7 @@ fn fixture() -> Result<FixtureInputs> {
     let original = Node {
         id: "FILE::com.apple.CloudDocs::original-A".into(),
         parent_id: Some(parent.id.clone()),
-        name: format!("Cirrove-Calc-{writer}.xlsx"),
+        name: arm.document_name(writer),
         kind: NodeKind::File,
         size: 3,
         modified_unix: 1,
@@ -72,32 +72,37 @@ fn fixture() -> Result<FixtureInputs> {
     )?;
     journal.acknowledge_identity_handoff(upload.id, attempt, current, backup.clone())?;
     let target = serde_json::to_vec(&journal.get(upload.id)?)?;
-    let writer_root = PathBuf::from(format!("/var/tmp/cirrove-calc-editor-{writer}"));
+    let writer_root = arm.editor_root(writer);
     let source_sha = hex::encode(Sha256::digest(b"old"));
     let parent_entry: DriveEntry = serde_json::from_value(serde_json::json!({
         "drivewsid":parent.id,"docwsid":"parent","type":"FOLDER","zone":"com.apple.CloudDocs",
         "name":parent.name,"parentId":cirrove_icloud::ROOT_ID,"etag":"actual-parent-revision"}))?;
     let document: DriveEntry = serde_json::from_value(serde_json::json!({
         "drivewsid":original.id,"docwsid":"original-A","type":"FILE","zone":"com.apple.CloudDocs",
-        "name":format!("Cirrove-Calc-{writer}"),"extension":"xlsx","parentId":parent.id,
+        "name":arm.document_name(writer).strip_suffix(&format!(".{}", arm.extension())).context("document suffix")?,"extension":arm.extension(),"parentId":parent.id,
         "etag":"A-etag","size":3}))?;
     let settings_sha = "a".repeat(64);
     let f = serde_json::to_vec(
         &serde_json::json!({"version":1,"run":writer,"account":account_id,
         "session_directory":writer_root,"settings_sha256":settings_sha,"parent":parent_entry,
-        "document":document,"format":"xlsx","representation":"data","source":writer_root.join("source-a.xlsx"),
+        "document":document,"format":arm.extension(),"representation":"data","source":writer_root.join(arm.source_name("a")),
         "source_size":3,"source_sha256":source_sha,"source_root":null,"expected_root":original.name,"semantic":null}),
     )?;
     let f_sha = hex::encode(Sha256::digest(&f));
     let proof = serde_json::to_vec(
         &serde_json::json!({"run":writer,"account":account_id,"parent":parent.id,
-        "item":original.id,"etag":"A-etag","representation":"data","format":"xlsx","size":3,
+        "item":original.id,"etag":"A-etag","representation":"data","format":arm.extension(),"size":3,
         "sha256":source_sha,"semantic":null,"manifest_sha256":f_sha,"content_identity_verified":true,
         "gui_fidelity_verified":false,"cloud_mutated":false}),
     )?;
     let account = Account {
         id: account_id.to_string(),
-        label: "iCloudCalcTrashValidation".into(),
+        label: if arm == EditorArm::Calc {
+            "iCloudCalcTrashValidation"
+        } else {
+            "iCloudWriterTrashValidation"
+        }
+        .into(),
         registration: AppRegistration::ICloud,
         identity: cirrove_auth::Identity {
             tenant_id: String::new(),
@@ -135,7 +140,7 @@ fn fixture() -> Result<FixtureInputs> {
         backup_a: backup,
         target_operation: upload.id,
         source_a: Source {
-            path: root.join("source-a.xlsx"),
+            path: root.join(arm.source_name("a")),
             size: 3,
             sha256: source_sha,
             root: None,
@@ -153,9 +158,12 @@ fn fixture() -> Result<FixtureInputs> {
             sha256: hex::encode(Sha256::digest(&target)),
         },
         started_unix_seconds: 1000,
-        deadline_unix_seconds: 1090,
+        deadline_unix_seconds: if arm == EditorArm::Calc { 1090 } else { 1600 },
     };
     Ok((r, f, proof, target, account, retained_root))
+}
+fn fixture() -> Result<FixtureInputs> {
+    fixture_for(EditorArm::Calc)
 }
 fn decode_registration(r: &Registration) -> Result<Registration> {
     let raw = serde_json::to_vec(r)?;
@@ -300,5 +308,121 @@ fn owned_calc_trash_registration_refuses_window_duplicate_and_changed_source() -
     std::fs::set_permissions(&raw, std::fs::Permissions::from_mode(0o400))?;
     reg.source_a.sha256 = "f".repeat(64);
     assert!(source(&reg, &mut held).is_err());
+    Ok(())
+}
+
+fn writer_check(r: &Registration, f: &[u8], p: &[u8], u: &[u8]) -> Result<()> {
+    let raw = serde_json::to_vec(r)?;
+    let checked = registered_for(
+        &raw,
+        &hex::encode(Sha256::digest(&raw)),
+        1001,
+        EditorArm::Writer,
+    )?;
+    historical_for(&checked, f, p, u, EditorArm::Writer)
+}
+#[test]
+fn owned_writer_trash_accepts_genuine_completed_docx_handoff_not_calc_route() -> Result<()> {
+    let (r, f, p, u, _, _retained) = fixture_for(EditorArm::Writer)?;
+    writer_check(&r, &f, &p, &u)?;
+    assert_eq!(active_remaining_for(&r, 1001, EditorArm::Writer)?, 554);
+    assert!(
+        check_values(&r, &f, &p, &u).is_err(),
+        "Writer Trash accepted by Calc"
+    );
+    let (calc, cf, cp, cu, _, _calc_retained) = fixture()?;
+    assert!(
+        writer_check(&calc, &cf, &cp, &cu).is_err(),
+        "Calc Trash accepted by Writer"
+    );
+    Ok(())
+}
+#[test]
+fn owned_writer_trash_refuses_rebound_fixture_and_completed_receipt_drift() -> Result<()> {
+    let (r, f, p, u, _, _retained) = fixture_for(EditorArm::Writer)?;
+    for arm in 0..8 {
+        let mut value: serde_json::Value = serde_json::from_slice(&u)?;
+        match arm {
+            0 => value["scope"]["account"] = Uuid::new_v4().to_string().into(),
+            1 => value["scope"]["collection"] = "foreign".into(),
+            2 => value["state"] = "uploading".into(),
+            3 => value["identity_handoff"]["backup"]["etag"] = "changed-Trash-revision".into(),
+            4 => value["identity_handoff"]["backup"]["package"] = true.into(),
+            5 => {
+                value["identity_handoff"]["old_item"] = "FILE::com.apple.CloudDocs::foreign".into()
+            }
+            6 => value["id"] = Uuid::new_v4().to_string().into(),
+            _ => value["transferred_bytes"] = 0.into(),
+        }
+        assert!(
+            historical_for(&r, &f, &p, &serde_json::to_vec(&value)?, EditorArm::Writer).is_err(),
+            "Writer target arm {arm}"
+        );
+    }
+    for arm in 0..4 {
+        let mut value: serde_json::Value = serde_json::from_slice(&f)?;
+        match arm {
+            0 => value["format"] = "xlsx".into(),
+            1 => {
+                value["source"] = serde_json::to_value(
+                    EditorArm::Calc
+                        .editor_root(r.writer_run)
+                        .join("source-a.xlsx"),
+                )?
+            }
+            2 => value["representation"] = "package".into(),
+            _ => value["document"]["etag"] = "changed-A-revision".into(),
+        }
+        let raw = serde_json::to_vec(&value)?;
+        let mut rebound = r.clone();
+        rebound.prior_a_fixture.sha256 = hex::encode(Sha256::digest(&raw));
+        // Re-pin both the changed fixture and its read receipt to reach identity/format checks.
+        let mut proof: serde_json::Value = serde_json::from_slice(&p)?;
+        proof["manifest_sha256"] = rebound.prior_a_fixture.sha256.clone().into();
+        let proof = serde_json::to_vec(&proof)?;
+        rebound.prior_a_read_receipt.sha256 = hex::encode(Sha256::digest(&proof));
+        assert!(
+            historical_for(&rebound, &raw, &proof, &u, EditorArm::Writer).is_err(),
+            "Writer A fixture arm {arm}"
+        );
+    }
+    Ok(())
+}
+#[test]
+fn owned_writer_trash_refuses_rw_foreign_label_and_expired_reserve() -> Result<()> {
+    let (r, _, _, _, a, _retained) = fixture_for(EditorArm::Writer)?;
+    for arm in 0..4 {
+        let mut account = a.clone();
+        match arm {
+            0 => {}
+            1 => account.access = AccessMode::ReadWrite,
+            2 => account.label = "iCloudCalcTrashValidation".into(),
+            _ => account.id = Uuid::new_v4().to_string(),
+        }
+        let raw = serde_json::to_vec(&Settings {
+            version: 2,
+            accounts: vec![account],
+        })?;
+        let mut checked = r.clone();
+        checked.settings_sha256 = hex::encode(Sha256::digest(&raw));
+        assert_eq!(
+            account_for(&checked, &raw, EditorArm::Writer).is_ok(),
+            arm == 0,
+            "Writer Trash settings arm {arm}"
+        );
+    }
+    assert!(active_remaining_for(&r, 1555, EditorArm::Writer).is_err());
+    let mut extended = r.clone();
+    extended.deadline_unix_seconds = 1601;
+    let raw = serde_json::to_vec(&extended)?;
+    assert!(
+        registered_for(
+            &raw,
+            &hex::encode(Sha256::digest(&raw)),
+            1001,
+            EditorArm::Writer
+        )
+        .is_err()
+    );
     Ok(())
 }

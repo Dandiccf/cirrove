@@ -1,0 +1,123 @@
+{
+  "active_measurement": false,
+  "clock": {
+    "inner_cleanup_seconds": 30,
+    "inner_work_seconds": 60,
+    "outer_closure_seconds": 10,
+    "outer_maximum_seconds": 100,
+    "renewal": false,
+    "starts": "after pinned input validation, before actual Office capsule"
+  },
+  "endpoint_order": [
+    "exact installed FilterFactory Apple Pages registration",
+    "exact PagesImportFilter service construction",
+    "SimpleFileAccess openFileRead of unchanged genuine B",
+    "actual getLength/getPosition/seek method observations",
+    "XExtendedFilterDetection.detect(InputStream,URL): fixed reply-shape and type categories only",
+    "close input stream; terminate desktop service; original launcher wait plus PID namespace absence",
+    "all protected input/tool/registry/filter/parser pins unchanged"
+  ],
+  "independent_assessment": {
+    "audit": {
+      "path": ".local-state/pages-uno-filter-probe-697c1f07-ba06-40c4-a420-e3b7340c3177-private-v1/audit-independent-filter-terminal-v1.json",
+      "sha256": "7a11d9790d5aa453fc436d4f8f6b443788d3650797f4780568619331a555d0a5",
+      "size": 3254
+    },
+    "checks_passed": 19,
+    "checks_total": 19,
+    "closure": "Original supervisor, sandbox and Office wrapper were reaped and absent; private namespace empty, no cleanup signals or deadline overrun. Transient internal Office children were not individually instrumented.",
+    "document_creation_calls": 0,
+    "document_load_calls": 0,
+    "export_calls": 0,
+    "gate487_closed": false,
+    "limits": [
+      "No raw exception message, UNO descriptor or URL is exposed by this assessment; fixed failure category is not a root-cause attribution.",
+      "No document load/save/export fidelity or general Pages-support conclusion follows.",
+      "This closed failure supplies no full gate487 credit or installed action."
+    ],
+    "not_reached": [
+      "SimpleFileAccess source stream",
+      "stream length/seekability",
+      "filter detection"
+    ],
+    "observed": [
+      "FilterFactory was present and Apple Pages was registered.",
+      "The three expected filter-service, document-service and type properties matched.",
+      "The fixed failure diagnostic recorded UnknownFailure at filter_service; service-present remained null because construction did not complete."
+    ],
+    "outcome": "failed_filter_service_construction",
+    "preservation": "All17 registered pins and original101769-byte source with complete recorded stamp remained exact."
+  },
+  "limits": [
+    "Root has not run this fresh packet or its UNO calls.",
+    "No document load, text or export acceptance is tested.",
+    "Current null-load reason remains unknown; fixed operands are intended to narrow it.",
+    "Installed package/source declaration correspondence is source-backed; upstream source is not a reproduced build attestation.",
+    "Standard launcher internal children are checked by launcher wait and private PID namespace emptiness, not individually instrumented."
+  ],
+  "not_called": [
+    "loadComponentFromURL",
+    "create document",
+    "document text access",
+    "export",
+    "native save",
+    "provider HTTP",
+    "source edit"
+  ],
+  "outcome": {
+    "all_owned_processes_closed": true,
+    "fidelity_passed": false,
+    "gate487_closed": false,
+    "root_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-uno-filter-probe-697c1f07-ba06-40c4-a420-e3b7340c3177-private-v1/root-outer-result-v1.json",
+      "protected_stat": [
+        57,
+        75144607,
+        33024,
+        1000,
+        1,
+        1791352358400745971,
+        1791352358400745971
+      ],
+      "sha256": "8d5f9dfe1059933838532286abd1ae4cde283bc1f00185bf10f25b26b73e821e",
+      "size": 1134
+    },
+    "workflow_completed": false
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-uno-filter-probe-697c1f07-ba06-40c4-a420-e3b7340c3177-private-v1/root-outer-registration-v1.json",
+    "protected_stat": [
+      57,
+      75144604,
+      33024,
+      1000,
+      1,
+      1791352357896500439,
+      1791352357896500439
+    ],
+    "sha256": "eef00af45e34890ecca47c878852d832bacc55da7b3a0b34cb59d771b03ee9d2",
+    "size": 2994
+  },
+  "prediction": "The installed Apple Pages registration matches its declared service/type; the stream is seekable with the exact immutable source length. Exact filter detection is expected to return writer_ApplePages. Every earlier refusal retains reached fixed operands and null/unreached later operands. This is not a prediction that Writer document loading or export will succeed.",
+  "primary_sources": [
+    "https://raw.githubusercontent.com/LibreOffice/core/libreoffice-26.8.0.2/writerperfect/source/writer/PagesImportFilter.cxx",
+    "https://raw.githubusercontent.com/LibreOffice/core/libreoffice-26.8.0.2/writerperfect/inc/ImportFilter.hxx",
+    "https://raw.githubusercontent.com/LibreOffice/core/libreoffice-26.8.0.2/offapi/com/sun/star/document/XExtendedFilterDetection.idl"
+  ],
+  "question": "Which local registration, service-construction, file-stream or exact Pages detection operand fails for the immutable genuine Pages B export before any document load?",
+  "registered_at": "2026-10-07T05:51:42.558738+00:00",
+  "retained_operands": "filter-operands.json: fixed bool/null fields plus enum reply shape/type only; original_clock_active. No property values, source URL, raw UNO descriptor or exception string.",
+  "root": "/home/dandiccf/Storage/puf-697c1f07",
+  "run": "697c1f07-ba06-40c4-a420-e3b7340c3177",
+  "runtime_source_commit": "56a2496a284434e94be9cce70f290a95c9f45d83",
+  "source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages",
+    "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
+    "size": 101769
+  },
+  "source_head": "97bee0e6634ec1bbd540d405e8bd2560e42f11e7",
+  "status": "closed_refused",
+  "success": "filter probe expected type observed with all guarded prerequisites and actual owned process closure; no fidelity or gate claim. Unknown detection/failed prerequisites are a closed refusal if closure is proven.",
+  "type_detection_scope": "Direct PagesImportFilter XExtendedFilterDetection, not Desktop loader/import pipeline. Reply string or documented return-plus-inout-descriptor tuple is classified separately; unexpected wire shape refuses without printing it.",
+  "version": 1
+}

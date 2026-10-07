@@ -135,6 +135,7 @@ fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
         "numbers" => "numbers",
         "keynote" => "key",
         "xlsx" => "xlsx",
+        "docx" => "docx",
         _ => bail!("fixture format unsupported"),
     };
     if f.format == "xlsx" {
@@ -143,6 +144,19 @@ fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
                 && f.source_root.is_none()
                 && f.semantic.is_none(),
             "fixture XLSX requires raw DATA without a package root or semantic proof"
+        );
+    }
+    if f.format == "docx" {
+        ensure!(
+            f.representation == FixtureRepresentation::Data
+                && f.source_root.is_none()
+                && f.semantic.is_none()
+                && f.session_directory == calc_metadata::EditorArm::Writer.editor_root(f.run)
+                && f.document.name == format!("Cirrove-Writer-{}", f.run)
+                && ["source-a.docx", "source-b.docx"]
+                    .iter()
+                    .any(|name| f.source == f.session_directory.join(name)),
+            "fixture DOCX requires exact Writer DATA route without package semantics"
         );
     }
     ensure!(
@@ -167,6 +181,7 @@ fn validate_for(f: &Fixture, arm: FixtureArm) -> Result<()> {
             && f.source_root.as_ref().map_or(
                 f.format == "numbers"
                     || f.format == "xlsx"
+                    || f.format == "docx"
                     || (arm == FixtureArm::FlatPages && f.format == "pages"),
                 |root| root.ends_with(&format!(".{extension}"))
                     && !root.contains(['/', '\\'])
@@ -213,6 +228,18 @@ fn account_binding(f: &Fixture, accounts: &[Account]) -> Result<Account> {
         matches!(a.registration, AppRegistration::ICloud),
         "fixture account provider differs"
     );
+    if f.format == "docx" {
+        ensure!(
+            a.label == "iCloudWriterValidation"
+                && a.enabled
+                && a.drive.id == "drive"
+                && a.drive.drive_type == "icloud_drive"
+                && a.root_id == cirrove_icloud::ROOT_ID
+                && a.mount_path == f.session_directory.join("mount")
+                && !Uuid::parse_str(&a.credential_id)?.is_nil(),
+            "fixture Writer account route refused"
+        );
+    }
     Ok(a)
 }
 fn native_trash_account_binding(f: &Fixture, accounts: &[Account]) -> Result<Account> {
@@ -383,7 +410,7 @@ async fn verify_fixture(
         FixtureArm::NativeTrash => native_trash_account_binding(&f, &settings.accounts)?,
     };
     let mut source = open_private(&f.source, false, LIMIT)?;
-    let source_stamp = if arm == FixtureArm::NativeTrash {
+    let source_stamp = if arm == FixtureArm::NativeTrash || f.format == "docx" {
         Some(native_trash_source_stamp(&source)?)
     } else {
         None
@@ -479,10 +506,12 @@ mod editor_metadata;
 pub use editor_metadata::icloud_owned_editor_metadata;
 
 mod calc_metadata;
-pub use calc_metadata::icloud_owned_calc_metadata;
+pub use calc_metadata::{icloud_owned_calc_metadata, icloud_owned_writer_metadata};
 
 mod calc_trash_original;
-pub use calc_trash_original::icloud_owned_calc_trash_original;
+pub use calc_trash_original::{
+    icloud_owned_calc_trash_original, icloud_owned_writer_trash_original,
+};
 
 mod editor_source;
 pub use editor_source::icloud_owned_editor_source_proof;
@@ -516,6 +545,118 @@ mod tests {
         )?;
         let f = decode(&bytes, &hex::encode(Sha256::digest(&bytes)))?;
         Ok((bytes, f))
+    }
+    fn writer_fixture() -> Result<Fixture> {
+        let (_, mut f) = fixture()?;
+        f.format = "docx".into();
+        f.session_directory = calc_metadata::EditorArm::Writer.editor_root(f.run);
+        f.document.name = format!("Cirrove-Writer-{}", f.run);
+        f.document.extension = "docx".into();
+        f.source = f.session_directory.join("source-a.docx");
+        f.source_root = None;
+        f.expected_root = format!("{}.docx", f.document.name);
+        Ok(f)
+    }
+    #[test]
+    fn owned_writer_fixture_accepts_raw_docx_and_checks_readback_bytes() -> Result<()> {
+        let mut f = writer_fixture()?;
+        validate(&f)?;
+        f.source = f.session_directory.join("source-b.docx");
+        validate(&f)?;
+        let retained = tempfile::tempdir()?.keep();
+        std::fs::set_permissions(&retained, std::fs::Permissions::from_mode(0o700))?;
+        let path = retained.join("readback.docx");
+        std::fs::write(&path, b"abc")?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o400))?;
+        let file = open_private(&path, false, LIMIT)?;
+        proof(
+            &f,
+            &file,
+            &PackageDownload {
+                size: 3,
+                sha256: hex::encode(Sha256::digest(b"abc")),
+            },
+            false,
+        )?;
+        assert!(
+            proof(
+                &f,
+                &file,
+                &PackageDownload {
+                    size: 3,
+                    sha256: hex::encode(Sha256::digest(b"xyz"))
+                },
+                false
+            )
+            .is_err(),
+            "Writer DATA changed bytes admitted"
+        );
+        assert!(
+            proof(
+                &f,
+                &file,
+                &PackageDownload {
+                    size: 4,
+                    sha256: f.source_sha256.clone()
+                },
+                false
+            )
+            .is_err(),
+            "Writer DATA changed size admitted"
+        );
+        Ok(())
+    }
+    #[test]
+    fn owned_writer_fixture_refuses_cross_arm_package_semantic_and_account() -> Result<()> {
+        let original = writer_fixture()?;
+        for arm in 0..8 {
+            let mut f = writer_fixture()?;
+            match arm {
+                0 => {
+                    f.session_directory = calc_metadata::EditorArm::Calc.editor_root(f.run);
+                    f.source = f.session_directory.join("source-a.docx");
+                }
+                1 => f.source = f.session_directory.join("source-a.xlsx"),
+                2 => f.document.name = format!("Cirrove-Calc-{}", f.run),
+                3 => f.representation = FixtureRepresentation::Package,
+                4 => f.source_root = Some("Source.docx".into()),
+                5 => {
+                    f.semantic = Some(PackageSemanticIdentity {
+                        version: 2,
+                        sha256: "a".repeat(64),
+                        entries: 2,
+                        files: 1,
+                        expanded_bytes: 3,
+                    })
+                }
+                6 => f.document.extension = "xlsx".into(),
+                _ => f.document.parent_id = "FOLDER::com.apple.CloudDocs::foreign".into(),
+            }
+            assert!(validate(&f).is_err(), "Writer fixture arm {arm}");
+        }
+        let a: Account = serde_json::from_value(
+            serde_json::json!({"id":original.account,"label":"iCloudWriterValidation",
+            "registration":{"provider":"i_cloud"},"identity":{"tenant_id":"icloud","subject":"synthetic",
+            "username":"synthetic.invalid","graph_user_id":"synthetic","display_name":"Synthetic"},
+            "credential_id":Uuid::new_v4(),"access":"read_only","drive":{"id":"drive","name":"Drive","driveType":"icloud_drive"},
+            "root_id":cirrove_icloud::ROOT_ID,"mount_path":original.session_directory.join("mount"),"enabled":true,
+            "poll_seconds":3600,"cache_bytes":1048576}),
+        )?;
+        account_binding(&original, std::slice::from_ref(&a))?;
+        for arm in 0..4 {
+            let mut bad = a.clone();
+            match arm {
+                0 => bad.label = "iCloudCalcValidation".into(),
+                1 => bad.id = Uuid::new_v4().to_string(),
+                2 => bad.drive.id = "foreign".into(),
+                _ => bad.mount_path = "/var/tmp/foreign".into(),
+            }
+            assert!(
+                account_binding(&original, &[bad]).is_err(),
+                "Writer fixture account arm {arm}"
+            );
+        }
+        Ok(())
     }
     #[test]
     fn owned_fixture_xlsx_data_accepts_exact_raw_registration() -> Result<()> {
