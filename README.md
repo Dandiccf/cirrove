@@ -61,7 +61,7 @@ filesystem operations have their own limits.
 | **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
 | **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
 | **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
-| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in and read-only mounts have live evidence. Ordinary-file writes and native iWork documents are being validated separately; this integration is not yet part of `main` or a release. |
+| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Bounded live checks cover sign-in, reads, Pages import, and Numbers/Keynote PACKAGE replacement with current/Trash verification, read-only remount and Apple reopen. Broader acceptance remains open; iCloud is not in `main` or a release. |
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -197,33 +197,28 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Development update, 2 October 2026:** iCloud has moved beyond a feasibility
-study. Cirrove has its own native adapter using Apple's undocumented web
-transport, with no rclone or Stratosync runtime, configuration or credential
-import. Live checks have covered sign-in, directory browsing, on-demand and
-ranged reads, saved-session restart, and detection of a remote content change.
-New iCloud connections default to read-only.
+**Development update, 7 October 2026:** Cirrove has its own native iCloud adapter
+using Apple's undocumented web transport, with no rclone or Stratosync runtime,
+configuration or credential import. Bounded live checks cover sign-in, directory
+browsing, on-demand and ranged reads, saved-session restart, ordinary-file saves
+and interrupted-save recovery. New iCloud connections default to read-only.
 
-The latest development work extends Cirrove's shared journal and filesystem to
-explicit ordinary-file writes, conditional changes, recoverable Trash and
-interrupted-save recovery. Scoped application checks and large-file create and
-replacement checks have passed on development-owned fixtures. Native
-Pages/Numbers/Keynote support is also in progress: package reading, import,
-replacement and local-save recovery paths are implemented in the development
-tree. Selected Pages checks include independent content verification and Apple
-reopen; a Numbers import has opened in Apple Numbers with its formula intact,
-and a separate copy has passed full-content verification.
+Separate owned-document trials have passed public Pages import and genuine
+[Numbers](https://github.com/Dandiccf/cirrove/blob/8fca356754c841c2cc66c91c96f6972192c516e2/docs/benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json)
+and [Keynote](https://github.com/Dandiccf/cirrove/blob/8fca356754c841c2cc66c91c96f6972192c516e2/docs/benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
+PACKAGE replacement. Independent readers verified the complete new content tree
+and exact original in Trash. Separate normal read-only remounts read the new
+content before Apple Numbers or Keynote opened and reloaded the exact new item
+with the expected values/formula or slide text. These results cover those
+registered documents and workflows, not arbitrary-document fidelity.
 
-These are bounded development results. **Full iCloud support is still open:**
-the latest Numbers replacement admission is under investigation; broader
-Numbers and Keynote editing/reopen fidelity, DATA representations, session
-retention and renewal, installed read/write transitions, and sustained
-account-scale use still require acceptance. The newest local work is ahead of
-the published draft branch. Read the
-[iCloud development record](https://github.com/Dandiccf/cirrove/blob/research/icloud-feasibility/docs/icloud-write-integration.md)
-and follow [PR 86](https://github.com/Dandiccf/cirrove/pull/86) for published
-implementation and evidence. A passing fixture does not make this a released
-or generally reliable iCloud client.
+**Full iCloud support remains open.** Native Linux editor save fidelity, broader
+iWork and DATA coverage, session retention and renewal, installed read/write
+transitions and sustained account-scale use still require acceptance. iCloud is
+not merged into `main` or included in a release. See the
+[pinned development record](https://github.com/Dandiccf/cirrove/blob/8fca356754c841c2cc66c91c96f6972192c516e2/docs/icloud-write-integration.md)
+for the evidence and limits, and follow [PR 86](https://github.com/Dandiccf/cirrove/pull/86)
+for ongoing development.
 
 ## Upcoming cloud services and community contributions
 
