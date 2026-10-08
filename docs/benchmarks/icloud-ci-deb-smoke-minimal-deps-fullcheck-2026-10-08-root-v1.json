@@ -1,0 +1,51 @@
+{
+  "Cargo_target": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ci-deb-smoke-fullcheck-v1",
+  "TMPDIR_topology": {
+    "filesystems": [
+      {
+        "fstype": "ext4",
+        "source": "/dev/nvme1n1p1",
+        "target": "/home/dandiccf/Storage"
+      }
+    ]
+  },
+  "active": false,
+  "active_measurement": false,
+  "argv": [
+    "/usr/bin/bash",
+    "scripts/check.sh"
+  ],
+  "binary": {
+    "path": "/usr/bin/bash",
+    "sha256": "575e03ac834b739349a4484de481abcd06a6f7193cefc795260a32a1943f20a5",
+    "size": 1195144
+  },
+  "child_pid": 2441817,
+  "cwd": "/home/dandiccf/Work/cirrove",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ci-deb-smoke-minimal-deps-validation-20261008-private-v1/run_root_fullcheck_once_v1.py",
+    "sha256": "71ace95d1e599fb83bd166aa031e468e9e3610d2969287863aec812e9a17f5d1",
+    "size": 6715
+  },
+  "expected_duration_seconds": 1800,
+  "gate488_closed": false,
+  "gate489_closed": false,
+  "gate490_closed": false,
+  "installed_actions": 0,
+  "monotonic_start": 514244.030804915,
+  "prediction": "All ten local sections pass, including kernel mounts and installer/script coverage. This does not prove the changed GitHub APT step; a complete new CI run is still required.",
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/ci-deb-smoke-fullcheck-v1",
+  "question": "Does the complete project check pass after the Debian CI smoke install omits optional recommended desktop dependencies?",
+  "real_provider_tests": false,
+  "status": "closed_whole_project_check",
+  "success": true,
+  "target_owner_worktree": "/home/dandiccf/Work/cirrove",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ci-deb-smoke-minimal-deps-validation-20261008-private-v1/root-fullcheck-execution-v1/terminal-v1.json",
+    "sha256": "2e7c41301b40c1bc1f3fc6a8fe19a1c264bb4b9fd456d75b9fbd691d480c74a3",
+    "size": 1432
+  },
+  "version": 1,
+  "wall_start": 1791489616.9085393
+}

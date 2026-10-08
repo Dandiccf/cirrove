@@ -1,0 +1,119 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "bounds": {
+    "cleanup_seconds": 15,
+    "file_size_limit": 65536,
+    "http_request_count": "uninstrumented",
+    "maximum_explicit_node_calls": 4,
+    "maximum_sdk_hash_calls": 1,
+    "work_seconds": 120
+  },
+  "endpoint": "One public SDK hash_file_in_folder_for_revision call; exact parent/child fences; original SDK errors projected only by static whitelist; current573/source/installed/context preserved; all original owners closed.",
+  "fixed_subject": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "child": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+    "child_etag": "i2vo::i2vn",
+    "collection": "drive",
+    "metadata_size": 138902,
+    "parent": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+    "parent_etag": "i2vp"
+  },
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b-preparation-private-v1/root-build-execution-v1/sdk-hash-diagnostic",
+    "sha256": "02dcca3166ec2152e3b50c00642ad68c683ab317060cf1daa37d0efd2f4ab1f9",
+    "size": 189866184
+  },
+  "helper_build": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b-preparation-private-v1/root-build-execution-v1/terminal-v1.json",
+    "sha256": "17f1f475375bb9d4c8a9b60538f55f57187f1b368671e353876836975f290843",
+    "size": 202337
+  },
+  "helper_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b-preparation-private-v1/root-build-execution-v1/audit-independent-build-terminal-v1.json",
+    "sha256": "b17049e1e178fb394af8cfc8dbbe59caf3f443e810bcead2085564e4d449c207",
+    "size": 5753
+  },
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b-preparation-private-v1/root-diagnostic-authorities-v1/installed-baseline-v1.json",
+    "sha256": "65227fd5a8026e9906b5a7879ef34c6dd53fbcc2d8716118b29358bb5e1c91e6",
+    "size": 8134
+  },
+  "limits": [
+    "A separate diagnostic arm;6e904 and historical20cc/a865 remain closed refusals. No automatic retry or latest replacement.",
+    "Success requires actual SDK DATA hash/byte validation plus unchanged before/after metadata. A known refusal category is not a hash success.",
+    "No raw capture, ZIP semantic comparison, editor readiness or inherited GUI admission. No historical223e digest acceptance.",
+    "No raw exceptions, provider bodies, URLs, tokens or credentials are emitted. Only exact static error whitelist classes; unmatched SDK errors remain unknown.",
+    "Same public SealedSessionVault/CredentialVault keyring policy; copied sealed/settings only, no journal/cache donor copy or credential writes."
+  ],
+  "prediction": "A PACKAGE-only location produces the exact package_representation_refused category before any body GET. Other errors remain distinct fixed categories or unknown_sdk_error. Successful DATA hashing validates138902 bytes and a measured SHA256 at unchanged i2vp/i2vo::i2vn. No cause is assumed beforehand.",
+  "question": "Does the SDK full-body DATA hash for the exact current owned Numbers tuple succeed, or which strictly whitelisted SDK refusal category replaces the earlier untyped Unavailable?",
+  "ready": false,
+  "registered_utc": "2026-10-08T15:26:54.998427+00:00",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b/registration-v1.json",
+    "sha256": "06583a92a18c2500e472e595f40b449e339514f0a3dfdf29cefca860bddedd68",
+    "size": 11799
+  },
+  "run": "5cde180c-dd7a-4f0c-becd-febdca5f3c3b",
+  "sdk_reason_whitelist": [
+    "package_representation_refused",
+    "ambiguous_representation",
+    "missing_download_location",
+    "invalid_content_location",
+    "download_lookup_transport",
+    "download_lookup_http",
+    "download_lookup_json",
+    "verification_transport",
+    "verification_http",
+    "verification_interrupted",
+    "verification_too_long",
+    "verification_incomplete",
+    "revision_changed",
+    "verification_bound",
+    "unknown_sdk_error"
+  ],
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b-preparation-private-v1/audit-independent-sdk-diagnostic-source-v3.json",
+    "sha256": "65c6a8c6683385d7f3f357978a938ef06b25a9e41a8156eda77e6575b460b794",
+    "size": 5516
+  },
+  "status": "closed_sdk_diagnostic_refusal",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b/terminal-v1.json",
+    "sha256": "71f6a64e61dd95f3ea5da6cfe9ceb16c5f6f54579032e176ca9c3639fd764aa9",
+    "size": 2567
+  },
+  "version": 1,
+  "window": null,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b/audit-independent-sdk-refusal-terminal-v1.json",
+    "size": 5380,
+    "sha256": "6940f61d07dca7366f2ed3b78001f89f5eb01b40910ef325270be05d463b0e89"
+  },
+  "independent_preservation_checks_passed": 25,
+  "root_postrun_unit_preservation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b/root-postrun-unit-preservation-v1.json",
+    "size": 400,
+    "sha256": "7fa1c0f188aa3a2d0df7a7870625749f6ebc0e73420f814283f73fdbbfc0a229"
+  },
+  "helper_stdout": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-sdk-read-diagnostic-5cde180c-dd7a-4f0c-becd-febdca5f3c3b/stdout.json",
+    "size": 978,
+    "sha256": "1dcdad4b5bf400e5a751c61decbef8eeb1b2d26c24a109656d2bc386e89763f8"
+  },
+  "reduced_failed_observation": {
+    "child_before_exact_guard_passed_by_control_flow": true,
+    "full_content_GET_started": false,
+    "metadata_method_calls_started": 2,
+    "parent_etag": "i2vp",
+    "representation_proved": false,
+    "sdk_reason_category": "package_representation_refused",
+    "stage": "sdk_full_body_hash",
+    "validated_content_hash": null
+  },
+  "content_observation_success": false,
+  "representation_proved": false,
+  "gate489_closed": false,
+  "installed_HOLD_released": false
+}

@@ -1,0 +1,213 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "bounds": {
+    "cleanup_seconds": 15,
+    "explicit_sdk_list_calls": 2,
+    "http_request_count": "uninstrumented",
+    "maximum_explicit_provider_node_calls": 5,
+    "normal_catalog_calls": 1,
+    "registered_observed_native_candidates_max": 4,
+    "registered_owned_folder_entries_max": 16,
+    "representation_lookup_count": "uninstrumented",
+    "work_seconds": 120
+  },
+  "endpoint": "One fresh normal ReadProvider.node current projection, exact ordinary parent/child before/after, complete typed own-folder metadata model before/after, candidate counts, original owner and source/installed/context preservation.",
+  "fixed_subject": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "child": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+    "child_etag": "i2vo::i2vn",
+    "collection": "drive",
+    "logical_metadata_size": 138902,
+    "parent": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+    "parent_etag": "i2vp"
+  },
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6-preparation-private-v1/root-build-execution-v1/normal-catalog-observer",
+    "sha256": "44a0f2101cf11cf26dee149d44563456907b0d27cfd611750c1684ba69518420",
+    "size": 189910000
+  },
+  "helper_build": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6-preparation-private-v1/root-build-execution-v1/terminal-v1.json",
+    "sha256": "40d24804ba351096cd0812cc23bb6ce1ccbff8d26197c1c240ae23da0602491b",
+    "size": 202296
+  },
+  "helper_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6-preparation-private-v1/root-build-execution-v1/audit-independent-build-terminal-v1.json",
+    "sha256": "4f702ba8d4a837d127dec9c40f44f555eb00a218e71ca035e6b5b4cb2f7f4f61",
+    "size": 6923
+  },
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6-preparation-private-v1/root-catalog-authorities-v1/installed-baseline-v1.json",
+    "sha256": "4afd8f1bac7d94185a5aec73531832820d03dee95e758ed2eba0252fd1e03fab",
+    "size": 8134
+  },
+  "limits": [
+    "Only normal metadata/representation classification for this owned folder. Fresh classification may inspect all native candidates in this parent; counts are typed before/after observations, not instrumented provider request counts or a hard bound on raced internal snapshots. Original120-second wall/monotonic cap bounds the whole helper.",
+    "No children_for_node, generated archive enumeration, open/read session, download, raw capture/hash/semantic check or provider mutation. Generated archive metadata is unavailable without materialization and remains null.",
+    "PACKAGE proof requires the positive actual normal Folder/package=true projection; package=false does not prove DATA. Filename/extension selects candidate lookups but never classifies representation.",
+    "No relabelling of completed DATA workflow, cb31 inherited ordinary test, previous6e904cause or editor/inherited GUI completion.",
+    "If PACKAGE confirmed, current ordinary DATA inherited GUI contract cannot admit it. A distinct authentic DATA fixture before Apple editor open is needed for that endpoint; no automatic clone/write/test substitution.",
+    "No raw provider bodies, URLs, token/credential/error dumps or other candidate names/IDs are retained. Full selected Node is only exact owned identity/name/revision fields."
+  ],
+  "prediction": "The fresh normal package-enabled provider will return Folder/package=true at the same identity/revision/logical138902 after its own representation and folder-fingerprint checks. A non-package projection remains representation unproved rather than inferred DATA.",
+  "question": "Does the normal lazy package catalog project the exact current owned Numbers child as PACKAGE at parenti2vp/childi2vo::i2vn, without downloading content?",
+  "ready": false,
+  "registered_utc": "2026-10-08T15:44:26.854045+00:00",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6/registration-v1.json",
+    "sha256": "35d5cdb91f2ff56a99e0588ab2523c64efc2b22bfbb24525bde1f0a368c2dc57",
+    "size": 11826
+  },
+  "run": "3c753192-7002-47df-9789-5f0c21ebd0b6",
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6-preparation-private-v1/audit-independent-normal-catalog-source-v2.json",
+    "sha256": "2aeb41ecc1ad69eff1298c04eff59cdbd804690ef2a82d147fb938c854e089ad",
+    "size": 8572
+  },
+  "status": "closed_normal_catalog_observed",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6/terminal-v1.json",
+    "sha256": "481efe0268e6d365d09f7d24ca99ff2a7b62de51e0db8573f8d0285b745c8dc6",
+    "size": 5934
+  },
+  "version": 1,
+  "window": null,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6/audit-independent-normal-catalog-terminal-v1.json",
+    "size": 6228,
+    "sha256": "ccf6be390088bb000a09586afa8a163244bc3efbb7bead39c8cc6b5e670622ae"
+  },
+  "independent_checks_passed": 29,
+  "root_postrun_unit_preservation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6/root-postrun-unit-preservation-v1.json",
+    "size": 400,
+    "sha256": "39317a074f9c5d56d3e32b1c2362b631caa4b0e22e1895df2b8226a8af12f4a7"
+  },
+  "helper_stdout": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-normal-catalog-3c753192-7002-47df-9789-5f0c21ebd0b6/stdout.json",
+    "sha256": "aa9978657c24301f99dbbc0f39bfc8a3f849e3b3658c40b602a27ed18165c04e",
+    "size": 3559
+  },
+  "normal_catalog_observation": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "catalog_observation_success": true,
+    "cloud_mutations": 0,
+    "collection": "drive",
+    "content": {
+      "after": {
+        "etag": "i2vo::i2vn",
+        "id": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+        "kind": "file",
+        "kind_matches_expected": true,
+        "name": "Cirrove-Numbers-Data-8bbfa670-42ac-4f04-91d1-a6cbd6afc018.numbers",
+        "name_matches_registered": true,
+        "owned_tuple_admissible": true,
+        "parent_id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+        "parent_matches_known_owned_folder": true,
+        "parent_matches_registered_owner": true,
+        "size": 138902,
+        "target_absent": true
+      },
+      "before": {
+        "etag": "i2vo::i2vn",
+        "id": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+        "kind": "file",
+        "kind_matches_expected": true,
+        "name": "Cirrove-Numbers-Data-8bbfa670-42ac-4f04-91d1-a6cbd6afc018.numbers",
+        "name_matches_registered": true,
+        "owned_tuple_admissible": true,
+        "parent_id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+        "parent_matches_known_owned_folder": true,
+        "parent_matches_registered_owner": true,
+        "size": 138902,
+        "target_absent": true
+      },
+      "classification_basis": "fresh_normal_with_package_artifacts_node_projection",
+      "complete_typed_folder_model_unchanged": true,
+      "content_requested": false,
+      "explicit_sdk_list_calls": 2,
+      "generated_archive_metadata": null,
+      "native_candidates_after": 1,
+      "native_candidates_before": 1,
+      "normal_node": {
+        "content_version": null,
+        "etag": "i2vo::i2vn",
+        "id": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+        "kind": "folder",
+        "modified_unix": 0,
+        "name": "Cirrove-Numbers-Data-8bbfa670-42ac-4f04-91d1-a6cbd6afc018.numbers",
+        "package": true,
+        "parent_id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+        "size": 138902,
+        "target": null
+      },
+      "owned_folder_entries_after": 1,
+      "owned_folder_entries_before": 1,
+      "package_confirmed": true,
+      "parent_after": {
+        "etag": "i2vp",
+        "id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+        "kind": "folder",
+        "kind_matches_expected": true,
+        "name": "Cirrove-Native-8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+        "name_matches_registered": true,
+        "owned_tuple_admissible": true,
+        "parent_id": "FOLDER::com.apple.CloudDocs::root",
+        "parent_matches_known_owned_folder": null,
+        "parent_matches_registered_owner": true,
+        "size": 0,
+        "target_absent": true
+      },
+      "parent_before": {
+        "etag": "i2vp",
+        "id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+        "kind": "folder",
+        "kind_matches_expected": true,
+        "name": "Cirrove-Native-8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+        "name_matches_registered": true,
+        "owned_tuple_admissible": true,
+        "parent_id": "FOLDER::com.apple.CloudDocs::root",
+        "parent_matches_known_owned_folder": null,
+        "parent_matches_registered_owner": true,
+        "size": 0,
+        "target_absent": true
+      },
+      "raw_capture": false,
+      "representation": "PACKAGE",
+      "representation_lookup_count": "uninstrumented"
+    },
+    "content_requested": false,
+    "editor_readiness_proved": false,
+    "error_class": null,
+    "http_request_count": "uninstrumented",
+    "maximum_normal_catalog_calls": 1,
+    "metadata_method_calls_started": 5,
+    "normal_catalog_method_started": true,
+    "parent_before": {
+      "etag": "i2vp",
+      "id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+      "kind": "folder",
+      "kind_matches_expected": true,
+      "name": "Cirrove-Native-8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+      "name_matches_registered": true,
+      "owned_tuple_admissible": true,
+      "parent_id": "FOLDER::com.apple.CloudDocs::root",
+      "parent_matches_known_owned_folder": null,
+      "parent_matches_registered_owner": true,
+      "size": 0,
+      "target_absent": true
+    },
+    "raw_capture": false,
+    "representation_proved": true,
+    "run": "3c753192-7002-47df-9789-5f0c21ebd0b6",
+    "stage": "local_preservation",
+    "success": true,
+    "version": 1
+  },
+  "representation_proved": true,
+  "content_requested": false,
+  "generated_archive_metadata": null,
+  "gate489_closed": false,
+  "installed_HOLD_released": false
+}

@@ -1,0 +1,121 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/writable-owner-d7b9d7b9-80a4-41b6-877e-7703eb6f3ee0",
+  "TMPDIR": "/home/dandiccf/Storage/ct/writable-owner-d7b9d7b9-80a4-41b6-877e-7703eb6f3ee0",
+  "active": false,
+  "active_measurement": false,
+  "actual_helper_elapsed_seconds": 349.04419490596047,
+  "actual_helper_result": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-d7b9d7b9-80a4-41b6-877e-7703eb6f3ee0/evidence/result.json",
+    "sha256": "ba7d528d0f25118d8e1d84325291cbf818a3303c0e91d571fa7c2a1f3e715e1c",
+    "size": 5880
+  },
+  "audit_passed": 32,
+  "audit_total": 32,
+  "candidate_evidence": "/home/dandiccf/Storage/ct/pfwritable-d7b9d7b9-80a4-41b6-877e-7703eb6f3ee0/evidence",
+  "cleanup_reserve": 45,
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/run_offline_writable_migration_once_v3.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/root-approved-authorities-v1/inputs-approved-v1.json",
+    "--sha256",
+    "SEE_IMMUTABLE_DISPATCH"
+  ],
+  "constructor_startup_changes": 0,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/run_offline_writable_migration_once_v3.py",
+    "sha256": "ddfa80a0285c85c2af10492aed3e74367b27163dc24d42b4ed3a7b852f6091dc",
+    "size": 14759
+  },
+  "empty_working_exports": 4,
+  "fullcheck": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-fullcheck-execution-v1/terminal-v1.json",
+    "sha256": "c6d6b8786072df0fc095751ed6017af16e90982cef5efc6a4b48cadf27952329",
+    "size": 1693
+  },
+  "fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-fullcheck-execution-v1/audit-independent-fullcheck-terminal-v1.json",
+    "sha256": "068af5e2f9b6c23aff26db643560408ef29c08963083f3c2d1be5d2b0cbf767f",
+    "size": 10165
+  },
+  "gate488_closed": false,
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build-execution-8bb68ffd-9664-4ee6-ab7b-37a7121c08db/frozen-helper",
+    "sha256": "5bd6cd9ca14069b56c87e5d25b832f8ef5971837e55ebc6f099027d90d6c7fb4",
+    "size": 365534256
+  },
+  "helper_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build-execution-8bb68ffd-9664-4ee6-ab7b-37a7121c08db/audit-independent-build-terminal-v1.json",
+    "sha256": "6db2099f953e3250abc3b7ca618b875120fe52b9a23cabcc29ece9160d7a0a50",
+    "size": 16275
+  },
+  "helper_build_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build-execution-8bb68ffd-9664-4ee6-ab7b-37a7121c08db/terminal-v1.json",
+    "sha256": "670b9a807aa736db9de7879f140a9750dd2c23999c7351f975d04eeb5d6cb857",
+    "size": 160720
+  },
+  "immutable_dispatch_path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/root-approved-authorities-v1/actual-dispatch-v1.json",
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-d7b9d7b9-80a4-41b6-877e-7703eb6f3ee0/evidence/audit-independent-writable-migration-terminal-v1.json",
+    "sha256": "008890cdbb9f54352d664014e89359ea2097f54ae6b68b02f4a383234710f145",
+    "size": 19443
+  },
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/root-approved-authorities-v1/installed-baseline-v1.json",
+    "sha256": "b5a0c8986e26b9762d2ca88b4d66057230bd2a428f2e2078c614e784e5b97d66",
+    "size": 8983
+  },
+  "installed_state_opened": false,
+  "journal_count": 3,
+  "legacy_tables_per_account": 20,
+  "limits": [
+    "Historical archived state on a new independent copy; original installed state was never opened",
+    "No Manager, credential vault, worker, provider, claim, replay or installation",
+    "The real snapshot had no uncertain-attempt resets or explicit retirements; those branches have synthetic controls only",
+    "Does not close installed lifecycle/Strata/reliability gates488-490 or lift delivery HOLD"
+  ],
+  "metadata_count": 4,
+  "migration_tuple": {
+    "from": [
+      14,
+      7
+    ],
+    "to": [
+      21,
+      8
+    ]
+  },
+  "new_known_empty_tables_per_account": 13,
+  "nonempty_working_exports": 7,
+  "prediction": "The seven pending mutations and nine incomplete queue entries retain their exact IDs/sequences/resources/intents and completion flags. Eleven active clean-unlinked working streams remain exportable byte-for-byte; cleanliness alone does not authorize collection. Only explicit retired_working IDs without active working rows may be collected after independent local byte retention, and only exact source-defined reader gates/uncertain attempt resets may differ. Every unregistered change refuses.",
+  "preserved_working_exports": 11,
+  "provider_actions": false,
+  "question": "Does the current feature-free public writable constructor migrate every account in a new complete disposable copy of the archived unsettled14/7 state to21/8, preserving pending operation authority, active sealed/working exports, all payload bytes, settings and sessions without any provider, credential broker or worker?",
+  "retired_rows_exercised": 0,
+  "run": "d7b9d7b9-80a4-41b6-877e-7703eb6f3ee0",
+  "scope": "Offline writable-constructor migration of a complete historical archive copy; installed acceptance remains open",
+  "seconds": 900,
+  "source_count": 573,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/audit-independent-offline-writable-sqlseq-source-v1.json",
+    "sha256": "575b9641337137a9e11cadbdf0962f7203c11047ae7bb27131bca9b54a5fd68e",
+    "size": 3660
+  },
+  "state": "closed_offline_writable_migration_pass",
+  "success": true,
+  "temporary_filesystem": "ext4",
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/writable-owner-d7b9d7b9-80a4-41b6-877e-7703eb6f3ee0/terminal-v1.json",
+    "sha256": "9cb2f3e4a87a750d5ca03ba6be872ea28ecc571dadf728f8fd22184ddad916f7",
+    "size": 150418
+  },
+  "version": 1,
+  "window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "monotonic_end": 514241.110966694,
+    "monotonic_start": 513341.110966694,
+    "wall_end": 1791489613.987888,
+    "wall_start": 1791488713.987888
+  }
+}

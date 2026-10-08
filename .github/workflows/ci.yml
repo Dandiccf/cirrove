@@ -438,7 +438,7 @@ jobs:
           if-no-files-found: error
       - name: Install, run, validate what a desktop would read, and remove
         run: |
-          sudo apt-get install -y ./target/deb/cirrove_*.deb ./target/deb/cirrove-desktop_*.deb
+          sudo apt-get install -y --no-install-recommends ./target/deb/cirrove_*.deb ./target/deb/cirrove-desktop_*.deb
           cirrove --help >/dev/null
           cirroved --help >/dev/null
           grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service

@@ -1,0 +1,131 @@
+{
+  "HOLD_lifted": false,
+  "Root_head": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "active": false,
+  "active_measurement": false,
+  "actual_preserved_backup": {
+    "backup_complete": true,
+    "clone_complete": true,
+    "detached_settled": false,
+    "file_bytes": 5985486884,
+    "independent_checks_passed": 26,
+    "member_count": 5271,
+    "original_and_backup_stat_bytes_verified": true,
+    "regular_file_count": 5254,
+    "whole_preparation_success": false
+  },
+  "arms": [
+    "one mask + once old-service stop + serial whole backup/clone/observation copies + detached strict settled check"
+  ],
+  "backup_complete": true,
+  "candidate_commit": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "candidate_installation": false,
+  "candidate_migration": false,
+  "cleanup_reserve": 45,
+  "clone_complete": true,
+  "corrections": [
+    {
+      "detail": "The actual preparation refused detached settlement. Complete independent backup and clone preservation separately passed26 checks; this does not admit settled migration or close488. The own mask was retained by this run and later removed by the separately recorded bcb4 attempt.",
+      "scope": "independent_actual_audit_consolidation"
+    },
+    {
+      "detail": "Correction: the original detached-settled false result came from the private connect(uri, **kw) adapter receiving a positional filename together with uri=True, which raises TypeError before any database connection. Its whole outcome remains FAIL and complete preserved backup audit26 remains valid. This run did not establish an unsettled persisted-state category. Later c998 observes only a separate disposable copy; it does not retroactively turn this run into a successful settlement probe.",
+      "independent_audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/a11-disposable-settlement-diagnostic-private-v1/focused-existing-tree-private-v1/audit-independent-focused-disposable-terminal-v1.json",
+        "sha256": "4f801422d89387ed8bf0f44f127a8f61bcc66f30411280de095bf1efaa22c2a4",
+        "size": 7598
+      },
+      "original_success_retained": false,
+      "prior_status": "closed_settled_refusal_backup_preserved",
+      "scope": "independent_source_receipt_classification_c998_v1"
+    }
+  ],
+  "delivery_credit": false,
+  "detached_settled": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/prepare_stopped_state_once_v4.py",
+    "sha256": "ae42bc97723321ebffcc27c648fd54eddfe89386d1210725269320a1596c657b",
+    "size": 40127
+  },
+  "endpoint": "stopped_complete_independent_backup_clone_and_detached_settled_admission",
+  "failure_disposition": "Keep owned mask and all complete/incomplete evidence. No automatic restart/unmask/replay. Unknown original in-flight state requires reviewed follow-up before an old writer restart.",
+  "gate488_closed": false,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/audit-independent-complete-backup-refusal-terminal-v1.json",
+    "sha256": "3e75bb03d5463379af56306f1c74ce2bdc7b8f4b80f8ab7ebceee9add4040a1b",
+    "size": 22036
+  },
+  "independent_focused_classification_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/a11-disposable-settlement-diagnostic-private-v1/focused-existing-tree-private-v1/audit-independent-focused-disposable-terminal-v1.json",
+    "sha256": "4f801422d89387ed8bf0f44f127a8f61bcc66f30411280de095bf1efaa22c2a4",
+    "size": 7598
+  },
+  "installed_actions": [
+    "own runtime mask",
+    "daemon-reload",
+    "one service stop"
+  ],
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/root-approved-authorities-a11-v1/installed-baseline-v1.json",
+    "sha256": "990b0baf66108aaae3a4895ddd7a584f5abda6b53b4797b5bb4f75b3e2083737",
+    "size": 9681
+  },
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 507884.69804084,
+    "monotonic_start": 506984.69804084,
+    "seconds": 900,
+    "wall_end": 1791483257.5749621,
+    "wall_start": 1791482357.5749621
+  },
+  "owned_mask_retained": true,
+  "prediction": "The 3 saved accounts retain every settings/sealed/cache/journal/WAL/SHM/working byte in full copies. Some unsettled or unsupported retained rows may refuse the next upgrade; this does not invalidate or delete a completed backup. Cancel-before-local-seal is not a zero-remote-effects guarantee for already in-flight requests. Approximately 6 GB per tree, at least 18 GB copies plus 4 GiB free reserve, must complete within one finite window.",
+  "preexisting_inflight_provider_effects": "unknown_not_claimed_zero",
+  "preflight_correction_proposal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/attached-unitpath-successor-private-v1/proposal-v1.json",
+    "sha256": "7a886bfe19ad8675c1d6f591b21d8451f05b48906f6545ca9d040b316d85d0e2",
+    "size": 2899
+  },
+  "preflight_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/attached-unitpath-successor-private-v1/original_preflight_attached_roots_v1.py",
+    "sha256": "f6422caec853f25d9bd47323d2e5e683b9983216fffa48729c1bbe057ad1076d",
+    "size": 28690
+  },
+  "prior_failed_run": "61f8697a-190f-42b5-8f93-acda8341f201",
+  "provider_requests_by_preparer": 0,
+  "public_filename": "icloud-installed-stopped-backup-clone-2026-10-08-a11c19a2-0701-43f1-a12d-3200d2636b96.json",
+  "question": "Can the actual packaged a9e2429 service be stopped once under an owned runtime mask, with complete coherent real-state backup on a distinct physical disk, disposable clone, and independently observed settled14/7 classification while preserving all saved-account desired grants/settings and installed artifacts?",
+  "ready": false,
+  "registered_absent_operation_accounts": [
+    "d7e42a98-dc9f-4175-b3d2-c9f404a9c448"
+  ],
+  "registered_utc": "2026-10-08T17:41:39.705455+00:00",
+  "restart": false,
+  "run": "a11c19a2-0701-43f1-a12d-3200d2636b96",
+  "runtime_state_copies": "/home/dandiccf/Storage/ct/pfclone-b03eaf18-8600-4aa5-aff0-04e9b7f9d9ae",
+  "seconds": 900,
+  "settlement_classification": {
+    "complete_backup_preservation_proof_unchanged": true,
+    "failure_class": "private_adapter_TypeError_before_SQL",
+    "later_copy_observation_run": "c998fd86-119f-4c87-88ac-f8db6517deb6",
+    "observed_settled": false,
+    "persisted_unsettled_state_proved_by_this_run": false
+  },
+  "settlement_credit": false,
+  "source_count": 573,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/audit-independent-lazy-operation-lease-source-v5.json",
+    "sha256": "e83f920b28cd846577c4d7c924abaab1730b635317a7a2570404e91c68c4ca6f",
+    "size": 6810
+  },
+  "status": "closed_adapter_refusal_complete_backup_preserved",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/prior-preparation-closure-v1.json",
+    "sha256": "29cdea42d8c29ce5039a9b32a078864764a077ad26b87044de64a36f134e6d52",
+    "size": 3215703
+  },
+  "unmask": false,
+  "version": 1
+}

@@ -1,0 +1,97 @@
+{
+  "HOLD_lifted": false,
+  "active": false,
+  "active_measurement": false,
+  "actual_no_start_outcome": {
+    "all_original_tool_and_transition_owners_closed": true,
+    "daemon_reload_succeeded": true,
+    "independent_checks_passed": 19,
+    "oldstart_dispatched": false,
+    "original_and_backup_preserved": true,
+    "owned_mask_removed": true
+  },
+  "arms": [
+    "One explicit unchanged old packaged start only after complete original/backup byte-stat parity, exact own mask removal, reviewed observed preexisting work classification, and no original preparation/candidate write or SQL touch."
+  ],
+  "cleanup_reserve": 45,
+  "corrections": [
+    {
+      "detail": "Actual bcb4 remains failed before first oldstart. Mask removal and reload completed; no start receipt exists. Explicit already-unmasked successor f4a7 canonicalizes JSON container shape while preserving every route field; it does not repeat unlink/reload/stop.",
+      "scope": "independent_actual_audit_consolidation"
+    }
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/complete-backup-unsettled-restoration-private-v1/restore_complete_unchanged_original_once_v1.py",
+    "sha256": "c049e16c203a69cdafa26a9eb7ccd2490bd900bbbcb61bc1dfcd4c10e945eb9c",
+    "size": 15918
+  },
+  "endpoint": "explicit_unchanged_old_package_restoration_after_complete_backup",
+  "gate488_closed": false,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/restore-original-bcb4be86-62ca-48f9-95df-428357e76cff/audit-independent-prestart-restoration-refusal-v1.json",
+    "sha256": "e535d22ef11cf6dbc79dc33d5818638181e4860c8597e32280a5d21f25eba215",
+    "size": 15850
+  },
+  "installation_performed": false,
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/root-approved-authorities-a11-v1/installed-baseline-v1.json",
+    "sha256": "990b0baf66108aaae3a4895ddd7a584f5abda6b53b4797b5bb4f75b3e2083737",
+    "size": 9681
+  },
+  "maintenance_history": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/downstream-metadata-binder-private-v1/root-restoration-authorities-v1/maintenance-history-v1.json",
+    "sha256": "cd97d4105e654bd8b38d49947baba3075f0a203b6ef95d221b0a1c4f234fc366",
+    "size": 10805
+  },
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 508225.6392762,
+    "monotonic_start": 507325.6392762,
+    "seconds": 900,
+    "wall_end": 1791483598.5161974,
+    "wall_start": 1791482698.5161974
+  },
+  "planned_normal_restart": true,
+  "planned_unmask": true,
+  "prediction": "Original and complete backup bytes/stat remain exact before one old-package start; existing work/auth/grants remain unchanged. A settled refusal prevents upgrade but does not become a false settlement claim or automatic restart.",
+  "preexisting_work_risk": "Root must explicitly review observed unsettled or in-flight classification; old normal start may resume existing work and no zero-provider-effects claim is made.",
+  "preparation_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/audit-independent-complete-backup-refusal-terminal-v1.json",
+    "sha256": "3e75bb03d5463379af56306f1c74ce2bdc7b8f4b80f8ab7ebceee9add4040a1b",
+    "size": 22036
+  },
+  "preparation_closure": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/prior-preparation-closure-v1.json",
+    "sha256": "29cdea42d8c29ce5039a9b32a078864764a077ad26b87044de64a36f134e6d52",
+    "size": 3215703
+  },
+  "preparation_run": "a11c19a2-0701-43f1-a12d-3200d2636b96",
+  "public_filename": "icloud-installed-complete-backup-original-restoration-2026-10-08-bcb4be86-62ca-48f9-95df-428357e76cff.json",
+  "question": "Can Root explicitly restore the exact unchanged old packaged service after a complete preserved backup, including a detached settled refusal, without any candidate or preparation write to original state?",
+  "ready": true,
+  "registered_utc": "2026-10-08T18:04:49.338594+00:00",
+  "restoration_scope": "unchanged_original_old_package_after_complete_backup",
+  "run": "bcb4be86-62ca-48f9-95df-428357e76cff",
+  "seconds": 900,
+  "source_count": 573,
+  "source_diagnosis": {
+    "category": "tuple_list_route_comparison_mismatch",
+    "detail": "Fresh preflight file_identity returns tuple stamps; persisted initial_package_route JSON has list stamps. Raw route equality cannot pass even with identical values. Exception text was not retained; closed reload/final route calls and static constructor/comparison establish the guard defect.",
+    "exact_values_preserved": true,
+    "successful_source_review_did_not_prove_runtime_DTO_comparison": true
+  },
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/complete-backup-unsettled-restoration-private-v1/audit-independent-complete-backup-restoration-source-v3.json",
+    "sha256": "344052a730770c954b4171e48b409207dec6a8859ec1b33e22d995188e79fda4",
+    "size": 3939
+  },
+  "status": "restoration_refused_preserved",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/restore-original-bcb4be86-62ca-48f9-95df-428357e76cff/failed-terminal-v1.json",
+    "sha256": "ea953e07428f5557e9e378d34329e5a5682edc3259b73bc11431db0d6f416fde",
+    "size": 238
+  },
+  "version": 1
+}

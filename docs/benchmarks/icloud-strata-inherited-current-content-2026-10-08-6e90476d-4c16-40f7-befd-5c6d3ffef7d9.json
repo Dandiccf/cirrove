@@ -1,0 +1,130 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "arms": [
+    "One separate exact current content read; no retry."
+  ],
+  "bounds": {
+    "cleanup_seconds": 15,
+    "http_request_count": "uninstrumented",
+    "maximum_content_windows": 1,
+    "maximum_metadata_method_calls": 4,
+    "process_file_size_limit": 262144,
+    "stdout_stderr_read_limit": 65536,
+    "work_seconds": 120
+  },
+  "endpoint": "Exact parent and child metadata before and after, successful SDK ordinary DATA read_window, independently hashed private raw capture, source and installed preservation, all original owners closed.",
+  "fixed_subject": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "child": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+    "child_etag": "i2vo::i2vn",
+    "collection": "drive",
+    "metadata_size": 138902,
+    "parent": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+    "parent_etag": "i2vp"
+  },
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9-preparation-private-v1/root-build-execution-v1/current-content-observer",
+    "sha256": "e7de5eef0674bc140d11d7905aae711cd0b604a64927a2a578d2ac35b74ce338",
+    "size": 190102880
+  },
+  "helper_build": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9-preparation-private-v1/root-build-execution-v1/terminal-v1.json",
+    "sha256": "eafb6bc657964ef5e17a2f634e46dfd9ae569ffd069ab316c38bca9f547a79bd",
+    "size": 202289
+  },
+  "helper_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9-preparation-private-v1/root-build-execution-v1/audit-independent-build-terminal-v1.json",
+    "sha256": "b9fe2d32969ff3bfefb258d7816e5e970461de288721c6683e3ddd0f729e6415",
+    "size": 6160
+  },
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9-preparation-private-v1/root-content-authorities-v1/installed-baseline-v1.json",
+    "sha256": "c5314768b9d1012839dfbf0994f136d5765c11ace90c5c076d1e52566a104cf7",
+    "size": 8140
+  },
+  "limits": [
+    "The historical 138943-byte B and 223e digest are provenance, never current-content acceptance values.",
+    "No native editor, inherited pin, semantic or byte-preservation-after-Apple claim.",
+    "No filename or Node.package inference of DATA. Only successful SDK ordinary read_window proves DATA; refusal leaves content and representation unknown.",
+    "The normal provider can make authentication, folder cross-check and transport requests internally; HTTP counts are uninstrumented. No raw provider bodies, signed URLs or tokens are retained.",
+    "Private raw fixture bytes are retained locally. No cache stripping, daemon, writer, cloud mutation, representation conversion or automatic replay.",
+    "Unavailable is a collapsed transport/SDK error category, not evidence of a transient outage, PACKAGE conversion, expiry or product defect. No automatic retry occurred."
+  ],
+  "prediction": "If this tuple remains current and the SDK accepts its actual DATA representation, a single full streamed window will validate 138902 bytes and yield a new measured SHA256. A changed revision or representation refusal stops this arm without substituting historical bytes.",
+  "question": "Does the exact owned Numbers node at the newly observed parent i2vp and child i2vo::i2vn expose ordinary DATA content, and what are its actual bytes and SHA256?",
+  "ready": false,
+  "registered_utc": "2026-10-08T15:11:41.423220+00:00",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9/registration-v1.json",
+    "sha256": "32dea494c2535c38ffbf53308a51611a82f1bed5c452dfbf99732b3f46e75e3a",
+    "size": 11758
+  },
+  "run": "6e90476d-4c16-40f7-befd-5c6d3ffef7d9",
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9-preparation-private-v1/audit-independent-current-content-source-v1.json",
+    "sha256": "47189d1138360bf33080110f13b53d18c345222a2665e72ddbfcdb9e3a7f900d",
+    "size": 5634
+  },
+  "status": "closed_current_content_unknown",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9/terminal-v1.json",
+    "sha256": "565fcd9709eb04b20dbadcd01905c3dfbfd5e80adcdb330fcfe16deafce00ad8",
+    "size": 1376
+  },
+  "version": 1,
+  "window": null,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9/audit-independent-content-refusal-terminal-v1.json",
+    "size": 5494,
+    "sha256": "d2347b6e1efea9e2180cf8c434ee8f84ecb6c24d1613f44f9141a127f65b0e9b"
+  },
+  "independent_preservation_checks_passed": 25,
+  "root_postrun_unit_preservation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9/root-postrun-unit-preservation-v1.json",
+    "size": 400,
+    "sha256": "fe1ea3bcd8d17dd0a59043a6ed8c2961fbae7422d0aa2dca6f6c3fe9ef879e65"
+  },
+  "helper_stdout": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-current-content-6e90476d-4c16-40f7-befd-5c6d3ffef7d9/stdout.json",
+    "size": 867,
+    "sha256": "960ffce3257fb3f52b74466f100650e9f76f6b4e1e90a4ffd53da7cf5d958354"
+  },
+  "reduced_failed_observation": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "cloud_mutations": 0,
+    "collection": "drive",
+    "content": null,
+    "content_observation_success": false,
+    "editor_readiness_proved": false,
+    "error_class": "unavailable",
+    "http_request_count": "uninstrumented",
+    "maximum_content_windows": 1,
+    "metadata_method_calls_started": 2,
+    "parent_before": {
+      "etag": "i2vp",
+      "id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+      "kind": "folder",
+      "kind_matches_expected": true,
+      "name": "Cirrove-Native-8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+      "name_matches_registered": true,
+      "owned_tuple_admissible": true,
+      "parent_id": "FOLDER::com.apple.CloudDocs::root",
+      "parent_matches_known_owned_folder": null,
+      "parent_matches_registered_owner": true,
+      "size": 0,
+      "target_absent": true
+    },
+    "representation_proved": false,
+    "run": "6e90476d-4c16-40f7-befd-5c6d3ffef7d9",
+    "stage": "ordinary_data_window",
+    "success": false,
+    "version": 1
+  },
+  "observed_capture_bytes": 0,
+  "validated_capture": null,
+  "representation_proved": false,
+  "content_observation_success": false,
+  "gate489_closed": false,
+  "installed_HOLD_released": false
+}

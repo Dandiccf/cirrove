@@ -1,0 +1,122 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "HOLD_lifted": false,
+  "Root_head": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/clone573-v2",
+  "TMPDIR": "/home/dandiccf/Storage/ct/clone573-v2",
+  "active_measurement": false,
+  "actual_checkout_head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "automatic_retry": false,
+  "candidate_commit": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "committed_candidate": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "correction": "V1 metadata exited101 before controls/build because unseeded helper lock selected unavailable zerocopy-derive0.8.57. V2 seeds exact checked W Cargo.lock; offline metadata may reconcile helper root, registry dependencies remain a checksum subset of current W lock. No fetch/features/source change.",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/build_current573_clone_verifier_once_v2.py",
+    "sha256": "9db2cee679aab18279ffcc7cf4410342386e17de0fda22e706f9a3fc74d34b38",
+    "size": 16948
+  },
+  "endpoint": "One offline metadata/lock30+10, one all-six test900+10, one offline locked build900+10; normal features[], checksum-subset lock, frozen0500 helper and every original handle/group closed.",
+  "expected_commands": 3,
+  "failed_predecessor_metadata": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/root-execution-v1/metadata-result.json",
+    "sha256": "be51395afbace249c3e00a213f63e0aad09d9def81f60286a1e4a8848e4e3695",
+    "size": 75799
+  },
+  "filesystem": "ext4",
+  "gate488_closed": false,
+  "historical_direct_reader_RED": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v3/terminal-v1.json",
+    "sha256": "147ddf8eca50737de349650a5ca4dbf470fcbf52fdb599c956612d0db0cd8df7",
+    "size": 9255
+  },
+  "installed_actions": false,
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/root-build-authorities-v2/installed-baseline-v1.json",
+    "sha256": "b6b5ec1f5c257ae3b1793f33fd603b65b75a2c2ce0be27896335507e1dd255e0",
+    "size": 8197
+  },
+  "prediction": "Six exact controls PASS and normal[] CargoJSON helper freezes; original owners close and source573/installed19/PID birth stay unchanged. Real retained-state compatibility is not established.",
+  "provider_calls": false,
+  "question": "Can the unchanged V6 detached-journal compatibility verifier pass its six meaningful synthetic controls and produce an exact normal573 helper for committed candidate1de?",
+  "real_retained_clone_run": false,
+  "registered_utc": "2026-10-08T14:59:28.123375+00:00",
+  "run": "d8dd07bd-7b4b-4268-86cb-29c941b5411c",
+  "source_count": 573,
+  "source_equivalence": "Current physical W573 equals checked and committedRoot1de map; actual W HEAD is recorded separately.",
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/audit-independent-current573-v6-build-source-v2.json",
+    "sha256": "1f128cb035bd467e5cd68abeb108cccc712d9db1e515eb99c967b889cd30e9bd",
+    "size": 4916
+  },
+  "status": "closed_six_controls_and_build_passed",
+  "test_names": [
+    "old_column_projection_preserves_duplicate_typed_rows_and_sequence",
+    "changed_legacy_cell_or_missing_column_refuses_parity",
+    "real_cells_preserve_infinity_and_signed_zero_bits",
+    "non_utf8_member_is_refused_without_lossy_alias",
+    "enclosing_fuse_or_nested_mount_refuses",
+    "detached_wal_reader_preserves_actual_input_and_committed_rows"
+  ],
+  "version": 1,
+  "workspace_lock": {
+    "path": "/home/dandiccf/Storage/cirrove-numbers-atomic-postflight-reader-20261007-v1/Cargo.lock",
+    "sha256": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+    "size": 114256
+  },
+  "immutable_initial_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/root-execution-v2/public-preregistration-initial.json",
+    "size": 4257,
+    "sha256": "3362c789c0b1d1dac3604abf3de9ddf240ff28a7ab9b518396846691927350b6"
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/root-execution-v2/terminal-v1.json",
+    "size": 85007,
+    "sha256": "c5b4a63001334bff7ce7a8f6052acf4799c1b959cd3d736ab57948e8139016c5"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/root-execution-v2/audit-independent-build-terminal-v2.json",
+    "size": 11443,
+    "sha256": "d9cb2fa04777b9853d4bebdf61c07e5fdacea3ea6fdb849ea349a40249f94de7"
+  },
+  "independent_checks_passed": 30,
+  "frozen_helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/root-execution-v2/frozen-helper",
+    "sha256": "7b1494bde989eb544cb763dde1c57f25d6a0ed9cced28360a1435279ac16d2b5",
+    "size": 361052960
+  },
+  "actual_controls_passed": 6,
+  "actual_control_names": [
+    "old_column_projection_preserves_duplicate_typed_rows_and_sequence",
+    "changed_legacy_cell_or_missing_column_refuses_parity",
+    "real_cells_preserve_infinity_and_signed_zero_bits",
+    "non_utf8_member_is_refused_without_lossy_alias",
+    "enclosing_fuse_or_nested_mount_refuses",
+    "detached_wal_reader_preserves_actual_input_and_committed_rows"
+  ],
+  "root_postrun_unit_preservation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/root-execution-v2/root-postrun-unit-preservation-v1.json",
+    "size": 400,
+    "sha256": "7939d5517e34bbff45436a429d4ee362018b987276fc8161a93a8fd102952006"
+  },
+  "normal_features": {
+    "cirrove-icloud": [],
+    "cirrove-real-retained-clone-verifier": [],
+    "cirrove-service": []
+  },
+  "installed_HOLD_released": false,
+  "legacy_registration_guard_correction": {
+    "observed_utc": "2026-10-08T15:44:13.720988+00:00",
+    "prior_public": {
+      "size": 6603,
+      "sha256": "e8c2e73c6c37fa45a9b8ac832ea6c0da16fd4feba940eea0b492984d9ceef93d"
+    },
+    "source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/v6-current573-build-preparation-private-v1/main-v6-detached-journal-owner.rs.proposed",
+      "size": 29788,
+      "sha256": "3f21d6c2f6dcbe03269ec1187ef2a69ce243d20aac180813505453e6855f6e77"
+    },
+    "finding": "Helper main admission still requires candidate_source_count571; actual dependency/source map is573. Six controls do not execute real-state main admission.",
+    "impact": "Actual build and six controls remain passing; helper is not ready for a real retained-state invocation. No real retained clone was tested.",
+    "next_action": "Separate one-literal private guard573 successor and actual rebuilt controls; never submit false571 registration for573 sources."
+  }
+}

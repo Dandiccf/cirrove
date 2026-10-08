@@ -1,0 +1,136 @@
+{
+  "HOLD_lifted": false,
+  "active": false,
+  "active_measurement": false,
+  "actual_systemd_handoff": {
+    "all_original_mounts_present": [
+      {
+        "filesystem": "fuse.cirrove",
+        "path": "/home/dandiccf/Cloud/Cirrove-Calista"
+      },
+      {
+        "filesystem": "fuse.cirrove",
+        "path": "/home/dandiccf/Cloud/Cirrove-GoogleDrive"
+      },
+      {
+        "filesystem": "fuse.cirrove",
+        "path": "/home/dandiccf/Cloud/Cirrove-OneDrive"
+      }
+    ],
+    "all_original_tool_handles_closed": true,
+    "complete_backup_preserved": true,
+    "first_oldstart_once": true,
+    "independent_checks_passed": 20,
+    "installed19_preserved": true,
+    "repeated_unlink_reload_stop": false,
+    "service_process": {
+      "argv": [
+        "/usr/bin/cirroved",
+        "--state-dir",
+        "/home/dandiccf/.local/state/cirrove",
+        "--socket",
+        "/run/user/1000/cirrove/control.sock"
+      ],
+      "exe": "/usr/bin/cirroved",
+      "exe_device": 31,
+      "exe_inode": 1826480,
+      "pgid": 2298014,
+      "pid": 2298014,
+      "started": 50773221,
+      "state": "/home/dandiccf/.local/state/cirrove"
+    }
+  },
+  "arms": [
+    "No repeat unlink/reload/stop; exact already-unmasked inactive route in canonical JSON shape; one first old start with retained systemd handoff."
+  ],
+  "authorized_postclosure_source_changes": {
+    "scripts/install-preflight.py": {
+      "current_sha256": "f6422caec853f25d9bd47323d2e5e683b9983216fffa48729c1bbe057ad1076d",
+      "historical_sha256": "fcde11ceb4780654ca3ad5eb2c8b8fbd048d214b29ab4ec200ca121b00753c87"
+    },
+    "scripts/test-package-switch-preflight.py": {
+      "current_sha256": "b4a843be7693a7d78c4edec757b9fb319ff45c24fe098c23f33c64579f6ab64f",
+      "historical_sha256": "29d8e7d2656361923c4a5947c1768f6f3c111b96421bbe054fb27d25aa8ed0d3"
+    }
+  },
+  "cleanup_reserve": 45,
+  "corrections": [
+    {
+      "detail": "Actual f4a7 passed explicit unchanged-oldpackage restoration and systemd handoff after one first oldstart. Current original files may legitimately change after normal startup; no afterstart byte equality or zero-provider-effects claim. Historical573 preservation is distinguished from authorized later2script development. Candidate remains uninstalled and full488 remains open.",
+      "scope": "independent_actual_audit_consolidation"
+    }
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/already-unmasked-original-restoration-private-v1/restore_already_unmasked_original_once_v2.py",
+    "sha256": "6ba49615bcb51562f87317923ba56b4cdb1ba22f7225df66474d3ff12e9cd953",
+    "size": 17464
+  },
+  "endpoint": "explicit_already_unmasked_unchanged_old_package_start",
+  "expected_duration_seconds": 900,
+  "gate488_closed": false,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/restore-original-f4a712c3-0e44-4727-a18b-9b72048d50cb/audit-independent-original-restoration-terminal-v1.json",
+    "sha256": "6e9461a8f940037041f11c46a4767578e4496a98fa1de342e57e844e832e91cd",
+    "size": 38706
+  },
+  "installation_performed": false,
+  "interpreter": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "maintenance_history": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/already-unmasked-original-restoration-private-v1/root-approved-authorities-f4a7-v1/maintenance-history-v1.json",
+    "sha256": "c2be9d7d448c1510c2a23f47f3a7459ddbdf430dc345c84856847efbf520c54c",
+    "size": 11816
+  },
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 508624.617255268,
+    "monotonic_start": 507724.617255268,
+    "seconds": 900,
+    "wall_end": 1791483997.4941766,
+    "wall_start": 1791483097.4941766
+  },
+  "planned_normal_restart": true,
+  "planned_reload": false,
+  "planned_stop": false,
+  "planned_unmask": false,
+  "prediction": "Original and complete backup bytes/stat remain exact before one old-package start; existing work/auth/grants remain unchanged. A settled refusal prevents upgrade but does not become a false settlement claim or automatic restart.",
+  "preexisting_work_risk": "Root must explicitly review observed unsettled or in-flight classification; old normal start may resume existing work and no zero-provider-effects claim is made.",
+  "preparation_run": "a11c19a2-0701-43f1-a12d-3200d2636b96",
+  "prior_failed_restoration": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/restore-original-bcb4be86-62ca-48f9-95df-428357e76cff/failed-terminal-v1.json",
+    "sha256": "ea953e07428f5557e9e378d34329e5a5682edc3259b73bc11431db0d6f416fde",
+    "size": 238
+  },
+  "prior_failed_restoration_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/restore-original-bcb4be86-62ca-48f9-95df-428357e76cff/audit-independent-prestart-restoration-refusal-v1.json",
+    "sha256": "e535d22ef11cf6dbc79dc33d5818638181e4860c8597e32280a5d21f25eba215",
+    "size": 15850
+  },
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/restore-original-f4a712c3-0e44-4727-a18b-9b72048d50cb",
+  "public_filename": "icloud-installed-already-unmasked-original-restoration-2026-10-08-f4a712c3-0e44-4727-a18b-9b72048d50cb.json",
+  "question": "Can Root continue the closed pre-start DTO refusal with one first unchanged old packaged start, after proving the already removed mask remains absent and all original/backup/19/route authorities are preserved?",
+  "ready": true,
+  "registered_utc": "2026-10-08T18:11:31.409606+00:00",
+  "restoration_scope": "unchanged_original_old_package_after_complete_backup",
+  "run": "f4a712c3-0e44-4727-a18b-9b72048d50cb",
+  "seconds": 900,
+  "source_count": 573,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/already-unmasked-original-restoration-private-v1/audit-independent-already-unmasked-restoration-source-v2.json",
+    "sha256": "db6b3b7e02e391e8a57f5e7abe1cb593a0566bf7996dce40f9d6f5f434e319b4",
+    "size": 2592
+  },
+  "source_timing_correction": "Root began authorized scripts/test-package-switch-preflight.py and scripts/install-preflight.py changes after successful f4a7 handoff and before independent audit. The executed restoration source/pinned receipts and preserved W attest the historical573 snapshot; current Root is not relabelled unchanged.",
+  "status": "closed_original_packaged_restored",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/restore-original-f4a712c3-0e44-4727-a18b-9b72048d50cb/terminal-v1.json",
+    "sha256": "23d107dc37348874971aff704e8b51c7e51c05f9ac73f002ea54410f9ddda2ed",
+    "size": 2076
+  },
+  "version": 1
+}

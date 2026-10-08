@@ -1,0 +1,121 @@
+{
+  "CARGO_BUILD_JOBS": 4,
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "Python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/writer-build-8bb68ffd-9664-4ee6-ab7b-37a7121c08db",
+  "TMPDIR": "/home/dandiccf/Storage/ct/writer-build-8bb68ffd-9664-4ee6-ab7b-37a7121c08db",
+  "active": false,
+  "active_measurement": false,
+  "actual_controls": {
+    "GREEN": 12,
+    "RED": 1
+  },
+  "archive_SQL_opened": false,
+  "arms": [
+    "queue-completion guard omission desired RED1",
+    "corrected exact full12 GREEN",
+    "normal-features distinct helper build"
+  ],
+  "audit_passed": 26,
+  "audit_total": 26,
+  "authorization": "Root explicitly authorized this one offline synthetic controls/build; no archive SQL/copy/provider/service actions",
+  "binary_sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build_writable_helper_once_v3.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/root-sqlseq-build-authorities-v1/inputs-approved-v1.json",
+    "--sha256",
+    "SEE_IMMUTABLE_DISPATCH"
+  ],
+  "current_Root_HEAD": "f1e13755dbc56239c5db576fa036bee8bff7803c",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build_writable_helper_once_v3.py",
+    "sha256": "efea290841c12a37434e4840c01532e8a8c7f305c145c7956e0668b745fecf18",
+    "size": 14766
+  },
+  "duration_limits": {
+    "GREEN": 900,
+    "RED": 900,
+    "build": 900,
+    "cleanup_each": 10,
+    "metadata": 30
+  },
+  "endpoint": "specific runtime assertion RED101, corrected full12 GREEN, normal[] distinct frozen ELF and all original compiler groups closed",
+  "expected_commands": 4,
+  "expected_test_names": [
+    "migration_guard_tests::active_export_bytes_preserved",
+    "migration_guard_tests::nested_unknown_field_refused",
+    "migration_guard_tests::pending_queue_completion_change_refused",
+    "migration_guard_tests::preparation_uses_registered_source",
+    "migration_guard_tests::replacement_release_requires_materialized_preparing_source",
+    "migration_guard_tests::uncertain_upload_reset_preserves_authority",
+    "tests::changed_legacy_cell_or_missing_column_refuses_parity",
+    "tests::detached_wal_reader_preserves_actual_input_and_committed_rows",
+    "tests::enclosing_fuse_or_nested_mount_refuses",
+    "tests::non_utf8_member_is_refused_without_lossy_alias",
+    "tests::old_column_projection_preserves_duplicate_typed_rows_and_sequence",
+    "tests::real_cells_preserve_infinity_and_signed_zero_bits"
+  ],
+  "frozen_helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build-execution-8bb68ffd-9664-4ee6-ab7b-37a7121c08db/frozen-helper",
+    "sha256": "5bd6cd9ca14069b56c87e5d25b832f8ef5971837e55ebc6f099027d90d6c7fb4",
+    "size": 365534256
+  },
+  "helper_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/offline_writable_migration_root_sqlseq_v1.rs",
+    "sha256": "bbebd903e78e733a145e660fe6a6c89cded2260f43a065328969b1dc79544c32",
+    "size": 54248
+  },
+  "historical_W_HEAD": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "immutable_dispatch_path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/root-sqlseq-build-authorities-v1/actual-dispatch-v1.json",
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build-execution-8bb68ffd-9664-4ee6-ab7b-37a7121c08db/audit-independent-build-terminal-v1.json",
+    "sha256": "6db2099f953e3250abc3b7ca618b875120fe52b9a23cabcc29ece9160d7a0a50",
+    "size": 16275
+  },
+  "installation_credit": false,
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/root-approved-authorities-v1/installed-baseline-v1.json",
+    "sha256": "b5a0c8986e26b9762d2ca88b4d66057230bd2a428f2e2078c614e784e5b97d66",
+    "size": 8983
+  },
+  "installed_gate_credit": false,
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/Cargo.toml.template",
+    "sha256": "a28537e27838a401a4274915ad7666dac5ae98fe409b494c289ad409406c6961",
+    "size": 955
+  },
+  "mutant_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/offline_writable_migration_root_sqlseq_v1-guard-omission.rs",
+    "sha256": "ee8934d04eb0e530ba99eab1de0a71aaaab0b2b4e92d93cdf358576b20dff6b8",
+    "size": 54244
+  },
+  "positive_name": "migration_guard_tests::pending_queue_completion_change_refused",
+  "predecessor_failed_run": "a36e2777-5913-4a20-9d11-06b5ca114262",
+  "predecessor_failure": "E0277 compile error; zero RED credit; no archive migration",
+  "prediction": "The exact omission must fail one runtime assertion; the corrected observer must pass all12 tests and build. Compiler failure is zero RED credit. No archive SQL/copy or installed compatibility outcome is implied.",
+  "provider_calls": 0,
+  "question": "Does the isolated offline writable-constructor observer reject one deliberate queue-completion guard omission, then pass all12 exact source controls and freeze a distinct normal-feature helper?",
+  "run": "8bb68ffd-9664-4ee6-ab7b-37a7121c08db",
+  "runtime_archive_migration_credit": false,
+  "source_delta": "Only SQL sequence decode i64 plus checked u64 conversion; product sources unchanged",
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/audit-independent-offline-writable-sqlseq-source-v1.json",
+    "sha256": "575b9641337137a9e11cadbdf0962f7203c11047ae7bb27131bca9b54a5fd68e",
+    "size": 3660
+  },
+  "state": "closed_synthetic_writable_migration_helper_build",
+  "status": "closed_synthetic_writable_migration_helper_build",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build-execution-8bb68ffd-9664-4ee6-ab7b-37a7121c08db/terminal-v1.json",
+    "sha256": "670b9a807aa736db9de7879f140a9750dd2c23999c7351f975d04eeb5d6cb857",
+    "size": 160720
+  },
+  "version": 1
+}

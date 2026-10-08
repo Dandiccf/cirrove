@@ -1,0 +1,85 @@
+{
+  "HOLD_lifted": false,
+  "Root_head": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "active": false,
+  "active_measurement": false,
+  "actual": {
+    "backup_complete": false,
+    "clone_complete": false,
+    "independent_verification": {
+      "path": "/home/dandiccf/Storage/ct/pfclone-61f8697a-190f-42b5-8f93-acda8341f201/evidence/audit-independent-prestop-refusal-terminal-v1.json",
+      "sha256": "ff8cf93889ffb16bdecbf4209928ba461feb0937e1f08b72b5f52f575fda5c52",
+      "size": 6395
+    },
+    "installed_upgrade": false,
+    "original_SQL_opened": false,
+    "success": false,
+    "terminal": {
+      "path": "/home/dandiccf/Storage/ct/pfclone-61f8697a-190f-42b5-8f93-acda8341f201/evidence/failed-preparation-terminal-v1.json",
+      "sha256": "6eb7fad1359d08d0c1d19a68a58284b33ffd503605d87d9135b95881ffcf93f7",
+      "size": 647
+    }
+  },
+  "arms": [
+    "one mask + once old-service stop + serial whole backup/clone/observation copies + detached strict settled check"
+  ],
+  "candidate_commit": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "candidate_installation": false,
+  "candidate_migration": false,
+  "cleanup_reserve": 45,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/prepare_stopped_state_once_v2.py",
+    "sha256": "daa03a9e744285d1d3159adcca96cfffbdb7721b481192715f4a3c0e533b6d8b",
+    "size": 35995
+  },
+  "endpoint": "stopped_complete_independent_backup_clone_and_detached_settled_admission",
+  "failure_disposition": "Keep owned mask and all complete/incomplete evidence. No automatic restart/unmask/replay. Unknown original in-flight state requires reviewed follow-up before an old writer restart.",
+  "gate488_closed": false,
+  "installed_actions": [
+    "own runtime mask",
+    "daemon-reload",
+    "one service stop"
+  ],
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/root-approved-authorities-v1/installed-baseline-v1.json",
+    "sha256": "3083575f7911314aeb783ea2d789f923dc2e853c6b063896cf3d058dc8537e61",
+    "size": 9671
+  },
+  "limits": "Verification audit passing does not change failed preparation outcome. No backup/compatibility gate credit.",
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 505370.998180231,
+    "monotonic_start": 504470.998180231,
+    "seconds": 900,
+    "wall_end": 1791480743.8751018,
+    "wall_start": 1791479843.8751018
+  },
+  "owned_mask_retained": false,
+  "prediction": "The 3 saved accounts retain every settings/sealed/cache/journal/WAL/SHM/working byte in full copies. Some unsettled or unsupported retained rows may refuse the next upgrade; this does not invalidate or delete a completed backup. Cancel-before-local-seal is not a zero-remote-effects guarantee for already in-flight requests. Approximately 6 GB per tree, at least 18 GB copies plus 4 GiB free reserve, must complete within one finite window.",
+  "preexisting_inflight_provider_effects": "unknown_not_claimed_zero",
+  "provider_requests_by_preparer": 0,
+  "public_filename": "icloud-installed-stopped-backup-clone-2026-10-08-61f8697a-190f-42b5-8f93-acda8341f201.json",
+  "question": "Can the actual packaged a9e2429 service be stopped once under an owned runtime mask, with complete coherent real-state backup on a distinct physical disk, disposable clone, and independently observed settled14/7 classification while preserving all saved-account desired grants/settings and installed artifacts?",
+  "registered_utc": "2026-10-08T16:35:57.477734+00:00",
+  "restart": false,
+  "root_observed_cause": "Two standard attached UnitPath roots omitted by the private allowlist; historical raw UnitPath reply not retained.",
+  "run": "61f8697a-190f-42b5-8f93-acda8341f201",
+  "runtime_state_copies": "/home/dandiccf/Storage/ct/pfclone-61f8697a-190f-42b5-8f93-acda8341f201",
+  "seconds": 900,
+  "source_count": 573,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/audit-independent-stop-backup-source-v2.json",
+    "sha256": "9451979ca3b9eaf6dd1058d611100267b96f63da4ec4a0bfd93c9e8c92094ac3",
+    "size": 4166
+  },
+  "status": "closed_preparation_refusal",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-61f8697a-190f-42b5-8f93-acda8341f201/evidence/failed-preparation-terminal-v1.json",
+    "sha256": "6eb7fad1359d08d0c1d19a68a58284b33ffd503605d87d9135b95881ffcf93f7",
+    "size": 647
+  },
+  "unmask": false,
+  "version": 1
+}
