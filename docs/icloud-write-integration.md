@@ -5,7 +5,7 @@ access for iCloud accounts; new connections still default to read-only. This has
 not been installed into the user's regular daemon or accepted for release.
 Three owned-folder application runs passed create, save, replacement, relocation
 and recoverable Trash checks; the third includes selected-file admission. Installed
-acceptance and native document-package writing remain under active validation;
+acceptance remains under active validation;
 full iCloud support is not yet achieved.
 See [application evidence](benchmarks/icloud-real-applications-acceptance-2026-10-01.md)
 and [selected-file admission](benchmarks/icloud-selected-write-admission-2026-10-01.md).
@@ -20,10 +20,17 @@ and retained its one-slide B title and subtitle after one reload, with no edits.
 The original managed processes closed and protected source/installed artifacts
 remained unchanged. This is one bounded PACKAGE workflow, with no claim for
 DATA coverage, ordinary/atomic editor saves, broader export fidelity or repeated
-reliability. Full-iCloud acceptance is now two criteria closed and four open; installed
+reliability. Full-iCloud acceptance is now three criteria closed and three open; installed
 delivery remains on HOLD. The dated closure assessment below combines the
 measured replacement, removal, refusal and process-loss endpoints; historical
 open-row counts later in this record retain their original checkpoint meaning.
+
+The [documented iWork application criterion](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json)
+now covers all twelve DATA/PACKAGE ordinary/atomic archive-copy workflows and
+the supported DOCX, PPTX and Apple Excel export-copy checks. Native Linux iWork
+saving remains unsupported; the precise tested content and format limits are
+recorded in the latest dated assessment below. Installed lifecycle, complete
+Strata delivery and reliability criteria remain open.
 
 ## Document packages remain a release gate
 
@@ -4273,8 +4280,84 @@ tests, script checks and documentation generation. All twelve new named Keynote
 tests executed. Only the nine proposed source paths were integrated into the main
 development checkout after the original check finished; its final source hashes
 match the compile checkout. These are synthetic validation and source checks.
-The genuine Keynote DATA cloud case, its normal remount and Apple reopening remain
-pending. No installed service changed and no full-iCloud acceptance criterion closed.
+A [fresh genuine Keynote DATA trial](benchmarks/icloud-keynote-data-ordinary-save-2026-10-07-672e98c3-39b6-45a1-85bd-16cc77a6404b.json)
+subsequently completed one owned folder, one ordinary FUSE create of raw A and one
+same-file overwrite/fsync of raw B. The independent reader confirmed actual DATA
+A before B could be dispatched. Further independent reads verified all 527,694 B
+bytes and the exact 525,068-byte original A in Trash, with distinct current and
+backup identities and their typed revisions. A clean additional fsync added no
+operation. Nine inner and two outer original processes closed; the test mount
+and socket were removed. The case completed in 206.28 seconds within its original
+600-second window and 45-second cleanup reserve, without an automatic retry.
+
+The current feature build reused the already verified normal CLI/daemon and
+produced an exact three-role source binding; its independent audit passed 33/33.
+Cargo reported the probe artifact as cached, with unchanged bytes. A mistyped
+Root input-hash preflight stopped before any compiler launch and remains recorded.
+The four-script live packet's final source and local-preparation audit passed
+22/22. The real cloud outcome has separate retained receipts.
+
+The [separate normal read-only remount](benchmarks/icloud-keynote-data-ro-remount-2026-10-07-3d114776-4344-4869-b628-502e45fd1b06.json)
+stopped at its exact metadata guard: the index retained B's internal staging name
+and earlier revision although the completed publication receipt held the final
+name and revision. All owners closed without mutation; raw mount capture was not
+completed. The [ordinary publication investigation](benchmarks/icloud-ordinary-completed-current-convergence-2026-10-07.json)
+reproduced this completed-history gap in a synthetic normal read-only regression.
+A [local transport regression](benchmarks/icloud-ordinary-replacement-binary-mime-2026-10-07.json)
+also confirmed that ordinary replacements stage binary iWork content under a
+`.txt` name and declare `text/plain` in the allocation request and upload header.
+The correction preserves the original suffix for binary staging and recovery,
+retains legacy checkpoint reservations, and makes completed ordinary history
+refresh the exact current identity before publishing its metadata. Local checks
+passed 19 metadata cases, eight MIME/checkpoint cases, five router cases and
+38 shared DATA-reader cases. The corrected working-file router fixture also
+failed at its intended suffix assertion when only the old hint was restored;
+the DATA refusal control failed when its exact suffix allowlist was omitted.
+Initial compilation and fixture failures remain recorded in the same artifacts.
+The [complete project check](benchmarks/icloud-ordinary-replacement-complete-check-2026-10-07.json)
+then passed all ten sections and 87 Rust result groups, including actual
+FUSE scenarios, script checks and documentation generation. The original
+Clippy refusal and its test-only correction remain recorded. Root and compile
+checkout contain the same 571 runtime source hashes. Fresh normal and feature
+roles subsequently built from those checked sources; the real-provider endpoints
+are recorded below. The correction is not installed. This separate transport
+defect does not establish the cause of Apple's refusal.
+The [separate exact-ID Apple Keynote open](benchmarks/icloud-keynote-data-exact-apple-reopen-2026-10-07-672e98c3.json)
+was refused with "This presentation can’t be opened right now." The visible row
+and editor URL both matched the confirmed current B identity, and both own tabs
+closed with no edits or uploads. This DATA result does not inherit the successful
+PACKAGE reopen result. This is a bounded raw archive-copy create/save, not a native Linux editor
+workflow or broad export-fidelity result. No installed service changed and no
+full-iCloud acceptance criterion closed.
+
+A [fresh normal read-only followup](benchmarks/icloud-keynote-data-ro-remount-2026-10-07-8dec719b-e163-4cad-a31e-901318c12759.json)
+using newly built corrected normal roles observed the canonical Keynote filename,
+parent and size. It refused the newer metadata ETag `i2to::i2tm` against the
+registered historical `i2tn::i2tm`; no raw capture ran. The independent closure
+and diagnosis audit passed 24/24, without treating that audit as observation
+success. Original state and journal frontier remained unchanged; the revision
+change's cause is unproved. This closed arm is not replayed.
+A [new owned Keynote DATA writer](benchmarks/icloud-keynote-data-mime-followup-2026-10-07-2b4c7986-df74-4332-b24f-9d6bfd435fcd.json)
+then completed a fresh A create, independent A preflight and one B overwrite
+using the corrected candidate. Independent reads confirmed all 527,694 B bytes
+and the exact 525,068-byte A original in Trash. Its nine inner and two outer
+original processes closed in 208.24 seconds within the original 600/45 window;
+mount and socket were absent. Its independent writer audit passed 36/36.
+A [separate normal read-only remount](benchmarks/icloud-keynote-data-ro-remount-2026-10-07-edba5896-a07e-4cf8-98a7-d52735c5f3d1.json)
+then returned the exact current B identity, final filename and all 527,694 B bytes
+in 8.62 seconds. The independent audit passed 29/29; all original owners closed,
+mount and socket were absent, and source state and journal frontier were preserved.
+A [separate Apple Keynote observation](benchmarks/icloud-keynote-data-exact-apple-reopen-2026-10-07-2b4-8653574f-c244-47b2-9284-99828cb9ecbf.json)
+opened the exact selected current B row. The genuine B title and subtitle remained
+visible on its single slide before and after exactly one reload. Undo and Redo
+were disabled, no content was edited or uploaded, and both own tabs closed within
+the original observation window. Its independent audit passed 26/26; identity
+is linked through the selected row and sole new editor, without claiming literal
+UUID equality in Apple's short editor URL. This completes one bounded DATA
+archive-copy create/replace, original-Trash verification, normal read-only capture
+and Apple reopen chain. It does not establish native Linux Keynote saving, broader
+fidelity, repeatability or Apple's earlier refusal cause. No installed service
+changed, no old writer was replayed and no full-iCloud criterion closed.
 
 ### Numbers PACKAGE atomic save on 7 October 2026
 
@@ -4305,8 +4388,504 @@ daemon and all nineteen installed artifacts. The original 600-second window and
 occurred. Provider ZIP encodings differ from local source ZIPs; full content-tree
 identity establishes the A/B comparisons.
 
-This supports one bounded archive-copy atomic replacement and independent
-current/Trash readback. A fresh normal read-only remount and exact-receipt Apple
-Numbers reopen for this case remain pending. It does not establish native Linux
-Numbers editing, repeatability, installed acceptance or the complete application
-matrix. Acceptance row 487 remains open and installed delivery remains on HOLD.
+The normal CLI/daemon and strict offline archive scanner then built from the
+same fully checked sources. The build packet stopped before its first scanner
+control because the scanner binary exceeded the verification tool's default
+64 MiB read bound. That failed packet remains recorded. A separate
+[five-control observation](benchmarks/icloud-numbers-atomic-readonly-scanner-independent-controls-2026-10-07.json)
+reused the successful builds with an allowance restricted to that exact scanner
+binary. Genuine A and B passed; wrong raw digest, wrong root and a changed IWA
+member refused. Its independent audit passed 59/59. No compiler or provider
+operation was repeated.
+
+A [fresh normal read-only remount](benchmarks/icloud-numbers-atomic-normal-readonly-remount-2026-10-07-b6ce3c1e-f8e7-4dfd-8a2f-b2d46b66150a.json)
+then reached ready on an isolated, genuinely read-only mount and returned the
+complete semantic V2 B archive. The observation completed in 6.59 seconds within
+its original 600-second window and 45-second cleanup reserve. All five child
+processes were reaped, the mount and socket were removed, and the stopped source
+state and installed daemon remained preserved. The temporary test daemon received
+the expected termination signal for normal shutdown; the other children did not.
+Its independent audit passed 34/34, including preserved source bytes and protected
+file stamps, the derived journal frontier and all nineteen installed artifacts.
+
+[Apple Numbers reopening](benchmarks/icloud-numbers-atomic-exact-apple-reopen-2026-10-07.json)
+matched the selected visible row's exact CloudDocs item ID to the confirmed B
+receipt. The editor displayed A2=7, B2=3, C2=10 and `SUM(A2:B2)`, with no typed cell
+input. Its retained screenshot, accessibility text and DOM identity audit passed
+24/24. Apple uses a shortGUID editor route rather than the CloudDocs UUID expected
+in the preregistration; that correction is retained. The list opened a separate
+editor tab, and a second open created a duplicate which was closed without edits.
+
+These separate observations support one bounded archive-copy atomic replacement,
+independent current/Trash readback, normal read-only remount and exact-document
+Apple reopen. The original writer trial remains failed. They do not establish
+native Linux Numbers editing, repeatability, installed acceptance or the complete
+application matrix. Acceptance row 487 remains open and installed delivery remains
+on HOLD.
+
+
+### Fresh Pages DATA chain on 8 October 2026 (Europe/Vienna)
+
+The [new Pages DATA trial](benchmarks/icloud-pages-data-corrected-candidate-2026-10-07-9fa551d8-c617-4ae7-ac5c-d4d5360bafb9.json)
+used the fully checked metadata/MIME candidate and unchanged genuine Pages80
+exports, rather than replaying the earlier e5ed writer or df50 Apple refusal.
+Its independent source peer passed 16 checks. One fresh ordinary FUSE A create
+was independently confirmed as actual DATA before a single B overwrite was
+allowed. Independent provider reads then matched all 101,769 raw B bytes and all
+100,824 original A bytes in Trash. The same working owner retained the correct
+new current identity and a clean fsync created no additional operation. Nine
+inner and two outer original processes closed in 233.64 seconds within the
+original 600-second window and 45-second cleanup reserve, with mount and socket
+absent. The independent actual audit passed 36/36. No source archive was
+normalized or changed; no installed action occurred.
+
+The [separate normal read-only remount](benchmarks/icloud-pages-data-normal-readonly-remount-2026-10-08-6231f854-e2dd-4a83-a018-38526ed315ca.json)
+used normal feature-free CLI/daemon roles from the same checked 571-source
+candidate. The bound supervisor source peer passed 17 checks and its local-input
+materializer passed 13. The once-only preparation and local check passed before
+any clock or provider dispatch. The fresh observation returned the exact B
+identity, final filename, registered revision and all 101,769 B bytes in 8.62
+seconds. All original owners closed and the mount/socket disappeared; complete
+original source membership, bytes, protected stamps and journal frontier were
+preserved. The independent actual audit passed 29/29.
+
+The [separate exact-row Apple Pages observation](benchmarks/icloud-pages-data-exact-apple-reopen-2026-10-08-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683.json)
+opened the selected row's exact current B identity in its sole new editor tab.
+The genuine 93-byte paragraph remained identical before and after exactly one
+reload, as confirmed by the native accessibility selected-text value and its
+SHA-256, matching the original Pages80 readback. Selecting text did not edit it;
+Undo/Redo stayed disabled. Screenshots and DOM snapshots were retained, both own
+tabs closed, and the observation completed in 249.49 seconds within its original
+600/45 window. A read-only DOM textbox lookup timed out before evaluation; a
+subsequent uninitialized local expected-text guard stopped before any action.
+Both observation failures and the corrected exact-text accessibility proof remain
+in the same artifact. Neither caused another open, reload, upload or content edit.
+The independent audit passed 28/28. The retained screenshots show the opened
+Pages document and selection, but their small text is not an independent visual
+transcription; the complete native accessibility value supplies the exact text
+proof.
+
+This completes one bounded Pages DATA archive-copy create/replace, original-Trash
+verification, normal read-only readback and exact-text Apple reopen chain. The
+historical Pages refusal remains failed and unreplayed; this new case does not
+establish its cause or MIME causality. Native Linux Pages saves remain unsupported
+by the tested import-only filter. Layout, fonts, media, repeatability and installed
+acceptance remain unproved; full-iCloud rows 487–490 stay open and delivery stays
+on HOLD.
+
+### Fresh Numbers DATA replacement and read-only remount on 8 October 2026
+
+The [new Numbers DATA trial](benchmarks/icloud-numbers-data-corrected-candidate-2026-10-08-8bbfa670-42ac-4f04-91d1-a6cbd6afc018.json)
+used the same fully checked 571-source metadata/MIME candidate as the fresh
+Pages and Keynote chains, with an unchanged genuine Apple A/B export pair.
+The independent source review passed 18 checks. One ordinary FUSE create was
+independently verified as actual DATA before exactly one descriptor-bound
+overwrite. Provider readback matched all 138,943 B bytes and all 138,881 original
+A bytes in Trash. The confirmed replacement has a new item identity; its
+revision, parent and working-generation lineage are bound to the saved receipt.
+A clean fsync added no operation. Nine inner and two outer original processes
+closed in 206.58 seconds, with mount and socket absent. Independent actual audit
+36/36 passed; no installed action or automatic retry occurred.
+
+The retained Numbers validation API requires its registration to omit
+`original_window` and keeps an internal 900-second timeout. Every observer child
+was nevertheless owned and capped by the same original 600-second wall/monotonic
+parent window with a 45-second cleanup reserve. Audit V2 corrects V1's overly broad
+nested-deadline label; both remain retained in the registered result. The legacy
+generated fixture names `source-a.numbers` or `source-b.numbers` as its source
+root, while its semantic field remains null. This is raw DATA verification,
+with no PACKAGE or expanded-content substitution.
+
+The [separate normal read-only remount](benchmarks/icloud-numbers-data-normal-readonly-remount-2026-10-08-68e37925-ca6f-483b-b62c-1db7450bf98a.json)
+used feature-free CLI/daemon roles from the same candidate, a complete copy of
+the closed test state and a fresh read-only mount. Its source review passed
+16 checks and its local preparation/check both passed before provider dispatch.
+The observation returned the exact B item, filename, revision and all 138,943
+bytes in 8.52 seconds. All original handles closed; the mount and socket were
+absent and the stopped source state and journal frontier remained preserved.
+No new Trash read or cloud mutation was submitted in this arm.
+Its independent actual audit passed 29/29, including the exact bytes, scoped
+revision, process closure and preservation checks.
+
+The [separate real Strata Keep/Stop trial](benchmarks/icloud-strata-numbers-data-pin-2026-10-08-bad238ab-7129-47c4-b7a5-b331219f41d7.json)
+used another complete stopped-state copy and the same normal feature-free roles.
+The actual pre-action state was unpinned with zero resident bytes. One Keep action
+completed all 138,943 bytes and displayed the kept badge, direct Stop menu and
+exact-file availability dialog. A transient fetching description was observed
+through accessibility, without a retained fetching screenshot. One Stop action
+withdrew the badge and restored the Keep menu; the cached bytes remained resident.
+All GUI children closed before the exact B byte capture and daemon shutdown.
+The complete observation closed successfully in 15.02 seconds. Independent source
+review passed 22/22 and the actual audit passed 33/33, including source state,
+journal frontier, installed artifacts and default-settings preservation. All five
+screenshots were inspected. Inherited folder pins and installed Strata acceptance
+remain separate open requirements.
+
+The [separate exact-item Apple Numbers observation](benchmarks/icloud-numbers-data-exact-apple-reopen-2026-10-08-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a.json)
+opened the new allocated FILE from its exact Drive DOM identity, then reloaded
+the sole Numbers editor once. The labeled table retained A2=7, B2=3 and C2=10,
+with the actual `SUM(A2:B2)` formula and genuine source marker before and after.
+Native accessibility confirmed the marker, C2 result and formula parts both
+times; individual A2/B2 selections additionally confirmed the values after reload.
+Undo and Redo remained disabled, no content input or upload was performed, and
+both owned tabs closed within the original 600-second window with a 45-second
+cleanup reserve. The complete observation took 226.17 seconds and its independent
+audit passed 26/26, including inspection of both retained screenshots. This closes
+the bounded writer/remount/Strata/Apple chain for this one new DATA document.
+No post-editor revision or raw-byte preservation was measured. The old
+0803/d646 failure stays failed and unreplayed. This new archive-copy workflow
+does not establish its cause, MIME causality, native Linux Numbers editing,
+general formula/layout fidelity or repeatability. Full-iCloud rows 487–490 remain
+open and installed delivery stays on HOLD.
+
+### Fresh Pages PACKAGE atomic-save trial on 8 October 2026
+
+The [fresh Pages PACKAGE trial](benchmarks/icloud-pages-package-atomic-d34f610e-e05d-4e1c-8341-098c6dd935f2-terminal-audit-2026-10-08.json)
+used the fully checked and formatted 572-source candidate and its separately
+frozen normal and mounted-probe roles. The complete repository check passed all
+ten sections, with 87 Rust result groups and 36 required named tests; its
+independent audit passed 21/21. The role-build audit passed 25/25.
+
+One genuine A import was independently verified as PACKAGE before a single
+temporary archive write, fsync and canonical rename to B through FUSE. The held
+A descriptor and local B capture matched their complete registered semantic V2
+identities. Independent provider observations verified the new B and the original
+A in Trash, including all member contents. The observed current archive is
+59,889 bytes; its semantic identity matches all twelve registered B files and
+100,205 expanded bytes. Apple packaging changes the archive's raw byte layout,
+so this PACKAGE proof compares the complete semantic identity rather than
+claiming raw parity with the locally wrapped source. A clean fsync added no
+operation. The independent actual audit passed 34/34. Eight controller children,
+three nested scanners and the outer controller closed within the original
+1,200-second window and 120-second cleanup reserve. The mount and socket were
+absent, with source, installed artifacts and the installed daemon unchanged.
+
+The separate 9b5 preparation failed locally on rewritten ZIP external attributes;
+its proposed continuation then refused an incomplete process census before
+changing any asset. Both outcomes remain preserved, with no provider dispatch.
+The fresh d34f fixture corrected the ZIP metadata preservation and passed the
+actual offline source verifier and final local admission before its sole cloud
+arm. This success does not replay either failed preparation.
+
+The closed journal now supplies an exact offline typed projection of the
+acknowledged current, original and backup Nodes, joined to the native working
+association, namespace publication and public receipts. Its independent audit
+passed 27/27, with all seventeen stopped-state files unchanged. The fresh normal
+read-only remount and exact-item Apple Pages reopen completed successfully, as
+recorded in the follow-up below. This is
+canonical archive replacement, without a native Linux Pages editor-save claim.
+Ordinary PACKAGE saving is a distinct remaining workflow. Full-iCloud rows
+487–490 remain open and installed delivery stays on HOLD.
+
+### Pages PACKAGE atomic-save read-only and Apple follow-ups on 8 October 2026
+
+The [fresh normal read-only remount](benchmarks/icloud-pages-package-atomic-normal-readonly-2026-10-08-9f7027c9-afa1-44bf-aefc-c3bb3bd62cac.json)
+used a complete copy of the closed d34f state, current normal feature-free
+572-source roles and a freshly linked production semantic scanner. The scanner
+accepted genuine B and rejected all four hostile controls; its independent
+actual build/control audit passed 29/29. The remount returned the exact B Node,
+sole canonical archive and complete V2 B contents through a retained FUSE
+descriptor. It closed in 6.61 seconds within its original 600/45 window.
+Independent remount audit passed 32/32. All seventeen original state files,
+their protected stamps and the journal frontier were preserved. The state copy
+retained its cache; this does not claim a cold download or a new Trash read.
+
+The [fresh exact-item Apple Pages observation](benchmarks/icloud-pages-package-atomic-exact-apple-reopen-2026-10-08-238dd615-d388-423c-aa16-6ae706335bdf.json)
+matched the current FILE identity in the visible Drive DOM before its sole open.
+The sole new Pages editor retained the complete genuine 93-byte B paragraph
+before and after exactly one reload. Read-only text selections exposed the full
+value through native accessibility; Undo and Redo stayed disabled. Both owned
+tabs closed, and the complete observation finished in 461.78 seconds within its
+original 600/45 window. Independent audit passed 25/25 and inspected both saved
+screenshots. The screenshots retain the same static view; the distinct complete
+accessibility snapshots supply the before/after text proof.
+
+Two initial clock-adapter setup errors occurred before any browser action. The
+corrected adapter used Root's conservative CLOCK_BOOTTIME lower bound, a 20 ms
+early margin for `/proc/uptime` rounding and the unchanged wall deadline. The
+original window was never renewed; neither setup error caused an extra document
+open or reload. Source and installed artifacts remained unchanged. No
+post-editor revision or raw bytes were measured.
+
+Combined with this same case's independently audited writer, this completes
+one bounded Pages PACKAGE atomic replacement, original-Trash verification,
+normal read-only remount and Apple exact-text reopen chain. It does not establish
+native Linux editor saves, ordinary PACKAGE saving, broader fidelity or
+repeatability. Full-iCloud rows 487–490 remain open and delivery stays on HOLD.
+
+### Fresh Keynote PACKAGE atomic-save trial on 8 October 2026
+
+The [fresh Keynote PACKAGE trial](benchmarks/icloud-keynote-package-atomic-ff5abf15-0264-46a1-9efd-94a70ae724a7-terminal-audit-2026-10-08.json)
+used the same checked 572-source candidate and genuine 54-file A/B pair. Local
+preparation preserved all member contents and declared ZIP metadata while
+changing only B's registered root name. The actual production offline verifier
+and local checks passed; final independent local admission passed 21/21.
+Two earlier local input guards refused Root's relative path and placeholder
+assemble digest before provider dispatch; both outcomes remain recorded.
+
+One A import was independently verified as PACKAGE before exactly one canonical
+archive temporary write, fsync and rename to B through the mounted filesystem.
+The independent current archive contains 54 files and 519,514 expanded bytes;
+its complete semantic V2 identity matches genuine B. The original in Trash
+contains the registered 54 A files and 516,888 expanded bytes. Held A and local
+B captures also match their full semantic identities. A clean fsync added no
+operation. Independent terminal audit passed 34/34, including the exact typed
+receipts, original process ownership and closure, original 1,200/120-second
+window and preservation of source and installed artifacts. The mount and socket
+were absent, and no automatic cloud retry occurred.
+
+The [fresh normal read-only remount](benchmarks/icloud-keynote-package-atomic-normal-readonly-2026-10-08-184da3f0-452f-44df-917f-f442913a048c.json)
+returned the exact current B Node and complete V2 contents in 31.645 seconds;
+its independent audit passed 32/32. It retained the complete stopped state and
+warm cache, preserved the original state and journal frontier, and made no new
+Trash read. All owned processes, mount and socket closed within its original
+600/45 window.
+
+The [exact-item Apple Keynote observation](benchmarks/icloud-keynote-package-atomic-exact-apple-reopen-2026-10-08-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611.json)
+opened the selected current FILE once and reloaded its sole editor once. The
+genuine B title and subtitle were visually verified on the rendered single
+slide before and after reload; this does not claim full slide-text extraction
+through accessibility. Both owned tabs closed in 200.233 seconds within the
+original 600/45 window, and independent audit passed 26/26. No content edit or
+post-editor byte/revision-preservation claim is made.
+
+This completes one bounded Keynote PACKAGE atomic writer/Trash/remount/Apple
+chain. Seven of the twelve registered document workflows now have complete
+bounded endpoints; three DATA atomic saves and two ordinary PACKAGE saves
+remain. Native Linux Keynote editor saves, broader slide/font/layout/media
+fidelity and repeatability remain unproven. Full-iCloud rows 487–490 remain
+open and installed delivery stays on HOLD.
+
+### Pages DATA atomic-save interruption on 8 October 2026
+
+The [fresh Pages DATA atomic trial](benchmarks/icloud-pages-data-atomic-2026-10-08-f3157aef-67b6-4542-a933-2c165e27ab77.json)
+created and independently read back genuine A, then created temporary B and
+committed the local replacement. Its test controller stopped with `KeyError`
+because Rust correctly omitted an optional `source_unconfirmed_create` field
+whose value was `None`. The stopped journal retains the replacement as
+`verify_required` and the temporary cleanup as pending. The provider outcome
+remains unresolved; local rename completion does not prove cloud completion.
+
+All owned processes closed, with mount and socket absent. Independent failed-run
+audit passed 35 preservation and closure checks. No automatic replay occurred.
+A separate read-only browser observation showed the canonical row with the
+original A identity, but proved neither its bytes nor Trash, temporary absence
+or finality. The failed run remains failed.
+
+The [narrow caller correction controls](benchmarks/icloud-data-atomic-optional-none-caller-controls-2026-10-08.json)
+reproduced the omitted-field failure in the exact selected guard, passed the
+same case after correction, and passed five controls including refusal of
+foreign values and changed SQL ownership. Independent actual audit passed
+16/16. This validates the selected test-controller boundary, without proving
+a complete controller execution or cloud handoff. Seven of twelve bounded
+iWork workflows remain complete; full-iCloud rows 487–490 remain open and
+installed delivery stays on HOLD.
+
+A [separate fresh saved-session read](benchmarks/icloud-pages-data-uncertainty-read-2026-10-08-4b82c198-90cd-4e1b-9112-d1ac738ef8e3.json)
+then matched the original A identity, revision and complete raw bytes, and the
+temporary B identity, revision and complete raw bytes. It used a private
+standalone observer, with no daemon, journal recovery or mount. The SDK's
+`write-probe` feature provided an existing read-only verifier; the helper called
+no mutation API. Its build audit passed 19/19.
+
+The observer refused or could not complete the global Trash listing and stopped
+after 38.09 seconds without repetition. Its final membership comparison was
+not reached. The original state, 573 source hashes and nineteen installed files
+were preserved; its sole original process and group closed without signals.
+These are two revision-bound raw-content observations, without a complete
+stable namespace, Trash absence, staging or replacement-finality proof. They
+do not turn the original failed Pages test into a success.
+
+### Fresh Numbers DATA atomic writer on 8 October 2026
+
+The [fresh Numbers DATA atomic writer](benchmarks/icloud-numbers-data-atomic-2026-10-08-de0f154b-d2de-4daa-bce3-c734dd311ca2.json)
+passed one temporary B create and atomic replacement in a new owned folder.
+Independent iCloud reads matched complete current B (138,943 bytes) and original
+A in Trash (138,881 bytes). The held A descriptor still returned exact A after
+rename and was closed before waiting for cloud acknowledgement. The stopped
+journal retains its unlinked working A.
+
+Independent writer audit passed 36/36, including three uploaded records, two
+applied mutations, five complete queue associations, five objects and the exact
+replacement lineage. It inspected only a guarded private copy of the complete
+stopped DB/WAL/SHM trio. The original trio, 573 source hashes and nineteen
+installed files remained unchanged. Both outer and all nine inner original
+processes closed; only the two owned daemons received their intended TERM. The
+mount and socket were absent after the original 281.08-second run, and there
+was no automatic retry.
+
+This completes the bounded writer and original-Trash checks. The subsequent
+read-only remount and Apple observation below complete this one Numbers DATA
+atomic workflow. Full-iCloud rows 487–490 remain open and installed delivery
+stays on HOLD.
+
+The [first normal read-only follow-up](benchmarks/icloud-numbers-data-atomic-normal-readonly-remount-2026-10-08-578657e8-ce08-4cbe-ae03-636aed000d44.json)
+read the exact current B identity and all 138,943 expected bytes. It nevertheless
+closed as a failed test: the final preservation comparison rejected changed
+modification and change timestamps on the cloned SQLite SHM file. Its bytes,
+inode, mode and size matched the prepared copy; the original writer state was
+unchanged. All three inner processes and their outer owner closed, with the
+mount and socket absent. This retained failure does not establish a successful
+remount or add a completed workflow. Independent inspection confirmed the exact
+logical journal frontier and all journal bytes; no automatic retry occurred.
+
+The narrow comparator correction accepts only modification/change timestamps on
+the derived `uploads.db-shm`, records those timestamps, and still rejects changed
+bytes, stable file identity, other-path timestamps, membership or logical state.
+The old selected guard failed on the retained real pair, the new selected guard
+passed, and all eight comparator controls passed; an independent audit confirmed
+the actual closed controls (16/16).
+
+The [new separately registered normal read-only remount](benchmarks/icloud-numbers-data-atomic-normal-readonly-remount-2026-10-08-b27a5609-cc26-4247-bdae-cc36bd1893c7.json)
+passed in 7.07 seconds with normal binaries built without write-probe features and
+`--recovery-only`. Independent audit passed 33/33: exact current B identity and
+all bytes, unchanged original state and journal byte/logical frontier, recorded
+clone SHM timestamps, installed/source preservation and complete process closure.
+The copied cache already held all B bytes; this is a warm-cache observation.
+
+The [exact-item Apple Numbers observation](benchmarks/icloud-numbers-data-atomic-exact-apple-reopen-2026-10-08-32f9269d-8713-463f-bf1d-b2834ca17cc9.json)
+opened the exact owned Drive row in its own editor once and reloaded once. Before
+and after reload, labeled screenshots showed A2=7, B2=3 and C2=10; native
+accessibility confirmed `SUM(A2:B2)`, the source marker and disabled Undo/Redo.
+Both owned tabs closed within the original 226.11-second observation, without
+typing or content edits. Independent audit passed 33/33. Opening in Apple may
+advance provider metadata, so no post-editor raw-byte or revision-preservation
+claim is made.
+
+At this stage, eight of twelve bounded iWork workflows were complete. Pages and
+Keynote DATA atomic saves and their ordinary PACKAGE saves remained open. This evidence does
+not establish native Linux iWork editing, general document fidelity or full
+iCloud reliability, and does not release installed delivery from HOLD.
+
+### Fresh Keynote DATA atomic workflow on 8 October 2026
+
+The [fresh Keynote DATA atomic writer](benchmarks/icloud-keynote-data-atomic-2026-10-08-01da7cef-1407-4830-9f76-08c498a11a76.json)
+created genuine A in a new owned folder, verified its complete bytes independently,
+then created temporary B and performed one atomic replacement. The held original
+descriptor still returned exact A immediately after rename and closed before
+waiting for cloud acknowledgement. Independent reads matched current B
+(527,694 bytes) and original A in Trash (525,068 bytes). The original run closed
+successfully in 319.36 seconds, without automatic retries or installed changes.
+
+The independent writer audit passed 36/36. A guarded copy of the complete stopped
+DB/WAL/SHM trio retained three uploads, two applied mutations, five complete queue
+entries, five objects, the unlinked original working file and exact replacement
+lineage. All nine inner and two outer original processes closed; the mount and
+socket were absent. The original journal, 573 source hashes and nineteen installed
+files remained unchanged.
+
+The [separate normal read-only remount](benchmarks/icloud-keynote-data-atomic-normal-readonly-remount-2026-10-08-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf.json)
+passed in 7.17 seconds with normal binaries and `--recovery-only`. Its independent
+audit passed 33/33, confirming exact B identity and all bytes, original-state
+preservation, unchanged journal bytes and logical frontier, recorded clone SHM
+timestamps and complete process closure. The copied cache already held all
+527,694 bytes; this is warm-cache evidence. Before execution, the controller's
+package-root expectation was corrected to the actual Keynote DATA fixture's null
+root. No cloud test was repeated for that preparation correction.
+
+The [exact-item Apple Keynote observation](benchmarks/icloud-keynote-data-atomic-exact-apple-reopen-2026-10-08-a55c81d2-bc01-4597-a708-7ca8f05f05ed.json)
+opened the observed parent and document identities once and reloaded once. Both
+screenshots showed the genuine B title and subtitle on one slide. Accessibility
+confirmed the slide and disabled Undo/Redo; it does not expose the full slide text.
+There was no typing or content edit. Both owned tabs closed within the original
+169.91-second observation; independent audit passed 33/33. Post-editor raw-byte
+and revision preservation are not claimed.
+
+At this stage, nine of twelve bounded iWork workflows were complete. Pages DATA atomic saving
+and ordinary PACKAGE saves for Pages and Keynote remained open. All four full-iCloud
+acceptance rows 487–490 and installed delivery HOLD remain open. These bounded
+archive-copy checks do not establish native Linux iWork editing, general format
+fidelity or full-provider reliability.
+
+### Fresh Pages DATA atomic workflow on 8 October 2026
+
+The [fresh Pages DATA atomic writer](benchmarks/icloud-pages-data-atomic-2026-10-08-ffe0da39-0a83-42cc-b165-2910defae614.json)
+completed in 311.16 seconds. It created genuine A in a new owned folder, then
+created temporary B and performed one atomic replacement. The held original
+descriptor returned exact A after rename and closed before waiting for cloud
+acknowledgement. Independent reads matched current B (101,769 bytes) and original
+A in Trash (100,824 bytes). The writer audit passed 36/36, including the stopped
+journal's three uploads, two applied mutations and five completed queue entries.
+All original process owners closed, and the mount and socket were absent.
+
+The [separate normal read-only remount](benchmarks/icloud-pages-data-atomic-normal-readonly-remount-2026-10-08-f3b7b6d2-927b-4982-9223-4aeb5d878110.json)
+completed in 7.06 seconds with normal binaries and `--recovery-only`; its audit
+passed 33/33. It verified exact B identity and bytes while preserving the original
+state and journal. The copied cache already contained all 101,769 bytes, so this
+is warm-cache evidence. The private capture filename inherited a `.key` suffix;
+the mounted document, fixture and verified representation were Pages DATA.
+
+The [exact-item Apple Pages observation](benchmarks/icloud-pages-data-atomic-exact-apple-reopen-2026-10-08-18ba4dbb-fe8f-4c98-9ce6-5ded7b17076f.json)
+opened the observed parent and document identities once and reloaded once.
+Before and after reload, the rendered screenshot and native accessibility
+selection matched the complete known 93-byte paragraph. Undo and Redo remained
+disabled; there was no typing or content edit. Both owned tabs closed within the
+original 408.41-second observation. Independent audit passed 33/33. Post-editor
+raw bytes and revision preservation are not claimed.
+
+Ten of twelve bounded iWork workflows are now complete. Ordinary PACKAGE saves
+for Pages and Keynote remain open. The earlier interrupted Pages subject remains
+unresolved and was neither replayed nor relabeled by this fresh test. Source
+hashes, installed artifacts and the installed daemon remained unchanged.
+Full-iCloud acceptance rows 487–490 and installed delivery HOLD remain open;
+these archive-copy checks do not establish native Linux iWork editing, general
+format fidelity or full-provider reliability.
+
+### Fresh Pages PACKAGE ordinary workflow on 8 October 2026
+
+The [ordinary writer](benchmarks/icloud-pages-package-ordinary-8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9-2026-10-08.json) passed one canonical truncate/write/fsync save, independent current B and original A in Trash verification, and complete process/mount closure. Its independent audit passed 39/39, retaining exactly two uploads, one applied namespace mutation and three complete queue entries. The held original remained A while current metadata advanced to B.
+
+The [normal read-only remount](benchmarks/icloud-pages-package-ordinary-normal-readonly-2026-10-08-b6d2dbdb-7691-4113-aa9d-de69668d38b4.json) completed in 6.63 seconds and passed audit 35/35. Semantic V2 verified 15 entries, 12 files and 100,205 expanded bytes; the 59,889-byte captured ZIP is a separate transport representation. Original state and journal were preserved.
+
+The [exact-item Apple Pages observation](benchmarks/icloud-pages-package-ordinary-exact-apple-reopen-2026-10-08-192eaf1f-655e-4cc3-ae8d-e553d6892f81.json) passed audit 33/33. Before and after one reload, rendered screenshots and native accessibility selection matched the complete known 93-byte paragraph. Undo/Redo remained disabled; there was no typing or content edit. Both owned tabs closed within the original 454.86-second observation. Post-editor raw bytes and revision preservation are not claimed.
+
+Eleven of twelve bounded iWork workflows are complete; ordinary Keynote PACKAGE saving remains unexecuted. Source hashes and installed artifacts/daemon stayed unchanged. Full-iCloud rows 487–490 and installed delivery HOLD remain open. Native Linux iWork editing, general fidelity and repeatability are not established. The earlier unresolved Pages subject and Numbers cached-formula import failure remain recorded.
+
+
+### Fresh Keynote PACKAGE ordinary workflow on 8 October 2026
+
+The [ordinary writer](benchmarks/icloud-keynote-package-ordinary-a0a06783-4280-4a2c-b34c-d94b737df23e-2026-10-08.json) passed one canonical truncate/write/fsync save, independent current B and original A in Trash verification, and complete process/mount closure. Its independent audit passed 39/39, retaining exactly two uploads, one applied namespace mutation and three complete queue entries. The held original remained A while current metadata advanced to B.
+
+The [normal read-only remount](benchmarks/icloud-keynote-package-ordinary-normal-readonly-2026-10-08-4c0b9e76-a9c0-4267-977f-af372b8e2cb8.json) completed in 6.62 seconds and passed audit 35/35. Semantic V2 verified 58 entries, 54 files and 519,514 expanded bytes. The captured ZIP was 464,446 bytes; its encoding hash differed from the writer transport ZIP while full semantic content matched. Original state, journal and completed frontier were preserved. Cache warmth was not measured.
+
+The [exact-item Apple Keynote observation](benchmarks/icloud-keynote-package-ordinary-exact-apple-reopen-2026-10-08-d976ad1d-71ac-4374-8f6e-c63013c409db.json) passed audit 33/33. Actual screenshots showed the complete genuine B title and subtitle on one slide before and after one reload. Native accessibility confirmed Slide 1 and disabled Undo/Redo; it did not extract the full slide text. Both owned tabs closed within the original 472.81-second observation, with no content edits or automatic retries. Apple normalized the exact-item opening URL to an opaque editor route in the same tab; the actual route change is recorded separately from the opening identity reference. Post-editor raw bytes and revision preservation are not claimed.
+
+All twelve registered bounded iWork archive-copy workflows are complete: three formats, two representations and two save patterns. Source hashes, installed artifacts and the installed daemon stayed unchanged. Full-iCloud rows 487–490 and installed delivery HOLD remain open for supported export fidelity, installed account/recovery transitions, inherited pin and event behavior, and reliability boundaries. Native Linux iWork editing, general fidelity and repeatability are not established. The earlier unresolved Pages subject and Numbers cached-formula import failure remain recorded. A separate offline probe of the current Numbers fixture is prepared but has not run.
+
+
+### Current Numbers DATA import/export formula boundary on 8 October 2026
+
+The [fresh offline Calc observation](benchmarks/icloud-numbers-data-calc-formula-export-2026-10-08-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e.json) used the current immutable 138,943-byte genuine Numbers DATA B whose SUM and values 7/3/10 had been verified in Apple Numbers. One isolated read-only native import, one XLSX export and one read-only reopen completed in 0.96 seconds under the original 60-second work plus 30-second cleanup window. Original Office, sandbox and supervisor owners closed; source bytes, dependency pins, runtime573 and installed19/PID were unchanged, with no provider calls, cell edits, explicit recalculation or application retry. Ownership/preservation audit27 and independent formula audit18 passed their verification scopes.
+
+Formula fidelity failed. C2 was already VALUE10 with formula string `10` immediately after native import, and remained VALUE10 after export/reopen. Independent inspection of all ten XLSX members verified CRCs and the single worksheet relation; A2/B2/C2 held numeric7/3/10 and C2 contained no formula element. This locates the earliest observed loss at the Calc native Numbers import boundary. It does not prove the exact external importer defect or source-byte corruption. The historical 17/3/20 specimen failure remains separate. Two pre-application Root setup errors (source-peer DTO field and access-time comparison) were corrected before the only application execution and are retained.
+
+This completes the observation, not formula acceptance. A separately registered Apple Numbers Excel download tests a distinct supported route. All full487–490 and installed delivery HOLD remain open.
+
+
+### Apple Excel export and read-only Calc formula preservation on 8 October 2026
+
+The [owned Apple Numbers Excel export](benchmarks/icloud-numbers-apple-excel-export-2026-10-08-4cfbc759-df14-4a24-a84d-9e1614eb3146.json) opened the exact recorded Numbers DATA document once and downloaded one Excel copy, with no content edits, reload or retry. Native values 7/3/10 and SUM were visible before and after download; Undo/Redo stayed disabled. Both owned browser tabs closed within the original 405.46-second observation. Independent UI/identity/closure audit passed 28/28. No post-editor native raw-byte or revision preservation is claimed.
+
+The initial local capture helper mistakenly serialized a cross-realm Buffer as JSON. Its original file and incorrect receipt remain retained. The byte array was recovered without repeating the download; it exactly matches the unchanged 6,964-byte downloaded XLSX, SHA-256 `2eeb79e968e9d40c030ecbf21fcaca52032e1c3118cdac914f33e6db057dbccf`. The corrected raw capture is the application input. An independent raw mapping audit passed 9/9, checking all eleven ZIP member CRCs and the single worksheet relation. Apple adds the `Table 1` title row: the native A1 marker maps to A2, and native A2/B2/C2 map to Excel A3/B3/C3. C3 contains cached 10 and the exact single-cell array formula `SUM(A3:B3)` with `t="array"` and `ref="C3"`.
+
+The [separately preregistered read-only Calc observation](benchmarks/icloud-numbers-apple-xlsx-readonly-calc-2026-10-08-d1a23b21-9996-4c3d-b6de-840ec776b7cc.json) performed exactly one XLSX load in an isolated network/PID namespace. It completed in 0.61 seconds under the original 60-second work plus 30-second cleanup window. Actual Calc A3/B3/C3 values were 7/3/10; C3 was FORMULA with raw spelling `{=SUM(A3:B3)}` and error zero, matching the exact array spellings declared before execution. The source marker matched. No export, edits, explicit recalculation, provider calls, signals or automatic retry occurred. All original Office, sandbox and supervisor owners closed, and source/dependency pins, runtime573 and installed19/PID were preserved. Independent formula and ownership/preservation terminal audits passed 20/20 and 24/24. The formula auditor's original command-indexing check failed and remains retained; its corrected V2 passed without repeating the application.
+
+This is a supported export-copy route for the registered SUM/value/marker specimen. It does not repair either direct native Numbers importer failure. Native iWork saving from Linux applications is unsupported by the tested import-only filters. Pages DOCX acceptance covers one exact 93-byte paragraph; Keynote PPTX covers one slide's exact title/subtitle; Numbers XLSX covers these exact values, SUM dependency and marker. Full layout, fonts, images/media, charts, animations, macros, external links and arbitrary formulas/documents are untested. Saving an exported Office copy does not write back to its native iWork source. Historical uncertain and failed outcomes remain recorded and unreplayed. These independently audited export-copy endpoints, all twelve archive-copy workflows and the explicit limits close the literal [application criterion 487](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json). The installed lifecycle, desktop delivery and reliability criteria 488–490 remain open, and installed delivery stays on HOLD.
+
+### 2026-10-08: inherited-pin prerequisite refuses a changed parent revision
+
+The separately registered [exact freshness read](benchmarks/icloud-strata-inherited-exact-freshness-2026-10-08-a865f43c-f842-4eb3-a718-e14832eb3065.json) ran once with the historical Numbers DATA parent/child revisions. The authenticated parent-metadata check refused an ETag difference before child verification or the content download. The leaf exited 1 after 10.214 seconds; no mutation or automatic repeat occurred. The old tuple is therefore not accepted as current, and the inherited-pin GUI arm has not run.
+
+An independent audit passed 17/17 checks for process closure and preservation; the freshness observation remains failed. The original 30-entry source state, current 573 runtime sources, 19 installed files and the installed daemon's unit/PID/birth were unchanged. This does not establish an expired session or criterion 489. A separate metadata-only investigation must obtain the exact owned parent and child revisions before a new fixed-revision content check can be registered; it must not substitute newly observed revisions into this failed arm.
+
+### 2026-10-08: local retained-Stage observer stops before offline export
+
+The [fresh local retention observer](benchmarks/icloud-native-stage-local-retention-2026-10-08-fe7f02dd-477c-4348-a0a1-6dab2a576f24.json) copied the stopped historical state under its five existing leases and queried only a complete detached journal copy. It stopped after 0.026 seconds, before starting the CLI export. Its private caller incorrectly compared the abandonment record's decoded-checkpoint digest with a sealed checkpoint file's ciphertext digest. Production computes these over different representations; the mismatch does not establish corruption or loss of the retained data.
+
+The failed arm remains recorded. It started no daemon, made no provider request and performed no abandonment or replay. Root verified the complete original 31-entry state, current 573 runtime sources, 19 installed files and installed unit/PID/birth unchanged; an independent preservation audit passed 14/14. Offline export remains unproved by this arm, and criterion 490 remains open. A corrected observer must be a separately registered run preserving the record digest and sealed-file digest as distinct bindings.
+
+### 2026-10-08: retained abandoned Stage passes a separate offline-export arm
+
+The [separately registered corrected observer](benchmarks/icloud-native-stage-local-retention-2026-10-08-66914e7d-c4ee-4261-82f0-600c7ec64073.json) passed in 0.139 seconds. One current normal-feature CLI `export-save --offline` returned all 66,268 original payload bytes with the historical SHA-256. The exact persisted abandonment record, complete schema-18 logical journal frontier, sealed ciphertext and original payload were preserved; the only permitted clone change was timestamps on a byte-identical SQLite SHM file. No daemon, provider call, abandonment or replay occurred.
+
+The independent terminal audit passed 27/27. Root also rechecked the complete original 31-entry state, current 573 runtime sources, all 19 installed files, installed unit/PID/birth and executable unchanged. The failed predecessor remains failed. This is a local retention/export proof joined to the historical typed receipt, not a fresh socket receipt lookup or evidence of the Stage's current cloud location, deletion, TTL cleanup or remote finality. It strengthens the bounded recovery evidence without closing criterion 490 or releasing installed delivery HOLD.

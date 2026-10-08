@@ -484,7 +484,7 @@ not permission to tick installed or native-editing requirements.
 
 - [x] Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.
 - [x] Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.
-- [ ] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
+- [x] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
 - [ ] Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.
 - [ ] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
 - [ ] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
@@ -529,10 +529,26 @@ Independent full semantic V2 reads bind current B and original A in Trash;
 actual exit86/reopen recovery completes the same retained operation without
 repeating mutations. Original preservation concerns the complete file-content
 tree, not identical transport ZIP bytes; loss was local acknowledgement loss,
-not unobserved provider reply loss. Native Linux editor/representation fidelity,
-installed lifecycle, complete Strata delivery and broader reliability remain
-rows 487–490. Two of six criteria are closed and four remain open; installed
+not unobserved provider reply loss. Installed lifecycle, complete Strata delivery
+and broader reliability remain the open criteria. Three of six criteria are
+closed and three remain open; installed
 delivery stays on HOLD.
+
+The [iWork application criterion (487)](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json)
+is now closed by all twelve actual DATA/PACKAGE ordinary/atomic archive-copy
+workflows, their current/original-in-Trash reads, normal read-only remounts and
+exact Apple reopen/reload observations, plus the documented supported exports.
+Pages DOCX preserved one exact 93-byte paragraph; Keynote PPTX preserved one
+slide's title/subtitle. One Apple Numbers Excel download and a separately
+registered read-only Calc open preserved the mapped 7/3/10 values, source marker
+and single-cell SUM array formula. Independent Apple, raw mapping, Calc formula
+and owner/preservation audits passed 28, 9, 20 and 24 checks respectively.
+Native Linux iWork saving is unsupported by the tested import-only filters;
+direct native Numbers imports lose SUM and remain recorded as failures. Full
+layout/fonts/media, arbitrary formulas/documents and repeated reliability are
+untested. Export-copy saves do not write back to the native source. Historical
+failed/uncertain outcomes remain retained. This closes the literal documented
+application criterion; rows 488–490 and installed delivery HOLD remain open.
 
 The following historical checkpoints retain their original open-row counts.
 

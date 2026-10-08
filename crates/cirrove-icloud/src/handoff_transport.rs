@@ -6,6 +6,24 @@ use crate::write_transport::TRASH_ROOT;
 const PROBE_PREFIX: &str = "Cirrove Write Validation-";
 const PROBE_FILE: &str = "created-by-cirrove.txt";
 
+// Generated transport names are not document identities. Keep a safe,
+// bounded original suffix so a binary replacement is not allocated as text.
+// Extensionless or unsafe/oversized suffixes use the binary .tmp fallback.
+pub(crate) fn ordinary_replacement_suffix(name: &str) -> String {
+    const MAX_SUFFIX: usize = 255 - "recovery-by-cirrove-".len() - 36;
+    std::path::Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .filter(|extension| {
+            !extension.is_empty()
+                && extension.len() < MAX_SUFFIX
+                && !extension
+                    .chars()
+                    .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
+        })
+        .map_or_else(|| ".tmp".into(), |extension| format!(".{extension}"))
+}
+
 fn valid_etag(etag: &str) -> bool {
     !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\0', '\r', '\n'])
 }
@@ -635,12 +653,20 @@ impl HandoffPlan {
             _ => false,
         };
         let native = matches!(self.version, 6 | 7);
+        let ordinary_suffix = ordinary_replacement_suffix(&self.target_name);
         let suffix = if native {
             cirrove_core::upload::native_package_suffix(&self.target_name)
                 .context("invalid native package format")?
         } else {
-            ".txt"
+            ordinary_suffix.as_str()
         };
+        let matching_names = |suffix: &str| {
+            uuid_name(&self.staged_name, "staged-by-cirrove-", suffix)
+                && uuid_name(&self.recovery_name, "recovery-by-cirrove-", suffix)
+        };
+        // Persisted ordinary checkpoints used .txt for both names, irrespective
+        // of target. Admit that complete legacy pair, never a mixed pair.
+        let names_valid = matching_names(suffix) || (!native && matching_names(".txt"));
         let content_valid = match &self.package {
             Some(proof) if native => {
                 proof.validate().is_ok()
@@ -657,8 +683,9 @@ impl HandoffPlan {
             || (self.folder_id == ROOT_ID && !matches!(self.version, 4 | 7))
             || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
             || self.folder_id.rsplit("::").next().is_none_or(str::is_empty)
-            || !uuid_name(&self.staged_name, "staged-by-cirrove-", suffix)
-            || !uuid_name(&self.recovery_name, "recovery-by-cirrove-", suffix)
+            || !names_valid
+            || self.staged_name.len() > 255
+            || self.recovery_name.len() > 255
             || self.target_name.is_empty()
             || self.target_name.len() > 255
             || matches!(self.target_name.as_str(), "." | "..")

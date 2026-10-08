@@ -1,0 +1,362 @@
+{
+  "active_measurement": false,
+  "actual_iWork_workflows": {
+    "cells": [
+      {
+        "application": "Pages",
+        "evidence": "Pages_DATA",
+        "representation": "DATA",
+        "save": "ordinary",
+        "scope": "Actual raw A create before sole B overwrite, current B/Trash A; own subsequent normalRO and exact Apple reopen/reload completed.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Pages",
+        "evidence": {
+          "exact_Apple": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-atomic-exact-apple-ffe0-18ba4dbb-fe8f-4c98-9ce6-5ded7b17076f-private-v1/audit-independent-apple-terminal-v1.json",
+            "sha256": "1cb8377dd9a142243e7cc61b84470ec0a999016fcec0186609e12566873ce62f",
+            "size": 6948
+          },
+          "normal_readonly": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-atomic-ro-f3b7b6d2-927b-4982-9223-4aeb5d878110/audit-independent-readonly-terminal-v1.json",
+            "sha256": "9844689bad48124533c4e3f8a87c368992968689173046171916a283ba063537",
+            "size": 7165
+          },
+          "writer_Trash": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-ffe0da39-0a83-42cc-b165-2910defae614/audit-independent-pages-data-atomic-terminal-v1.json",
+            "sha256": "51f36f7763cc9493ea7d6dd998faf79e5a5d00d0048c6509866b884f35c0f0ec",
+            "size": 17347
+          }
+        },
+        "independent_counts": [
+          36,
+          33,
+          33
+        ],
+        "preserved_failure": {
+          "no_replay_or_relabel": true,
+          "run": "f3157aef-67b6-4542-a933-2c165e27ab77",
+          "scope": "Actual f315 callerfailure afterlocalrename; exact originalA/tempB freshreads, Trash/finality unknown. Failure retained, no replay; newcorrectedcase required.",
+          "status": "FAILED_UNRESOLVED"
+        },
+        "representation": "DATA",
+        "save": "atomic",
+        "scope": "One fresh ffe0 genuine DATA atomic replacement on source573: exact A before sole rename, old A FD closed before ACK, typed3 uploads/2 mutations/5 completed queues, independently confirmed current B and Trash A; separate warm recovery-only normal[] RO and exact Apple selected native AX93-byte paragraph before/after one reload. No native Linux editing, uncached read, repeatability or full fidelity claim.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Numbers",
+        "evidence": "Numbers_DATA",
+        "representation": "DATA",
+        "save": "ordinary",
+        "scope": "Actual raw A create before sole B overwrite, current B/Trash A; own subsequent normalRO and exact Apple reopen/reload completed.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Numbers",
+        "evidence": {
+          "exact_Apple": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/audit-independent-apple-terminal-v1.json",
+            "sha256": "8721ee54fe4c6424d7c7f2eafce752e78c673e706bd5bd0c1b3b86864ead6f32",
+            "size": 17224
+          },
+          "normal_readonly": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/audit-independent-readonly-terminal-v1.json",
+            "sha256": "99d6b57f8f3da1de9cba830eb5973b11a62e6a044cae1655d1a8a78f78d04e22",
+            "size": 6387
+          },
+          "writer_Trash": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-de0f154b-d2de-4daa-bce3-c734dd311ca2/audit-independent-numbers-data-atomic-terminal-v1.json",
+            "sha256": "86ee44d62a45b84aa14aae8d1ebbf526caa257526dbef56d8ea1ea11bcd05894",
+            "size": 12788
+          }
+        },
+        "representation": "DATA",
+        "save": "atomic",
+        "scope": "One new genuine DATA atomic replacement, exactcurrentB/TrashA, separate normalRO33 and exactApple33 open/reload; warmcache, nativeLinuxunsupported, post-editorraw notclaimed.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Keynote",
+        "evidence": "Keynote_DATA",
+        "representation": "DATA",
+        "save": "ordinary",
+        "scope": "Actual raw A create before sole B overwrite, current B/Trash A; own subsequent normalRO and exact Apple reopen/reload completed.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Keynote",
+        "evidence": {
+          "exact_Apple": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-exact-apple-01da-a55c81d2-bc01-4597-a708-7ca8f05f05ed-private-v1/audit-independent-apple-terminal-v1.json",
+            "sha256": "b46770c357a0e0263babeba74795d2a3584d186c4fc59610c6aa8e4b9a798247",
+            "size": 6375
+          },
+          "normal_readonly": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/audit-independent-readonly-terminal-v1.json",
+            "sha256": "353a274b1db621c4f026f9d8b203c7d5465cc17d5f6b6085c2aa7ed2d312c017",
+            "size": 6887
+          },
+          "writer_Trash": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-01da7cef-1407-4830-9f76-08c498a11a76/audit-independent-keynote-data-atomic-terminal-v1.json",
+            "sha256": "e4e73eaa423b21baf96cc63700dd45ad4539e021490fd13dee04bfe9f8a57e3f",
+            "size": 17632
+          }
+        },
+        "independent_counts": [
+          36,
+          33,
+          33
+        ],
+        "representation": "DATA",
+        "save": "atomic",
+        "scope": "One fresh genuine DATA atomic replacement on source573: exact A before sole rename, old A FD closed before ACK; typed 3 uploads/2 mutations/5 queues; independently confirmed current B and Trash A; separate warm recovery-only normal[] RO and exact Apple visual title/subtitle before and after one reload. No native Linux editing, repeatability, uncached read or full fidelity claim.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Pages",
+        "evidence": {
+          "exact_Apple": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-ordinary-exact-apple-8bbb-192eaf1f-655e-4cc3-ae8d-e553d6892f81-private-v1/audit-independent-apple-terminal-v1.json",
+            "sha256": "3df7f07b282c3dee16f2a615e5599c53d13a93a7b3b087c4e1ee68994a0ec514",
+            "size": 7469
+          },
+          "normal_readonly": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-package-ordinary-ro-b6d2dbdb-7691-4113-aa9d-de69668d38b4/audit-independent-readonly-terminal-v1.json",
+            "sha256": "624e61e48a63fd0cbf3f170d490eebea56551b5f5d0ed54477a84243062b40ae",
+            "size": 10578
+          },
+          "scalar_controls": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-keynote-package-ordinary-preparation-20261008-private-v1/pages/conditional-followups-private-v1/scanner-build-preparation-private-v1/root-execution-v1/audit-independent-scanner-terminal-v1.json",
+            "sha256": "fa822e8e9c218f71b066e44965d8793048b24d88beb6d93fc277628d6cde22d3",
+            "size": 8433
+          },
+          "writer_Trash": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-package-ordinary-8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9/audit-independent-pages-ordinary-terminal-v1.json",
+            "sha256": "8758a34accce3642934ff27af821de46a2e247515d24a9f7a81b3357368bff70",
+            "size": 12295
+          }
+        },
+        "independent_counts": [
+          39,
+          35,
+          33
+        ],
+        "related_evidence": "Pages_PACKAGE_CLI_only remains historical distinct route.",
+        "representation": "PACKAGE",
+        "save": "ordinary",
+        "scalar_control_count": 31,
+        "scope": "One canonical O_RDWR hydration of A followed by one ftruncate/write B/fsync, typed2 uploads/1 mutation/3 completed queues and exact current B/Trash A fullV2. Held original A and writer descriptors survive ACK and captures. Separate complete-state normal[]573 read-only remount and exact Apple93-byte paragraph before/after one reload; no native Linux editing, uncached-read, repeatability or full layout/font/media fidelity claim.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Pages",
+        "evidence": {
+          "exact_Apple": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-atomic-exact-apple-d34f-238dd615-d388-423c-aa16-6ae706335bdf-private-v1/audit-independent-apple-terminal-v1.json",
+            "sha256": "dc8f3300acdac922d4bac5186741a5c36310523b5200e7ac6133bd33c1c35dba",
+            "size": 6988
+          },
+          "normal_readonly": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-package-atomic-ro-9f7027c9-afa1-44bf-aefc-c3bb3bd62cac/audit-independent-readonly-terminal-v1.json",
+            "sha256": "842e2d68e62807efc161b4790a7e4d62ec2444209cf28bf3d167f9a76d967897",
+            "size": 7873
+          },
+          "writer_Trash": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-package-atomic-d34f610e-e05d-4e1c-8341-098c6dd935f2/audit-independent-pages-atomic-terminal-v1.json",
+            "sha256": "43f6bcc5573e66143fc6f212560d14ad33c55e5311f5f5b1eba1996340a9c067",
+            "size": 18698
+          }
+        },
+        "independent_counts": [
+          34,
+          32,
+          25
+        ],
+        "preserved_local_preparation_failures": "Old9b5 ZIP attributes and incomplete census refusals remain preserved; d34f is fresh, not a replay.",
+        "representation": "PACKAGE",
+        "save": "atomic",
+        "scope": "One fresh atomic canonical-archive replacement, exact original in Trash, warm complete-state normal read-only remount, and exact Apple content before/after one reload. No native Linux iWork editing, repeatability or full fidelity claim.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Numbers",
+        "evidence": "Numbers_PACKAGE_ordinary",
+        "representation": "PACKAGE",
+        "save": "ordinary",
+        "scope": "319149 canonical archive-copy FUSE save, held A/current B/Trash A and RO; no native Linux editor save.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Numbers",
+        "evidence": [
+          "Numbers_PACKAGE_atomic_original",
+          "Numbers_PACKAGE_atomic_read"
+        ],
+        "representation": "PACKAGE",
+        "save": "atomic",
+        "scope": "337 atomic worker and held/current proofs, separate strict current/Trash reader60fc, normalRO and Apple completed. Original337 controller FAIL remains FAIL; do not claim successful original orchestration.",
+        "status": "PASS_BOUNDED_COMPOSED_ENDPOINTS"
+      },
+      {
+        "application": "Keynote",
+        "evidence": {
+          "exact_Apple": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-ordinary-exact-apple-a0a-d976ad1d-71ac-4374-8f6e-c63013c409db-private-v1/audit-independent-apple-terminal-v1.json",
+            "sha256": "5a977bdff86b3be041639752a47945c74e45f77e4ba1dc0be0a33790f6a16f1b",
+            "size": 8673
+          },
+          "normal_readonly": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-package-ordinary-ro-4c0b9e76-a9c0-4267-977f-af372b8e2cb8/audit-independent-readonly-terminal-v1.json",
+            "sha256": "68d4fe42ee1d0a70aff47e0932410d5636ebb73bea19a5f478f5819557ec413c",
+            "size": 25512
+          },
+          "scalar_controls": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-keynote-package-ordinary-preparation-20261008-private-v1/keynote/conditional-followups-private-v1/scanner-build-preparation-private-v1/root-execution-v1/audit-independent-scanner-terminal-v1.json",
+            "sha256": "48ae82cd2ce45cde4dcac60db18341c7ab01145852b48582f0e8d76007872092",
+            "size": 8456
+          },
+          "writer_Trash": {
+            "mode": "0o400",
+            "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-package-ordinary-a0a06783-4280-4a2c-b34c-d94b737df23e/audit-independent-keynote-ordinary-terminal-v1.json",
+            "sha256": "7980df8612f244db11301af633f902bdf2e8a2d855913f3aa7227dff0e2d2077",
+            "size": 12322
+          }
+        },
+        "independent_counts": [
+          39,
+          35,
+          33
+        ],
+        "related_evidence": "Keynote_PACKAGE_CLI_only",
+        "representation": "PACKAGE",
+        "save": "ordinary",
+        "scalar_control_count": 31,
+        "scope": "One canonical O_RDWR hydration of A followed by one ftruncate/write B/fsync; typed2 uploads/1 mutation/3 completed queues and exact current B/Trash A fullV2. Held original A and writer descriptors survive ACK and captures. Separate complete-state normal[]573 read-only remount and exact Apple visual genuine title/subtitle before and after one reload. No native Linux editing, uncached-read, repeatability or full layout/font/media fidelity claim.",
+        "status": "PASS_BOUNDED"
+      },
+      {
+        "application": "Keynote",
+        "evidence": {
+          "exact_Apple": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-exact-apple-ff5-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611-private-v1/audit-independent-apple-terminal-v1.json",
+            "sha256": "6e996ec02de305d34b529ba7f9609f019f3c91707bad404919eb7d2cb3fb8f4d",
+            "size": 7113
+          },
+          "normal_readonly": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-package-atomic-ro-184da3f0-452f-44df-917f-f442913a048c/audit-independent-readonly-terminal-v1.json",
+            "sha256": "1284464f0b2a952bd803a9a7ddcc62fcff159c38fa7c05e7320ae84f4522bd97",
+            "size": 7822
+          },
+          "writer_Trash": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-package-atomic-ff5abf15-0264-46a1-9efd-94a70ae724a7/audit-independent-keynote-atomic-terminal-v1.json",
+            "sha256": "4c1c826b90f87f385d2bb65cafcef9c9c00f516677566ac1006d4c81396117ba",
+            "size": 18380
+          }
+        },
+        "independent_counts": [
+          34,
+          32,
+          26
+        ],
+        "representation": "PACKAGE",
+        "save": "atomic",
+        "scope": "One fresh atomic canonical-archive replacement, exact original in Trash, warm complete-state normal read-only remount, and exact Apple content before/after one reload. No native Linux iWork editing, repeatability or full fidelity claim.",
+        "status": "PASS_BOUNDED"
+      }
+    ],
+    "complete": 12,
+    "dimensions": {
+      "applications": [
+        "Pages",
+        "Numbers",
+        "Keynote"
+      ],
+      "representations": [
+        "DATA",
+        "PACKAGE"
+      ],
+      "save_patterns": [
+        "ordinary",
+        "atomic"
+      ]
+    },
+    "evidence_map": {
+      "mode": "0o400",
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-remaining-literal-gates-20261008-after-keynote-package-ordinary-apple-private-v1/requirement-evidence-map-v6.json",
+      "sha256": "d71f55eac61894b536abb17603b4d2ffad13d5a5c54caf7f9d8bd15ced4a68ce",
+      "size": 56692
+    },
+    "required": 12
+  },
+  "asserted_by": "Runtime authority boundaries are asserted by cirrove-service validation::icloud_account::owned_package::fixture_verify::receipt_bound tests: numbers_data::tests::{owned_numbers_data_actual_save_chained_and_rehydrated,owned_numbers_data_actual_readonly_observation_preserves_journal,owned_data_atomic_three_formats_exact_takeover_active_and_retired,owned_data_atomic_typed_replacement_refuses_foreign_source_victim_or_index,owned_data_atomic_full_digest_refuses_same_size_original_or_current_corruption}; numbers_data::{pages_tests::owned_pages_data_actual_create_save_and_retired_completed_backup_are_bound,keynote_tests::owned_keynote_data_actual_create_save_and_retired_completed_backup_are_bound}; fuse::tests::{owned_fuse_actual_journal_proves_preflight_active_and_retired_save,owned_fuse_atomic_detached_original_refuses_changed_provenance_and_bytes}; and fuse::format_tests::{owned_iwork_fuse_capture_checks_held_a_and_current_b_semantics,owned_iwork_fuse_refuses_cli_receipt_without_atomic_working_authority}. Actual application acceptance is separately asserted by the twelve preregistered Pages/Numbers/Keynote DATA/PACKAGE ordinary/atomic writer-current/Trash, normal read-only remount and exact Apple open/reload chains named in evidence, with the original Numbers337 controller failure honestly composed with separate current/Trash/RO/Apple endpoints. Supported export fidelity is asserted by actual Pages2f2 single DOCX/read-only reopen plus exact paragraph OOXML, Keynote20d single PPTX/read-only reopen plus exact slide-text OOXML, and Numbers4cfb one exact-owned Apple Excel download plus independent array-SUM/value/marker OOXML and a separately registered read-only Calc FORMULA/SUM/value/marker reopen on the exact downloaded artifact. Native NumbersC2 maps to ExcelC3 after the exported Table 1 title row. These synthetic tests alone do not assert provider behavior or native application fidelity. Import-only Linux iWork filters, failed native Numbers formula imports, and untested full layout/fonts/media/transitions remain explicit format limits; no general reliability, installed acceptance or replay is inferred.",
+  "criterion": "Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.",
+  "gate487_closed": true,
+  "gate488_closed": false,
+  "gate489_closed": false,
+  "gate490_closed": false,
+  "historical_checkpoint_notice": "Frozen original Apple export artifact keeps its then-pending Calc status; actual subsequent Calc evidence completes that separate endpoint without rewriting the original checkpoint.",
+  "installed_HOLD_released": false,
+  "limits": [
+    "Native Linux iWork saving is unsupported by the tested import-only filters.",
+    "Direct native Numbers imports flattened SUM; both failed specimens remain recorded.",
+    "DOCX scope is one exact93-byte paragraph; PPTX scope is one slide exact title/subtitle; XLSX scope is registered values7/3/10, arraySUM dependency and marker.",
+    "Full layout/fonts/images/media/charts/animations/macros/external links/arbitrary formula or document fidelity is untested.",
+    "Exported Office-copy saves do not write back to the native iWork source.",
+    "Cloud replacement is a confirmed archive-copy replacement with original in Trash, not one POSIX-atomic provider transaction.",
+    "Historical Pagesf315 outcome remains unresolved and unreplayed.",
+    "One arm per workflow does not establish long-session reliability or repeatability.",
+    "Installed acceptance and full-provider reliability require separate remaining gates."
+  ],
+  "observed_utc": "2026-10-08T13:28:17.005914+00:00",
+  "release_scope": "full-icloud",
+  "status": "acceptance_487_closed_from_controlled_existing_endpoints",
+  "supported_exports": {
+    "Keynote_PPTX": {
+      "path": "docs/benchmarks/icloud-keynote-impress-pptx-2026-10-07-20d21b4e-a918-41db-b7f5-e1a0fb3c593c.json",
+      "sha256": "7ebb2d91927631bc30beac686b6bbe6721f9ceda9e69d58c8b9aaff47ba29c3b",
+      "size": 5816
+    },
+    "Numbers_Apple_Excel_original_checkpoint": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-numbers-apple-excel-export-2026-10-08-4cfbc759-df14-4a24-a84d-9e1614eb3146.json",
+      "sha256": "b30555174580ee825f0bd204969f687cca1d68d2d1f348be25c5faeb1a13e93a",
+      "size": 4317
+    },
+    "Numbers_Apple_independent_UI": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1/audit-independent-apple-export-terminal-v1.json",
+      "sha256": "96518375d3465c455e8f0fe9008eca4e949600e0f7b324f6e6c36570e27f3c37",
+      "size": 8155
+    },
+    "Numbers_formula_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/apple-xlsx-readonly-d1a23b21-9996-4c3d-b6de-840ec776b7cc-preparation-private-v1/audit-independent-readonly-Calc-formula-terminal-v2.json",
+      "sha256": "c24f64605b0961fd8acefaf199676a9d45641e36d0adc6a0975fef98b96cecf7",
+      "size": 9847
+    },
+    "Numbers_mapping": "Native C2 SUM(A2:B2) maps to Excel C3 SUM(A3:B3) after title row; raw single-cell array is preserved by Calc as {=SUM(A3:B3)}.",
+    "Numbers_owner_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/apple-xlsx-readonly-d1a23b21-9996-4c3d-b6de-840ec776b7cc-preparation-private-v1/root-execution-v1/audit-independent-owner-preservation-terminal-v1.json",
+      "sha256": "06ade2478fd11764466fd27a8d6e29c612cfc28e48022ec7930ecd1f6dd14ce3",
+      "size": 5854
+    },
+    "Numbers_readonly_Calc": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-numbers-apple-xlsx-readonly-calc-2026-10-08-d1a23b21-9996-4c3d-b6de-840ec776b7cc.json",
+      "sha256": "f7834d8a78ddccbc0bd27d14510c5517cd07682481104b93c33c4d5ae806f751",
+      "size": 3973
+    },
+    "Pages_DOCX": {
+      "path": "docs/benchmarks/icloud-pages-writer-private-library-2026-10-07-2f2fec37-6b7c-40aa-b8db-49fa98d5192c.json",
+      "sha256": "b72c4c4cfb673b8a1cc7b76bb9855f0701030d35ac843055ea57fec1a91b9ba4",
+      "size": 5400
+    }
+  },
+  "synthetic_tests_alone_assert_application_fidelity": false,
+  "version": 1
+}

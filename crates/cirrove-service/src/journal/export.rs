@@ -707,6 +707,125 @@ impl RecoveryJournal {
         }
         Ok((size, hex::encode(hash.finalize())))
     }
+    /// Validation-only settled ordinary DATA takeover; one extra row is always
+    /// a refusal witness. Existing ordinary and native inventory limits stay unchanged.
+    pub(crate) fn ordinary_validation_atomic_inventory(&self) -> Result<serde_json::Value> {
+        let mut query = self
+            .journal
+            .db
+            .prepare("SELECT id,scope,working,body FROM namespace_objects ORDER BY id LIMIT 6")?;
+        let mut objects = Vec::new();
+        for row in query.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, String>(3)?,
+            ))
+        })? {
+            let (id, scope, working, body) = row?;
+            if body.len() > 256 * 1024 {
+                return Err(JournalError::Corrupt);
+            }
+            let object: NamespaceObject = serde_json::from_str(&body)?;
+            if id != object.id.to_string()
+                || scope != serde_json::to_string(&object.scope)?
+                || working != object.working_file.map(|v| v.to_string())
+            {
+                return Err(JournalError::Corrupt);
+            }
+            objects.push(object);
+        }
+        let mut query = self
+            .journal
+            .db
+            .prepare("SELECT id,body FROM working_files ORDER BY id LIMIT 3")?;
+        let mut working = Vec::new();
+        for row in query.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
+            let (id, body) = row?;
+            if body.len() > 256 * 1024 {
+                return Err(JournalError::Corrupt);
+            }
+            let file: WorkingFile = serde_json::from_str(&body)?;
+            if id != file.id.to_string() {
+                return Err(JournalError::Corrupt);
+            }
+            working.push(file);
+        }
+        let mut query = self.journal.db.prepare(
+            "SELECT id,source,victim,cleanup,body FROM file_replacements ORDER BY id LIMIT 2",
+        )?;
+        let mut replacements = Vec::new();
+        for row in query.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        })? {
+            let (id, source, victim, cleanup, body) = row?;
+            if body.len() > 256 * 1024 {
+                return Err(JournalError::Corrupt);
+            }
+            let record: ReplacementRecord = serde_json::from_str(&body)?;
+            if id != record.id.to_string()
+                || source != record.source.to_string()
+                || victim != record.victim.to_string()
+                || cleanup != record.cleanup.to_string()
+            {
+                return Err(JournalError::Corrupt);
+            }
+            replacements.push(record);
+        }
+        let mut query = self.journal.db.prepare(
+            "SELECT operation,object FROM namespace_operations ORDER BY operation LIMIT 6",
+        )?;
+        let namespace_operations = query
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let mut query = self.journal.db.prepare(
+            "SELECT 'upload',u.id,u.sequence,u.state,q.sequence,q.complete FROM uploads u
+             LEFT JOIN write_queue q ON q.id=u.id UNION ALL
+             SELECT 'mutation',m.id,m.sequence,m.state,q.sequence,q.complete FROM mutations m
+             LEFT JOIN write_queue q ON q.id=m.id ORDER BY 3 LIMIT 6",
+        )?;
+        let columns = query
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, Option<i64>>(4)?,
+                    r.get::<_, Option<bool>>(5)?,
+                ))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        if columns
+            .iter()
+            .any(|r| r.2 < 0 || r.4.is_some_and(|v| v < 0))
+        {
+            return Err(JournalError::Corrupt);
+        }
+        let counts: (i64,i64,i64,i64,i64,i64,i64,i64,i64,i64) = self.journal.db.query_row(
+            "SELECT (SELECT count(*) FROM namespace_objects),
+             (SELECT count(*) FROM native_working_operations),
+             (SELECT count(*) FROM write_queue),
+             (SELECT count(*) FROM working_files),
+             (SELECT count(*) FROM working_files WHERE json_extract(body,'$.dirty')=1 OR json_extract(body,'$.unlinked')=1),
+             (SELECT count(*) FROM package_metadata_publication),
+             (SELECT count(*) FROM file_replacements),
+             (SELECT count(*) FROM native_working_bindings),
+             (SELECT count(*) FROM native_temporary_streams),
+             (SELECT count(*) FROM native_detached_streams)", [],
+             |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?,r.get(8)?,r.get(9)?)))?;
+        Ok(
+            serde_json::json!({"objects":objects,"working":working,"replacements":replacements,
+            "namespace_operations":namespace_operations,"columns":columns,"counts":counts}),
+        )
+    }
     /// Indexed read-only native source/byte-stream association. Existing shape
     /// validation binds either live working bytes or an exact dormant slot.
     #[allow(clippy::type_complexity)]
@@ -895,6 +1014,22 @@ impl MetadataPublicationJournal {
         self.0.journal.native_metadata_scan.set(scan);
         let result = self.due(now);
         (self.0.journal.native_metadata_scan.get(), result)
+    }
+    pub(crate) fn completed_ordinary_with_scan(
+        &self,
+        mut scan: super::CompletedOrdinaryMetadataScan,
+    ) -> (
+        super::CompletedOrdinaryMetadataScan,
+        Result<Option<super::OrdinaryHandoffMetadata>>,
+    ) {
+        let result = self.0.journal.completed_ordinary_metadata(&mut scan);
+        (scan, result)
+    }
+    pub(crate) fn validate_completed_ordinary(
+        &self,
+        proof: &super::OrdinaryHandoffMetadata,
+    ) -> Result<()> {
+        self.0.journal.validate_completed_ordinary_metadata(proof)
     }
     pub(crate) fn finish(
         &self,

@@ -1,0 +1,105 @@
+{
+  "active_measurement": false,
+  "actual_Calc_cells": {
+    "A3": {
+      "error": 0,
+      "formula": "7",
+      "type": "VALUE",
+      "value": 7.0
+    },
+    "B3": {
+      "error": 0,
+      "formula": "3",
+      "type": "VALUE",
+      "value": 3.0
+    },
+    "C3": {
+      "error": 0,
+      "formula": "{=SUM(A3:B3)}",
+      "type": "FORMULA",
+      "value": 10.0
+    }
+  },
+  "actual_marker": {
+    "cell": "A2",
+    "matches_registered_source_marker": true,
+    "text": "Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f"
+  },
+  "audit_pending": false,
+  "automatic_retries": 0,
+  "cell_edit_calls_authorized": 0,
+  "cleanup_seconds": 30,
+  "closed_utc": "2026-10-08T13:22:07.198048+00:00",
+  "coordinate_mapping": {
+    "native_A2_B2_C2": "export_A3_B3_C3",
+    "native_marker_A1": "export_A2"
+  },
+  "elapsed_seconds": 0.6068752480205148,
+  "endpoint": "One XLSX read-only load; actual Calc A3=7 B3=3 C3=10 FORMULA/error0, exact registered getFormula spelling, A2 source marker; all original owners closed and inputs/runtime573/installed19 preserved within original60+30.",
+  "exact_C3_array_formula": {
+    "accepted_Calc_getFormula": [
+      "=SUM(A3:B3)",
+      "{=SUM(A3:B3)}"
+    ],
+    "attributes": {
+      "ref": "C3",
+      "t": "array"
+    },
+    "text": "SUM(A3:B3)"
+  },
+  "expected_cells": {
+    "A3": 7,
+    "B3": 3,
+    "C3": 10
+  },
+  "explicit_recalculation_calls_authorized": 0,
+  "export_calls": 0,
+  "fidelity_passed": true,
+  "full_formula_or_layout_fidelity": false,
+  "gate487_closed": false,
+  "independent_formula_fidelity": {
+    "audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/apple-xlsx-readonly-d1a23b21-9996-4c3d-b6de-840ec776b7cc-preparation-private-v1/audit-independent-readonly-Calc-formula-terminal-v2.json",
+      "sha256": "c24f64605b0961fd8acefaf199676a9d45641e36d0adc6a0975fef98b96cecf7",
+      "size": 9847
+    },
+    "passed": 20,
+    "total": 20
+  },
+  "independent_owner_preservation": {
+    "audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/apple-xlsx-readonly-d1a23b21-9996-4c3d-b6de-840ec776b7cc-preparation-private-v1/root-execution-v1/audit-independent-owner-preservation-terminal-v1.json",
+      "sha256": "06ade2478fd11764466fd27a8d6e29c612cfc28e48022ec7930ecd1f6dd14ce3",
+      "size": 5854
+    },
+    "passed": 24,
+    "total": 24
+  },
+  "installed19_and_pid_unchanged": true,
+  "load_calls": 1,
+  "owners_closed": true,
+  "prediction": "Apple-exported OOXML has the source SUM and cached values. Calc may preserve the single-cell array formula; this is an unexecuted observation.",
+  "provider_calls_authorized": 0,
+  "question": "Does one read-only Calc load preserve the Apple-exported single-cell SUM array formula and mapped source values/marker?",
+  "retained_audit_only_correction": "Formula audit V1 used outer command index4 instead of index3; failed audit check retained, V2 corrects only that indexing. No application rerun.",
+  "run": "d1a23b21-9996-4c3d-b6de-840ec776b7cc",
+  "runtime573_unchanged": true,
+  "single_XLSX_export_authorized": 0,
+  "single_XLSX_load_authorized": 1,
+  "source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1/apple-export-raw.xlsx",
+    "sha256": "2eeb79e968e9d40c030ecbf21fcaca52032e1c3118cdac914f33e6db057dbccf",
+    "size": 6964
+  },
+  "source_marker": {
+    "cell": "A2",
+    "text": "Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f"
+  },
+  "source_unchanged": true,
+  "started_utc": "2026-10-08T13:21:46.691292+00:00",
+  "status": "closed_workflow_and_formula_fidelity_independently_passed",
+  "supported_fidelity_scope": "Exact registered Apple Excel array SUM dependency, values and marker; no native Numbers editing/save or general spreadsheet/layout fidelity.",
+  "version": 1,
+  "work_seconds": 60,
+  "workflow_completed": true
+}

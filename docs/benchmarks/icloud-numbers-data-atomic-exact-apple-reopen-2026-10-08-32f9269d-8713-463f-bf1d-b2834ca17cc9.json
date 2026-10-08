@@ -1,0 +1,111 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "cleanup_reserve_seconds": 45,
+  "correction": "Prior unexecuted17/3/20 expectation was unrelated PACKAGE/XLSX scope; exact DATA B raw hash matches known7/3/10.",
+  "current": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "cloud_mutated": false,
+    "content_identity_verified": true,
+    "etag": "i2y2::i2y1",
+    "format": "numbers",
+    "gui_fidelity_verified": false,
+    "item": "FILE::com.apple.CloudDocs::9143A6CE-41E8-4769-A9E5-607BA8A84CDB",
+    "manifest_sha256": "fa561a44578cc2e13d4136bb8cce47e1bd9823dbdbf46fd2bacc1adf2209b9a8",
+    "parent": "FOLDER::com.apple.CloudDocs::A8FDEAB6-8F68-44BA-81F1-C8E5B6E70298",
+    "representation": "data",
+    "run": "de0f154b-d2de-4daa-bce3-c734dd311ca2",
+    "semantic": null,
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "endpoint": "Exact owned row data-id to sole new editor, before+after labeled screenshots/native AX formula+marker/disabled UndoRedo, all own tabs closed within original600/45.",
+  "expectation_witness": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-de0f-apple-preparation-private-v1/expected-source-rendered-witness-v1.json",
+    "sha256": "29b3f3ae646da515cb010cd3036c969319fa867f4b7922a3b445868621a728ce",
+    "size": 5167
+  },
+  "expected": {
+    "A2": 7,
+    "B2": 3,
+    "C2_display": 10,
+    "C2_formula": "SUM(A2:B2)",
+    "source_marker": "Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f"
+  },
+  "limits": [
+    "Apple opening can itself advance provider metadata; no posteditor revision/raw preservation claim.",
+    "Unsigned editor route is observed from exact-row open, not UUID-decoded.",
+    "View-only cell selections allowed; no typing, clipboard, repair, duplicate open, automatic retry, content edit or upload action.",
+    "One specimen/direction only; no native Linux editor, completeformatfidelity, general reliability, full487 closure or HOLD release."
+  ],
+  "maximum_seconds": 600,
+  "prediction": "Exact7/3/10 and SUM(A2:B2) plus the registered source marker render before/after exactly one reload without editing.",
+  "question": "Does exact successful Numbers DATAatomic B reopen with A2=7, B2=3, displayed SUM result10 before and after one reload?",
+  "ready": true,
+  "run": "32f9269d-8713-463f-bf1d-b2834ca17cc9",
+  "subject_run": "de0f154b-d2de-4daa-bce3-c734dd311ca2",
+  "version": 1,
+  "normal_ro_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/audit-independent-readonly-terminal-v1.json",
+    "size": 6387,
+    "sha256": "99d6b57f8f3da1de9cba830eb5973b11a62e6a044cae1655d1a8a78f78d04e22"
+  },
+  "normal_ro_capture": {
+    "path": "/var/tmp/cirrove-numbers-data-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/raw-capture-result.json",
+    "size": 898,
+    "sha256": "62ed26b7415abe4d3fbaa23b9d8ac135d638b775cfc0fbd54d55bf578cf59515"
+  },
+  "writer_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-de0f154b-d2de-4daa-bce3-c734dd311ca2/audit-independent-numbers-data-atomic-terminal-v1.json",
+    "size": 12788,
+    "sha256": "86ee44d62a45b84aa14aae8d1ebbf526caa257526dbef56d8ea1ea11bcd05894"
+  },
+  "status": "closed_success",
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/root-ui-terminal-v1.json",
+    "size": 11336,
+    "sha256": "c710167db701537b5d774680374759cb7b7c6f23aacd401dd9ce9ce3e78e4f4d"
+  },
+  "elapsed_seconds": 226.11109733604826,
+  "before_image": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/before-reload.jpg",
+    "size": 100542,
+    "sha256": "58ca3e4293d9564f79b965b119c21351612530c95bc862e0e8fd2a7af84c3f65"
+  },
+  "after_image": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/after-reload.jpg",
+    "size": 100572,
+    "sha256": "76cb02619e5edeb94c924c1d11e5b5a1c9006e814d066c830947e7e415971be5"
+  },
+  "open_count": 1,
+  "reload_count": 1,
+  "content_edits": 0,
+  "automatic_retries": 0,
+  "full487_closed": false,
+  "installed_HOLD_released": false,
+  "completed_matrix_workflow": true,
+  "bounded_workflow_chain": {
+    "writer_Trash": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-de0f154b-d2de-4daa-bce3-c734dd311ca2/audit-independent-numbers-data-atomic-terminal-v1.json",
+      "size": 12788,
+      "sha256": "86ee44d62a45b84aa14aae8d1ebbf526caa257526dbef56d8ea1ea11bcd05894"
+    },
+    "normal_readonly": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/audit-independent-readonly-terminal-v1.json",
+      "size": 6387,
+      "sha256": "99d6b57f8f3da1de9cba830eb5973b11a62e6a044cae1655d1a8a78f78d04e22"
+    },
+    "exact_Apple": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/audit-independent-apple-terminal-v1.json",
+      "size": 17224,
+      "sha256": "8721ee54fe4c6424d7c7f2eafce752e78c673e706bd5bd0c1b3b86864ead6f32"
+    }
+  },
+  "complete_iWork_workflows": 8,
+  "required_iWork_workflows": 12,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/audit-independent-apple-terminal-v1.json",
+    "size": 17224,
+    "sha256": "8721ee54fe4c6424d7c7f2eafce752e78c673e706bd5bd0c1b3b86864ead6f32"
+  }
+}

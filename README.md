@@ -79,7 +79,7 @@ to atomic-save ordering and publication of the confirmed replacement identities.
 A separate [read-only observer](docs/benchmarks/icloud-calc-trash-original-2026-10-06.json)
 also verified the exact original bytes in iCloud Trash.
 Bounded native archive replacement and recoverable removal are now validated;
-four full-integration acceptance areas remain open, and installed delivery stays on HOLD.
+three full-integration acceptance areas remain open, and installed delivery stays on HOLD.
 A [fresh standalone removal trial](docs/benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json)
 recovered a controlled process exit without repeating the mutation, verified the
 complete original content in Trash and passed normal read-only absence checks.
@@ -102,8 +102,12 @@ badges, offline actions, inherited pins and native-document restrictions.
 A [fresh private-host trial](docs/benchmarks/icloud-strata-private-host-dialog-2026-10-06.json)
 also passed the real normal read-only iCloud catalog, native Show availability
 menu and exact filename/On demand dialog, with one actual indexed archive child.
-It preserved installed artifacts and settings; real pin/fetch/kept transitions,
-notifications and installed Strata acceptance remain open. Dolphin's broader live
+It preserved installed artifacts and settings. A [fresh real Numbers DATA trial](docs/benchmarks/icloud-strata-numbers-data-pin-2026-10-08-bad238ab-7129-47c4-b7a5-b331219f41d7.json)
+also passed one Keep/Stop cycle from an initially uncached file, the kept badge,
+availability dialog and menu/badge refresh. Its independent audit passed 33/33;
+the fetching description was observed through accessibility. This used a private
+host test environment; inherited folder pins and installed Strata acceptance
+remain open. Dolphin's broader live
 desktop acceptance also remains open. Distribution and upgrade
 boundaries are recorded in the [validation record](docs/validation.md).
 
@@ -232,12 +236,113 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Development update, 7 October 2026:** iCloud has moved beyond a feasibility
+**Development update, 8 October 2026:** iCloud has moved beyond a feasibility
 study. Cirrove has its own native adapter using Apple's undocumented web
 transport, with no rclone or Stratosync runtime, configuration or credential
 import. Live checks have covered sign-in, directory browsing, on-demand and
 ranged reads, saved-session restart, and detection of a remote content change.
 New iCloud connections default to read-only.
+
+The current application boundary is:
+
+| Format | Bounded workflow verified | Remaining limit |
+|---|---|---|
+| Pages / Numbers / Keynote **PACKAGE** | Archive replacement, original in Trash, normal read-only remount and Apple reopen | Native iWork editing and saving in Linux applications are unsupported by the tested filters. |
+| Pages **DATA** | Ordinary and atomic saves, exact bytes and Trash, normal read-only remount, exact Apple text after reload | One genuine export pair; broader fidelity and native Linux Pages editing remain untested. |
+| Keynote **DATA** | Ordinary and atomic saves, exact bytes and Trash, normal read-only remount, expected slide title and subtitle after Apple reload | One genuine export pair; broader presentation fidelity and native Linux Keynote editing remain untested. |
+| Numbers **DATA** | Ordinary and atomic saves, exact new bytes and original in Trash, normal read-only remount, Apple open/reload with values and SUM preserved | One genuine export pair; the earlier Apple refusal remains recorded and unexplained. |
+| DOCX / Writer | Real application create/edit/save/reopen through an isolated mount, byte readback and original in Trash | One paragraph; layout, fonts and media are untested. |
+| XLSX / Calc | Real application saves/reopens with SUM preserved, byte readback and original in Trash; Apple's Excel export preserved values and SUM on a read-only Calc open | Two owned direct Numbers imports flatten SUM to a cached value. Use Apple's Excel export for the tested formula-preserving route; general spreadsheet fidelity is untested. |
+| PPTX / Impress | Real application create/edit/save/reopen, byte readback and original in Trash | One slide's title and subtitle; layout, media and animation are untested. |
+
+All twelve registered iWork archive-copy workflows now have complete bounded
+endpoints: Pages, Numbers and Keynote, DATA and PACKAGE representations, and
+ordinary and atomic saves. These workflows remain distinct from full iCloud
+release acceptance.
+
+The [documented iWork application criterion](docs/benchmarks/icloud-iwork-application-acceptance-2026-10-08.json)
+is now complete, including the supported DOCX, PPTX and Apple Excel export-copy
+checks with their explicit content limits. Installed account/recovery behavior,
+complete desktop delivery and reliability acceptance remain open.
+
+The final [ordinary Keynote PACKAGE save](docs/benchmarks/icloud-keynote-package-ordinary-a0a06783-4280-4a2c-b34c-d94b737df23e-2026-10-08.json)
+preserved the original in Trash and passed a separate
+[normal read-only remount](docs/benchmarks/icloud-keynote-package-ordinary-normal-readonly-2026-10-08-4c0b9e76-a9c0-4267-977f-af372b8e2cb8.json)
+and [Apple Keynote reopening](docs/benchmarks/icloud-keynote-package-ordinary-exact-apple-reopen-2026-10-08-d976ad1d-71ac-4374-8f6e-c63013c409db.json).
+Independent audits passed 39, 35 and 33 checks. The exact title, subtitle and
+single slide remained visible after one reload, without content edits.
+
+A [fresh offline Calc check](docs/benchmarks/icloud-numbers-data-calc-formula-export-2026-10-08-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e.json)
+reproduced the native Numbers import limit with the current genuine fixture.
+Values 7, 3 and 10 survived, but Calc had already replaced SUM with the constant
+10 before exporting XLSX. The native source stayed unchanged. This path does not
+preserve editable formulas. A separate
+[Apple Excel export](docs/benchmarks/icloud-numbers-apple-excel-export-2026-10-08-4cfbc759-df14-4a24-a84d-9e1614eb3146.json)
+and [read-only Calc open](docs/benchmarks/icloud-numbers-apple-xlsx-readonly-calc-2026-10-08-d1a23b21-9996-4c3d-b6de-840ec776b7cc.json)
+preserved the same values, SUM formula and source marker. Apple adds a table-title
+row, so native C2 becomes Excel C3. This validates the tested export-copy route;
+it does not establish native Numbers editing in Calc or general spreadsheet fidelity.
+
+A fresh [Numbers DATA atomic writer](docs/benchmarks/icloud-numbers-data-atomic-2026-10-08-de0f154b-d2de-4daa-bce3-c734dd311ca2.json)
+has passed exact new-version and original-in-Trash byte checks, a separate
+[normal read-only remount](docs/benchmarks/icloud-numbers-data-atomic-normal-readonly-remount-2026-10-08-b27a5609-cc26-4247-bdae-cc36bd1893c7.json)
+and [Apple Numbers reopening](docs/benchmarks/icloud-numbers-data-atomic-exact-apple-reopen-2026-10-08-32f9269d-8713-463f-bf1d-b2834ca17cc9.json).
+Values 7, 3 and 10, the SUM formula and the source marker remained visible after
+one reload. Independent writer, remount and Apple audits passed 36, 33 and 33
+checks. The first remount's strict timestamp-comparison failure is retained;
+the corrected, separately registered remount preserves journal bytes and logical
+state while recording SQLite's changes to the cloned SHM timestamps.
+
+A fresh [Keynote DATA atomic writer](docs/benchmarks/icloud-keynote-data-atomic-2026-10-08-01da7cef-1407-4830-9f76-08c498a11a76.json)
+also passed exact replacement and original-in-Trash checks, a separate
+[normal read-only remount](docs/benchmarks/icloud-keynote-data-atomic-normal-readonly-remount-2026-10-08-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf.json)
+and [Apple Keynote reopening](docs/benchmarks/icloud-keynote-data-atomic-exact-apple-reopen-2026-10-08-a55c81d2-bc01-4597-a708-7ca8f05f05ed.json).
+The expected title, subtitle and one slide remained visible after one reload,
+without content edits. Independent audits passed 36, 33 and 33 checks. This
+completes one bounded archive-copy workflow; broader native editing and full
+iCloud acceptance remain open.
+
+A fresh [Pages DATA atomic writer](docs/benchmarks/icloud-pages-data-atomic-2026-10-08-ffe0da39-0a83-42cc-b165-2910defae614.json)
+passed exact replacement and original-in-Trash checks, a separate
+[normal read-only remount](docs/benchmarks/icloud-pages-data-atomic-normal-readonly-remount-2026-10-08-f3b7b6d2-927b-4982-9223-4aeb5d878110.json)
+and [Apple Pages reopening](docs/benchmarks/icloud-pages-data-atomic-exact-apple-reopen-2026-10-08-18ba4dbb-fe8f-4c98-9ce6-5ded7b17076f.json).
+The complete known paragraph matched before and after one reload, without
+content edits. Independent audits passed 36, 33 and 33 checks. This completes
+one bounded archive-copy workflow; full iCloud acceptance remains open.
+
+A fresh [Pages PACKAGE ordinary writer](docs/benchmarks/icloud-pages-package-ordinary-8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9-2026-10-08.json)
+also passed a canonical archive overwrite, original preservation in Trash, a
+[normal read-only remount](docs/benchmarks/icloud-pages-package-ordinary-normal-readonly-2026-10-08-b6d2dbdb-7691-4113-aa9d-de69668d38b4.json)
+and [Apple Pages opening and reload](docs/benchmarks/icloud-pages-package-ordinary-exact-apple-reopen-2026-10-08-192eaf1f-655e-4cc3-ae8d-e553d6892f81.json).
+Independent audits passed 39/39, 35/35 and 33/33. The full known paragraph matched
+before and after reload. This establishes one archive-copy workflow; broader
+fidelity, native Linux Pages editing and installed acceptance remain open.
+
+An earlier [Pages DATA atomic trial](docs/benchmarks/icloud-pages-data-atomic-2026-10-08-f3157aef-67b6-4542-a933-2c165e27ab77.json)
+stopped after local replacement because of a test-controller error. The narrow
+controller correction passed its controls. A separate fresh read confirmed the
+original A bytes and temporary B bytes; the full cloud outcome, including Trash,
+remains unresolved. The failed operation has not been replayed and does not
+count as a completed workflow.
+
+New [Pages](docs/benchmarks/icloud-pages-package-atomic-d34f610e-e05d-4e1c-8341-098c6dd935f2-terminal-audit-2026-10-08.json)
+and [Keynote](docs/benchmarks/icloud-keynote-package-atomic-ff5abf15-0264-46a1-9efd-94a70ae724a7-terminal-audit-2026-10-08.json)
+PACKAGE atomic-save trials have each passed one temporary-file write, fsync and
+rename through the mounted canonical archive. Independent iCloud reads verified
+the new content and the original in Trash; each audit passed 34/34.
+Pages also passed a [fresh normal read-only remount](docs/benchmarks/icloud-pages-package-atomic-normal-readonly-2026-10-08-9f7027c9-afa1-44bf-aefc-c3bb3bd62cac.json)
+(audit 32/32) and [Apple Pages reopening](docs/benchmarks/icloud-pages-package-atomic-exact-apple-reopen-2026-10-08-238dd615-d388-423c-aa16-6ae706335bdf.json),
+with the complete known paragraph preserved after one reload (audit 25/25).
+Keynote also passed a [fresh normal read-only remount](docs/benchmarks/icloud-keynote-package-atomic-normal-readonly-2026-10-08-184da3f0-452f-44df-917f-f442913a048c.json)
+(audit 32/32) and [Apple Keynote reopening](docs/benchmarks/icloud-keynote-package-atomic-exact-apple-reopen-2026-10-08-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611.json),
+with its genuine one-slide title and subtitle visually preserved after one
+reload (audit 26/26). These are archive replacements, with no native Linux
+Pages or Keynote editing claim. Full-iCloud acceptance and installed delivery
+remain open and on HOLD.
+
+The dated results below distinguish archive-copy saves, actual Linux application
+saves and conversions. These development checks do not constitute a full iCloud
+release or installed acceptance.
 
 The latest development work extends Cirrove's shared journal and filesystem to
 explicit ordinary-file writes, conditional changes, recoverable Trash and
@@ -259,8 +364,12 @@ completed one temporary-file write, flush and rename through FUSE, preserving a
 held reader of the original. Its controller stopped at a local verification
 error after the upload completed. A [separate read-only verification](docs/benchmarks/icloud-numbers-atomic-postflight-read-2026-10-07-60fc4036-f746-4f74-a796-052cd70d276a.json)
 confirmed the complete replacement content and exact original in Trash without
-repeating the write. This archive-copy trial still needs its own fresh read-only
-remount and Apple reopen; it does not establish native Linux editor fidelity.
+repeating the write. A [fresh normal read-only remount](docs/benchmarks/icloud-numbers-atomic-normal-readonly-remount-2026-10-07-b6ce3c1e-f8e7-4dfd-8a2f-b2d46b66150a.json)
+now verified the complete replacement again. [Apple Numbers reopening](docs/benchmarks/icloud-numbers-atomic-exact-apple-reopen-2026-10-07.json)
+matched the exact current document ID and displayed 7, 3, 10 and `SUM(A2:B2)`.
+The original controller failure remains recorded. This is one bounded
+archive-copy atomic save; native Linux editor fidelity and the broader
+application matrix remain open.
 
 The [subsequent Numbers DATA trial](docs/benchmarks/icloud-numbers-data-revision-confirmation-2026-10-04.json)
 created a genuine Apple export as an ordinary file through FUSE. An independent
@@ -274,6 +383,16 @@ its independent audit passed 49/49. A [separate exact-ID Apple Numbers open](doc
 then failed with “This spreadsheet can’t be opened right now.” Its cause remains
 unproved; no values, formula or reload were observed, and there was no retry.
 Independent audit 22/22 verified the retained refusal and owned-tab closure.
+
+A [fresh Numbers DATA trial on the corrected candidate](docs/benchmarks/icloud-numbers-data-corrected-candidate-2026-10-08-8bbfa670-42ac-4f04-91d1-a6cbd6afc018.json)
+now passed one new create and one overwrite, independently matching all 138,943
+replacement bytes and all 138,881 original bytes in Trash. Its independent audit
+passed 36/36. A [new normal read-only remount](docs/benchmarks/icloud-numbers-data-normal-readonly-remount-2026-10-08-68e37925-ca6f-483b-b62c-1db7450bf98a.json)
+also returned the exact replacement bytes and revision. A [new exact-item Apple Numbers observation](docs/benchmarks/icloud-numbers-data-exact-apple-reopen-2026-10-08-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a.json)
+now passed opening and one reload with values 7/3/10, `SUM(A2:B2)` and the genuine
+source marker intact; its independent audit passed 26/26. The earlier refusal
+remains recorded. This bounded result does not establish its cause, native Linux
+Numbers editing or broader spreadsheet fidelity.
 
 A fresh Numbers browser trial also confirmed that an edit and its formula
 survived closing and reopening in Apple's editor, and produced a native export.
@@ -405,6 +524,22 @@ and retained its one-slide B title and subtitle after one reload, with no edits.
 This completes that bounded PACKAGE workflow; wider format and editor fidelity
 remain unproved.
 
+An earlier [Keynote DATA trial](docs/benchmarks/icloud-keynote-data-ordinary-save-2026-10-07-672e98c3-39b6-45a1-85bd-16cc77a6404b.json)
+exposed stale metadata after a save, and Apple refused its exact replacement.
+The [metadata correction](docs/benchmarks/icloud-ordinary-completed-current-convergence-2026-10-07.json)
+and [binary staging correction](docs/benchmarks/icloud-ordinary-replacement-binary-mime-2026-10-07.json)
+passed local regressions and the complete project check. A
+[new owned Keynote DATA trial](docs/benchmarks/icloud-keynote-data-mime-followup-2026-10-07-2b4c7986-df74-4332-b24f-9d6bfd435fcd.json)
+then created A and overwrote it once with a genuine edited Apple export B.
+Independent reads verified every byte of B and the original A in Trash; a
+[normal read-only remount](docs/benchmarks/icloud-keynote-data-ro-remount-2026-10-07-edba5896-a07e-4cf8-98a7-d52735c5f3d1.json)
+returned the exact B bytes. [Apple Keynote opened this new replacement](docs/benchmarks/icloud-keynote-data-exact-apple-reopen-2026-10-07-2b4-8653574f-c244-47b2-9284-99828cb9ecbf.json)
+with its one-slide B title and subtitle intact after one reload. Independent
+writer, remount and Apple-observation audits passed 36, 29 and 26 checks.
+This completes one bounded DATA archive-copy workflow; native Linux Keynote
+saving and broader format fidelity remain unproved. Earlier failures are retained;
+this successful new case does not establish their Apple refusal cause.
+
 A [genuine Pages replacement](docs/benchmarks/icloud-pages-direct-flat-replacement-2026-10-07-ab8555d8.json)
 also accepted the unchanged Apple export without an outer document folder.
 Independent full content checks verified the new document and its original in
@@ -453,6 +588,17 @@ passed 28/28 for the retained failure and closure; the cause remains unresolved.
 There was no reload or retry. The successful PACKAGE reopen above is a separate
 case. Raw DATA byte parity does not establish Apple editor admission or native
 Linux Pages saving.
+
+A [new Pages DATA trial on the corrected candidate](docs/benchmarks/icloud-pages-data-corrected-candidate-2026-10-07-9fa551d8-c617-4ae7-ac5c-d4d5360bafb9.json)
+then passed one ordinary create and overwrite, independently verifying the exact
+101,769-byte replacement and 100,824-byte original in Trash. A
+[separate normal read-only remount](docs/benchmarks/icloud-pages-data-normal-readonly-remount-2026-10-08-6231f854-e2dd-4a83-a018-38526ed315ca.json)
+returned the exact new bytes in 8.62 seconds. [Apple Pages opened this new item](docs/benchmarks/icloud-pages-data-exact-apple-reopen-2026-10-08-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683.json)
+with the exact genuine 93-byte paragraph unchanged after one reload; no content
+was edited. Independent writer, remount and Apple-observation audits passed
+36, 29 and 28 checks. This completes one bounded Pages DATA archive-copy workflow, while
+the old failure and its unresolved cause remain recorded. Native Linux Pages
+saving, layout, fonts and media fidelity remain unsupported or untested.
 
 An [isolated saved-session connection](docs/benchmarks/icloud-saved-session-real-lifecycle-2026-10-07-ebbd9f71.json)
 completed but stopped before read-only startup became ready. A

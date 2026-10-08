@@ -1,0 +1,59 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ordinary-full2",
+  "TMPDIR": "/home/dandiccf/Storage/ct/ordinary-full2",
+  "active_measurement": false,
+  "arms": [
+    "One full scripts/check.sh; no --fast"
+  ],
+  "assessment": {
+    "Root_source_equivalence": true,
+    "completion_appended_after_check": true,
+    "new_named_tests_executed": 14,
+    "rust_result_groups": 87,
+    "sections": 10,
+    "source_count": 571,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-ordinary-replacement-combined-check-20261007-private-v1/root-complete-check-v2/terminal-v1.json",
+      "sha256": "16d0cf8b0c8ee470aa5730090b21a06487f64caef37ee664b5bf0e15fc55078a",
+      "size": 182977
+    }
+  },
+  "compile_checkout": "/home/dandiccf/Storage/cirrove-numbers-atomic-postflight-reader-20261007-v1",
+  "correction": "Test-only std::slice::from_ref after actual Clippy refusal; production and assertions unchanged.",
+  "date": "2026-10-07",
+  "endpoint": "Exit0, all ten sections, both new test names, all Rust result groups green, original owner closure and identical final source/document maps.",
+  "expected_seconds": 1800,
+  "failed_predecessor": {
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ordinary-full1",
+    "TMPDIR": "/home/dandiccf/Storage/ct/ordinary-full1",
+    "active_measurement": false,
+    "all_recorded_owners_closed": true,
+    "arms": [
+      "One full scripts/check.sh; no --fast"
+    ],
+    "compile_checkout": "/home/dandiccf/Storage/cirrove-numbers-atomic-postflight-reader-20261007-v1",
+    "date": "2026-10-07",
+    "endpoint": "Exit0, all ten sections, both new test names, all Rust result groups green, original owner closure and identical final source/document maps.",
+    "expected_seconds": 1800,
+    "filesystem": "ext4",
+    "full_487_closed": false,
+    "installed_actions": false,
+    "maximum_seconds": 5400,
+    "prediction": "All ten check sections pass, fourteen named ordinary metadata/MIME/router regressions execute, and formatted571 sources stay identical in Root and W.",
+    "provider_actions": false,
+    "question": "Do corrected ordinary current publication and binary stage/recovery routing pass the complete contributor check?",
+    "status": "complete_check_stopped_inspection_required",
+    "version": 1
+  },
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "maximum_seconds": 5400,
+  "prediction": "All ten check sections pass, fourteen named ordinary metadata/MIME/router regressions execute, and formatted571 sources stay identical in Root and W.",
+  "provider_actions": false,
+  "question": "Do corrected ordinary current publication and binary stage/recovery routing pass the complete contributor check?",
+  "status": "complete_check_passed",
+  "version": 1
+}

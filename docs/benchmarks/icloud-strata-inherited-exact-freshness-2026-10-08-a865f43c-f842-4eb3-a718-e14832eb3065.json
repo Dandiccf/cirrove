@@ -1,0 +1,56 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "arms": 1,
+  "automatic_retries": 0,
+  "child_metadata_proved": false,
+  "cleanup_seconds": 10,
+  "endpoint": {
+    "etag": "i2vf::i2ve",
+    "item": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+    "parent": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+    "parent_etag": "i2vc",
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "expired_session_proved": false,
+  "failure_classification": "pre-transfer parent metadata: etag differs",
+  "file_download_proved": false,
+  "full489_closed": false,
+  "independent_audit": {
+    "passed": 17,
+    "receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-freshness-a865f43c-f842-4eb3-a718-e14832eb3065/audit-independent-freshness-refusal-terminal-v1.json",
+      "sha256": "0e2df27177ee64d3ed5c428e9b7d33187b6a18d43ad6613283a6d797c2afea5b",
+      "size": 3990
+    },
+    "scope": "owner closure and source/installed preservation; observation remains failed",
+    "total": 17
+  },
+  "inherited_pin_proved": false,
+  "leaf_elapsed_seconds": 10.214046567,
+  "leaf_exit_code": 1,
+  "limits": [
+    "Unchanged exact tuple success enables literal inherited binding. Any refusal leaves current authority unknown and blocks that arm.",
+    "This read is separately registered from the future GUI 600/45. HTTP requests are uninstrumented; one process invocation is not one HTTP request.",
+    "No raw provider body/session material logged; copied sealed settings context only, no journal/cache cloning."
+  ],
+  "maximum_work_seconds": 120,
+  "next_action": "Separate preregistered metadata-only read of exact owned parent and child. Preserve historical tuple failure; no substitution or automatic repeat.",
+  "observation_success": false,
+  "postfailure_preservation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-freshness-a865f43c-f842-4eb3-a718-e14832eb3065/root-postfailure-preservation-v1.json",
+    "sha256": "6e2c0623f34faa9cde4d2eadb00f4af8dbf83e1a92820219d37e7d46cbe3a898",
+    "size": 1160
+  },
+  "prediction": "One existing generic DATA reader verifies exact old parent/child before and after full read, or refuses once if either advanced. No revision discovery or substitution.",
+  "provider_mutations": false,
+  "question": "Are the exact registered Numbers8bb DATA B child and owned parent still at their historical revisions after Apple, with full B bytes unchanged?",
+  "run": "a865f43c-f842-4eb3-a718-e14832eb3065",
+  "status": "closed_known_parent_revision_refusal",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-freshness-a865f43c-f842-4eb3-a718-e14832eb3065/terminal-v1.json",
+    "sha256": "1e81a1c4b539ac6abaa445c1d2cd0fb322088001a4935ba103b4586be11f8956",
+    "size": 2233
+  }
+}

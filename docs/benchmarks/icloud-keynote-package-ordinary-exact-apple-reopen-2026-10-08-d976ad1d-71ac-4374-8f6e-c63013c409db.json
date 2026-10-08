@@ -1,0 +1,70 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "actual_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-ordinary-exact-apple-a0a-d976ad1d-71ac-4374-8f6e-c63013c409db-private-v1/audit-independent-apple-terminal-v1.json",
+    "sha256": "5a977bdff86b3be041639752a47945c74e45f77e4ba1dc0be0a33790f6a16f1b",
+    "size": 8673
+  },
+  "cleanup_reserve_seconds": 45,
+  "complete_iWork_workflows": 12,
+  "completed_matrix_workflow": true,
+  "current": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "cloud_mutated": false,
+    "content_identity_verified": true,
+    "etag": "i31h::i31g",
+    "format": "keynote",
+    "gui_fidelity_verified": false,
+    "item": "FILE::com.apple.CloudDocs::015D651F-FA24-4234-A755-1229904AAF35",
+    "manifest_sha256": "4333b4e614b21317a555fdbf857b791614199758d6563d3c99a9b7df521c2f5b",
+    "parent": "FOLDER::com.apple.CloudDocs::9B8E58D1-E76D-416A-B682-2B6792AA97E8",
+    "representation": "package",
+    "run": "a0a06783-4280-4a2c-b34c-d94b737df23e",
+    "semantic": {
+      "entries": 58,
+      "expanded_bytes": 519514,
+      "files": 54,
+      "sha256": "75999acac3e1d8f63d46b9038d32a3fd5ff7a12c5ce6cf3fbc83c0d450f5edd7",
+      "version": 2
+    },
+    "size": 519514,
+    "size_basis": "provider_logical_metadata_not_transport_ZIP"
+  },
+  "document_name": "Cirrove-Keynote-Parent-a0a06783-4280-4a2c-b34c-d94b737df23e.key",
+  "elapsed_seconds": 472.8136959075928,
+  "evidence_limit": "Exact title/subtitle is Root visual screenshot evidence, not native AX extraction; no post-editor raw/revision claim.",
+  "expected": {
+    "slide_count": 1,
+    "subtitle": "Owned genuine editor replacement source B",
+    "title": "Cirrove Keynote B bb3eab7e-9f00-4289-a67e-6bf7fb37de8a"
+  },
+  "full487_closed": false,
+  "gui_fidelity_scope": "one genuine B slide title/subtitle before and after one reload",
+  "gui_fidelity_verified": true,
+  "independent_audit_passed": 33,
+  "independent_audit_pending": false,
+  "installed_HOLD_released": false,
+  "maximum_seconds": 600,
+  "observed_URL_equality_claimed": false,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-ordinary-exact-apple-a0a-d976ad1d-71ac-4374-8f6e-c63013c409db-private-v1/original-window.json",
+    "sha256": "bbd97b730f935650e3becb79b941de245bb4ccfa1c13ffc8095ed0e8f11aea24",
+    "size": 379
+  },
+  "parent_name": "Cirrove-Native-a0a06783-4280-4a2c-b34c-d94b737df23e",
+  "prediction": "One Slide1 will render the exact known genuine B title and subtitle before/after one open and one reload with Undo/Redo disabled and no content edit; both own tabs close in original600/45.",
+  "question": "Does the exact fresh ordinarily saved Keynote PACKAGE show the genuine B slide before and after one Apple reload?",
+  "ready": true,
+  "required_iWork_workflows": 12,
+  "route_normalization_recorded": true,
+  "run": "d976ad1d-71ac-4374-8f6e-c63013c409db",
+  "status": "closed_success_independently_audited",
+  "subject_run": "a0a06783-4280-4a2c-b34c-d94b737df23e",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-ordinary-exact-apple-a0a-d976ad1d-71ac-4374-8f6e-c63013c409db-private-v1/root-ui-terminal-v1.json",
+    "sha256": "64ebd7282cb8f133576fdd29ff0fd3d473432acbdbfe36042dc5aeaa62ef5365",
+    "size": 10153
+  }
+}

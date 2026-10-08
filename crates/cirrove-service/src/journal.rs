@@ -49,7 +49,9 @@ use cirrove_core::{Node, NodeKind, Scope};
 pub(crate) const JOURNAL_SCHEMA: u32 = 21;
 pub(crate) use export::MetadataPublicationJournal;
 pub use generations::{UploadBase, WriteBase};
-pub(crate) use identity_handoff::{NativeMetadataScan, OrdinaryHandoffMetadata};
+pub(crate) use identity_handoff::{
+    CompletedOrdinaryMetadataScan, NativeMetadataScan, OrdinaryHandoffMetadata,
+};
 pub use mutations::{MutationRecord, MutationState};
 pub(crate) use namespace::project_retained_namespace;
 pub use namespace::{

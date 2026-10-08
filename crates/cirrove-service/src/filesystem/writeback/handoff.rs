@@ -244,6 +244,9 @@ mod tests {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     struct Provider {
         node: Node,
+        current: Mutex<Option<Node>>,
+        missing: AtomicBool,
+        requested: Mutex<Vec<String>>,
         hold: AtomicBool,
         fail: AtomicBool,
         calls: AtomicUsize,
@@ -269,9 +272,10 @@ mod tests {
         async fn node(
             &self,
             _: &Scope,
-            _: &str,
+            id: &str,
             _: &CancellationToken,
         ) -> std::result::Result<Node, ProviderError> {
+            self.requested.lock().unwrap().push(id.to_owned());
             self.calls.fetch_add(1, Ordering::SeqCst);
             if self.fail.load(Ordering::SeqCst) {
                 return Err(ProviderError::Unavailable);
@@ -282,7 +286,15 @@ mod tests {
                 // must be able to abandon this network future safely.
                 self.release.notified().await;
             }
-            Ok(self.node.clone())
+            if self.missing.load(Ordering::SeqCst) {
+                return Err(ProviderError::NotFound);
+            }
+            Ok(self
+                .current
+                .lock()
+                .unwrap()
+                .clone()
+                .unwrap_or_else(|| self.node.clone()))
         }
         async fn children(
             &self,
@@ -357,6 +369,9 @@ mod tests {
             };
             let provider = Arc::new(Provider {
                 node: node.clone(),
+                current: Mutex::new(None),
+                missing: AtomicBool::new(false),
+                requested: Mutex::new(Vec::new()),
                 hold: AtomicBool::new(hold),
                 fail: AtomicBool::new(false),
                 calls: AtomicUsize::new(0),
@@ -535,6 +550,9 @@ mod tests {
         };
         let provider = Arc::new(Provider {
             node: settled.clone(),
+            current: Mutex::new(None),
+            missing: AtomicBool::new(false),
+            requested: Mutex::new(Vec::new()),
             hold: AtomicBool::new(false),
             fail: AtomicBool::new(false),
             calls: AtomicUsize::new(0),
@@ -620,6 +638,9 @@ mod tests {
             };
             let provider = Arc::new(Provider {
                 node: settled.clone(),
+                current: Mutex::new(None),
+                missing: AtomicBool::new(false),
+                requested: Mutex::new(Vec::new()),
                 hold: AtomicBool::new(false),
                 fail: AtomicBool::new(false),
                 calls: AtomicUsize::new(0),
@@ -1438,6 +1459,599 @@ mod tests {
             }
         }
     }
+
+    /// A completed ordinary backup job must not leave its staged B identity as
+    /// the only view exposed by the normal read-only filesystem after restart.
+    #[tokio::test]
+    async fn ordinary_completed_handoff_ro_reconciles_staged_current_in_public_lookup() {
+        fn retained_rows(path: &std::path::Path) -> Vec<Vec<String>> {
+            let db = rusqlite::Connection::open(path).unwrap();
+            db.execute_batch("PRAGMA query_only=ON;").unwrap();
+            [
+                "SELECT body FROM uploads ORDER BY id",
+                "SELECT body FROM working_files ORDER BY id",
+                "SELECT body FROM namespace_objects ORDER BY id",
+                "SELECT json_array(sequence,id,complete) FROM write_queue ORDER BY id",
+            ]
+            .into_iter()
+            .map(|sql| {
+                db.prepare(sql)
+                    .unwrap()
+                    .query_map([], |r| r.get::<_, String>(0))
+                    .unwrap()
+                    .collect::<std::result::Result<Vec<_>, _>>()
+                    .unwrap()
+            })
+            .collect()
+        }
+        let f = OrdinaryMetadataCase::new(true).await;
+        let staged = Node {
+            name: "staged-by-fixture.txt".into(),
+            etag: Some("staged-B".into()),
+            content_version: Some("staged-B".into()),
+            ..f.current.clone()
+        };
+        // Exercise the real old publication path rather than setting done by SQL.
+        assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+        let db_path = f.journal_root.join("uploads.db");
+        let done: bool = rusqlite::Connection::open(&db_path)
+            .unwrap()
+            .query_row(
+                "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+                [f.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(done);
+        {
+            let mut store = Store::open(&f.engine.db).unwrap();
+            store.observe_node(&f.scope, &staged).unwrap();
+            let root = Node {
+                id: "root".into(),
+                parent_id: None,
+                name: "root".into(),
+                kind: NodeKind::Folder,
+                size: 0,
+                ..f.original.clone()
+            };
+            store.observe_node(&f.scope, &root).unwrap();
+        }
+        let before = retained_rows(&db_path);
+        let OrdinaryMetadataCase {
+            root,
+            engine,
+            writer,
+            journal,
+            scope,
+            current,
+            backup,
+            original,
+            ..
+        } = f;
+        let mut account = engine.account.clone();
+        account.access = AccessMode::ReadOnly;
+        drop(writer);
+        drop(journal);
+        drop(engine);
+        let provider = Arc::new(Provider {
+            node: current.clone(),
+            current: Mutex::new(None),
+            missing: AtomicBool::new(false),
+            requested: Mutex::new(Vec::new()),
+            hold: AtomicBool::new(false),
+            fail: AtomicBool::new(false),
+            calls: AtomicUsize::new(0),
+            entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
+        });
+        let ro = Engine::new(account, provider.clone(), root.join("state"))
+            .await
+            .unwrap();
+        let started = ro.start().await;
+        let looked_up = if started.is_ok() {
+            tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    if let Ok(node) = ro.child(&scope, "root", &current.name).await
+                        && node == current
+                    {
+                        break node;
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .ok()
+        } else {
+            None
+        };
+        let paths = ro
+            .cached_path_states(std::slice::from_ref(&current.name))
+            .await;
+        ro.stop().await; // Every desired failure happens after original task join.
+        assert!(started.is_ok(), "normal RO engine must start");
+        assert_eq!(retained_rows(&db_path), before);
+        assert_eq!(
+            Store::open(&ro.db)
+                .unwrap()
+                .node(&scope, &original.id)
+                .unwrap(),
+            Some(backup)
+        );
+        assert!(
+            looked_up.as_ref() == Some(&current),
+            "completed ordinary handoff must expose final current in normal RO lookup"
+        );
+        let paths = paths.unwrap();
+        assert!(
+            paths.len() == 1
+                && paths[0].item == current.id
+                && paths[0].size == current.size
+                && paths[0].refusal.is_none(),
+            "completed ordinary handoff must expose final current in cached paths"
+        );
+        assert!(provider.calls.load(Ordering::SeqCst) <= 1);
+    }
+
+    fn ordinary_transfer_rows(path: &std::path::Path) -> Vec<Vec<String>> {
+        let db = rusqlite::Connection::open(path).unwrap();
+        db.execute_batch("PRAGMA query_only=ON;").unwrap();
+        [
+            "SELECT body FROM uploads ORDER BY id",
+            "SELECT body FROM working_files ORDER BY id",
+            "SELECT body FROM namespace_objects ORDER BY id",
+            "SELECT json_array(sequence,id,complete) FROM write_queue ORDER BY id",
+            "SELECT json_array(operation,body,done,failures,retry_after) FROM ordinary_metadata_publication ORDER BY operation",
+        ].into_iter().map(|sql| {
+            db.prepare(sql).unwrap().query_map([], |r| r.get::<_,String>(0)).unwrap()
+                .collect::<std::result::Result<Vec<_>,_>>().unwrap()
+        }).collect()
+    }
+    struct CompletedOrdinaryCase {
+        engine: Arc<Engine>,
+        provider: Arc<Provider>,
+        journal_root: std::path::PathBuf,
+        scope: Scope,
+        current: Node,
+        staged: Node,
+        operation: Uuid,
+        working: Uuid,
+    }
+    impl CompletedOrdinaryCase {
+        async fn new() -> Self {
+            let f = OrdinaryMetadataCase::new(true).await;
+            assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+            let staged = Node {
+                name: "staged-by-fixture.txt".into(),
+                etag: Some("staged-B".into()),
+                content_version: Some("staged-B".into()),
+                ..f.current.clone()
+            };
+            Store::open(&f.engine.db)
+                .unwrap()
+                .observe_node(&f.scope, &staged)
+                .unwrap();
+            let OrdinaryMetadataCase {
+                root,
+                engine,
+                writer,
+                journal,
+                provider,
+                journal_root,
+                scope,
+                current,
+                id,
+                working,
+                ..
+            } = f;
+            let mut account = engine.account.clone();
+            account.access = AccessMode::ReadOnly;
+            drop(writer);
+            drop(journal);
+            drop(engine);
+            *provider.current.lock().unwrap() = Some(current.clone());
+            let engine = Engine::new(account, provider.clone(), root.join("state"))
+                .await
+                .unwrap();
+            Self {
+                engine,
+                provider,
+                journal_root,
+                scope,
+                current,
+                staged,
+                operation: id,
+                working,
+            }
+        }
+        fn rows(&self) -> Vec<Vec<String>> {
+            ordinary_transfer_rows(&self.journal_root.join("uploads.db"))
+        }
+        fn later_completed(&self) -> Node {
+            let mut j = UploadJournal::open(&self.journal_root, "handoff", 4096).unwrap();
+            let bytes = b"third-body";
+            j.write_working(self.working, 0, bytes).unwrap();
+            j.truncate_working(self.working, bytes.len() as u64)
+                .unwrap();
+            let id = j.seal_working(self.working).unwrap().unwrap().id;
+            let row = j.claim_next().unwrap().unwrap();
+            assert_eq!(row.id, id);
+            j.reserve_identity_handoff(
+                id,
+                row.attempt.unwrap(),
+                cirrove_core::upload::RecoveryLocation::Trash {
+                    local_name: "recovery-B".into(),
+                    parent: "trash".into(),
+                },
+            )
+            .unwrap();
+            let current = Node {
+                id: "third-current".into(),
+                size: bytes.len() as u64,
+                etag: Some("current-C".into()),
+                content_version: Some("current-C".into()),
+                ..self.current.clone()
+            };
+            let backup = Node {
+                parent_id: Some("trash".into()),
+                etag: Some("backup-B".into()),
+                content_version: Some("backup-B".into()),
+                ..self.current.clone()
+            };
+            j.acknowledge_identity_handoff(id, row.attempt.unwrap(), current.clone(), backup)
+                .unwrap();
+            let proof = j.ordinary_metadata_due(0).unwrap().unwrap();
+            assert_eq!(proof.operation, id);
+            j.finish_ordinary_metadata(&proof, true, 0).unwrap();
+            current
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_pending_current_mismatch_reads_exact_id_before_done() {
+        let f = OrdinaryMetadataCase::new(false).await;
+        let staged = Node {
+            name: "staged-by-fixture.txt".into(),
+            etag: Some("stage".into()),
+            content_version: Some("stage".into()),
+            ..f.current.clone()
+        };
+        Store::open(&f.engine.db)
+            .unwrap()
+            .observe_node(&f.scope, &staged)
+            .unwrap();
+        *f.provider.current.lock().unwrap() = Some(f.current.clone());
+        assert!(f.writer.publish_ordinary_metadata(&f.engine).await.unwrap());
+        assert_eq!(
+            Store::open(&f.engine.db)
+                .unwrap()
+                .node(&f.scope, &f.current.id)
+                .unwrap(),
+            Some(f.current.clone())
+        );
+        assert_eq!(
+            f.provider.requested.lock().unwrap().as_slice(),
+            [f.current.id]
+        );
+        let done: bool = rusqlite::Connection::open(f.journal_root.join("uploads.db"))
+            .unwrap()
+            .query_row(
+                "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+                [f.id.to_string()],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(done);
+    }
+    #[tokio::test]
+    async fn ordinary_pending_current_wrong_id_or_read_failure_never_acknowledges() {
+        for wrong_id in [false, true] {
+            let f = OrdinaryMetadataCase::new(false).await;
+            let staged = Node {
+                name: "stage.txt".into(),
+                etag: Some("stage".into()),
+                ..f.current.clone()
+            };
+            Store::open(&f.engine.db)
+                .unwrap()
+                .observe_node(&f.scope, &staged)
+                .unwrap();
+            if wrong_id {
+                *f.provider.current.lock().unwrap() = Some(Node {
+                    id: "foreign".into(),
+                    ..f.current.clone()
+                });
+            } else {
+                f.provider.fail.store(true, Ordering::SeqCst);
+            }
+            let path = f.journal_root.join("uploads.db");
+            let before = ordinary_transfer_rows(&path);
+            assert!(f.writer.publish_ordinary_metadata(&f.engine).await.is_err());
+            let after = ordinary_transfer_rows(&path);
+            assert_eq!(&before[..4], &after[..4]); // Only pending local retry fields may advance.
+            let done: bool = rusqlite::Connection::open(&path)
+                .unwrap()
+                .query_row(
+                    "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+                    [f.id.to_string()],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert!(!done);
+            assert_eq!(
+                Store::open(&f.engine.db)
+                    .unwrap()
+                    .node(&f.scope, &f.current.id)
+                    .unwrap(),
+                Some(staged)
+            );
+            assert_eq!(
+                f.provider.requested.lock().unwrap().as_slice(),
+                [f.current.id]
+            );
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_completed_history_keeps_provider_advanced_revision_and_rename() {
+        let f = CompletedOrdinaryCase::new().await;
+        let fresh = Node {
+            name: "user-renamed.txt".into(),
+            parent_id: Some("elsewhere".into()),
+            etag: Some("advanced".into()),
+            content_version: Some("advanced".into()),
+            size: 17,
+            ..f.current.clone()
+        };
+        *f.provider.current.lock().unwrap() = Some(fresh.clone());
+        let before = f.rows();
+        let mut scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+        assert!(
+            f.engine
+                .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                .await
+                .unwrap()
+        );
+        assert_eq!(f.rows(), before);
+        assert_eq!(
+            Store::open(&f.engine.db)
+                .unwrap()
+                .node(&f.scope, &f.current.id)
+                .unwrap(),
+            Some(fresh)
+        );
+        assert_eq!(
+            f.provider.requested.lock().unwrap().as_slice(),
+            [f.current.id]
+        );
+    }
+    #[tokio::test]
+    async fn ordinary_completed_history_records_notfound_without_resurrecting_receipt() {
+        let f = CompletedOrdinaryCase::new().await;
+        f.provider.missing.store(true, Ordering::SeqCst);
+        let before = f.rows();
+        let mut scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+        assert!(
+            f.engine
+                .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                .await
+                .unwrap()
+        );
+        assert_eq!(f.rows(), before);
+        assert!(
+            Store::open(&f.engine.db)
+                .unwrap()
+                .node(&f.scope, &f.current.id)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(f.provider.calls.load(Ordering::SeqCst), 1);
+    }
+    #[tokio::test]
+    async fn ordinary_completed_history_failed_current_read_preserves_rows_and_revisits() {
+        for wrong_id in [false, true] {
+            let f = CompletedOrdinaryCase::new().await;
+            if wrong_id {
+                *f.provider.current.lock().unwrap() = Some(Node {
+                    id: "foreign".into(),
+                    ..f.current.clone()
+                });
+            } else {
+                f.provider.fail.store(true, Ordering::SeqCst);
+            }
+            let before = f.rows();
+            let mut scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+            assert!(
+                f.engine
+                    .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(f.rows(), before);
+            assert_eq!(
+                Store::open(&f.engine.db)
+                    .unwrap()
+                    .node(&f.scope, &f.current.id)
+                    .unwrap(),
+                Some(f.staged.clone())
+            );
+            f.provider.fail.store(false, Ordering::SeqCst);
+            *f.provider.current.lock().unwrap() = Some(f.current.clone());
+            assert!(
+                f.engine
+                    .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                    .await
+                    .unwrap()
+            );
+            assert_eq!(f.rows(), before);
+            assert_eq!(
+                Store::open(&f.engine.db)
+                    .unwrap()
+                    .node(&f.scope, &f.current.id)
+                    .unwrap(),
+                Some(f.current)
+            );
+            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 2);
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_completed_history_delayed_current_read_preserves_newer_ticket() {
+        let f = CompletedOrdinaryCase::new().await;
+        f.provider.hold.store(true, Ordering::SeqCst);
+        let before = f.rows();
+        let engine = f.engine.clone();
+        let root = f.journal_root.clone();
+        let task = tokio::spawn(async move {
+            let mut scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+            engine
+                .repair_completed_ordinary_metadata_once_at(root, &mut scan)
+                .await
+        });
+        let entered =
+            tokio::time::timeout(Duration::from_secs(2), f.provider.entered.notified()).await;
+        let newer = Node {
+            name: "later-observation.txt".into(),
+            etag: Some("newer".into()),
+            content_version: Some("newer".into()),
+            ..f.current.clone()
+        };
+        if entered.is_ok() {
+            Store::open(&f.engine.db)
+                .unwrap()
+                .observe_node(&f.scope, &newer)
+                .unwrap();
+        }
+        f.provider.release.notify_one();
+        let result = task.await.unwrap(); // Original owned task joined before assertions.
+        assert!(entered.is_ok());
+        assert!(result.unwrap());
+        assert_eq!(f.rows(), before);
+        assert_eq!(
+            Store::open(&f.engine.db)
+                .unwrap()
+                .node(&f.scope, &f.current.id)
+                .unwrap(),
+            Some(newer)
+        );
+    }
+    #[tokio::test]
+    async fn ordinary_completed_history_poison_advances_without_starving_next_job() {
+        for arm in [
+            "queue", "account", "proof", "state", "owner", "sequence", "current",
+        ] {
+            let f = CompletedOrdinaryCase::new().await;
+            let later = f.later_completed();
+            *f.provider.current.lock().unwrap() = Some(later.clone());
+            let path = f.journal_root.join("uploads.db");
+            let db = rusqlite::Connection::open(&path).unwrap();
+            match arm {
+                "queue" => {
+                    db.execute(
+                        "UPDATE write_queue SET complete=0 WHERE id=?1",
+                        [f.operation.to_string()],
+                    )
+                    .unwrap();
+                }
+                "account" => {
+                    db.execute("UPDATE ordinary_metadata_publication SET body=json_set(body,'$.scope.account','foreign') WHERE operation=?1",[f.operation.to_string()]).unwrap();
+                }
+                "proof" => {
+                    db.execute("UPDATE ordinary_metadata_publication SET body='malformed' WHERE operation=?1",[f.operation.to_string()]).unwrap();
+                }
+                "owner" => {
+                    db.execute(
+                        "UPDATE namespace_operations SET object='foreign' WHERE operation=?1",
+                        [f.operation.to_string()],
+                    )
+                    .unwrap();
+                }
+                "sequence" => {
+                    db.execute(
+                        "UPDATE write_queue SET sequence=sequence+100 WHERE id=?1",
+                        [f.operation.to_string()],
+                    )
+                    .unwrap();
+                }
+                "current" => {
+                    db.execute("UPDATE ordinary_metadata_publication SET body=json_set(body,'$.current.id','foreign') WHERE operation=?1",[f.operation.to_string()]).unwrap();
+                }
+                _ => {
+                    db.execute(
+                        "UPDATE uploads SET state='verify_required' WHERE id=?1",
+                        [f.operation.to_string()],
+                    )
+                    .unwrap();
+                }
+            }
+            drop(db);
+            let before = f.rows();
+            let mut scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+            assert!(
+                f.engine
+                    .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+            assert!(
+                f.engine
+                    .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                    .await
+                    .unwrap()
+            );
+            assert_eq!(f.rows(), before);
+            assert_eq!(
+                Store::open(&f.engine.db)
+                    .unwrap()
+                    .node(&f.scope, &later.id)
+                    .unwrap(),
+                Some(later)
+            );
+            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 1);
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_completed_history_fixed_highwater_excludes_new_jobs() {
+        let f = CompletedOrdinaryCase::new().await;
+        let mut scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+        assert!(
+            f.engine
+                .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                .await
+                .unwrap()
+        );
+        let later = f.later_completed();
+        let before = f.rows();
+        *f.provider.current.lock().unwrap() = Some(later.clone());
+        assert!(
+            !f.engine
+                .repair_completed_ordinary_metadata_once_at(f.journal_root.clone(), &mut scan)
+                .await
+                .unwrap()
+        );
+        assert_eq!(f.rows(), before);
+        assert_eq!(f.provider.calls.load(Ordering::SeqCst), 1);
+        assert!(
+            Store::open(&f.engine.db)
+                .unwrap()
+                .node(&f.scope, &later.id)
+                .unwrap()
+                .is_none()
+        );
+    }
+    #[tokio::test]
+    async fn ordinary_completed_history_recovery_only_start_never_reads_or_repairs() {
+        let f = CompletedOrdinaryCase::new().await;
+        let before = f.rows();
+        let started = f.engine.start_recovery_only().await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let current = Store::open(&f.engine.db)
+            .unwrap()
+            .node(&f.scope, &f.current.id);
+        f.engine.stop().await;
+        assert!(started.is_ok());
+        assert_eq!(f.rows(), before);
+        assert_eq!(current.unwrap(), Some(f.staged));
+        assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+    }
+
     #[tokio::test]
     async fn ordinary_handoff_history_survives_next_sealed_save_and_newer_dirty_bytes() {
         let f = OrdinaryMetadataCase::new(false).await;
@@ -1768,6 +2382,7 @@ mod tests {
                     external.etag = Some("external-B".into());
                     external.content_version = Some("external-B".into());
                     store.observe_node(&f.scope, &external).unwrap();
+                    *f.provider.current.lock().unwrap() = Some(external.clone());
                 }
                 _ => {
                     let mut nodes = vec![f.original.clone(), f.current.clone()];
@@ -1801,7 +2416,10 @@ mod tests {
                     4096
                 );
             }
-            assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+            assert_eq!(
+                f.provider.calls.load(Ordering::SeqCst),
+                usize::from(arm == "current_revision")
+            );
         }
     }
     #[tokio::test]

@@ -1,0 +1,76 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/native-iwork-full1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/native-iwork-full1",
+  "active_measurement": false,
+  "arms": [
+    "One full scripts/check.sh; no --fast"
+  ],
+  "assessment": {
+    "Root_source_equivalence": true,
+    "completion_appended_after_check": true,
+    "new_named_tests_executed": 36,
+    "rust_result_groups": 87,
+    "sections": 10,
+    "source_count": 572,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-iwork-atomic-complete-check-preparation-20261008-private-v1/root-complete-check-v1/terminal-v1.json",
+      "sha256": "30f47e540165040ba04a4b92b7261c92dfce57099c32f22bee0d442367873f33",
+      "size": 188618
+    }
+  },
+  "compile_checkout": "/home/dandiccf/Storage/cirrove-numbers-atomic-postflight-reader-20261007-v1",
+  "date": "2026-10-08",
+  "endpoint": "Exit0, all ten sections, all 36 registered named tests, all Rust result groups green, original owner closure and identical final source/document maps.",
+  "expected_seconds": 1800,
+  "failed_predecessor": {
+    "active_measurement": false,
+    "date": "2026-10-08",
+    "full_487_closed": false,
+    "installed_actions": false,
+    "prediction": "All ten sections and 36 registered named tests pass; original child/group close and final572 Root/W sources remain identical.",
+    "provider_actions": false,
+    "question": "Does the final formatted explicit Pages/Keynote atomic proof pass the complete contributor check?",
+    "ready": false,
+    "source_count": 572,
+    "status": "source_prepared_execution_unready",
+    "version": 1
+  },
+  "filesystem": "ext4",
+  "format_sync_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-keynote-package-atomic-proof-20261008-private-v1/root-adoption-private-v1/final-format-v1/terminal-v1.json",
+    "sha256": "42bcc5ec51cc686de80307e02c8faee6037f483dc4614a274051453016611388",
+    "size": 150873
+  },
+  "full_487_closed": false,
+  "historical571_roles_reused": false,
+  "installed_actions": false,
+  "maximum_seconds": 5400,
+  "prediction": "All ten check sections pass, all twelve new FUSE and ten preserved Numbers tests execute alongside retained ordinary metadata/MIME/router regressions, and formatted572 sources stay identical in Root and W.",
+  "prior_controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-keynote-package-atomic-proof-20261008-private-v1/root-adoption-private-v1/controls-v2/terminal-v1.json",
+    "sha256": "7b601d78e2a1a26276b250e228deb579896063d01ef5b4995013e4afd5f37f57",
+    "size": 131274
+  },
+  "provider_actions": false,
+  "question": "Does the explicit Pages/Keynote atomic PACKAGE proof extension pass the complete contributor check on final formatted572 sources?",
+  "status": "complete_check_passed",
+  "toolpins": {
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14",
+      "size": 40680304
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+      "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74",
+      "size": 645952
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustdoc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustdoc",
+      "sha256": "3ff7fed6d1064d8d75d24ae8beff9fe1d68031d3d819966481d22c3c9002b709",
+      "size": 12803440
+    }
+  },
+  "version": 1
+}

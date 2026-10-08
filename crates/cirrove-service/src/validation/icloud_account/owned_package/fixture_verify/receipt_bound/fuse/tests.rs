@@ -32,30 +32,42 @@ fn source(path: &Path, root: &str, value: &[u8]) -> Source {
     }
 }
 fn sources() -> (tempfile::TempDir, Sources) {
+    sources_for(FuseFormat::Numbers)
+}
+fn sources_for(format: FuseFormat) -> (tempfile::TempDir, Sources) {
     let run = Uuid::new_v4();
     let temp = tempfile::Builder::new()
-        .prefix(&format!("cirrove-numbers-fuse-{run}"))
+        .prefix(&format!("cirrove-{}-fuse-{run}", format.format()))
         .rand_bytes(0)
         .permissions(std::fs::Permissions::from_mode(0o700))
         .tempdir_in("/var/tmp")
         .unwrap();
     let mut plan = Sources {
+        format,
         version: 1,
         run,
         session_directory: temp.path().to_owned(),
         source_a: source(
-            &temp.path().join("source-a.numbers"),
-            "Source.numbers",
+            &temp.path().join(format!("source-a.{}", format.extension())),
+            &format.source_root(),
             b"A original",
         ),
         source_b_original: source(
-            &temp.path().join("source-b-original.numbers"),
-            "Source.numbers",
+            &temp
+                .path()
+                .join(format!("source-b-original.{}", format.extension())),
+            &format.source_root(),
             b"B edited",
         ),
         source_b: source(
-            &temp.path().join("source-b-fuse.numbers"),
-            &format!("Cirrove-Numbers-Parent-{run}.numbers"),
+            &temp
+                .path()
+                .join(format!("source-b-fuse.{}", format.extension())),
+            &format!(
+                "Cirrove-{}-Parent-{run}.{}",
+                format.application(),
+                format.extension()
+            ),
             b"B edited",
         ),
     };
@@ -93,13 +105,29 @@ fn fixture_mode(
     retired: bool,
     atomic: bool,
 ) -> (tempfile::TempDir, FuseRegistration, UploadJournal) {
-    let (temp, sources) = sources();
+    fixture_format(save, native, retired, atomic, FuseFormat::Numbers)
+}
+fn fixture_format(
+    save: bool,
+    native: bool,
+    retired: bool,
+    atomic: bool,
+    format: FuseFormat,
+) -> (tempfile::TempDir, FuseRegistration, UploadJournal) {
+    let (temp, sources) = sources_for(format);
     let (old, mut parent, _, _, old_rows) = super::super::tests::fixture();
     let mut plan = FuseRegistration {
+        format,
+        original_window: (format != FuseFormat::Numbers).then(|| FuseWindow {
+            run: sources.run,
+            started_unix_ms: 1,
+            deadline_unix_ms: 1_200_001,
+            cleanup_reserve_seconds: 120,
+        }),
         version: 1,
         run: sources.run,
         account: old.account,
-        label: "iCloudNumbersFuseValidation".into(),
+        label: format.label().into(),
         session_directory: sources.session_directory,
         settings_sha256: old.settings_sha256,
         parent_creation: Uuid::nil(),
@@ -274,7 +302,7 @@ fn fixture_mode(
             claimed.id,
             claimed.attempt.unwrap(),
             RecoveryLocation::Trash {
-                local_name: format!("recovery-{}.numbers", claimed.id),
+                local_name: format!("recovery-{}.{}", claimed.id, format.extension()),
                 parent: backup.parent_id.clone().unwrap(),
             },
         )
@@ -604,3 +632,6 @@ fn owned_fuse_atomic_detached_original_refuses_changed_provenance_and_bytes() {
         );
     }
 }
+
+#[path = "format_tests.rs"]
+mod format_tests;

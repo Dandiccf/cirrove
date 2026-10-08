@@ -24,6 +24,24 @@ pub(crate) struct Reservation {
     pub(super) atomic_source: Option<Uuid>,
 }
 
+impl UploadRecord {
+    /// The persisted naming contract reserved before provider activity. This
+    /// accessor grants no new authority; callers must validate the operation.
+    pub(crate) fn reserved_recovery_location(&self) -> Option<RecoveryLocation> {
+        self.identity_handoff
+            .as_ref()
+            .map(|reservation| match &reservation.trash_parent {
+                Some(parent) => RecoveryLocation::Trash {
+                    local_name: reservation.recovery_name.clone(),
+                    parent: parent.clone(),
+                },
+                None => RecoveryLocation::Sibling {
+                    name: reservation.recovery_name.clone(),
+                },
+            })
+    }
+}
+
 /// Local directory IDs are stable across provider confirmation. A nested
 /// file's local parent therefore differs from the exact provider parent;
 /// walk only confirmed folder bindings, never infer an owner from a path.
@@ -1404,6 +1422,90 @@ fn metadata_job(db: &Connection, account: &str, id: Uuid) -> Result<OrdinaryHand
 pub(crate) struct NativeMetadataScan {
     after: i64,
     highwater: Option<i64>,
+}
+/// Bounded read-only reconciliation of existing completed ordinary history.
+/// The fixed startup highwater never admits jobs added during this scan.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct CompletedOrdinaryMetadataScan {
+    after: i64,
+    highwater: Option<i64>,
+}
+impl CompletedOrdinaryMetadataScan {
+    pub(crate) fn retry(&mut self, previous: Self) {
+        self.after = previous.after;
+    }
+}
+impl UploadJournal {
+    pub(crate) fn completed_ordinary_metadata(
+        &self,
+        scan: &mut CompletedOrdinaryMetadataScan,
+    ) -> Result<Option<OrdinaryHandoffMetadata>> {
+        let tx = self.db.unchecked_transaction()?;
+        let highwater = match scan.highwater {
+            Some(value) => value,
+            None => {
+                let value = tx.query_row(
+                    "SELECT coalesce(max(sequence),0) FROM uploads WHERE sequence>=0",
+                    [],
+                    |r| r.get::<_, i64>(0),
+                )?;
+                scan.highwater = Some(value);
+                value
+            }
+        };
+        if scan.after >= highwater {
+            tx.commit()?;
+            return Ok(None);
+        }
+        let rows = {
+            let mut query = tx.prepare(
+                "SELECT u.sequence,p.operation FROM uploads u
+                 JOIN ordinary_metadata_publication p ON p.operation=u.id
+                 WHERE u.sequence>?1 AND u.sequence<=?2 AND p.done=1
+                 ORDER BY u.sequence LIMIT 16",
+            )?;
+            query
+                .query_map(params![scan.after, highwater], |r| {
+                    Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?
+        };
+        for (sequence, id) in &rows {
+            // Poison history advances this in-memory cursor, never its done,
+            // failure, upload or queue fields, so it cannot starve later jobs.
+            scan.after = *sequence;
+            let id = Uuid::parse_str(id).map_err(|_| JournalError::Corrupt)?;
+            let proof = metadata_job(&tx, &self.account, id)?;
+            if !proof.native {
+                tx.commit()?;
+                return Ok(Some(proof));
+            }
+        }
+        if rows.len() < 16 {
+            scan.after = highwater;
+        }
+        tx.commit()?;
+        Ok(None)
+    }
+    pub(crate) fn validate_completed_ordinary_metadata(
+        &self,
+        expected: &OrdinaryHandoffMetadata,
+    ) -> Result<()> {
+        let tx = self.db.unchecked_transaction()?;
+        let done: bool = tx.query_row(
+            "SELECT done FROM ordinary_metadata_publication WHERE operation=?1",
+            [expected.operation.to_string()],
+            |r| r.get(0),
+        )?;
+        if !done
+            || expected.native
+            || metadata_job(&tx, &self.account, expected.operation)? != *expected
+        {
+            return Err(JournalError::Stale);
+        }
+        tx.commit()?;
+        Ok(())
+    }
 }
 fn queue_native_history(db: &Connection, account: &str, id: &str, body: &str) -> Result<()> {
     let present: bool = db.query_row(

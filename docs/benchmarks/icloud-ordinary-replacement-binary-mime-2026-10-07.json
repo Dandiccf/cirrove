@@ -1,0 +1,269 @@
+{
+  "question": "Does ordinary replacement preserve binary file type through staging and recovery?",
+  "prediction": "Current production .txt naming produces text/plain for binary iWork data. Two regression assertions fail; direct MIME policy control passes.",
+  "arms": [
+    "Unchanged iCloud production with tests only",
+    "Suffix-preserving correction, only after actual baseline RED"
+  ],
+  "endpoint": "Three exact filtered tests; allocation JSON and streamed HTTP header checked on joined loopback TLS requests. Byte payloads unchanged.",
+  "source": "isolated W at 90c5, seven changed files, only test additions in iCloud",
+  "driver": ".local-state/ordinary-replacement-binary-mime-regression-20261007-private-v1/root_run_mime_baseline_once_v1.py",
+  "actual_baseline": {
+    "cargo_exit": 101,
+    "executed_tests": 3,
+    "passed": 1,
+    "failed": 2,
+    "failures": [
+      "Generated .key stage was .txt",
+      "Actual TLS allocation for binary .key declared text/plain"
+    ],
+    "transport_control": "PASS",
+    "owner_closed": true,
+    "terminal": {
+      "path": ".local-state/ordinary-replacement-binary-mime-regression-20261007-private-v1/baseline-red-v1/root-baseline-terminal-v1.json",
+      "sha256": "9e2cbf57e2458237e842b5cb0b310b73b39612850267c5cc32ab622861c48ac0"
+    },
+    "source_registration": ".local-state/ordinary-replacement-binary-mime-regression-20261007-private-v1/baseline-red-v1/question-v1.json",
+    "formatting": "Root formatted frozen source before registering candidate source hashes. Pre-format proposal pins are historical."
+  },
+  "corrected": null,
+  "limits": [
+    "Synthetic transport only; no proof of Apple editor refusal causality",
+    "No provider mutation or installed daemon action",
+    "Compilation failure or zero executed tests cannot count as RED"
+  ],
+  "service_reservation_arm": {
+    "question": "Does the pre-checkpoint service recovery reservation agree with target-derived binary naming?",
+    "prediction": "One exact synthetic regression fails at the .key recovery-name assertion with unchanged service router.",
+    "endpoint": "One executed intended assertion failure; confirmed real journal predecessor, no indexed original, no provider.",
+    "driver": {
+      "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/root_run_router_baseline_once_v1.py",
+      "sha256": "3dedbf51d05073d012b3e78dd4b94e96747000dce7deb742808cc3bd10cccb04"
+    },
+    "baseline": {
+      "cargo_exit": 101,
+      "expected_outcome_observed": true,
+      "executed_tests": 1,
+      "terminal": {
+        "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/baseline-red-v1/root-baseline-terminal-v1.json",
+        "sha256": "67273ad21feb10d117647473f787ab4928acfe17097de5f88038ec7cae11aa65"
+      },
+      "owner_closed": true,
+      "provider_mutations": false,
+      "installed_actions": false
+    },
+    "corrected": null,
+    "corrected_registration": {
+      "prediction": "Five router tests pass on corrected candidate source",
+      "driver": {
+        "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/root_run_router_green_once_v1.py",
+        "sha256": "85f782db0d8fd89ab5756646c7c412230bf3703013ac2fbd13a261d411a80f76"
+      },
+      "actual": {
+        "cargo_exit": 101,
+        "executed_tests": 5,
+        "passed": 3,
+        "failed": 2,
+        "target_suffix_assertion": "PASS, followed by reserve Stale",
+        "reason": "Two new fixtures used bare enqueue_after without active local working ownership; ownership guard correctly refused. Test-only successor must use actual truncate/write/seal ownership. No production guard weakening.",
+        "owner_closed": true,
+        "terminal": {
+          "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/router-green-v1/root-baseline-terminal-v1.json",
+          "sha256": "39ee26deec61de3d29afb3a92c5148f5af3bcae94c6ce2504ef43ae8b0072f11"
+        },
+        "provider_actions": false,
+        "installed_actions": false
+      }
+    }
+  },
+  "corrected_icloud_registration": {
+    "prediction": "Eight MIME/legacy checkpoint/adoption tests pass; original two RED assertions now pass.",
+    "endpoint": "Eight executed tests, zero failure, original owner closed, same candidate source map. Joined loopback TLS only.",
+    "driver": {
+      "path": ".local-state/ordinary-replacement-binary-mime-regression-20261007-private-v1/root_run_mime_green_once_v1.py",
+      "sha256": "6634fcc6419e75cbd39300677788e6dcbe61e6bb3e7bc1ba525e2b01ba89a9eb"
+    },
+    "actual": {
+      "executed_tests": 8,
+      "cargo_exit": 101,
+      "passed": 7,
+      "failed": 1,
+      "original_red_assertions": "bothPASS",
+      "failure": "New test expected CheckpointInvalid for mismatched input digest; existing checkpoint() contract returns Invalid. Test-only successor preserves production.",
+      "terminal": {
+        "path": ".local-state/ordinary-replacement-binary-mime-regression-20261007-private-v1/icloud-green-v1/root-baseline-terminal-v1.json",
+        "sha256": "0e5660e83c11275f6291f5e23081cdbba27739ce45245ba35432e90c92911548"
+      },
+      "owner_closed": true
+    }
+  },
+  "corrected_icloud_successor_registration": {
+    "prediction": "All8 pass after test-only expected-error correction; same production",
+    "driver": {
+      "path": ".local-state/ordinary-replacement-binary-mime-regression-20261007-private-v1/root_run_mime_green_once_v2.py",
+      "sha256": "2f9c389a26d507f0b3b63c9bb0de8833fa2aaa6615d4585d32fb4a70a3e05cbc"
+    },
+    "actual": {
+      "cargo_exit": 0,
+      "executed_tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "original_red_assertions": "bothPASS",
+      "terminal": {
+        "path": ".local-state/ordinary-replacement-binary-mime-regression-20261007-private-v1/icloud-green-v2/root-baseline-terminal-v1.json",
+        "sha256": "64b74a54b60d5d73c64e8f71746920a24a46c214f33d723b1fab13fc4c583519"
+      },
+      "owner_closed": true,
+      "production": "unchanged relative to preserved7/1 arm; test input-error expectation corrected",
+      "provider_actions": false,
+      "installed_actions": false
+    }
+  },
+  "data_observer_arm": {
+    "question": "Does the shared DATA observer accept exact target-derived journal recovery authority?",
+    "prediction": "One test fails at the remaining .txt-only validation, after actual synthetic reserve and typed ACK.",
+    "endpoint": "Exactly1 intended assertion failure under icloud-write-probe feature, no provider.",
+    "driver": {
+      "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/root_run_data_reader_baseline_once_v1.py",
+      "sha256": "047e19f778538a1dc9f098b0472d40277225818a10b2a8bd1ddf3dd8e20a2f27"
+    },
+    "baseline": {
+      "cargo_exit": 101,
+      "executed_tests": 1,
+      "intended_assertion_observed": true,
+      "owner_closed": true,
+      "terminal": {
+        "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/baseline-red-v2/root-baseline-terminal-v1.json",
+        "sha256": "7fcc9fe80596ed4bccc6977baeed127dfe2fc86ff2de954a8d4ab6d89ebeb535"
+      },
+      "provider_actions": false,
+      "installed_actions": false
+    },
+    "corrected": null,
+    "failed_predecessor": {
+      "cargo_exit": 101,
+      "executed_tests": 0,
+      "RED_credit": false,
+      "reason": "E0624: parent service module could not call private ordinary_recovery_location in child replacements module. Minimal pub(super) visibility correction required before the intended regression can execute.",
+      "owner_closed": true,
+      "result": {
+        "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/baseline-red-v1/baseline-red-result.json",
+        "sha256": "37a69f1d70c3f49852ef6e5cef2c3cb926810a622c0a68fcb93ad393bca40bcd"
+      },
+      "root_caller": "Stopped at expected-test-artifact guard; no test executable was produced.",
+      "provider_calls": false,
+      "installed_actions": false
+    },
+    "successor_registration": {
+      "prediction": "One executed assertionRED after minimal helper visibility correction; DATA validation production unchanged.",
+      "driver": {
+        "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/root_run_data_reader_baseline_once_v2.py",
+        "sha256": "3db67f9ad4c3db2ca780bec7ef57e9e06feb18363a5704e751e74b625987fd6e"
+      },
+      "actual": null
+    },
+    "omission_registration": {
+      "question": "Is the foreign suffix refusal sensitive to the exact naming allowlist?",
+      "prediction": "Exactly1 intended assertionRED with only the allowlist omitted; corrected source will reject same dual tamper.",
+      "driver": {
+        "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/root_run_data_omission_once_v1.py",
+        "sha256": "83742822dfe71c1938e941e2bf9120f06ea7e62e206ac5bf26484382e92d418a"
+      },
+      "formatted_correct": {
+        "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/omission-preparation-v1/formatted-correct.rs",
+        "sha256": "4ecbb040bb9900eddf582486e84cf1522b3d6c6e7bf4fecb628e83f870b5e381"
+      },
+      "omitted_source": {
+        "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/omission-preparation-v1/omitted-allowlist.rs",
+        "sha256": "e62f5629c4467dc3b98d247cce76ebefdc4a99f6ab9ce7088dc16e471ffe487f"
+      },
+      "actual": {
+        "cargo_exit": 101,
+        "executed_tests": 1,
+        "intended_assertion_observed": true,
+        "terminal": {
+          "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/omission-red-v1/root-baseline-terminal-v1.json",
+          "sha256": "d49e37e278b477e87774dac438a05dc85baa2ad149a66530e749a9cbd5da2307"
+        },
+        "owner_closed": true,
+        "exact_formatted_source_restored": "4ecbb040bb9900eddf582486e84cf1522b3d6c6e7bf4fecb628e83f870b5e381"
+      },
+      "installed_actions": false,
+      "provider_actions": false
+    },
+    "corrected_registration": {
+      "prediction": "38 tests pass including both actual RED controls and unchanged36 historical Numbers/Pages/Keynote controls.",
+      "driver": {
+        "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/root_run_data_green_once_v1.py",
+        "sha256": "6ddd230f1ba18391c21147e98fc573d792a4eadc1c69ca18a6a33b10b96041d3"
+      },
+      "actual": {
+        "cargo_exit": 0,
+        "executed_tests": 38,
+        "passed": 38,
+        "failed": 0,
+        "new_positive": 1,
+        "new_negative": 1,
+        "historical_controls": 36,
+        "owner_closed": true,
+        "terminal": {
+          "path": ".local-state/ordinary-data-target-recovery-validation-regression-20261007-private-v1/data-green-v1/root-baseline-terminal-v1.json",
+          "sha256": "fddc2b4b51c2ced4d720f01ed4afc98b9e1ee0b5564d1e9625b3545c5b915d39"
+        },
+        "provider_actions": false,
+        "installed_actions": false
+      }
+    }
+  },
+  "router_working_fixture_followup": {
+    "correction": {
+      "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/working-fixture-correction-v1/proposal-v1.json",
+      "sha256": "52565c5e1c0165b2997c8a5a45d49ab9002b9fcb2d465488306063efc40ad1fa"
+    },
+    "question": "Does the real local A/B working successor fixture detect the old hint and pass all five router controls after exact restoration?",
+    "prediction": "Hint-only omission executes one intended suffix RED; corrected router executes five passing tests.",
+    "omission_driver": {
+      "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/root_run_router_hint_omission_once_v1.py",
+      "sha256": "ea9aa69cd409bc22eb9ecc8aadc308ae4dbde401beb7619e31244ca6854c473d"
+    },
+    "corrected_driver": {
+      "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/root_run_router_green_once_v2.py",
+      "sha256": "e45688ea0d05016463a26ece1d3a5e4d4218db00b358d256ff13d664097468ec"
+    },
+    "formatted_correct": {
+      "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/hint-omission-preparation-v1/formatted-correct.rs",
+      "sha256": "44becf5b5d8eddf69d0514f3cb635e483701a0de2a5afefd12db65bff291214c"
+    },
+    "omitted_hint": {
+      "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/hint-omission-preparation-v1/hint-only-omission.rs",
+      "sha256": "9d5e474e314f43437fdefe924f05f08855c8b3421a1ded838acc65d159072e19"
+    },
+    "actual_omission": {
+      "cargo_exit": 101,
+      "executed_tests": 1,
+      "intended_assertion_observed": true,
+      "owner_closed": true,
+      "terminal": {
+        "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/hint-omission-red-v1/root-baseline-terminal-v1.json",
+        "sha256": "6e43dac3fbaefe615b0533004006d7f8cdbd5269ae80865fa830b0a3e442e94b"
+      },
+      "exact_formatted_source_restored": "44becf5b5d8eddf69d0514f3cb635e483701a0de2a5afefd12db65bff291214c"
+    },
+    "actual_corrected": {
+      "cargo_exit": 0,
+      "executed_tests": 5,
+      "passed": 5,
+      "failed": 0,
+      "owner_closed": true,
+      "terminal": {
+        "path": ".local-state/ordinary-replacement-recovery-router-regression-20261007-private-v1/router-green-v2/root-baseline-terminal-v1.json",
+        "sha256": "332aa6b86b712cc4ae9ab780d38b0b892b9f14823866fd3b34630053e368bf0e"
+      },
+      "peer_review": "CLEAR: fixture-only real working successor, production ownership guard unchanged",
+      "provider_actions": false,
+      "installed_actions": false
+    },
+    "provider_actions": false,
+    "installed_actions": false
+  }
+}

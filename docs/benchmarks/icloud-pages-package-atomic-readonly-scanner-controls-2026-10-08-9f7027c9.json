@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "run": "9f7027c9-afa1-44bf-aefc-c3bb3bd62cac",
+  "status": "closed_pass",
+  "active_measurement": false,
+  "provider_calls": false,
+  "question": "Does the current normal572-linked production scalar scanner accept exact genuine Pages B and reject four hostile inputs?",
+  "prediction": "Five explicit exits 0,1,1,1,1; six original compiler/scanner children closed; original sources unchanged.",
+  "endpoint": "One rustc link from exact normal CargoJSON rlibs, then genuine B, genuine A against B, wrong raw hash, wrong root, and CRC-valid changed member with valid raw hash. No provider or application calls.",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-atomic-d34f-readonly-9f7027c9-afa1-44bf-aefc-c3bb3bd62cac-preparation-private-v1/scanner-build-preparation-v1/build_pages_ro_scanner_once_v6.py",
+    "size": 14574,
+    "sha256": "1408dd66c327bcb72c1ebcfb73524d1ab411ab2050a482d2ea55f41de1f15311"
+  },
+  "source_count": 572,
+  "maximum_compile_seconds": 120,
+  "compile_cleanup_seconds": 10,
+  "each_control_seconds": 30,
+  "control_cleanup_seconds": 10,
+  "installed_actions": false,
+  "immutable_initial_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-atomic-d34f-readonly-9f7027c9-afa1-44bf-aefc-c3bb3bd62cac-preparation-private-v1/scanner-build-preparation-v1/root-execution-v1/public-preregistration-initial.json",
+    "size": 1178,
+    "sha256": "0d4286d8d42429276a0b1def4a7f454b2a28e2597aa2e3e3b4d2e791647888c8"
+  },
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-iwork-atomic-complete-check-preparation-20261008-private-v1/normal-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "618245a34fcbaa03ee1809d639e4c8ec280b6b92369c3147eb9c70f908dba41b",
+    "size": 78465
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct/papr9fscanner",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/papr9fscanner"
+}

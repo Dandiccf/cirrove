@@ -583,6 +583,68 @@ async fn main() -> Result<()> {
         return Ok(());
     }
     if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-pages-fuse-source-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_pages_fuse_source_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-pages-fuse-capture-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_pages_fuse_capture_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-pages-fuse-receipt-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_pages_fuse_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-keynote-fuse-source-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_keynote_fuse_source_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-keynote-fuse-capture-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_keynote_fuse_capture_verify(
+            Path::new(registration),
+            digest,
+        )?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-keynote-fuse-receipt-verify"
+    {
+        let proof = cirrove_service::validation::icloud_owned_keynote_fuse_receipt_verify(
+            Path::new(registration),
+            digest,
+        )
+        .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
         && flag == "--owned-fuse-capture-verify"
     {
         let proof = cirrove_service::validation::icloud_owned_fuse_capture_verify(

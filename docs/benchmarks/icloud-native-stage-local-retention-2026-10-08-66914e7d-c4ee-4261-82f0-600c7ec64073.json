@@ -1,0 +1,112 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/stage-ret-66914e7d",
+  "TMPDIR": "/home/dandiccf/Storage/ct/stage-ret-66914e7d",
+  "active_measurement": false,
+  "all_original_handles_closed": true,
+  "arms": [
+    {
+      "expected_calls": {
+        "abandon": 0,
+        "daemon": 0,
+        "normal_CLI_export_save_offline": 1,
+        "provider": 0,
+        "retry": 0
+      },
+      "name": "one_existing_resolved_native_stage_offline_export",
+      "operation": "82767008-4553-4f8b-99cc-8a521ad9c5ac"
+    }
+  ],
+  "cleanup_reserve_seconds": 45,
+  "clone_SHM_changes": [
+    "uploads.db-shm timestamps only"
+  ],
+  "cloud_mutations": 0,
+  "complete_logical_frontier_unchanged": true,
+  "current_remote_location_proved": false,
+  "daemon_started": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reliability-slow-stage-next-preparation-20261008-private-v1/retention-local-private-v1/observe_retained_native_stage_once_v5.py",
+    "sha256": "971257d13ec759f4969fc308d3ede2b4e7eb025dd5523f0ec3bedfe64a40b7e7",
+    "size": 19731
+  },
+  "elapsed_seconds": 0.13918614201247692,
+  "endpoint": [
+    "Exact detached local journal record matches retained actual abandonment and resolved upload/request/account/complete queue",
+    "One current normal573 CLI offline export validates resolved native exportability and returns exact66268/SHA83527e22\u2026",
+    "Complete original state and opaque checkpoint/payload preserved; complete clone logical journal unchanged; only exact byte-identical clone SHM timestamps may differ",
+    "Original child Popen/pidfd/group closure and original600/45 elapsed proven; source573/installed19/PIDbirth unchanged"
+  ],
+  "export": {
+    "exact_historical_payload": true,
+    "sha256": "83527e22cb8c56dd07a4d2a82acbc711711ff24d912df46f218eaab4ef62e776",
+    "size": 66268
+  },
+  "failed_predecessor_preserved": {
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-native-stage-local-retention-2026-10-08-fe7f02dd-477c-4348-a0a1-6dab2a576f24.json",
+      "sha256": "65c8a94f1a5db0ee12fd05c246d0905253e3c88678eec6f9202913a3e9d0f887",
+      "size": 4699
+    },
+    "run": "fe7f02dd-477c-4348-a0a1-6dab2a576f24",
+    "status": "failed private caller representation comparison before CLI"
+  },
+  "full490_closed": false,
+  "independent_audit": {
+    "passed": 27,
+    "receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-stage-retention-66914e7d-c4ee-4261-82f0-600c7ec64073/audit-independent-retention-terminal-v1.json",
+      "sha256": "ad6ad933a4b61f08b8d5691e1e84120f3c3afb5bf8cbf4f21a42900552fe94eb",
+      "size": 5704
+    },
+    "total": 27
+  },
+  "installed19_unit_PID_birth_exe_unchanged": true,
+  "installed_acceptance": false,
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reliability-slow-stage-next-preparation-20261008-private-v1/retention-local-private-v1/root-authorities-v2/installed-baseline-v1.json",
+    "sha256": "122f46cc9a49e8a30a25e5a38436ffc1e07cd08f73913b1556cca76f0375023f",
+    "size": 3910
+  },
+  "journal_schema": 18,
+  "measurement_open": false,
+  "normal_CLI_export_save_offline_calls": 1,
+  "observed_utc": "2026-10-08T14:10:55.154424+00:00",
+  "opaque_sealed_checkpoint_unchanged": true,
+  "original_complete31_inventory_unchanged": true,
+  "original_window_seconds": 600,
+  "postrun_preservation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-stage-retention-66914e7d-c4ee-4261-82f0-600c7ec64073/root-postrun-preservation-v1.json",
+    "sha256": "7cd980c9685e9886dc647ad68f82ab8fa1132d1f44889dd131ba4c4cf8b981bd",
+    "size": 616
+  },
+  "prediction": "The existing resolved native Stage remains exportable with the original sealed bytes. Historical original/stage identity is retained; current remote location/finality is not inspected. Subsequent separate replacement verification remains incomplete.",
+  "provider_calls": 0,
+  "public_native_receipt_lookup_executed": false,
+  "question": "Does the already resolved native Stage abandonment retain its exact recorded identity, opaque checkpoint, complete local payload and independently hashed offline export in one fresh local recovery clone, without any daemon, provider call, another abandonment or replay?",
+  "receipt_record_sha256": "63164b769e406e0eafd42621048bd3081d4ee8df3335e0c78d37f9f0f9dca383",
+  "run": "66914e7d-c4ee-4261-82f0-600c7ec64073",
+  "runtime573_unchanged": true,
+  "source_correction": {
+    "diagnostic": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-stage-retention-fe7f02dd-477c-4348-a0a1-6dab2a576f24/diagnostic-detached-checkpoint-digest-scope-v1.json",
+      "sha256": "5cba72c414ccdaf80c0987ebcb693188519784ad52433e78f241577f4ed1e60b",
+      "size": 4067
+    },
+    "failed_original_run": "fe7f02dd-477c-4348-a0a1-6dab2a576f24",
+    "reason": "Original arm refused before any CLI due to comparing decoded checkpoint digest with sealedfile digest. Fresh successor pins current detached persisted record hash and preserves sealedcipher separately; no old clock/assets reused."
+  },
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-reliability-slow-stage-next-preparation-20261008-private-v1/retention-local-private-v1/audit-independent-retention-local-source-v5.json",
+    "sha256": "bf009006d0a6e329bd768fb5479fb3b54f1c9d2cc157fb6d7ea793a55dd404ae",
+    "size": 3244
+  },
+  "status": "closed_local_retention_pass_independently_audited",
+  "subject_run": "99aa5d99-abf8-45bf-85fd-366e6ec89365",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-stage-retention-66914e7d-c4ee-4261-82f0-600c7ec64073/terminal-v1.json",
+    "sha256": "5136c679b012edc5faa3a72a544d8c7498c150ee12f8f9aae51bd22882dc6c79",
+    "size": 1713
+  },
+  "version": 1
+}

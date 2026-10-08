@@ -2,6 +2,7 @@
 //! Never a PACKAGE, editor-fidelity, mutation or checkpoint-replay observer.
 use super::*;
 use crate::journal::WorkingFile;
+mod atomic;
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum DataArm {
@@ -217,6 +218,8 @@ struct Registration {
     working_b: Option<Uuid>,
     phase: Phase,
     created_proof_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    atomic: Option<atomic::Authority>,
     source_a: RawSource,
     source_b: RawSource,
 }
@@ -304,6 +307,9 @@ impl Registration {
                         .is_some_and(|s| hex_digest(s)),
                 "owned DATA save scope changed"
             ),
+        }
+        if let Some(authority) = &self.atomic {
+            authority.validate(self)?;
         }
         Ok(())
     }
@@ -746,10 +752,25 @@ fn admitted(
             .iter()
             .find(|o| o.remote.as_ref() == Some(backup))
             .context("owned DATA recovery owner absent")?;
+        let location = latest
+            .reserved_recovery_location()
+            .context("owned DATA retained recovery reservation absent")?;
+        ensure!(
+            location
+                == cirrove_icloud::ICloudFileReplace::recovery_location_for_name(
+                    latest.id,
+                    &original.name,
+                )
+                || location == cirrove_icloud::ICloudFileReplace::recovery_location(latest.id),
+            "owned DATA recovery reservation naming changed"
+        );
+        let cirrove_core::upload::RecoveryLocation::Trash { local_name, .. } = location else {
+            bail!("owned DATA recovery reservation route changed");
+        };
         let mut expected_recovery = backup.clone();
         expected_recovery.id = format!("local-recovery-{}", recovery.id);
         expected_recovery.parent_id = Some(parent.id.clone());
-        expected_recovery.name = format!("recovery-by-cirrove-{}.txt", latest.id);
+        expected_recovery.name.clone_from(&local_name);
         ensure!(
             Some(recovery.id) == latest.ordinary_validation_recovery_owner()
                 && recovery.id != owner.id
@@ -764,7 +785,7 @@ fn admitted(
                 && recovery.node.kind == NodeKind::File
                 && !recovery.node.package
                 && recovery.node.target.is_none()
-                && recovery.node.name == format!("recovery-by-cirrove-{}.txt", latest.id)
+                && recovery.node.name == local_name
                 && recovery.node.parent_id == Some(parent.id.clone()),
             "owned DATA hidden recovery binding changed"
         );
@@ -779,6 +800,9 @@ fn journal_binding(
     plan: &Registration,
     journal: &RecoveryJournal,
 ) -> Result<(Node, Node, Option<Node>, Vec<u8>)> {
+    if plan.atomic.is_some() {
+        return atomic::journal_binding(plan, journal);
+    }
     let rows = journal.list(0, 3)?;
     let mutations = journal.native_validation_mutations(0, 2)?;
     let associations = rows
@@ -911,14 +935,19 @@ fn prior_created(plan: &Registration, original: &Node, parent: &Node) -> Result<
         &plan.session_directory.join("created-verified.json"),
         32 * 1024,
     )?;
-    let proof = created_proof_binding(plan, original, parent, &bytes)?;
+    let mut prior_plan = plan.clone();
+    if let Some(authority) = &plan.atomic {
+        prior_plan.owner = authority.victim;
+    }
+    prior_plan.atomic = None;
+    let proof = created_proof_binding(&prior_plan, original, parent, &bytes)?;
     let prior_bytes = read_private(
         &plan.session_directory.join("created-registration.json"),
         32 * 1024,
     )?;
     let prior = registration(&prior_bytes, &proof.registration_sha256, plan.arm)?;
     prior.validate()?;
-    let mut expected = plan.clone();
+    let mut expected = prior_plan;
     expected.phase = Phase::CreatedA;
     expected.save = None;
     expected.working_b = None;
@@ -1082,13 +1111,18 @@ async fn observe(
     );
     same_directory(&plan.session_directory, &held)?;
     same_directory(&journal_path, &journal_held)?;
-    let proof = serde_json::json!({"run":plan.run,"account":plan.account,"phase":plan.phase,
+    let mut proof = serde_json::json!({"run":plan.run,"account":plan.account,"phase":plan.phase,
         "parent_creation":plan.parent_creation,"create":plan.create,"save":plan.save,"owner":plan.owner,
         "working_a":plan.working_a,"working_b":plan.working_b,"registration_sha256":digest,
         "created_proof_sha256":plan.created_proof_sha256,
         "fixture_manifest_sha256":fixture_digest,"current":current_proof,"trash":trash_proof,
         "ordinary_data_create_verified":true,"ordinary_data_save_verified":plan.phase == Phase::SavedB,
         "cloud_mutated":false,"gui_fidelity_verified":false});
+    if let Some(authority) = &plan.atomic {
+        proof["ordinary_data_atomic_save_verified"] = serde_json::json!(true);
+        proof["atomic_authority"] = serde_json::to_value(authority)?;
+        proof["ordinary_data_save_verified"] = serde_json::json!(false);
+    }
     publish_result(&plan, || {
         if plan.arm.bounded() {
             ensure!(

@@ -1,0 +1,62 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/kdf672",
+  "TMPDIR": "/home/dandiccf/Storage/ct/kdf672",
+  "active": false,
+  "active_measurement": false,
+  "arms": [
+    "One current feature probe build; reused successful normal roles"
+  ],
+  "artifact_fresh": false,
+  "candidate_execution": false,
+  "cleanup_seconds": 10,
+  "compiled_probe_role": "cirrove-icloud-mounted-write-probe",
+  "compiler_commands": 1,
+  "date": "2026-10-07",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data672-current-feature-build-preparation-private-v1/build_keynote_data_feature_once_v3.py",
+    "sha256": "48d53970f1c1b3a6631d36cfd6b6164b2b537bff2463261e71291ab76c0a3945",
+    "size": 11397
+  },
+  "endpoint": "Exact Cargo target/source/features and frozen probe hash, actual3role composite binding, source571 and installed19 preserved, original compiler owner reaped/proc and group absent",
+  "expected_seconds": 120,
+  "filesystem_required": "ext4",
+  "full487_closed": false,
+  "head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data672-current-feature-build-preparation-private-v1/root-build-v1/audit-independent-feature-build-v1.json",
+    "sha256": "e41f8a84150b413e5623d0f193021c0b428024c8b2890080527b9f22de0d6a0e",
+    "size": 6373
+  },
+  "independent_audit_passed": 33,
+  "independent_audit_total": 33,
+  "input_hash_preflight_refusal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data672-current-feature-build-preparation-private-v1/root-input-hash-preflight-refusal-v1.json",
+    "sha256": "9c20a9322f81e787dce170695ae9dd8710c9bcd1aa8fe2a61d65b7a820edef19",
+    "size": 604
+  },
+  "installed_actions": false,
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data672-current-feature-build-preparation-private-v1/root-build-v1/manifest-v1.json",
+    "sha256": "9f36d27447c1ddcfaffe9082eb9eba3a4baab6293c64c33d062ead88b9bdc8d1",
+    "size": 80456
+  },
+  "prediction": "One Cargo build exits0 with the exact mounted-write-probe artifact and icloud-write-probe feature. All original owners close, runtime571 and installed19 stay unchanged. No candidate or provider is run.",
+  "provider_calls": false,
+  "question": "Can one current committed571 feature build provide the Keynote DATA receipt observer while reusing the already completed normal90c5 roles?",
+  "reserved_Keynote_DATA_run": "672e98c3-39b6-45a1-85bd-16cc77a6404b",
+  "root_actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data672-current-feature-build-preparation-private-v1/root-build-v1/root-actual-tool-terminal-v1.json",
+    "sha256": "9f63b1b88e1151d1cb64fb0bb39d53be8e391e581040ac476542413b50b973d5",
+    "size": 810
+  },
+  "source_drafts_V1_V2_unexecuted": true,
+  "status": "closed_success",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data672-current-feature-build-preparation-private-v1/root-build-v1/terminal-v1.json",
+    "sha256": "6d2cdc3dac5f4d4f28383158edf896bfc2917d39735fd26b3016c6a6fb2e9810",
+    "size": 76329
+  },
+  "version": 1,
+  "work_seconds": 900
+}

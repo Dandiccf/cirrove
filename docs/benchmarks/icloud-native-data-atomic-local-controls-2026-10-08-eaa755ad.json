@@ -1,0 +1,78 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/dac-eaa755ad",
+  "TMPDIR": "/home/dandiccf/Storage/ct/dac-eaa755ad",
+  "active_measurement": false,
+  "arms": [
+    {
+      "filter": "owned_data_atomic_three_formats_exact_takeover_active_and_retired",
+      "names": [
+        "owned_data_atomic_three_formats_exact_takeover_active_and_retired"
+      ],
+      "phase": "dispatch-omitted-red",
+      "red": true
+    },
+    {
+      "filter": "owned_data_atomic_three_formats_exact_takeover_active_and_retired",
+      "names": [
+        "owned_data_atomic_three_formats_exact_takeover_active_and_retired"
+      ],
+      "phase": "dispatch-restored-green",
+      "red": false
+    },
+    {
+      "filter": "owned_data_atomic_",
+      "names": [
+        "owned_data_atomic_three_formats_exact_takeover_active_and_retired",
+        "owned_data_atomic_registration_refuses_aliased_operation_owner_or_revision",
+        "owned_data_atomic_typed_replacement_refuses_foreign_source_victim_or_index",
+        "owned_data_atomic_five_queue_associations_refuse_foreign_and_incomplete",
+        "owned_data_atomic_cleanup_requires_exact_temporary_before_and_removed_receipt",
+        "owned_data_atomic_pre_rename_authority_refuses_foreign_or_future_revision",
+        "owned_data_atomic_full_digest_refuses_same_size_original_or_current_corruption",
+        "owned_data_atomic_receipts_refuse_wrong_original_revision_scope_or_raw_size",
+        "owned_data_atomic_namespace_refuses_unknown_unlinked_working_or_package",
+        "owned_data_atomic_registration_roundtrip_and_ordinary_none_wire_remain_exact"
+      ],
+      "phase": "atomic-three-formats",
+      "red": false
+    },
+    {
+      "filter": "owned_numbers_data_",
+      "names": [
+        "owned_numbers_data_registration_binds_exact_phase_scope",
+        "owned_numbers_data_actual_create_active_and_retired",
+        "owned_numbers_data_actual_save_chained_and_rehydrated",
+        "owned_numbers_data_actual_association_refuses_foreign_owner",
+        "owned_numbers_data_receipts_refuse_foreign_revision_representation_and_source",
+        "owned_numbers_data_actual_frontier_refuses_dirty_extra_and_unpublished",
+        "owned_numbers_data_sources_refuse_raw_digest_size_and_private_path",
+        "owned_numbers_data_prior_create_proof_refuses_absent_digest_identity_and_representation",
+        "owned_numbers_data_actual_readonly_observation_preserves_journal",
+        "owned_numbers_data_actual_queue_and_columns_refuse_substitution",
+        "owned_numbers_data_actual_namespace_operation_inventory_refuses_substitution",
+        "owned_numbers_data_retired_etag_token_omission_preserves_exact_revision"
+      ],
+      "phase": "ordinary-numbers-regression",
+      "red": false
+    }
+  ],
+  "automatic_retry": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/root-adoption-private-v1/run_data_atomic_controls_once_v1.py",
+    "sha256": "99c94c97154741c68ebed0cb53b352b512a477b13c925a7c723506e6865f2c3a",
+    "size": 15937
+  },
+  "duration": "Each original Cargo command: 600 seconds work plus 10 seconds cleanup.",
+  "endpoint": "Four classified command receipts, original Cargo handles and owned groups closed before restoration/next command, exact Root/W 573 source map restored. Full scripts/check.sh remains a separate required run.",
+  "expected_commands": 4,
+  "historical572_roles": "Baseline source-map provenance only; no relabelled 573 binary or pre-fix execution claim.",
+  "installed_actions": false,
+  "prediction": "Omitting only the dispatch line will execute one test and fail its exact takeover assertion; exact restoration will pass the same test, all ten atomic tests and all twelve ordinary Numbers tests. Compiler errors are not the expected RED.",
+  "provider_calls": false,
+  "question": "Does the sole atomic journal dispatch admit only the exact registered ordinary DATA takeover, while retaining ordinary Numbers validation?",
+  "run": "eaa755ad-e129-477c-a31b-4d1e52532fbd",
+  "source_count": 573,
+  "status": "preregistered_not_started",
+  "version": 1
+}

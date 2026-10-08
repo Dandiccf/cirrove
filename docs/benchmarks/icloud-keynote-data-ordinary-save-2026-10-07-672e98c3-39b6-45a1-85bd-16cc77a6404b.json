@@ -1,0 +1,106 @@
+{
+  "Apple_Keynote_reopen": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/kdat-672e98c3",
+  "TMPDIR": "/home/dandiccf/Storage/ct/kdat-672e98c3",
+  "active": false,
+  "active_measurement": false,
+  "actual_controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-real-cloud-672e98c3-39b6-45a1-85bd-16cc77a6404b-preparation-private-v1/controller_keynote_data_v1.py",
+    "sha256": "8380989e87426053c22a5a2cba297af302297e13b581b06c3ca73e5d02b72d01",
+    "size": 39229
+  },
+  "actual_elapsed_seconds": 206.27612337097526,
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-672e98c3-39b6-45a1-85bd-16cc77a6404b/root-terminal-result.json",
+    "sha256": "66531654e6a0425f02575c4c203fa85c8c3507239ca9a0a7e42365be995d3777",
+    "size": 2597
+  },
+  "all_original_handles_closed": true,
+  "arms": [
+    "One own folder and O_EXCL Keynote A create",
+    "Independent actual DATA A before B",
+    "One same-file truncate/write/fsync of raw B",
+    "Independent currentB and TrashA byte verification"
+  ],
+  "assembler": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-real-cloud-672e98c3-39b6-45a1-85bd-16cc77a6404b-preparation-private-v1/assemble_keynote_data_v1.py",
+    "sha256": "90a94e1f33da8c783a86639ada55b97f1634ffd0e55a4cc58d66e318252b6990",
+    "size": 9598
+  },
+  "automatic_retries": 0,
+  "cleanup_reserve_seconds": 45,
+  "compiled_source_count": 571,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-real-cloud-672e98c3-39b6-45a1-85bd-16cc77a6404b-preparation-private-v1/controller_keynote_data_v1.py",
+    "sha256": "8380989e87426053c22a5a2cba297af302297e13b581b06c3ca73e5d02b72d01",
+    "size": 39229
+  },
+  "current_B_raw_size": 527694,
+  "date": "2026-10-07",
+  "encoding_normalization_applied": false,
+  "endpoint": "Typed ordinary-file receipts and actual DATA content bytes A/B/TrashA; no repeated mutation; owned daemon/children reaped and mount/socket removed; original native donors and installed19 unchanged",
+  "expected_seconds": 600,
+  "filesystem_required": "ext4",
+  "full487_closed": false,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-672e98c3-39b6-45a1-85bd-16cc77a6404b/audit-independent-keynote-data-terminal-v1.json",
+    "sha256": "3e9bbb22eb9e569ee57de92113e16ac3922495ecc98f25950b4d56ab9233c495",
+    "size": 8060
+  },
+  "independent_actual_checks_passed": 38,
+  "independent_actual_checks_total": 38,
+  "installed_actions": false,
+  "local_check_maximum_seconds": 60,
+  "local_prepare_maximum_seconds": 120,
+  "maximum_seconds": 600,
+  "native_Linux_editor_save": false,
+  "normal_RO_remount": false,
+  "ordinary_DATA_create_verified": true,
+  "ordinary_DATA_save_verified": true,
+  "original_A_Trash_raw_size": 525068,
+  "original_exports_modified": false,
+  "owned_inner_processes": 9,
+  "owned_outer_processes": 2,
+  "prediction": "The create observer proves actual DATA A before B. One same-file B write and fsync completes, currentB and exact backupA pass independent raw size/SHA reads; all original handles close within original600/45 with source and installed artifacts preserved. PACKAGE or uncertainty stops without B/retry.",
+  "preregistration_ready_false_is_not_current_execution_status": true,
+  "provider_dispatched": true,
+  "question": "Does one genuine Keynote raw A create through normal FUSE produce actual provider DATA, and one owned raw B save preserve exact original A in Trash?",
+  "ready": false,
+  "representation": "ordinary_file_bytes",
+  "representation_must_be_observed": "DATA",
+  "roles_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data672-current-feature-build-preparation-private-v1/root-build-v1/ready-binding-v1.json",
+    "sha256": "3ae658eb8b5f4ec13b37cd7d26450f0666351249bfeea3a6bfb544bafa6b7a28",
+    "size": 80388
+  },
+  "root_actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-672e98c3-39b6-45a1-85bd-16cc77a6404b/root-actual-live-tool-terminal-v1.json",
+    "sha256": "324066ecd8a2817c45558c05a3a388da1478763190d856479a830383613741a1",
+    "size": 1366
+  },
+  "root_launcher": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-real-cloud-672e98c3-39b6-45a1-85bd-16cc77a6404b-preparation-private-v1/launch_root_keynote_data_once_v1.py",
+    "sha256": "7fb797b337b7ace296ae30f218564742b065089d6267eb06c553425bdfaec2ee",
+    "size": 10536
+  },
+  "run": "672e98c3-39b6-45a1-85bd-16cc77a6404b",
+  "source_head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "source_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-real-cloud-672e98c3-39b6-45a1-85bd-16cc77a6404b-preparation-private-v1/audit-independent-source-v1.json",
+    "sha256": "12fd1733cb6f74f6b2b8f997a3442846f1bfac5b86e79a5a1b44253340117663",
+    "size": 4458
+  },
+  "standing_user_write_authorization": true,
+  "status": "closed_success",
+  "version": 1,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-672e98c3-39b6-45a1-85bd-16cc77a6404b/original-window.json",
+    "sha256": "e94c4719e50c8a7eb65b2260bbe3b27f76fdd98b647a65b359f16dbf35906e0b",
+    "size": 314
+  },
+  "worker": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-real-cloud-672e98c3-39b6-45a1-85bd-16cc77a6404b-preparation-private-v1/write_keynote_data_once_v1.py",
+    "sha256": "3b66c6e1b35dc034e30b3b19e1e87365148c2b3f2cb0bee64aa71ef53dde4754",
+    "size": 6254
+  }
+}

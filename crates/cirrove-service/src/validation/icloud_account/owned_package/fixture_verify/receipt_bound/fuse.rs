@@ -1,7 +1,101 @@
-//! Exact Numbers canonical FUSE-save validation, distinct from CLI replacement.
+//! Explicit Numbers, Pages and Keynote canonical PACKAGE FUSE-save proofs.
+//! These are archive-copy observations, not native editor-save acceptance.
 //! Offline source inspection and read-only receipt proof never submit a write.
 use super::*;
 use crate::journal::WorkingFile;
+
+// Only explicit entry points select these implemented contracts. No caller wire
+// field, extension inference or provider representation override selects an arm.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum FuseFormat {
+    #[default]
+    Numbers,
+    Pages,
+    Keynote,
+}
+impl FuseFormat {
+    fn application(self) -> &'static str {
+        match self {
+            Self::Numbers => "Numbers",
+            Self::Pages => "Pages",
+            Self::Keynote => "Keynote",
+        }
+    }
+    fn format(self) -> &'static str {
+        match self {
+            Self::Numbers => "numbers",
+            Self::Pages => "pages",
+            Self::Keynote => "keynote",
+        }
+    }
+    fn extension(self) -> &'static str {
+        match self {
+            Self::Numbers => "numbers",
+            Self::Pages => "pages",
+            Self::Keynote => "key",
+        }
+    }
+    fn label(self) -> &'static str {
+        match self {
+            Self::Numbers => "iCloudNumbersFuseValidation",
+            Self::Pages => "iCloudPagesFuseValidation",
+            Self::Keynote => "iCloudKeynoteFuseValidation",
+        }
+    }
+    fn source_root(self) -> String {
+        format!("Source.{}", self.extension())
+    }
+}
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FuseWindow {
+    run: Uuid,
+    started_unix_ms: u64,
+    deadline_unix_ms: u64,
+    cleanup_reserve_seconds: u64,
+}
+impl FuseWindow {
+    fn remaining_at(&self, run: Uuid, now_ms: u64) -> Result<std::time::Duration> {
+        ensure!(
+            self.run == run
+                && !run.is_nil()
+                && self.cleanup_reserve_seconds == 120
+                && self
+                    .deadline_unix_ms
+                    .checked_sub(self.started_unix_ms)
+                    .is_some_and(|span| span > 120_000 && span <= 1_200_000)
+                && self.started_unix_ms <= now_ms,
+            "owned FUSE original window refused"
+        );
+        let active = self
+            .deadline_unix_ms
+            .checked_sub(120_000)
+            .context("owned FUSE active deadline refused")?;
+        let remaining = active
+            .checked_sub(now_ms)
+            .filter(|value| *value > 0)
+            .context("owned FUSE original deadline expired")?;
+        Ok(std::time::Duration::from_millis(remaining))
+    }
+}
+fn fuse_active(end: Option<tokio::time::Instant>) -> Result<()> {
+    if let Some(end) = end {
+        ensure!(
+            tokio::time::Instant::now() < end,
+            "owned FUSE original deadline expired"
+        );
+    }
+    Ok(())
+}
+fn fuse_publish(
+    end: Option<tokio::time::Instant>,
+    publish: impl FnOnce() -> Result<()>,
+) -> Result<()> {
+    fuse_active(end)?;
+    publish()?;
+    fuse_active(end)
+}
+
 type Association = (
     Uuid,
     Uuid,
@@ -13,6 +107,8 @@ type Association = (
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Sources {
+    #[serde(skip)]
+    format: FuseFormat,
     version: u32,
     run: Uuid,
     session_directory: PathBuf,
@@ -22,27 +118,41 @@ struct Sources {
 }
 impl Sources {
     fn name(&self) -> String {
-        format!("Cirrove-Numbers-Parent-{}.numbers", self.run)
+        format!(
+            "Cirrove-{}-Parent-{}.{}",
+            self.format.application(),
+            self.run,
+            self.format.extension()
+        )
     }
     fn validate(&self) -> Result<()> {
         ensure!(
             self.version == 1
                 && !self.run.is_nil()
-                && self.session_directory == format!("/var/tmp/cirrove-numbers-fuse-{}", self.run),
+                && self.session_directory
+                    == format!(
+                        "/var/tmp/cirrove-{}-fuse-{}",
+                        self.format.format(),
+                        self.run
+                    ),
             "owned FUSE source scope refused"
         );
         for (source, name, root) in [
             (
                 &self.source_a,
-                "source-a.numbers",
-                "Source.numbers".to_owned(),
+                format!("source-a.{}", self.format.extension()),
+                self.format.source_root(),
             ),
             (
                 &self.source_b_original,
-                "source-b-original.numbers",
-                "Source.numbers".to_owned(),
+                format!("source-b-original.{}", self.format.extension()),
+                self.format.source_root(),
             ),
-            (&self.source_b, "source-b-fuse.numbers", self.name()),
+            (
+                &self.source_b,
+                format!("source-b-fuse.{}", self.format.extension()),
+                self.name(),
+            ),
         ] {
             source.semantic.validate()?;
             ensure!(
@@ -74,6 +184,10 @@ impl Sources {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct FuseRegistration {
+    #[serde(skip)]
+    format: FuseFormat,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    original_window: Option<FuseWindow>,
     version: u32,
     run: Uuid,
     account: Uuid,
@@ -92,6 +206,7 @@ struct FuseRegistration {
 impl FuseRegistration {
     fn sources(&self) -> Sources {
         Sources {
+            format: self.format,
             version: self.version,
             run: self.run,
             session_directory: self.session_directory.clone(),
@@ -104,7 +219,7 @@ impl FuseRegistration {
         self.sources().validate()?;
         ensure!(
             !self.account.is_nil()
-                && self.label == "iCloudNumbersFuseValidation"
+                && self.label == self.format.label()
                 && hex_digest(&self.settings_sha256)
                 && !self.parent_creation.is_nil()
                 && !self.import.is_nil()
@@ -122,7 +237,35 @@ impl FuseRegistration {
                 },
             "owned FUSE receipt registration refused"
         );
+        ensure!(
+            self.format == FuseFormat::Numbers || self.original_window.is_some(),
+            "owned FUSE original window missing"
+        );
+        if let Some(window) = &self.original_window {
+            window.remaining_at(self.run, window.started_unix_ms)?;
+        }
         Ok(())
+    }
+    fn active_end(&self) -> Result<Option<tokio::time::Instant>> {
+        match &self.original_window {
+            None => Ok(None),
+            Some(window) => {
+                // Monotonic sample precedes wall sample; no renewed phase budget.
+                let mono = tokio::time::Instant::now();
+                let wall = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+                let ms = u64::try_from(wall.as_millis())?;
+                window.remaining_at(self.run, ms)?;
+                let active = window
+                    .deadline_unix_ms
+                    .checked_sub(120_000)
+                    .context("owned FUSE active deadline refused")?;
+                let remaining = std::time::Duration::from_millis(active)
+                    .checked_sub(wall)
+                    .filter(|value| !value.is_zero())
+                    .context("owned FUSE original deadline expired")?;
+                Ok(Some(mono + remaining))
+            }
+        }
     }
     // Reuse unchanged exact receipt validators, never the legacy scope validator.
     // The public legacy wrapper still requires Source.numbers for both sources.
@@ -142,17 +285,29 @@ impl FuseRegistration {
         }
     }
 }
-fn registered_fuse(bytes: &[u8], digest: &str) -> Result<FuseRegistration> {
+fn registered_fuse_for(bytes: &[u8], digest: &str, format: FuseFormat) -> Result<FuseRegistration> {
     ensure!(
         bytes.len() <= 32 * 1024
             && hex_digest(digest)
             && hex::encode(Sha256::digest(bytes)) == digest,
         "owned FUSE registration digest changed"
     );
-    let plan: FuseRegistration = serde_json::from_slice(bytes)
+    let mut plan: FuseRegistration = serde_json::from_slice(bytes)
         .map_err(|_| anyhow::anyhow!("owned FUSE registration schema refused"))?;
+    if format == FuseFormat::Numbers {
+        let wire: serde_json::Value = serde_json::from_slice(bytes)?;
+        ensure!(
+            wire.get("original_window").is_none(),
+            "legacy FUSE window field refused"
+        );
+    }
+    plan.format = format;
     plan.validate()?;
     Ok(plan)
+}
+#[cfg(test)]
+fn registered_fuse(bytes: &[u8], digest: &str) -> Result<FuseRegistration> {
+    registered_fuse_for(bytes, digest, FuseFormat::Numbers)
 }
 fn association_binding(
     plan: &FuseRegistration,
@@ -281,14 +436,15 @@ fn working_inventory_binding(
     );
     Ok(())
 }
-fn verify_sources(path: &Path, digest: &str) -> Result<serde_json::Value> {
+fn verify_sources(path: &Path, digest: &str, format: FuseFormat) -> Result<serde_json::Value> {
     let bytes = read_private(path, 32 * 1024)?;
     ensure!(
         hex_digest(digest) && hex::encode(Sha256::digest(&bytes)) == digest,
         "owned FUSE source registration digest changed"
     );
-    let plan: Sources = serde_json::from_slice(&bytes)
+    let mut plan: Sources = serde_json::from_slice(&bytes)
         .map_err(|_| anyhow::anyhow!("owned FUSE source registration schema refused"))?;
+    plan.format = format;
     plan.validate()?;
     ensure!(
         path == plan.session_directory.join("source-registration.json"),
@@ -312,7 +468,7 @@ fn verify_sources(path: &Path, digest: &str) -> Result<serde_json::Value> {
 }
 /// Local source inspection only: no settings, journal, session or keyring opens.
 pub fn icloud_owned_fuse_source_verify(path: &Path, digest: &str) -> Result<serde_json::Value> {
-    verify_sources(path, digest)
+    verify_sources(path, digest, FuseFormat::Numbers)
         .map_err(|_| anyhow::anyhow!("owned FUSE source validation refused; no cloud access"))
 }
 
@@ -361,9 +517,11 @@ fn capture_binding(plan: &CaptureRegistration, master: &Sources, path: &Path) ->
                     .session_directory
                     .join(format!("{}-registration.json", plan.purpose.stem()))
             && plan.source.path
-                == master
-                    .session_directory
-                    .join(format!("{}.numbers", plan.purpose.stem()))
+                == master.session_directory.join(format!(
+                    "{}.{}",
+                    plan.purpose.stem(),
+                    master.format.extension()
+                ))
             && plan.source.root == master.name()
             && plan.source.semantic == *plan.purpose.semantic(master)
             && plan.source.size > 0
@@ -373,7 +531,7 @@ fn capture_binding(plan: &CaptureRegistration, master: &Sources, path: &Path) ->
     );
     source_verified(&plan.source)
 }
-fn verify_capture(path: &Path, digest: &str) -> Result<serde_json::Value> {
+fn verify_capture(path: &Path, digest: &str, format: FuseFormat) -> Result<serde_json::Value> {
     let bytes = read_private(path, 32 * 1024)?;
     ensure!(
         hex_digest(digest) && hex::encode(Sha256::digest(&bytes)) == digest,
@@ -388,8 +546,9 @@ fn verify_capture(path: &Path, digest: &str) -> Result<serde_json::Value> {
             && hex::encode(Sha256::digest(&master_bytes)) == plan.source_registration_sha256,
         "owned FUSE capture master changed"
     );
-    let master: Sources = serde_json::from_slice(&master_bytes)
+    let mut master: Sources = serde_json::from_slice(&master_bytes)
         .map_err(|_| anyhow::anyhow!("owned FUSE capture master schema refused"))?;
+    master.format = format;
     master.validate()?;
     let directory = open_private(&master.session_directory, true, 0)?;
     master.verify()?;
@@ -415,13 +574,14 @@ fn verify_capture(path: &Path, digest: &str) -> Result<serde_json::Value> {
 }
 /// Local captured archive proof; never opens settings, credentials or a provider.
 pub fn icloud_owned_fuse_capture_verify(path: &Path, digest: &str) -> Result<serde_json::Value> {
-    verify_capture(path, digest)
+    verify_capture(path, digest, FuseFormat::Numbers)
         .map_err(|_| anyhow::anyhow!("owned FUSE capture validation refused; no cloud access"))
 }
 
-async fn observe_fuse(path: &Path, digest: &str) -> Result<serde_json::Value> {
+async fn observe_fuse(path: &Path, digest: &str, format: FuseFormat) -> Result<serde_json::Value> {
     let bytes = read_private(path, 32 * 1024)?;
-    let plan = registered_fuse(&bytes, digest)?;
+    let plan = registered_fuse_for(&bytes, digest, format)?;
+    let active_end = plan.active_end()?;
     let receipt_plan = plan.receipt_plan();
     ensure!(
         path == plan.session_directory.join(if plan.save.is_some() {
@@ -439,12 +599,15 @@ async fn observe_fuse(path: &Path, digest: &str) -> Result<serde_json::Value> {
         .join(account.id.as_str())
         .join("journal");
     let _journal_dir = open_private(&journal_path, true, 0)?;
-    // The read-only owner lease remains held through both independent reads.
+    // Exclusive read-only account-owner lease, not a shared content mutex.
+    // Each journal query drops its SQLite statement/transaction before HTTP.
     let journal = RecoveryJournal::open(&journal_path, &account.id)?;
     let binding = fuse_journal_binding(&plan, &journal)?;
     let frozen = serde_json::to_vec(&binding)?;
     let (_, parent, current, backup, _, _) = &binding;
+    fuse_active(active_end)?;
     let mut remote = session(&plan.session_directory, &account).await?;
+    fuse_active(active_end)?;
     let root = remote.list_folder(cirrove_icloud::ROOT_ID).await?;
     let mut parents = root.iter().filter(|e| e.drivewsid == parent.id);
     let mut parent_entry = parents.next().context("owned parent absent")?.clone();
@@ -457,6 +620,7 @@ async fn observe_fuse(path: &Path, digest: &str) -> Result<serde_json::Value> {
     );
     parent_entry.items.clear();
     parent_entry.number_of_items = None;
+    fuse_active(active_end)?;
     let document = exact_entry(&remote.list_folder(&parent.id).await?, current)?;
     let source = if backup.is_some() {
         &plan.source_b
@@ -469,17 +633,24 @@ async fn observe_fuse(path: &Path, digest: &str) -> Result<serde_json::Value> {
         "fuse-preflight-fixture.json"
     });
     let manifest_value = serde_json::json!({"version":1,"run":plan.run,"account":plan.account,"session_directory":plan.session_directory,
-        "settings_sha256":plan.settings_sha256,"parent":parent_entry,"document":document,"format":"numbers","representation":"package",
+        "settings_sha256":plan.settings_sha256,"parent":parent_entry,"document":document,"format":format.format(),"representation":"package",
         "source":source.path,"source_size":source.size,"source_sha256":source.sha256,"source_root":source.root,"expected_root":current.name,"semantic":source.semantic});
     record(&manifest_path, &manifest_value)?;
     let manifest_digest = hex::encode(Sha256::digest(read_private(&manifest_path, 32 * 1024)?));
-    let current_proof = icloud_owned_fixture_verify(&manifest_path, &manifest_digest).await?;
+    fuse_active(active_end)?;
+    let current_proof = match active_end {
+        Some(end) => {
+            icloud_owned_fixture_verify_before(&manifest_path, &manifest_digest, end).await?
+        }
+        None => icloud_owned_fixture_verify(&manifest_path, &manifest_digest).await?,
+    };
     let mut trash_proof = None;
     if let Some(backup) = backup.as_ref() {
         let attempt = verification_directory(&plan.session_directory)?;
         manifest(&attempt, plan.run, "owned-fuse-receipt-trash-read-only")?;
         let staging = tempfile::tempfile_in(&attempt)?;
         staging.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        fuse_active(active_end)?;
         let recovered = remote
             .verify_owned_package_in_trash(
                 cirrove_icloud::OwnedPackageTrashRequest {
@@ -502,10 +673,12 @@ async fn observe_fuse(path: &Path, digest: &str) -> Result<serde_json::Value> {
             serde_json::json!({"item":backup.id,"etag":recovered.trash_etag,"semantic":recovered.semantic,"size":recovered.archive.size,"sha256":recovered.archive.sha256}),
         );
     }
+    fuse_active(active_end)?;
     ensure!(
         exact_entry(&remote.list_folder(&parent.id).await?, current)? == document,
         "owned current revision changed during proof"
     );
+    fuse_active(active_end)?;
     let end_root = remote.list_folder(cirrove_icloud::ROOT_ID).await?;
     let mut end_parents = end_root.iter().filter(|e| e.drivewsid == parent.id);
     let mut end_parent = end_parents
@@ -531,14 +704,16 @@ async fn observe_fuse(path: &Path, digest: &str) -> Result<serde_json::Value> {
     );
     let output = serde_json::json!({"run":plan.run,"account":plan.account,"import":plan.import,"save":plan.save,"working":plan.working,"owner":plan.owner,"canonical_fuse_archive":true,"native_fuse_save_verified":plan.save.is_some(),"registration_sha256":digest,
         "fixture_manifest_sha256":manifest_digest,"current":current_proof,"original_trash":trash_proof,"cloud_mutated":false,"gui_fidelity_verified":false});
-    record(
-        &plan.session_directory.join(if backup.is_some() {
-            "fuse-postflight-verified.json"
-        } else {
-            "fuse-preflight-verified.json"
-        }),
-        &output,
-    )?;
+    fuse_publish(active_end, || {
+        record(
+            &plan.session_directory.join(if backup.is_some() {
+                "fuse-postflight-verified.json"
+            } else {
+                "fuse-preflight-verified.json"
+            }),
+            &output,
+        )
+    })?;
     Ok(output)
 }
 /// Static privacy boundary; observations can only refuse or prove, never replay.
@@ -548,7 +723,7 @@ pub async fn icloud_owned_fuse_receipt_verify(
 ) -> Result<serde_json::Value> {
     tokio::time::timeout(
         std::time::Duration::from_secs(900),
-        observe_fuse(path, digest),
+        observe_fuse(path, digest, FuseFormat::Numbers),
     )
     .await
     .map_err(|_| {
@@ -558,3 +733,65 @@ pub async fn icloud_owned_fuse_receipt_verify(
 }
 #[cfg(test)]
 mod tests;
+
+/// Explicit Pages canonical PACKAGE source proof; no provider access.
+pub fn icloud_owned_pages_fuse_source_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    verify_sources(path, digest, FuseFormat::Pages)
+        .map_err(|_| anyhow::anyhow!("owned Pages FUSE source refused; no cloud access"))
+}
+/// Explicit Pages canonical archive capture; no provider access.
+pub fn icloud_owned_pages_fuse_capture_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    verify_capture(path, digest, FuseFormat::Pages)
+        .map_err(|_| anyhow::anyhow!("owned Pages FUSE capture refused; no cloud access"))
+}
+/// Registered Pages FUSE current/Trash proof. Parent retains its original window.
+pub async fn icloud_owned_pages_fuse_receipt_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    // The inner cap is subordinate to the registration's ORIGINAL active end.
+    tokio::time::timeout(
+        std::time::Duration::from_secs(900),
+        observe_fuse(path, digest, FuseFormat::Pages),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("owned Pages FUSE proof timed out; no mutation submitted"))?
+    .map_err(|_| anyhow::anyhow!("owned Pages FUSE proof refused; no mutation submitted"))
+}
+
+/// Explicit Keynote canonical PACKAGE source proof; no provider access.
+pub fn icloud_owned_keynote_fuse_source_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    verify_sources(path, digest, FuseFormat::Keynote)
+        .map_err(|_| anyhow::anyhow!("owned Keynote FUSE source refused; no cloud access"))
+}
+/// Explicit Keynote canonical archive capture; no provider access.
+pub fn icloud_owned_keynote_fuse_capture_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    verify_capture(path, digest, FuseFormat::Keynote)
+        .map_err(|_| anyhow::anyhow!("owned Keynote FUSE capture refused; no cloud access"))
+}
+/// Registered Keynote FUSE current/Trash proof. Parent retains its original window.
+pub async fn icloud_owned_keynote_fuse_receipt_verify(
+    path: &Path,
+    digest: &str,
+) -> Result<serde_json::Value> {
+    // The inner cap is subordinate to the registration's ORIGINAL active end.
+    tokio::time::timeout(
+        std::time::Duration::from_secs(900),
+        observe_fuse(path, digest, FuseFormat::Keynote),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("owned Keynote FUSE proof timed out; no mutation submitted"))?
+    .map_err(|_| anyhow::anyhow!("owned Keynote FUSE proof refused; no mutation submitted"))
+}

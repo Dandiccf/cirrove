@@ -1,0 +1,100 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/da-01da7cef",
+  "TMPDIR": "/home/dandiccf/Storage/ct/da-01da7cef",
+  "TMPDIR_filesystem": "ext4",
+  "active": false,
+  "active_measurement": false,
+  "apple_reopen_verified": false,
+  "arms": [
+    "new owned folder and sole DATA A create, independent A readback",
+    "hydrate A O_RDWR without writing; sole temporary B create and one os.replace"
+  ],
+  "cleanup_reserve_seconds": 45,
+  "compiled_roles": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/feature-roles-build-v1/ready-binding-v1.json",
+    "sha256": "ec9bf56548ab611ea11d5cf1ea1ec922ad32cca74cd288e5c4237c1e1ef37db3",
+    "size": 81489
+  },
+  "endpoint": "exact typed 3 uploads, 2 mutations, 5 completed queue associations; held A after rename/closed before ACK wait; independent current B and Trash A raw digests; original owners closed",
+  "execution_ready": false,
+  "format": "keynote",
+  "full_487_closed": false,
+  "fullcheck": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/fullcheck-preparation-private-v1/root-execution-v1/terminal-v1.json",
+    "sha256": "ae5b3ceb4d582cf1c9304589a021663e243539e8186e4ba911de91ccc893f2f7",
+    "size": 194567
+  },
+  "maximum_seconds": 600,
+  "native_linux_editor_save": false,
+  "normal_ro_remount_verified": false,
+  "prediction": "A remains readable through its original descriptor immediately after rename; after closing it, one conditional B handoff and one typed temporary cleanup complete.",
+  "provider_writes_authorized": true,
+  "question": "Can one ordinary DATA temporary-B atomic rename preserve held A after rename, publish exact B and retain typed original A in Trash?",
+  "representation": "ordinary_file_bytes",
+  "required_source_count": 573,
+  "run": "01da7cef-1407-4830-9f76-08c498a11a76",
+  "semantic": null,
+  "source_root": null,
+  "sources": {
+    "a": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/apple-source-a.key",
+      "sha256": "ab9097349001cdcb7249084438db6ac96e9ceaf97a7a75b439d217366174c685",
+      "size": 525068
+    },
+    "b": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/apple-source-b.key",
+      "sha256": "3109039377ae445885265e22fe7574f7301bcbb61810a4496f1230848383a9b8",
+      "size": 527694
+    }
+  },
+  "status": "closed_success",
+  "version": 1,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-01da7cef-1407-4830-9f76-08c498a11a76/original-window.json",
+    "size": 314,
+    "sha256": "1ecaf04cd4d41a6a45f77d9428124265154cf602b9f2a451a6246cb968e623b1"
+  },
+  "actual_controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-next-01da7cef-1407-4830-9f76-08c498a11a76-preparation-private-v1/controller_keynote_data_atomic_v4.py",
+    "sha256": "5717111c608ee6133e29744bbecf5d7723f44d6ac4cf615dd1574ea99d1f2089",
+    "size": 55374
+  },
+  "root_launcher": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-next-01da7cef-1407-4830-9f76-08c498a11a76-preparation-private-v1/launch_root_keynote_data_atomic_once_v4.py",
+    "size": 12561,
+    "sha256": "6b363d6ec4690fcfd0c4023858aeb1dfa2b0a141a9f094a1a8c30312b2adc103"
+  },
+  "source_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-next-01da7cef-1407-4830-9f76-08c498a11a76-preparation-private-v1/audit-independent-source-composition-v4-holder-v1.json",
+    "size": 5965,
+    "sha256": "e19d4b11bac75af155a2099daa97325bd419695d9c2ea9c7397ba53ca4ea8392"
+  },
+  "original_exports_modified": false,
+  "encoding_normalization_applied": false,
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-01da7cef-1407-4830-9f76-08c498a11a76/root-terminal-result.json",
+    "size": 2705,
+    "sha256": "7fef77c965364a7fe70482ce53a164a82a3f038ea4e9f4f389055b3040ffb330"
+  },
+  "completed_matrix_workflow": true,
+  "complete_iWork_workflows": 9,
+  "required_iWork_workflows": 12,
+  "installed_HOLD_released": false,
+  "independent_chain": {
+    "writer_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-01da7cef-1407-4830-9f76-08c498a11a76/audit-independent-keynote-data-atomic-terminal-v1.json",
+      "size": 17632,
+      "sha256": "e4e73eaa423b21baf96cc63700dd45ad4539e021490fd13dee04bfe9f8a57e3f"
+    },
+    "normal_readonly_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/audit-independent-readonly-terminal-v1.json",
+      "size": 6887,
+      "sha256": "353a274b1db621c4f026f9d8b203c7d5465cc17d5f6b6085c2aa7ed2d312c017"
+    },
+    "apple_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-exact-apple-01da-a55c81d2-bc01-4597-a708-7ca8f05f05ed-private-v1/audit-independent-apple-terminal-v1.json",
+      "size": 6375,
+      "sha256": "b46770c357a0e0263babeba74795d2a3584d186c4fc59610c6aa8e4b9a798247"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "Apple_followup": "separate exact-ID observation after normal RO succeeds",
+  "active": false,
+  "active_measurement": false,
+  "actual_representation_before_B_required": "folder/package; DATA refuses without coercion",
+  "cleanup_reserve_seconds": 120,
+  "endpoint": "One A import, one temporary promotion, exact typed identity/revision/working/receipt authority and full V2 proofs, original owners closed and preserved installed/source pins.",
+  "full_487_closed": false,
+  "native_linux_editor_save_claimed": false,
+  "normal_RO_followup": "separate fresh preregistered case after actual terminal audit",
+  "original_seconds": 1200,
+  "prediction": "Temporary fsync creates no upload; rename creates exactly one typed native save. Held A/current B and original Trash A independently match registered full V2, and clean fsync creates no second save.",
+  "question": "Does a fresh owned Keynote PACKAGE imported once support one canonical archive temporary write/fsync/rename B through normal FUSE without replay?",
+  "ready": false,
+  "run": "ff5abf15-0264-46a1-9efd-94a70ae724a7",
+  "source_contract": "Keynote genuine wrapped54 physical members; canonical B root changes only during new registered local preparation.",
+  "status": "closed_atomic_success",
+  "version": 1,
+  "source_review": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-keynote-package-atomic-proof-20261008-private-v1/next-live-preparation-v1/audit-independent-keynote-first-prepare-source-v4.json",
+    "size": 6344,
+    "sha256": "327e7ac34c7f945462130270d8332a05e829a65faf64c0d2e31685fc5a81f318"
+  },
+  "root_outer_events": [
+    {
+      "status": "exclusive_root_once_before_controller_clock",
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-package-atomic-ff5abf15-0264-46a1-9efd-94a70ae724a7/root-live-outer-registration-v3.json",
+        "size": 2172,
+        "sha256": "36e955a56821db80f1eeafa1f9d028b218ca30def8eb77ee49db59d48a997e51"
+      }
+    },
+    {
+      "status": "exclusive_atomic_original_clock",
+      "window": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-package-atomic-ff5abf15-0264-46a1-9efd-94a70ae724a7/original-window.json",
+        "size": 299,
+        "sha256": "a5360ef9f66e085097b97ae4c25c9386f6e5def6b9ce69c08d51823a0fe2b8d8"
+      }
+    },
+    {
+      "status": "closed_atomic_success",
+      "terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-package-atomic-ff5abf15-0264-46a1-9efd-94a70ae724a7/root-live-outer-result-v3.json",
+        "size": 922,
+        "sha256": "9e9c3b1f037d14f630d9a38e03c9432e6513fc5b3ded22be6779150bf0ae98cc"
+      }
+    }
+  ],
+  "root_outer_status": "closed_atomic_success"
+}

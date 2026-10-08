@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "run": "184da3f0-452f-44df-917f-f442913a048c",
+  "status": "closed_pass",
+  "active_measurement": false,
+  "provider_calls": false,
+  "question": "Does the current normal572-linked production scalar scanner accept exact genuine Keynote B and reject four hostile inputs?",
+  "prediction": "Five explicit exits 0,1,1,1,1; six original compiler/scanner children closed; original sources unchanged.",
+  "endpoint": "One rustc link from exact normal CargoJSON rlibs, then genuine B, genuine A against B, wrong raw hash, wrong root, and CRC-valid changed member with valid raw hash. No provider or application calls.",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-ff5-readonly-184da3f0-452f-44df-917f-f442913a048c-preparation-private-v1/scanner-build-preparation-v1/build_keynote_ro_scanner_once_v2.py",
+    "size": 14572,
+    "sha256": "c76b9faac72ec8fcc41d1c8f312a79aff7de30099131ddd18d79314d7c382f11"
+  },
+  "source_count": 572,
+  "maximum_compile_seconds": 120,
+  "compile_cleanup_seconds": 10,
+  "each_control_seconds": 30,
+  "control_cleanup_seconds": 10,
+  "installed_actions": false,
+  "immutable_initial_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-ff5-readonly-184da3f0-452f-44df-917f-f442913a048c-preparation-private-v1/scanner-build-preparation-v1/root-execution-v1/public-preregistration-initial.json",
+    "size": 1183,
+    "sha256": "7e05360bf41f51a7b91c6f8dc1193069bc84521f91c055b355b63459d836055a"
+  },
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-iwork-atomic-complete-check-preparation-20261008-private-v1/normal-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "618245a34fcbaa03ee1809d639e4c8ec280b6b92369c3147eb9c70f908dba41b",
+    "size": 78465
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct/kapr184dscanner",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/kapr184dscanner"
+}

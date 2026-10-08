@@ -286,6 +286,7 @@ impl ICloudFileReplace {
             operation,
             stage_name: format!("staged-by-cirrove-{operation}{suffix}"),
             recovery_name: format!("recovery-by-cirrove-{operation}{suffix}"),
+            names_bound: std::sync::atomic::AtomicBool::new(true),
             session,
             stage: None,
             native: Some(Context {

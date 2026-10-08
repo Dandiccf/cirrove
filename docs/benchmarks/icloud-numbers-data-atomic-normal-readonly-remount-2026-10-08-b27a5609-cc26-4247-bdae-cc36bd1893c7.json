@@ -1,0 +1,100 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "cache_preserved_without_stripping": true,
+  "cleanup_reserve_seconds": 45,
+  "clone_shm_timestamp_policy": "Only exact uploads.db-shm mtime/ctime differences; complete bytes/typed frontier/corestats and original source exact. Actual deltas retained.",
+  "duration_seconds": 600,
+  "endpoint": "Exact current B full Node, typed cached path and descriptor raw138943/223e4267; original clone journal frontier unchanged and all original owners/mount/socket closed. No new Trash or native Linux save claim.",
+  "full487_closed": false,
+  "installed_actions": false,
+  "original_writer_success": true,
+  "prediction": "Copied warm cache and completed journal are retained; raw B is exact and recovery-only workers make zero mutations.",
+  "prior_closed_failure": "578657e8-ce08-4cbe-ae03-636aed000d44",
+  "prior_failures_preserved": true,
+  "question": "Does a fresh recovery-only configured read-only normal573 daemon remount the exact completed Numbers DATA atomic B without journal replay?",
+  "readiness": false,
+  "run": "b27a5609-cc26-4247-bdae-cc36bd1893c7",
+  "status": "closed_success",
+  "subject_run": "de0f154b-d2de-4daa-bce3-c734dd311ca2",
+  "uncached_provider_read_claimed": false,
+  "version": 1,
+  "actual_comparator_controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-de0f-readonly-preparation-private-v1/shm-timestamp-successor-private-v1/root-controls-execution-v1/terminal.json",
+    "size": 5704,
+    "sha256": "05a4435d6d9bd00edbb547f50ace01929f653760c25dbdb00368660974d2443c"
+  },
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/original-window.json",
+    "size": 312,
+    "sha256": "b68914b7992a3ed45116ce941f6eed3d1b0a9c1bf66813b847bad771c6f41bb5"
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/observe-outer-registration.json",
+    "size": 1719,
+    "sha256": "8428925a4fa68e4dc54106a03cbb37595f291b339ad36f1d1b683edad8b3e6ce"
+  },
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/observe-outer-owner.json",
+    "size": 999,
+    "sha256": "3808d05cf77c98f76072fdb37d7986b508ac83259264a6adc0532292ffa2a160"
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/root-terminal-result.json",
+    "size": 662,
+    "sha256": "3956e23eb78c1a5cb69fa3c280c3bd09acbe332e72d35d7876ac3b13c8b3ba0f"
+  },
+  "actual_local_preparation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/local-prepare-check/terminal.json",
+    "size": 4203,
+    "sha256": "1341b1245e68e63879fdb9a035b2eebf2ee65db75c0ed2d2498200c2676acd46"
+  },
+  "actual_inner_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/root-ro-result.json",
+    "size": 2554,
+    "sha256": "bef5c42cf987a06f680b071d9e97b019bcef75bae95c22fdf16f24035ec86288"
+  },
+  "actual_outer_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/root-terminal-result.json",
+    "size": 662,
+    "sha256": "3956e23eb78c1a5cb69fa3c280c3bd09acbe332e72d35d7876ac3b13c8b3ba0f"
+  },
+  "actual_raw_capture": {
+    "path": "/var/tmp/cirrove-numbers-data-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/raw-capture-result.json",
+    "size": 898,
+    "sha256": "62ed26b7415abe4d3fbaa23b9d8ac135d638b775cfc0fbd54d55bf578cf59515"
+  },
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-de0f-readonly-preparation-private-v1/shm-timestamp-successor-private-v1/audit-independent-shm-successor-source-v6.json",
+    "size": 5793,
+    "sha256": "e0454401f5bdafa84f92d1d6370d25311c3dd9940f64e0e0e8000050aae21985"
+  },
+  "observed": "Independent actual audit33/33: new original7.07238s run succeeds; all3inner+outerclosed. Exact Node and warm fullrawB verified; byte/logical/stable journal identity unchanged with cloned exactSHMtimestamps recorded. Originalstate and installed/source unchanged. Prior5786 remains failed; no uncached read claim. Apple follow-up is separately recorded.",
+  "completed_matrix_workflow": true,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/audit-independent-readonly-terminal-v1.json",
+    "size": 6387,
+    "sha256": "99d6b57f8f3da1de9cba830eb5973b11a62e6a044cae1655d1a8a78f78d04e22"
+  },
+  "normal_readonly_remount_verified": true,
+  "bounded_workflow_chain": {
+    "writer_Trash": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-de0f154b-d2de-4daa-bce3-c734dd311ca2/audit-independent-numbers-data-atomic-terminal-v1.json",
+      "size": 12788,
+      "sha256": "86ee44d62a45b84aa14aae8d1ebbf526caa257526dbef56d8ea1ea11bcd05894"
+    },
+    "normal_readonly": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-b27a5609-cc26-4247-bdae-cc36bd1893c7/audit-independent-readonly-terminal-v1.json",
+      "size": 6387,
+      "sha256": "99d6b57f8f3da1de9cba830eb5973b11a62e6a044cae1655d1a8a78f78d04e22"
+    },
+    "exact_Apple": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/audit-independent-apple-terminal-v1.json",
+      "size": 17224,
+      "sha256": "8721ee54fe4c6424d7c7f2eafce752e78c673e706bd5bd0c1b3b86864ead6f32"
+    }
+  },
+  "complete_iWork_workflows": 8,
+  "required_iWork_workflows": 12,
+  "installed_HOLD_released": false
+}

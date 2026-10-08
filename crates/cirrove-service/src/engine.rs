@@ -2365,6 +2365,36 @@ mod native_abandon;
 mod native_replace;
 
 impl Engine {
+    /// A receipt establishes the exact ID, not permission to overwrite a later
+    /// metadata view with history. Refresh mismatches through the normal ticketed
+    /// provider path, after releasing every journal/SQLite owner.
+    async fn reconcile_ordinary_current(
+        &self,
+        proof: &crate::journal::OrdinaryHandoffMetadata,
+    ) -> Result<(), ProviderError> {
+        if proof.native || proof.scope != self.scope(&proof.scope.collection) {
+            return Err(ProviderError::Unavailable);
+        }
+        let db = self.db.clone();
+        let scope = proof.scope.clone();
+        let item = proof.current.id.clone();
+        let current = tokio::task::spawn_blocking(move || Store::open(db)?.node(&scope, &item))
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        if current.as_ref() == Some(&proof.current) {
+            return Ok(());
+        }
+        tokio::select! {biased;
+            _=self.cancel.cancelled()=>Err(ProviderError::Cancelled),
+            result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&proof.scope,&proof.current.id))=>{
+                match result {
+                    Ok(Ok(_))|Ok(Err(ProviderError::NotFound))=>Ok(()),
+                    Ok(Err(error))=>Err(error),Err(_)=>Err(ProviderError::Unavailable),
+                }
+            }
+        }
+    }
     /// Call only with an independently validated receipt; no journal/activity
     /// lock or SQLite transaction survives this optional exact-ID read.
     pub(crate) async fn publish_ordinary_metadata(
@@ -2373,6 +2403,9 @@ impl Engine {
     ) -> Result<bool, ProviderError> {
         if proof.scope != self.scope(&proof.scope.collection) {
             return Err(ProviderError::Unavailable);
+        }
+        if !proof.native {
+            self.reconcile_ordinary_current(proof).await?;
         }
         let apply = || {
             let db = self.db.clone();
@@ -2492,9 +2525,51 @@ impl Engine {
         result.map_err(anyhow::Error::from)?;
         Ok(true)
     }
+    /// One already-completed ordinary job per pass. Only the local scan cursor
+    /// changes; historical done flags and transfer/working rows remain untouched.
+    pub(crate) async fn repair_completed_ordinary_metadata_once_at(
+        &self,
+        root: PathBuf,
+        scan: &mut crate::journal::CompletedOrdinaryMetadataScan,
+    ) -> Result<bool> {
+        let account = self.account.id.clone();
+        let read_root = root.clone();
+        let previous = *scan;
+        let gate = self.recovery_journal_gate.clone();
+        let (next, selected) = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            if !read_root.try_exists()? {
+                return Ok((previous, Ok(None)));
+            }
+            let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            Ok(journal.completed_ordinary_with_scan(previous))
+        })
+        .await??;
+        *scan = next;
+        let Some(proof) = selected? else {
+            return Ok(next != previous);
+        };
+        if let Err(error) = self.reconcile_ordinary_current(&proof).await {
+            scan.retry(previous);
+            return Err(error.into());
+        }
+        let gate = self.recovery_journal_gate.clone();
+        let account = self.account.id.clone();
+        let checked = tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            journal.validate_completed_ordinary(&proof)
+        })
+        .await?;
+        checked?;
+        Ok(true)
+    }
     async fn repair_ordinary_metadata_readonly(self: Arc<Self>) {
         let mut failed = 0u32;
         let mut scan = crate::journal::NativeMetadataScan::default();
+        let mut completed_scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+        let mut history_failures = 0u32;
+        let mut history_retry = tokio::time::Instant::now();
         loop {
             if self.cancel.is_cancelled() {
                 return;
@@ -2505,15 +2580,43 @@ impl Engine {
                     &mut scan,
                 )
                 .await;
+            let history = if tokio::time::Instant::now() >= history_retry {
+                let result = self
+                    .repair_completed_ordinary_metadata_once_at(
+                        self.ordinary_publication_journal.clone(),
+                        &mut completed_scan,
+                    )
+                    .await;
+                if result.is_err() {
+                    history_failures = history_failures.saturating_add(1).min(6);
+                    history_retry = tokio::time::Instant::now()
+                        + Duration::from_secs((1u64 << history_failures).min(60));
+                } else {
+                    history_failures = 0;
+                }
+                result
+            } else {
+                Ok(false)
+            };
             // One job of each kind per pass: a due stream of handoffs cannot
             // starve confirmed standalone removals, or vice versa.
             let trash = self
                 .repair_native_trash_metadata_once_at(self.ordinary_publication_journal.clone())
                 .await;
-            let result = match (handoff, trash) {
-                (Ok(a), Ok(b)) => Ok(a || b),
-                (Ok(true), Err(_)) | (Err(_), Ok(true)) => Ok(true),
-                (Err(e), _) | (_, Err(e)) => Err(e),
+            let mut worked = false;
+            let mut error = None;
+            for result in [handoff, history, trash] {
+                match result {
+                    Ok(value) => worked |= value,
+                    Err(value) => error = Some(value),
+                }
+            }
+            let result = if worked {
+                Ok(true)
+            } else if let Some(error) = error {
+                Err(error)
+            } else {
+                Ok(false)
             };
             let delay = match result {
                 Ok(true) => {

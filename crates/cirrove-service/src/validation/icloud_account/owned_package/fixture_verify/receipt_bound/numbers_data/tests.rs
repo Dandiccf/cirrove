@@ -40,6 +40,9 @@ impl Actual {
         journal.collect_uploaded_payloads(4).unwrap();
     }
     fn save(&mut self, rehydrate: bool) {
+        self.save_with_target_names(rehydrate, false);
+    }
+    fn save_with_target_names(&mut self, rehydrate: bool, target_names: bool) {
         if rehydrate {
             self.retire(self.original.clone());
         }
@@ -64,9 +67,16 @@ impl Actual {
             .reserve_identity_handoff(
                 row.id,
                 claimed.attempt.unwrap(),
-                RecoveryLocation::Trash {
-                    local_name: format!("recovery-by-cirrove-{}.txt", row.id),
-                    parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
+                if target_names {
+                    cirrove_icloud::ICloudFileReplace::recovery_location_for_name(
+                        row.id,
+                        &self.original.name,
+                    )
+                } else {
+                    RecoveryLocation::Trash {
+                        local_name: format!("recovery-by-cirrove-{}.txt", row.id),
+                        parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
+                    }
                 },
             )
             .unwrap();
@@ -88,6 +98,99 @@ impl Actual {
             .unwrap();
     }
 }
+#[test]
+fn saved_data_target_named_recovery_uses_exact_keynote_reservation() {
+    for rehydrate in [false, true] {
+        let mut actual = actual_for(DataArm::Keynote);
+        actual.check().unwrap();
+        actual.save_with_target_names(rehydrate, true);
+        let journal = actual.writer();
+        let row = journal.get(actual.plan.save.unwrap()).unwrap();
+        let expected = cirrove_icloud::ICloudFileReplace::recovery_location_for_name(
+            row.id,
+            &actual.original.name,
+        );
+        assert_eq!(row.reserved_recovery_location(), Some(expected));
+        let recovery = journal
+            .namespace_object(row.ordinary_validation_recovery_owner().unwrap())
+            .unwrap();
+        assert_eq!(
+            recovery.node.name,
+            format!("recovery-by-cirrove-{}.key", row.id)
+        );
+        drop(journal);
+        let result = actual.check();
+        assert!(
+            result.is_ok(),
+            "shared DATA validator must accept exact target-named Keynote recovery reservation"
+        );
+        let (_, current, backup, _) = result.unwrap();
+        assert_ne!(current.id, actual.original.id);
+        assert_eq!(current.name, actual.plan.name());
+        assert_eq!(current.size, actual.plan.source_b.size);
+        assert_eq!(current.etag.as_deref(), Some("b-revision"));
+        assert_eq!(backup.unwrap().id, actual.original.id);
+        actual.retire(current);
+        assert!(
+            actual.check().is_ok(),
+            "retired DATA validator must retain exact target-named Keynote recovery authority"
+        );
+    }
+}
+
+#[test]
+fn saved_data_recovery_refuses_foreign_suffix_in_reservation_and_local_name() {
+    for retired in [false, true] {
+        let mut actual = actual_for(DataArm::Keynote);
+        actual.save_with_target_names(false, true);
+        let (_, current, _, _) = actual.check().unwrap();
+        if retired {
+            actual.retire(current);
+            actual.check().unwrap();
+        }
+        let journal = actual.writer();
+        let mut row = journal.get(actual.plan.save.unwrap()).unwrap();
+        let owner = row.ordinary_validation_recovery_owner().unwrap();
+        let mut recovery = journal.namespace_object(owner).unwrap();
+        let foreign = format!("recovery-by-cirrove-{}.pdf", row.id);
+        let mut reservation = serde_json::to_value(row.identity_handoff.as_ref().unwrap()).unwrap();
+        reservation["recovery_name"] = serde_json::json!(foreign);
+        row.identity_handoff = Some(serde_json::from_value(reservation).unwrap());
+        assert_eq!(
+            row.reserved_recovery_location(),
+            Some(RecoveryLocation::Trash {
+                local_name: foreign.clone(),
+                parent: "FOLDER::com.apple.CloudDocs::TRASH_ROOT".into(),
+            })
+        );
+        assert!(row.ordinary_handoff_receipt().is_some());
+        recovery.node.name.clone_from(&foreign);
+        let db = actual.db();
+        assert_eq!(
+            db.execute(
+                "UPDATE uploads SET body=?2 WHERE id=?1",
+                rusqlite::params![row.id.to_string(), serde_json::to_string(&row).unwrap()]
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            db.execute(
+                "UPDATE namespace_objects SET body=?2 WHERE id=?1",
+                rusqlite::params![owner.to_string(), serde_json::to_string(&recovery).unwrap()]
+            )
+            .unwrap(),
+            1
+        );
+        drop(db);
+        drop(journal);
+        assert!(
+            actual.check().is_err(),
+            "foreign suffix in both retained reservation and local recovery projection accepted"
+        );
+    }
+}
+
 fn actual() -> Actual {
     actual_for(DataArm::Numbers)
 }
@@ -145,6 +248,7 @@ fn actual_for(arm: DataArm) -> Actual {
         working_b: None,
         phase: Phase::CreatedA,
         created_proof_sha256: None,
+        atomic: None,
         source_a: source(&arm.source_name(false), b"synthetic raw Numbers A"),
         source_b: source(
             &arm.source_name(true),
@@ -689,3 +793,446 @@ mod pages_tests;
 
 #[path = "keynote_tests.rs"]
 mod keynote_tests;
+
+// These fixtures call the actual local journal takeover, claim, reservation,
+// typed acknowledgement and cleanup APIs. They do not dispatch a provider.
+fn actual_data_atomic(arm: DataArm, retired_b: bool) -> Actual {
+    let mut actual = actual_for(arm);
+    let mut journal = actual.writer();
+    let victim = journal.namespace_object(actual.plan.owner).unwrap();
+    let name = format!(".cirrove-atomic-{}.{}", actual.plan.run, arm.extension());
+    let working = journal
+        .create_working(
+            actual.plan.scope(),
+            Node {
+                id: "unallocated-atomic-temp".into(),
+                name: name.clone(),
+                size: 0,
+                parent_id: victim.node.parent_id.clone(),
+                etag: None,
+                content_version: None,
+                ..actual.original.clone()
+            },
+            true,
+            &b""[..],
+        )
+        .unwrap();
+    let bytes = std::fs::read(&actual.plan.source_b.path).unwrap();
+    journal.write_working(working.id, 0, &bytes).unwrap();
+    let temporary = journal.seal_working(working.id).unwrap().unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, temporary.id);
+    let remote_temp = Node {
+        id: "FILE::com.apple.CloudDocs::atomic-temp-b".into(),
+        name,
+        size: bytes.len() as u64,
+        etag: Some("temp-b-revision".into()),
+        content_version: Some("temp-b-revision".into()),
+        ..actual.original.clone()
+    };
+    journal
+        .acknowledge(temporary.id, claimed.attempt.unwrap(), remote_temp.clone())
+        .unwrap();
+    let source = journal
+        .namespace_for_operation(temporary.id)
+        .unwrap()
+        .unwrap();
+    let victim = journal.namespace_object(victim.id).unwrap();
+    let replacement = journal
+        .replace_namespace_file(
+            source.id,
+            source.revision,
+            victim.id,
+            victim.revision,
+            false,
+        )
+        .unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, replacement.id);
+    journal
+        .reserve_identity_handoff(
+            claimed.id,
+            claimed.attempt.unwrap(),
+            cirrove_icloud::ICloudFileReplace::recovery_location_for_name(
+                claimed.id,
+                &actual.original.name,
+            ),
+        )
+        .unwrap();
+    let current = Node {
+        id: "FILE::com.apple.CloudDocs::atomic-current-b".into(),
+        size: bytes.len() as u64,
+        etag: Some("atomic-b-revision".into()),
+        content_version: Some("atomic-b-revision".into()),
+        ..actual.original.clone()
+    };
+    let backup = Node {
+        parent_id: Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT".into()),
+        etag: Some("atomic-trash-a-revision".into()),
+        content_version: Some("atomic-trash-a-revision".into()),
+        ..actual.original.clone()
+    };
+    journal
+        .acknowledge_identity_handoff(
+            claimed.id,
+            claimed.attempt.unwrap(),
+            current.clone(),
+            backup,
+        )
+        .unwrap();
+    let cleanup = journal.claim_mutation().unwrap().unwrap();
+    assert_eq!(cleanup.id, replacement.cleanup);
+    assert!(
+        cleanup.request.intent
+            == MutationIntent::RemoveFile {
+                before: remote_temp.clone()
+            }
+    );
+    assert!(
+        journal
+            .acknowledge_mutation(
+                cleanup.id,
+                cleanup.attempt.unwrap(),
+                MutationReceipt::Removed {
+                    item: remote_temp.id
+                }
+            )
+            .unwrap()
+            == MutationState::Applied
+    );
+    actual.plan.phase = Phase::SavedB;
+    actual.plan.save = Some(replacement.id);
+    actual.plan.owner = source.id;
+    actual.plan.working_b = Some(working.id);
+    actual.plan.created_proof_sha256 = Some("f".repeat(64));
+    actual.plan.atomic = Some(atomic::Authority {
+        version: 1,
+        victim: victim.id,
+        victim_working: actual.plan.working_a,
+        temporary_create: temporary.id,
+        cleanup: cleanup.id,
+        cleanup_object: replacement.cleanup_object,
+        source_before: source,
+        victim_before: victim,
+    });
+    drop(journal);
+    if retired_b {
+        actual.retire(current);
+    }
+    actual
+}
+#[test]
+fn owned_data_atomic_three_formats_exact_takeover_active_and_retired() {
+    for arm in [DataArm::Numbers, DataArm::Pages, DataArm::Keynote] {
+        for retired in [false, true] {
+            let actual = actual_data_atomic(arm, retired);
+            let result = actual.check();
+            assert!(
+                result.is_ok(),
+                "exact ordinary DATA atomic takeover refused"
+            );
+            let (_, current, backup, frozen) = result.unwrap();
+            assert_eq!(current.id, "FILE::com.apple.CloudDocs::atomic-current-b");
+            assert_eq!(backup.unwrap().id, actual.original.id);
+            assert_eq!(actual.check().unwrap().3, frozen);
+        }
+    }
+}
+#[test]
+fn owned_data_atomic_registration_refuses_aliased_operation_owner_or_revision() {
+    let actual = actual_data_atomic(DataArm::Keynote, false);
+    for arm in 0..7 {
+        let mut plan = actual.plan.clone();
+        let authority = plan.atomic.as_mut().unwrap();
+        match arm {
+            0 => authority.temporary_create = plan.create,
+            1 => authority.victim = plan.owner,
+            2 => authority.cleanup_object = plan.owner,
+            3 => authority.source_before.scope.account = Uuid::new_v4().to_string(),
+            4 => authority.victim_before.id = Uuid::new_v4(),
+            5 => authority.source_before.revision = 0,
+            _ => plan.phase = Phase::CreatedA,
+        }
+        assert!(
+            plan.validate().is_err(),
+            "atomic registration arm {arm} accepted"
+        );
+    }
+}
+#[test]
+fn owned_data_atomic_typed_replacement_refuses_foreign_source_victim_or_index() {
+    for arm in 0..7 {
+        let actual = actual_data_atomic(DataArm::Pages, false);
+        let db = actual.db();
+        let id = actual.plan.save.unwrap().to_string();
+        let column = match arm {
+            0 => "source",
+            1 => "victim",
+            _ => "body",
+        };
+        if arm < 2 {
+            db.execute(
+                &format!("UPDATE file_replacements SET {column}=?2 WHERE id=?1"),
+                rusqlite::params![id, Uuid::new_v4().to_string()],
+            )
+            .unwrap();
+        } else {
+            let mut body: serde_json::Value = serde_json::from_str(
+                &db.query_row(
+                    "SELECT body FROM file_replacements WHERE id=?1",
+                    [&id],
+                    |r| r.get::<_, String>(0),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            match arm {
+                2 => body["remote_applied"] = serde_json::json!(false),
+                3 => body["local_ready"] = serde_json::json!(false),
+                4 => body["rescued_as"] = serde_json::json!(Uuid::new_v4()),
+                5 => body["source_unconfirmed_create"] = serde_json::json!(actual.plan.create),
+                _ => body["cleanup_object"] = serde_json::json!(Uuid::new_v4()),
+            }
+            db.execute(
+                "UPDATE file_replacements SET body=?2 WHERE id=?1",
+                rusqlite::params![id, body.to_string()],
+            )
+            .unwrap();
+        }
+        drop(db);
+        assert!(
+            actual.check().is_err(),
+            "atomic replacement arm {arm} accepted"
+        );
+    }
+}
+#[test]
+fn owned_data_atomic_five_queue_associations_refuse_foreign_and_incomplete() {
+    for arm in 0..4 {
+        let actual = actual_data_atomic(DataArm::Numbers, false);
+        let db = actual.db();
+        let authority = actual.plan.atomic.as_ref().unwrap();
+        match arm {
+            0 => {
+                db.execute(
+                    "UPDATE write_queue SET complete=0 WHERE id=?1",
+                    [authority.cleanup.to_string()],
+                )
+                .unwrap();
+            }
+            1 => {
+                db.execute(
+                    "UPDATE namespace_operations SET object=?2 WHERE operation=?1",
+                    rusqlite::params![
+                        authority.temporary_create.to_string(),
+                        authority.victim.to_string()
+                    ],
+                )
+                .unwrap();
+            }
+            2 => {
+                db.execute(
+                    "INSERT INTO namespace_operations VALUES(?1,?2)",
+                    rusqlite::params![Uuid::new_v4().to_string(), actual.plan.owner.to_string()],
+                )
+                .unwrap();
+            }
+            _ => {
+                db.execute(
+                    "INSERT INTO write_queue(id,complete) VALUES(?1,1)",
+                    [Uuid::new_v4().to_string()],
+                )
+                .unwrap();
+            }
+        }
+        drop(db);
+        assert!(actual.check().is_err(), "atomic queue arm {arm} accepted");
+    }
+}
+#[test]
+fn owned_data_atomic_cleanup_requires_exact_temporary_before_and_removed_receipt() {
+    for arm in 0..4 {
+        let actual = actual_data_atomic(DataArm::Keynote, false);
+        let db = actual.db();
+        let id = actual.plan.atomic.as_ref().unwrap().cleanup.to_string();
+        let mut body: serde_json::Value = serde_json::from_str(
+            &db.query_row("SELECT body FROM mutations WHERE id=?1", [&id], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        // Typed reserialization avoids depending on enum JSON tags.
+        let mut mutation: MutationRecord = serde_json::from_value(body.clone()).unwrap();
+        match arm {
+            0 => {
+                mutation.receipt = Some(MutationReceipt::Removed {
+                    item: actual.original.id.clone(),
+                })
+            }
+            1 => mutation.base = None,
+            2 => mutation.working_file = Some(actual.plan.working_a),
+            _ => mutation.local_ready = false,
+        }
+        body = serde_json::to_value(mutation).unwrap();
+        db.execute(
+            "UPDATE mutations SET body=?2 WHERE id=?1",
+            rusqlite::params![id, body.to_string()],
+        )
+        .unwrap();
+        drop(db);
+        assert!(actual.check().is_err(), "atomic cleanup arm {arm} accepted");
+    }
+}
+#[test]
+fn owned_data_atomic_pre_rename_authority_refuses_foreign_or_future_revision() {
+    for arm in 0..5 {
+        let mut actual = actual_data_atomic(DataArm::Pages, false);
+        let current = actual.writer().namespace_object(actual.plan.owner).unwrap();
+        let authority = actual.plan.atomic.as_mut().unwrap();
+        match arm {
+            0 => authority.source_before.revision = current.revision,
+            1 => authority.source_before.remote.as_mut().unwrap().etag = Some("foreign".into()),
+            2 => authority.victim_before.remote.as_mut().unwrap().id = current.remote.unwrap().id,
+            3 => authority.victim_before.latest = Some(authority.temporary_create),
+            _ => authority.source_before.node.parent_id = Some("foreign-parent".into()),
+        }
+        assert!(
+            actual.check().is_err(),
+            "atomic pre-rename arm {arm} accepted"
+        );
+    }
+}
+#[test]
+fn owned_data_atomic_full_digest_refuses_same_size_original_or_current_corruption() {
+    for original in [true, false] {
+        let actual = actual_data_atomic(DataArm::Numbers, false);
+        let id = if original {
+            actual.plan.working_a
+        } else {
+            actual.plan.working_b.unwrap()
+        };
+        let journal = actual.writer();
+        let mut descriptor = std::fs::OpenOptions::new()
+            .write(true)
+            .open(actual.path().join("working").join(id.to_string()))
+            .unwrap();
+        std::io::Write::write_all(&mut descriptor, b"X").unwrap();
+        descriptor.sync_all().unwrap();
+        drop(descriptor);
+        drop(journal);
+        assert!(
+            actual.check().is_err(),
+            "same-size atomic working corruption accepted"
+        );
+    }
+}
+#[test]
+fn owned_data_atomic_receipts_refuse_wrong_original_revision_scope_or_raw_size() {
+    for arm in 0..4 {
+        let actual = actual_data_atomic(DataArm::Keynote, false);
+        let db = actual.db();
+        let id = actual.plan.save.unwrap().to_string();
+        let mut row: UploadRecord = serde_json::from_str(
+            &db.query_row("SELECT body FROM uploads WHERE id=?1", [&id], |r| {
+                r.get::<_, String>(0)
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        match arm {
+            0 => row.scope.account = Uuid::new_v4().to_string(),
+            1 => row.size += 1,
+            2 => row.sha256.clone_from(&actual.plan.source_a.sha256),
+            _ => {
+                row.intent = UploadIntent::Replace {
+                    item: actual.original.id.clone(),
+                    expected_etag: "foreign".into(),
+                }
+            }
+        }
+        db.execute(
+            "UPDATE uploads SET body=?2 WHERE id=?1",
+            rusqlite::params![id, serde_json::to_string(&row).unwrap()],
+        )
+        .unwrap();
+        drop(db);
+        assert!(
+            actual.check().is_err(),
+            "atomic raw receipt arm {arm} accepted"
+        );
+    }
+}
+#[test]
+fn owned_data_atomic_namespace_refuses_unknown_unlinked_working_or_package() {
+    for arm in 0..4 {
+        let actual = actual_data_atomic(DataArm::Pages, false);
+        let db = actual.db();
+        let id = if arm == 0 {
+            actual.plan.atomic.as_ref().unwrap().victim
+        } else {
+            actual.plan.owner
+        };
+        let mut owner: NamespaceObject = serde_json::from_str(
+            &db.query_row(
+                "SELECT body FROM namespace_objects WHERE id=?1",
+                [id.to_string()],
+                |r| r.get::<_, String>(0),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        match arm {
+            0 => owner.remote_owned = true,
+            1 => owner.unlinked = true,
+            2 => owner.node.package = true,
+            _ => owner.working_file = Some(Uuid::new_v4()),
+        }
+        db.execute(
+            "UPDATE namespace_objects SET body=?2 WHERE id=?1",
+            rusqlite::params![id.to_string(), serde_json::to_string(&owner).unwrap()],
+        )
+        .unwrap();
+        drop(db);
+        assert!(
+            actual.check().is_err(),
+            "atomic namespace arm {arm} accepted"
+        );
+    }
+}
+
+#[test]
+fn owned_data_atomic_registration_roundtrip_and_ordinary_none_wire_remain_exact() {
+    let atomic = actual_data_atomic(DataArm::Keynote, false);
+    let bytes = serde_json::to_vec(&atomic.plan).unwrap();
+    let hash = hex::encode(Sha256::digest(&bytes));
+    let decoded = registration(&bytes, &hash, DataArm::Keynote).unwrap();
+    assert!(decoded.atomic.is_some());
+    assert_eq!(
+        serde_json::to_value(decoded).unwrap(),
+        serde_json::to_value(&atomic.plan).unwrap()
+    );
+    let ordinary = actual_for(DataArm::Numbers);
+    let wire = serde_json::to_value(&ordinary.plan).unwrap();
+    assert!(wire.get("atomic").is_none());
+    assert!(wire.get("original_window").is_none());
+    let bytes = serde_json::to_vec(&wire).unwrap();
+    let hash = hex::encode(Sha256::digest(&bytes));
+    assert!(
+        registration(&bytes, &hash, DataArm::Numbers)
+            .unwrap()
+            .atomic
+            .is_none()
+    );
+    let result = ordinary.check().unwrap();
+    let frozen: serde_json::Value = serde_json::from_slice(&result.3).unwrap();
+    assert_eq!(frozen["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(frozen["mutations"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        frozen["frontier"]["namespace_operations"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+}

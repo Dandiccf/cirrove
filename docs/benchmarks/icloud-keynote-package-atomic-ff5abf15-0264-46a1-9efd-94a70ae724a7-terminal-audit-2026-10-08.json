@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "run": "ff5abf15-0264-46a1-9efd-94a70ae724a7",
+  "status": "closed_atomic_success_independently_audited",
+  "active": false,
+  "active_measurement": false,
+  "preregistered_case": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-keynote-package-atomic-ff5abf15-0264-46a1-9efd-94a70ae724a7-2026-10-08.json",
+    "size": 2750,
+    "sha256": "b55f16bb09659502353069a915414b2bf902059ba5c027e53ca143f5b576f387"
+  },
+  "independent_terminal_audit": {
+    "passed": 34,
+    "total": 34,
+    "size": 18380,
+    "sha256": "4c1c826b90f87f385d2bb65cafcef9c9c00f516677566ac1006d4c81396117ba"
+  },
+  "actual_result": {
+    "format": "keynote",
+    "representation": "package",
+    "rename_attempts": 1,
+    "clean_fsync_extra_operations": 0,
+    "full_semantic_version": 2,
+    "new_current": {
+      "item": "FILE::com.apple.CloudDocs::6CB9A879-753F-4575-AF58-597E4A39885A",
+      "etag": "i2ws::i2wr",
+      "size": 464446,
+      "sha256": "4af41d6811472edd05e463808730c9efb389869fbbfddde0edda0ef9446e5f33",
+      "semantic": {
+        "entries": 58,
+        "expanded_bytes": 519514,
+        "files": 54,
+        "sha256": "75999acac3e1d8f63d46b9038d32a3fd5ff7a12c5ce6cf3fbc83c0d450f5edd7",
+        "version": 2
+      }
+    },
+    "original_trash": {
+      "etag": "i2wn::i2wd",
+      "item": "FILE::com.apple.CloudDocs::C77D6CE9-28DC-479D-AE76-F27647522A43",
+      "semantic": {
+        "entries": 58,
+        "expanded_bytes": 516888,
+        "files": 54,
+        "sha256": "d34710b3d81974676ad6c80311bbc187dd0e27ba3d9012ed6f01a5086eba3452",
+        "version": 2
+      },
+      "sha256": "953892517c9a98f7e430895f2ea8c6c133873301b4ea76f43d418943a433d8a2",
+      "size": 461737
+    },
+    "held_original_semantic": {
+      "entries": 58,
+      "expanded_bytes": 516888,
+      "files": 54,
+      "sha256": "d34710b3d81974676ad6c80311bbc187dd0e27ba3d9012ed6f01a5086eba3452",
+      "version": 2
+    },
+    "all_original_owners_closed": true,
+    "mount_absent": true,
+    "socket_absent": true,
+    "source_count": 572,
+    "installed_artifacts_unchanged": true
+  },
+  "original_seconds": 1200,
+  "cleanup_reserve_seconds": 120,
+  "limits": {
+    "read_only_followup_complete": false,
+    "apple_followup_complete": false,
+    "native_linux_editor_save": false,
+    "general_fidelity_verified": false,
+    "full_487_closed": false,
+    "installed_delivery": "HOLD"
+  },
+  "local_early_refusals": [
+    "Root relative input path rejected before runtime creation; canonical absolute successor prepared successfully.",
+    "Root PLACEHOLDER assemble SHA rejected before controller import or mutation; actual pinned successor assembled successfully."
+  ],
+  "automatic_cloud_retries": 0
+}

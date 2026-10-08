@@ -47,7 +47,11 @@ impl Registration {
         format!("Cirrove-Native-{}", self.run)
     }
     fn name(&self) -> String {
-        format!("Cirrove-Numbers-Parent-{}.numbers", self.run)
+        match self.label.as_str() {
+            "iCloudPagesFuseValidation" => format!("Cirrove-Pages-Parent-{}.pages", self.run),
+            "iCloudKeynoteFuseValidation" => format!("Cirrove-Keynote-Parent-{}.key", self.run),
+            _ => format!("Cirrove-Numbers-Parent-{}.numbers", self.run),
+        }
     }
     fn validate(&self) -> Result<()> {
         ensure!(
@@ -814,7 +818,10 @@ mod tests {
 mod fuse;
 pub use fuse::{
     icloud_owned_fuse_capture_verify, icloud_owned_fuse_receipt_verify,
-    icloud_owned_fuse_source_verify,
+    icloud_owned_fuse_source_verify, icloud_owned_keynote_fuse_capture_verify,
+    icloud_owned_keynote_fuse_receipt_verify, icloud_owned_keynote_fuse_source_verify,
+    icloud_owned_pages_fuse_capture_verify, icloud_owned_pages_fuse_receipt_verify,
+    icloud_owned_pages_fuse_source_verify,
 };
 
 mod keynote;

@@ -529,7 +529,9 @@ jobs:
     runs-on: ubuntu-24.04
     container: ubuntu:24.04
     needs: deb-package
-    timeout-minutes: 20
+    # The recommended desktop dependency download exceeded 20 minutes; keep
+    # the integration checks intact and allow the same install more time.
+    timeout-minutes: 40
     steps:
       - name: A container with a package manager and nothing else
         run: |

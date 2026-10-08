@@ -1,0 +1,70 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/nrs7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/nrs7v1",
+  "active": false,
+  "active_measurement": false,
+  "actual_preflight": {
+    "cause": "Exact historic writer receipt is0600; generic private-input guard required0400",
+    "failure_class": "Refusal",
+    "historic_receipt_bytes_and_mode_preserved": true,
+    "immutable_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-preregistration-before-preflight-refusal-v1.json",
+      "sha256": "3b5f0dd01e0d60f29b55fd3eb8e4aca7925ba2d2483b18b56d2820194afa9e80",
+      "size": 1983
+    },
+    "no_automatic_retry": true,
+    "original_writer_replays": 0,
+    "owned_output_created": false,
+    "pipeline_commands_started": 0,
+    "provider_calls": false,
+    "tool_chunk": "08f95e",
+    "tool_exit": 1
+  },
+  "arms": [
+    "normal build",
+    "scanner compile",
+    "goodB",
+    "goodA",
+    "wrongraw",
+    "wrongroot",
+    "changedmember"
+  ],
+  "cleanup_seconds_each": 10,
+  "date": "2026-10-07",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root_build_numbers_ro_v4.py",
+    "sha256": "9c38b7a0ee9101b9549b0db75aa2127b21152d1703dff11fb48e11e883250d1c",
+    "size": 18153
+  },
+  "endpoints": [
+    "Frozen normal no-feature roles/scanner matching actual CargoJSON and committed571source map",
+    "Five strict offline archive identity controls",
+    "All seven original commands reaped/absent/groups empty and installed19/PID1243birth2318/source originals preserved"
+  ],
+  "expected_scanner_exit_codes": [
+    0,
+    0,
+    1,
+    1,
+    1
+  ],
+  "expected_seconds": 1000,
+  "filesystem_required": "ext4",
+  "gate487_credit": false,
+  "head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "installed_actions": false,
+  "maximum_work_seconds": {
+    "each_control": 20,
+    "normal": 900,
+    "scannercompile": 60
+  },
+  "original_writer_failure_preserved": true,
+  "prediction": "Normal no-feature roles and strict scanner compile; genuine B and A each pass their own fullV2 identity, wrong raw digest/root and changed member refuse: exit codes0,0,1,1,1; installed/source bytes and original owners remain protected.",
+  "provider_calls": false,
+  "question": "Do exact committed fully checked571 sources build normal CLI/daemon and a strict offline Numbers scanner whose genuine A/B identities pass and three corrupt identity controls refuse?",
+  "ready": false,
+  "real_RO_measurement": false,
+  "separate_read60fc_proof_retained": true,
+  "status": "closed_preflight_refusal_before_compiler",
+  "version": 1
+}

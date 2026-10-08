@@ -309,9 +309,7 @@ impl UploadProvider for ICloudWriteProvider {
             });
         }
         request.require_file_bytes().ok()?;
-        Some(cirrove_icloud::ICloudFileReplace::recovery_location(
-            operation,
-        ))
+        self.ordinary_recovery_location(operation, request).ok()
     }
 
     fn inspection_timeout(&self, request: &UploadRequest) -> std::time::Duration {

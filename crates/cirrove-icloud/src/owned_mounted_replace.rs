@@ -15,7 +15,14 @@ use cirrove_core::upload::{
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use std::{fs::File, path::Path, sync::Arc};
+use std::{
+    fs::File,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 use uuid::Uuid;
 
 mod native;
@@ -37,6 +44,8 @@ enum Phase {
 #[derive(Serialize, Deserialize)]
 struct Checkpoint {
     version: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    stage_suffix: Option<String>,
     scope: Scope,
     operation: Uuid,
     original_id: String,
@@ -60,6 +69,7 @@ pub struct ICloudFileReplace {
     operation: Uuid,
     stage_name: String,
     recovery_name: String,
+    names_bound: AtomicBool,
     session: SessionSource,
     stage: Option<ICloudFileCreate>,
     native: Option<native::Context>,
@@ -101,6 +111,49 @@ impl ICloudFileReplace {
             local_name: format!("recovery-by-cirrove-{operation}.txt"),
             parent: TRASH_ROOT.into(),
         }
+    }
+
+    /// Generated recovery name for a newly captured ordinary replacement.
+    /// The caller still binds the target's account/item/revision separately;
+    /// persisted checkpoints must use their retained naming contract instead.
+    pub fn recovery_location_for_name(operation: Uuid, target_name: &str) -> RecoveryLocation {
+        let suffix = crate::handoff_transport::ordinary_replacement_suffix(target_name);
+        RecoveryLocation::Trash {
+            local_name: format!("recovery-by-cirrove-{operation}{suffix}"),
+            parent: TRASH_ROOT.into(),
+        }
+    }
+
+    /// Adopt the exact journal reservation before preparing a new ordinary
+    /// stage. A restored or already prepared actor may only confirm its names.
+    pub fn with_recovery_location(mut self, location: RecoveryLocation) -> UploadResult<Self> {
+        if self.native.is_some() {
+            return Err(UploadError::Invalid);
+        }
+        let current = RecoveryLocation::Trash {
+            local_name: self.recovery_name.clone(),
+            parent: TRASH_ROOT.into(),
+        };
+        if self.names_bound.load(Ordering::Acquire) {
+            return if location == current {
+                Ok(self)
+            } else {
+                Err(UploadError::CheckpointInvalid)
+            };
+        }
+        let derived = Self::recovery_location_for_name(self.operation, &self.original.name);
+        let legacy = Self::recovery_location(self.operation);
+        let suffix = if location == derived {
+            crate::handoff_transport::ordinary_replacement_suffix(&self.original.name)
+        } else if location == legacy {
+            ".txt".into()
+        } else {
+            return Err(UploadError::Invalid);
+        };
+        self.stage_name = format!("staged-by-cirrove-{}{suffix}", self.operation);
+        self.recovery_name = format!("recovery-by-cirrove-{}{suffix}", self.operation);
+        self.names_bound.store(true, Ordering::Release);
+        Ok(self)
     }
 
     #[cfg(feature = "write-probe")]
@@ -231,7 +284,8 @@ impl ICloudFileReplace {
         if saved.version != 2 {
             return Err(UploadError::CheckpointInvalid);
         }
-        let provider = Self::from_sealed_session_with_digest(
+        let suffix = saved.stage_suffix.clone();
+        let mut provider = Self::from_sealed_session_with_digest(
             request.scope.clone(),
             saved.folder.ok_or(UploadError::CheckpointInvalid)?,
             saved.original.ok_or(UploadError::CheckpointInvalid)?,
@@ -240,7 +294,14 @@ impl ICloudFileReplace {
             sign_in,
             state,
         )?;
+        if suffix.is_none() {
+            // Missing field is the existing version-2 contract, not permission
+            // to reinterpret a prepared legacy text-named stage as a new one.
+            provider.stage_name = format!("staged-by-cirrove-{operation}.txt");
+            provider.recovery_name = format!("recovery-by-cirrove-{operation}.txt");
+        }
         provider.check_checkpoint(request, checkpoint)?;
+        provider.names_bound.store(true, Ordering::Release);
         Ok(Some(provider))
     }
 
@@ -290,14 +351,16 @@ impl ICloudFileReplace {
         session: SessionSource,
         stage: ICloudFileCreate,
     ) -> Self {
+        let suffix = crate::handoff_transport::ordinary_replacement_suffix(&original.name);
         Self {
             scope,
             folder,
             original,
             original_sha256,
             operation,
-            stage_name: format!("staged-by-cirrove-{operation}.txt"),
-            recovery_name: format!("recovery-by-cirrove-{operation}.txt"),
+            stage_name: format!("staged-by-cirrove-{operation}{suffix}"),
+            recovery_name: format!("recovery-by-cirrove-{operation}{suffix}"),
+            names_bound: AtomicBool::new(false),
             session,
             stage: Some(stage),
             native: None,
@@ -386,8 +449,13 @@ impl ICloudFileReplace {
         {
             return Err(UploadError::Invalid);
         }
+        let suffix = crate::handoff_transport::ordinary_replacement_suffix(&self.original.name);
         let value = Checkpoint {
             version: 2,
+            stage_suffix: (self.stage_name
+                == format!("staged-by-cirrove-{}{suffix}", self.operation)
+                && self.recovery_name == format!("recovery-by-cirrove-{}{suffix}", self.operation))
+            .then_some(suffix),
             scope: self.scope.clone(),
             operation: self.operation,
             original_id: self.original.id.clone(),
@@ -424,7 +492,15 @@ impl ICloudFileReplace {
         } else {
             saved.original_sha256.clone()
         };
-        if !Self::valid_digest(&original_sha256)
+        let suffix = saved.stage_suffix.as_deref().unwrap_or(".txt");
+        let derived = crate::handoff_transport::ordinary_replacement_suffix(&self.original.name);
+        if saved
+            .stage_suffix
+            .as_ref()
+            .is_some_and(|suffix| suffix != &derived)
+            || self.stage_name != format!("staged-by-cirrove-{}{suffix}", self.operation)
+            || self.recovery_name != format!("recovery-by-cirrove-{}{suffix}", self.operation)
+            || !Self::valid_digest(&original_sha256)
             || self
                 .original_sha256
                 .as_deref()
@@ -838,7 +914,10 @@ impl UploadProvider for ICloudFileReplace {
         if operation != self.operation.to_string() || self.check_request(request).is_err() {
             return None;
         }
-        Some(Self::recovery_location(self.operation))
+        Some(RecoveryLocation::Trash {
+            local_name: self.recovery_name.clone(),
+            parent: TRASH_ROOT.into(),
+        })
     }
 
     async fn begin_upload(
@@ -847,6 +926,9 @@ impl UploadProvider for ICloudFileReplace {
         c: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.check_request(r)?;
+        // Preparing the nested Create can issue a durable stage checkpoint.
+        // Seal naming before any asynchronous provider dispatch.
+        self.names_bound.store(true, Ordering::Release);
         let original_sha256 = match &self.original_sha256 {
             Some(digest) => digest.clone(),
             None => self
@@ -1048,6 +1130,402 @@ mod tests {
             content_version: None,
             target: None,
             package: false,
+        }
+    }
+
+    fn binary_replacement_fixture(name: &str) -> (ICloudFileReplace, UploadRequest, Uuid) {
+        use sha2::{Digest, Sha256};
+        let state = tempfile::tempdir().expect("fixture state");
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let original = node(
+            "FILE::com.apple.CloudDocs::original".into(),
+            Some(ROOT_ID.into()),
+            name,
+            NodeKind::File,
+        );
+        let operation = Uuid::new_v4();
+        let owner = ICloudFileReplace::from_sealed_session_in_folder(
+            scope.clone(),
+            node(ROOT_ID.into(), None, "iCloud Drive", NodeKind::Folder),
+            original.clone(),
+            hex::encode(Sha256::digest(b"a")),
+            operation,
+            ICloudSealedSignIn {
+                apple_id: "fixture@example.invalid".into(),
+                credential_id: Uuid::new_v4().to_string(),
+            },
+            state.path(),
+        )
+        .expect("local replacement owner; no vault or provider call");
+        let request = UploadRequest {
+            representation: Default::default(),
+            scope,
+            intent: UploadIntent::Replace {
+                item: original.id,
+                expected_etag: original.etag.expect("original revision"),
+            },
+            size: 1,
+            sha256: hex::encode(Sha256::digest(b"b")),
+        };
+        owner
+            .check_request(&request)
+            .expect("ordinary FILE request");
+        (owner, request, operation)
+    }
+
+    #[test]
+    fn ordinary_replacement_binary_generated_names_preserve_original_suffix() {
+        for (original, suffix) in [
+            ("Original.key", ".key"),
+            ("Original.numbers", ".numbers"),
+            ("Original.pages", ".pages"),
+            ("Original.pdf", ".pdf"),
+            ("Original.txt", ".txt"),
+            ("Original", ".tmp"),
+        ] {
+            let (owner, request, operation) = binary_replacement_fixture(original);
+            let stage = owner.stage_request(&request);
+            assert_eq!(
+                stage.intent,
+                UploadIntent::Create {
+                    parent: ROOT_ID.into(),
+                    name: format!("staged-by-cirrove-{operation}{suffix}"),
+                },
+                "ordinary replacement stage must preserve original suffix: {original}"
+            );
+            assert_eq!(
+                owner.recovery_name,
+                format!("recovery-by-cirrove-{operation}{suffix}"),
+                "ordinary replacement recovery must preserve original suffix: {original}"
+            );
+            assert_eq!(stage.scope, request.scope);
+            assert_eq!(stage.size, request.size);
+            assert_eq!(stage.sha256, request.sha256);
+            assert_eq!(
+                ICloudFileReplace::recovery_location_for_name(operation, original),
+                RecoveryLocation::Trash {
+                    local_name: owner.recovery_name.clone(),
+                    parent: TRASH_ROOT.into()
+                }
+            );
+            stage
+                .require_file_bytes()
+                .expect("still ordinary FILE bytes");
+        }
+    }
+
+    #[tokio::test]
+    async fn ordinary_replacement_binary_actual_stage_uses_binary_allocation_and_upload_mime() {
+        let mut observed = Vec::new();
+        for original in [
+            "Original.key",
+            "Original.numbers",
+            "Original.pages",
+            "Original.pdf",
+        ] {
+            let (owner, request, _) = binary_replacement_fixture(original);
+            let UploadIntent::Create { name, .. } = owner.stage_request(&request).intent else {
+                panic!("replacement must stage a FILE create");
+            };
+            let (allocation, header) =
+                crate::upload_transport::tests::observe_upload_declarations(&name).await;
+            assert_eq!(allocation["filename"], name);
+            assert_eq!(allocation["type"], "FILE");
+            observed.push((original, allocation, header));
+        }
+        // Every local TLS server has completed both requests and joined before
+        // the desired assertion. The baseline actually emits text/plain here.
+        for (original, allocation, header) in observed {
+            assert_eq!(
+                allocation["content_type"], "application/octet-stream",
+                "ordinary binary replacement allocation must not declare text/plain: {original}"
+            );
+            assert_eq!(
+                header, "application/octet-stream",
+                "ordinary binary replacement upload must not declare text/plain: {original}"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_replacement_binary_legacy_checkpoint_retains_txt_names_and_binds_new_suffix() {
+        let state = tempfile::tempdir().expect("fixture");
+        for target in [
+            "Original.key",
+            "Original.numbers",
+            "Original.pages",
+            "Original.pdf",
+            "Original",
+        ] {
+            let (owner, request, operation) = binary_replacement_fixture(target);
+            let digest = "a".repeat(64);
+            let fresh = owner
+                .checkpoint(
+                    &request,
+                    &digest,
+                    Phase::Stage {
+                        inner: "opaque stage".into(),
+                    },
+                )
+                .expect_err("original digest remains exact");
+            assert!(matches!(fresh, UploadError::Invalid));
+            let digest = owner.original_sha256.clone().expect("original digest");
+            let fresh = owner
+                .checkpoint(
+                    &request,
+                    &digest,
+                    Phase::Stage {
+                        inner: "opaque stage".into(),
+                    },
+                )
+                .expect("fresh checkpoint");
+            let sign_in = || ICloudSealedSignIn {
+                apple_id: "fixture@example.invalid".into(),
+                credential_id: Uuid::new_v4().to_string(),
+            };
+            let restore = |saved: &SecretString| {
+                ICloudFileReplace::from_sealed_checkpoint(
+                    &request,
+                    operation,
+                    saved,
+                    sign_in(),
+                    state.path(),
+                )
+            };
+            let new = restore(&fresh)
+                .expect("restore new")
+                .expect("captured source");
+            assert_eq!(new.stage_name, owner.stage_name);
+            assert_eq!(new.recovery_name, owner.recovery_name);
+            let mut legacy: serde_json::Value =
+                serde_json::from_str(fresh.expose_secret()).expect("checkpoint JSON");
+            legacy
+                .as_object_mut()
+                .expect("object")
+                .remove("stage_suffix");
+            let legacy = SecretString::from(legacy.to_string());
+            let old = restore(&legacy)
+                .expect("restore legacy")
+                .expect("captured source");
+            assert_eq!(old.stage_name, format!("staged-by-cirrove-{operation}.txt"));
+            assert_eq!(
+                old.recovery_name,
+                format!("recovery-by-cirrove-{operation}.txt")
+            );
+            let continued = old
+                .checkpoint(
+                    &request,
+                    &digest,
+                    Phase::Stage {
+                        inner: "opaque stage".into(),
+                    },
+                )
+                .expect("retain legacy naming");
+            let again = restore(&continued)
+                .expect("restore continued")
+                .expect("captured source");
+            assert_eq!(again.stage_name, old.stage_name);
+            assert_eq!(again.recovery_name, old.recovery_name);
+            let mut staged = node(
+                "FILE::com.apple.CloudDocs::staged".into(),
+                Some(ROOT_ID.into()),
+                &old.stage_name,
+                NodeKind::File,
+            );
+            staged.size = request.size;
+            let legacy_plan = old
+                .plan(&request, &staged, &digest)
+                .expect("legacy handoff");
+            let handoff = old
+                .checkpoint(
+                    &request,
+                    &digest,
+                    Phase::Handoff {
+                        inner: "opaque handoff".into(),
+                        plan: Box::new(legacy_plan),
+                    },
+                )
+                .expect("legacy handoff checkpoint");
+            let resumed = restore(&handoff)
+                .expect("restore legacy handoff")
+                .expect("captured source");
+            assert_eq!(resumed.stage_name, old.stage_name);
+            assert_eq!(resumed.recovery_name, old.recovery_name);
+            resumed
+                .check_checkpoint(&request, &handoff)
+                .expect("retained plan agrees with old pair");
+            let mut foreign: serde_json::Value =
+                serde_json::from_str(fresh.expose_secret()).expect("JSON");
+            foreign["stage_suffix"] = ".foreign".into();
+            assert!(restore(&SecretString::from(foreign.to_string())).is_err());
+        }
+    }
+
+    #[test]
+    fn ordinary_replacement_binary_handoff_accepts_only_complete_derived_or_legacy_pairs() {
+        let (owner, request, operation) = binary_replacement_fixture("Original.key");
+        let mut staged = node(
+            "FILE::com.apple.CloudDocs::staged".into(),
+            Some(ROOT_ID.into()),
+            &owner.stage_name,
+            NodeKind::File,
+        );
+        staged.size = request.size;
+        let plan = owner
+            .plan(
+                &request,
+                &staged,
+                owner.original_sha256.as_deref().expect("digest"),
+            )
+            .expect("derived suffix handoff");
+        for (stage, recovery, valid) in [
+            (".key", ".key", true),
+            (".txt", ".txt", true),
+            (".key", ".txt", false),
+            (".txt", ".key", false),
+            (".pdf", ".pdf", false),
+        ] {
+            let mut candidate = plan.clone();
+            candidate.staged_name = format!("staged-by-cirrove-{operation}{stage}");
+            candidate.recovery_name = format!("recovery-by-cirrove-{operation}{recovery}");
+            assert_eq!(
+                candidate.validate().is_ok(),
+                valid,
+                "pair {stage}/{recovery}"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_replacement_binary_odd_suffixes_keep_generated_names_safe_and_bounded() {
+        for (target, suffix) in [
+            ("Original.PDF".to_owned(), ".PDF"),
+            ("Original.PAGES".to_owned(), ".PAGES"),
+            (".hidden".to_owned(), ".tmp"),
+            ("trailing.".to_owned(), ".tmp"),
+            ("Original.bad:extension".to_owned(), ".tmp"),
+            ("Original.bad\\extension".to_owned(), ".tmp"),
+            (format!("O.{}", "a".repeat(240)), ".tmp"),
+        ] {
+            let (owner, request, operation) = binary_replacement_fixture(&target);
+            assert_eq!(
+                owner.stage_name,
+                format!("staged-by-cirrove-{operation}{suffix}")
+            );
+            assert_eq!(
+                owner.recovery_name,
+                format!("recovery-by-cirrove-{operation}{suffix}")
+            );
+            assert!(owner.stage_name.len() <= 255 && owner.recovery_name.len() <= 255);
+            assert!(
+                !owner
+                    .stage_name
+                    .chars()
+                    .any(|c| c.is_control() || matches!(c, '/' | '\\' | ':'))
+            );
+            assert!(
+                owner
+                    .staged_recovery_location(&operation.to_string(), &request)
+                    .is_some_and(
+                        |location| matches!(location, RecoveryLocation::Trash { local_name, .. }
+                    if local_name == owner.recovery_name)
+                    )
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_replacement_binary_reservation_adoption_preserves_restored_checkpoint_names() {
+        let state = tempfile::tempdir().expect("fixture");
+        let (owner, request, operation) = binary_replacement_fixture("Original.key");
+        let legacy = ICloudFileReplace::recovery_location(operation);
+        let derived = ICloudFileReplace::recovery_location_for_name(operation, "Original.key");
+        let digest = owner.original_sha256.clone().expect("digest");
+        let fresh = owner
+            .checkpoint(
+                &request,
+                &digest,
+                Phase::Stage {
+                    inner: "opaque stage".into(),
+                },
+            )
+            .expect("fresh checkpoint");
+        let adopted = owner
+            .with_recovery_location(legacy.clone())
+            .expect("old reservation adopted before stage");
+        assert_eq!(
+            adopted.stage_name,
+            format!("staged-by-cirrove-{operation}.txt")
+        );
+        assert_eq!(
+            adopted.staged_recovery_location(&operation.to_string(), &request),
+            Some(legacy.clone())
+        );
+        let saved = adopted
+            .checkpoint(
+                &request,
+                &digest,
+                Phase::Stage {
+                    inner: "opaque old stage".into(),
+                },
+            )
+            .expect("preserve old naming");
+        assert!(
+            adopted.with_recovery_location(derived.clone()).is_err(),
+            "reservation cannot be rebound"
+        );
+        let restore = |checkpoint: &SecretString| {
+            ICloudFileReplace::from_sealed_checkpoint(
+                &request,
+                operation,
+                checkpoint,
+                ICloudSealedSignIn {
+                    apple_id: "fixture@example.invalid".into(),
+                    credential_id: Uuid::new_v4().to_string(),
+                },
+                state.path(),
+            )
+            .expect("valid checkpoint")
+            .expect("captured original")
+        };
+        restore(&saved)
+            .with_recovery_location(legacy.clone())
+            .expect("same legacy location");
+        assert!(
+            restore(&saved)
+                .with_recovery_location(derived.clone())
+                .is_err(),
+            "old checkpoint never rebound"
+        );
+        restore(&fresh)
+            .with_recovery_location(derived)
+            .expect("same derived location");
+        assert!(
+            restore(&fresh).with_recovery_location(legacy).is_err(),
+            "new checkpoint never rebound"
+        );
+    }
+
+    #[test]
+    fn ordinary_replacement_binary_reservation_adoption_refuses_foreign_namespace() {
+        for arm in 0..3 {
+            let (owner, _, operation) = binary_replacement_fixture("Original.key");
+            let location = match arm {
+                0 => ICloudFileReplace::recovery_location_for_name(Uuid::new_v4(), "Original.key"),
+                1 => RecoveryLocation::Trash {
+                    local_name: format!("recovery-by-cirrove-{operation}.key"),
+                    parent: "FOLDER::com.apple.CloudDocs::foreign".into(),
+                },
+                _ => ICloudFileReplace::recovery_location_for_name(operation, "Foreign.pdf"),
+            };
+            assert!(
+                owner.with_recovery_location(location).is_err(),
+                "foreign reservation arm {arm}"
+            );
         }
     }
 

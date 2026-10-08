@@ -1,0 +1,105 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/puro-4b82c198",
+  "TMPDIR": "/home/dandiccf/Storage/ct/puro-4b82c198",
+  "active": false,
+  "active_measurement": false,
+  "actual_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-f315-readonly-uncertainty-preparation-private-v1/direct-observer-build-v5/audit-independent-build-terminal-v1.json",
+    "sha256": "114c26149dcf37d19c8b84f27605386e4483f34f10f3516906b63eef01b7c739",
+    "size": 11998
+  },
+  "automatic_retries": 0,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-f315-readonly-uncertainty-preparation-private-v1/direct-observer-build-v5/observer",
+    "sha256": "a97b67287e78c13b0d2b62524b9b108863632b35352b4e553501d9d98fb21fac",
+    "size": 198426224
+  },
+  "build_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-f315-readonly-uncertainty-preparation-private-v1/direct-observer-build-v5/terminal-v1.json",
+    "sha256": "3227276932b8cd4a3955917ec95ee5cba5444f330c9459c3e072930482464a3a",
+    "size": 80607
+  },
+  "cleanup_reserve_seconds": 45,
+  "endpoint": "One saved-session standalone observer: fresh complete owned-parent and Trash lists before and after; exact known ID and revision-bound full raw hashes; original context and installed baseline preserved; original helper owner/group reaped.",
+  "failed_subject_success": false,
+  "feature_scope": "Only existing read-only Trash verifier is called; no mutation API, daemon, journal, mount or worker is created.",
+  "filesystem": "ext4",
+  "helper_source_review": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-f315-readonly-uncertainty-preparation-private-v1/audit-independent-standalone-helper-source-v4.json",
+    "sha256": "7461d21c5f3957ed7fe45cd5f5b4deb80960c09d09934fa91573ffd8cbe09f8b",
+    "size": 2189
+  },
+  "literal_full_iCloud_gates_closed": false,
+  "original_seconds": 600,
+  "prediction": "The pending verification with no retained upload checkpoint suggests A and temporary B remain active with their registered raw bytes; exact A is absent from Trash. Provider observations decide, with no replay.",
+  "preparation_execution_scope": "V5 prepare actually exited0 without provider/clock. V6 observe reuses immutable prepared state; no repeat prepare. Original helper clock is conservatively floored from the retained original BOOTTIME.",
+  "prepare_supervisor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-f315-readonly-uncertainty-preparation-private-v1/root_saved_read_observer_once_v5.py",
+    "sha256": "7d7561b22d7268dd5710a7c538e165ab32c99c511fa5d801c75b064fab69dcbf",
+    "size": 20082
+  },
+  "prepared_inputs": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-uncertainty-read-4b82c198-90cd-4e1b-9112-d1ac738ef8e3/inputs-prepared-v1.json",
+    "sha256": "39abcbf92e29633c0a3ef8379da9f36457c6df2bb343cab02bfdb5eafd5e35e9",
+    "size": 89353
+  },
+  "private_helper_SDK_features": [
+    "write-probe"
+  ],
+  "provider_mutations_authorized_for_this_arm": false,
+  "question": "After the stopped failed Pages atomic case, which bytes are stored under the exact known A and temporary B IDs, and is exact A present with its original bytes in Trash?",
+  "replacement_finality_proved": false,
+  "run": "4b82c198-90cd-4e1b-9112-d1ac738ef8e3",
+  "runtime_state": "sealed session copy and disabled read-only settings only",
+  "source_count": 573,
+  "stage_ID_and_bytes": "unknown_not_read",
+  "status": "closed_read_refusal",
+  "subject_run": "f3157aef-67b6-4542-a933-2c165e27ab77",
+  "supervisor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-f315-readonly-uncertainty-preparation-private-v1/root_saved_read_observer_once_v6.py",
+    "sha256": "ba488a184435976b1c03db6cbe0d139ff8810d53d56fb8117d9f9ee8127d030e",
+    "size": 20287
+  },
+  "supervisor_source_review": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-f315-readonly-uncertainty-preparation-private-v1/audit-independent-standalone-supervisor-source-v6.json",
+    "sha256": "efe8092092dea202c3285f4fa240c75274090f3178262f7dbc1997dbb20684a2",
+    "size": 2823
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-uncertainty-read-4b82c198-90cd-4e1b-9112-d1ac738ef8e3/terminal-v1.json",
+    "sha256": "ca07371ea66299ff61a8951b958568c4ee1bc53e260561204e79874f05c3f239",
+    "size": 678
+  },
+  "version": 1,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-uncertainty-read-4b82c198-90cd-4e1b-9112-d1ac738ef8e3/original-window-v1.json",
+    "sha256": "d07d409b3d5dca422736f10893aacef17e2d39761820f8bb26da66aa68798829",
+    "size": 419
+  },
+  "actual_partial_observation": {
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-uncertainty-read-4b82c198-90cd-4e1b-9112-d1ac738ef8e3/terminal-v1.json",
+      "size": 678,
+      "sha256": "ca07371ea66299ff61a8951b958568c4ee1bc53e260561204e79874f05c3f239"
+    },
+    "sanitized_observation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-uncertainty-read-4b82c198-90cd-4e1b-9112-d1ac738ef8e3/sanitized-observation-v1.json",
+      "size": 1288,
+      "sha256": "ae50024de06440aa0df9a35119b07d134dab0b09222483b537b557e5999285aa"
+    },
+    "original_A_fresh_revision_bound_full_raw_matches": true,
+    "temporary_B_fresh_revision_bound_full_raw_matches": true,
+    "global_Trash_listing": "refused_or_unavailable",
+    "final_membership_comparison_reached": false,
+    "Trash_absence_proved": false,
+    "stage_ID_and_bytes": "unknown_not_read",
+    "original_f315_replayed": false,
+    "full_iCloud_gate_closed": false
+  },
+  "actual_partial_refusal_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-uncertainty-read-4b82c198-90cd-4e1b-9112-d1ac738ef8e3/audit-independent-standalone-read-terminal-v1.json",
+    "size": 6602,
+    "sha256": "2a47f402ac8caf854c93563764dfbacddc8c7f9565d327c3166e6b538a12c8e4"
+  },
+  "independent_closure_preservation_checks": 27
+}

@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "run": "d9fd412d-02f8-4c91-ac5c-ab9a952af52a",
+  "subject_run": "8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+  "status": "closed_success",
+  "utc": "2026-10-08T05:20:16.096837+00:00",
+  "current": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "cloud_mutated": false,
+    "content_identity_verified": true,
+    "etag": "i2vf::i2ve",
+    "format": "numbers",
+    "gui_fidelity_verified": false,
+    "item": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+    "manifest_sha256": "1afe2e252cfc967f359d01d13c6dc8cde2748cb3cfe772c1a209ce53972860bc",
+    "parent": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+    "representation": "data",
+    "run": "8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+    "semantic": null,
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "writer_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-8bbfa670-42ac-4f04-91d1-a6cbd6afc018/audit-independent-numbers-data-terminal-v2.json",
+    "size": 10517,
+    "sha256": "0fafadfb7451e693f0c1624c95e9b955855b515cd368b8cc7b9dcdd9ecd96b01"
+  },
+  "normal_ro_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-ro-68e37925-ca6f-483b-b62c-1db7450bf98a/audit-independent-readonly-terminal-v1.json",
+    "size": 7796,
+    "sha256": "270c27a0a27e3e496631d2d0d6ad4481a7084c6004245e29a6fd41832a8085ad"
+  },
+  "Strata_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-bad238ab-7129-47c4-b7a5-b331219f41d7/audit-independent-strata-terminal-v1.json",
+    "size": 15041,
+    "sha256": "1f5320d43cbce258edee2b03ccc0c6dd70d05a46781a40ee0a9bf602a8907901"
+  },
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-exact-apple-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a-private-v1/original-window.json",
+    "size": 397,
+    "sha256": "01e2756ee4c02fab471c73e9cdcad9a72e449b63acb7b427354fd8ef33e5bdf6"
+  },
+  "ready": true,
+  "question": "Does the exact newly replaced Numbers DATA document reopen in Apple with the registered values and SUM formula before and after one reload?",
+  "prediction": "A2=7 B2=3 C2=10 and SUM(A2:B2), plus source marker Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f remain visible without editing.",
+  "expected": {
+    "A2": 7,
+    "B2": 3,
+    "C2_display": 10,
+    "C2_formula": "SUM(A2:B2)",
+    "source_marker": "Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f"
+  },
+  "selection": "One exact Drive row with current CloudDocs item ID to one sole new Numbers editor; shortGUID URL is observed, no inferred UUID decode.",
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "actions": {
+    "Drive_row_open": 1,
+    "editor_reload": 1,
+    "typing": 0,
+    "repair": 0,
+    "duplicate_open": 0,
+    "automatic_retry": 0
+  },
+  "evidence": "Private typed exactrow, browser inventory, retained AX/DOM and legible screenshots, values/formula before/after reload, unchanged Undo/Redo state where available, owned-tab closure and originalclock terminal.",
+  "limits": [
+    "No MIME-causality claim, nativeLinuxsave, broader formula/layout fidelity, general repeatability or gate487 closure.",
+    "No posteditor ETag/raw preservation claim without separately registered actual proof."
+  ],
+  "runtime_actions": true,
+  "active_measurement": false,
+  "E": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-exact-apple-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a-private-v1",
+  "public": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-numbers-data-exact-apple-reopen-2026-10-08-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a.json",
+  "arms": [
+    "one exact new DATA B open; one reload only if values and formula open"
+  ],
+  "expected_seconds": 180,
+  "document_name": "Cirrove-Numbers-Data-8bbfa670-42ac-4f04-91d1-a6cbd6afc018.numbers",
+  "parent_name": "Cirrove-Native-8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+  "intentional_content_edits": false,
+  "view_navigation_allowed": true,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-exact-apple-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a-private-v1/root-ui-terminal-v1.json",
+    "size": 8162,
+    "sha256": "4078ae9db67b518564cb17d089ddff78fe4361fee306f523f316cf1209893b6e"
+  },
+  "browser_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-exact-apple-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a-private-v1/browser-terminal-v1.json",
+    "size": 1954,
+    "sha256": "060cf3303a0a8b9adfe5f4371f621558dab7d20954f7a4296b909ab265b360fe"
+  },
+  "verified_open_count": 1,
+  "verified_reload_count": 1,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-exact-apple-8bb-d9fd412d-02f8-4c91-ac5c-ab9a952af52a-private-v1/audit-independent-apple-terminal-v1.json",
+    "size": 9865,
+    "sha256": "1fefbc51d7705a7aedb7002b95c9f994445fb2754ff50e44e11400881a1e6da7"
+  },
+  "post_editor_revision_or_raw_preservation_claimed": false
+}

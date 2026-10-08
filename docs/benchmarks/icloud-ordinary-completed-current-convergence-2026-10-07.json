@@ -1,0 +1,118 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/om-red1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/om-red1",
+  "active_measurement": false,
+  "arms": [
+    "Unchanged production, final settled-state fixture, exactly one intended assertion failure",
+    "Corrected production, same fixture and protective refusal/concurrency controls",
+    "Fresh read-only observation of retained Keynote subject672; no writer replay"
+  ],
+  "corrected_arm_registration": {
+    "actual": {
+      "cargo_exit": 0,
+      "executed_tests": 19,
+      "expected_outcome_observed": true,
+      "installed_actions": false,
+      "owner_closed": true,
+      "provider_mutations": false,
+      "terminal": {
+        "path": ".local-state/ordinary-completed-current-metadata-regression-20261007-private-v1/service-green-v1/root-baseline-terminal-v1.json",
+        "sha256": "ea9e54bb3dbf9549ce97aa21bcfcc05457d09a5d9b44249a1891aa5c53c00a1c"
+      }
+    },
+    "driver": {
+      "path": ".local-state/ordinary-completed-current-metadata-regression-20261007-private-v1/root_run_service_green_once_v1.py",
+      "sha256": "b8602c7950566ffd21b2021a1a86eca159cd096a934d95f8ed17211b7b841d8d"
+    },
+    "endpoint": "Exact executed test count19; zero failures, owner closed, candidate source571 unchanged. Synthetic only.",
+    "prediction": "Nineteen ordinary handoff tests pass, including the achieved-RED normal RO public lookup, seven completed-history and two pending-current regressions.",
+    "preformat_proposal": "production-fix-v1/proposal-v1.json SHA138cd5db3eddc75a4a2b204b12ede3a1a56fe425a62f3977d3490a11898fe246",
+    "real_followup": "Fresh normal RO case after full checks and candidate build; old failed RO never replayed."
+  },
+  "corrected_tests": {
+    "cargo_exit": 0,
+    "executed_tests": 19,
+    "expected_outcome_observed": true,
+    "installed_actions": false,
+    "owner_closed": true,
+    "provider_mutations": false,
+    "terminal": {
+      "path": ".local-state/ordinary-completed-current-metadata-regression-20261007-private-v1/service-green-v1/root-baseline-terminal-v1.json",
+      "sha256": "ea9e54bb3dbf9549ce97aa21bcfcc05457d09a5d9b44249a1891aa5c53c00a1c"
+    }
+  },
+  "endpoint": "Public normal RO lookup and cached paths match current independently fetched node; all original owners close; transfer/working/queue bytes remain unchanged. Tests alone do not close live acceptance.",
+  "exclusive_target": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "filesystem": "ext4",
+  "final_fixture_baseline": {
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/om-red2",
+    "TMPDIR": "/home/dandiccf/Storage/ct/om-red2",
+    "actual_cargo_exit": 101,
+    "all_original_handles_closed": true,
+    "driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-completed-current-metadata-regression-20261007-private-v1/root_run_final_fixture_regression_once_v1.py",
+      "sha256": "6788dbf5604d69e70045eb5f07a2c9f172373eb675b8d72a666a5bc4982df954",
+      "size": 4948
+    },
+    "exactly_one_test_executed": true,
+    "expected_count": 1,
+    "filesystem": "ext4",
+    "fixture_correction": "Stage observation now follows completed ordinary publication; this avoids donor-provider interference with the later pending-current correction. Production remains unchanged.",
+    "intended_assertion_observed": true,
+    "prediction": "Exactly one intended normal RO public-lookup assertion fails after engine tasks join.",
+    "retained_test_binary": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-completed-current-metadata-regression-20261007-private-v1/baseline-final-fixture-red-v1/frozen-final-fixture-red-test",
+      "sha256": "81e21995e0d8bd9ccf832909625c1b32eda96e9355df036a45d1e0d6130d5aa9",
+      "size": 590528952
+    },
+    "root_driver_exit": 0,
+    "root_tool_chunk": "48c52a",
+    "source": {
+      "path": "crates/cirrove-service/src/filesystem/writeback/handoff.rs",
+      "sha256": "c078e3f988a7361591f164b3d7b987265a15bebaeb9d35123a43f177df705db3"
+    },
+    "status": "closed-intended-RED",
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-completed-current-metadata-regression-20261007-private-v1/baseline-final-fixture-red-v1/root-baseline-terminal-v1.json",
+      "sha256": "ee0252f63f568d9c78c6bd30978024f9d46b1c52af36010bf2cb038bd4e25281",
+      "size": 2136
+    },
+    "test": "filesystem::writeback::handoff::tests::ordinary_completed_handoff_ro_reconciles_staged_current_in_public_lookup"
+  },
+  "first_baseline": {
+    "actual_cargo_exit": 101,
+    "correction": "This first test question was frozen privately before execution; public registration is recorded here after it. The revised final-fixture and corrective arms remain unexecuted and will be pinned before their runs.",
+    "exactly_one_test_executed": true,
+    "intended_assertion_observed": true,
+    "question_private_before_execution": true,
+    "question_public_before_execution": false,
+    "root_driver_exit": 0,
+    "root_tool_chunk": "b66558",
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-completed-current-metadata-regression-20261007-private-v1/baseline-red-v1/root-baseline-terminal-v1.json",
+      "sha256": "fe07b60444baace4e6ee7b59ada879776a7d7843aaad9efe0ddac3c994159f1c",
+      "size": 2066
+    }
+  },
+  "full487_closed": false,
+  "installed_actions": false,
+  "isolated_worktree": "/home/dandiccf/Storage/cirrove-numbers-atomic-postflight-reader-20261007-v1",
+  "live_followup": {
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-keynote-data-ro-remount-2026-10-07-edba5896-a07e-4cf8-98a7-d52735c5f3d1.json",
+      "sha256": "a0a1c273fbab6b8b4cc727f5f393029d9b2b23060497ceae1305a9f4c0a1ba01",
+      "size": 81545
+    },
+    "scope": "A separate fresh subject passed normal read-only startup/current convergence; prior3d114 and8dec failed subjects remain failed.",
+    "subject_run": "2b4c7986-df74-4332-b24f-9d6bfd435fcd"
+  },
+  "normal_RO_3d114": "closed failure before raw capture, source672stage already present and ordinaryjobdone1",
+  "original_Keynote_DATA_writer": "closed success38/38, not repeated",
+  "prediction": "Final settled-state regression fails without the correction and passes with it. Fresh exact-ID observations preserve provider-advanced nodes, absence and concurrent newer ticketed commits. No done reset or provider mutation occurs.",
+  "provider_mutations": false,
+  "question": "Can pending and already-completed ordinary handoff metadata reconcile staged current B to an independently fetched final node during normal read-only startup, preserving transfers and newer observations?",
+  "source_head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "status": "closed_intended_RED_and_corrected_19_test_GREEN",
+  "summary_correction": "The former top-level correction-not-implemented status was stale. Both RED runs and actual corrected19-test GREEN remain unchanged; this summary correction does not rerun or reinterpret any failed live read.",
+  "version": 1
+}
