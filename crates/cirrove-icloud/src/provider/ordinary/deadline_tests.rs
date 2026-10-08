@@ -25,6 +25,7 @@ struct Fixture {
     node: Node,
     started: Arc<AtomicUsize>,
     completed: Arc<AtomicUsize>,
+    first_half_sent: Arc<AtomicUsize>,
     server: tokio::task::JoinHandle<()>,
 }
 impl Drop for Fixture {
@@ -34,6 +35,9 @@ impl Drop for Fixture {
 }
 impl Fixture {
     async fn new(delays: [u64; 4], final_tag: &str) -> Self {
+        Self::with_body_pause(delays, final_tag, 0).await
+    }
+    async fn with_body_pause(delays: [u64; 4], final_tag: &str, body_pause: u64) -> Self {
         let decode = base64::engine::general_purpose::STANDARD;
         let cert = decode
             .decode(include_str!("../../package_create/fixtures/server-cert.b64").trim())
@@ -53,6 +57,8 @@ impl Fixture {
         let address = listener.local_addr().unwrap();
         let started = Arc::new(AtomicUsize::new(0));
         let completed = Arc::new(AtomicUsize::new(0));
+        let first_half_sent = Arc::new(AtomicUsize::new(0));
+        let prefix_sent = first_half_sent.clone();
         let entered = started.clone();
         let finished = completed.clone();
         let final_tag = final_tag.to_owned();
@@ -118,7 +124,19 @@ impl Fixture {
                 if stream.write_all(head.as_bytes()).await.is_err() {
                     break;
                 }
-                if stream.write_all(&body).await.is_err() {
+                if index == 2 && body_pause > 0 {
+                    let half = body.len() / 2;
+                    if stream.write_all(&body[..half]).await.is_err()
+                        || stream.flush().await.is_err()
+                    {
+                        break;
+                    }
+                    prefix_sent.store(half, Ordering::SeqCst);
+                    tokio::time::sleep(Duration::from_secs(body_pause)).await;
+                    if stream.write_all(&body[half..]).await.is_err() {
+                        break;
+                    }
+                } else if stream.write_all(&body).await.is_err() {
                     break;
                 }
                 finished.fetch_add(1, Ordering::SeqCst);
@@ -161,6 +179,7 @@ impl Fixture {
             node,
             started,
             completed,
+            first_half_sent,
             server,
         }
     }
@@ -188,7 +207,7 @@ impl Fixture {
 #[tokio::test]
 async fn ordinary_read_deadline_includes_bounded_metadata_lookup_body_and_final_revision() {
     // All individual HTTP requests remain within their own 30/90 second caps.
-    // Total34s must reach the final revision fence; total30s loses good bytes.
+    // Total34s must reach the final revision fence; total 30 s loses good bytes.
     let f = Fixture::new([16, 8, 8, 2], "v1").await;
     let result = f.read(&CancellationToken::new()).await;
     assert!(
@@ -229,4 +248,67 @@ async fn multistage_ordinary_read_cancellation_interrupts_metadata() {
     assert!(matches!(result, Err(ProviderError::Cancelled)));
     assert_eq!(f.started.load(Ordering::SeqCst), 1);
     assert_eq!(f.completed.load(Ordering::SeqCst), 0);
+}
+
+// The client default stays 30 s: only the production content request may override
+// it. Both controls hold their caller bound at 270 s, independent of policy edits.
+#[derive(Default)]
+struct BodySink(Vec<u8>);
+#[async_trait]
+impl ReadWindowSink for BodySink {
+    async fn write_chunk(&mut self, bytes: &[u8]) -> Result<(), ProviderError> {
+        assert!(bytes.len() <= 64 * 1024);
+        self.0.extend_from_slice(bytes);
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn ordinary_range_body_stall_keeps_good_bytes_and_final_revision() {
+    // Headers and the first half arrive immediately; only the remaining body
+    // waits 33 s. A total 30 s request cap cuts a validated progressive response.
+    let f = Fixture::with_body_pause([0, 0, 0, 0], "v1", 33).await;
+    let result = tokio::time::timeout(Duration::from_secs(270), f.read(&CancellationToken::new()))
+        .await
+        .unwrap();
+    assert_eq!(f.first_half_sent.load(Ordering::SeqCst), BODY.len() / 2);
+    assert!(
+        result.is_ok(),
+        "ordinary range body stall discarded good bytes: result={result:?}, started={}, completed={}",
+        f.started.load(Ordering::SeqCst),
+        f.completed.load(Ordering::SeqCst)
+    );
+    assert_eq!(result.unwrap(), BODY);
+    assert_eq!(f.started.load(Ordering::SeqCst), 4);
+    assert_eq!(f.completed.load(Ordering::SeqCst), 4);
+}
+
+#[tokio::test]
+async fn ordinary_window_body_stall_keeps_good_bytes_and_final_revision() {
+    let f = Fixture::with_body_pause([0, 0, 0, 0], "v1", 33).await;
+    let cancel = CancellationToken::new();
+    let mut sink = BodySink::default();
+    let result = tokio::time::timeout(Duration::from_secs(270), async {
+        let session = f
+            .drive
+            .open_read_session(&f.scope, &f.node, &cancel)
+            .await?
+            .unwrap();
+        session
+            .read_window(0, BODY.len() as u32, &mut sink, &cancel)
+            .await
+    })
+    .await
+    .unwrap();
+    assert_eq!(f.first_half_sent.load(Ordering::SeqCst), BODY.len() / 2);
+    assert!(
+        result.is_ok(),
+        "ordinary window body stall discarded good bytes: result={result:?}, started={}, completed={}, staged={}",
+        f.started.load(Ordering::SeqCst),
+        f.completed.load(Ordering::SeqCst),
+        sink.0.len()
+    );
+    assert_eq!(sink.0, BODY);
+    assert_eq!(f.started.load(Ordering::SeqCst), 4);
+    assert_eq!(f.completed.load(Ordering::SeqCst), 4);
 }

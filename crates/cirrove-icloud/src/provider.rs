@@ -528,17 +528,11 @@ impl ReadProvider for ICloudDrive {
             .await
     }
 
-    fn content_read_timeout(&self, node: &Node) -> Duration {
-        if packages::artifact(node) {
-            Duration::from_secs(360)
-        } else {
-            // Ordinary reads validate the requested revision before and after
-            // the transfer. Budget two 90 s metadata requests, a 30 s download
-            // lookup, a 30 s content request, and 30 s for session/permit setup.
-            // Each HTTP deadline remains unchanged; the service also caps this
-            // complete operation at 360 s and enforces cancellation.
-            Duration::from_secs(270)
-        }
+    fn content_read_timeout(&self, _node: &Node) -> Duration {
+        // Ordinary content requests have a bounded 300 s transfer budget.
+        // Revision checks and session setup share this complete operation's
+        // 360 s cap, which the service also enforces with cancellation.
+        Duration::from_secs(360)
     }
     fn unknown_directories_require_fetch(&self) -> bool {
         self.index_mode == IndexMode::OnDemand

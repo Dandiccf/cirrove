@@ -110,8 +110,10 @@ Apple-confirmed packages as read-only containers. Opening one lazily stages an
 archive with actual length and a digest-bound revision. Empty ZIP directory DOS
 timestamps are normalized because Apple changes them between otherwise identical
 exports; regular-file data/timestamps stay unchanged. A fresh adapter can refetch
-that exact representation after cache eviction, with a 360-second content deadline
-(ordinary content retains 30 seconds). The normal adapter passed one complete
+that exact representation after cache eviction, with a 360-second content deadline.
+Ordinary content requests have a bounded 300-second transfer budget within a
+360-second complete-read cap; metadata and download lookups retain their separate
+deadlines, and cancellation and final revision checks still apply. The normal adapter passed one complete
 Pages read, offline FUSE remount and fresh refetch. Unknown bundle types, ZIP64,
 aggregate private staging quota and native editing remain open. See the
 [normal package adapter validation](benchmarks/icloud-native-package-adapter-2026-09-30.md)

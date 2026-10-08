@@ -1096,6 +1096,7 @@ impl ICloudReadSession {
         let response = self
             .http
             .get(signed_url)
+            .timeout(VERIFICATION_TRANSFER_TIMEOUT)
             .header(RANGE, format!("bytes={offset}-{end}"))
             .send()
             .await

@@ -121,7 +121,7 @@ impl ReadSession for OrdinarySession {
                 // transport, never a substitute for the metadata revision.
                 let url = transport.ordinary_download_url(&self.node.id).await.map_err(|error| map_read_error(&error))?;
                 let response = transport.http.get(url)
-                    .timeout(Duration::from_secs(30))
+                    .timeout(crate::VERIFICATION_TRANSFER_TIMEOUT)
                     .header(reqwest::header::ACCEPT_ENCODING,"identity")
                     .header(reqwest::header::RANGE,format!("bytes={offset}-{end}"))
                     .send().await.map_err(|_| ProviderError::Unavailable)?;
