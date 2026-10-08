@@ -283,6 +283,48 @@ class PackageSwitchPortable(unittest.TestCase):
         self.guard_call()
         self.assertEqual(self.routing_reads, 2)
 
+    def test_empty_standard_attached_unit_roots_are_accepted(self):
+        runtime = Path("/run/user") / str(os.getuid())
+        attached = [self.home / ".config/systemd/user.attached",
+                    runtime / "systemd/user.attached"]
+        self.details["UnitPath"] = list(map(str, attached + self.roots))
+        self.directories.update(map(str, attached))
+        try:
+            self.guard_call()
+        except self.guard.Refusal as error:
+            self.fail(f"standard empty attached unit roots refused: {error}")
+        self.assertEqual(self.routing_reads, 2,
+                         "did not complete both actual package routing observations")
+
+    def test_attached_unit_candidates_still_refuse(self):
+        runtime = Path("/run/user") / str(os.getuid())
+        attached = [self.home / ".config/systemd/user.attached",
+                    runtime / "systemd/user.attached"]
+        self.details["UnitPath"] = list(map(str, attached + self.roots))
+        self.directories.update(map(str, attached))
+        for root in attached:
+            with self.subTest(root=str(root)):
+                candidate = str(root / "cirroved.service")
+                self.files[candidate] = self.template
+                self.refusal("another winning unit candidate")
+                del self.files[candidate]
+
+    def test_attached_unit_and_type_wide_dropins_still_refuse(self):
+        runtime = Path("/run/user") / str(os.getuid())
+        attached = [self.home / ".config/systemd/user.attached",
+                    runtime / "systemd/user.attached"]
+        self.details["UnitPath"] = list(map(str, attached + self.roots))
+        self.directories.update(map(str, attached))
+        for root in attached:
+            for name in ("cirroved.service.d", "service.d"):
+                with self.subTest(root=str(root), name=name):
+                    directory = str(root / name)
+                    self.directories.add(directory)
+                    self.entries[directory] = [Path(directory) / "override.conf"]
+                    self.refusal("unit or type-wide drop-ins")
+                    self.directories.remove(directory)
+                    del self.entries[directory]
+
     def test_retained_home_effective_live_and_released_all_refuse(self):
         for route, released in [(self.home / ".local/state/cirrove", False),
                                 (Path("/var/lib/custom-effective"), False),

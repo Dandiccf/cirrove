@@ -1,0 +1,128 @@
+{
+  "all_original_handles_closed": true,
+  "complete_portable_suite": {
+    "exit_code": 0,
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-authorized-execution-v1/portable-suite-result.json",
+      "sha256": "5e21a93317ab700ceca06e0ff792df9d1952bff96791d695f186bd7b239c6cdb",
+      "size": 909
+    },
+    "tests": 24
+  },
+  "corrections": [
+    {
+      "detail": "The original complete scripts/check.sh closed EXIT0 after885.730764407s: all10sections,87Rustgroups,all46required historical names, kernel mounts, portable24 and ledger60/44 with3fulliCloudrowsopen. Independent25-check receipt joined; no repeated check or installed/provider gate claim.",
+      "previous_status": "bounded_red_before_green_passed_fullcheck_pending",
+      "scope": "actual_completed_fullcheck_consolidation"
+    }
+  ],
+  "endpoint": "synthetic_installer_attached_search_root_regression",
+  "exact_checked_scripts": {
+    "install-preflight.py": {
+      "path": "/home/dandiccf/Work/cirrove/scripts/install-preflight.py",
+      "sha256": "f6422caec853f25d9bd47323d2e5e683b9983216fffa48729c1bbe057ad1076d",
+      "size": 28690
+    },
+    "test-package-switch-preflight.py": {
+      "path": "/home/dandiccf/Work/cirrove/scripts/test-package-switch-preflight.py",
+      "sha256": "b4a843be7693a7d78c4edec757b9fb319ff45c24fe098c23f33c64579f6ab64f",
+      "size": 34181
+    }
+  },
+  "fullcheck_pending": false,
+  "fullcheck_result": {
+    "all_original_handles_closed": true,
+    "elapsed_seconds": 885.7307644070243,
+    "exit_code": 0,
+    "fullcheck_not_fast": true,
+    "kernel_mounts_executed": true,
+    "required_names_passed": 46,
+    "rust_success_groups": 87,
+    "sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "signals": [],
+    "success": true,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-fullcheck-execution-v1/terminal-v1.json",
+      "sha256": "c6d6b8786072df0fc095751ed6017af16e90982cef5efc6a4b48cadf27952329",
+      "size": 1693
+    }
+  },
+  "gate488_closed": false,
+  "gate489_closed": false,
+  "gate490_closed": false,
+  "historical_source_boundary": "This current Root check contains the two authorized installer script changes. Earlier compiled573 role/source maps retain their original provenance; no current candidate installation or newly built normal roles are claimed.",
+  "independent_actual_fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-fullcheck-execution-v1/audit-independent-fullcheck-terminal-v1.json",
+    "sha256": "068af5e2f9b6c23aff26db643560408ef29c08963083f3c2d1be5d2b0cbf767f",
+    "size": 10165
+  },
+  "installed_delivery": false,
+  "limits": [
+    "Synthetic installer guard regression only; no new package installation or real-provider reliability claim.",
+    "Unknown roots, competing units, drop-ins and symlinks remain refused."
+  ],
+  "provider_actions": false,
+  "question": "standard empty systemd attached roots accepted while candidates and drop-ins remain refused",
+  "red_without_fix": {
+    "desired_failure": true,
+    "error_count": 0,
+    "exit_code": 1,
+    "failure_count": 1,
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-authorized-execution-v1/red-one-result.json",
+      "sha256": "9007dc9aca1b2df6b0c42d13af85af0eb263253b74e4e6751f7de033f4ec8cf4",
+      "size": 888
+    },
+    "tests": 1
+  },
+  "same_green_with_fix": {
+    "exit_code": 0,
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-authorized-execution-v1/green-one-result.json",
+      "sha256": "66d44e1cd8c7341daf8d8cb890f98a0ee90334818a1f52b5a3f184fe161945cf",
+      "size": 892
+    },
+    "tests": 1
+  },
+  "service_actions": false,
+  "source_changes": {
+    "install-preflight.py": {
+      "path": "/home/dandiccf/Work/cirrove/scripts/install-preflight.py",
+      "sha256": "f6422caec853f25d9bd47323d2e5e683b9983216fffa48729c1bbe057ad1076d",
+      "size": 28690
+    },
+    "test-package-switch-preflight.py": {
+      "path": "/home/dandiccf/Work/cirrove/scripts/test-package-switch-preflight.py",
+      "sha256": "b4a843be7693a7d78c4edec757b9fb319ff45c24fe098c23f33c64579f6ab64f",
+      "size": 34181
+    }
+  },
+  "status": "bounded_red_before_green_and_fullcheck_passed",
+  "success": true,
+  "targeted_green": {
+    "exit_code": 0,
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-authorized-execution-v1/green-three-result.json",
+      "sha256": "c978fc9218d414dd2c9789fb85ac54be48d1f34d50d293c0e7e4c4a3ef8a5ac7",
+      "size": 899
+    },
+    "tests": 3
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-authorized-execution-v1/terminal-v1.json",
+    "sha256": "0aa66e4533aff2ce661e403006daa7f38ffc76deaac9b702008261d544376903",
+    "size": 5956
+  },
+  "version": 1
+}

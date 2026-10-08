@@ -451,6 +451,7 @@ def package_routing(repo, home):
     # roots are normal; any relevant candidate there is conservatively refused.
     allowed = {
         home / ".config/systemd/user.control", runtime / "systemd/user.control",
+        home / ".config/systemd/user.attached", runtime / "systemd/user.attached",
         runtime / "systemd/transient", runtime / "systemd/generator.early",
         home / ".config/systemd/user", Path("/etc/xdg/systemd/user"),
         Path("/etc/systemd/user"), runtime / "systemd/user", Path("/run/systemd/user"),
