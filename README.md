@@ -237,7 +237,7 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Development update, 8 October 2026:** iCloud has moved beyond a feasibility
+**Development update, 9 October 2026:** iCloud has moved beyond a feasibility
 study. Cirrove has its own native adapter using Apple's undocumented web
 transport, with no rclone or Stratosync runtime, configuration or credential
 import. Live checks have covered sign-in, directory browsing, on-demand and
@@ -265,6 +265,12 @@ The [documented iWork application criterion](docs/benchmarks/icloud-iwork-applic
 is now complete, including the supported DOCX, PPTX and Apple Excel export-copy
 checks with their explicit content limits. Installed account/recovery behavior,
 complete desktop delivery and reliability acceptance remain open.
+
+Slow-link validation exposed two finite read-deadline defects. The bounded
+read and content-transfer fixes passed controlled before/after tests and the
+complete project check. A fresh normal mounted slow-link trial is still required;
+these fixes do not establish installed or general reliability acceptance. See
+the [latest validation findings](docs/icloud-write-integration.md#2026-10-09-successful-ci-and-isolated-content-transfer-cutoff).
 
 The final [ordinary Keynote PACKAGE save](docs/benchmarks/icloud-keynote-package-ordinary-a0a06783-4280-4a2c-b34c-d94b737df23e-2026-10-08.json)
 preserved the original in Trash and passed a separate
