@@ -459,14 +459,14 @@ async fn recovery_only_manager_preserves_rw_retained_bytes_across_enable_and_hea
     let (manager, task) = Manager::start_with_providers_mode(
         state.clone(),
         cancel.clone(),
-        Arc::new(move |a| {
+        ProviderSelection::Injected(Arc::new(move |a| {
             anyhow::ensure!(
                 a.access == AccessMode::ReadWrite,
                 "read provider lost saved grant"
             );
             read_launches.fetch_add(1, Ordering::SeqCst);
             Ok(reads.clone())
-        }),
+        })),
         Some(writes),
         true,
     );

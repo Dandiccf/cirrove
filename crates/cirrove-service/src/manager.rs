@@ -149,6 +149,23 @@ fn account_state(mount_error: Option<&str>, feeds: &[crate::engine::FeedHealth])
     "ready".into()
 }
 pub type ProviderFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn ReadProvider>> + Send + Sync>;
+
+enum ProviderSelection {
+    ConfiguredOwned,
+    Injected(ProviderFactory),
+}
+impl ProviderSelection {
+    fn owns_icloud_session(
+        &self,
+        registration: &cirrove_auth::AppRegistration,
+        recovery_only: bool,
+    ) -> bool {
+        !recovery_only
+            && matches!(self, Self::ConfiguredOwned)
+            && matches!(registration, cirrove_auth::AppRegistration::ICloud)
+    }
+}
+
 /// Builds the write half of a provider, for accounts that carry a write grant.
 ///
 /// Kept separate from `ProviderFactory` rather than folded into it because the
@@ -832,14 +849,14 @@ impl Manager {
         state: PathBuf,
         cancel: CancellationToken,
     ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
-        let provider_state = state.clone();
-        Self::start_with_providers(
+        Self::start_with_providers_mode(
             state,
             cancel,
-            Arc::new(move |account| crate::accounts::provider_with_state(account, &provider_state)),
+            ProviderSelection::ConfiguredOwned,
             Some(Arc::new(|account, context| {
                 crate::accounts::write_provider_with_context(account, context)
             })),
+            false,
         )
     }
     /// Start read-only mounts and local recovery without changing saved grants.
@@ -853,7 +870,9 @@ impl Manager {
         Self::start_with_providers_mode(
             state,
             cancel,
-            Arc::new(move |account| crate::accounts::provider_with_state(account, &provider_state)),
+            ProviderSelection::Injected(Arc::new(move |account| {
+                crate::accounts::provider_with_state(account, &provider_state)
+            })),
             None,
             true,
         )
@@ -875,12 +894,18 @@ impl Manager {
         factory: ProviderFactory,
         writes: Option<WriteFactory>,
     ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
-        Self::start_with_providers_mode(state, cancel, factory, writes, false)
+        Self::start_with_providers_mode(
+            state,
+            cancel,
+            ProviderSelection::Injected(factory),
+            writes,
+            false,
+        )
     }
     fn start_with_providers_mode(
         state: PathBuf,
         cancel: CancellationToken,
-        factory: ProviderFactory,
+        factory: ProviderSelection,
         writes: Option<WriteFactory>,
         recovery_only: bool,
     ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
@@ -898,7 +923,7 @@ impl Manager {
         self: Arc<Self>,
         state: PathBuf,
         cancel: CancellationToken,
-        factory: ProviderFactory,
+        factory: ProviderSelection,
         writes: Option<WriteFactory>,
     ) {
         let mut running: HashMap<String, Running> = HashMap::new();
@@ -1211,18 +1236,38 @@ impl Manager {
     async fn launch(
         account: Account,
         state: PathBuf,
-        factory: &ProviderFactory,
+        factory: &ProviderSelection,
         writes: Option<&WriteFactory>,
         recovery_only: bool,
     ) -> Result<Running> {
         // Resolve the read provider using the original grant/session. Only the
         // in-memory engine policy is restricted; Running.config stays desired.
-        let graph = factory(&account)?;
+        let owned = factory.owns_icloud_session(&account.registration, recovery_only);
+        let (graph, owner) = if owned {
+            let directory = state.join("accounts").join(&account.id);
+            crate::private_dir(&directory)?;
+            let owner = Arc::new(crate::accounts::account_lock(&directory)?);
+            (
+                crate::accounts::provider_with_owned_state(&account, &state, owner.clone())?,
+                Some(owner),
+            )
+        } else {
+            let graph = match factory {
+                ProviderSelection::ConfiguredOwned => {
+                    crate::accounts::provider_with_state(&account, &state)?
+                }
+                ProviderSelection::Injected(factory) => factory(&account)?,
+            };
+            (graph, None)
+        };
         let mut effective = account.clone();
         if recovery_only {
             effective.access = cirrove_auth::AccessMode::ReadOnly;
         }
-        let engine = Engine::new(effective, graph, state.clone()).await?;
+        let engine = match owner {
+            Some(owner) => Engine::new_with_owner(effective, graph, state.clone(), owner).await?,
+            None => Engine::new(effective, graph, state.clone()).await?,
+        };
         // The grant selects write mode; ownership and the index must exist
         // before a factory can resolve identities or retain operation state.
         let writable = match prepare_write(&engine, &state, writes.filter(|_| !recovery_only)).await
@@ -1417,6 +1462,33 @@ fn mount_record_at<'a>(mounts: &'a str, path: &Path) -> Option<(&'a str, &'a str
 mod tests {
     use super::*;
     use crate::engine::FeedHealth;
+
+    #[test]
+    fn owned_poll_selection_limits_writeback_to_normal_configured_icloud() {
+        use cirrove_auth::AppRegistration;
+        let configured = ProviderSelection::ConfiguredOwned;
+        let injected = ProviderSelection::Injected(Arc::new(|_| {
+            anyhow::bail!("must not construct a provider")
+        }));
+        assert!(configured.owns_icloud_session(&AppRegistration::ICloud, false));
+        for selection in [&configured, &injected] {
+            assert!(!selection.owns_icloud_session(&AppRegistration::ICloud, true));
+            assert!(!selection.owns_icloud_session(
+                &AppRegistration::Google {
+                    client_id: "synthetic".into()
+                },
+                false
+            ));
+            assert!(!selection.owns_icloud_session(
+                &AppRegistration::Microsoft {
+                    client_id: "synthetic".into(),
+                    authority: "common".into()
+                },
+                false
+            ));
+        }
+        assert!(!injected.owns_icloud_session(&AppRegistration::ICloud, false));
+    }
 
     fn feed(state: &str) -> FeedHealth {
         FeedHealth {

@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "run": "f6e6096f-be9a-4b8b-90f3-347d9b379eeb",
+  "registered_unix": 1791538442.7020383,
+  "active": false,
+  "state": "failed_closed_before_bootstrap",
+  "question": "Can an offline ISO upgrade a fresh overlay of the disabled retained installed guest while exact public 44B sealed and 52B generation4 recovery survives, with base byte/stat unchanged and no target service/auth/network start?",
+  "arms": [
+    "Single new qcow2 overlay of retained OFF disabled-account installed guest; matching liveISO, no NIC; public recovery exports before and after local attested three-package upgrade"
+  ],
+  "endpoint": "Actual public pre/post exports and exact states/settings/persistent state plus local three package versions; result success AND explicit clean guest mounts footer AND original QEMU/process-group closure AND base before/after full pin equality.",
+  "prediction": "The disabled-account local recovery contract should survive package replacement. A restore marker, dirty ext4, inaccessible liveISO shell/9p, changed persistent state or unfinished shutdown refuses truthfully; no automatic retry and no cloud acceptance inference.",
+  "candidate_commit": "2705756b328ee6c8263090df6d0293abb4d29972",
+  "candidate_branch_head": "94a4d0392f01b1f63416ee51510b3bf416cdfb36",
+  "exact_tree": "2b7af65d162e4da68d47e15f9c0e2d9123ab019c",
+  "package_authority": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-94a4d03-pr2705756-candidate-arch-packages-20261009/verification-summary-v1.json",
+    "size": 10075,
+    "sha256": "0d363b8433c1d0fa648f5fd6f1406705532ea73c8eb7a5119f860e4e33af55ef"
+  },
+  "proposal": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/sources/proposal-selected-v1.json",
+    "size": 9065,
+    "sha256": "39b7762556c87724449b47130eba28aaa36096f6e34ae7a993984aea0e638d96"
+  },
+  "owner": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/sources/own_offline_overlay_serial_once_v3.py",
+    "size": 15650,
+    "sha256": "1d2369220f23a631419f99902eabcccbf034da2e89e47638eecd1ff7c4e3db90"
+  },
+  "materialization": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/sources/materialization-v1.json",
+    "size": 2928,
+    "sha256": "a2e0266f41e483faed8060545b1bca56de5911d8d3d8505019713db983a3d9b5"
+  },
+  "preflight": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/sources/host-preflight-v1.json",
+    "size": 248,
+    "sha256": "476564c2cf3e89a6c12deffc4d2bfd5d3702b03f6ae9c1d105557c612d7a5ba9"
+  },
+  "command": [
+    "python3",
+    "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/sources/own_offline_overlay_serial_once_v3.py",
+    "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/host-inputs-selected.json",
+    "SHA256_OF_SELECTED_INPUT_RECORDED_AT_DISPATCH"
+  ],
+  "private_TMPDIR": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/evidence",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/evidence",
+  "filesystem": "ext4",
+  "expected_seconds": 900,
+  "cleanup_reserve_seconds": 45,
+  "automatic_retry": false,
+  "auth_required": false,
+  "provider_actions": false,
+  "original_host_install": false,
+  "target_service_started": false,
+  "gates_closed_by_this_arm": [],
+  "criterion_488": false,
+  "criterion_490": false,
+  "scope": "Offline package/recovery prerequisite only. No natural Apple expiry, genuine read-only reauthentication, active daemon export, normal guest boot, fresh cloud save or permanent-delete refusal claim. Original host stays HOLD.",
+  "actual": {
+    "success": false,
+    "original_exec_session": 77506,
+    "outer_exit": 130,
+    "all_original_children_closed": true,
+    "supervisor_absent": true,
+    "base_full_byte_and_stat_equal": true,
+    "bootstrap_dispatches": 0,
+    "package_upgrade_executed": false,
+    "auth_executed": false,
+    "target_daemon_started": false,
+    "failure_cause": "Actual valid debug-shell prompt preceded by OSC+CSI terminal controls; frozen V3 matcher required immediately sh|bash after newline and missed prompt.",
+    "raw_serial_size": 12827,
+    "raw_serial_sha256": "e4370037f9ae47ed969ead43f1828971527ad88552cb1b9dab7e09cb7fd1944d",
+    "automatic_retry": false,
+    "future_user_return_disk_selected": false,
+    "closed_unix": 1791539031.5552387
+  },
+  "original_registration_sha256": "3bc74f1f0e6c3f552d4f4316ca79ef10e87a61a5c96a81b981db5704bd38d18e",
+  "initial_registration_retained": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-f6e6096f-be9a-4b8b-90f3-347d9b379eeb/sources/registration-before-dispatch.json"
+}

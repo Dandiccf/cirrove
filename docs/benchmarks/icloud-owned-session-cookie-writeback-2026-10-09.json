@@ -1,0 +1,140 @@
+{
+  "run": "cbb785fb-69a5-40ab-ad13-132df8c3f388",
+  "question": "Does explicitly account-owned saved-session polling durably retain actual response cookie changes without renewing expiry, crossing credential bindings or losing account ownership?",
+  "prediction": "Omitting only the production writeback invocation fails the restarted-cookie assertion; restoring it passes the identical primary plus bounded synthetic controls.",
+  "base_head": "94a4d0392f01b1f63416ee51510b3bf416cdfb36",
+  "scope": "synthetic localhost HTTPS; no real Apple/session reliability or installed delivery claim",
+  "arms": [
+    "invocation-omission-red1",
+    "corrected-green1",
+    "owned-icloud-controls10",
+    "owned-service-lease-controls2",
+    "existing-cookie-controls11"
+  ],
+  "work_seconds_per_command": 1800,
+  "cleanup_seconds_per_command": 30,
+  "active": false,
+  "active_measurement": false,
+  "state": "closed_focused_synthetic_pass",
+  "limitations": [
+    "Cookie coalescing is exact response-source/name/Domain/Path/security-class only; no universal CookieStore normalization or unlimited renewal.",
+    "More than128 noncoalescible records or revision overflow remains sticky Unavailable; prior durable sealed snapshot is preserved.",
+    "Account lifetime lease excludes supported foreground writes; existing-sealed binding is not cross-process general CAS against arbitrary SDK/filesystem writers.",
+    "Existing unowned SDK constructors, injected factories and recovery-only paths remain memory-only.",
+    "Local successful cookie persistence does not prove real Apple cookie behavior or close installed/reliability acceptance."
+  ],
+  "initial_results": {
+    "invocation_omission_red": "Exactly one intended Cargo101/0passed1failed; caller stream classifier failure retained separately; no rerun.",
+    "corrected_primary_green": 1,
+    "icloud_controls_passed": 10,
+    "existing_cookie_controls_passed": 11,
+    "service_controls": "Compiler E0282 before test dispatch in private recovery callback; retained failure, no RED credit."
+  },
+  "followup": {
+    "question": "Can repeated cookies in the exact same replay class stay bounded without stopping normal polls, while unrelated scope/security classes, tombstones, distinct-record refusal, cancellation and lease ownership remain intact?",
+    "prediction": "The unchanged new rotation fixture fails the intended health assertion on append-only recording, then passes after exact-source/class coalescing; final12 iCloud controls,3 service controls and11 existingcookie controls pass.",
+    "arms": [
+      "cap-regression-red1",
+      "cap-corrected-green1",
+      "icloud-final12",
+      "service-final3",
+      "cookie-final11"
+    ],
+    "scope": "Synthetic fixture only; no actual Apple rotation/installed/session reliability credit",
+    "work_seconds_per_command": 1800,
+    "cleanup_seconds_per_command": 30,
+    "corrections": [
+      {
+        "arm": "cap-regression-red1",
+        "outcome": "compiler E0521 before zero tests; no RED credit; borrowed synthetic header fixed before fresh RED2"
+      },
+      {
+        "arm": "cap-regression-red2",
+        "outcome": "exact one intended cap assertion failed under append-only recording; original closed"
+      },
+      {
+        "arm": "cap-corrected-green1",
+        "outcome": "normal poll succeeded, then fixture wrongly expected root-source and real-poll-source cookies to share one exact-source class; assertion failure preserved"
+      },
+      {
+        "prospective_arms": [
+          "cap-regression-red3",
+          "cap-corrected-green2"
+        ],
+        "correction": "identical fixture now injects rotations using the exact actual /retrieveItemDetailsInFolders response URL. Conservative production source guard unchanged."
+      }
+    ],
+    "final_arms": [
+      {
+        "arm": "cap-regression-red3",
+        "exit_code": 101,
+        "elapsed_seconds": 5.265148161910474,
+        "original_closed": true
+      },
+      {
+        "arm": "cap-corrected-green2",
+        "exit_code": 0,
+        "elapsed_seconds": 5.1605339020024985,
+        "original_closed": true
+      },
+      {
+        "arm": "icloud-final12",
+        "exit_code": 0,
+        "elapsed_seconds": 1.2567053160164505,
+        "original_closed": true
+      },
+      {
+        "arm": "service-final3",
+        "exit_code": 0,
+        "elapsed_seconds": 44.30867212603334,
+        "original_closed": true
+      },
+      {
+        "arm": "cookie-final11",
+        "exit_code": 0,
+        "elapsed_seconds": 0.4228297990048304,
+        "original_closed": true
+      }
+    ]
+  },
+  "success": true,
+  "full_reliability_claim": false,
+  "installed_delivery_claim": false,
+  "result": {
+    "primary_writeback": {
+      "red_executed": 1,
+      "red_cargo_exit": 101,
+      "red_assertion": "successful owned poll must persist response cookie before restart",
+      "scope": "new API/fixture retained; omit only actual production writeback invocation, not literal old-tree compilation",
+      "same_primary_green_passed": 1
+    },
+    "bounded_rotations": {
+      "red_executed": 1,
+      "red_cargo_exit": 101,
+      "red_assertion": "repeated same-scope cookie rotations must not stop normal owned polls",
+      "same_fixture_green_passed": 1
+    },
+    "final_focused_counts": {
+      "cap_red_executed": 1,
+      "cap_green_passed": 1,
+      "icloud_controls_passed": 12,
+      "service_controls_passed": 3,
+      "existing_cookie_controls_passed": 11
+    },
+    "all_original_owners_closed": true,
+    "signals": [],
+    "format_check": "all eight changed code paths pass direct rustfmt --check; bytes unchanged",
+    "private_terminal": {
+      "path": "/home/dandiccf/Storage/cirrove-owned-session-writeback-20261009/.local-state/owned-session-writeback-cap-followup-private-v1/final-result-v1.json",
+      "size": 10521,
+      "sha256": "911410e06a3b0becdd22873069f1474f07711ebdadc17847d97f1678bec254ac"
+    },
+    "within_arm_spread": "Not a performance comparison; one execution per registered arm, no spread or reliability estimate."
+  },
+  "retained_corrections": {
+    "original_collector_failure": "Omission RED actually executed1/intendedpanic/Cargo101, but caller searched stderr instead of captured stdout. Original failure retained; same-closed-observation correction, no rerun.",
+    "service_compile_failure": "First service control arm E0282 before test dispatch: one existing private recovery callback needed ProviderSelection::Injected. Fixed before final3; no RED credit.",
+    "cap_compile_failure": "First cap arm E0521 before test dispatch: dynamic synthetic header incorrectly used from_static. Fixed before new registered arm; no RED credit.",
+    "cap_fixture_failure": "First coalesced GREEN normal poll succeeded then record-count assertion failed because injected root-source differs from actual poll-source. Source-specific production guard retained, fixture exact URL corrected; fresh identical-fixture RED/GREEN then passed."
+  }
+}

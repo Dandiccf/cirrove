@@ -517,22 +517,33 @@ struct SessionSnapshot {
 }
 
 #[derive(Default)]
+struct CookieRecords {
+    records: Vec<CookieRecord>,
+    revision: u64,
+}
+
+#[derive(Default)]
 struct RecordingCookies {
     jar: Jar,
-    records: Mutex<Vec<CookieRecord>>,
+    records: Mutex<CookieRecords>,
     overflow: AtomicBool,
 }
 
 impl RecordingCookies {
+    #[cfg(test)]
     fn records(&self) -> Result<Vec<CookieRecord>> {
-        if self.overflow.load(Ordering::Relaxed) {
-            bail!("iCloud session contains too many cookies to save safely");
-        }
+        Ok(self.records_with_revision()?.0)
+    }
+
+    fn records_with_revision(&self) -> Result<(Vec<CookieRecord>, u64)> {
         let guard = self
             .records
             .lock()
             .map_err(|_| anyhow!("iCloud cookie store is unavailable"))?;
-        Ok(guard.clone())
+        if self.overflow.load(Ordering::Relaxed) {
+            bail!("iCloud session contains too many cookies to save safely");
+        }
+        Ok((guard.records.clone(), guard.revision))
     }
 
     fn restore(&self, records: Vec<CookieRecord>) -> Result<()> {
@@ -589,7 +600,10 @@ impl RecordingCookies {
         *self
             .records
             .lock()
-            .map_err(|_| anyhow!("iCloud cookie store is unavailable"))? = records;
+            .map_err(|_| anyhow!("iCloud cookie store is unavailable"))? = CookieRecords {
+            records,
+            revision: 0,
+        };
         Ok(())
     }
 }
@@ -599,8 +613,8 @@ impl CookieStore for RecordingCookies {
         // Floor to seconds: at most one second early, never a renewed lifetime.
         let received_at = cookie::time::OffsetDateTime::now_utc().unix_timestamp();
         let headers: Vec<_> = cookie_headers.cloned().collect();
-        self.jar.set_cookies(&mut headers.iter(), url);
         if !allowed_cookie_source(url) {
+            self.jar.set_cookies(&mut headers.iter(), url);
             return;
         }
         let mut source = url.clone();
@@ -610,12 +624,15 @@ impl CookieStore for RecordingCookies {
             self.overflow.store(true, Ordering::Relaxed);
             return;
         };
+        // Apply and record approved responses in the same order, including
+        // concurrent responses. The replay snapshot must agree with the jar.
+        self.jar.set_cookies(&mut headers.iter(), url);
         for header in headers {
             let Ok(value) = header.to_str() else {
                 self.overflow.store(true, Ordering::Relaxed);
                 continue;
             };
-            if value.len() > MAX_COOKIE_RECORD || records.len() >= MAX_COOKIE_RECORDS {
+            if value.len() > MAX_COOKIE_RECORD {
                 self.overflow.store(true, Ordering::Relaxed);
                 continue;
             }
@@ -628,7 +645,35 @@ impl CookieStore for RecordingCookies {
                 self.overflow.store(true, Ordering::Relaxed);
                 continue;
             };
-            records.push(CookieRecord {
+            let Some(revision) = records.revision.checked_add(1) else {
+                self.overflow.store(true, Ordering::Relaxed);
+                continue;
+            };
+            // Conservative replay coalescing, not CookieStore normalization:
+            // only the same approved response source and exact parsed scope /
+            // security class can replace earlier records. Keep tombstones and
+            // all nonmatches in their existing replay order.
+            records.records.retain(|record| {
+                if record.source != source.as_str() {
+                    return true;
+                }
+                let Ok(prior) = cookie::Cookie::parse(record.set_cookie.as_str()) else {
+                    return true;
+                };
+                !(prior.name() == cookie.name()
+                    && prior.domain() == cookie.domain()
+                    && prior.path() == cookie.path()
+                    && prior.secure() == cookie.secure()
+                    && prior.http_only() == cookie.http_only()
+                    && prior.same_site() == cookie.same_site()
+                    && prior.partitioned() == cookie.partitioned())
+            });
+            if records.records.len() >= MAX_COOKIE_RECORDS {
+                self.overflow.store(true, Ordering::Relaxed);
+                continue;
+            }
+            records.revision = revision;
+            records.records.push(CookieRecord {
                 source: source.as_str().into(),
                 set_cookie: value.into(),
                 lifetime: Some(lifetime),
@@ -739,6 +784,11 @@ impl ICloudReadSession {
     /// Serialize only Cirrove's Apple web session material for storage in the
     /// desktop Secret Service. Never write this value to a normal file or log.
     pub fn session_snapshot(&self) -> Result<SecretString> {
+        Ok(self.snapshot_with_cookie_revision()?.0)
+    }
+
+    fn snapshot_with_cookie_revision(&self) -> Result<(SecretString, u64)> {
+        let (cookies, revision) = self.cookies.records_with_revision()?;
         let drive = self
             .drive_endpoint
             .as_ref()
@@ -764,13 +814,13 @@ impl ICloudReadSession {
             },
             drive_endpoint: drive.to_string(),
             docs_endpoint: docs.to_string(),
-            cookies: self.cookies.records()?,
+            cookies,
         };
         let value = serde_json::to_string(&snapshot)?;
         if value.len() > MAX_SESSION_SNAPSHOT {
             bail!("iCloud session exceeds the safe keyring limit");
         }
-        Ok(SecretString::from(value))
+        Ok((SecretString::from(value), revision))
     }
 
     /// Reconstitute a keyring-backed session. A subsequent Apple request still

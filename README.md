@@ -277,6 +277,14 @@ unlinked working file**, both with matching checksums. Read-only downgrade
 and active recovery of those same generations remain untested. The trial
 records the separate transport failure and each outcome’s scope.
 
+A subsequent [offline package-upgrade test](docs/benchmarks/icloud-offline-installed-upgrade-2026-10-09-ae484a4d-4a97-4eca-b470-6c270eec8220.json)
+installed the attested `2705756` packages into a fresh copy-on-write guest disk.
+Both retained files exported with identical checksums before and after the
+upgrade. The account stayed disabled; settings, persistent state and the
+original disk were preserved. The installed daemon, authentication and provider
+were not started by this test. This prepares the next genuine account-lifecycle
+trial; it does not establish read-only downgrade or active recovery.
+
 ### What still blocks full acceptance
 
 1. **Complete installed account lifecycle:** a successful owned-file save
@@ -292,7 +300,7 @@ Newly received saved cookies now retain absolute expiry. The identical
 failed on the old code and passed eleven controls with the fix; the complete
 project check also passed. Whole-second precision may expire cookies up to one
 second early. Unchanged legacy ciphertext lacks its original receipt time;
-its labelled restoration anchor persists only after an explicit snapshot save.
+its labelled restoration anchor persists only after a later snapshot write.
 This local fix does not prove natural Apple session expiry or its recovery.
 
 Saved-session account health now revalidates during each existing scheduled
@@ -303,6 +311,13 @@ failed on the old code; three corrected controls and the complete project check
 passed. Each poll performs one nonrecursive root listing. This establishes
 synthetic rejection handling; natural Apple expiry and installed recovery
 remain unproved.
+
+Normal daemon polls also [persist changed session cookies](docs/benchmarks/icloud-owned-session-cookie-writeback-2026-10-09.json)
+so restarts retain renewed cookies and deletions in local tests. Repeated updates
+from the same source stay bounded without extending their expiry. Recovery-only
+startup leaves credentials unchanged; legacy keyring sessions require foreground
+migration.
+Real Apple session-expiry recovery and wider reliability remain open.
 
 Read the [full integration record](docs/icloud-write-integration.md) for historical
 successes, retained failures and measured limits, and the

@@ -833,6 +833,31 @@ pub fn provider_with_state(account: &Account, state: &Path) -> Result<Arc<dyn Re
         }
     }
 }
+pub(crate) fn provider_with_owned_state(
+    account: &Account,
+    state: &Path,
+    owner: Arc<File>,
+) -> Result<Arc<dyn ReadProvider>> {
+    if !matches!(account.registration, AppRegistration::ICloud) {
+        bail!("owned session writeback requires an iCloud account");
+    }
+    let scope = Scope {
+        account: account.id.clone(),
+        provider: "icloud".into(),
+        collection: account.drive.id.clone(),
+    };
+    Ok(Arc::new(
+        ICloudDrive::on_demand_from_owned_sealed_session(
+            scope,
+            account.identity.username.clone(),
+            account.credential_id.clone(),
+            state,
+            owner,
+        )?
+        .with_package_artifacts(state, account.cache_bytes)?,
+    ))
+}
+
 pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
     if !matches!(account.registration, AppRegistration::Google { .. }) {
         bail!("this operation requires a Google Drive connection");
@@ -3421,6 +3446,54 @@ mod tests {
                 .validate()
                 .expect("missing access retains safe default");
         }
+    }
+
+    #[tokio::test]
+    async fn owned_poll_account_lease_outlives_stopped_engine_until_provider_drop() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let account = icloud_reauth_fixture();
+        let directory = temp.path().join("accounts").join(&account.id);
+        let owner = Arc::new(account_lock(&directory)?);
+        let provider = provider_with_owned_state(&account, temp.path(), owner.clone())?;
+        let engine = crate::engine::Engine::new_with_owner(
+            account,
+            provider.clone(),
+            temp.path().into(),
+            owner,
+        )
+        .await?;
+        engine.stop().await;
+        drop(engine);
+        assert!(
+            account_lock(&directory).is_err(),
+            "outliving owned provider must retain account lease"
+        );
+        drop(provider);
+        assert!(
+            account_lock(&directory).is_ok(),
+            "last owned provider drop must release account lease"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn owned_poll_failed_engine_construction_releases_last_account_lease() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let account = icloud_reauth_fixture();
+        let directory = temp.path().join("accounts").join(&account.id);
+        let owner = Arc::new(account_lock(&directory)?);
+        let provider = provider_with_owned_state(&account, temp.path(), owner.clone())?;
+        std::fs::write(
+            directory.join("metadata.db"),
+            b"synthetic invalid SQLite header",
+        )?;
+        assert!(
+            crate::engine::Engine::new_with_owner(account, provider, temp.path().into(), owner)
+                .await
+                .is_err()
+        );
+        assert!(account_lock(&directory).is_ok());
+        Ok(())
     }
 
     fn fixture_account(access: AccessMode) -> Account {

@@ -31,6 +31,8 @@ mod ordinary;
 mod packages;
 #[cfg(test)]
 mod session_health_tests;
+#[cfg(test)]
+mod session_writeback_tests;
 mod write_target;
 
 const PROVIDER_ID: &str = "icloud";
@@ -47,6 +49,8 @@ pub struct ICloudDrive {
     session: Mutex<SessionState>,
     index_mode: IndexMode,
     keyring_backed: bool,
+    writeback: Option<Arc<crate::sealed_session::OwnedSealedSession>>,
+    writeback_gate: Mutex<()>,
     reads: Arc<Semaphore>,
     packages: Option<packages::Packages>,
     write_targets: std::sync::Mutex<write_target::Cache>,
@@ -106,6 +110,8 @@ impl ICloudDrive {
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             index_mode: IndexMode::OnDemand,
             keyring_backed: false,
+            writeback: None,
+            writeback_gate: Mutex::new(()),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
             write_targets: std::sync::Mutex::new(write_target::Cache::default()),
@@ -135,6 +141,50 @@ impl ICloudDrive {
         Self::on_demand_from_vault(scope, apple_id, credential_id, Arc::new(vault))
     }
 
+    /// The caller must retain the exclusive account lifetime lock. Only this
+    /// explicitly owned route persists changed cookies after successful polls;
+    /// ordinary SDK and recovery constructors remain memory-only.
+    pub fn on_demand_from_owned_sealed_session(
+        scope: Scope,
+        apple_id: String,
+        credential_id: String,
+        state: &Path,
+        owner: Arc<std::fs::File>,
+    ) -> Result<Self, ProviderError> {
+        let vault = SealedSessionVault::new(state, &scope.account)
+            .map_err(|_| ProviderError::Permission)?;
+        let owned = Arc::new(crate::sealed_session::OwnedSealedSession::new(
+            vault,
+            credential_id.clone(),
+            owner,
+            Arc::new(DesktopVault),
+        ));
+        let mut provider =
+            Self::on_demand_from_vault(scope, apple_id, credential_id, owned.clone())?;
+        provider.writeback = Some(owned);
+        Ok(provider)
+    }
+
+    async fn persist_poll_cookies(&self, cancel: &CancellationToken) -> Result<(), ProviderError> {
+        let Some(vault) = &self.writeback else {
+            return Ok(());
+        };
+        // Serialize capture and commit, not just writes: an older concurrent
+        // poll must not commit a stale snapshot after a newer poll.
+        tokio::select! { biased;
+            _ = cancel.cancelled() => Err(ProviderError::Cancelled),
+            result = async {
+                let _serial = self.writeback_gate.lock().await;
+                let (snapshot, revision) = {
+                    let mut state = self.session.lock().await;
+                    Self::active_session(&mut state).await?
+                        .snapshot_with_cookie_revision().map_err(|_| ProviderError::Unavailable)?
+                };
+                vault.store(snapshot, revision).await.map_err(|_| ProviderError::Unavailable)
+            } => result,
+        }
+    }
+
     fn on_demand_from_vault(
         scope: Scope,
         apple_id: String,
@@ -158,6 +208,8 @@ impl ICloudDrive {
             }),
             index_mode: IndexMode::OnDemand,
             keyring_backed: true,
+            writeback: None,
+            writeback_gate: Mutex::new(()),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
             write_targets: std::sync::Mutex::new(write_target::Cache::default()),
@@ -183,6 +235,8 @@ impl ICloudDrive {
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             index_mode,
             keyring_backed: false,
+            writeback: None,
+            writeback_gate: Mutex::new(()),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
             write_targets: std::sync::Mutex::new(write_target::Cache::default()),
@@ -463,6 +517,7 @@ impl MetadataProvider for ICloudDrive {
                 // Keep the existing listing timeout/cancellation and leave
                 // cached directory publication and pending edits untouched.
                 self.list_folder(ROOT_ID, cancel).await?;
+                self.persist_poll_cookies(cancel).await?;
             }
             return on_demand_page(cursor);
         }

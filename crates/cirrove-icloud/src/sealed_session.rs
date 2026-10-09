@@ -11,6 +11,7 @@ use std::{
     io::Write,
     os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 use uuid::Uuid;
 
@@ -26,6 +27,8 @@ pub struct SealedSessionVault {
     file_name: &'static str,
     temp_prefix: &'static str,
     aad_domain: &'static str,
+    #[cfg(test)]
+    fail_after_publish: std::sync::atomic::AtomicBool,
 }
 
 impl SealedSessionVault {
@@ -40,6 +43,8 @@ impl SealedSessionVault {
             file_name: "icloud-session.sealed",
             temp_prefix: ".icloud-session",
             aad_domain: "icloud-session",
+            #[cfg(test)]
+            fail_after_publish: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -94,6 +99,18 @@ impl SealedSessionVault {
         Ok(())
     }
 
+    fn existing_directory(&self) -> Result<(u64, u64)> {
+        let meta = fs::symlink_metadata(&self.account_dir)?;
+        if !meta.is_dir()
+            || meta.file_type().is_symlink()
+            || meta.permissions().mode() & 0o077 != 0
+            || meta.uid() != fs::metadata("/proc/self")?.uid()
+        {
+            bail!("iCloud account directory is not private");
+        }
+        Ok((meta.dev(), meta.ino()))
+    }
+
     fn read_sealed(&self, credential_id: &str, key: &[u8; 32]) -> Result<SecretString> {
         let path = self.path();
         let meta = fs::symlink_metadata(&path).context("iCloud session file missing")?;
@@ -131,6 +148,16 @@ impl SealedSessionVault {
         value: &SecretString,
     ) -> Result<()> {
         self.private_account_dir()?;
+        self.write_existing(credential_id, key, value)
+    }
+
+    fn write_existing(
+        &self,
+        credential_id: &str,
+        key: &[u8; 32],
+        value: &SecretString,
+    ) -> Result<()> {
+        self.existing_directory()?;
         let mut nonce_bytes = [0u8; aead::NONCE_LEN];
         getrandom::fill(&mut nonce_bytes)
             .map_err(|_| anyhow::anyhow!("cannot create iCloud session nonce"))?;
@@ -157,6 +184,13 @@ impl SealedSessionVault {
             file.write_all(&ciphertext)?;
             file.sync_all()?;
             fs::rename(&temp, self.path())?;
+            #[cfg(test)]
+            if self
+                .fail_after_publish
+                .swap(false, std::sync::atomic::Ordering::SeqCst)
+            {
+                bail!("synthetic directory sync failure after publication");
+            }
             File::open(&self.account_dir)?.sync_all()?;
             Ok(())
         })();
@@ -166,7 +200,7 @@ impl SealedSessionVault {
         result
     }
 
-    async fn load_with(
+    pub(crate) async fn load_with(
         &self,
         key_id: &str,
         key_vault: &dyn CredentialVault,
@@ -180,7 +214,7 @@ impl SealedSessionVault {
         }
     }
 
-    async fn save_with(
+    pub(crate) async fn save_with(
         &self,
         key_id: &str,
         value: SecretString,
@@ -212,6 +246,132 @@ impl SealedSessionVault {
             bail!("iCloud session did not survive local readback");
         }
         Ok(())
+    }
+}
+
+// Only an installed account owner may use this writer. The retained lease
+// excludes supported foreground reauthentication; this is not a general CAS
+// for independent SDK writers. Public SDK constructors do not use it.
+pub(crate) struct OwnedSealedSession {
+    vault: SealedSessionVault,
+    key_vault: Arc<dyn CredentialVault>,
+    credential: String,
+    _owner: Arc<File>,
+    state: tokio::sync::Mutex<Option<ExistingSession>>,
+}
+struct ExistingSession {
+    directory: (u64, u64),
+    key: zeroize::Zeroizing<[u8; 32]>,
+    expected: SecretString,
+    attempted: Option<SecretString>,
+    acknowledged: u64,
+}
+impl OwnedSealedSession {
+    pub(crate) fn new(
+        vault: SealedSessionVault,
+        credential: String,
+        owner: Arc<File>,
+        key_vault: Arc<dyn CredentialVault>,
+    ) -> Self {
+        Self {
+            vault,
+            credential,
+            _owner: owner,
+            key_vault,
+            state: tokio::sync::Mutex::new(None),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn fail_next_publication_sync(&self) {
+        self.vault
+            .fail_after_publish
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub(crate) async fn store(&self, value: SecretString, revision: u64) -> Result<()> {
+        let mut guard = self.state.lock().await;
+        // Legacy direct-keyring snapshots remain memory-only until a foreground
+        // migration. Restoration alone must never manufacture a dirty revision.
+        let Some(bound) = guard.as_mut() else {
+            return Ok(());
+        };
+        if revision <= bound.acknowledged {
+            return Ok(());
+        }
+        let key = self
+            .key_vault
+            .load(&self.credential)
+            .await?
+            .context("iCloud sealing key missing")?;
+        if SealedSessionVault::key(&key)? != Some(*bound.key)
+            || self.vault.existing_directory()? != bound.directory
+        {
+            bail!("iCloud session binding changed");
+        }
+        let current = self.vault.read_sealed(&self.credential, &bound.key)?;
+        if current.expose_secret() != bound.expected.expose_secret() {
+            if !bound
+                .attempted
+                .as_ref()
+                .is_some_and(|v| v.expose_secret() == current.expose_secret())
+            {
+                bail!("iCloud sealed session changed");
+            }
+            // A previous rename may have published before directory fsync
+            // failed. Reconcile only our exact attempted snapshot, under the
+            // same retained owner, never an arbitrary replacement snapshot.
+            File::open(&self.vault.account_dir)?.sync_all()?;
+            bound.expected = current;
+            bound.attempted = None;
+        }
+        if value.expose_secret() != bound.expected.expose_secret() {
+            bound.attempted = Some(value.clone());
+            self.vault
+                .write_existing(&self.credential, &bound.key, &value)?;
+            let readback = self.vault.read_sealed(&self.credential, &bound.key)?;
+            if readback.expose_secret() != value.expose_secret() {
+                bail!("iCloud session did not survive local readback");
+            }
+            bound.expected = readback;
+            bound.attempted = None;
+        }
+        bound.acknowledged = revision;
+        Ok(())
+    }
+}
+#[async_trait]
+impl CredentialVault for OwnedSealedSession {
+    async fn load(&self, key_id: &str) -> Result<Option<SecretString>> {
+        if key_id != self.credential {
+            bail!("iCloud credential binding changed");
+        }
+        let mut state = self.state.lock().await;
+        let directory = self.vault.existing_directory()?;
+        let Some(saved) = self.key_vault.load(key_id).await? else {
+            return Ok(None);
+        };
+        if directory != self.vault.existing_directory()? {
+            bail!("iCloud account directory changed");
+        }
+        let Some(key) = SealedSessionVault::key(&saved)? else {
+            return Ok(Some(saved));
+        };
+        let value = self.vault.read_sealed(key_id, &key)?;
+        *state = Some(ExistingSession {
+            directory,
+            key: zeroize::Zeroizing::new(key),
+            expected: value.clone(),
+            attempted: None,
+            acknowledged: 0,
+        });
+        Ok(Some(value))
+    }
+    async fn save(&self, _: &str, _: SecretString) -> Result<()> {
+        bail!("owned session writes require a cookie revision")
+    }
+    async fn remove(&self, _: &str) -> Result<()> {
+        bail!("owned session cannot remove credentials")
     }
 }
 
@@ -274,6 +434,8 @@ impl SealedUploadCheckpointVault {
             file_name: "checkpoint.sealed",
             temp_prefix: ".checkpoint",
             aad_domain: "icloud-upload-checkpoint",
+            #[cfg(test)]
+            fail_after_publish: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }
@@ -338,6 +500,8 @@ impl SealedPackageTrashCheckpointVault {
             file_name: "checkpoint.sealed",
             temp_prefix: ".checkpoint",
             aad_domain: "icloud-package-trash-checkpoint",
+            #[cfg(test)]
+            fail_after_publish: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }
@@ -400,6 +564,8 @@ impl SealedPackageRestoreCheckpointVault {
             file_name: "checkpoint.sealed",
             temp_prefix: ".checkpoint",
             aad_domain: "icloud-package-restore-checkpoint",
+            #[cfg(test)]
+            fail_after_publish: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }
@@ -483,6 +649,8 @@ impl SealedNativeTrashCheckpointVault {
             file_name: "checkpoint.sealed",
             temp_prefix: ".checkpoint",
             aad_domain: "icloud-native-trash-checkpoint",
+            #[cfg(test)]
+            fail_after_publish: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }
@@ -540,6 +708,8 @@ impl SealedNativeRestoreCheckpointVault {
             file_name: "checkpoint.sealed",
             temp_prefix: ".checkpoint",
             aad_domain: "icloud-native-restore-checkpoint",
+            #[cfg(test)]
+            fail_after_publish: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }
@@ -598,6 +768,8 @@ impl SealedFolderCheckpointVault {
             file_name: "checkpoint.sealed",
             temp_prefix: ".checkpoint",
             aad_domain: domain,
+            #[cfg(test)]
+            fail_after_publish: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }

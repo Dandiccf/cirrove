@@ -59,6 +59,24 @@ overall run or read-only downgrade. Recovery of these same generations after
 genuine read-only reauthentication remains open. Dated counts and failed outcomes
 later in this record retain their original checkpoint meaning.
 
+The [subsequent offline installed upgrade](benchmarks/icloud-offline-installed-upgrade-2026-10-09-ae484a4d-4a97-4eca-b470-6c270eec8220.json)
+installed all three attested `0.2.0dev.r1015.g2705756-1` Arch packages into a new
+copy-on-write overlay of that retained guest. Public offline commands exported
+the same 44-byte sealed operation and 52-byte unlinked generation 4 before and
+after, with exact checksums. Settings and persistent state remained equal; only
+the enumerated SQLite SHM modification/change timestamps changed, with its bytes
+unchanged. Full before/after pins proved the backing disk unchanged. The account
+stayed disabled, and no target daemon, authentication or provider ran. Actual
+success output, clean mount closure and all four original child closures passed
+independent review. The [failed predecessor](benchmarks/icloud-offline-installed-upgrade-2026-10-09-f6e6096f-be9a-4b8b-90f3-347d9b379eeb.json)
+missed the actual OSC/CSI-prefixed console prompt and stopped before bootstrap;
+its failure and preservation evidence remain recorded. This is an installed
+package/local-recovery prerequisite, not normal-boot, genuine downgrade, active
+daemon export or criterion 488 acceptance. The exact source-head `94a4d03` and
+attested merge `2705756` have identical full Git trees; their
+[CI run](https://github.com/Dandiccf/cirrove/actions/runs/37909329053) passed all
+seven jobs. Original-host delivery remains on HOLD.
+
 The [final-install conflict validator](benchmarks/icloud-final-install-preflight-validation-2026-10-09.json)
 adds an explicit developer-feature pause after the last read-only preflight and
 before one native install request. Its old-schedule regression failed and ten
@@ -80,6 +98,24 @@ saved-session poll, normally every 30 seconds plus request time, with the
 existing timeout, cancellation and response-size limits. Cached metadata,
 completed cursors and pending edits remain intact. Natural Apple session expiry
 and subsequent installed reauthentication still require live acceptance.
+
+The normal configured daemon now [writes back changed saved-session cookies](benchmarks/icloud-owned-session-cookie-writeback-2026-10-09.json)
+after successful scheduled polls, while retaining its existing exclusive account
+owner through publication. It verifies the original sealing key, private directory
+and expected snapshot; it cannot recreate removed state or migrate direct-keyring
+sessions. Existing unowned SDK constructors, injected providers and recovery-only
+startup remain memory-only. The omission regression fails when only the production persistence
+call is removed. A separate identical-fixture regression establishes the repeated
+rotation limit and correction. Conservative coalescing keeps the latest record
+only for the exact response source and parsed cookie name, domain, path and
+security class, preserving receipt time, absolute expiry, tombstones and other replay classes.
+The 128-record and snapshot-size bounds remain: noncoalescible exhaustion refuses
+the poll as Unavailable and preserves the prior durable snapshot. Publication
+failure after rename may leave this owner's attempted snapshot on disk; only that
+exact attempt may be reconciled by a later flush. Synthetic controls cover restart,
+deletion, cancellation during blocked key loading, revision ordering, bindings and
+lease lifetime. No actual Apple rotation, natural expiry, installed recovery or
+criterion 490 acceptance is established by these tests.
 
 Interrupted-sign-in recovery now preserves a later explicit enable or disable
 command. Previously, an older restore marker could undo that successful command

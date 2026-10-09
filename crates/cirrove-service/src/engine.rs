@@ -283,7 +283,7 @@ pub struct Engine {
     /// saturating. It is never used for queries; it only keeps the WAL index
     /// alive, and it holds no transaction, so checkpointing stays normal.
     _keeper: StdMutex<Store>,
-    _owner: std::fs::File,
+    _owner: Arc<std::fs::File>,
     pub(crate) recovery_journal: Arc<Mutex<Weak<StdMutex<crate::journal::RecoveryJournal>>>>,
     pub(crate) recovery_journal_gate: Arc<StdMutex<()>>,
     #[cfg(test)]
@@ -302,7 +302,17 @@ impl Engine {
     ) -> Result<Arc<Self>> {
         let directory = state.join("accounts").join(&account.id);
         private_dir(&directory)?;
-        let owner = crate::accounts::account_lock(&directory)?;
+        let owner = Arc::new(crate::accounts::account_lock(&directory)?);
+        Self::new_with_owner(account, provider, state, owner).await
+    }
+
+    pub(crate) async fn new_with_owner(
+        account: Account,
+        provider: Arc<dyn ReadProvider>,
+        state: PathBuf,
+        owner: Arc<std::fs::File>,
+    ) -> Result<Arc<Self>> {
+        let directory = state.join("accounts").join(&account.id);
         let db = directory.join("metadata.db");
         let ordinary_publication_journal = directory.join("journal");
         let path = db.clone();
