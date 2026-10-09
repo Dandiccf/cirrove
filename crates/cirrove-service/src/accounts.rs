@@ -3094,6 +3094,39 @@ mod tests {
                         Some(requested),
                         "a reported persistence error must not revive the old wish"
                     );
+                    // The injected failure has returned, so its logical operation
+                    // owner is gone. Parallel tests can still fork before exec
+                    // while that CLOEXEC open description is inherited. Wait
+                    // only for bounded lock contention, not failed healing.
+                    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+                    loop {
+                        match super::super::account_operation(&state, &account.id) {
+                            Ok(lease) => {
+                                // Explicit unlock also releases any fork-inherited
+                                // copy of this test's newly acquired description.
+                                fs2::FileExt::unlock(&lease).expect("release test operation lease");
+                                drop(lease);
+                                assert!(
+                                    std::time::Instant::now() <= deadline,
+                                    "operation release exceeded its bound"
+                                );
+                                break;
+                            }
+                            Err(error) => {
+                                assert!(
+                                    error.downcast_ref::<std::io::Error>().is_some_and(|e| {
+                                        e.kind() == std::io::ErrorKind::WouldBlock
+                                    }),
+                                    "unexpected operation release error: {error:#}"
+                                );
+                                assert!(
+                                    std::time::Instant::now() < deadline,
+                                    "operation owner was not released: {error:#}"
+                                );
+                                std::thread::sleep(std::time::Duration::from_millis(1));
+                            }
+                        }
+                    }
                     heal_interrupted_sign_ins(&state).expect("finish durable intent");
                     account.enabled = requested;
                     assert_eq!(

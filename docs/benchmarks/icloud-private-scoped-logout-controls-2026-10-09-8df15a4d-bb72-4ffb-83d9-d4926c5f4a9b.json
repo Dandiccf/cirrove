@@ -1,0 +1,812 @@
+{
+  "version": 1,
+  "run": "8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b",
+  "active_measurement": false,
+  "active": false,
+  "state": "closed_private_controls_pass",
+  "question": "Does the private same-session scoped logout preserve actual SDK-restored absolute lifetimes/tombstones and issue exactly one scoped POST?",
+  "prediction": "Legacy raw-header replay primary fails intended expired-MaxAge assertion; restored production proposal passes same1 then all4. No server-isolation/natural-expiry claim.",
+  "arms": [
+    "offline_lock_resolution",
+    "legacy_replay_red1",
+    "same_corrected_green1",
+    "focused4"
+  ],
+  "source_scope": "private augmented current SDK, not installed method or Apple failure",
+  "execution_root": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v3",
+  "cwd": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1",
+  "commands": {
+    "offline_lock_resolution": [
+      "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "metadata",
+      "--offline",
+      "--format-version",
+      "1",
+      "--manifest-path",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/Cargo.toml",
+      "--filter-platform",
+      "x86_64-unknown-linux-gnu"
+    ],
+    "primary_identical_red_green": [
+      "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "--manifest-path",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/Cargo.toml",
+      "-p",
+      "cirrove-icloud",
+      "--features",
+      "write-probe",
+      "--lib",
+      "scoped_session_logout::tests::scoped_logout_restored_absolute_lifetimes_and_tombstones",
+      "--",
+      "--exact"
+    ],
+    "focused_four": [
+      "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "test",
+      "--offline",
+      "--locked",
+      "--manifest-path",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/Cargo.toml",
+      "-p",
+      "cirrove-icloud",
+      "--features",
+      "write-probe",
+      "--lib",
+      "scoped_session_logout::tests::"
+    ]
+  },
+  "environment": {
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/guest-scoped-logout-fd8b3a8d-3488-4e61-8aba-6f43b5eeadd0/target",
+    "TMPDIR": "/home/dandiccf/Storage/ct/sgl-fd8b3a8d",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/sgl-fd8b3a8d",
+    "RUSTC": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+    "RUSTDOC": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustdoc",
+    "CARGO_NET_OFFLINE": "true"
+  },
+  "tools": {
+    "cargo": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "size": 40680304,
+      "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14"
+    },
+    "rustc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+      "size": 645952,
+      "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+    },
+    "rustdoc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustdoc",
+      "size": 12803440,
+      "sha256": "3ff7fed6d1064d8d75d24ae8beff9fe1d68031d3d819966481d22c3c9002b709"
+    }
+  },
+  "inputs": {
+    "sdk_final": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/Cargo.toml",
+        "size": 1207,
+        "sha256": "23007801ca1fc7b1aa54bd22cdb02a19766fe15e0e280695a8356169c25ebead"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/bin/cirrove-icloud-probe.rs",
+        "size": 10899,
+        "sha256": "b151b4cfa8e2077cfa1268d788970f6845dc5056efbd67c75085fb823ea99d1f"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/cookie_tests.rs",
+        "size": 9902,
+        "sha256": "3b174d6307bf4a46c3c249d0e6e6f4db577d991e9bb9d49953da45ab27c19030"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/download_tests.rs",
+        "size": 6910,
+        "sha256": "e7648aed4b85b41c61f61d391c4aff1b59a6ed9c451ccfd11dbf9fabbddb9b8c"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/file_create.rs",
+        "size": 33134,
+        "sha256": "ffedb7a913129992220c5ec4c6893e1c4f81f26e05e2c5a9285cb8f84650ac85"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/file_move.rs",
+        "size": 17570,
+        "sha256": "438a935ffaf0d15090caf1201612d8cf287901c22c2ad023123f17be948468a7"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/file_move/container_tests.rs",
+        "size": 1473,
+        "sha256": "3094bc018837a176eb0969bd489731b52192ad036943e881a97036a345dce170"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/file_rename.rs",
+        "size": 14693,
+        "sha256": "c01e98008b41cff422b676ca1f01d05df4ee013dc182c7fdc62482b9d269d343"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/file_trash.rs",
+        "size": 28738,
+        "sha256": "60ade8ea8abb2be5368d8c04eb19d75e549d1d40ab7993858011cf257d33f4ef"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_create.rs",
+        "size": 23153,
+        "sha256": "410265dffe3c8e3192c9d63ea7cdf853571504aae820f87812f4fae881eae7b3"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_create/container_tests.rs",
+        "size": 6191,
+        "sha256": "5fd0cdd8b1691d33c47779d37b9cd34550048863de34d434b20cbc5e84bbb648"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_create/recovery_tests.rs",
+        "size": 14541,
+        "sha256": "ba3138fc65ec24c6cf9a3310150bb626b7b77565361efdcc6aca53965e0babe5"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_move.rs",
+        "size": 15271,
+        "sha256": "8b7fae65f28423a640f969fbaf407f52dd959ddc87345050555f535f1edbc55c"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_move/container_tests.rs",
+        "size": 3705,
+        "sha256": "b0ef8d5e0c4bba32166064b5ac970142e5c775cd98b57cf67bac9399c1eeb607"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_rename.rs",
+        "size": 11290,
+        "sha256": "40847c02d4945486bf13a6b1428fc9792498d449a4aa84ccb4ce1097e572d3cb"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_rename/container_tests.rs",
+        "size": 2152,
+        "sha256": "555077fdb8e836f3f5dd54f4130d3f819250c20c55a55282b6241ee1740e1ede"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_trash.rs",
+        "size": 11825,
+        "sha256": "43e7fb8f8811722128f260f02ce7afad8f7a54fa0303adcfd08a4df422799e41"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/folder_trash/storage_tests.rs",
+        "size": 6075,
+        "sha256": "554119f6ee14e6349eff415098bc876716ba215d289741ef51550459d65360a6"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/handoff_transport.rs",
+        "size": 40822,
+        "sha256": "667f6f8e3e4590bf7db0f2f09beceedf95448e68901e3ea8f15fa04a2c00d0d5"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/handoff_transport/folder_identity_tests.rs",
+        "size": 8139,
+        "sha256": "741f8242b45832753a0bb29ad4f215815c2748bab84530d33f6a0a6c81cdca2b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/handoff_transport/owned_data_tests.rs",
+        "size": 11210,
+        "sha256": "2a5bc19a45f7e4657100c839b145853e1d3adfc51cd8d08ce0a59f31d862deaa"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/handoff_transport/packages.rs",
+        "size": 16841,
+        "sha256": "dfb8800f0dbc8670990fed4dca4853dd07dd81ea6a41a911f17f4a6c8d26ef3c"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/handoff_transport/packages/tests.rs",
+        "size": 24376,
+        "sha256": "e2317339f70bb21fc28f2187c061115aa6ef9799f28f6f022cc9beb6ee7cf44d"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/lib.rs",
+        "size": 84121,
+        "sha256": "df733a67a008f22a304f59221d1eb5a2e6fcdfaf6027ad6d50e094af5b4fb563"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/metadata_shape_probe.rs",
+        "size": 10657,
+        "sha256": "d34ca038c2d6af5c053442e27ceb68a3018cba2ad197566e900e45c40bdfd040"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/native_restore.rs",
+        "size": 22212,
+        "sha256": "7b99460548d51fb700d09abd4abcdb83cb7b939bcee926eba0f580ca7dfe19ca"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/native_restore/tests.rs",
+        "size": 25044,
+        "sha256": "f9788fc3641341aaef078cb6a1fbf7d85726cdb59332a4e90d15d9f987296121"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/native_trash.rs",
+        "size": 20040,
+        "sha256": "ffe7328c9e59c3d56214f157c908483cbf09f4dd9c8f868c9e5c69a4749ce9b3"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/native_trash/tests.rs",
+        "size": 28718,
+        "sha256": "ea4c6f59a5284edb9391645895096d081a284882c363c26585180039a6f4e591"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_file_rename.rs",
+        "size": 20283,
+        "sha256": "67794a3946acebddd794ceaf2cab1ef94badd85e717c08762a875f85ef28a892"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_fixture_read.rs",
+        "size": 8299,
+        "sha256": "f9d19183bc1da4c4bc41405603a2302148b1071147a353326a8725265ebd7403"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_fixture_read/http_tests.rs",
+        "size": 9941,
+        "sha256": "24bd93f562d6794cccaf2fc07c324e1710caf0dee05c1c85db916174cfeda21f"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_folder.rs",
+        "size": 16095,
+        "sha256": "fe0a3ca7c539a977a4c01c407a7727740b9bd0a441ffec458cadac9ed2d09a70"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_folder_move.rs",
+        "size": 29262,
+        "sha256": "d3381360ab6a7e1fa94005c4c13fc5b8760c6220f87e3d338d632932545460ca"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_folder_remove.rs",
+        "size": 17239,
+        "sha256": "d31b07092bb54b9c740beece9e87fc3390d0d0c8afbe6588c419067db8325748"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_folder_rename.rs",
+        "size": 11922,
+        "sha256": "5a01452a78eeeb30c99457fec482d6b8874b218e30d048a7efea5478efd7408e"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_handoff.rs",
+        "size": 39128,
+        "sha256": "d236322b8a5e3b07249029fdc416982abaea849a5074470e3297c1a26695eae2"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_manifest_probe.rs",
+        "size": 11703,
+        "sha256": "a01144b8e6630cc290733702701e81e5f464ec18290c01b40b2510be9196fee7"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_manifest_probe/http_tests.rs",
+        "size": 6380,
+        "sha256": "37cc967292fa08061014ee222f6cddf93d5168efa5aaf4952f6da35eaaf5b9b3"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_mounted_file_move.rs",
+        "size": 15933,
+        "sha256": "5184685a20864171609fd1fb0e198325160081d9d0923982e020983996ef5d03"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_mounted_replace.rs",
+        "size": 69306,
+        "sha256": "2cac5891961c13593cd77252aa67bee0fe6de01fe7e05d5366cc8430eb175182"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_mounted_replace/native.rs",
+        "size": 50173,
+        "sha256": "783bfdf69cfdda8717cfda3ea69bfce57cc5f1fb6e49bf35923fe6f1cea43b2f"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_mounted_replace/native/abandon.rs",
+        "size": 8699,
+        "sha256": "5e13610c23999d633ad2c979cf16bfab5c8545de5c095882405a3cfb18fe0d95"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs",
+        "size": 65741,
+        "sha256": "c2ac764e019356645b594edfb726b31edbbf78a133c018cd67a12b9db356f78b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_move.rs",
+        "size": 16945,
+        "sha256": "c2dc6fb8d6504ebb6232a5bfa244450f571ed56708155f407046efe86ca6a776"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_mutation.rs",
+        "size": 22250,
+        "sha256": "d6933907a0c71836cc7e7cdf2ec2fb54c8aedd894c6f6088949228062bd42bbd"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_package_create.rs",
+        "size": 14993,
+        "sha256": "265ee561382e658f6d2a37613443bf91a46275c3da20d09d909e9f66f4cc2faf"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_package_create/tests.rs",
+        "size": 26863,
+        "sha256": "a327bff37625b179f15ea6b824d8da8dde4201b0973f1155d67a7a49f0b46812"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_package_create/transport.rs",
+        "size": 1489,
+        "sha256": "ba225e8cd86e23b5d4c25b53f962c5048823bc7398b0371e83ef6c290a03abc3"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_readiness_probe.rs",
+        "size": 8025,
+        "sha256": "3f4cbda5bbb1b1a02956bcee1eadca04c17d0b2f55d2572410bef17eb91f8c94"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_readiness_probe/http_tests.rs",
+        "size": 17749,
+        "sha256": "37790b390b39e74d85cef05e3aaa6899b25578e58829ba8888400900023b5e2b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_renewal_probe.rs",
+        "size": 3523,
+        "sha256": "69af3f7ef82d132052f3fd441219ea6e32800518b8b48c5dde529302cd503a58"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/owned_upload.rs",
+        "size": 37053,
+        "sha256": "c344d9e77f28a2e5fee6f3fc5a71b80d5b2441a85e99c2ed03b7b666bd6cd180"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_archive.rs",
+        "size": 12236,
+        "sha256": "a9fb9f7145ee824b645175eebc0d3ac0f92dee2af2f3a393e8df399dea9a2462"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_create.rs",
+        "size": 41665,
+        "sha256": "43eded92aedce4863a08bfef4606ae11ca31d1033de10539eae5b655f8192f33"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_create/fixtures/README.md",
+        "size": 317,
+        "sha256": "aed74e131c6f9b7977ea4796a511b38f358984f7193ea36b4d168f1d9a43c560"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_create/fixtures/server-cert.b64",
+        "size": 1141,
+        "sha256": "bbc3bc272e998ee56188b9fe9264d542d343204f48680999899565d1681d39e6"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_create/fixtures/server-key.b64",
+        "size": 1625,
+        "sha256": "0525282d63dbea95490740264294025c7143c9c627722130c1f8067c8af5ce69"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_create/tests.rs",
+        "size": 15512,
+        "sha256": "8b9e404577f02bc7c53f590fe95fce127d4114d58664edfa6470dc9507723101"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_create/tests/roundtrip.rs",
+        "size": 56288,
+        "sha256": "f61d691cdadec24ca080e6b8a81c6277ca165a15d6f76fbaef6ab19a6ecfbc89"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_download.rs",
+        "size": 14278,
+        "sha256": "3072e96c03616e7b550f30ee6b93dd4e0198083243105644dff0b8c02029fea1"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_semantic.rs",
+        "size": 24834,
+        "sha256": "efcff1ef712debe402f2585bee36e53625b90e1a57460318250b5556e208c989"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_semantic/flat_local_extra_tests.rs",
+        "size": 8824,
+        "sha256": "d0b9f61a27979d5619660c7d9b90221665240611f36e283c2301d2b6bfb8198a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_semantic/tests.rs",
+        "size": 23474,
+        "sha256": "09f0f44748fc9688300b75904349c279a0d07a529dc58072661d4417b2f3f64e"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_semantic/v2_tests.rs",
+        "size": 8848,
+        "sha256": "a9c96ecb78991bf130ff4011b5b91ebfb93f8ee4853f3c2f0e75a8b33947719f"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_transport.rs",
+        "size": 8869,
+        "sha256": "0986b03069c053677e7ff2a11358bf5ee70e7c01e55bae4a3c128b61155a921e"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_trash.rs",
+        "size": 16565,
+        "sha256": "ba1d6c20b839b7a4cbce79eea40be37e97b82ae7e8ebf2a3fae92e4d4b4a47b5"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_trash_probe.rs",
+        "size": 22331,
+        "sha256": "3118b877d3059a54a8c8bc2e721ef7ef317f465e15366de826d2da72d4062715"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_trash_probe/restore.rs",
+        "size": 20519,
+        "sha256": "9f4dc5de2fe50f9082ea4a9bae2061989b2938f97b44c2d9286a965eb297ba33"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_trash_probe/restore_shape.rs",
+        "size": 9502,
+        "sha256": "afdf9ce7fdcf1253689058c3bc63875a04e1ceeaeb395904468de385e4136c2d"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_trash_probe/tests.rs",
+        "size": 12951,
+        "sha256": "1e2c9ec455adce6ec44e1c3b19030d1b67a0b2c3d590b5ab9f1759a52c8adcbb"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_trash_probe/tests/execute.rs",
+        "size": 30639,
+        "sha256": "a5d1b286c53f40a9703d83d70615165000b1d96ea4d1b93f54306d40c1d6b55c"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_trash_probe/tests/execute/restore_tests.rs",
+        "size": 15080,
+        "sha256": "32c864c969662cb9d7f772bf9a203eab2f33f81c94d44acdaabee49163ffe81e"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_upload.rs",
+        "size": 7339,
+        "sha256": "847f7e04828e28f6d6a12bcf257739e55fe3b1069db368a3af75431c679e0a08"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_upload/tests.rs",
+        "size": 7645,
+        "sha256": "e46cf592178757614643f251e6cfd9ebf30c2096d3cb19f0ba3f14a4df59ff5a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/package_wire.rs",
+        "size": 26286,
+        "sha256": "dbb0ac7637d724643a30dc147ab7163719d2b70395a00501ad6740822564de5d"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/probe_timing.rs",
+        "size": 942,
+        "sha256": "34b9fd2581b0fbdf2d98506b7e603ec859a7d2c674a7548d4a83385eaf523209"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider.rs",
+        "size": 45781,
+        "sha256": "b8bf570e886309543d7035ecd853d92a69c3f6b6a1d5dfa57c7f07518260f863"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/cold_tests.rs",
+        "size": 5704,
+        "sha256": "60fa4e8d1de39834e700de6fa67014f94846ffa68351bcba739491b93423bbe0"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/container_tests.rs",
+        "size": 5238,
+        "sha256": "afe7a4bca34e8b671d8b05130c68148d45b05673feaac32b3d51402925758b98"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/folder_node_tests.rs",
+        "size": 6646,
+        "sha256": "3d945967b28bedf57ee3d78434aa514b59d44889fb589727fa332ac73adaf22b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/folders.rs",
+        "size": 2188,
+        "sha256": "4821f97418cde22d77e23db0078ff20c0491eacf291a61d1b1fa5ff6ab47c51b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/ordinary.rs",
+        "size": 5987,
+        "sha256": "46651ffe46f560de092b12062bd3f6a502a82f75ee6885ebd3532b50987b990a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/ordinary/deadline_tests.rs",
+        "size": 12720,
+        "sha256": "b94bb8cfc3ac64b50d285bedd6d0107142b8010b0515f8e1acc015ed06d53c02"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/ordinary/tests.rs",
+        "size": 9339,
+        "sha256": "556e03e556cf7e693e327448d69246eb696967da958da7dcf40e3f0d8e0e5508"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/packages.rs",
+        "size": 30759,
+        "sha256": "2f68b840a537013f821746ae6385dcb8ef1da53066bc562bf4b01d74c9112c9e"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/packages/native_archive.rs",
+        "size": 9892,
+        "sha256": "174fbaf91cf6906188bb83178f39ca1e12c39090950f8065acdbafd402f62712"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/packages/native_archive/tests.rs",
+        "size": 18459,
+        "sha256": "50863efb1b7f851e590edbd508c051752c8ecd3e28fbaf2f21f12a283436c2d1"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/session_health_tests.rs",
+        "size": 5844,
+        "sha256": "33827159c97588be3b2c79cbb5d588e7fa185a4120d44e523d8a7a53ec51bab7"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/session_writeback_tests.rs",
+        "size": 21343,
+        "sha256": "8035c89ee54a433881596026d06e8acf9cf2dfd2a99ad7d6e55ece549091ee24"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/write_target.rs",
+        "size": 5296,
+        "sha256": "11c0b72a280a14d063a4025a8e272be53dac660e8d7936d71555c650e0703140"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/provider/write_target/tests.rs",
+        "size": 14656,
+        "sha256": "fed5ad556c4d64ba22fb88abd7d606cf2bf33970b90bc2f1c60df48cafcd918a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/sealed_session.rs",
+        "size": 57855,
+        "sha256": "675f0a8a0148144454ea54921522f69434a7cce7d23919487b484dddb682a4c3"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/sealed_session/pending_ownership_tests.rs",
+        "size": 5901,
+        "sha256": "4eb11d701f05be22133c12d9a00b79d9d6d7a452deb26fbf8e8de8da43d4d60a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/sealed_session/pending_tests.rs",
+        "size": 3019,
+        "sha256": "175be65f880d7c88cced05aedfa4b2d390ba0970b5371f7278ee9a3c0adbf1e2"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/session_identity.rs",
+        "size": 7418,
+        "sha256": "999e364d989b0933452aa4c50d6b67b72528ba577fb2389ad1d9c103d25f80e8"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/storage_refusal_tests.rs",
+        "size": 8165,
+        "sha256": "b3fc2a3c8fd7968a5cb7435bdc277d752c25da78d66a6997d253bfb9715a40e1"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/trash_lookup_probe.rs",
+        "size": 10266,
+        "sha256": "ba90356889cc9e399cd8db7bb81896d854a7e3ac321f59a2b9b97e375ee127e5"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/upload_stream_probe.rs",
+        "size": 5067,
+        "sha256": "11365121ed653f81ef510acb8f060ad3d60bf49e50385e8456d2419fd786ece7"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/upload_transport.rs",
+        "size": 19734,
+        "sha256": "2ed33aa30cdb3d0b348a3a33267b53e7aa63094156d9654284454c2e44eb0ce8"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/write_probe.rs",
+        "size": 105503,
+        "sha256": "df33b356290ecc89b848686e3db59726f480f4080a783f493849a4f4f192d39f"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/write_probe/competing.rs",
+        "size": 11758,
+        "sha256": "27760936da83d6d61f4757de155ef458c709913971e243cf3c5604e7418ae842"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/write_staging.rs",
+        "size": 19278,
+        "sha256": "656d0ab23140ed7f7e568d8f55a2a562ffe69694fe74d73a6a305b096a5797d8"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/write_transport.rs",
+        "size": 23102,
+        "sha256": "b7a58c894a53bfc7e70363cd677f0a96d8f2de405bf2355a4fe7b9212ad39ae8"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/crates/cirrove-icloud/src/scoped_session_logout.rs",
+        "size": 8777,
+        "sha256": "6c39197699c495af6881e691ed232dd4248344ae0a059da17668bc00c8eebed2"
+      }
+    ],
+    "external": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-auth/Cargo.toml",
+        "size": 651,
+        "sha256": "a65fea6fa98bd8df3d6eb03edac12db38b3a70849e7691c052084f579b7cea48"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-auth/src/google.rs",
+        "size": 12071,
+        "sha256": "fb5eb27e6a5a15c9037d1441b723332e8ccf6b3a616fbb3f04f0272a63fc7ef8"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-auth/src/lib.rs",
+        "size": 56522,
+        "sha256": "3a14962c5ecc04ba9fddbf2f75be2c09a68a9d35d7915363849fd9bf97be3c01"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-auth/tests/desktop_vault.rs",
+        "size": 7320,
+        "sha256": "9287e07ceb030e661096a5ffcfd6a342dc7979182e8d7793211e92bfe4cfef8c"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-auth/tests/fixtures/README.md",
+        "size": 178,
+        "sha256": "1cfe05cd9b410faa1a26a4d526e4d3bc33ab5a798304550cb54dacf5d6a1950c"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-auth/tests/fixtures/synthetic-rsa.pem",
+        "size": 1675,
+        "sha256": "3c5b830fcb755994ef90fbac22fce4979e488d02a05d18866860dc5c5a98b380"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/Cargo.toml",
+        "size": 350,
+        "sha256": "ef2ab3edac189f1975dba720a85ccf01970628eb39bb0d3e25cdc3538277b4eb"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/src/auth.rs",
+        "size": 632,
+        "sha256": "276c0b835f89d67778a2df84b67aead0475ee8c175cf199e5098f36a10f61c87"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/src/lib.rs",
+        "size": 21437,
+        "sha256": "0a48424af08f815ffede8d3dfd90e743e64d5ab582e5c49492dd0fd34c379db1"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/src/mutation.rs",
+        "size": 18561,
+        "sha256": "e367f1d6d3e9ee0123313832f34531ea23a7cf45fd8db0949f2ed927b2b638ce"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/src/notifications.rs",
+        "size": 1682,
+        "sha256": "a9c7500183f5573705d8e7aa3e8d42c93926e7e4536e9f993b16fbf783440a6f"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/src/reads.rs",
+        "size": 3009,
+        "sha256": "9b792724cf0e866db35c7985e14226f77e3dea06bc46613f184a6bee80f70d6a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/src/upload.rs",
+        "size": 16098,
+        "sha256": "ca01e90d718c6423b985a59d24454287edf6def681ed0f3bab8421b4e3cf0d6b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-core/src/upload/representation.rs",
+        "size": 19371,
+        "sha256": "0b21f08df20a464de1f3eacb6cc36a2c2a3d3585c18580315975b3aeeaf5e000"
+      }
+    ],
+    "workspace_configuration": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/Cargo.toml",
+        "size": 2544,
+        "sha256": "a11f38693ec3f34f7fbc8206503d3e6ec82350f26c6572491ab234eeeb9b3909"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/Cargo.lock",
+        "size": 114267,
+        "sha256": "b15c69efc03e61f73ff29d1ff0da6b29d9e2798b9b7e555b7450435f8ca3729d"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/rust-toolchain.toml",
+        "size": 86,
+        "sha256": "7553618f800829444096beea3dce84c3d07585efda504c19adb6787369bbd9e8"
+      }
+    ],
+    "manifest": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-workspace-v1/Cargo.toml",
+      "size": 2478,
+      "sha256": "151ff42ce4e987bddc59bd977ed10b543c843f87f9a2d17be430d837eda51448"
+    },
+    "seed_lock": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/augmented-sdk-preparation-v1/root-lock-seed-v1.lock",
+      "size": 114267,
+      "sha256": "b15c69efc03e61f73ff29d1ff0da6b29d9e2798b9b7e555b7450435f8ca3729d"
+    }
+  },
+  "filesystem": "/home/dandiccf/Storage ext4 /dev/nvme1n1p1",
+  "global_work_seconds": 1800,
+  "cleanup_seconds": 30,
+  "phase_cargo_work_seconds": 1200,
+  "expected_tests": {
+    "red": 1,
+    "green": 1,
+    "focused": 4
+  },
+  "provider_calls": 0,
+  "guest_actions": 0,
+  "natural_expiry_proved": false,
+  "server_isolation_proved": false,
+  "full490_closed": false,
+  "helper_binary_built": false,
+  "private_sdk_tests_only": true,
+  "owned_runner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/run_private_controls_once_v3.py",
+    "size": 8304,
+    "sha256": "cd4dc03f123c2a5e8ba42ddb5dada187527c13cea6a5ec848a59affbaf2ff97d"
+  },
+  "Root_source_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v3/Root-source-before-v1.json",
+    "size": 120220,
+    "sha256": "3bbafa3cef3b68e751022988b825fb232089e4afc1a9e4c0f0b9068d53cc575e"
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v3/terminal-v1.json",
+    "size": 7167,
+    "sha256": "f0af40c2ee101dec54664fd497bdb30eb042b46b43283b07bf41b956b99f570c"
+  },
+  "first_failed_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b/terminal-v1.json",
+    "size": 1887,
+    "sha256": "eb3a6445e65fdc23350fc55f6baf5bcb36548f4f1452e29f2dfc9d104abb02b4"
+  },
+  "rejected_lock": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b/rejected-generate-lockfile-v1.lock",
+    "size": 87411,
+    "sha256": "08fa78b228445659f389a4a008a892b67040aae5dd27639e7b14930dce1e809a"
+  },
+  "original_global_wall_deadline": 1791571413.7895885,
+  "correction": "metadata preserves seed versions; generate-lockfile selected12 newer cached tuples; no compile or RED occurred",
+  "second_failed_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v2/terminal-v1.json",
+    "size": 1952,
+    "sha256": "9da71604f7c10e085eee30b4e0793adb680cdf59022b83a11eac57e2274ebbe2"
+  },
+  "correction2": "Unfiltered offline metadata attempted missing irrelevant WASI r-efi; Linux filter. Resulting351 registrytuples remain subset. No compiler/tests.",
+  "actual_controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v3/actual-private-controls-terminal-v1.json",
+    "size": 14518,
+    "sha256": "ec57e94d9390578543a112caf51d55a3f9228ac8235b9edac8aea83c676feccb"
+  },
+  "actual_sensitive_pair": {
+    "red": 1,
+    "red_exit_code": 101,
+    "green": 1,
+    "green_exit_code": 0,
+    "scope": "legacy reconstruction mutant; exactsame fixture"
+  },
+  "actual_focused_tests": 4,
+  "all_original_handles_closed": true,
+  "actual_history": [
+    {
+      "terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b/terminal-v1.json",
+        "size": 1887,
+        "sha256": "eb3a6445e65fdc23350fc55f6baf5bcb36548f4f1452e29f2dfc9d104abb02b4"
+      },
+      "success": false,
+      "failure": "AssertionError: registry dependency changed"
+    },
+    {
+      "terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v2/terminal-v1.json",
+        "size": 1952,
+        "sha256": "9da71604f7c10e085eee30b4e0793adb680cdf59022b83a11eac57e2274ebbe2"
+      },
+      "success": false,
+      "failure": "AssertionError: offline lock refusal"
+    },
+    {
+      "terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v3/terminal-v1.json",
+        "size": 7167,
+        "sha256": "f0af40c2ee101dec54664fd497bdb30eb042b46b43283b07bf41b956b99f570c"
+      },
+      "success": true,
+      "failure": null
+    }
+  ],
+  "prior_failures_no_test_credit": true,
+  "source_pins": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/actual-controls-8df15a4d-bb72-4ffb-83d9-d4926c5f4a9b-continuation-v3/final-private-sdk-pins-v1.json",
+    "size": 37811,
+    "sha256": "13ccca50aa0b5dede2f483f561e14f2d7538d7c10d9b5c33f4b31d27a81cd143"
+  }
+}

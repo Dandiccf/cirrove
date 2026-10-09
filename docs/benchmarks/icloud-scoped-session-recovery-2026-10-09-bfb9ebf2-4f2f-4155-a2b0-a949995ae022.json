@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "run": "bfb9ebf2-4f2f-4155-a2b0-a949995ae022",
+  "registered_utc": "2026-10-09T18:22:24.455275+00:00",
+  "question": "Can one deliberately scoped target-session logout yield typed authentication rejection, preserve an independently valid same-Apple control session, then recover via public same-account read-only reauthentication without changing retained work?",
+  "arms": [
+    "independent original read-only control valid",
+    "fresh024d disabled-writable target valid then one scoped logout",
+    "same unchanged control valid afterward",
+    "public target same-account read-only reauthentication then new target snapshot valid"
+  ],
+  "prediction": "One logout returns200 and untouched pre-logout target snapshot is typed Authentication; unchanged original control remains valid; native reauth preserves disabled preference, identity and all retained bytes. Any uncertainty stops without logout retry.",
+  "endpoint": "All phases have actual bounded-original-process closure and immutable-image preservation. Deliberate rejection is separately labelled from natural expiry; no broad reliability closure.",
+  "target": "fresh024d connection only",
+  "control": "original retained read-only connection only",
+  "maximum_logout_requests": 1,
+  "allBrowsers": false,
+  "server_session_isolation_guaranteed": false,
+  "automatic_logout_retry": false,
+  "runtime_source": "1b734741c7b92d828a7d86fa94b294956b9a265e",
+  "guest_installed_version": "0.2.0dev.r1017.ga3fa14e-1",
+  "private_sdk_augmentation": "test helper only; no installed product modification",
+  "helpers": {
+    "validator": {
+      "path": "/home/tester/cirrove-session-recovery-bfb9ebf2/bin/cirrove-guest-session-validator",
+      "size": 32778376,
+      "sha256": "90e32fb790789b0ab7d641bd232c442909b364470fe0c4e4f33294c33f9a4ace"
+    },
+    "rejection": {
+      "path": "/home/tester/cirrove-session-recovery-bfb9ebf2/bin/cirrove-guest-scoped-rejection",
+      "size": 33017776,
+      "sha256": "c73b02e1b673c5c2f8f073c217e0aced601545cdbd06cd3442aaefdf3ed84d9d"
+    }
+  },
+  "coordinator": {
+    "path": "/home/tester/cirrove-session-recovery-bfb9ebf2/coordinator.py",
+    "size": 26387,
+    "sha256": "7dc38727860204018d7e9c10d675af737e7c3e3cd6ba5463130ef992e091126d"
+  },
+  "status": "closed_failed_post_logout_classification",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "original_outer_deadline_preserved": true,
+  "maximum_window_seconds": 1800,
+  "control_before": {
+    "Manager_constructed": false,
+    "classification": "saved_session_valid",
+    "cloud_mutations": 0,
+    "journal_opened": false,
+    "natural_expiry_proved": false,
+    "raw_error_retained": false,
+    "reauthentication_performed": false,
+    "remote_read_dispatched": true,
+    "replayed": false,
+    "returned_count": 261,
+    "run": "bfb9ebf2-4f2f-4155-a2b0-a949995ae022",
+    "settings_ciphertext_preserved": true,
+    "version": 1
+  },
+  "target_result": {
+    "Manager_constructed": false,
+    "before_classification": "saved_session_valid",
+    "journal_opened": false,
+    "logout_http_status": 200,
+    "logout_requests": 1,
+    "natural_expiry_proved": false,
+    "other_sessions_preservation_after_logout_proved": false,
+    "phase": "logout_fresh_session",
+    "provider_data_mutations": 0,
+    "raw_error_retained": false,
+    "reauthentication_performed": false,
+    "returned_count": 261,
+    "run": "bfb9ebf2-4f2f-4155-a2b0-a949995ae022",
+    "session_rejection_proved": false,
+    "settings_ciphertext_and_key_preserved": true,
+    "untouched_snapshot_classification": "unknown_failure",
+    "version": 1
+  },
+  "control_after_executed": false,
+  "public_reauthentication_executed": false,
+  "provider_data_mutations": 0,
+  "natural_expiry_proved": false,
+  "full_490_closed": false,
+  "full_icloud_criteria_closed": 5,
+  "full_icloud_criteria_total": 6,
+  "host_delivery": "HOLD",
+  "Numbers_conflict_action": "STOPPED; excluded",
+  "all_runtime_original_handles_reaped": true,
+  "runtime_sequence_success": false,
+  "offline_inspection": {
+    "provider_network": "none",
+    "block_device_readonly": true,
+    "mounted_readonly_noload": true,
+    "success": true,
+    "source_image_sha256": "9daf2d11a2ed81c2e90db547cd2bca3b4589995ae405e675fc561147ebfd2b14"
+  },
+  "safe_evidence": {
+    "size": 13732,
+    "sha256": "f25cc531a7895b4bf486a015e5df5f92553d27a59fbc7e29d8fa910f9ef458f8"
+  },
+  "history": [
+    {
+      "phase": "initial setup",
+      "outcome": "optional tray unit absence refused before helpers; no logout"
+    },
+    {
+      "phase": "runtime-v3",
+      "outcome": "control helper exited zero; observer rejected 49 discarded stderr bytes before preserving structured classification; no logout"
+    },
+    {
+      "phase": "offline-v4",
+      "outcome": "netless read-only inspection confirmed runtime-v3 had no target dispatch"
+    },
+    {
+      "phase": "runtime-v5 observer correction",
+      "outcome": "removed only zero-stderr success prerequisite; raw stderr still discarded and strict typed schema retained"
+    },
+    {
+      "phase": "runtime-v5 fixture unlock",
+      "outcome": "two local timeouts and one dismissal retained; fourth local request explicitly completed successfully before provider helper dispatch"
+    }
+  ],
+  "interpretation": "The control and target saved sessions were valid before one logout response HTTP200. The untouched target snapshot then produced unknown_failure, not typed Authentication. Stop without retry; this is neither natural expiry nor successful rejection/recovery acceptance.",
+  "preservation": {
+    "settings_ciphertext_and_key_preserved_by_target_helper": true,
+    "coordinator_post_helper_snapshot_comparison": "present before classification acceptance in frozen source; no separate successful post-comparison receipt retained; shared failure stage does not distinguish assertions",
+    "independent_backing_and_host_audit": {
+      "checks_passed": 20,
+      "whole_session_trial_passed": false,
+      "six_backings_SHA256_stat9_equal": true,
+      "strict_fuser_empty": true,
+      "readonly_inspected_result_image_equal": true,
+      "host_installed_files_preserved": 19,
+      "host_daemon_PID_birth_executable_preserved": true,
+      "all_original_and_descendant_process_groups_absent": true,
+      "audit_size": 12764,
+      "audit_sha256": "76fd33daaa7abb0efe12fc13de89cc874ffff46c5ac2ee181278a1cbc5ff5f84"
+    }
+  },
+  "source_error_audit": {
+    "ordinary_HTTP401_403_mapped_to_authentication": true,
+    "actual_post_logout_HTTP_status_unknown": true,
+    "no_speculative_HTTP421_reclassification": true,
+    "private_audit_sha256": "bf4e4d67133673d877801f2076ceb30eadcf1b69a015fe534999281af64eef9f"
+  }
+}

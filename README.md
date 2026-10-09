@@ -336,6 +336,12 @@ startup leaves credentials unchanged; legacy keyring sessions require foreground
 migration.
 Real Apple session-expiry recovery and wider reliability remain open.
 
+A [controlled session test](docs/benchmarks/icloud-scoped-session-recovery-2026-10-09-bfb9ebf2-4f2f-4155-a2b0-a949995ae022.json)
+confirmed two valid saved sessions and received HTTP 200 for one scoped logout.
+The following target read returned an unclassified failure rather than a typed
+authentication rejection, so the test stopped without retry or reauthentication.
+This unresolved result does not close the reliability criterion.
+
 Read the [full integration record](docs/icloud-write-integration.md) for historical
 successes, retained failures and measured limits, and the
 [deployment policy](docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
