@@ -69,6 +69,18 @@ five children closed. Its successor was only partially prepared and never
 dispatched. Neither attempt establishes the live conflict endpoint or closes
 criterion 490.
 
+Saved-session feeds now [revalidate on each existing scheduled poll](benchmarks/icloud-saved-session-health-regression-2026-10-09-38c5c4b2-2c9a-4538-8b17-c37937a6654d.json).
+Previously, the on-demand adapter cached its initial validation indefinitely,
+so a later rejected session could leave the account marked Ready. The old-code
+regression failed at the intended assertion and three corrected local controls
+passed. Observed authentication rejection can now reach the existing
+sign-in-required status on the next poll; temporary server failures retain their
+separate classification. This adds one complete, nonrecursive root listing per
+saved-session poll, normally every 30 seconds plus request time, with the
+existing timeout, cancellation and response-size limits. Cached metadata,
+completed cursors and pending edits remain intact. Natural Apple session expiry
+and subsequent installed reauthentication still require live acceptance.
+
 ### Tested samples and implementation limits
 
 These are exact bounded samples or implementation limits, not a coverage percentage

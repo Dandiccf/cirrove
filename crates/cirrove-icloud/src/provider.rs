@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, OnceCell, Semaphore};
+use tokio::sync::{Mutex, Semaphore};
 
 #[cfg(test)]
 mod cold_tests;
@@ -29,6 +29,8 @@ mod folder_node_tests;
 mod folders;
 mod ordinary;
 mod packages;
+#[cfg(test)]
+mod session_health_tests;
 mod write_target;
 
 const PROVIDER_ID: &str = "icloud";
@@ -45,7 +47,6 @@ pub struct ICloudDrive {
     session: Mutex<SessionState>,
     index_mode: IndexMode,
     keyring_backed: bool,
-    keyring_validated: OnceCell<()>,
     reads: Arc<Semaphore>,
     packages: Option<packages::Packages>,
     write_targets: std::sync::Mutex<write_target::Cache>,
@@ -105,7 +106,6 @@ impl ICloudDrive {
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             index_mode: IndexMode::OnDemand,
             keyring_backed: false,
-            keyring_validated: OnceCell::new(),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
             write_targets: std::sync::Mutex::new(write_target::Cache::default()),
@@ -158,7 +158,6 @@ impl ICloudDrive {
             }),
             index_mode: IndexMode::OnDemand,
             keyring_backed: true,
-            keyring_validated: OnceCell::new(),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
             write_targets: std::sync::Mutex::new(write_target::Cache::default()),
@@ -184,7 +183,6 @@ impl ICloudDrive {
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             index_mode,
             keyring_backed: false,
-            keyring_validated: OnceCell::new(),
             reads: Arc::new(Semaphore::new(4)),
             packages: None,
             write_targets: std::sync::Mutex::new(write_target::Cache::default()),
@@ -459,11 +457,12 @@ impl MetadataProvider for ICloudDrive {
         self.check_scope(scope)?;
         if self.index_mode == IndexMode::OnDemand {
             if self.keyring_backed {
-                self.keyring_validated
-                    .get_or_try_init(|| async {
-                        self.list_folder(ROOT_ID, cancel).await.map(|_| ())
-                    })
-                    .await?;
+                // The scheduled feed poll also observes saved-session health.
+                // A once-only check would keep reporting Ready after Apple
+                // rejects a session that was valid when this mount started.
+                // Keep the existing listing timeout/cancellation and leave
+                // cached directory publication and pending edits untouched.
+                self.list_folder(ROOT_ID, cancel).await?;
             }
             return on_demand_page(cursor);
         }
