@@ -61,7 +61,7 @@ filesystem operations have their own limits.
 | **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
 | **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
 | **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
-| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in, read-only mounts and owned ordinary-file saves have live evidence. Twelve bounded Pages, Numbers and Keynote workflows cover DATA/PACKAGE documents, ordinary saves and atomic replacement, preserved originals in Trash, remount and reopening in Apple's editors. Export fidelity has documented limits. Installed read-only sign-in, explicit write opt-in and Strata preservation have now been observed. Complete installed recovery/downgrade and broader reliability remain open. This integration is not yet part of `main` or a release; see [the progress and limits](#icloud-integration-progress). |
+| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in, read-only mounts and owned ordinary-file saves have live evidence. Twelve bounded Pages, Numbers and Keynote workflows cover DATA/PACKAGE documents, ordinary saves and atomic replacement, preserved originals in Trash, remount and reopening in Apple's editors. Export fidelity has documented limits. Installed sign-in, write opt-in, read-only downgrade, retained-byte recovery and Strata preservation are validated in bounded test-machine trials. Broader reliability remains open. This integration is not yet part of `main` or a release; see [the progress and limits](#icloud-integration-progress). |
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -201,10 +201,11 @@ iCloud remains a development integration rather than a general onboarding route.
 [PR 86](https://github.com/Dandiccf/cirrove/pull/86). It is not part of `main`
 or a released Cirrove version. **Full iCloud acceptance remains open and
 candidate delivery is on HOLD.** New connections default to read-only;
-writes require an explicit experimental opt-in. Four of the six full-integration
+writes require an explicit experimental opt-in. Five of the six full-integration
 criteria are closed: public Pages import, native replacement/removal recovery,
-application workflows and installed Strata preservation. Installed account
-lifecycle and reliability remain open.
+application workflows, installed account lifecycle and installed Strata
+preservation. The reliability criterion remains open; this count is not a
+percentage of development effort or a reliability score.
 
 Cirrove has its own native Linux iCloud adapter using Apple's undocumented
 web transport. It does not import another cloud client's credentials or
@@ -264,17 +265,18 @@ survived deployment and testing. This closes the installed Strata preservation
 criterion; it does not establish every desktop or general iCloud reliability.
 
 Explicit native reauthentication then enabled writes on the same installed
-account. The following normal save exposed a remaining bug: its newly created
+account. The following normal save exposed a bug: its newly created
 folder reached iCloud, but the file stayed locally retained as Conflict. The
 trial was stopped without retrying the upload; this sequence is under
 investigation and does not count as successful installed write acceptance.
 The [targeted parent-lookup correction](docs/benchmarks/icloud-fresh-mkdir-parent-regression-2026-10-09.json)
 passes nine local controls after the identical primary fixture failed on the old code.
-A fresh installed cloud retest is still required.
+A fresh installed cloud retest subsequently passed, as recorded below; the
+earlier conflicted save remains retained and was not retried.
 The [registered installed trial](docs/benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json)
 also verified offline exports of a **44-byte sealed save** and a **52-byte
-unlinked working file**, both with matching checksums. Read-only downgrade
-and active recovery of those same generations remain untested. The trial
+unlinked working file**, both with matching checksums. At that checkpoint,
+read-only downgrade and active recovery remained untested. The trial
 records the separate transport failure and each outcome’s scope.
 
 A subsequent [offline package-upgrade test](docs/benchmarks/icloud-offline-installed-upgrade-2026-10-09-ae484a4d-4a97-4eca-b470-6c270eec8220.json)
@@ -285,15 +287,30 @@ original disk were preserved. The installed daemon, authentication and provider
 were not started by this test. This prepares the next genuine account-lifecycle
 trial; it does not establish read-only downgrade or active recovery.
 
+The [current installed lifecycle assessment](docs/benchmarks/icloud-installed-lifecycle-acceptance-2026-10-09.json)
+closes that missing endpoint on the attested `r1017.ga3fa14e` packages. Genuine
+same-account reauthentication changed access to read-only while preserving the
+disabled preference, account identity and credential ID. After explicit enable,
+the normal installed daemon mounted read-only and refused creation with EROFS;
+active exports recovered the exact original 44-byte sealed save and 52-byte
+unlinked generation. Both retained records and the older conflict stayed intact.
+
+A separate new writable connection then created one fresh owned folder and
+saved one **4,224-byte file** immediately inside it. The single save reached
+Uploaded. The original read-only connection selected the same cloud item with
+zero resident bytes, read the exact content and checksum, and then reported
+full residency. Unsupported permanent deletion was refused while the new
+connection was writable, preserving the file and upload record. That test
+connection was disabled afterward. Both VMs closed cleanly and preserved their
+backing disks; the user's regular daemon was unchanged. These bounded trials
+complete installed lifecycle acceptance, not general provider reliability.
+
 ### What still blocks full acceptance
 
-1. **Complete installed account lifecycle:** a successful owned-file save
-   after the observed same-account write opt-in, followed by read-only downgrade
-   and retained sealed/dirty-byte recovery, preserving other accounts and
-   permanent-deletion refusal.
-2. **Reliability:** remaining in-flight replacement and namespace uncertainty,
-   expired-session recovery, storage/staging limits and abandoned-work handling,
-   with registered real-account evidence and explicit size/format bounds.
+The remaining **reliability** criterion covers in-flight replacement and
+namespace uncertainty, expired-session recovery, storage/staging limits and
+abandoned-work handling, with registered real-account evidence and explicit
+size/format bounds. Installed delivery stays on HOLD until that scope closes.
 
 Newly received saved cookies now retain absolute expiry. The identical
 [local regression fixture](docs/benchmarks/icloud-cookie-expiration-local-2026-10-09.json)

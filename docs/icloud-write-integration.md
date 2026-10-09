@@ -20,7 +20,7 @@ and retained its one-slide B title and subtitle after one reload, with no edits.
 The original managed processes closed and protected source/installed artifacts
 remained unchanged. This is one bounded PACKAGE workflow, with no claim for
 DATA coverage, ordinary/atomic editor saves, broader export fidelity or repeated
-reliability. Full-iCloud acceptance is now four criteria closed and two open;
+reliability. Full-iCloud acceptance is now five criteria closed and one open;
 delivery to the user's regular installation remains on HOLD. The dated closure assessment below combines the
 measured replacement, removal, refusal and process-loss endpoints; historical
 open-row counts later in this record retain their original checkpoint meaning.
@@ -29,8 +29,8 @@ The [documented iWork application criterion](benchmarks/icloud-iwork-application
 now covers all twelve DATA/PACKAGE ordinary/atomic archive-copy workflows and
 the supported DOCX, PPTX and Apple Excel export-copy checks. Native Linux iWork
 saving remains unsupported; the precise tested content and format limits are
-recorded in the latest dated assessment below. Installed lifecycle and reliability
-criteria remain open; the installed Strata preservation criterion is closed.
+recorded in the latest dated assessment below. Reliability remains open;
+installed lifecycle and Strata preservation are closed.
 
 ## Occupied sealed publication slots
 
@@ -55,7 +55,29 @@ part of this change; further publication remains blocked until safe recovery.
 
 ## Current checkpoint, 9 October 2026
 
-Criteria 485, 486, 487 and 489 are closed; 488 and 490 remain open. The
+Criteria 485–489 are closed; reliability criterion 490 remains open. The
+[installed lifecycle assessment](benchmarks/icloud-installed-lifecycle-acceptance-2026-10-09.json)
+joins the earlier installed sign-in/opt-in and current package upgrade with two
+new controlled endpoints. Genuine same-account reauthentication on the current
+attested packages preserved account/credential identity and the disabled
+preference while changing access to read-only. Explicit enable produced a normal
+read-only mount with EROFS refusal and exact active exports of the retained
+44-byte sealed save and 52-byte unlinked generation 4. All three selected retained
+record bodies, including the older conflict, stayed byte-identical.
+
+A separate fresh writable connection used its own account, credential and empty
+journal, keeping the original connection read-only. One immediate mkdir/file
+save reached Uploaded with the exact 4,224-byte payload. The original read-only
+connection selected the same provider item with zero residency, read its exact
+bytes/checksum once and then reported full residency. Unsupported permanent
+deletion refused while writable, leaving the file and upload unchanged. The new
+connection was disabled afterward; both original VM owners and children closed,
+all backing image pins were preserved, and the original host daemon stayed
+unchanged. Independent endpoint/closure audits passed 28/22 and 31/24 checks.
+This closes literal criterion 488, with no repeated-reliability or natural-expiry
+claim. The regular-host installation remains on HOLD.
+
+The following earlier checkpoints retain their failed and partial outcomes. The
 [installed Arch trial](benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json)
 first connected through public native sign-in on aa02 with default read-only
 access, then upgraded to attested 7dc061c packages and restored the same ready
@@ -70,14 +92,14 @@ Same-account native reauthentication subsequently enabled writes. One new folder
 was applied remotely, but its ordinary file save remained locally retained as
 Conflict. The [parent-lookup regression](benchmarks/icloud-fresh-mkdir-parent-regression-2026-10-09.json)
 failed on the old code and passed nine focused local tests with the correction;
-a fresh installed cloud save retest is required, and the historical initial
+a fresh installed cloud save retest was required at that checkpoint, and the historical initial
 metadata state does not uniquely establish that failure's cause. The same guest
 retained and exported a 44-byte sealed save and a 52-byte unlinked dirty working
 file while offline, then remained disabled and unmounted. The outer SSH owner
 exited 255 after timeout; the six public CLI children exited zero and the exports
 matched their registered hashes. This is partial recovery evidence, not a clean
 overall run or read-only downgrade. Recovery of these same generations after
-genuine read-only reauthentication remains open. Dated counts and failed outcomes
+genuine read-only reauthentication was then still open. Dated counts and failed outcomes
 later in this record retain their original checkpoint meaning.
 
 The [subsequent offline installed upgrade](benchmarks/icloud-offline-installed-upgrade-2026-10-09-ae484a4d-4a97-4eca-b470-6c270eec8220.json)
