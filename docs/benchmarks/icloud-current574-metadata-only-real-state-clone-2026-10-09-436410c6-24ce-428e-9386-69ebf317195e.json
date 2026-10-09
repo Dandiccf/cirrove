@@ -1,0 +1,116 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/metadata-only-436410c6-24ce-428e-9386-69ebf317195e",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/metadata-only-436410c6-24ce-428e-9386-69ebf317195e",
+  "active": false,
+  "active_measurement": false,
+  "actual_pending_snapshot_diagnostic": {
+    "first_refusal": "unresolved-or-incoherent-row",
+    "incomplete_queue_entries": 9,
+    "individual_queue_correspondence_unproved": true,
+    "pending_mutations": 7,
+    "run": "1ee4c705-82ca-4222-be1a-6a33026091ba"
+  },
+  "actual_result": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/result.json",
+    "sha256": "56f4458d2c636470771957cca5462d3eb670ba3d9b98dfa1caa1efc9237975c0",
+    "size": 4159
+  },
+  "approved_metadata_only_clone": true,
+  "backup_authority": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/historical-coherent-backup-rust-authority-v1.json",
+    "sha256": "78190608ca207cd29c9096d5fbfffd812de34864523b95d1de2bb86cfbe0bef5",
+    "size": 3897
+  },
+  "build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/compatibility-helper-build-preparation-v1/build-execution-33df28e5-7a7d-430c-a2a2-5deec85f8b97/audit-independent-build-terminal-v1.json",
+    "sha256": "737225d0addbb60334cffbd38c0023f4c65db962301bdadf22ef6c2058e77199",
+    "size": 16208
+  },
+  "build_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/compatibility-helper-build-preparation-v1/build-execution-33df28e5-7a7d-430c-a2a2-5deec85f8b97/terminal-v1.json",
+    "sha256": "d6f84af279225eabcc238fc45f50ca8570186b961225357999b96da202e39943",
+    "size": 87717
+  },
+  "candidate_normal_features": [],
+  "candidate_source_count": 574,
+  "cleanup_reserve": 45,
+  "consolidation_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/primary-runtime-preparation-v1/public-after-closed-before-audit-consolidation-v1.json",
+    "sha256": "c5a27e70cf3dceb7bb05787746df613f48fae029da42dcebc5cb1241f26a5d4d",
+    "size": 4742
+  },
+  "detached_settled": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/primary-runtime-preparation-v1/run_metadata_only_clone_once_v4.py",
+    "sha256": "19fa8d0359ab74637e3f893a6a979c9a3f79cffc4cc867b1cde2bcfcfc582935",
+    "size": 8589
+  },
+  "filesystem_requirement": "ext4 asserted by owned findmnt before helper",
+  "gate488_closed": false,
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/compatibility-helper-build-preparation-v1/build-execution-33df28e5-7a7d-430c-a2a2-5deec85f8b97/frozen/observer",
+    "sha256": "6d6e12a64c4c40944000fe2e26b52a4d4fc0463480b7cd8364407ced74c21f3d",
+    "size": 361173144
+  },
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/metadata-only-436410c6-24ce-428e-9386-69ebf317195e/audit-independent-metadata-only-clone-terminal-v1.json",
+    "sha256": "651e098e9f8b078146a932acc95ebe56e3efa269ec6130170dbddbbf646a3d34",
+    "size": 20733
+  },
+  "independent_checks": 31,
+  "installed_actions": false,
+  "launcher_preinput_refusal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/primary-runtime-preparation-v1/root-launcher-preinput-pin-refusal-v1.json",
+    "sha256": "01dcb94fa7e51bd0773a7dd67d1bc6115d65b8f10b218e4463735af2541e8c16",
+    "size": 699
+  },
+  "maximum_helper_seconds": 600,
+  "original_SQL": false,
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 531799.469564377,
+    "monotonic_start": 530899.469564377,
+    "seconds": 900,
+    "wall_end": 1791507172.3464856,
+    "wall_start": 1791506272.3464856
+  },
+  "prediction": "Known pending rows stay exact without workers; strict schema/typed/export/byte guards determine the result. Unknown legacy state may refuse; do not repeat automatically.",
+  "provider": false,
+  "question": "Does the current normal-feature standalone constructor preserve the copied real pending journals, all old cells, and sealed/working exports while changing only clone metadata7 to8?",
+  "recovery_exports_preserved": 11,
+  "recovery_only_daemon_started": false,
+  "restoration_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/restore-original-f88f32b0-2201-4a96-ac08-ced73387ceba/audit-independent-complete-restoration-and-stable-status-v1.json",
+    "sha256": "be08bca1a60acf9dc527c982c08d775e25a00037c0ad19ff96c1122714d33c86",
+    "size": 19563
+  },
+  "result_scope": "standalone metadata constructor on copied real state; no candidate daemon or installed acceptance",
+  "run": "436410c6-24ce-428e-9386-69ebf317195e",
+  "seconds": 900,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/primary-runtime-preparation-v1/audit-independent-metadata-only-clone-source-v4.json",
+    "sha256": "807c4601fb3f59f1d8d8dc53d605203df64010951de30a71359ec1ae59ceef64",
+    "size": 6737
+  },
+  "status": "closed_metadata_only_clone",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/metadata-only-436410c6-24ce-428e-9386-69ebf317195e/terminal-v1.json",
+    "sha256": "79e06ef94b3e325e4139ddca1d70a5062c0f52c38f8da3c91d50058b5375bb20",
+    "size": 1575
+  },
+  "tuple": {
+    "from": [
+      14,
+      7
+    ],
+    "to": [
+      14,
+      8
+    ]
+  },
+  "version": 1,
+  "whole_preparation_success": false
+}

@@ -1,0 +1,288 @@
+{
+  "version": 1,
+  "run": "de9e5b30-006d-4056-ada7-66e1f699c4dc",
+  "question": "Does installing exact attested aa02 packages into the genuinely empty new Arch guest yield the packaged daemon/socket and optional Strata runtime, without cloud accounts or altered host/otherguest/default-FM routes?",
+  "arms": [
+    "one guest-only package/runtime installation"
+  ],
+  "prediction": "Empty passwd-home/live/future state union verified before pacman; four exact package archives yield exact normalELF/unit; GNOME SecretService availability recorded; optional source2bad Strata startup on actualglibc>=2.44 succeeds, defaults/preferences preserved; guest powers off with originalownersclosed within1800/45. No cloud acceptance inferred.",
+  "endpoint": "one SSH preparation success JSON + natural guest poweroff + all original QEMU/HTTP/SSH owners/groups/listenersclosed",
+  "active_measurement": false,
+  "active_window": false,
+  "status": "closed_guest_package_runtime_pass",
+  "duration_seconds": 1800,
+  "cleanup_reserve_seconds": 45,
+  "TMPDIR": "/home/dandiccf/Storage/ct/guest-package-de9e5b30-006d-4056-ada7-66e1f699c4dc",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/guest-package-de9e5b30-006d-4056-ada7-66e1f699c4dc",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/actual-guest-package-runtime-de9e5b30-006d-4056-ada7-66e1f699c4dc/run_owned_guest_package_runtime_once_v1.py",
+    "size": 11038,
+    "sha256": "07d5b780e85193de407468244fdd8409c5bb419761bd4e8922391c5de8717795"
+  },
+  "guest_script": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/prepare-packaged-runtime-with-Strata-v2.py",
+    "size": 9370,
+    "sha256": "e79c65c6299097d855f26428a51c456f61c36507a820b4ac60f8534c3b537f69"
+  },
+  "commands": {
+    "QEMU": [
+      "/usr/bin/qemu-system-x86_64",
+      "-name",
+      "cirrove-empty-aa02-6aaa",
+      "-enable-kvm",
+      "-cpu",
+      "host",
+      "-m",
+      "8G",
+      "-smp",
+      "4",
+      "-drive",
+      "file=/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2,if=virtio,format=qcow2",
+      "-netdev",
+      "user,id=n0,hostfwd=tcp:127.0.0.1:2224-:22",
+      "-device",
+      "virtio-net-pci,netdev=n0,mac=52:54:00:6a:aa:01",
+      "-device",
+      "virtio-vga",
+      "-display",
+      "none",
+      "-vnc",
+      "127.0.0.1:12",
+      "-qmp",
+      "unix:/home/dandiccf/Storage/ct/guest-package-de9e5b30-006d-4056-ada7-66e1f699c4dc/qmp.sock,server,nowait",
+      "-serial",
+      "stdio",
+      "-no-reboot"
+    ],
+    "HTTP": [
+      "/usr/bin/python3.14",
+      "-m",
+      "http.server",
+      "8002",
+      "--bind",
+      "127.0.0.1",
+      "--directory",
+      "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www"
+    ],
+    "SSH_prefix": [
+      "/usr/bin/ssh",
+      "-F",
+      "/dev/null",
+      "-o",
+      "IdentityAgent=none",
+      "-o",
+      "PreferredAuthentications=publickey",
+      "-i",
+      "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/id_ed25519",
+      "-o",
+      "IdentitiesOnly=yes",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "StrictHostKeyChecking=accept-new",
+      "-o",
+      "UserKnownHostsFile=/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/actual-guest-package-runtime-de9e5b30-006d-4056-ada7-66e1f699c4dc/known_hosts",
+      "-o",
+      "GlobalKnownHostsFile=/dev/null",
+      "-o",
+      "ConnectTimeout=5",
+      "-o",
+      "ConnectionAttempts=1",
+      "-p",
+      "2224",
+      "tester@127.0.0.1"
+    ],
+    "SSH_prepare": "curl --fail --max-time 30 http://10.0.2.2:8002/prepare-packaged-runtime-with-Strata-v2.py -o /home/tester/prepare-packaged-runtime-with-Strata-v2.py && echo e79c65c6299097d855f26428a51c456f61c36507a820b4ac60f8534c3b537f69 /home/tester/prepare-packaged-runtime-with-Strata-v2.py | sha256sum -c - && sudo /usr/bin/python3 /home/tester/prepare-packaged-runtime-with-Strata-v2.py",
+    "SSH_poweroff": "sudo systemctl poweroff"
+  },
+  "source_packages": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/actual-guest-package-runtime-de9e5b30-006d-4056-ada7-66e1f699c4dc/run_owned_guest_package_runtime_once_v1.py",
+      "size": 11038,
+      "sha256": "07d5b780e85193de407468244fdd8409c5bb419761bd4e8922391c5de8717795",
+      "role": "driver"
+    },
+    {
+      "path": "/usr/bin/python3.14",
+      "size": 14424,
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+      "role": "Python"
+    },
+    {
+      "path": "/usr/bin/qemu-system-x86_64",
+      "size": 28940536,
+      "sha256": "019b1b48156d0eb84b3042bdab29120a5464b2d6707563858461d6880a491d54",
+      "role": "QEMU"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/candidate-aa02-arch-provenance-37859594107-private-v1/cirrove-0.2.0dev.r1007.gaa02b8d-1-x86_64.pkg.tar.zst",
+      "size": 20459940,
+      "sha256": "22fd25ee11331acb1916521a87caf9cb9fb6e1eee324049235267db4b93dae2a",
+      "stat9": [
+        57,
+        75278864,
+        33024,
+        1000,
+        1000,
+        1,
+        20459940,
+        1791503903355984329,
+        1791503903355984329
+      ],
+      "role": "package"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/candidate-aa02-arch-provenance-37859594107-private-v1/cirrove-debug-0.2.0dev.r1007.gaa02b8d-1-x86_64.pkg.tar.zst",
+      "size": 4742001,
+      "sha256": "ae2065bc5488c5af10fce695647983938c5d7cbba46510e4709fb4b774aa0aea",
+      "stat9": [
+        57,
+        75278862,
+        33024,
+        1000,
+        1000,
+        1,
+        4742001,
+        1791503903315983354,
+        1791503903315983354
+      ],
+      "role": "package"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/candidate-aa02-arch-provenance-37859594107-private-v1/cirrove-desktop-0.2.0dev.r1007.gaa02b8d-1-x86_64.pkg.tar.zst",
+      "size": 8272833,
+      "sha256": "0091c25108fce3eaf27ba292c8e0c7e045a3792b2c1d3e3aa1331c70f3eeb97d",
+      "stat9": [
+        57,
+        75278863,
+        33024,
+        1000,
+        1000,
+        1,
+        8272833,
+        1791503903329983695,
+        1791503903329983695
+      ],
+      "role": "package"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/candidate-aa02-arch-provenance-37859594107-private-v1/cirrove-dolphin-0.2.0dev.r1007.gaa02b8d-1-x86_64.pkg.tar.zst",
+      "size": 89716,
+      "sha256": "1872d32de0cd00851cf4699124b738b6d96f0f76695f00c6eaf7097280787bec",
+      "stat9": [
+        57,
+        75278865,
+        33024,
+        1000,
+        1000,
+        1,
+        89716,
+        1791503903380620996,
+        1791503903380620996
+      ],
+      "role": "package"
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/prepare-packaged-runtime-with-Strata-v2.py",
+      "size": 9370,
+      "sha256": "e79c65c6299097d855f26428a51c456f61c36507a820b4ac60f8534c3b537f69",
+      "role": "guest_script"
+    }
+  ],
+  "optional_Strata_inputs": [
+    {
+      "path": "/home/dandiccf/Work/strata-cirrove/target/provider-maintainer-oct6-ci-bundle/strata",
+      "size": 151255152,
+      "sha256": "116f66f5403534dd41559c992470290fe1d46db74f562d5ba9d4b3a1848ed261",
+      "relative": "strata",
+      "copy": {
+        "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/strata-baseline-aa02/strata",
+        "size": 151255152,
+        "sha256": "116f66f5403534dd41559c992470290fe1d46db74f562d5ba9d4b3a1848ed261"
+      }
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/scripts/install-strata.py",
+      "size": 3855,
+      "sha256": "e5b7c956a0e8306a1253862fa7976203610855ddfb36f4e55a9965dc39f529f3",
+      "relative": "scripts/install-strata.py",
+      "copy": {
+        "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/strata-baseline-aa02/scripts/install-strata.py",
+        "size": 3855,
+        "sha256": "e5b7c956a0e8306a1253862fa7976203610855ddfb36f4e55a9965dc39f529f3"
+      }
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/packaging/strata/cirrove-provider.py",
+      "size": 11749,
+      "sha256": "98214721d5551b1fb54b1e5a8cdb505604771b30c6394945f9e14b1f2af6d82b",
+      "relative": "packaging/strata/cirrove-provider.py",
+      "copy": {
+        "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/strata-baseline-aa02/packaging/strata/cirrove-provider.py",
+        "size": 11749,
+        "sha256": "98214721d5551b1fb54b1e5a8cdb505604771b30c6394945f9e14b1f2af6d82b"
+      }
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/packaging/strata/icons/kept.png",
+      "size": 2278,
+      "sha256": "544c5086416d7d2446586b78430c2d6acb427bdd3fa7b7d73bd6200ebd508807",
+      "relative": "packaging/strata/icons/kept.png",
+      "copy": {
+        "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/strata-baseline-aa02/packaging/strata/icons/kept.png",
+        "size": 2278,
+        "sha256": "544c5086416d7d2446586b78430c2d6acb427bdd3fa7b7d73bd6200ebd508807"
+      }
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/packaging/strata/icons/fetching.png",
+      "size": 2127,
+      "sha256": "7971a23dc24335f4b638d45ecbd9f34a8c2abc8679c04421d34aa31cbc4d0846",
+      "relative": "packaging/strata/icons/fetching.png",
+      "copy": {
+        "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/strata-baseline-aa02/packaging/strata/icons/fetching.png",
+        "size": 2127,
+        "sha256": "7971a23dc24335f4b638d45ecbd9f34a8c2abc8679c04421d34aa31cbc4d0846"
+      }
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/packaging/strata/icons/mark.png",
+      "size": 3025,
+      "sha256": "50955ec32cf2f8ba1395abf33936fe59b15e30a7d057125df86ec6f0481d970c",
+      "relative": "packaging/strata/icons/mark.png",
+      "copy": {
+        "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/www/strata-baseline-aa02/packaging/strata/icons/mark.png",
+        "size": 3025,
+        "sha256": "50955ec32cf2f8ba1395abf33936fe59b15e30a7d057125df86ec6f0481d970c"
+      }
+    }
+  ],
+  "actual_dispatch_authorized": true,
+  "gate488_closed": false,
+  "gate489_closed": false,
+  "gate490_closed": false,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/actual-guest-package-runtime-de9e5b30-006d-4056-ada7-66e1f699c4dc/actual-guest-package-runtime-terminal-v1.json",
+    "size": 1844,
+    "sha256": "ae84bc6fde9b5dba3d70ac72e5c20fc5d5189b65c5b98c8af1aa64bf574972f3"
+  },
+  "whole_success": true,
+  "actual_scope": "fresh_owned_Arch_guest_package_and_optional_companion_preparation_only",
+  "actual_owner_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/actual-guest-package-runtime-de9e5b30-006d-4056-ada7-66e1f699c4dc/actual-guest-package-runtime-owner-closure-v1.json",
+    "size": 6041,
+    "sha256": "bcf1998a20734a2f764470d9d521766b97da6dd37134e609c0471dc7910e15b9"
+  },
+  "actual_elapsed_seconds": 26.38874125480652,
+  "actual_guest_observation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/actual-guest-package-runtime-de9e5b30-006d-4056-ada7-66e1f699c4dc/actual-guest-runtime-observation-v1.json",
+    "size": 2701,
+    "sha256": "2924a1c7701c0e826d87f0b38dd8e18005698f9956a72f628836dbb3572c1c10"
+  },
+  "installed_Cirrove_version": "0.2.0dev.r1007.gaa02b8d-1",
+  "SecretService_name_has_owner": true,
+  "cloud_auth_started": false,
+  "guest_powered_off": true,
+  "empty_baseline_home_scope": "passwd UID0 and UID1000..65533 homes (root/tester), plus absence of all live cirroved processes; other system-account homes not enumerated",
+  "Strata_acceptance_limit": "ELF version process and three-second startup in isolated preference config; no real-provider GUI/Strata deployment acceptance"
+}

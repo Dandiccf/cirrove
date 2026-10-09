@@ -1,0 +1,89 @@
+{
+  "SQL": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/credential-guard-controls-604a3988-075d-4b94-ae17-b43ad2a2167a",
+  "TMPDIR": "/home/dandiccf/Storage/ct/credential-guard-controls-604a3988-075d-4b94-ae17-b43ad2a2167a",
+  "active": false,
+  "active_measurement": false,
+  "actual_result": {
+    "path": "/home/dandiccf/Storage/ct/credential-guard-controls-604a3988-075d-4b94-ae17-b43ad2a2167a/terminal-v1.json",
+    "sha256": "fe55021b8f4fe14c3b0e82e3e6b4fd556fc1c7bc6d5e2fa3a03b64cff9770954",
+    "size": 2531
+  },
+  "actual_summary": {
+    "all_relay_threads_sockets_closed": true,
+    "closure": {
+      "path": "/home/dandiccf/Storage/ct/credential-guard-controls-604a3988-075d-4b94-ae17-b43ad2a2167a/actual-original-tool-closure-v1.json",
+      "sha256": "abc767cab76f8573187130d7bc25170a12debb652a3a830583b7e8f79f41536f",
+      "size": 904
+    },
+    "desired_counterfactual_RED": {
+      "assertion_failed": true,
+      "original_relay_module_bytes_unchanged": true,
+      "upstream_connector_fake_attempts": 1
+    },
+    "elapsed_seconds": 0.010073938989080489,
+    "frozen_GREEN": {
+      "OAuth_static403": 4,
+      "listener_continued_after_each_denial": true,
+      "unknown_static403": 1,
+      "upstream_connector_fake_attempts": 0
+    },
+    "gate488_closed": false,
+    "installed_credit": false,
+    "keyring": false,
+    "local_workflow_passed": true,
+    "original_process_absent": true,
+    "original_tool_exit_code": 0,
+    "provider_DNS_or_network": false,
+    "runtime_recovery_only_credited": false,
+    "source_peer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/audit-independent-normal574-recovery-only-CONNECT-source-v4.json",
+      "sha256": "49ab9818f94deb180c8d78503f0d7dbc0ec025e30d86e49a91fc7ec808e30ecd",
+      "size": 6416
+    }
+  },
+  "arms": [
+    "in_memory_allow_OAuth_counterfactual_RED",
+    "frozen_exact_allowlist_GREEN"
+  ],
+  "command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/local-CONNECT-denial-controls-private-v1/run_local_CONNECT_denial_controls_once_v1.py"
+  ],
+  "compiler": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/local-CONNECT-denial-controls-private-v1/run_local_CONNECT_denial_controls_once_v1.py",
+    "sha256": "ff241b2f597afc7dc58adf30f40063d96f44c597ba84f1458210692f57ee6c26",
+    "size": 6210
+  },
+  "endpoint": "Counterfactual assertion must fail with one fake upstream call; frozen guard must return static403 four OAuth plus one unknown, zero fake upstream calls and all threads/sockets closed.",
+  "filesystem": {
+    "fstype": "ext4",
+    "source": "/dev/nvme1n1p1",
+    "target": "/home/dandiccf/Storage"
+  },
+  "gate488_closed": false,
+  "keyring": false,
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/local-CONNECT-denial-controls-private-v1/manifest-v1.json",
+    "sha256": "5a525a91e7039e75c0e5f7e8de193708c36ffc4c1c179c82c3341cef40288ba9",
+    "size": 2024
+  },
+  "prediction": "Allowing OAuth sensitively violates zero-upstream expectation. Frozen guard rejects every denied request without DNS/network, keeps serving subsequent denials and closes fully within original60/15.",
+  "provider_network": false,
+  "python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "question": "Does the frozen metadata CONNECT guard reject both OAuth hosts repeatedly and unknown hosts before any upstream attempt while preserving its listener and original closure?",
+  "relay": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/opaque_metadata_connect_guard_v1.py",
+    "sha256": "d70a05c05b25102f99603d7a899a45fe68c231ad7e82f47e5268e69143b2b478",
+    "size": 7048
+  },
+  "run": "604a3988-075d-4b94-ae17-b43ad2a2167a",
+  "runtime_recovery_only_credited": false,
+  "status": "closed_local_CONNECT_controls_pass",
+  "version": 1
+}

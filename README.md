@@ -268,9 +268,41 @@ complete desktop delivery and reliability acceptance remain open.
 
 Slow-link validation exposed two finite read-deadline defects. The bounded
 read and content-transfer fixes passed controlled before/after tests and the
-complete project check. A fresh normal mounted slow-link trial is still required;
-these fixes do not establish installed or general reliability acceptance. See
+complete project check. A [fresh normal mounted slow-link trial](docs/benchmarks/icloud-normal-fuse-finite-paced-read-2026-10-09-87aacc3b-80ff-4c86-a023-ca2fb6a77736.json)
+then returned the complete 138,943-byte test file with the exact checksum;
+independent review passed 35/35 checks. This is one bounded live pass;
+installed validation and broader reliability acceptance remain open. See
 the [latest validation findings](docs/icloud-write-integration.md#2026-10-09-successful-ci-and-isolated-content-transfer-cutoff).
+
+Before deployment, a [normal candidate recovery trial](docs/benchmarks/icloud-current574-normal-recovery-only-maintenance-2026-10-09-a9cd685d-ed29-4180-b71e-9082b7a9ec6a.json)
+also passed on an upgraded copy of existing OneDrive and Google Drive state.
+It preserved all eleven registered recovery files and the existing account
+states, then restored the current packaged service. Independent review passed
+34/34 checks. The candidate has not replaced this host's installed service;
+installed iCloud acceptance is still required.
+
+A [fresh Arch test-machine installation](docs/benchmarks/arch-owned-empty-package-runtime-2026-10-09-de9e5b30-006d-4056-ada7-66e1f699c4dc.json)
+now verifies the candidate packages, service and control socket. The optional
+Strata companion also starts on that machine. No cloud account has been connected
+there yet. A [separate installed readiness check](docs/benchmarks/arch-installed-public-connection-readiness-2026-10-09-586f901a-7830-49a3-b310-6d7c81a89eaa.json)
+passed synthetic keyring write/read/removal and showed the actual iCloud dialog
+with write access off and empty credentials. Installed iCloud account behavior
+and Strata's real-file workflows remain open.
+
+A [controlled download interruption](docs/benchmarks/icloud-normal-read-interruption-recovery-2026-10-09-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b.json)
+returned a read error with no incomplete bytes delivered and retained recovery
+data intact. The [subsequent read on the same test copy](docs/benchmarks/icloud-normal-read-interruption-recovery-2026-10-09-a5bbb689-638c-4dc2-bad1-e5c23d004fbe.json)
+also failed before content transfer. A [separate diagnostic with fair test-proxy scheduling](docs/benchmarks/icloud-normal-read-interruption-recovery-2026-10-09-08bdbd8d-8f80-45bb-9555-22220b636611.json)
+then read the complete file from the same retained test copy with the exact
+checksum, unchanged journal and independent 29-check review. Local controls
+confirmed that the earlier proxy could starve a later connection; the earlier
+live failure remains recorded and its cause is not uniquely established. Broader download
+recovery acceptance remains open.
+
+A [separate restart recovery trial](docs/benchmarks/icloud-active-abandoned-stage-recovery-2026-10-09-d6cb88f0-470c-4f76-87c5-624481e234f8.json)
+also recovered a retained native-document archive through the running read-only
+service, preserving its exact bytes and recovery journal. Fresh session recovery
+and installed delivery remain under validation.
 
 The final [ordinary Keynote PACKAGE save](docs/benchmarks/icloud-keynote-package-ordinary-a0a06783-4280-4a2c-b34c-d94b737df23e-2026-10-08.json)
 preserved the original in Trash and passed a separate
@@ -616,8 +648,19 @@ read-only downgrade, then passed normal read-only mounts and exact local exports
 No writable daemon was started. Fresh password/2FA, expired-session recovery and
 installed upgrade/downgrade acceptance remain open.
 
-The [CI run for development commit `7230383`](https://github.com/Dandiccf/cirrove/actions/runs/37599833161)
-passed all seven jobs; the installed release remains unchanged and on HOLD.
+Development iCloud session snapshots now retain newly received cookies' absolute
+expiration. A [controlled before/after test](docs/benchmarks/icloud-cookie-expiration-local-2026-10-09.json)
+failed the elapsed-cookie check on the old code and passed all eleven controls
+with the fix. Whole-second receipt times may expire cookies up to one second
+early. Older snapshots lack their original receipt time: their labelled first-
+restoration anchor persists only after an explicit snapshot save, and loading
+unchanged older ciphertext cannot recover its original expiry. This local fix
+does not prove natural Apple session expiry or expired-session recovery.
+
+The [latest candidate CI run for `aa02b8d1`](https://github.com/Dandiccf/cirrove/actions/runs/37859594107)
+passed all seven jobs. A [fresh read-only check of the older saved session](docs/benchmarks/icloud-authentic-saved-session-read-2026-10-09-6ba422f0-7646-4214-a3b9-224a97089496.json)
+also passed; that session remains valid, so expired-session recovery remains open.
+The installed release remains unchanged; candidate delivery is on HOLD.
 The [dated acceptance assessment](docs/benchmarks/icloud-native-replacement-removal-criterion-closure-2026-10-07.json)
 closes the bounded native replacement/removal criterion, including conflict
 refusal and recovery after process loss without repeating the cloud mutation.

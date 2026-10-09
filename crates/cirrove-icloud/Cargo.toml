@@ -18,6 +18,8 @@ async-trait.workspace = true
 base64.workspace = true
 cirrove-auth.workspace = true
 cirrove-core.workspace = true
+# reqwest uses this already-locked parser internally; its parse API is private.
+cookie = "0.18.2"
 hex.workspace = true
 reqwest = { workspace = true, features = ["cookies", "stream"] }
 secrecy.workspace = true

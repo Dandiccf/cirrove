@@ -1,0 +1,215 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "actual_proxy": {
+    "connect_requests": 3,
+    "content_connections": 1,
+    "content_server_tls_bytes_forwarded": 148864,
+    "failure_class": null,
+    "forwarding_span_seconds": 30.22611043503275,
+    "maximum_send_quantum": 512,
+    "owned_sockets_closed": true,
+    "paced_send_calls": 356,
+    "proxy_thread_closed": true,
+    "rate_bytes_per_second": 8192,
+    "server_tls_bytes_forwarded": 176757,
+    "upstream_connections": 3
+  },
+  "actual_reader": {
+    "content_bytes": 138943,
+    "elapsed_seconds": 36.13637107901741,
+    "exact_receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb/finite-paced-read-stdout.log",
+      "sha256": "26ac9f5ccbf97cbef41a8d8649219e41ecbeac4d5ada3e976dab46de51bff0e9",
+      "size": 585
+    },
+    "exit_code": 0,
+    "original_group_live": [],
+    "original_handle_reaped": true,
+    "physical_capture": {
+      "path": "/var/tmp/cirrove-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb/verify-6e741e97-3fc7-4565-93cb-2f0706e8f007/download.bin",
+      "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+      "size": 138943
+    },
+    "process_absent": true,
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "signals": []
+  },
+  "arms": 1,
+  "automatic_retries": 0,
+  "bounded_read_endpoint_proved": true,
+  "caller_stderr_correction": {
+    "added_and_missing_line_controls_refused": true,
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/audit-independent-offline-stderr-predicate-v1.json",
+      "sha256": "5a1e06b4ce541b1ea09013b48cfcbf228c640b621763b05a84af5aeb92400d14",
+      "size": 6052
+    },
+    "normal_FUSE_or_expiry_or_full490_credit": false,
+    "original_empty_stderr_assert_failed": true,
+    "original_terminal_rewritten": false,
+    "original_whole_result_changed": false,
+    "preserved_record": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/public-closed-before-stderr-correction-v1.json",
+      "sha256": "ce9586e3d7f9576973b073ea0da27c745033c1cc5ddbba6c585e969540b0874f",
+      "size": 10544
+    },
+    "provider_rerun": false,
+    "record_before_correction": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-owned-finite-paced-read-2026-10-08-41a5a972-4633-4e0d-865f-400f5b4507eb.json",
+      "sha256": "ce9586e3d7f9576973b073ea0da27c745033c1cc5ddbba6c585e969540b0874f",
+      "size": 10544
+    },
+    "root_offline_proof": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/root-offline-stderr-predicate-red-green-v1.json",
+      "sha256": "d73831a10d5e17ca31667997a42c98be3c99e9416511441550ccb48da1f79cbd",
+      "size": 2625
+    },
+    "scope": "private caller parser; offline original captured stderr only",
+    "successor_exact_six_static_lines_passed": true,
+    "verification_checks_passed": 11
+  },
+  "cleanup_seconds": 15,
+  "controlled_seam": "Child-only HTTPS_PROXY loopback CONNECT relay forwards actual SDK-selected service/content opaque TLS. Aggregate downstream8192B/s, sends at most512B per scheduled quantum; upstream unpaced. No decryption, URL/body/token logs, global network change or provider mutations.",
+  "controller_failure": {
+    "cause": "Six static phase-duration lines emitted by the frozen write-probe SDK Timing::Drop; RUST_LOG does not suppress them.",
+    "no_provider_repetition": true,
+    "phase_counts": {
+      "download lookup": 2,
+      "folder metadata": 4
+    },
+    "predicate": "stderr == ''",
+    "stderr_pin": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb/finite-paced-read-stderr.log",
+      "sha256": "7fedb1f320717185f6efb454770e79b3682e56560b526db7367ac23f4929f3f7",
+      "size": 264
+    },
+    "whole_failed_terminal_unchanged": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb/finite-paced-read-result.json",
+      "sha256": "26500b5df23b1c49372692af7a26a7b2d2c3d1d1fef2c204eb3aba5c2e1620a8",
+      "size": 75785
+    }
+  },
+  "correction_recorded_at": "2026-10-08T21:10:11.793239+00:00",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/run_owned_paced_read_root_once_v3.py",
+    "sha256": "f8a1dd52a5fece869fc39b190fc270a36c0bf3b5fc0fa9a3d5d5576a01780d17",
+    "size": 18829
+  },
+  "endpoint": "authenticated_fixed_DATA_finite_paced_full_read",
+  "feature_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/feature-roles-build-v1/ready-binding-v1.json",
+    "sha256": "ec9bf56548ab611ea11d5cf1ea1ec922ad32cca74cd288e5c4237c1e1ef37db3",
+    "size": 81489
+  },
+  "fixed_child": "FILE::com.apple.CloudDocs::D304DC65-6716-4DEB-B786-ECA04C76ED0D",
+  "fixed_parent": "FOLDER::com.apple.CloudDocs::6F755250-4EE2-4220-9AEE-27BB1668DC57",
+  "full490_closed": false,
+  "fullcheck": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/fullcheck-preparation-private-v1/root-execution-v1/terminal-v1.json",
+    "sha256": "ae5b3ceb4d582cf1c9304589a021663e243539e8186e4ba911de91ccc893f2f7",
+    "size": 194567
+  },
+  "http_request_count": "uninstrumented",
+  "installed_HOLD_released": false,
+  "installed_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/root-approved-authorities-v1/installed-baseline-v1.json",
+    "sha256": "b5a0c8986e26b9762d2ca88b4d66057230bd2a428f2e2078c614e784e5b97d66",
+    "size": 8983
+  },
+  "limitations": [
+    "One observed paced arm; no spread/comparative reliability estimate.",
+    "Rate applies to encrypted downstream wire bytes including handshake/metadata, not an isolated decrypted payload rate.",
+    "No expired-session, native-editor, installed delivery or whole490 closure claim.",
+    "Old526f success is provenance only; any current fixed-tuple mismatch refuses once without latest fallback.",
+    "One encrypted-wire paced SDK read only; no general reliability, ordinary FUSE 30-second timer acceptance, expired-session, installed or full490 closure follows.",
+    "The original registered whole run failed its stderr predicate. Offline endpoint verification does not rewrite that outcome or start a new provider invocation."
+  ],
+  "limits": [
+    "Pacing applies to all encrypted downstream traffic, including TLS handshake and metadata; no decrypted payload rate or HTTP request-count instrumentation.",
+    "The fixed child/parent revisions are historical registered authorities. If changed now, this arm refuses; no latest substitution or retry.",
+    "Content success requires existing SDK before/after parent/item/representation fences and full raw138943/223e, plus actual content-host opaque TLS forwarding.",
+    "No expiry, permanent reliability, semantic/editor, inheritedGUI, installed delivery or full490 closure claim.",
+    "No global networking, real service/settings, source-state/journal/cache mutation; only private copied ciphertext/settings context.",
+    "Current Root573 has two explicit installer-script corrections; frozen573 Rust/Cargo/probe provenance stays historical."
+  ],
+  "maximum_work_seconds": 120,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "8090463dcad034d24ad2d0c5b0e776e0a709c756d2666a85447e2175f9867da1",
+    "size": 78969
+  },
+  "offline_endpoint_audit": {
+    "receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb/audit-independent-finite-paced-terminal-v1.json",
+      "sha256": "73f0cc8fccd4b43eceaf79d8e2af30f7f1964b1d83dc0b08fc2cb8973ee989ea",
+      "size": 9249
+    },
+    "scope": "Independent offline physical capture, exact typed receipt and actual pacing/closure/preservation joins only; original whole run remains failed.",
+    "verification_checks_passed": 29
+  },
+  "original_whole_success": false,
+  "pace_bytes_per_second": 8192,
+  "pace_quantum": 512,
+  "prediction": "The existing SDK returns DATA138943/SHA223e under the finite pace within the single original120s work window, or refuses once; any metadata advancement stops without fallback. All relay/reader owners close under original15s cleanup.",
+  "provider_mutations": false,
+  "proxy_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/opaque_finite_pace_v3.py",
+    "sha256": "98ecdcf08c9afed0555b10ede57276081c9c7b2004749d67daac0a3dd43bac6a",
+    "size": 6889
+  },
+  "question": "Does the same exact own Numbers DATA tuple complete one authenticated full read through a process-only finite8192B/s aggregate downstream TLS relay, with exact metadata/representation fences and full raw B SHA?",
+  "ready": false,
+  "root_postflight": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb/root-offline-endpoint-preservation-v1.json",
+    "sha256": "8a2382ab6707af4e81cbd0b1a0ebbc889ef81b81666a5af0efd2e097aec24f27",
+    "size": 701
+  },
+  "run": "41a5a972-4633-4e0d-865f-400f5b4507eb",
+  "source_alias_correction": {
+    "actual_dispatch_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/opaque_finite_pace_v3.py",
+      "sha256": "98ecdcf08c9afed0555b10ede57276081c9c7b2004749d67daac0a3dd43bac6a",
+      "size": 6889
+    },
+    "notice": "The preregistration proxy_source alias was stale; its stall_source and approved-inputs authority were V3 and the actual dispatch used V3. Immutable preregistration is preserved; this corrects public metadata only.",
+    "original": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/opaque_finite_pace_v2.py",
+      "sha256": "0eae085b41b0e36f873fb32563e2c82f4f632f2c9ed81ea6ef16b86cf2ed1435",
+      "size": 6791
+    }
+  },
+  "source_count": 573,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/audit-independent-finite-paced-source-v3.json",
+    "sha256": "9abc82a6219b6434738fed47c9a70147edfae2adfc59d03db5c49cdf4c37b0fe",
+    "size": 4456
+  },
+  "stall_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/opaque_finite_pace_v3.py",
+    "sha256": "98ecdcf08c9afed0555b10ede57276081c9c7b2004749d67daac0a3dd43bac6a",
+    "size": 6889
+  },
+  "status": "closed_caller_stderr_guard_failure_read_endpoint_verified",
+  "subject_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-5c522758-bf2d-4203-941d-0a79567b7aca/audit-independent-numbers-data-terminal-v1.json",
+    "sha256": "4cf8bbd8df09b57ecbc6347bd0ab30356688c2bc13431672ff1bb9dbfd36d4e0",
+    "size": 14012
+  },
+  "subject_run": "5c522758-bf2d-4203-941d-0a79567b7aca",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb/terminal-v1.json",
+    "sha256": "8987b5d626ee0c733d79a2d2e0d19f8f044ec1da4e6f0dd03d7c75749e35a468",
+    "size": 3108
+  },
+  "version": 1,
+  "window": {
+    "active_end_monotonic": 516869.456999679,
+    "active_end_unix": 1791492242.3339267,
+    "cleanup_seconds": 15,
+    "outer_work_seconds": 120,
+    "started_monotonic": 516749.456999679,
+    "started_unix": 1791492122.3339267
+  }
+}

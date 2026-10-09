@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "run": "586f901a-7830-49a3-b310-6d7c81a89eaa",
+  "question": "Do exact installed aa02 public desktop iCloud selection and installed keyring-check work in the fresh actual GNOME guest before any Apple credentials or authentication?",
+  "arms": [
+    "one installed public prerequisite arm, no Apple input or auth"
+  ],
+  "prediction": "One public synthetic keyring save/read/exact-removal succeeds after any explicitly observed guest-local keyring prompt; native connection dialog displays iCloud/defaultRO/local-access warning with empty credentials and no submitted Connect. Guest powersoff and every original owner closes. Refusal is retained, not retried.",
+  "endpoint": "installed keyring-check synthetic save/read/remove + Root-observed actual native iCloud dialog/defaultRO/access warning with empty credentials, no Sign in submitted, all original owners and poweredoff guest",
+  "active_measurement": false,
+  "active_window": false,
+  "status": "closed_guest_public_readiness_pass",
+  "Root_dispatch_authorized": true,
+  "duration_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "TMPDIR": "/home/dandiccf/Storage/ct/guest-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/guest-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/run_owned_guest_public_readiness_once_v1.py",
+    "size": 11833,
+    "sha256": "32ac3cab4e2c0469180c2962024581ed78b995ddc006c56d580c6f5f101287bf"
+  },
+  "guest_script": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/guest_public_connection_readiness_once_v2.py",
+    "size": 6798,
+    "sha256": "ae656f0d7b7d3bf1b3eb63ce1485a4d674db7414ffcc932b6f3c4619143da36c"
+  },
+  "commands": {
+    "QEMU": [
+      "/usr/bin/qemu-system-x86_64",
+      "-name",
+      "cirrove-empty-aa02-6aaa",
+      "-enable-kvm",
+      "-cpu",
+      "host",
+      "-m",
+      "8G",
+      "-smp",
+      "4",
+      "-drive",
+      "file=/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2,if=virtio,format=qcow2",
+      "-netdev",
+      "user,restrict=on,id=n0,hostfwd=tcp:127.0.0.1:2224-:22",
+      "-device",
+      "virtio-net-pci,netdev=n0,mac=52:54:00:6a:aa:01",
+      "-device",
+      "virtio-vga",
+      "-display",
+      "none",
+      "-vnc",
+      "127.0.0.1:12",
+      "-qmp",
+      "unix:/home/dandiccf/Storage/ct/guest-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/qmp.sock,server,nowait",
+      "-serial",
+      "stdio",
+      "-no-reboot"
+    ],
+    "SSH_prefix": [
+      "/usr/bin/ssh",
+      "-F",
+      "/dev/null",
+      "-o",
+      "IdentityAgent=none",
+      "-o",
+      "PreferredAuthentications=publickey",
+      "-i",
+      "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/id_ed25519",
+      "-o",
+      "IdentitiesOnly=yes",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "StrictHostKeyChecking=accept-new",
+      "-o",
+      "UserKnownHostsFile=/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/known_hosts",
+      "-o",
+      "GlobalKnownHostsFile=/dev/null",
+      "-o",
+      "ConnectTimeout=5",
+      "-o",
+      "ConnectionAttempts=1",
+      "-p",
+      "2224",
+      "tester@127.0.0.1"
+    ],
+    "SSH_prepare": "/usr/bin/python3 /home/tester/cirrove-public-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa.py",
+    "SSH_poweroff": "sudo systemctl poweroff"
+  },
+  "source_plan": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/source-plan-v1.json",
+    "size": 7691,
+    "sha256": "d194b7bdf643a887013dc46f554c06969089ec5f93785fa360cf6b17eaa5ae3e"
+  },
+  "installed_predecessor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/actual-guest-package-runtime-de9e5b30-006d-4056-ada7-66e1f699c4dc/actual-guest-package-runtime-terminal-v1.json",
+    "size": 1844,
+    "sha256": "ae84bc6fde9b5dba3d70ac72e5c20fc5d5189b65c5b98c8af1aa64bf574972f3"
+  },
+  "gate488_closed": false,
+  "gate489_closed": false,
+  "gate490_closed": false,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/actual-guest-public-readiness-terminal-v1.json",
+    "size": 1486,
+    "sha256": "ed16a891c23f95bc988a4fd0a7864e47effd5759b661a6e0aa08bc00018439fb"
+  },
+  "Root_authority": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/Root-dispatch-authority-v1.json",
+    "size": 1440,
+    "sha256": "7e796bd5aa69125387fba8174d419102770b02eecb5d7b65f41b9efe3607053d"
+  },
+  "whole_success": true,
+  "actual_scope": "installed public connection UI and synthetic keyring readiness only",
+  "actual_elapsed_seconds": 209.224454164505,
+  "actual_owner_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/actual-public-readiness-owner-closure-v1.json",
+    "size": 7503,
+    "sha256": "3f80851eaf939d453f09573f4fab25270a740b50fc9f08dc526a6206af7e2ec2"
+  },
+  "actual_UI_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-acceptance-empty-host-route-preparation-20261009-private-v1/guest-public-connection-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/Root-ui-observation-v1.json",
+    "size": 1818,
+    "sha256": "bea08e614b63342eddcd3e84bf4d913be23c476f9bb1ffd80849d44249a98058"
+  },
+  "guest_detail_terminal": {
+    "path": "/home/tester/cirrove-public-readiness-586f901a-7830-49a3-b310-6d7c81a89eaa/terminal-v1.json",
+    "size": 3159,
+    "sha256": "f2da0067ffa7dc02b9173fc784658c6d462f79a2a9bd190fb3a82d40ade89ccd"
+  },
+  "guest_detail_terminal_currently_guest_side_only": true,
+  "actual_summary": "Public installed keyring-check passed guarded synthetic save/read/removal; compiled connect-icloud help passed. Actual native window/provider iCloud/defaultRO and local-access disclosure observed with empty credentials and no Sign in. Same guest poweredoff; all original host actors closed. This is readiness only; no Apple auth, real account mount/write/access transition or full installed gate."
+}

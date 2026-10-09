@@ -1,0 +1,35 @@
+{
+  "active": false,
+  "active_window": false,
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-cookie-expiry-integration-20261009-private-v1/fullcheck-successor-terminal-v1.json",
+    "sha256": "0a0ad8f85eac0cf88ef303b006b45bf5b80d43d2a06e77924afa22f848d14bdd",
+    "size": 1380
+  },
+  "arms": [
+    "uncommitted cookie fix integrated atop aa02 after genuine old RED/new eleven GREEN"
+  ],
+  "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "endpoint": "scripts/check.sh completes without --fast; format, clippy, workspace/script/kernel tests, ledger and docs pass",
+  "expected_duration_seconds": 900,
+  "full_icloud_closed": false,
+  "fullcheck_passed": true,
+  "host_installed_unchanged": true,
+  "installed_HOLD": true,
+  "installed_actions": false,
+  "predecessor_failure_retained": true,
+  "prediction": "Complete project check passes with short disk-backed TMPDIR, avoiding proven SUN_LEN fixture failure",
+  "provider_mutations": false,
+  "question": "Does the integrated cookie lifetime fix pass the complete mandatory project check?",
+  "run": "be136c41-6cb1-481d-8c68-c7dc024fe0fa",
+  "short_TMPDIR_control": "Same accounts ELF all15 passed after only TMPDIR/SQLITE_TMPDIR shortened; original7874closed0",
+  "source_count": 575,
+  "sqlite_tmpdir": "/home/dandiccf/Storage/ct/ce-01cab3cf",
+  "state": "closed_complete_check_pass",
+  "temporary_filesystem": "/dev/nvme1n1p1 ext4 /home/dandiccf/Storage",
+  "tmpdir": "/home/dandiccf/Storage/ct/ce-01cab3cf",
+  "version": 1
+}

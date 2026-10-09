@@ -1,0 +1,37 @@
+{
+  "SQL": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/offline-native-copy-tmp-81cca9ba-b494-4013-a7a2-6ceeae71bdf1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/offline-native-copy-tmp-81cca9ba-b494-4013-a7a2-6ceeae71bdf1",
+  "active_measurement": false,
+  "active_window": false,
+  "arms": [
+    "single offline full-state copy"
+  ],
+  "auth": false,
+  "cleanup_reserve_seconds": 45,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-scoped-session-rejection-preparation-20261009-private-v1/runtime-owner-preparation-v1/full-target-clone-source-preparation-v1/root_copy_full_scoped_target_once_v1.py",
+    "sha256": "61adfc2d34184fcad873c6348a9635b3a14660797c3fa91f6e53c2bce54878eb",
+    "size": 11488
+  },
+  "duration_seconds": 300,
+  "endpoint": "all 22 members present; every protected file exact; mount-only settings change; original source/control/installed preservation",
+  "prediction": "The 15 files and seven directories will preserve content and modes; remapped settings alone will differ.",
+  "provider_calls": false,
+  "python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "question": "Can the full retained native account state be copied byte-for-byte to an isolated own target, with only copied mount paths changed and source, valid control and current installed daemon preserved?",
+  "run": "81cca9ba-b494-4013-a7a2-6ceeae71bdf1",
+  "source_state": "/var/tmp/cirrove-icloud-lifecycle-ebbd9f71-ec22-4904-8f77-8d2224487346/state",
+  "status": "closed_full_copy_pass",
+  "target_root": "/home/dandiccf/Storage/ct/scoped-session-rejection-a46b5a55-8a91-4ed3-be0f-4e02fc6ee825",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/scoped-session-rejection-a46b5a55-8a91-4ed3-be0f-4e02fc6ee825/evidence/full-target-prepared-terminal-v1.json",
+    "size": 19260,
+    "sha256": "b69115723fbddac190fd5aae7504618b1ca650daebec538a4e0a8166ceef65f6"
+  }
+}

@@ -6,6 +6,8 @@
 //! remain unvalidated.
 
 #[cfg(test)]
+mod cookie_tests;
+#[cfg(test)]
 mod download_tests;
 mod file_create;
 mod file_move;
@@ -440,10 +442,64 @@ struct SessionHeaders {
     auth_attributes: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct CookieRecord {
     source: String,
     set_cookie: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    lifetime: Option<CookieLifetime>,
+}
+
+// Kept inside the sealed snapshot, never exposed as authentication diagnostics.
+// Legacy records have no receipt time. Their first-restoration anchor preserves
+// compatibility, and becomes durable only if the caller explicitly saves again.
+// Loading is read-only: reloading unchanged legacy ciphertext cannot recover the
+// original deadline and can still re-anchor it. Do not invent it from filemtime.
+#[derive(Clone, Serialize, Deserialize)]
+struct CookieLifetime {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    received_at_unix: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    restored_at_unix: Option<i64>,
+    expires_at_unix: Option<i64>,
+}
+
+impl CookieLifetime {
+    fn at(cookie: &cookie::Cookie<'_>, at: i64, received: bool) -> Result<Self> {
+        // Same RFC 6265 upper bound used by cookie_store, without overflowing
+        // when a server supplies an extremely large Max-Age.
+        const MAX_EXPIRY: i64 = 253_402_300_799; // 9999-12-31 23:59:59 UTC
+        if !(0..=MAX_EXPIRY).contains(&at) {
+            bail!("invalid iCloud cookie receipt time");
+        }
+        let expires_at_unix = if let Some(max_age) = cookie.max_age() {
+            Some(if max_age.whole_seconds() <= 0 {
+                0
+            } else {
+                at.saturating_add(max_age.whole_seconds()).min(MAX_EXPIRY)
+            })
+        } else {
+            cookie.expires_datetime().map(|date| date.unix_timestamp())
+        };
+        Ok(Self {
+            received_at_unix: received.then_some(at),
+            restored_at_unix: (!received).then_some(at),
+            expires_at_unix,
+        })
+    }
+
+    fn validate(&self, cookie: &cookie::Cookie<'_>) -> Result<()> {
+        let at = match (self.received_at_unix, self.restored_at_unix) {
+            (Some(at), None) | (None, Some(at)) => at,
+            _ => bail!("invalid saved iCloud cookie lifetime"),
+        };
+        if Self::at(cookie, at, self.received_at_unix.is_some())?.expires_at_unix
+            != self.expires_at_unix
+        {
+            bail!("inconsistent saved iCloud cookie lifetime");
+        }
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -474,20 +530,21 @@ impl RecordingCookies {
             .records
             .lock()
             .map_err(|_| anyhow!("iCloud cookie store is unavailable"))?;
-        Ok(guard
-            .iter()
-            .map(|record| CookieRecord {
-                source: record.source.clone(),
-                set_cookie: record.set_cookie.clone(),
-            })
-            .collect())
+        Ok(guard.clone())
     }
 
     fn restore(&self, records: Vec<CookieRecord>) -> Result<()> {
+        self.restore_at(
+            records,
+            cookie::time::OffsetDateTime::now_utc().unix_timestamp(),
+        )
+    }
+
+    fn restore_at(&self, mut records: Vec<CookieRecord>, restored_at: i64) -> Result<()> {
         if records.len() > MAX_COOKIE_RECORDS {
             bail!("saved iCloud session has too many cookies");
         }
-        for record in &records {
+        for record in &mut records {
             if record.set_cookie.len() > MAX_COOKIE_RECORD {
                 bail!("saved iCloud cookie exceeds limit");
             }
@@ -496,7 +553,36 @@ impl RecordingCookies {
             if !allowed_cookie_source(&url) || url.query().is_some() || url.fragment().is_some() {
                 bail!("saved iCloud cookie source is outside Apple authentication");
             }
-            self.jar.add_cookie_str(&record.set_cookie, &url);
+            let mut cookie = match cookie::Cookie::parse(record.set_cookie.as_str()) {
+                Ok(cookie) => cookie,
+                // reqwest ignores malformed headers. Do not turn an ignored
+                // legacy header into loss of an otherwise usable saved session.
+                Err(_) if record.lifetime.is_none() => continue,
+                Err(_) => bail!("invalid saved iCloud cookie"),
+            };
+            if record.lifetime.is_none() {
+                record.lifetime = Some(CookieLifetime::at(&cookie, restored_at, false)?);
+            }
+            let Some(lifetime) = record.lifetime.as_ref() else {
+                bail!("missing saved iCloud cookie lifetime");
+            };
+            lifetime.validate(&cookie)?;
+            if let Some(expires_at) = lifetime.expires_at_unix {
+                // Replay expired records too: they must delete an earlier cookie
+                // with the same name/domain/path rather than resurrecting it.
+                // Live replay uses only absolute Expires; an elapsed deadline
+                // uses Max-Age=0 as a tombstone, never a renewed positive age.
+                cookie.set_max_age(
+                    (expires_at <= restored_at).then_some(cookie::time::Duration::ZERO),
+                );
+                cookie.set_expires(
+                    cookie::time::OffsetDateTime::from_unix_timestamp(expires_at)
+                        .map_err(|_| anyhow!("invalid saved iCloud cookie expiration"))?,
+                );
+                self.jar.add_cookie_str(&cookie.to_string(), &url);
+            } else {
+                self.jar.add_cookie_str(&record.set_cookie, &url);
+            }
         }
         *self
             .records
@@ -508,6 +594,8 @@ impl RecordingCookies {
 
 impl CookieStore for RecordingCookies {
     fn set_cookies(&self, cookie_headers: &mut dyn Iterator<Item = &HeaderValue>, url: &Url) {
+        // Floor to seconds: at most one second early, never a renewed lifetime.
+        let received_at = cookie::time::OffsetDateTime::now_utc().unix_timestamp();
         let headers: Vec<_> = cookie_headers.cloned().collect();
         self.jar.set_cookies(&mut headers.iter(), url);
         if !allowed_cookie_source(url) {
@@ -529,9 +617,19 @@ impl CookieStore for RecordingCookies {
                 self.overflow.store(true, Ordering::Relaxed);
                 continue;
             }
+            // Use the same parser as reqwest; invalid headers never enter its
+            // jar and need not become replay records.
+            let Ok(cookie) = cookie::Cookie::parse(value) else {
+                continue;
+            };
+            let Ok(lifetime) = CookieLifetime::at(&cookie, received_at, true) else {
+                self.overflow.store(true, Ordering::Relaxed);
+                continue;
+            };
             records.push(CookieRecord {
                 source: source.as_str().into(),
                 set_cookie: value.into(),
+                lifetime: Some(lifetime),
             });
         }
     }

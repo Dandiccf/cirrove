@@ -341,6 +341,17 @@ waits for its lease. It verifies the same identity before replacing credentials.
 Other accounts keep running. A killed login command can leave that account disabled;
 `enable` is the explicit recovery action.
 
+Native iCloud session snapshots keep cookie lifetime metadata inside the sealed
+snapshot. New response cookies record receipt time and absolute expiration;
+restoration replaces finite positive `Max-Age` with absolute `Expires` and replays
+elapsed entries as deletion tombstones in their original order. Receipt times
+use whole seconds, allowing at most one second of early expiry. Legacy snapshots
+have no original receipt time: a separately labelled first-restoration anchor
+becomes durable only when a caller explicitly saves a new snapshot. Loading
+unchanged legacy ciphertext can still re-anchor its relative lifetime; no file
+timestamp is treated as authoritative. Local cookie expiry is distinct from
+Apple's server-side grant expiry and does not prove expired-session recovery.
+
 ## Transport, responsiveness and content consistency
 
 Persistent reqwest clients reuse connections. Authenticated Graph requests do not

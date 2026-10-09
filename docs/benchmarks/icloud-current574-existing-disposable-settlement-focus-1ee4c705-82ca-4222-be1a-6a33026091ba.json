@@ -1,0 +1,114 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/settledfocus8a6-1ee4c705-82ca-4222-be1a-6a33026091ba",
+  "TMPDIR": "/home/dandiccf/Storage/ct/settledfocus8a6-1ee4c705-82ca-4222-be1a-6a33026091ba",
+  "active": false,
+  "active_measurement": false,
+  "actual_summary": {
+    "HOLD_lifted": false,
+    "account_ordinal_2": {
+      "malformed_or_foreign_or_index_body_mismatch": 0,
+      "mutations": {
+        "applied": 24,
+        "pending": 7
+      },
+      "queue_incomplete": 9,
+      "queue_total": 64,
+      "uploads": {
+        "resolved": 2,
+        "uploaded": 31
+      },
+      "working_dirty": 0,
+      "working_total": 7,
+      "working_unlinked": 7
+    },
+    "account_ordinals_1_3_settlement_reader": "accepted",
+    "all_three_accounts_journal14_metadata7_integrity_and_identity": true,
+    "compiler_actions": 0,
+    "copies": 0,
+    "duration_seconds": 1.2371310939779505,
+    "first_category": {
+      "path": "/home/dandiccf/Storage/ct/settledfocus8a6-1ee4c705-82ca-4222-be1a-6a33026091ba/first-category-v1.json",
+      "sha256": "d85e2cec09e71e6a1f9ff8cc682caed7ecc70421172007e0c9393ccf51e1c0e9",
+      "size": 134
+    },
+    "first_fixed_refusal_category": "unresolved-or-incoherent-row",
+    "full488_489_490_closed": false,
+    "global_metadata7_integrity": true,
+    "nested_processes": 0,
+    "only_existing_observation_tree_SQL": true,
+    "original_backup_clone_read_or_SQL": false,
+    "original_exec_closure": {
+      "path": "/home/dandiccf/Storage/ct/settledfocus8a6-1ee4c705-82ca-4222-be1a-6a33026091ba/actual-original-exec-closure-v1.json",
+      "sha256": "e16984b104185af59868d754b1100987ae867288bfdd51c5f20665b5d1164833",
+      "size": 2372
+    },
+    "original_exec_exit_code": 0,
+    "original_failed_whole_preserved": true,
+    "original_preparation_whole_success": false,
+    "original_process_absent": true,
+    "provider_calls": 0,
+    "publication_tables": "not present in these schema14 journals",
+    "queue_membership_join": "not tested; nine incomplete rows are not attributed individually here",
+    "service_actions": 0,
+    "settlement_credit": false,
+    "terminal": {
+      "path": "/home/dandiccf/Storage/ct/settledfocus8a6-1ee4c705-82ca-4222-be1a-6a33026091ba/terminal-v1.json",
+      "sha256": "6ec4d78d62d6a68144a06b352b8ccc34e2f34800c4f192c013a00da7377ea211",
+      "size": 4525
+    },
+    "workflow_success": true
+  },
+  "admission_no_active_measurements": true,
+  "admission_no_compilers": true,
+  "approved_once": true,
+  "arms": [
+    "one existing-disposable mode=ro query_only read, no retry or recopy"
+  ],
+  "cleanup_reserve": 45,
+  "command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/settled-observation-diagnostic-private-v1/observe_existing_current574_disposable_once_v2.py"
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/settled-observation-diagnostic-private-v1/observe_existing_current574_disposable_once_v2.py",
+    "sha256": "79374f3666052f348b44c28bd55f3d77657059f3bbf487109601c21ff45d202f",
+    "size": 15690
+  },
+  "endpoint": "first static category recorded before independent reduced per-account counts; all connections closed within original120/45; no raw JSON/body/error strings",
+  "existing_tree": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/settled-observation",
+  "limits": [
+    "no original/backup/clone SQL or reads",
+    "no provider/service/compiler actions",
+    "not settled or compatibility or installed gate proof",
+    "SQLite read-only connection may affect only disposable sidecar lifecycle; not byte-parity credit"
+  ],
+  "prediction": "If genuine pending work or unfinished publication persists, the unchanged reader returns its static refusal category. Schema/integrity and counts may explain it; no settled or installation credit follows this observation. Local reader exceptions are separately reported by fixed type and source line.",
+  "preparation_closure": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/prior-preparation-closure-v1.json",
+    "sha256": "5e43db09208ce87f55e4f1937330b353305434cd116caa75fb0db845b08dd262",
+    "size": 3215836
+  },
+  "preservation_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/audit-independent-preparation-terminal-v1.json",
+    "sha256": "a322b0e7448c5918efee40d2b35e9d9e5c57278b58a61ee97665a91c904acd67",
+    "size": 27171
+  },
+  "python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "question": "Which exact fixed admission predicate refuses the already-copied current574 observation, and what are each account schema/integrity/typed-state/body-shape/working/publication counts?",
+  "restoration_terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/restore-original-f88f32b0-2201-4a96-ac08-ced73387ceba/terminal-v1.json",
+    "sha256": "b4e430b218c0f5191f5fce159fb025f59b85f0b0b2591c3571ed9a19f9f5e75c",
+    "size": 1706
+  },
+  "run": "1ee4c705-82ca-4222-be1a-6a33026091ba",
+  "seconds": 120,
+  "settlement_credit": false,
+  "status": "closed_focused_disposable_read_only",
+  "success": true,
+  "terminal": "/home/dandiccf/Storage/ct/settledfocus8a6-1ee4c705-82ca-4222-be1a-6a33026091ba/terminal-v1.json",
+  "version": 1
+}

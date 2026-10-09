@@ -1,0 +1,183 @@
+{
+  "HOLD_lifted": false,
+  "Manager_started": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6",
+  "active": false,
+  "active_measurement": false,
+  "active_recovery_exports_preserved": 11,
+  "actual_result": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/result.json",
+    "sha256": "0877fe9b349fb3affc0c3b230db998d44fea9a16c56b966c230ff797ef915da0",
+    "size": 5819
+  },
+  "archive_copy_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/audit-independent-complete-archive-copy-terminal-v1.json",
+    "sha256": "70af729ffcd718b4da0dda00ec6fdc046a3bcbc3ee953b6bbb1c8fd207bd6631",
+    "size": 6388
+  },
+  "archive_copy_authority": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/complete-archive-copy-authority-v1.json",
+    "sha256": "a1c4bf7b82f4a60e7e1ec2335a293af659f5ba58f1d47158d6b94968228f3d25",
+    "size": 5158
+  },
+  "archive_copy_terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/terminal-v1.json",
+    "sha256": "a1f95c113fbec69a4e1c3c62e49db7547aaebb1a0fa0e50a7a25ebd6785c33db",
+    "size": 5479
+  },
+  "arms": [
+    {
+      "helper": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/frozen/observer",
+        "sha256": "97bf0484798941c9ad6ec20ef9901131d717611b66f9043a65bbcbf599beedfc",
+        "size": 365518296
+      },
+      "helper_root_run": "6c0a54b7-d673-48c7-85d7-c68c7fec86fd",
+      "name": "single_offline_public_writable_constructor_clone"
+    }
+  ],
+  "auditor_correction_scope": "Original audit51406 KeyError at redundant W_sources alias is retained; corrected8090 physically checked both checkouts against exact compiled Root_sources574, without helper/SQL/provider repetition.",
+  "build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/audit-independent-current574-writable-build-terminal-v1.json",
+    "sha256": "c12745dd31ad1f575e10cbc3d7522f2fe4016e36f708a18131f73a5c17a2804e",
+    "size": 16326
+  },
+  "build_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/terminal-v1.json",
+    "sha256": "af101ecea6a63be8831cd68fd44d1d29e309b94b706df9ab5be691360dc407ab",
+    "size": 88119
+  },
+  "candidate_commit": "aa02b8d1cf6b2644e7500908016548b49f71a833",
+  "cleanup_reserve": 45,
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-runtime-preparation-v1/run_writable_clone_once_v1.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-runtime-preparation-v1/root-writable-inputs-ready-v1.json",
+    "--sha256",
+    "exact_input_sha256_in_private_command_manifest"
+  ],
+  "committed_sync_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/root-committed-runtime-sync-v1.json",
+    "sha256": "33aa47e5e6524778eddb55d8153ebfa98b335a67704f89061bcd406ee3a3dd23",
+    "size": 76447
+  },
+  "consolidation_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-runtime-preparation-v1/root-writable-public-before-audit-consolidation-v1.json",
+    "sha256": "a9ffbe27c8fe14502d6da6aabc826bc472d2275f22c349a86873d31cdc6023dc",
+    "size": 8853
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-runtime-preparation-v1/run_writable_clone_once_v1.py",
+    "sha256": "224945e5a91e0f28976f214f2bf474508eac310de79e95f2b9a4cde801ea0560",
+    "size": 11871
+  },
+  "endpoint": "fresh_archive_offline_writable_constructor_14_7_to_21_8",
+  "expected_duration_seconds": 360,
+  "fullcheck": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/terminal-v1.json",
+    "sha256": "2492d8f24adcaf0eecef061069f66e1f903979764b3a3ec11b63a27f89ae3736",
+    "size": 3605
+  },
+  "fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/audit-independent-complete-fullcheck-committed-sync-v2.json",
+    "sha256": "5d6408b1267a2333afaa7eeb3c7096dc403b06f48664334fad92213635f03a6a",
+    "size": 82626
+  },
+  "gate488_closed": false,
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/frozen/observer",
+    "sha256": "97bf0484798941c9ad6ec20ef9901131d717611b66f9043a65bbcbf599beedfc",
+    "size": 365518296
+  },
+  "helper_elapsed_seconds": 339.5978522169171,
+  "historical_detached_settled": false,
+  "historical_whole_preparation_success": false,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6/audit-independent-writable-clone-terminal-v2.json",
+    "sha256": "441c57827465c518f0a68827ee34b328d5265dd79c0b089500496b19f4755e34",
+    "size": 19760
+  },
+  "independent_checks": 33,
+  "installation_performed": false,
+  "maximum_child_seconds": 600,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "5ba6d4f13c1503a94bd6f2e179ea5a1778e512c7e46fbe99c1527797fcdc6a1b",
+    "size": 79418
+  },
+  "normal_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/audit-independent-normal574-build-terminal-v1.json",
+    "sha256": "e44736841f5b61d9228ea306a1c0046b8df3a89deaaba3d84d3f40665fcba8f8",
+    "size": 7349
+  },
+  "normal_worker_dispatch": false,
+  "original_SQL": false,
+  "original_closed_exit_code": 0,
+  "original_exec_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-runtime-preparation-v1/root-original-writable-exec-closure-v1.json",
+    "sha256": "a918a919d58ec77cad2664f818c53df876075d249bb655da6970999db3291c54",
+    "size": 1154
+  },
+  "original_exec_handle": 72431,
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 532977.870428283,
+    "monotonic_start": 532077.870428283,
+    "seconds": 900,
+    "wall_end": 1791508350.7473495,
+    "wall_start": 1791507450.7473495
+  },
+  "prediction": "Conditional on actual full-copy authority, exact registered constructor recovery transforms retain all legacy row authority/frontiers and eleven active sealed/working exports, only registered startup resets/retirements/schema changes; no provider or Manager/worker. Actual helper refusal remains possible and must be reported wholefalse without relabeling old preparation refusal.",
+  "prior_auditor_failure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-runtime-preparation-v1/actual-writer-audit-private-v1/auditor-source-map-key-failure-v1.json",
+    "sha256": "bbc8f9930b6e96ee6a367ef6ae2b7f150b15372055b96e062eb49f56f4106392",
+    "size": 1239
+  },
+  "provider_requests": false,
+  "question": "Can the current frozen normal-feature offline writer migrate the fresh full legacy14/7 archive clone to21/8 while retaining legacy authorities and sealed/working exports, with unchanged backup and restored original package?",
+  "registered_at": "2026-10-09T00:57:26.363184+00:00",
+  "required_temp_filesystem": "ext4",
+  "restoration_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/restore-original-f88f32b0-2201-4a96-ac08-ced73387ceba/audit-independent-complete-restoration-and-stable-status-v1.json",
+    "sha256": "be08bca1a60acf9dc527c982c08d775e25a00037c0ad19ff96c1122714d33c86",
+    "size": 19563
+  },
+  "restored_baseline": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/restore-original-f88f32b0-2201-4a96-ac08-ced73387ceba/independent-status-8dd4dc8f-e32a-4259-9382-b47e20c5332a/fresh-restored-installed-baseline-v1.json",
+    "sha256": "cb96b5f8b301e753d4c6be5bc111d241bd2a25237d070c3d194d5470f79c88bc",
+    "size": 15030
+  },
+  "result_scope": "offline public writable constructors on copied real state; no running Manager or installed acceptance",
+  "root": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd",
+  "run": "a977a9ee-c5e5-4e27-bb44-56ec8966ffb6",
+  "seconds": 900,
+  "service_actions": false,
+  "source_count": 574,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-runtime-preparation-v1/audit-independent-writable-clone-runtime-source-v1.json",
+    "sha256": "9edc533543cde4aad755720df70ff21763f156f58afb4b7dd6bdf6063eec33d9",
+    "size": 5905
+  },
+  "status": "closed_writable_clone",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6/terminal-v1.json",
+    "sha256": "1e769c1b327e809078f742654187f931114b09adeca88922a6fed075ff480e0d",
+    "size": 2245
+  },
+  "tuple": {
+    "from": [
+      14,
+      7
+    ],
+    "to": [
+      21,
+      8
+    ]
+  },
+  "version": 1,
+  "worktree_commit": "a3bc650a7c5b2c4d68696d44245e82e03759e9e4"
+}
