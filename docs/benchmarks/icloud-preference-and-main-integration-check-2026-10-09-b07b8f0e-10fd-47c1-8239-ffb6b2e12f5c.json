@@ -1,0 +1,91 @@
+{
+  "source_HEAD": "cd3a2809b06d41dd0c3413e38350f0d2d2d97da6",
+  "merge_main_HEAD": "8a512dcf573896d7fa01fa29bc06edcb52796fd0",
+  "source_count": 579,
+  "command": [
+    "scripts/check.sh"
+  ],
+  "script_sha256": "1d0fcb02913e55e014c83edf45189589ebd2177198f967ea1297bf036e57f501",
+  "temporary_filesystem": "ext4",
+  "expected_duration_seconds": 900,
+  "maximum_duration_seconds": 1800,
+  "other_compilers_absent": true,
+  "guest_off": true,
+  "host_daemon_changes": false,
+  "real_provider_calls": 0,
+  "run": "b07b8f0e-10fd-47c1-8239-ffb6b2e12f5c",
+  "question": "Does the interrupted-sign-in explicit preference correction, with the no-marker hint, pass the whole mandatory check together with the main README merge?",
+  "prediction": "OldRED1 and corrected identicalGREEN1+focused6 support a passing combined check. No provider or installed recovery credit.",
+  "endpoint": "Complete scripts/check.sh; all579 runtime pins plus README/documentation/evidence inputs unchanged; original handle reaped; no guest or installation.",
+  "driver_sha256": "358ea756c5649437ac8577702d11e09b446531410bf941db73bc1f1b2e7dc8a8",
+  "registered_unix": 1791536045.9116633,
+  "status": "closed_pass",
+  "changed_runtime_inputs": [
+    "crates/cirrove-service/src/accounts.rs"
+  ],
+  "previous_registered_check_not_dispatched": "6be7348d-eec3-47df-98b5-3d66e18ddfef",
+  "active_window": false,
+  "gate488_closed": false,
+  "gate490_closed": false,
+  "full_iCloud_closed": false,
+  "closed_unix": 1791536809.3462408,
+  "terminal": {
+    "exit": 0,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "signals": [],
+    "source_changed": [],
+    "elapsed_seconds": 759.8294670581818
+  },
+  "completion_verification": {
+    "original_exec_session": 66386,
+    "original_exit": 0,
+    "original_process_pid": 3559720,
+    "owned_group_members_after": [],
+    "sections": [
+      "== format",
+      "== clippy",
+      "== iCloud preview binary",
+      "== iCloud isolated write probe",
+      "== iCloud editor metadata CLI",
+      "== iCloud isolated mounted write probe",
+      "== workspace tests",
+      "== kernel mounts",
+      "== scripts",
+      "== docs"
+    ],
+    "rust_result_groups": 87,
+    "new_preference_tests": {
+      "explicit_mount_preference_supersedes_interrupted_sign_in": 1,
+      "persistence_failure_retains_explicit_durable_intent": 1,
+      "cleanup_failure_retains_only_latest_wish": 1,
+      "live_sign_in_refuses_both_public_preference_routes": 1,
+      "marker_failure_before_rename_preserves_previous_file": 1,
+      "healer_uses_current_account_not_initial_inventory": 1,
+      "id_preference_preserves_other_accounts_and_no_marker_behavior": 1
+    },
+    "runtime_sources_count": 579,
+    "other_unchanged_inputs": {
+      "README.md": "866de7f1622c6dfda1242fa664a514ed3a54b67e17a63b9d5fa834ddafd3ff16",
+      "docs/icloud-write-integration.md": "7f44ccc965ae0a943bb5570a7dbc9e382da508cd47e4c562144984e7cae60357",
+      "docs/benchmarks/interrupted-sign-in-explicit-preference-regression-2026-10-09.json": "5b2e25e3152efe25a26af51bd2648a28e5c562dfa559a6e23c17b6e58db37a0a"
+    },
+    "whole_check_fast_option": false,
+    "original_host_daemon_pid_unchanged": 2935730,
+    "logs": {
+      "stdout.log": {
+        "size": 295132,
+        "sha256": "627b0509d8001908565af73129815a401c0316673810adf65b20fa0bd2891864"
+      },
+      "stderr.log": {
+        "size": 25678,
+        "sha256": "2490ec49cca57747f8a4fbf023e1f43382f4b603ee3c8a4215d18d06873dd419"
+      },
+      "terminal.json": {
+        "size": 157,
+        "sha256": "de3b9d2786a3d936d60bdb4f16f89d7bc174eb9c6fd8e4a2f8ec730972e5b52d"
+      }
+    },
+    "observed_unix": 1791536873.4874287
+  }
+}

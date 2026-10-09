@@ -81,6 +81,20 @@ existing timeout, cancellation and response-size limits. Cached metadata,
 completed cursors and pending edits remain intact. Natural Apple session expiry
 and subsequent installed reauthentication still require live acceptance.
 
+Interrupted-sign-in recovery now preserves a later explicit enable or disable
+command. Previously, an older restore marker could undo that successful command
+on the next Manager pass. The [unchanged old-code regression failed at its
+intended assertion](benchmarks/interrupted-sign-in-explicit-preference-regression-2026-10-09.json);
+the corrected identical case and six focused controls passed. Existing markers
+are atomically replaced with the new explicit intent before saving settings;
+healing rereads the marker and current account under both ownership locks.
+A persistence error after publishing the marker can leave the requested intent
+durable for later healing, so it does not guarantee rollback. Permission mode,
+credentials, other accounts and retained payloads are unchanged. A no-marker
+hint preserves the previous cheap healthy-account path and is separately bound
+to the combined full check. These are synthetic lifecycle controls, not the
+remaining installed read-only downgrade or real Apple session-expiry evidence.
+
 ### Tested samples and implementation limits
 
 These are exact bounded samples or implementation limits, not a coverage percentage

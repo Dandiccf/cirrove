@@ -385,18 +385,25 @@ pub(crate) fn interrupted_desired_state(state: &Path, id: &str) -> Option<bool> 
 
 fn write_restore_marker(state: &Path, id: &str, enabled: bool) -> Result<()> {
     let path = restore_marker(state, id);
-    let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&path)?;
-    file.write_all(&serde_json::to_vec(
-        &serde_json::json!({ "enabled": enabled }),
-    )?)?;
-    file.sync_all()?;
-    File::open(state)?.sync_all()?;
-    Ok(())
+    let temp = state.join(format!(".restore-{}.tmp", uuid::Uuid::new_v4()));
+    let result = (|| {
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .mode(0o600)
+            .open(&temp)?;
+        file.write_all(&serde_json::to_vec(
+            &serde_json::json!({ "enabled": enabled }),
+        )?)?;
+        file.sync_all()?;
+        std::fs::rename(&temp, &path)?;
+        File::open(state)?.sync_all()?;
+        Ok(())
+    })();
+    if temp.exists() {
+        let _ = std::fs::remove_file(temp);
+    }
+    result
 }
 
 /// Undo a sign-in that never put an account back, when none is running.
@@ -407,20 +414,33 @@ fn write_restore_marker(state: &Path, id: &str, enabled: bool) -> Result<()> {
 /// lock, so it can never fight a sign-in still waiting on a browser -- that lock
 /// is held for exactly as long as the disable is meant to last.
 pub fn heal_interrupted_sign_ins(state: &Path) -> Result<bool> {
+    heal_interrupted_accounts(state, Settings::load(state)?.accounts)
+}
+
+fn heal_interrupted_accounts(state: &Path, accounts: Vec<Account>) -> Result<bool> {
     let mut healed = false;
-    for account in Settings::load(state)?.accounts {
-        let Some(enabled) = interrupted_desired_state(state, &account.id) else {
+    for account in accounts {
+        // This is only a cheap hint. A new marker can wait for the next pass;
+        // any present marker is reread after ownership below.
+        if !restore_marker(state, &account.id).exists() {
             continue;
-        };
+        }
         let Ok(_operation) = account_operation(state, &account.id) else {
             continue; // a sign-in is in progress; its own guard owns the restore
         };
-        if account.enabled != enabled {
-            let _lock = config_lock(state)?;
-            let mut settings = Settings::load(state)?;
-            if let Some(stored) = settings.accounts.iter_mut().find(|a| a.id == account.id) {
-                stored.enabled = enabled;
-            }
+        let _lock = config_lock(state)?;
+        // The outer inventory is only an identity list. A preference or sign-in
+        // may have finished since it was read; neither its marker nor enabled
+        // value is authoritative until both locks are held.
+        let Some(enabled) = interrupted_desired_state(state, &account.id) else {
+            continue;
+        };
+        let mut settings = Settings::load(state)?;
+        let Some(stored) = settings.accounts.iter_mut().find(|a| a.id == account.id) else {
+            continue;
+        };
+        if stored.enabled != enabled {
+            stored.enabled = enabled;
             settings.save(state)?;
             healed = true;
             tracing::warn!(
@@ -1554,6 +1574,15 @@ fn update_enabled(
     select: impl Fn(&Account) -> bool,
     enabled: bool,
 ) -> std::result::Result<(), PreferenceRefusal> {
+    update_enabled_with(state, select, enabled, Settings::save)
+}
+
+fn update_enabled_with(
+    state: &Path,
+    select: impl Fn(&Account) -> bool,
+    enabled: bool,
+    persist: impl FnOnce(&Settings, &Path) -> Result<()>,
+) -> std::result::Result<(), PreferenceRefusal> {
     let _lock = config_lock(state).map_err(|_| PreferenceRefusal::Busy)?;
     let mut settings = Settings::load(state).map_err(|_| PreferenceRefusal::Unreadable)?;
     let account = settings
@@ -1563,10 +1592,20 @@ fn update_enabled(
         .ok_or(PreferenceRefusal::NotConfigured)?;
     // Held per account, so this is "this drive is busy" and not "Cirrove is".
     let _operation = account_operation(state, &account.id).map_err(|_| PreferenceRefusal::Busy)?;
+    let marker = restore_marker(state, &account.id);
+    if marker.exists() {
+        // Supersede an interrupted sign-in's old wish before changing settings.
+        // A later persistence error can still leave this explicit intent for
+        // healing (including an error after marker rename); it is not rollback.
+        write_restore_marker(state, &account.id, enabled)
+            .map_err(|_| PreferenceRefusal::Unwritable)?;
+    }
     account.enabled = enabled;
-    settings
-        .save(state)
-        .map_err(|_| PreferenceRefusal::Unwritable)
+    persist(&settings, state).map_err(|_| PreferenceRefusal::Unwritable)?;
+    // Failure to remove is harmless: any retained marker now holds the latest
+    // explicit wish, and future preference changes supersede it again.
+    let _ = std::fs::remove_file(marker);
+    Ok(())
 }
 /// Remove an account, refusing while it still holds work nobody has sent.
 ///
@@ -2953,6 +2992,228 @@ mod tests {
                 serde_json::to_value(&after.accounts[0]).expect("account"),
                 serde_json::to_value(original).expect("original")
             );
+        }
+    }
+
+    #[test]
+    fn explicit_mount_preference_supersedes_interrupted_sign_in() {
+        for (old_wish, requested) in [(true, false), (false, true)] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut account = fixture_account(AccessMode::ReadWrite);
+            account.enabled = false; // an interrupted sign-in's temporary disable
+            Settings {
+                version: 2,
+                accounts: vec![account.clone()],
+            }
+            .save(&state)
+            .expect("seed");
+            super::write_restore_marker(&state, &account.id, old_wish).expect("old wish");
+
+            super::set_enabled(&state, &account.label, requested).expect("explicit preference");
+            super::heal_interrupted_sign_ins(&state).expect("heal");
+            super::heal_interrupted_sign_ins(&state).expect("heal again");
+            account.enabled = requested;
+            assert_eq!(
+                serde_json::to_value(&Settings::load(&state).expect("load").accounts[0])
+                    .expect("actual account"),
+                serde_json::to_value(&account).expect("expected account"),
+                "an interrupted sign-in overrode the later explicit mount preference"
+            );
+            assert!(!super::restore_marker(&state, &account.id).exists());
+        }
+    }
+
+    mod interrupted_preference_tests {
+        use super::*;
+        use std::os::unix::fs::PermissionsExt;
+
+        fn seed(state: &Path, enabled: bool, marker: Option<bool>) -> Account {
+            crate::private_dir(state).expect("state");
+            let mut account = icloud_reauth_fixture();
+            account.enabled = enabled;
+            Settings {
+                version: 2,
+                accounts: vec![account.clone()],
+            }
+            .save(state)
+            .expect("seed");
+            if let Some(wish) = marker {
+                super::super::write_restore_marker(state, &account.id, wish).expect("marker");
+            }
+            account
+        }
+
+        #[test]
+        fn persistence_failure_retains_explicit_durable_intent() {
+            for requested in [false, true] {
+                for published_settings in [false, true] {
+                    let temp = tempfile::tempdir().expect("fixture");
+                    let state = temp.path().join("state");
+                    let mut account = seed(&state, !requested, Some(!requested));
+                    let result = super::super::update_enabled_with(
+                        &state,
+                        |a| a.id == account.id,
+                        requested,
+                        |candidate, directory| {
+                            if published_settings {
+                                candidate.save(directory)?;
+                            }
+                            bail!("injected settings persistence failure")
+                        },
+                    );
+                    assert_eq!(result, Err(PreferenceRefusal::Unwritable));
+                    assert_eq!(
+                        super::super::interrupted_desired_state(&state, &account.id),
+                        Some(requested),
+                        "a reported persistence error must not revive the old wish"
+                    );
+                    heal_interrupted_sign_ins(&state).expect("finish durable intent");
+                    account.enabled = requested;
+                    assert_eq!(
+                        serde_json::to_value(&Settings::load(&state).expect("load").accounts[0])
+                            .expect("actual"),
+                        serde_json::to_value(&account).expect("expected")
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn cleanup_failure_retains_only_latest_wish() {
+            for requested in [false, true] {
+                let temp = tempfile::tempdir().expect("fixture");
+                let state = temp.path().join("state");
+                let account = seed(&state, !requested, Some(!requested));
+                let result = super::super::update_enabled_with(
+                    &state,
+                    |a| a.id == account.id,
+                    requested,
+                    |candidate, directory| {
+                        candidate.save(directory)?;
+                        std::fs::set_permissions(
+                            directory,
+                            std::fs::Permissions::from_mode(0o500),
+                        )?;
+                        Ok(())
+                    },
+                );
+                std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o700))
+                    .expect("restore directory mode");
+                result.expect("settings durable despite failed marker unlink");
+                assert_eq!(
+                    super::super::interrupted_desired_state(&state, &account.id),
+                    Some(requested),
+                    "failed cleanup must leave the new complete marker"
+                );
+                assert!(!heal_interrupted_sign_ins(&state).expect("same wish"));
+                set_enabled_by_id(&state, &account.id, !requested).expect("later preference");
+                heal_interrupted_sign_ins(&state).expect("heal again");
+                assert_eq!(
+                    Settings::load(&state).expect("load").accounts[0].enabled,
+                    !requested
+                );
+            }
+        }
+
+        #[test]
+        fn live_sign_in_refuses_both_public_preference_routes() {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, false, Some(true));
+            let before = std::fs::read(state.join("accounts.json")).expect("settings");
+            let marker =
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker");
+            let _operation =
+                account_operation(&state, &account.id).expect("sign-in owns operation");
+            assert!(set_enabled(&state, &account.label, true).is_err());
+            assert_eq!(
+                set_enabled_by_id(&state, &account.id, true),
+                Err(PreferenceRefusal::Busy)
+            );
+            assert_eq!(
+                std::fs::read(state.join("accounts.json")).expect("settings"),
+                before
+            );
+            assert_eq!(
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker"),
+                marker
+            );
+        }
+
+        #[test]
+        fn marker_failure_before_rename_preserves_previous_file() {
+            use std::os::unix::fs::MetadataExt;
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, false, Some(true));
+            let marker = super::super::restore_marker(&state, &account.id);
+            let held = File::open(&marker).expect("held original marker");
+            let bytes = std::fs::read(&marker).expect("marker");
+            std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o500))
+                .expect("deny new temporary marker");
+            let result = super::super::write_restore_marker(&state, &account.id, false);
+            std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o700))
+                .expect("restore directory mode");
+            assert!(result.is_err());
+            assert_eq!(std::fs::read(&marker).expect("marker preserved"), bytes);
+            assert_eq!(
+                std::fs::metadata(&marker).expect("metadata").ino(),
+                held.metadata().expect("held").ino()
+            );
+            assert_eq!(std::fs::read_dir(&state).expect("inventory").count(), 2);
+        }
+
+        #[test]
+        fn healer_uses_current_account_not_initial_inventory() {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, true, None);
+            let initial_inventory = Settings::load(&state).expect("initial inventory").accounts;
+            // A sign-in starts and finishes abandoning its temporary disable
+            // after the healer's inventory, but before ownership is acquired.
+            let mut current = Settings::load(&state).expect("current");
+            current.accounts[0].enabled = false;
+            current.save(&state).expect("temporary disable");
+            super::super::write_restore_marker(&state, &account.id, true).expect("new marker");
+            assert!(
+                super::super::heal_interrupted_accounts(&state, initial_inventory)
+                    .expect("heal fresh state")
+            );
+            assert!(Settings::load(&state).expect("load").accounts[0].enabled);
+        }
+
+        #[test]
+        fn id_preference_preserves_other_accounts_and_no_marker_behavior() {
+            for marker in [None, Some(false), Some(true)] {
+                for requested in [false, true] {
+                    let temp = tempfile::tempdir().expect("fixture");
+                    let state = temp.path().join("state");
+                    let mut account = seed(&state, !requested, marker);
+                    let mut other = fixture_account(AccessMode::ReadWrite);
+                    other.id = "00000000-0000-4000-8000-000000000009".into();
+                    other.label = "other".into();
+                    other.mount_path = "/nonexistent/other-fixture".into();
+                    let mut settings = Settings::load(&state).expect("load");
+                    settings.accounts.push(other.clone());
+                    settings.save(&state).expect("other account");
+                    set_enabled_by_id(&state, &account.id, requested)
+                        .expect("explicit ID preference");
+                    heal_interrupted_sign_ins(&state).expect("heal");
+                    account.enabled = requested;
+                    let expected = Settings {
+                        version: 2,
+                        accounts: vec![account.clone(), other],
+                    };
+                    assert_eq!(
+                        serde_json::to_value(Settings::load(&state).expect("load"))
+                            .expect("actual"),
+                        serde_json::to_value(expected).expect("expected")
+                    );
+                    assert!(!super::super::restore_marker(&state, &account.id).exists());
+                }
+            }
         }
     }
 

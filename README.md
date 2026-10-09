@@ -63,25 +63,14 @@ filesystem operations have their own limits.
 | **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
 | **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in, read-only mounts and owned ordinary-file saves have live evidence. Twelve bounded Pages, Numbers and Keynote workflows cover DATA/PACKAGE documents, ordinary saves and atomic replacement, preserved originals in Trash, remount and reopening in Apple's editors. Export fidelity has documented limits. Installed read-only sign-in, explicit write opt-in and Strata preservation have now been observed. Complete installed recovery/downgrade and broader reliability remain open. This integration is not yet part of `main` or a release; see [the progress and limits](#icloud-integration-progress). |
 
-iCloud's bounded document trials cover replacement, recoverable removal,
-conflict refusal and recovery after a lost final confirmation. Four of its six
-full-integration criteria are now closed; installed account recovery and broader
-reliability remain open. See [iCloud progress and limits](#icloud-integration-progress)
-for the current checkpoint and [the validation record](docs/icloud-write-integration.md)
-for reproducible evidence and retained failures.
-
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
 Google's native documents. OneNote and other provider packages also retain their
 package-specific write restrictions. See [Google Drive](docs/google-drive.md)
 for the precise preview scope.
 
-The optional [Strata companion](docs/strata.md) provides availability badges,
-offline actions and inherited pins, with restrictions for native documents.
-Its current installed iCloud trial verified cold fetching, all four Keep/Stop
-actions and preservation across a package upgrade. Dolphin's broader live
-desktop acceptance remains open. See [validation](docs/validation.md) for
-distribution and desktop coverage.
+Dolphin's broader live desktop acceptance remains open. Distribution and upgrade
+boundaries are recorded in the [validation record](docs/validation.md).
 
 ## Try Cirrove
 
@@ -212,7 +201,10 @@ iCloud remains a development integration rather than a general onboarding route.
 [PR 86](https://github.com/Dandiccf/cirrove/pull/86). It is not part of `main`
 or a released Cirrove version. **Full iCloud acceptance remains open and
 candidate delivery is on HOLD.** New connections default to read-only;
-writes require an explicit experimental opt-in.
+writes require an explicit experimental opt-in. Four of the six full-integration
+criteria are closed: public Pages import, native replacement/removal recovery,
+application workflows and installed Strata preservation. Installed account
+lifecycle and reliability remain open.
 
 Cirrove has its own native Linux iCloud adapter using Apple's undocumented
 web transport. It does not import another cloud client's credentials or
@@ -268,29 +260,29 @@ trial used a fresh, independently verified **8 MiB file with zero resident
 bytes**. All four actions passed again, including a visibly observed **Fetching**
 badge, kept/inherited badges, availability dialogs, subscribed event refresh and
 exact readback. Installed provider files, preferences and default Nautilus
-survived deployment and testing. The
-[registered installed trial](docs/benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json)
-records each outcome and the isolated GUI configuration. This closes the
-installed Strata preservation criterion; it does not establish every desktop
-or general iCloud reliability.
+survived deployment and testing. This closes the installed Strata preservation
+criterion; it does not establish every desktop or general iCloud reliability.
 
 Explicit native reauthentication then enabled writes on the same installed
 account. The following normal save exposed a remaining bug: its newly created
 folder reached iCloud, but the file stayed locally retained as Conflict. The
 trial was stopped without retrying the upload; this sequence is under
 investigation and does not count as successful installed write acceptance.
-A [targeted parent-lookup correction](docs/benchmarks/icloud-fresh-mkdir-parent-regression-2026-10-09.json)
-now passes nine local controls after the same primary fixture failed on the
-old code. A fresh installed cloud retest is still required.
-The same installation retained a sealed save and an unlinked working file
-while offline, disabled the account and exported both with matching checksums.
-Read-only downgrade and active recovery of those same generations remain untested.
+The [targeted parent-lookup correction](docs/benchmarks/icloud-fresh-mkdir-parent-regression-2026-10-09.json)
+passes nine local controls after the identical primary fixture failed on the old code.
+A fresh installed cloud retest is still required.
+The [registered installed trial](docs/benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json)
+also verified offline exports of a **44-byte sealed save** and a **52-byte
+unlinked working file**, both with matching checksums. Read-only downgrade
+and active recovery of those same generations remain untested. The trial
+records the separate transport failure and each outcome’s scope.
 
 ### What still blocks full acceptance
 
-1. **Installed account lifecycle:** explicit write opt-in, same-account
-   reauthentication and downgrade to read-only with retained sealed/dirty-byte
-   recovery, preserving other accounts and permanent-deletion refusal.
+1. **Complete installed account lifecycle:** a successful owned-file save
+   after the observed same-account write opt-in, followed by read-only downgrade
+   and retained sealed/dirty-byte recovery, preserving other accounts and
+   permanent-deletion refusal.
 2. **Reliability:** remaining in-flight replacement and namespace uncertainty,
    expired-session recovery, storage/staging limits and abandoned-work handling,
    with registered real-account evidence and explicit size/format bounds.
@@ -302,6 +294,15 @@ project check also passed. Whole-second precision may expire cookies up to one
 second early. Unchanged legacy ciphertext lacks its original receipt time;
 its labelled restoration anchor persists only after an explicit snapshot save.
 This local fix does not prove natural Apple session expiry or its recovery.
+
+Saved-session account health now revalidates during each existing scheduled
+poll. Previously, caching the first successful validation could leave an
+account marked Ready after a later authentication rejection. The identical
+[regression fixture](docs/benchmarks/icloud-saved-session-health-regression-2026-10-09-38c5c4b2-2c9a-4538-8b17-c37937a6654d.json)
+failed on the old code; three corrected controls and the complete project check
+passed. Each poll performs one nonrecursive root listing. This establishes
+synthetic rejection handling; natural Apple expiry and installed recovery
+remain unproved.
 
 Read the [full integration record](docs/icloud-write-integration.md) for historical
 successes, retained failures and measured limits, and the
@@ -337,7 +338,6 @@ too.
 | `cirrove-onedrive` | Microsoft Graph metadata, version-checked reads and conditional/resumable uploads |
 | `cirrove-googledrive` | Google Drive v3 reads plus v2 conditional writes for writable My Drive and Shared Drive preview mounts |
 | `cirrove-auth` | Microsoft/Google browser authentication, shared keyring and refresh broker |
-| `cirrove-icloud` | Experimental native Apple transport, document representations and scoped recovery adapters; development only |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 | `cirrove-desktop` | Native account overview and asynchronous service controls |
 
