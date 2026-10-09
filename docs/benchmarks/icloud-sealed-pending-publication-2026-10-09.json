@@ -1,0 +1,300 @@
+{
+  "run": "9a16fa3f-9543-446d-b98a-094a2ae5ffcb",
+  "question": "Does fixed create-new publication admission preserve an occupied sealed temporary without modifying key/final blob, and bound concurrent temporary ownership?",
+  "prediction": "Unchanged random-temp source fails occupied-slot assertion; corrected source passes identical primary and five focused controls.",
+  "scope": "Synthetic local storage only; no provider/auth/service/installed actions or full490 claim.",
+  "arms": [
+    "baseline-random-temp-red1",
+    "fixed-pending-green1",
+    "fixed-pending-controls5",
+    "existing-sealed-vault-controls10",
+    "owned-session-writeback-controls12"
+  ],
+  "work_seconds_per_command": 1800,
+  "cleanup_seconds_per_command": 30,
+  "active": false,
+  "active_measurement": false,
+  "state": "closed_focused_pass_with_retained_observation_failures",
+  "base_head": "03e7ca53184ef681cea07cf2e84f17376362cc9e",
+  "limitation": "One arm execution supports only local correctness; historical UUID remnants remain unchanged; a fixed-slot crash remnant deliberately blocks further publication until safely preserved and manually handled.",
+  "corrections": [
+    {
+      "arm": "red1",
+      "result": "compile failure; zero tests and no RED credit",
+      "result_sha256": "8491f7ccf403c502ec1af4a2f7834393fe2fb86d0d593d9e1a098aea562b8cc9",
+      "next_arm": "red2",
+      "correction": "RED1 zero executed tests: rustc shim chose directory-specific dependency toolchains. Explicit compiler/toolchain and fresh target; production/primary source unchanged."
+    }
+  ],
+  "result": {
+    "run": "9a16fa3f-9543-446d-b98a-094a2ae5ffcb",
+    "success": true,
+    "scope": "Synthetic local-storage correctness only; full490 remains open.",
+    "all_original_owners_closed": true,
+    "final_focused_unique_tests": 27,
+    "same_fixture_primary_red_then_green": true,
+    "results": {
+      "red1": {
+        "receipt": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red1-result-v1.json",
+          "size": 1980,
+          "sha256": "8491f7ccf403c502ec1af4a2f7834393fe2fb86d0d593d9e1a098aea562b8cc9"
+        },
+        "cargo_exit": 101,
+        "collector_success": false,
+        "elapsed_seconds": 26.31014627602417,
+        "test_names": [],
+        "stdout": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red1-stdout.txt",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red1-stderr.txt",
+          "size": 12237,
+          "sha256": "3068edce5864e07b2d41f68b8a92bb34129254484c5242c0d9839738ab25fec8"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red1-owner-v1.json",
+          "size": 390,
+          "sha256": "344901a955d991941b7c24cf44aa9498301cc90090832598567381d166ad9cc6"
+        }
+      },
+      "red2": {
+        "receipt": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red2-result-v1.json",
+          "size": 2239,
+          "sha256": "95b7e4a14cc981a001d6b1b4ad8b60c7d0dbcbbf5a0d7e1de7aecc293da39264"
+        },
+        "cargo_exit": 101,
+        "collector_success": true,
+        "elapsed_seconds": 33.19827997300308,
+        "test_names": [
+          "sealed_session::pending_tests::occupied_pending_slot_preserves_key_blob_and_remnant"
+        ],
+        "stdout": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red2-stdout.txt",
+          "size": 757,
+          "sha256": "ad98e462cd941f9978102ebb3422df02d0f192209ae5d1db6d7bfc14d462a631"
+        },
+        "stderr": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red2-stderr.txt",
+          "size": 8818,
+          "sha256": "5eca3c845ca6e78f34b24b44af3d5d070825a2952bb98df28735890c555bd030"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/red2-owner-v1.json",
+          "size": 390,
+          "sha256": "37e2ea141b081bf0cf8985bdec5849566d0199432c752b74996d68296dae48c2"
+        }
+      },
+      "green2": {
+        "receipt": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/green2-result-v1.json",
+          "size": 2501,
+          "sha256": "63203c4150c06c78df054c2436e2f2ad20a22c30c9b67d86de453c6cebd41be5"
+        },
+        "cargo_exit": 0,
+        "collector_success": true,
+        "elapsed_seconds": 14.469714526087046,
+        "test_names": [
+          "sealed_session::pending_tests::occupied_pending_slot_preserves_key_blob_and_remnant"
+        ],
+        "stdout": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/green2-stdout.txt",
+          "size": 210,
+          "sha256": "531ef9ccfd1c76af972a18a168f5261c648040a802bbdd5e3ab799e41746a332"
+        },
+        "stderr": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/green2-stderr.txt",
+          "size": 361,
+          "sha256": "fe137eec0de7a1b646a9357cc3d61c1c5dc5636ab733a889bb4096e06711f23a"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/green2-owner-v1.json",
+          "size": 390,
+          "sha256": "e8e596348e0de451d7b5d692ca62a1c58eee0a2ff31c8d50ee1ef8d0cd5ce3ea"
+        }
+      },
+      "controls5": {
+        "receipt": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/controls5-result-v1.json",
+          "size": 2512,
+          "sha256": "d894c71ada98fcb580c5cd8de84935a075530a519f9391eaf90d76935b44b366"
+        },
+        "cargo_exit": 0,
+        "collector_success": true,
+        "elapsed_seconds": 3.052349078003317,
+        "test_names": [
+          "sealed_session::pending_ownership_tests::unpublished_owned_failure_removes_only_own_pending_slot",
+          "sealed_session::pending_ownership_tests::published_writer_error_keeps_next_writer_pending_slot",
+          "sealed_session::pending_ownership_tests::legacy_random_remnants_are_preserved",
+          "sealed_session::pending_ownership_tests::concurrent_pending_writer_cannot_remove_owner_slot",
+          "sealed_session::pending_tests::occupied_pending_slot_preserves_key_blob_and_remnant"
+        ],
+        "stdout": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/controls5-stdout.txt",
+          "size": 621,
+          "sha256": "37ccbaf8d63f9a27aed91bed1c07c748edd9c3eea4c401b281cb3919a6e1cc79"
+        },
+        "stderr": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/controls5-stderr.txt",
+          "size": 360,
+          "sha256": "94537d48973f56c423d3b7424cbaa6d6ece3f4a7901e40db6db2a6ac913acdc3"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/controls5-owner-v1.json",
+          "size": 306,
+          "sha256": "cd915a53f2b306ac26f2e28811b9421903ceb435a7bfe2f9c1df43a1870f7def"
+        }
+      },
+      "sealed10": {
+        "receipt": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed10-result-v1.json",
+          "size": 2525,
+          "sha256": "9477dfd692c0aff03ac21ef9891e49824c76a8e2578764c79d1bfeb7423b9ffe"
+        },
+        "cargo_exit": 0,
+        "collector_success": false,
+        "elapsed_seconds": 0.34689269203227013,
+        "test_names": [
+          "sealed_session::tests::legacy_keyring_snapshot_remains_readable",
+          "sealed_session::tests::native_trash_checkpoint_refuses_foreign_key_and_authenticates_purpose",
+          "sealed_session::tests::folder_checkpoint_preserves_legacy_receipt_until_next_save",
+          "sealed_session::tests::large_session_survives_when_large_keyring_items_do_not",
+          "sealed_session::tests::upload_checkpoint_survives_large_keyring_value_loss_and_reopen",
+          "sealed_session::tests::folder_checkpoint_is_sealed_and_bound_to_account_operation_and_namespace"
+        ],
+        "stdout": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed10-stdout.txt",
+          "size": 686,
+          "sha256": "2ef3dac037afef5938e5d39deab75c834bb6a41cf2d4c944eaf746a3f27f1676"
+        },
+        "stderr": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed10-stderr.txt",
+          "size": 242,
+          "sha256": "70852f20d60cb6ff731dbb105d4171e1ad01c1d054b5ce6636aedd4def382ba1"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed10-owner-v1.json",
+          "size": 305,
+          "sha256": "0904db6490a37fd0b46ad34a65ae679cfddc21602b975624a51c701acfd70ab3"
+        }
+      },
+      "sealed4probe": {
+        "receipt": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed4probe-result-v1.json",
+          "size": 2524,
+          "sha256": "a73c500ad36ab6f314083e06a5ceed075e82b6062fce0e5c2a961f9e6e9b2aaa"
+        },
+        "cargo_exit": 0,
+        "collector_success": true,
+        "elapsed_seconds": 22.75169035093859,
+        "test_names": [
+          "sealed_session::package_trash_tests::trash_checkpoint_authenticates_purpose_even_with_identical_key_material",
+          "sealed_session::package_trash_tests::import_and_trash_same_operation_have_independent_sealed_checkpoints",
+          "sealed_session::package_trash_tests::native_restore_checkpoint_is_separate_from_import_and_native_trash_history",
+          "sealed_session::package_trash_tests::restore_checkpoint_is_separate_from_import_and_trash_history"
+        ],
+        "stdout": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed4probe-stdout.txt",
+          "size": 587,
+          "sha256": "cffe98613ca879a226795e3477ec7177ab5364e83933691a844921070e1c916f"
+        },
+        "stderr": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed4probe-stderr.txt",
+          "size": 361,
+          "sha256": "aeaa64e0253170d8ac648d3c891d9a83d58a0e81a3b6b68a5c8f4d4cf1c930c3"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/sealed4probe-owner-v1.json",
+          "size": 356,
+          "sha256": "22502b066bda95e337824d132c1c542abc2f4456d0cde25e2274a6bf0b33001b"
+        }
+      },
+      "writeback12": {
+        "receipt": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/writeback12-result-v1.json",
+          "size": 2520,
+          "sha256": "d88e6ced6580164feb0d481896b7a840ec692aeb247e9d95988172f2786fdf32"
+        },
+        "cargo_exit": 0,
+        "collector_success": true,
+        "elapsed_seconds": 0.54797321499791,
+        "test_names": [
+          "provider::session_writeback_tests::owned_poll_concurrent_cookie_replay_matches_live_jar_and_revision",
+          "provider::session_writeback_tests::owned_poll_coalescing_keeps_exact_source_domain_path_and_security_classes",
+          "provider::session_writeback_tests::owned_poll_retains_owner_until_last_provider_reference",
+          "provider::session_writeback_tests::owned_poll_postpublication_failure_reconciles_only_own_attempt",
+          "provider::session_writeback_tests::owned_poll_blocked_commit_acknowledges_only_captured_revision_and_cancel_keeps_pending",
+          "provider::session_writeback_tests::owned_poll_cookie_record_limit_refuses_without_durable_changes",
+          "provider::session_writeback_tests::owned_poll_legacy_snapshot_never_migrates_or_creates_a_sealed_file",
+          "provider::session_writeback_tests::owned_poll_cookie_survives_restart_with_original_expiry",
+          "provider::session_writeback_tests::owned_poll_without_response_cookie_and_public_constructor_do_not_write",
+          "provider::session_writeback_tests::owned_poll_tombstone_survives_and_preserves_other_path",
+          "provider::session_writeback_tests::owned_poll_repeated_cookie_rotation_remains_bounded_and_survives_restart",
+          "provider::session_writeback_tests::owned_poll_binding_refuses_foreign_snapshot_key_or_missing_directory"
+        ],
+        "stdout": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/writeback12-stdout.txt",
+          "size": 1480,
+          "sha256": "4826628f3dadf253fbbb3aea84adaa93451c69b1d9a82ba6fbd65c4bb7eeabd1"
+        },
+        "stderr": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/writeback12-stderr.txt",
+          "size": 242,
+          "sha256": "70852f20d60cb6ff731dbb105d4171e1ad01c1d054b5ce6636aedd4def382ba1"
+        },
+        "owner": {
+          "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/writeback12-owner-v1.json",
+          "size": 317,
+          "sha256": "36ffcd495bcebb019e798b105f6d090b3c539cf787ac21916d77c05331c997ff"
+        }
+      }
+    },
+    "source_pins": [
+      {
+        "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/crates/cirrove-icloud/src/sealed_session.rs",
+        "size": 57855,
+        "sha256": "675f0a8a0148144454ea54921522f69434a7cce7d23919487b484dddb682a4c3"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/crates/cirrove-icloud/src/sealed_session/pending_tests.rs",
+        "size": 3019,
+        "sha256": "175be65f880d7c88cced05aedfa4b2d390ba0970b5371f7278ee9a3c0adbf1e2"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/Cargo.lock",
+        "size": 114267,
+        "sha256": "b15c69efc03e61f73ff29d1ff0da6b29d9e2798b9b7e555b7450435f8ca3729d"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/crates/cirrove-icloud/Cargo.toml",
+        "size": 1207,
+        "sha256": "23007801ca1fc7b1aa54bd22cdb02a19766fe15e0e280695a8356169c25ebead"
+      },
+      {
+        "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/crates/cirrove-icloud/src/sealed_session/pending_ownership_tests.rs",
+        "size": 5901,
+        "sha256": "4eb11d701f05be22133c12d9a00b79d9d6d7a452deb26fbf8e8de8da43d4d60a"
+      }
+    ],
+    "primary_format_proof": {
+      "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/primary-format-only-proof-v1.json",
+      "size": 474,
+      "sha256": "e691b0156990350f8d034f059808dffeb6e75fd31935cb9849633ddfa48adac8"
+    },
+    "counts_correction": "sealed10 wrapper failed because expected10 but its normal-mode command executed6 PASS; remaining4 require write-probe and passed separately without repeating6. Original failed wrapper preserved.",
+    "infrastructure_history": "red1 E0514/mixed rustc directory toolchains, zero tests/no RED credit; explicit pinned compiler/toolchain/fresh target used prospectively.",
+    "limitations": [
+      "One exclusive new pending file per vault; existing UUID remnants unchanged.",
+      "Occupied crash remnant deliberately blocks saves until safe preservation/manual recovery.",
+      "No automatic quarantine, general CAS, aggregate disk quota, real-provider leak/expiry/reliability or criterion490 closure claim."
+    ],
+    "documentation_proposal": {
+      "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/sealed-pending-regression-private-v1/documentation-proposal-v1.txt",
+      "size": 1114,
+      "sha256": "f0c96d53cd09632264d293d2f5fda52574a616ff2ee114601af2fa5285e73e7b"
+    }
+  }
+}

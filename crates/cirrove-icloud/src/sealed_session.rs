@@ -19,6 +19,11 @@ const KEY_PREFIX: &str = "icloud-seal-v1:";
 const MAGIC: &[u8] = b"ICLDS1";
 const MAX_SEALED_BYTES: u64 = 128 * 1024 + 64;
 
+#[cfg(test)]
+mod pending_ownership_tests;
+#[cfg(test)]
+mod pending_tests;
+
 /// An iCloud-only vault. Older direct keyring snapshots remain readable until
 /// the next foreground re-sign-in; no background migration exposes a grant.
 pub struct SealedSessionVault {
@@ -172,18 +177,39 @@ impl SealedSessionVault {
         }
         let temp = self
             .account_dir
-            .join(format!("{}-{}.tmp", self.temp_prefix, Uuid::new_v4()));
+            .join(format!("{}.pending", self.temp_prefix));
+        // One exclusive slot bounds unpublished files even across interruption.
+        // An occupied slot may belong to another writer or retained recovery
+        // evidence: never remove it when create_new fails. Legacy UUID temps
+        // are likewise retained, rather than swept as part of saving a grant.
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&temp)
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    anyhow::anyhow!(
+                        "iCloud sealed publication blocked by an occupied pending slot; preserve it before manual recovery"
+                    )
+                } else {
+                    anyhow::anyhow!("cannot create private iCloud sealed publication slot")
+                }
+            })?;
+        let mut owns_pending = true;
         let result = (|| -> Result<()> {
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .mode(0o600)
-                .open(&temp)?;
+            #[cfg(test)]
+            pending_ownership_tests::at(pending_ownership_tests::Step::Created)?;
             file.write_all(MAGIC)?;
             file.write_all(&nonce_bytes)?;
             file.write_all(&ciphertext)?;
             file.sync_all()?;
             fs::rename(&temp, self.path())?;
+            // Rename releases the slot. Another writer may create it before
+            // directory sync fails, so this invocation must never unlink it.
+            owns_pending = false;
+            #[cfg(test)]
+            pending_ownership_tests::at(pending_ownership_tests::Step::Published)?;
             #[cfg(test)]
             if self
                 .fail_after_publish
@@ -194,7 +220,7 @@ impl SealedSessionVault {
             File::open(&self.account_dir)?.sync_all()?;
             Ok(())
         })();
-        if temp.exists() {
+        if owns_pending {
             let _ = fs::remove_file(temp);
         }
         result

@@ -347,8 +347,12 @@ restoration replaces finite positive `Max-Age` with absolute `Expires` and repla
 elapsed entries as deletion tombstones in their original order. Receipt times
 use whole seconds, allowing at most one second of early expiry. Legacy snapshots
 have no original receipt time: a separately labelled first-restoration anchor
-becomes durable only when a caller explicitly saves a new snapshot. Loading
-unchanged legacy ciphertext can still re-anchor its relative lifetime; no file
+becomes durable only after a new snapshot is saved. Normal configured iCloud
+accounts now persist changed cookies after a successful scheduled root poll,
+under the shared account-ownership lease. An explicitly owned SDK constructor
+uses the same writer; unowned constructors, injected providers and recovery-only
+startup remain memory-only. The writer verifies its original key and snapshot
+binding and does not recreate removed state. Loading unchanged legacy ciphertext can still re-anchor its relative lifetime; no file
 timestamp is treated as authoritative. Local cookie expiry is distinct from
 Apple's server-side grant expiry and does not prove expired-session recovery.
 
@@ -740,6 +744,16 @@ disk; other providers retain the existing desktop keyring backend. Selecting
 storage does not grant write consent: settings and the iCloud factory require an
 explicit read-write account. The adapter remains experimental, with application
 and installed-state acceptance separate from account-wide routing.
+
+Sealed iCloud session and upload-checkpoint publication each use one exclusive
+private pending slot per vault directory. Creation failure preserves that slot
+and the previous sealed file and key; only its creating writer may clean up an
+unpublished slot. Ownership ends immediately after rename, before directory
+fsync. A process interruption can therefore leave one pending file that blocks
+further publication until manual recovery. Reads continue to use the final
+sealed file. Historical UUID temporary files are preserved: this bounds new
+unpublished files per vault, not total account disk use or existing remnants.
+See [safe handling of occupied slots](icloud-write-integration.md#occupied-sealed-publication-slots).
 
 The journal's pending-byte budget is the account's configured `cache_bytes`,
 read when this context is opened. It is separate from the evictable read cache's

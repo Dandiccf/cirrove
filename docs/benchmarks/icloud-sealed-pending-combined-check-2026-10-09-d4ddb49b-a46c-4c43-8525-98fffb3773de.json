@@ -1,0 +1,73 @@
+{
+  "run": "d4ddb49b-a46c-4c43-8525-98fffb3773de",
+  "private_root": "/home/dandiccf/Work/cirrove/.local-state/icloud-sealed-pending-combined-check-d4ddb49b-a46c-4c43-8525-98fffb3773de",
+  "public_artifact": "docs/benchmarks/icloud-sealed-pending-combined-check-2026-10-09-d4ddb49b-a46c-4c43-8525-98fffb3773de.json",
+  "cwd": "/home/dandiccf/Work/cirrove",
+  "source_head": "03e7ca53184ef681cea07cf2e84f17376362cc9e",
+  "state": "closed_failed",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "expected_duration_seconds": 900,
+  "maximum_duration_seconds": 1800,
+  "cleanup_seconds": 30,
+  "question": "Does the complete mandatory project check pass with exclusive sealed iCloud publication slots and documented preservation/manual recovery?",
+  "arms": [
+    "one complete frozen combined check"
+  ],
+  "prediction": "The sensitive occupied-slot RED/GREEN and 27 passing focused controls support a passing complete check; live lifecycle/reliability remain open.",
+  "endpoint": "Complete scripts/check.sh without --fast; frozen input/tool pins unchanged; five new pending tests execute in normal and write-probe runs; original native tool exits0 and process group closes.",
+  "registered_unix": 1791544074.0837286,
+  "temporary_filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "TMPDIR": "/home/dandiccf/Storage/ct/spfull-d4ddb49b",
+  "input_digest_sha256": "ca1b6ad02f94182da139c43777c03170e740577edf6d5bf4f5dad8a0a7617181",
+  "launcher_sha256": "01ddff37b003740e9723d4ad4f23587ca88cebb1ed4e64ddfc51a0ab92a854fa",
+  "other_compilers_or_guests": [],
+  "other_active_public_windows": [],
+  "host_daemon_changes": false,
+  "real_provider_calls": 0,
+  "registration_correction": "Initial preparation refused at overly broad pgrep before manifest/public registration or dispatch. Subsequent independent listing was empty; final predispatch scan uses exact /proc comm names to avoid matching the preparation command itself. No check was executed by that refusal.",
+  "active": false,
+  "active_measurement": false,
+  "gate_effect": "none; synthetic local correctness only",
+  "criterion_488_open": true,
+  "criterion_490_open": true,
+  "original_pid": 3791818,
+  "started_unix": 1791544079.1248937,
+  "result": {
+    "run": "d4ddb49b-a46c-4c43-8525-98fffb3773de",
+    "success": false,
+    "native_original_session": 81878,
+    "native_exit_code": 101,
+    "original_pid": 3791818,
+    "original_birth_ticks": 56870617,
+    "original_process_absent": true,
+    "original_group_members": [],
+    "signals_sent": [],
+    "observed_completion_upper_bound_seconds": 186.515,
+    "actual_total_duration_not_measured": true,
+    "sections_reached": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests"
+    ],
+    "failure_test": "accounts::tests::owned_poll_account_lease_outlives_stopped_engine_until_provider_drop",
+    "failure_assertion": "last owned provider drop must release account lease",
+    "frozen_total_input_count": 589,
+    "changed_inputs": [],
+    "tool_pins_unchanged": true,
+    "log": {
+      "size": 135854,
+      "sha256": "bcd928cbfaed27f83c395e8bcda69d34867a81ab54b4da4ac7b3edbd2f047a90"
+    },
+    "no_fullcheck_pass_credit": true,
+    "provider_actions": false,
+    "host_install_or_restart": false,
+    "Apple_auth_requested": false
+  }
+}

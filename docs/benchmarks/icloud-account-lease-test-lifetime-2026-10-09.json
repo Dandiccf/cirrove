@@ -1,0 +1,60 @@
+{
+  "run": "1f46ec99-065d-47d4-8411-d8b9c43cd141",
+  "question": "Do owned providers retain the account lease while logically alive, release all Rust owners immediately after final drop, and allow prompt reacquisition despite a bounded inherited-descriptor interval?",
+  "prediction": "The three existing owned_poll_ tests pass with immediate Weak assertions and at most1s WouldBlock-only release allowance. No production change.",
+  "scope": "Correction of a synthetic test lifetime assumption; no product/reliability or unique observed fork-cause claim.",
+  "baseline_failed_fullcheck": {
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-sealed-pending-combined-check-d4ddb49b-a46c-4c43-8525-98fffb3773de/check.log",
+      "size": 135854,
+      "sha256": "bcd928cbfaed27f83c395e8bcda69d34867a81ab54b4da4ac7b3edbd2f047a90"
+    },
+    "closed_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-sealed-pending-combined-check-d4ddb49b-a46c-4c43-8525-98fffb3773de/closed-result.json",
+      "size": 1133,
+      "sha256": "7ab866669f62fdb25f97b8548d3df080c83eb7caac49a3021efce4227634c698"
+    },
+    "assertion": "last owned provider drop must release account lease",
+    "unique_failure_cause_proved": false
+  },
+  "active": false,
+  "active_measurement": false,
+  "state": "closed_focused_three_pass",
+  "base_head": "03e7ca53184ef681cea07cf2e84f17376362cc9e",
+  "work_seconds": 1800,
+  "cleanup_seconds": 30,
+  "no_provider_auth_guest_service_actions": true,
+  "result": {
+    "receipt": {
+      "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/account-lease-test-lifetime-private-v1/service3-result-v1.json",
+      "size": 3200,
+      "sha256": "120e2965417792d6a3e993381c74b61080ad8fdf87e59774e75439678a42290c"
+    },
+    "exit_code": 0,
+    "actual_tests_passed": 3,
+    "elapsed_seconds": 73.64585953496862,
+    "original_owner_reaped": true,
+    "process_absent": true,
+    "group_members": [],
+    "signals": [],
+    "within_original_window": true,
+    "stdout": {
+      "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/account-lease-test-lifetime-private-v1/service3-stdout.txt",
+      "size": 402,
+      "sha256": "e73ade4891e398be89ef39bec4cb43ca0b74d148285cf548f18c759dd94d0ee9"
+    },
+    "stderr": {
+      "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/.local-state/account-lease-test-lifetime-private-v1/service3-stderr.txt",
+      "size": 5440,
+      "sha256": "f017d870bc0fd4b66d764561213911b4462c4f6e4714e3f06de24f7d4a83f151"
+    },
+    "source": {
+      "path": "/home/dandiccf/Storage/cirrove-sealed-pending-20261009/crates/cirrove-service/src/accounts.rs",
+      "size": 147100,
+      "sha256": "8610d3224f38431c23c2b30139e98d2ba0f2966ca20a1c4d29c3747deadbd5cf"
+    },
+    "production_prefix_before_test_module_unchanged": true,
+    "baseline_cause": "Actual prior wholecheck assertion failure; inherited-FD mechanism is known but unique observed failure cause is unproved.",
+    "claim": "Test assumption corrected only; no new product/reliability or full490 credit."
+  }
+}

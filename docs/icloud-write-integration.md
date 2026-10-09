@@ -32,6 +32,27 @@ saving remains unsupported; the precise tested content and format limits are
 recorded in the latest dated assessment below. Installed lifecycle and reliability
 criteria remain open; the installed Strata preservation criterion is closed.
 
+## Occupied sealed publication slots
+
+Sealed session and upload-checkpoint saves now use one private pending file per
+vault directory. A [local regression and ownership controls](benchmarks/icloud-sealed-pending-publication-2026-10-09.json)
+verify that an occupied slot refuses a new save while preserving the prior sealed
+file, credential key and pending remnant. This bounds future unpublished files
+per vault; it does not impose an account-wide quota or remove historical UUID
+temporary files. Synthetic tests do not establish provider reliability.
+
+If publication reports an occupied pending slot, retain the diagnostic and
+Cirrove version and ask the maintainers for help. A pending file may belong to an
+active writer or contain an important recovery checkpoint. It is not disposable
+cache. Do not move or delete it while the account owner or a measurement is
+running. Safe manual handling requires controlled shutdown and verified owner
+closure, then preservation of the exact private file, permissions, checksum and
+a durable backup before any separately authorized single-file quarantine.
+Preserve the final sealed file, credential key, journal payloads and checkpoints.
+Do not post these files or credentials in an issue. No automatic cleanup,
+acceptance of pending contents, session-expiry interpretation or cloud replay is
+part of this change; further publication remains blocked until safe recovery.
+
 ## Current checkpoint, 9 October 2026
 
 Criteria 485, 486, 487 and 489 are closed; 488 and 490 remain open. The

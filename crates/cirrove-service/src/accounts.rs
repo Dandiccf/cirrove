@@ -3448,12 +3448,45 @@ mod tests {
         }
     }
 
+    fn assert_account_owner_released(directory: &Path) {
+        // Parallel tests may fork while a CLOEXEC descriptor is still open.
+        // Its inherited open description can outlive the last logical owner
+        // until exec. Only lock contention gets this bounded release allowance.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        loop {
+            match account_lock(directory) {
+                Ok(reacquired) => {
+                    drop(reacquired);
+                    assert!(
+                        std::time::Instant::now() <= deadline,
+                        "account release exceeded its bound"
+                    );
+                    return;
+                }
+                Err(error) => {
+                    assert!(
+                        error
+                            .downcast_ref::<std::io::Error>()
+                            .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock),
+                        "unexpected account release error: {error:#}"
+                    );
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "last account owner was not released: {error:#}"
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+            }
+        }
+    }
+
     #[tokio::test]
     async fn owned_poll_account_lease_outlives_stopped_engine_until_provider_drop() -> Result<()> {
         let temp = tempfile::tempdir()?;
         let account = icloud_reauth_fixture();
         let directory = temp.path().join("accounts").join(&account.id);
         let owner = Arc::new(account_lock(&directory)?);
+        let lifetime = Arc::downgrade(&owner);
         let provider = provider_with_owned_state(&account, temp.path(), owner.clone())?;
         let engine = crate::engine::Engine::new_with_owner(
             account,
@@ -3470,9 +3503,10 @@ mod tests {
         );
         drop(provider);
         assert!(
-            account_lock(&directory).is_ok(),
-            "last owned provider drop must release account lease"
+            lifetime.upgrade().is_none(),
+            "last owned provider drop must release every logical account owner"
         );
+        assert_account_owner_released(&directory);
         Ok(())
     }
 
@@ -3482,6 +3516,7 @@ mod tests {
         let account = icloud_reauth_fixture();
         let directory = temp.path().join("accounts").join(&account.id);
         let owner = Arc::new(account_lock(&directory)?);
+        let lifetime = Arc::downgrade(&owner);
         let provider = provider_with_owned_state(&account, temp.path(), owner.clone())?;
         std::fs::write(
             directory.join("metadata.db"),
@@ -3492,7 +3527,11 @@ mod tests {
                 .await
                 .is_err()
         );
-        assert!(account_lock(&directory).is_ok());
+        assert!(
+            lifetime.upgrade().is_none(),
+            "failed Engine construction must release every logical account owner"
+        );
+        assert_account_owner_released(&directory);
         Ok(())
     }
 
