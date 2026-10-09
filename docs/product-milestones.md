@@ -486,7 +486,7 @@ not permission to tick installed or native-editing requirements.
 - [x] Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.
 - [x] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
 - [ ] Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.
-- [ ] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
+- [x] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
 - [ ] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
 
 The Pages import row is closed by two fresh, separately complete owned arms:
@@ -529,10 +529,9 @@ Independent full semantic V2 reads bind current B and original A in Trash;
 actual exit86/reopen recovery completes the same retained operation without
 repeating mutations. Original preservation concerns the complete file-content
 tree, not identical transport ZIP bytes; loss was local acknowledgement loss,
-not unobserved provider reply loss. Installed lifecycle, complete Strata delivery
-and broader reliability remain the open criteria. Three of six criteria are
-closed and three remain open; installed
-delivery stays on HOLD.
+not unobserved provider reply loss. Installed lifecycle and broader reliability remain the open criteria. Four of
+six criteria are closed after the current installed Strata trial below; two
+remain open. Installed delivery stays on HOLD.
 
 The [iWork application criterion (487)](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json)
 is now closed by all twelve actual DATA/PACKAGE ordinary/atomic archive-copy
@@ -655,3 +654,18 @@ because the chosen temporary path exceeded the Unix socket limit. Its failure
 and closed owners remain recorded; a shorter disk-backed temporary directory
 allowed the unchanged source to pass the complete command from the beginning.
 No new live Pages or installed acceptance follows from this local check.
+
+The installed Strata preservation row (489) is closed by the current
+[7dc061c package trial](benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json):
+a fresh, independently verified 8 MiB own iCloud Web file began with zero
+resident bytes. Four actual GUI actions exercised direct and inherited
+Keep/Stop menus, the branded Fetching and kept badges, availability dialogs and
+subscribed generation refresh. Normal FUSE readback matched the independent
+Web download byte for byte. All six installed provider artifacts survived the
+aa02-to-7dc upgrade and GUI trial; default Nautilus and normal Strata preferences
+were preserved, and all six GUI children and their private sockets closed.
+The GUI used an isolated copy of the installed registration with an explicit
+IPC socket; this is an installed Strata test, not native Wayland or every desktop
+coverage. Earlier warm passes and failures remain recorded. Installed lifecycle
+(488) and broader reliability (490) remain open; four of six full-iCloud criteria
+are closed, and original-host delivery remains on HOLD.

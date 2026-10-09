@@ -1,0 +1,110 @@
+{
+  "question": "Does normal iCloud file-create prepare safely using an exact confirmed mkdir receipt before parent feed publication, while refusing stale authority?",
+  "prediction": "Old production parent lookup fails the exact child-create assertion with Conflict; fixed implementation passes primary fixture and scoped stale-identity/refusal controls. No provider/network/keyring access.",
+  "worktree": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009",
+  "head": "7dc061c0d5260ba43c31beda3184737446d20d9e",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/tmp",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/tmp",
+  "filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/target-fresh-mkdir-parent",
+  "expected_seconds": 900,
+  "red_build_command": [
+    "cargo",
+    "test",
+    "-p",
+    "cirrove-service",
+    "--lib",
+    "--offline",
+    "--no-run",
+    "--message-format=json",
+    "--jobs",
+    "2"
+  ],
+  "red_test_filter": "icloud_writes::tests::create_after_confirmed_mkdir_prepares_before_parent_feed_publication",
+  "fixed_source_sha256": "2e45af03ebabf111a9a1610c58101de7bf324cc0fe8ad7b71dc0d5c68994981b",
+  "red_source_sha256": "b44f522d40ef1095a55928e028a09fc555705254c56241483591a481f3461d0f",
+  "binary_sha256": null,
+  "binary_registration": "Actual CargoJSON executable will be pinned after compilation before direct exact test dispatch.",
+  "provider_calls": 0,
+  "commit": false,
+  "created_unix": 1791525630.5658813,
+  "actual_result": {
+    "controlled_fix_proof": true,
+    "red": {
+      "passed": 0,
+      "failed": 1,
+      "reason": "intended receipt-bound parent Conflict assertion",
+      "exit_code": 101
+    },
+    "final_green": {
+      "passed": 9,
+      "failed": 0,
+      "filtered": 588,
+      "exit_code": 0
+    },
+    "intermediate_green_v1": {
+      "passed": 8,
+      "failed": 1,
+      "whole_pass": false
+    },
+    "intermediate_green_v2": {
+      "passed": 8,
+      "failed": 1,
+      "whole_pass": false
+    },
+    "evidence": {
+      "path": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/red-green-summary-v1.json",
+      "size": 13923,
+      "sha256": "21b5bea8d5bee14703cc68b572c875cc26aa3a87e39b9a6dc35a5bf3b8ca56a5"
+    },
+    "source": {
+      "path": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/crates/cirrove-service/src/icloud_writes.rs",
+      "size": 40902,
+      "sha256": "c24751933cf15596a35c9ce7e5422296aa49fd11a9b2af73c61e82cdd015c60e"
+    },
+    "patch": {
+      "path": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/fresh-mkdir-parent-final.patch",
+      "size": 13774,
+      "sha256": "eaafdeb4e5695013e8fc3bcf1d5ccf1a639762993dd941f9bd9fc5f8034b3836"
+    },
+    "format_and_diff_check": true,
+    "provider_calls": 0
+  },
+  "corrections": [
+    {
+      "claim": "Any earlier 7/8 or 8/9 label implying seven passing tests or eight total tests",
+      "actual": "Both intermediate GREEN V1 and V2 executed nine tests: eight passed and one failed in unsupported RemoveFolder-after-CreateFolder fixture setup; neither was a complete GREEN."
+    },
+    {
+      "claim": "Real rmdir could produce the unlinked-owner fixture",
+      "actual": "Existing journal policy intentionally rejects RemoveFolder chained to CreateFolder with Intent. Final fixture changes only synthetic namespace_objects.body.unlinked to exercise the lookup boundary; production rmdir policy unchanged."
+    },
+    {
+      "claim": "test-support is a default feature",
+      "actual": "It is selected by the package self dev-dependency. No icloud-write-probe enabled; accurate artifact features retained."
+    }
+  ],
+  "limitations": "Controlled synthetic fresh-mkdir parent lookup and refusal guards; no real provider or credential access. No installed acceptance or unique cause of historical guest upload Conflict inferred.",
+  "binary_registrations": [
+    {
+      "path": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/red-test-registration-v1.json",
+      "size": 1710,
+      "sha256": "c1fb53381bd08f9a16d47b525fa47e6b17e1a0f1edd86e6bd6754c9795f874a4"
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/green-test-registration-v1.json",
+      "size": 1895,
+      "sha256": "4c9eff0d15a896848bbf69836cb4c9586183e0e73d7648174b592b0f75ff2cab"
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/green-test-registration-v2.json",
+      "size": 848,
+      "sha256": "6cf5e4b7e2cc8a50d96c4969719b785a2dd0b1ce6585f38a74ec43165db52432"
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-fresh-mkdir-parent-20261009/.local-state/fresh-mkdir-parent-red-green-v1/green-test-registration-v3.json",
+      "size": 2402,
+      "sha256": "766079b9417d16f52e1fe1aae2fd5de70f3595911682b6c61397f5f514462df2"
+    }
+  ]
+}

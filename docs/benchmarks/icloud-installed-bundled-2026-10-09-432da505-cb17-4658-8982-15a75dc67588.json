@@ -1,0 +1,5330 @@
+{
+  "run": "432da505-cb17-4658-8982-15a75dc67588",
+  "question": "Installed public iCloud sign-in, then in the same guest window current-package upgrade/reauth, own read/write verification, downgrade and file-manager actions as available",
+  "prediction": "The installed CLI creates a read-only account with a saved session; further steps require observed outcomes, never synthetic substitution.",
+  "endpoint": "Closed original guest and terminal owners with explicit per-step observed outcomes; unfinished steps remain open",
+  "active_window": false,
+  "status": "closed_installed_bundle",
+  "installed_source": "aa02b8d1cf6b2644e7500908016548b49f71a833",
+  "started_unix": 1791522276.3301618,
+  "deadline_unix": 1791525876.3301618,
+  "closed_unix": 1791525577.3007421,
+  "outcomes_require_individual_records": true,
+  "final_bundle_closure": {
+    "all_original_handles_reaped": true,
+    "guest_QEMU": {
+      "pid": 3136063,
+      "birth": "54690345",
+      "exit_code": 0,
+      "signals": [],
+      "original_handle_reaped": true,
+      "process_absent": true
+    },
+    "ports_closed": {
+      "2224": true,
+      "5912": true
+    },
+    "original_host_daemon_birth_unchanged": true,
+    "account_left_disabled_unmounted": true,
+    "no_original_host_delivery": true
+  },
+  "current_installed_source": "7dc061c0d5260ba43c31beda3184737446d20d9e",
+  "original_install_source": "aa02b8d1cf6b2644e7500908016548b49f71a833",
+  "original_window_not_renewed": true,
+  "gate488_closed": false,
+  "gate489_closed": true,
+  "gate490_closed": false,
+  "full_iCloud_criteria_closed": [
+    485,
+    486,
+    487,
+    489
+  ],
+  "full_iCloud_criteria_open": [
+    488,
+    490
+  ],
+  "original_host_delivery": "HOLD",
+  "host_service_credentials_packages_changed": false,
+  "artifact_correction": "Root live updates were superseded by the owner closure writer cached initial snapshot. This final artifact restores factual outcomes after all owners closed, from retained exact receipts; no failed exit is rewritten.",
+  "initial_RO_auth": {
+    "terminal": {
+      "exit_code": 0,
+      "streams_retained": false,
+      "success_requires_independent_account_status": true
+    },
+    "Ready_mounted_readonly": true,
+    "EROFS_create_refusal_errno": 30,
+    "exact_owned_read_bytes": 138943,
+    "exact_owned_read_sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724"
+  },
+  "current_installed_upgrade": {
+    "original_exit": {
+      "exit_code": 0,
+      "original_handle_reaped": true,
+      "host_packages_service_unchanged": true
+    },
+    "post_upgrade": {
+      "account": {
+        "id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+        "access": "read_only",
+        "enabled": true,
+        "mount_path": "/home/tester/Cloud/Cirrove-iCloud-Owned"
+      },
+      "settings_sha256": "622a77bdac5bf88a87336f8bd0ffcc35444f0a55a8982e4b80ac0d8906c1b79f",
+      "packages": "cirrove 0.2.0dev.r1008.g7dc061c-1\ncirrove-desktop 0.2.0dev.r1008.g7dc061c-1\ncirrove-dolphin 0.2.0dev.r1008.g7dc061c-1\n",
+      "unit_pid": "1698",
+      "status": [
+        {
+          "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+          "provider": "icloud",
+          "mounted": true,
+          "state": "ready",
+          "recovery_only": false
+        }
+      ],
+      "mount": "fuse.cirrove ro,nosuid,nodev,relatime,user_id=1000,group_id=1000,default_permissions",
+      "default_filemanager": "org.gnome.Nautilus.desktop",
+      "preferences_exists": false,
+      "staged_package_hashes": {
+        "cirrove-desktop-0.2.0dev.r1008.g7dc061c-1-x86_64.pkg.tar.zst": "241e0f6cbedd9b91e490fe3f55deb36d40d89afee3ef73bcca982bca8d1d25fd",
+        "cirrove-0.2.0dev.r1008.g7dc061c-1-x86_64.pkg.tar.zst": "710a528e0037a3f576cf251302dc595c438cddd3dddfda25a91d6adb767cd7e4",
+        "cirrove-dolphin-0.2.0dev.r1008.g7dc061c-1-x86_64.pkg.tar.zst": "51bc387e15576985984be343bfdacd5f033928de49f629959e9568e27247bcfa"
+      }
+    },
+    "attested_arch_packages": {
+      "run": "37886958161",
+      "source_sha": "7dc061c0d5260ba43c31beda3184737446d20d9e",
+      "packages": [
+        {
+          "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/current-attested-arch-packages/cirrove-0.2.0dev.r1008.g7dc061c-1-x86_64.pkg.tar.zst",
+          "sha256": "710a528e0037a3f576cf251302dc595c438cddd3dddfda25a91d6adb767cd7e4",
+          "size": 20481501,
+          "attestation_verified": true,
+          "source_sha": "7dc061c0d5260ba43c31beda3184737446d20d9e"
+        },
+        {
+          "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/current-attested-arch-packages/cirrove-desktop-0.2.0dev.r1008.g7dc061c-1-x86_64.pkg.tar.zst",
+          "sha256": "241e0f6cbedd9b91e490fe3f55deb36d40d89afee3ef73bcca982bca8d1d25fd",
+          "size": 8295168,
+          "attestation_verified": true,
+          "source_sha": "7dc061c0d5260ba43c31beda3184737446d20d9e"
+        },
+        {
+          "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/current-attested-arch-packages/cirrove-dolphin-0.2.0dev.r1008.g7dc061c-1-x86_64.pkg.tar.zst",
+          "sha256": "51bc387e15576985984be343bfdacd5f033928de49f629959e9568e27247bcfa",
+          "size": 89716,
+          "attestation_verified": true,
+          "source_sha": "7dc061c0d5260ba43c31beda3184737446d20d9e"
+        }
+      ]
+    }
+  },
+  "initial_warm_Strata": {
+    "source": "aa02",
+    "run": "8b660c32-d4db-446f-9531-ac8b30cc91a4",
+    "all_four_actions_passed": true,
+    "initial_file_resident": 138943,
+    "fetching_observed": false,
+    "terminal_pin": {
+      "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/strata-successor-terminal.json",
+      "size": 4734,
+      "sha256": "6089bf4464485f1d2aa12b14125111622490ff8bdfe4c05d6c2d541d03a7fbeb"
+    },
+    "observer_pin": {
+      "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/strata-successor-observer-result.json",
+      "size": 97241,
+      "sha256": "2dbe84ff1f8f29afb516d8c567dd2c3746fed7d9eb1591e0471ea00b418ff522"
+    },
+    "earlier_private_socket_route_failure_retained": true
+  },
+  "current_installed_cold_Strata": {
+    "source": "7dc061c",
+    "fixture_authority": {
+      "success": true,
+      "fixture": {
+        "provider": "icloud",
+        "collection": "drive",
+        "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "label": "ICloud-Owned",
+        "mount": "/home/tester/Cloud/Cirrove-iCloud-Owned",
+        "mountinfo_record": "179 39 0:45 / /home/tester/Cloud/Cirrove-iCloud-Owned ro,nosuid,nodev,relatime shared:173 - fuse.cirrove cirrove:d36b725d-5d95-40e4-8abd-49465d76f242 ro,user_id=1000,group_id=1000,default_permissions",
+        "parent_name": "Cirrove-Installed-Pin-1b9b3d60-6ae2-4f54-8708-0bac32271850",
+        "parent_relative_path": "Cirrove-Installed-Pin-1b9b3d60-6ae2-4f54-8708-0bac32271850",
+        "relative_path": "Cirrove-Installed-Pin-1b9b3d60-6ae2-4f54-8708-0bac32271850/Cirrove-pin-check.txt",
+        "file_name": "Cirrove-pin-check.txt",
+        "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+        "parent_item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+        "size": 8388608,
+        "sha256": "0d6cc880e963c055b22550664730194d15aae85a4db582a8bd49ec3dd5448e49",
+        "initial_resident": 0
+      },
+      "same_account_login_closed": true,
+      "singleton_owned_folder": true,
+      "independent_verification": "single iCloud Web upload and Web download of own deterministic txt fixture; local and Web download byte SHA match",
+      "current_source_commit": "7dc061c0d5260ba43c31beda3184737446d20d9e",
+      "Web_download_size": 8388608,
+      "Web_download_sha256": "0d6cc880e963c055b22550664730194d15aae85a4db582a8bd49ec3dd5448e49",
+      "metadata_only_before_GUI": true
+    },
+    "metadata_before_GUI": {
+      "size": 8388608,
+      "children": [
+        "Cirrove-pin-check.txt"
+      ],
+      "states": {
+        "states": [
+          {
+            "path": "Cirrove-Installed-Pin-1b9b3d60-6ae2-4f54-8708-0bac32271850/Cirrove-pin-check.txt",
+            "can_pin": true,
+            "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+            "kind": "file",
+            "pinned": null,
+            "size": 8388608,
+            "resident": 0,
+            "refusal": null
+          },
+          {
+            "path": "Cirrove-Installed-Pin-1b9b3d60-6ae2-4f54-8708-0bac32271850",
+            "can_pin": true,
+            "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+            "kind": "folder",
+            "pinned": null,
+            "size": 0,
+            "resident": 0,
+            "refusal": null
+          }
+        ],
+        "refusal": null
+      },
+      "mountinfo": [
+        "179 39 0:45 / /home/tester/Cloud/Cirrove-iCloud-Owned ro,nosuid,nodev,relatime shared:173 - fuse.cirrove cirrove:d36b725d-5d95-40e4-8abd-49465d76f242 ro,user_id=1000,group_id=1000,default_permissions"
+      ]
+    },
+    "actual_observer": {
+      "success": true,
+      "run": "1b9b3d60-6ae2-4f54-8708-0bac32271850",
+      "failure": null,
+      "scope": "installed_guest_existing_owned_iCloud_file_local_pin_UI_only",
+      "actions": [
+        {
+          "action": "Keep offline",
+          "parent": false
+        },
+        {
+          "action": "Stop keeping offline",
+          "parent": false
+        },
+        {
+          "action": "Keep folder offline",
+          "parent": true
+        },
+        {
+          "action": "Stop keeping offline",
+          "parent": true
+        }
+      ],
+      "states": [
+        {
+          "stage": "attach-and-initial-state",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 0
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 0
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 4194304
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 1
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 2
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "direct-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 3
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-keep",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": "inherited",
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": "direct",
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 5
+          }
+        },
+        {
+          "stage": "parent-stop",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 6
+          }
+        },
+        {
+          "stage": "exact-readback",
+          "state": {
+            "child": {
+              "item": "FILE::com.apple.CloudDocs::AF1F0622-23CE-419B-BB4D-446E495BB9B7",
+              "kind": "file",
+              "can_pin": true,
+              "pinned": null,
+              "size": 8388608,
+              "resident": 8388608
+            },
+            "parent": {
+              "item": "FOLDER::com.apple.CloudDocs::1210EE33-00C0-4F68-8A7A-5590EAA000EF",
+              "kind": "folder",
+              "can_pin": true,
+              "pinned": null,
+              "size": 0,
+              "resident": 0
+            },
+            "generation": 6
+          }
+        }
+      ],
+      "generation_events": [
+        {
+          "generation": 0,
+          "after_ready": false
+        },
+        {
+          "generation": 1,
+          "after_ready": true
+        },
+        {
+          "generation": 2,
+          "after_ready": true
+        },
+        {
+          "generation": 3,
+          "after_ready": true
+        },
+        {
+          "generation": 5,
+          "after_ready": true
+        },
+        {
+          "generation": 6,
+          "after_ready": true
+        }
+      ],
+      "fetching_observed": true,
+      "fetching_descriptions": [
+        "cirrove: Kept offline \u00b7 fetching 0%"
+      ],
+      "readback": {
+        "path": "/home/tester/Cloud/Cirrove-iCloud-Owned/Cirrove-Installed-Pin-1b9b3d60-6ae2-4f54-8708-0bac32271850/Cirrove-pin-check.txt",
+        "size": 8388608,
+        "sha256": "0d6cc880e963c055b22550664730194d15aae85a4db582a8bd49ec3dd5448e49"
+      },
+      "provider_file_mutations": 0,
+      "daemon_or_GUI_started_or_stopped_by_observer": false,
+      "local_connections_closed": true,
+      "full_489_closed": false
+    },
+    "original_GUI_owner_terminal": {
+      "success": true,
+      "run": "1b9b3d60-6ae2-4f54-8708-0bac32271850",
+      "failure": null,
+      "cleanup_errors": [],
+      "observer": {
+        "returncode": 0,
+        "result": {
+          "path": "/home/tester/.local/state/s3-432da505/observer-result.json",
+          "size": 119458,
+          "sha256": "feff141328712a81cfa21b17e35c413a15ce6126c8d5c3f79913cce9bfd353dc"
+        }
+      },
+      "original_children": [
+        {
+          "name": "Xvfb",
+          "pid": 2101,
+          "birth": "247699",
+          "command": [
+            "/usr/bin/Xvfb",
+            "-displayfd",
+            "4",
+            "-screen",
+            "0",
+            "1440x900x24",
+            "-dpi",
+            "96",
+            "-nolisten",
+            "tcp",
+            "-noreset",
+            "-ac"
+          ],
+          "returncode": 0,
+          "proc_absent": true,
+          "group": []
+        },
+        {
+          "name": "session-bus",
+          "pid": 2103,
+          "birth": "247703",
+          "command": [
+            "/usr/bin/dbus-daemon",
+            "--nofork",
+            "--nopidfile",
+            "--config-file=/home/tester/.local/state/s3-432da505/r/s.conf"
+          ],
+          "returncode": 0,
+          "proc_absent": true,
+          "group": []
+        },
+        {
+          "name": "a11y-bus",
+          "pid": 2104,
+          "birth": "247708",
+          "command": [
+            "/usr/bin/dbus-daemon",
+            "--nofork",
+            "--nopidfile",
+            "--config-file=/home/tester/.local/state/s3-432da505/r/a.conf"
+          ],
+          "returncode": 0,
+          "proc_absent": true,
+          "group": []
+        },
+        {
+          "name": "registry",
+          "pid": 2105,
+          "birth": "247713",
+          "command": [
+            "/usr/lib/at-spi2-registryd"
+          ],
+          "returncode": -15,
+          "proc_absent": true,
+          "group": []
+        },
+        {
+          "name": "Strata",
+          "pid": 2106,
+          "birth": "247713",
+          "command": [
+            "/usr/local/bin/strata",
+            "/home/tester/Cloud/Cirrove-iCloud-Owned/Cirrove-Installed-Pin-1b9b3d60-6ae2-4f54-8708-0bac32271850"
+          ],
+          "returncode": -15,
+          "proc_absent": true,
+          "group": []
+        },
+        {
+          "name": "observer",
+          "pid": 2107,
+          "birth": "247713",
+          "command": [
+            "/usr/bin/python3",
+            "/opt/cirrove-strata-aa02/observe_installed_strata_owned_file_once_v2.py",
+            "--inputs",
+            "/home/tester/.local/state/s3-432da505/observer-inputs.json",
+            "--sha256",
+            "e836180a9a3d15b532f5e279885669cb5e0f0513e1a0710854a9e3f382bdce32"
+          ],
+          "returncode": 0,
+          "proc_absent": true,
+          "group": []
+        }
+      ],
+      "sockets_closed": true,
+      "filesystem": "ext4",
+      "window": {
+        "boot_id": "13b21f80-2ca6-4f5c-9d7a-316ad0e94d57",
+        "deadline_unix": 1791525876.3301618,
+        "deadline_boottime": 3599.444692850113,
+        "cleanup_reserve_seconds": 45
+      },
+      "original_window_not_renewed": true,
+      "private_registration": {
+        "scope": "private copied registration explicit socket only",
+        "provider_manifest": {
+          "path": "/home/tester/.local/state/s3-432da505/config/strata/providers/cirrove/provider.json",
+          "size": 310,
+          "sha256": "ff8753d1dea4630d3c781270bf81b3a6caf40d9e64cac6252a71c63d2322b59d"
+        },
+        "managed_marker": {
+          "path": "/home/tester/.local/state/s3-432da505/config/strata/providers/cirrove/.cirrove-install.json",
+          "size": 433,
+          "sha256": "31797d0df15ed7f95a5df217399327fad191590a3df2a50ab34d41e2f02c1789"
+        }
+      },
+      "installed_members_before": {
+        "provider.json": {
+          "path": "/home/tester/.config/strata/providers/cirrove/provider.json",
+          "size": 251,
+          "sha256": "d6b5161cfbbf0eb46fb106f1c2ed0a692f0aa7068c92e2fb3146e741fbdbb21c"
+        },
+        "cirrove-provider.py": {
+          "path": "/home/tester/.config/strata/providers/cirrove/cirrove-provider.py",
+          "size": 11749,
+          "sha256": "98214721d5551b1fb54b1e5a8cdb505604771b30c6394945f9e14b1f2af6d82b"
+        },
+        "kept.png": {
+          "path": "/home/tester/.config/strata/providers/cirrove/kept.png",
+          "size": 2278,
+          "sha256": "544c5086416d7d2446586b78430c2d6acb427bdd3fa7b7d73bd6200ebd508807"
+        },
+        "fetching.png": {
+          "path": "/home/tester/.config/strata/providers/cirrove/fetching.png",
+          "size": 2127,
+          "sha256": "7971a23dc24335f4b638d45ecbd9f34a8c2abc8679c04421d34aa31cbc4d0846"
+        },
+        "mark.png": {
+          "path": "/home/tester/.config/strata/providers/cirrove/mark.png",
+          "size": 3025,
+          "sha256": "50955ec32cf2f8ba1395abf33936fe59b15e30a7d057125df86ec6f0481d970c"
+        },
+        ".cirrove-install.json": {
+          "path": "/home/tester/.config/strata/providers/cirrove/.cirrove-install.json",
+          "size": 433,
+          "sha256": "4ce946ca21a99b40278598a52797c0fc990f5867953d25cdb6b6bcf5b96e055b"
+        }
+      },
+      "installed_registration_unchanged": true,
+      "no_auth_build_SQL_deployment": true,
+      "provider_file_mutations": 0,
+      "full_489_closed": false
+    },
+    "original_SSH_exit": {
+      "exit": 0,
+      "original_handle_reaped": true,
+      "credential_capture": false
+    },
+    "observer_pin": {
+      "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/current-cold-strata-observer-result.json",
+      "size": 119458,
+      "sha256": "feff141328712a81cfa21b17e35c413a15ce6126c8d5c3f79913cce9bfd353dc"
+    },
+    "terminal_pin": {
+      "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/current-cold-strata-terminal.json",
+      "size": 4748,
+      "sha256": "97ce98b193d7e3e93ac424b65a1170975db3b29433cc807a73a8e88fc6adb7d5"
+    },
+    "independent_Web_upload_download": {
+      "single_own_file_upload": true,
+      "Web_download_size": 8388608,
+      "Web_download_sha256": "0d6cc880e963c055b22550664730194d15aae85a4db582a8bd49ec3dd5448e49",
+      "screenshot": {
+        "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/cold-web-upload.jpg",
+        "size": 62490,
+        "sha256": "bb1400c630b9745cebe93b58d8f21871c227ec0205efaec213fbcc40d617b231"
+      }
+    },
+    "gate489_closed": true,
+    "independent_review": "regression_review independently verifies exact literal criterion, source575 synthetic11 complements separately, no nativeWayland/all-desktop/full-reliability claim",
+    "helper_full_489_false_explained": "observer author does not decide full acceptance; Root criterion reconciliation and independent review close scoped489."
+  },
+  "write_auth_attempts": {
+    "original600s_timeout": {
+      "exit_code": 230,
+      "signals": [
+        "TERM"
+      ],
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "auth_stream_capture": false
+    },
+    "after_timeout_unchanged_RO": {
+      "account": {
+        "id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+        "access": "read_only",
+        "enabled": true,
+        "mount_path": "/home/tester/Cloud/Cirrove-iCloud-Owned"
+      },
+      "settings_sha256": "622a77bdac5bf88a87336f8bd0ffcc35444f0a55a8982e4b80ac0d8906c1b79f",
+      "status": [
+        {
+          "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+          "provider": "icloud",
+          "mounted": true,
+          "state": "ready"
+        }
+      ],
+      "remaining_reauth_actors": [],
+      "account_and_settings_unchanged": true
+    },
+    "wrong_email_exit": {
+      "exit_code": 1,
+      "signals": [],
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "credential_stream_capture": false
+    },
+    "wrong_email_settings_preserved": {
+      "settings_sha256": "622a77bdac5bf88a87336f8bd0ffcc35444f0a55a8982e4b80ac0d8906c1b79f",
+      "account": {
+        "id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+        "access": "read_only",
+        "enabled": true,
+        "mount_path": "/home/tester/Cloud/Cirrove-iCloud-Owned"
+      }
+    },
+    "user_requested_corrected_email_exit": {
+      "exit_code": 0,
+      "signals": [],
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "credential_stream_capture": false
+    },
+    "successful_current_RW_status": {
+      "account": {
+        "id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+        "access": "read_write",
+        "enabled": true,
+        "mount_path": "/home/tester/Cloud/Cirrove-iCloud-Owned"
+      },
+      "status": {
+        "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "provider": "icloud",
+        "mounted": true,
+        "state": "ready",
+        "recovery_only": false
+      },
+      "mountinfo": [
+        "179 39 0:45 / /home/tester/Cloud/Cirrove-iCloud-Owned rw,nosuid,nodev,relatime shared:173 - fuse.cirrove cirrove:d36b725d-5d95-40e4-8abd-49465d76f242 rw,user_id=1000,group_id=1000,default_permissions"
+      ]
+    },
+    "credential_stream_capture": false
+  },
+  "current_normal_write": {
+    "registration": {
+      "question": "Does current installed public writer save an own ordinary file and reject unsupported permanent deletion while genuinely RW?",
+      "prediction": "Own normal save reaches uploaded state and independent Web bytes; unsupported permanent-delete refuses before provider removal.",
+      "endpoint": "One own new parent and one exclusive file save, no retries; independent Web download and same-account retained-write lifecycle.",
+      "parent": "Cirrove-Installed-432da505",
+      "name": "completed-432da505.txt",
+      "payload_size": 50,
+      "payload_sha256": "4ce1b04fb9ea223f3319d983ab5032e77690464658371fcf5f0a9014922938a6",
+      "deadline_unix": 1791525876.3301618,
+      "write_optin_status": {
+        "account": {
+          "id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+          "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+          "access": "read_write",
+          "enabled": true,
+          "mount_path": "/home/tester/Cloud/Cirrove-iCloud-Owned"
+        },
+        "status": {
+          "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+          "provider": "icloud",
+          "mounted": true,
+          "state": "ready",
+          "recovery_only": false
+        },
+        "mountinfo": [
+          "179 39 0:45 / /home/tester/Cloud/Cirrove-iCloud-Owned rw,nosuid,nodev,relatime shared:173 - fuse.cirrove cirrove:d36b725d-5d95-40e4-8abd-49465d76f242 rw,user_id=1000,group_id=1000,default_permissions"
+        ]
+      }
+    },
+    "local_save_exit": {
+      "exit": 0,
+      "output": "{\"saved\": true, \"size\": 50, \"sha256\": \"4ce1b04fb9ea223f3319d983ab5032e77690464658371fcf5f0a9014922938a6\"}\n",
+      "error_classified_nonzero": false
+    },
+    "filtered_queue": {
+      "uploads": [
+        {
+          "sequence": 2,
+          "id": "0c9b1285-8b1c-44b6-967b-c2c6aac689de",
+          "state": "conflict",
+          "retry_at": 1791525027,
+          "failed_attempts": 1,
+          "intent_kind": [
+            "kind",
+            "parent",
+            "name"
+          ],
+          "last_failure": null
+        }
+      ],
+      "mutations": [
+        {
+          "sequence": 1,
+          "id": "32a2f64a-e548-4ff1-8c21-c36fefb615da",
+          "state": "applied",
+          "retry_at": 0,
+          "failed_attempts": 0,
+          "intent_kind": null,
+          "last_failure": null
+        }
+      ],
+      "now": 1791525107.3136935
+    },
+    "precheckpoint_upload_diagnosis": {
+      "upload": {
+        "state": "conflict",
+        "session_key": null,
+        "transferred_bytes": 0,
+        "failed_attempts": 1,
+        "retry_at": 1791525027
+      },
+      "upload_parent": "FOLDER::com.apple.CloudDocs::52F33ECC-81E6-463A-AD28-3EE7BBC69031",
+      "remote_null": true,
+      "mutation_safe_keys": [
+        "id",
+        "sequence",
+        "request",
+        "state",
+        "attempt",
+        "receipt",
+        "verified_content",
+        "retry_at",
+        "failed_attempts",
+        "base",
+        "working_file",
+        "prepared_item",
+        "local_ready"
+      ],
+      "result_safe_keys": null,
+      "metadata_tables": {
+        "nodes": [
+          "scope",
+          "id",
+          "body"
+        ],
+        "observed": [
+          "scope",
+          "id",
+          "body",
+          "seen",
+          "source_revision"
+        ],
+        "observed_absent": [
+          "scope",
+          "id",
+          "source_revision"
+        ]
+      }
+    },
+    "metadata_later": {
+      "nodes": 0,
+      "observed": 1,
+      "observed_absent": 0,
+      "receipt_shape": [
+        "kind",
+        "value"
+      ],
+      "scope": "{\"account\":\"d36b725d-5d95-40e4-8abd-49465d76f242\",\"provider\":\"icloud\",\"collection\":\"drive\"}",
+      "parent": "FOLDER::com.apple.CloudDocs::52F33ECC-81E6-463A-AD28-3EE7BBC69031"
+    },
+    "Web_parent_exists_but_empty": true,
+    "Web_screenshot": {
+      "path": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/normal-parent-cloud-empty.jpg",
+      "size": 45254,
+      "sha256": "82e673628e09f10263070c993f6ae6af581982991a53cf723b550bb07bdef892"
+    },
+    "upload_operation": "0c9b1285-8b1c-44b6-967b-c2c6aac689de",
+    "upload_state": "conflict",
+    "mutation_retries": 0,
+    "root_cause": "fresh-parent ancestry race under source investigation; historical initial metadata state not uniquely reconstructed",
+    "unsupported_permanent_deletion_test_not_executed": true
+  },
+  "offline_retention": {
+    "registration": {
+      "run": "f63e1f71-4197-4095-9391-64f16cec16a7",
+      "question": "Can installed current public writer retain an own sealed save and unlinked dirty working file offline, disable, list and export both without cloud connectivity?",
+      "prediction": "Public offline exports reproduce registered44/52byte payloads; originaldeadline controls and networking returns on240s external timer.",
+      "endpoint": "One own sealed and one unlinked dirty file, publicdisable+offlineexports once; no automatic retries; later genuine RO downgrade remains deferred because person has left.",
+      "deadline_unix": 1791525876.3301618,
+      "maximum_offline_seconds": 240,
+      "guest_interface": "ens2",
+      "qmp_netdev": "n0",
+      "script_sha256": "2d65c5b7ee1a175e6984dcb6b7751106aa6f7e92d40bb33dd177c9d8513cba11",
+      "parent_independently_Web_confirmed": true,
+      "prior_normal_upload_conflict_preserved": true,
+      "provider_mutations_during_offline_arm": 0
+    },
+    "actual_guest_after_restore": {
+      "files": [
+        "retained-authority.json",
+        "recovery-working-stdout.json",
+        "accounts-stderr.txt",
+        "export-working-stdout.json",
+        "recovery-working-dispatch.json",
+        "READY_FOR_LINK_OFF.json",
+        "recovery-working-closed.json",
+        "disable-stderr.txt",
+        "offline-export-proof.json",
+        "export-save-closed.json",
+        "export-working-closed.json",
+        "disable-closed.json",
+        "export-save-stderr.txt",
+        "accounts-dispatch.json",
+        "disable-stdout.json",
+        "recovery-saves-stderr.txt",
+        "export-working-stderr.txt",
+        "accounts-closed.json",
+        "recovery-saves-closed.json",
+        "recovery-saves-stdout.json",
+        "disable-dispatch.json",
+        "sealed-before-downgrade.txt",
+        "export-working-dispatch.json",
+        "recovery-saves-dispatch.json",
+        "payload-registration.json",
+        "export-save-dispatch.json",
+        "dirty-before-downgrade.txt",
+        "recovery-working-stderr.txt",
+        "export-save-stdout.json",
+        "accounts-stdout.json"
+      ],
+      "account": {
+        "id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+        "access": "read_write",
+        "enabled": false,
+        "mount_path": "/home/tester/Cloud/Cirrove-iCloud-Owned"
+      },
+      "mountinfo": [],
+      "remaining_script_actors": [],
+      "failure.json": null,
+      "retained-authority.json": {
+        "account": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "auth_executed": false,
+        "dirty": {
+          "file": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+          "generation": 4,
+          "name": "dirty-f63e1f71-4197-4095-9391-64f16cec16a7.txt",
+          "recorded_size": 52,
+          "size": 52,
+          "unlinked": true
+        },
+        "dirty_sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff",
+        "operation": "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb",
+        "ready_for_manual_readonly_reauth": true,
+        "sealed_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+        "sealed_size": 44,
+        "state": "verify_required"
+      },
+      "offline-export-proof.json": {
+        "dirty_receipt": {
+          "destination": "/home/tester/installed-acceptance/offline-retention-f63e1f71-4197-4095-9391-64f16cec16a7/dirty-before-downgrade.txt",
+          "sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff",
+          "source": {
+            "file": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+            "generation": 4,
+            "name": "dirty-f63e1f71-4197-4095-9391-64f16cec16a7.txt",
+            "recorded_size": 52,
+            "size": 52,
+            "unlinked": true
+          }
+        },
+        "operation": "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb",
+        "public_saved_text_verified": true,
+        "sealed_destination": "/home/tester/installed-acceptance/offline-retention-f63e1f71-4197-4095-9391-64f16cec16a7/sealed-before-downgrade.txt",
+        "sealed_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+        "sealed_size": 44
+      },
+      "sealed-before-downgrade.txt": {
+        "size": 44,
+        "sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472"
+      },
+      "dirty-before-downgrade.txt": {
+        "size": 52,
+        "sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff"
+      }
+    },
+    "public_CLI_receipts": {
+      "retained-authority.json": {
+        "account": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "auth_executed": false,
+        "dirty": {
+          "file": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+          "generation": 4,
+          "name": "dirty-f63e1f71-4197-4095-9391-64f16cec16a7.txt",
+          "recorded_size": 52,
+          "size": 52,
+          "unlinked": true
+        },
+        "dirty_sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff",
+        "operation": "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb",
+        "ready_for_manual_readonly_reauth": true,
+        "sealed_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+        "sealed_size": 44,
+        "state": "verify_required"
+      },
+      "offline-export-proof.json": {
+        "dirty_receipt": {
+          "destination": "/home/tester/installed-acceptance/offline-retention-f63e1f71-4197-4095-9391-64f16cec16a7/dirty-before-downgrade.txt",
+          "sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff",
+          "source": {
+            "file": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+            "generation": 4,
+            "name": "dirty-f63e1f71-4197-4095-9391-64f16cec16a7.txt",
+            "recorded_size": 52,
+            "size": 52,
+            "unlinked": true
+          }
+        },
+        "operation": "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb",
+        "public_saved_text_verified": true,
+        "sealed_destination": "/home/tester/installed-acceptance/offline-retention-f63e1f71-4197-4095-9391-64f16cec16a7/sealed-before-downgrade.txt",
+        "sealed_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+        "sealed_size": 44
+      },
+      "payload-registration.json": {
+        "account": "d36b725d-5d95-40e4-8abd-49465d76f242",
+        "automatic_retry": false,
+        "deadline_unix": 1791525876.3301618,
+        "dirty": {
+          "path": "/home/tester/Cloud/Cirrove-iCloud-Owned/Cirrove-Installed-432da505/dirty-f63e1f71-4197-4095-9391-64f16cec16a7.txt",
+          "sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff",
+          "size": 52
+        },
+        "label": "ICloud-Owned",
+        "parent": "/home/tester/Cloud/Cirrove-iCloud-Owned/Cirrove-Installed-432da505",
+        "sealed": {
+          "path": "/home/tester/Cloud/Cirrove-iCloud-Owned/Cirrove-Installed-432da505/sealed-f63e1f71-4197-4095-9391-64f16cec16a7.txt",
+          "sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+          "size": 44
+        }
+      },
+      "READY_FOR_LINK_OFF.json": {
+        "deadline_unix": 1791525876.3301618,
+        "interface": "ens2",
+        "mountinfo": [
+          "179",
+          "39",
+          "0:45",
+          "/",
+          "/home/tester/Cloud/Cirrove-iCloud-Owned",
+          "rw,nosuid,nodev,relatime",
+          "shared:173",
+          "-",
+          "fuse.cirrove",
+          "cirrove:d36b725d-5d95-40e4-8abd-49465d76f242",
+          "rw,user_id=1000,group_id=1000,default_permissions"
+        ],
+        "ready": true
+      },
+      "disable-closed.json": {
+        "exit_code": 0,
+        "original_reaped": true,
+        "pid": 2380,
+        "process_absent": true,
+        "signals": [],
+        "start_ticks": 298743
+      },
+      "accounts-closed.json": {
+        "exit_code": 0,
+        "original_reaped": true,
+        "pid": 2388,
+        "process_absent": true,
+        "signals": [],
+        "start_ticks": 298994
+      },
+      "recovery-saves-closed.json": {
+        "exit_code": 0,
+        "original_reaped": true,
+        "pid": 2393,
+        "process_absent": true,
+        "signals": [],
+        "start_ticks": 299005
+      },
+      "recovery-working-closed.json": {
+        "exit_code": 0,
+        "original_reaped": true,
+        "pid": 2399,
+        "process_absent": true,
+        "signals": [],
+        "start_ticks": 299016
+      },
+      "export-save-closed.json": {
+        "exit_code": 0,
+        "original_reaped": true,
+        "pid": 2405,
+        "process_absent": true,
+        "signals": [],
+        "start_ticks": 299027
+      },
+      "export-working-closed.json": {
+        "exit_code": 0,
+        "original_reaped": true,
+        "pid": 2417,
+        "process_absent": true,
+        "signals": [],
+        "start_ticks": 299037
+      },
+      "actual_TMPDIR_filesystem": "ext4",
+      "installed_CLI_sha256_post_run": "3edd4ce9abe62c3eddc6ceae70a4408f9d835d7773f57136c1539f7a243bcfa3",
+      "source_script_sha256": "2d65c5b7ee1a175e6984dcb6b7751106aa6f7e92d40bb33dd177c9d8513cba11"
+    },
+    "outer_SSH_result": {
+      "run": "f63e1f71-4197-4095-9391-64f16cec16a7",
+      "exit": 255,
+      "error_class": "TimeoutExpired",
+      "signals": [
+        "TERM"
+      ],
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "guest_NIC_restored": true,
+      "credential_stream_capture": false,
+      "observed_markers": [
+        "READY_FOR_LINK_OFF"
+      ]
+    },
+    "observed_partial_acceptance": "public offline sealed44 and dirty52 exports exact, six originalCLIchildren exit0/reaped/absent, same disabledaccount/unmounted, NICrestored, V3actorabsent",
+    "limitations": "Outer SSH failed255aftertimeout; do not claim overall clean exit0. ROreauth and activeexports unexecuted. BinarySHA captured after arm, not preregistered; no RSS/latency claim. Gate488 remains open.",
+    "independent_review": {
+      "checks_passed": 24,
+      "scope": "partial488 only; globally488/490open,489closed separately",
+      "artifact": ".local-state/installed-icloud-bundled-432da505-cb17-4658-8982-15a75dc67588/audit-independent-installed-offline-retention-partial-v1.json",
+      "size": 10882,
+      "sha256": "ec035574e42b5c571209ca8b001c2662baac3dba87e458f849d2368ed07cf104"
+    }
+  },
+  "CI_current7dc": {
+    "run": 37886958161,
+    "status": "completed",
+    "conclusion": "success",
+    "jobs_passed": 7
+  }
+}

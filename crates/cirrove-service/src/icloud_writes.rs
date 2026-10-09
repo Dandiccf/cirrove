@@ -182,12 +182,56 @@ impl ICloudWriteProvider {
             });
         }
         let (metadata, scope, id) = (self.metadata.clone(), self.scope.clone(), id.to_owned());
+        let journal = self.journal.clone();
         tokio::task::spawn_blocking(move || {
             let store = Store::open(&metadata).map_err(|_| UploadError::Uncertain)?;
-            let chain = store
+            let chain = match store
                 .node_chain_to_root(&scope, &id, ROOT_ID)
                 .map_err(|_| UploadError::Uncertain)?
-                .ok_or(UploadError::Conflict)?;
+            {
+                Some(chain) => chain,
+                None => {
+                    // Mkdir's confirmed receipt can unblock its child before
+                    // the read feed indexes the new parent. Only that exact
+                    // current scoped creation may supply the missing leaf;
+                    // indexed changes/absence and all ancestors still win.
+                    let confirmed = {
+                        let journal = journal.lock().map_err(|_| UploadError::Uncertain)?;
+                        let object = journal
+                            .namespace_by_remote(&scope, &id)
+                            .map_err(|_| UploadError::Uncertain)?
+                            .filter(|o| !o.unlinked && !o.follows_remote)
+                            .ok_or(UploadError::Conflict)?;
+                        let latest = object.latest.ok_or(UploadError::Conflict)?;
+                        let record = journal
+                            .mutation(latest)
+                            .map_err(|_| UploadError::Conflict)?;
+                        let Some(MutationReceipt::Upsert(node)) = record.receipt.as_ref() else {
+                            return Err(UploadError::Conflict);
+                        };
+                        if record.state != crate::journal::MutationState::Applied
+                            || record.request.scope != scope
+                            || !matches!(
+                                record.request.intent,
+                                cirrove_core::mutation::MutationIntent::CreateFolder { .. }
+                            )
+                            || !record
+                                .request
+                                .accepts(record.receipt.as_ref().ok_or(UploadError::Conflict)?)
+                            || node.id != id
+                            || object.remote.as_ref() != Some(node)
+                            || object.remote_sequence != record.sequence
+                        {
+                            return Err(UploadError::Conflict);
+                        }
+                        node.clone()
+                    };
+                    store
+                        .node_chain_to_root_with_unindexed_leaf(&scope, &confirmed, ROOT_ID)
+                        .map_err(|_| UploadError::Uncertain)?
+                        .ok_or(UploadError::Conflict)?
+                }
+            };
             if chain.iter().any(|node| {
                 node.kind != NodeKind::Folder
                     || node.package
@@ -673,6 +717,259 @@ mod tests {
                 sha256: row.sha256,
             },
         )
+    }
+
+    fn confirmed_unindexed_directory(p: &ICloudWriteProvider) -> (Uuid, Node) {
+        confirmed_unindexed_directory_at(p, ROOT_ID)
+    }
+
+    fn confirmed_unindexed_directory_at(p: &ICloudWriteProvider, ancestor: &str) -> (Uuid, Node) {
+        let mut journal = p.journal.lock().expect("journal lock");
+        let object = journal
+            .create_namespace_directory(p.scope.clone(), ancestor.into(), "Fresh parent".into())
+            .expect("queue mkdir");
+        let mkdir = journal
+            .claim_mutation()
+            .expect("claim mkdir")
+            .expect("mkdir ready");
+        let parent = Node {
+            id: format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            name: object.node.name.clone(),
+            ..folder(ancestor)
+        };
+        journal
+            .acknowledge_mutation(
+                mkdir.id,
+                mkdir.attempt.expect("mkdir attempt"),
+                MutationReceipt::Upsert(parent.clone()),
+            )
+            .expect("acknowledge mkdir");
+        assert_eq!(
+            journal.mutation(mkdir.id).expect("mkdir row").state,
+            crate::journal::MutationState::Applied
+        );
+        (object.id, parent)
+    }
+
+    #[tokio::test]
+    async fn create_after_confirmed_mkdir_prepares_before_parent_feed_publication() {
+        let (_temp, p) = fixture();
+        let (owner, parent) = confirmed_unindexed_directory(&p);
+        let (operation, request) = {
+            let mut journal = p.journal.lock().expect("journal lock");
+            let directory = journal.namespace_object(owner).expect("local directory");
+            let local = Node {
+                id: format!("local-file-{}", Uuid::new_v4()),
+                parent_id: Some(directory.node.id),
+                name: "New.txt".into(),
+                kind: NodeKind::File,
+                size: 0,
+                modified_unix: 0,
+                etag: None,
+                content_version: None,
+                target: None,
+                package: false,
+            };
+            let working = journal
+                .create_working(p.scope.clone(), local, true, &b""[..])
+                .expect("new file in fresh directory");
+            journal
+                .write_working(working.id, 0, b"synthetic payload")
+                .expect("write file");
+            journal
+                .seal_working(working.id)
+                .expect("seal file")
+                .expect("queued file");
+            let row = journal
+                .claim_next()
+                .expect("claim upload")
+                .expect("mkdir unblocks upload");
+            assert!(
+                matches!(&row.intent, UploadIntent::Create { parent: id, .. } if id == &parent.id)
+            );
+            (
+                row.id.to_string(),
+                UploadRequest {
+                    representation: row.representation,
+                    scope: row.scope,
+                    intent: row.intent,
+                    size: row.size,
+                    sha256: row.sha256,
+                },
+            )
+        };
+        let store = Store::open(&p.metadata).expect("metadata store");
+        assert!(
+            store
+                .node(&p.scope, &parent.id)
+                .expect("parent lookup")
+                .is_none()
+        );
+        let UploadStep::Prepared(saved) = p
+            .begin_upload_for_operation(&operation, &request, &CancellationToken::new())
+            .await
+            .expect("receipt-bound parent")
+        else {
+            panic!("create must checkpoint before provider contact");
+        };
+        let (envelope, _) = p
+            .restore(&operation, &request, &saved)
+            .expect("restore checkpoint");
+        assert_eq!(envelope.parent, parent);
+        // Planning supplies an ancestry hint, never writes the read index or cursor.
+        assert!(
+            store
+                .node(&p.scope, &parent.id)
+                .expect("parent remains unindexed")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn confirmed_mkdir_parent_never_overrides_indexed_absence_or_changed_shape() {
+        let (_temp, p) = fixture();
+        let (_, parent) = confirmed_unindexed_directory(&p);
+        let (operation, request) = enqueue(&p, &parent.id);
+        let mut store = Store::open(&p.metadata).expect("metadata store");
+        let ticket = store
+            .node_observation(&p.scope, &parent.id)
+            .expect("absence ticket");
+        store.publish_absence(&ticket).expect("publish absence");
+        assert!(
+            p.begin_upload_for_operation(&operation, &request, &CancellationToken::new())
+                .await
+                .is_err()
+        );
+        let changed = Node {
+            package: true,
+            ..parent.clone()
+        };
+        store
+            .observe_node(&p.scope, &changed)
+            .expect("changed metadata");
+        assert!(
+            p.begin_upload_for_operation(&operation, &request, &CancellationToken::new())
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn confirmed_mkdir_parent_rejects_unlinked_owner_and_wrong_scope() {
+        let (_temp, mut p) = fixture();
+        let (owner, parent) = confirmed_unindexed_directory(&p);
+        let original_scope = p.scope.clone();
+        p.scope.collection = "other-collection".into();
+        assert!(p.parent(&parent.id).await.is_err());
+        p.scope = original_scope;
+        // Folder removals cannot chain to their own creation receipt. Model
+        // the unlinked boundary directly without bypassing that admission rule.
+        let db = rusqlite::Connection::open(p.state.join("journal/uploads.db"))
+            .expect("synthetic journal database");
+        assert_eq!(db.execute(
+            "UPDATE namespace_objects SET body=json_set(body,'$.unlinked',json('true')) WHERE id=?1",
+            [owner.to_string()],
+        ).expect("mark synthetic owner unlinked"), 1);
+        assert!(p.parent(&parent.id).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn confirmed_mkdir_parent_rejects_receipt_identity_or_sequence_drift() {
+        for sequence_drift in [false, true] {
+            let (_temp, p) = fixture();
+            let (owner, parent) = confirmed_unindexed_directory(&p);
+            assert_eq!(
+                p.parent(&parent.id)
+                    .await
+                    .expect("valid receipt before drift"),
+                parent
+            );
+            let db = rusqlite::Connection::open(p.state.join("journal/uploads.db"))
+                .expect("synthetic journal database");
+            let changed = if sequence_drift {
+                db.execute(
+                    "UPDATE namespace_objects SET body=json_set(body,'$.remote_sequence',json_extract(body,'$.remote_sequence')+1) WHERE id=?1",
+                    [owner.to_string()],
+                ).expect("drift synthetic owner sequence")
+            } else {
+                let latest = p
+                    .journal
+                    .lock()
+                    .expect("journal lock")
+                    .namespace_object(owner)
+                    .expect("owner")
+                    .latest
+                    .expect("mkdir operation");
+                db.execute(
+                    "UPDATE mutations SET body=json_set(body,'$.receipt.value.id',?2) WHERE id=?1",
+                    rusqlite::params![
+                        latest.to_string(),
+                        "FOLDER::com.apple.CloudDocs::different-receipt"
+                    ],
+                )
+                .expect("drift synthetic receipt identity")
+            };
+            assert_eq!(changed, 1);
+            assert!(p.parent(&parent.id).await.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn confirmed_mkdir_parent_rejects_later_queued_rename() {
+        let (_temp, p) = fixture();
+        let (owner, parent) = confirmed_unindexed_directory(&p);
+        assert_eq!(
+            p.parent(&parent.id)
+                .await
+                .expect("mkdir authority before rename"),
+            parent
+        );
+        {
+            let mut journal = p.journal.lock().expect("journal lock");
+            let object = journal.namespace_object(owner).expect("directory owner");
+            let rename = journal
+                .relocate_namespace_item(
+                    owner,
+                    object.revision,
+                    ROOT_ID.into(),
+                    "Renamed parent".into(),
+                )
+                .expect("queue later rename");
+            assert_eq!(rename.state, crate::journal::MutationState::Pending);
+            assert_eq!(
+                journal
+                    .namespace_object(owner)
+                    .expect("renamed owner")
+                    .latest,
+                Some(rename.id)
+            );
+        }
+        assert!(p.parent(&parent.id).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn confirmed_mkdir_parent_requires_known_non_tombstoned_grandparent() {
+        let (_temp, p) = fixture();
+        let grandparent = folder(ROOT_ID);
+        let (_, parent) = confirmed_unindexed_directory_at(&p, &grandparent.id);
+        assert!(p.parent(&parent.id).await.is_err());
+        let mut store = Store::open(&p.metadata).expect("metadata store");
+        store
+            .observe_node(&p.scope, &grandparent)
+            .expect("publish grandparent");
+        assert_eq!(
+            p.parent(&parent.id)
+                .await
+                .expect("indexed ancestor authorizes leaf"),
+            parent
+        );
+        let ticket = store
+            .node_observation(&p.scope, &grandparent.id)
+            .expect("grandparent absence ticket");
+        store
+            .publish_absence(&ticket)
+            .expect("publish absent grandparent");
+        assert!(p.parent(&parent.id).await.is_err());
     }
 
     #[tokio::test]
