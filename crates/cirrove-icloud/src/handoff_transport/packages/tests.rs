@@ -427,3 +427,173 @@ async fn native_handoff_recovery_name_occupant_preserves_all_identities() {
     assert!(!state.changed && !state.corrupt && !state.collision);
     assert!(state.recovery_collision);
 }
+
+#[cfg(feature = "write-probe")]
+mod install_preflight_probe_controls {
+    use super::*;
+    struct Competitor {
+        state: Arc<Mutex<State>>,
+        observed_requests: std::sync::atomic::AtomicUsize,
+    }
+    #[async_trait::async_trait]
+    impl NativeInstallPreflightProbe for Competitor {
+        async fn after_final_preflight(
+            &self,
+            original: &str,
+            staged: &str,
+            parent: &str,
+            _: &CancellationToken,
+        ) -> Result<()> {
+            assert_eq!((original, staged, parent), (OLD, NEW, FOLDER));
+            let mut state = self.state.lock().unwrap();
+            assert!(state.trashed && !state.installed && state.rename_calls == 0);
+            assert!(state.requests > 0);
+            self.observed_requests
+                .store(state.requests, std::sync::atomic::Ordering::SeqCst);
+            state.collision = true;
+            Ok(())
+        }
+    }
+    #[tokio::test]
+    async fn native_install_probe_is_after_final_observation_without_repreflight() {
+        let p = plan();
+        let server = Server::start(p.clone(), false, false).await;
+        server.state.lock().unwrap().trashed = true;
+        let dir = directory();
+        let cancel = CancellationToken::new();
+        let probe = Competitor {
+            state: server.state.clone(),
+            observed_requests: Default::default(),
+        };
+        let mut session = server.session();
+        assert!(
+            session
+                .install_native_handoff_stage_with_preflight_probe(&p, dir.path(), &cancel, &probe)
+                .await
+                .unwrap()
+        );
+        assert!(
+            probe
+                .observed_requests
+                .load(std::sync::atomic::Ordering::SeqCst)
+                > 0,
+            "after-final-preflight hook was not invoked"
+        );
+        {
+            let state = server.state.lock().unwrap();
+            // Exactly the rename occurred after pause. Moving the probe before
+            // preflight or repeating preflight after it breaks this assertion.
+            assert_eq!(
+                state.requests,
+                probe
+                    .observed_requests
+                    .load(std::sync::atomic::Ordering::SeqCst)
+                    + 1
+            );
+            assert_eq!(state.rename_calls, 1);
+            assert!(state.collision && state.trashed);
+        }
+        assert_eq!(
+            session
+                .inspect_native_package_handoff(&p, dir.path(), &cancel)
+                .await
+                .unwrap(),
+            HandoffObserved::Diverged
+        );
+        assert!(
+            session
+                .verified_native_handoff_nodes(&p, dir.path(), &cancel)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        // A new read-only inspection does not replay the rename or erase C.
+        drop(session);
+        assert_eq!(
+            server
+                .session()
+                .inspect_native_package_handoff(&p, dir.path(), &cancel)
+                .await
+                .unwrap(),
+            HandoffObserved::Diverged
+        );
+        let state = server.state.lock().unwrap();
+        assert_eq!((state.trash_calls, state.rename_calls), (0, 1));
+        assert!(state.collision && state.trashed);
+    }
+    #[tokio::test]
+    async fn native_install_probe_is_not_reached_on_preflight_divergence() {
+        let p = plan();
+        let server = Server::start(p.clone(), false, false).await;
+        {
+            let mut state = server.state.lock().unwrap();
+            state.trashed = true;
+            state.collision = true;
+        }
+        let probe = Competitor {
+            state: server.state.clone(),
+            observed_requests: Default::default(),
+        };
+        let dir = directory();
+        assert!(
+            !server
+                .session()
+                .install_native_handoff_stage_with_preflight_probe(
+                    &p,
+                    dir.path(),
+                    &CancellationToken::new(),
+                    &probe,
+                )
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            probe
+                .observed_requests
+                .load(std::sync::atomic::Ordering::SeqCst),
+            0
+        );
+        assert_eq!(server.state.lock().unwrap().rename_calls, 0);
+    }
+    struct Stop {
+        refuse: bool,
+    }
+    #[async_trait::async_trait]
+    impl NativeInstallPreflightProbe for Stop {
+        async fn after_final_preflight(
+            &self,
+            _: &str,
+            _: &str,
+            _: &str,
+            cancel: &CancellationToken,
+        ) -> Result<()> {
+            if self.refuse {
+                anyhow::bail!("synthetic release refused");
+            }
+            cancel.cancel();
+            Ok(())
+        }
+    }
+    #[tokio::test]
+    async fn native_install_probe_refusal_or_cancellation_never_sends_rename() {
+        for refuse in [false, true] {
+            let p = plan();
+            let server = Server::start(p.clone(), false, false).await;
+            server.state.lock().unwrap().trashed = true;
+            let dir = directory();
+            assert!(
+                server
+                    .session()
+                    .install_native_handoff_stage_with_preflight_probe(
+                        &p,
+                        dir.path(),
+                        &CancellationToken::new(),
+                        &Stop { refuse }
+                    )
+                    .await
+                    .is_err()
+            );
+            assert_eq!(server.state.lock().unwrap().rename_calls, 0);
+        }
+    }
+}

@@ -10,7 +10,7 @@ full iCloud support is not yet achieved.
 See [application evidence](benchmarks/icloud-real-applications-acceptance-2026-10-01.md)
 and [selected-file admission](benchmarks/icloud-selected-write-admission-2026-10-01.md).
 
-The latest [genuine Keynote PACKAGE replacement](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
+The 7 October [genuine Keynote PACKAGE replacement](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
 completed normal CLI import A and one replacement by Apple-edited B. Stopped
 independent full semantic V2 reads verified current B and exact original A in
 Trash. A separate [normal read-only remount](benchmarks/icloud-keynote-readonly-remount-2026-10-07-f9923c49.json)
@@ -20,8 +20,8 @@ and retained its one-slide B title and subtitle after one reload, with no edits.
 The original managed processes closed and protected source/installed artifacts
 remained unchanged. This is one bounded PACKAGE workflow, with no claim for
 DATA coverage, ordinary/atomic editor saves, broader export fidelity or repeated
-reliability. Full-iCloud acceptance is now three criteria closed and three open; installed
-delivery remains on HOLD. The dated closure assessment below combines the
+reliability. Full-iCloud acceptance is now four criteria closed and two open;
+delivery to the user's regular installation remains on HOLD. The dated closure assessment below combines the
 measured replacement, removal, refusal and process-loss endpoints; historical
 open-row counts later in this record retain their original checkpoint meaning.
 
@@ -29,8 +29,71 @@ The [documented iWork application criterion](benchmarks/icloud-iwork-application
 now covers all twelve DATA/PACKAGE ordinary/atomic archive-copy workflows and
 the supported DOCX, PPTX and Apple Excel export-copy checks. Native Linux iWork
 saving remains unsupported; the precise tested content and format limits are
-recorded in the latest dated assessment below. Installed lifecycle, complete
-Strata delivery and reliability criteria remain open.
+recorded in the latest dated assessment below. Installed lifecycle and reliability
+criteria remain open; the installed Strata preservation criterion is closed.
+
+## Current checkpoint, 9 October 2026
+
+Criteria 485, 486, 487 and 489 are closed; 488 and 490 remain open. The
+[installed Arch trial](benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json)
+first connected through public native sign-in on aa02 with default read-only
+access, then upgraded to attested 7dc061c packages and restored the same ready
+account and read-only mount. Strata's direct Keep/Stop and parent Keep/Stop
+passed on both versions. The current-package trial began with an uncached
+8 MiB file, observed Fetching and kept/inherited badges, subscribed event refresh
+and exact readback, and preserved installed provider files, preferences and the
+default Nautilus association. This is the bounded installed Strata criterion,
+not acceptance of every desktop or general provider reliability.
+
+Same-account native reauthentication subsequently enabled writes. One new folder
+was applied remotely, but its ordinary file save remained locally retained as
+Conflict. The [parent-lookup regression](benchmarks/icloud-fresh-mkdir-parent-regression-2026-10-09.json)
+failed on the old code and passed nine focused local tests with the correction;
+a fresh installed cloud save retest is required, and the historical initial
+metadata state does not uniquely establish that failure's cause. The same guest
+retained and exported a 44-byte sealed save and a 52-byte unlinked dirty working
+file while offline, then remained disabled and unmounted. The outer SSH owner
+exited 255 after timeout; the six public CLI children exited zero and the exports
+matched their registered hashes. This is partial recovery evidence, not a clean
+overall run or read-only downgrade. Recovery of these same generations after
+genuine read-only reauthentication remains open. Dated counts and failed outcomes
+later in this record retain their original checkpoint meaning.
+
+The [final-install conflict validator](benchmarks/icloud-final-install-preflight-validation-2026-10-09.json)
+adds an explicit developer-feature pause after the last read-only preflight and
+before one native install request. Its old-schedule regression failed and ten
+local controls passed; normal commit and reconciliation behavior is unchanged.
+The first live arm stopped at a test-controller file-permission guard after
+creating its original document, before replacement or competitor import. All
+five children closed. Its successor was only partially prepared and never
+dispatched. Neither attempt establishes the live conflict endpoint or closes
+criterion 490.
+
+### Tested samples and implementation limits
+
+These are exact bounded samples or implementation limits, not a coverage percentage
+or a guarantee for arbitrary files. A successful read does not establish a save.
+
+| Scope | Tested sample or implemented limit | Evidence and remaining boundary |
+| --- | --- | --- |
+| Native iWork archive copies | Twelve Pages, Numbers and Keynote DATA/PACKAGE workflows, ordinary and atomic replacement | [Application assessment](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json): exact current/Trash originals, remount and Apple reopen; native Linux iWork saving and arbitrary document fidelity are unsupported or untested. |
+| Office export copies | DOCX: one 93-byte paragraph; PPTX: one slide title/subtitle; XLSX: registered values 7/3/10, SUM and source marker | [Content limits](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json): native Numbers imports flattened SUM; Office-copy saves do not write back to the iWork source. |
+| Mounted slow-link read | 138,943 bytes, exact checksum, initially zero resident bytes | [Fair-proxy diagnostic](benchmarks/icloud-normal-read-interruption-recovery-2026-10-09-08bdbd8d-8f80-45bb-9555-22220b636611.json): retained-copy read passed; preceding failures remain failed, without a uniquely established cause or repeatability claim. |
+| Installed Strata file | 8,388,608-byte ordinary text file, initially zero resident bytes | [Installed trial](benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json): four GUI actions, Fetching/event refresh and independent Web-download/readback digest; no successful ordinary cloud save claim. |
+| Historical ordinary-file size arm | Create 1,073,741,841 bytes; replace 1,074,790,429 bytes | [Mounted GiB arm](benchmarks/icloud-mounted-gib-account-2026-10-01.md): exact remote digests, predecessor in Trash and fresh-mount read in one isolated arm; not a native-package limit or arbitrary-size/installed-current acceptance. |
+| Native write staging implementation | Four reservations per Engine account runtime; each anonymous upload/verification file at most 67,108,864 bytes, I/O chunks at most 65,536 bytes | [Ownership controls](benchmarks/icloud-native-write-staging-budget-2026-10-03.json) and [source](../crates/cirrove-icloud/src/write_staging.rs): reservations survive cancelled waiters; synthetic proof, separate from journal/cache/source capture, filesystem overhead and other runtimes, not a measured host-wide quota. |
+
+### Abandoned native Stage policy
+
+Stage abandonment retains the local archive, encrypted checkpoint and exact
+Stage/original identities; it does not confirm a Trash backup or remove the
+remote Stage. The [active recovery-only endpoint](benchmarks/icloud-active-abandoned-stage-recovery-2026-10-09-d6cb88f0-470c-4f76-87c5-624481e234f8.json)
+read the existing abandonment receipt and exported the exact 66,268-byte retained
+Pages archive without invoking abandonment again or replaying a mutation.
+Captured journal tables and persistent payloads remained unchanged. No automatic
+remote TTL cleanup, abandoned-Stage deletion or safe reclamation is implemented
+or claimed by this evidence; retained cloud staging and broader abandoned-work
+reliability remain part of criterion 490.
 
 ## Document packages remain a release gate
 

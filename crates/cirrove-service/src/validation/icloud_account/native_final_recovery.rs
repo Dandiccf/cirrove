@@ -31,6 +31,8 @@ use std::{
 };
 use uuid::Uuid;
 
+mod install_preflight_probe;
+
 const TRASH: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
 fn hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
@@ -172,6 +174,9 @@ pub(crate) struct Guard {
     pre_trash_deadline: Option<tokio::time::Instant>,
     pre_trash_limit: Duration,
     pre_trash_used: std::sync::atomic::AtomicBool,
+    install_pause_deadline: Option<tokio::time::Instant>,
+    install_pause_limit: Duration,
+    install_pause_used: std::sync::atomic::AtomicBool,
     #[cfg(test)]
     pub hold_instead_of_exit: bool,
 }
@@ -217,6 +222,9 @@ impl Guard {
             pre_trash_deadline: None,
             pre_trash_limit: Duration::ZERO,
             pre_trash_used: std::sync::atomic::AtomicBool::new(false),
+            install_pause_deadline: None,
+            install_pause_limit: Duration::ZERO,
+            install_pause_used: std::sync::atomic::AtomicBool::new(false),
             #[cfg(test)]
             hold_instead_of_exit: false,
         })
@@ -230,6 +238,7 @@ impl Guard {
     ) -> cirrove_core::upload::Result<Self> {
         let remaining = active_deadline.saturating_duration_since(tokio::time::Instant::now());
         if !matches!(self.mode, Mode::Lose)
+            || self.install_pause_deadline.is_some()
             || remaining.is_zero()
             || remaining > Duration::from_secs(600)
             || pause_limit < Duration::from_secs(1)
@@ -709,7 +718,25 @@ impl UploadProvider for Guard {
     ) -> cirrove_core::upload::Result<UploadStep> {
         self.mutation_allowed(o, r)?;
         self.pause_before_trash(o, r, s, c).await?;
-        let step = self.inner.commit_upload_for_operation(o, r, s, c).await?;
+        let step = if self.install_pause_deadline.is_some() {
+            let adapter = self.inner.native_package_adapter(o, r, Some(s)).await?;
+            let diagnostic = adapter.native_checkpoint_diagnostic(o, r, s)?;
+            if diagnostic["phase"] == "handoff-install-armed" {
+                let probe = install_preflight_probe::InstallProbe {
+                    guard: self,
+                    operation: o,
+                    request: r,
+                    checkpoint: s,
+                };
+                adapter
+                    .commit_native_install_with_preflight_probe(o, r, s, c, &probe)
+                    .await?
+            } else {
+                self.inner.commit_upload_for_operation(o, r, s, c).await?
+            }
+        } else {
+            self.inner.commit_upload_for_operation(o, r, s, c).await?
+        };
         if let UploadStep::PackageHandoffComplete(receipt) = &step {
             self.armed(o, r, s).await?;
             self.lost(o, r, s, receipt)?;

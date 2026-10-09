@@ -921,6 +921,60 @@ mod tests;
 
 #[cfg(feature = "write-probe")]
 impl ICloudFileReplace {
+    /// Explicit probe only. No other phase can enter a mutating install, and
+    /// reconciliation remains the existing inspection-only same-operation path.
+    pub async fn commit_native_install_with_preflight_probe(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+        probe: &dyn crate::NativeInstallPreflightProbe,
+    ) -> UploadResult<UploadStep> {
+        let NativePhase::Handoff {
+            plan,
+            phase: HandoffPhase::InstallInspected,
+        } = self.native_decode(operation, request, checkpoint)?
+        else {
+            return Err(UploadError::CheckpointInvalid);
+        };
+        let context = self.native_check(operation, request)?;
+        tokio::select! { biased;
+            _ = cancel.cancelled() => Err(UploadError::Uncertain),
+            result = async {
+                let mut session = self.native_session(cancel).await?;
+                if !session.install_native_handoff_stage_with_preflight_probe(
+                    &plan, &context.staging, cancel, probe,
+                ).await.map_err(crate::file_create::map_session_error)? {
+                    return Err(UploadError::Conflict);
+                }
+                self.native_resume_handoff(plan, HandoffPhase::InstallInspected, cancel).await
+            } => result,
+        }
+    }
+
+    /// Nonsecret exact install binding for the separately registered observer.
+    /// Decodes only the same saved armed checkpoint; never advances it.
+    pub fn native_install_preflight_binding(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+    ) -> UploadResult<serde_json::Value> {
+        let NativePhase::Handoff {
+            plan,
+            phase: HandoffPhase::InstallInspected,
+        } = self.native_decode(operation, request, checkpoint)?
+        else {
+            return Err(UploadError::CheckpointInvalid);
+        };
+        Ok(
+            serde_json::json!({"phase":"handoff-install-armed","original_id":plan.original_id,
+            "staged_id":plan.staged_id,"staged_etag":plan.staged_etag,"parent_id":plan.folder_id,
+            "target_name":plan.target_name,"original_etag":plan.original_etag}),
+        )
+    }
+
     /// Sanitized local evidence only. Does not resume or advance any checkpoint.
     pub fn native_checkpoint_diagnostic(
         &self,

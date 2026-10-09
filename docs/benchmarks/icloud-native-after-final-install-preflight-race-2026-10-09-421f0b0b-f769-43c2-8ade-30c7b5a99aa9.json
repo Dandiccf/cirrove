@@ -1,0 +1,139 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "actual_compiled_roles": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-68683c95-0a1d-4de6-a456-9e51fbe7c5f7/mixed-current-roles-binding-v1.json",
+    "sha256": "34488166a9afd41c1d438eec0018df3ea8ba0248fab6ef30551b0e1b2b61ef74",
+    "size": 168235
+  },
+  "actual_controls_and_roles_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-68683c95-0a1d-4de6-a456-9e51fbe7c5f7/audit-independent-local-controls-and-roles-v1.json",
+    "sha256": "068fc1196df5067c138d4b1cbee1bb61e033267040448dab04c15b9b36edf152",
+    "size": 18160
+  },
+  "arms": [
+    "one fresh subject replacement, one canonical competitor inserted during the single post-final-preflight pause",
+    "read-only same-operation postclosure inspection; no second mutation/recovery attempt"
+  ],
+  "automatic_retry": false,
+  "build_terminal": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-68683c95-0a1d-4de6-a456-9e51fbe7c5f7/terminal-v1.json",
+    "sha256": "7df31b3c62ee09c2b600113cace0521d8039217d19cc50470d32cae173b26db8",
+    "size": 25980
+  },
+  "cleanup_reserve_seconds": 45,
+  "competitor_run": "061532d3-402c-40f5-a8ea-cd49f135e368",
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": [],
+    "native-final-probe": [
+      "icloud-write-probe"
+    ]
+  },
+  "current_normal_head": "bfeda1ba4705a94d90e7fc88200358e5ef67b11b",
+  "current_provider_mutation_authority": null,
+  "driver": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/fresh-private-421f0b0b-f769-43c2-8ade-30c7b5a99aa9/controller_current_install_preflight_v1.py",
+    "sha256": "8d27b02f5227ef79dbae0045fe126668b1aafffae1e05bdd535c393f7b2684fb",
+    "size": 25063
+  },
+  "endpoint": "marker explicitly after final OldAtRecovery observation and before one rename; same-operation verification-first observer; bounded retained payload and local staging snapshots; all original owners/mounts/sockets closed",
+  "feature_binding": null,
+  "feature_checkout_head": "7dc061c0d5260ba43c31beda3184737446d20d9e",
+  "feature_source_count": 578,
+  "full_gate490_closed": false,
+  "genuine_A_B_witness": null,
+  "installed_actions": false,
+  "installed_baseline": null,
+  "lifecycle": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/fresh-private-421f0b0b-f769-43c2-8ade-30c7b5a99aa9/lifecycle_current_install_preflight_v1.py",
+    "sha256": "b17bac365a815b7c7bd766de4c9122b4342be70b478dacd813f2038efcd58e98",
+    "size": 70864
+  },
+  "local_staging_caps": {
+    "anonymous_http_file_capacity_not_measured": true,
+    "bytes_per_file": 67108864,
+    "bytes_per_sampled_directory": 268435456,
+    "files_per_sampled_directory": 8,
+    "members_per_sampled_directory": 16,
+    "whole_run_peak": false
+  },
+  "maximum_pause_seconds": 120,
+  "maximum_seconds": 600,
+  "measurement_open": false,
+  "mutation_replay_allowed": false,
+  "natural_expiry_proved": false,
+  "normal_binding": null,
+  "normal_source_count": 575,
+  "old_operation_replay": false,
+  "original_window": null,
+  "own_folder": "Cirrove-Native-421f0b0b-f769-43c2-8ade-30c7b5a99aa9",
+  "prediction": "The original one rename may be refused or leave duplicate-name ambiguity; either accepted branch retains Conflict/VerifyRequired and all three scoped identities with exact semantic bytes. Old checkpoint and sealed B remain unchanged. Selected local staging/object counts fit the declared two-snapshot caps. Actual provider response is uncertain; no loss/completion inferred from names.",
+  "preparer": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/fresh-private-421f0b0b-f769-43c2-8ade-30c7b5a99aa9/prepare_current_install_preflight_v3.py",
+    "sha256": "70cf5a9a6cd4d849d845aaeef661c5c33476a645030af575cb7b79992b8732e2",
+    "size": 20516
+  },
+  "preparer_correction": {
+    "actual_prepare_v2": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/prepare_current_install_preflight_v2.py",
+      "sha256": "ec2fc8d1deb14508c3c5ea6081693b9ced0831fa3166e578c90216baa4f19bd7",
+      "size": 20503
+    },
+    "assembler_and_finalizer_v3": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/prepare_current_install_preflight_v3.py",
+      "sha256": "8a84a4956617f30360126dbc3b5e7c9dd953d27c91b8f144d2ef7f9696cc5573",
+      "size": 20516
+    },
+    "contexts_prepared_without_network": true,
+    "retained_local_preinput_refusal": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/subject-prepare-closed-refusal-v1.json",
+      "sha256": "27c9c19025510d54734dbf4a0d842f07042f951bf681f5cab1af50fb7798ab1e",
+      "size": 870
+    },
+    "scope": "Only exact0-byte compiler stdout/stderr logs accepted with pinned size/hash and held-FD stamps; binaries/JSON/credentials remain nonempty."
+  },
+  "prior_failed_case": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/root-original-cloud-exec-closed-failure-v1.json",
+    "sha256": "3b15cb718aa97aa822d2bdedf78ea7b07a71aa6709777511a29dcae8b63cb4fc",
+    "size": 1330
+  },
+  "privacy_correction": {
+    "existing_databases_unchanged": true,
+    "launcher_explicit_umask": "0077",
+    "new_contexts_only": true,
+    "source_parent_mode": "0700"
+  },
+  "question": "After the final native-install preflight, can a fresh own canonical competitor cause retained Conflict/Uncertain while exact ATrash/BStage/CCanonical bytes and the same sealed operation/checkpoint remain recoverable without mutation replay?",
+  "raw_stderr_retained": false,
+  "ready": true,
+  "reviewed": true,
+  "run": "421f0b0b-f769-43c2-8ade-30c7b5a99aa9",
+  "saved_same_account_contexts": null,
+  "semantic_layout_scope": "Exact expanded A/B file bytes/layout; remote ZIP serialization hashes separately reported, never equalized with local flat archive container",
+  "source_maps": null,
+  "source_registration": {
+    "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/proposal-source-current-v5-test-backoff.json",
+    "sha256": "e810d50c07d8295503e4bdcad7ce56559bee33e59669477b44a763fcf21271e3",
+    "size": 26618
+  },
+  "sources": {
+    "controller": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/controller_current_install_preflight_v1.py",
+      "sha256": "d125e851d6244c45627423f02fd4a904b6e5b55cb12bec06ce7e3c2eb3e10626",
+      "size": 24956
+    },
+    "lifecycle": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/lifecycle_current_install_preflight_v1.py",
+      "sha256": "b17bac365a815b7c7bd766de4c9122b4342be70b478dacd813f2038efcd58e98",
+      "size": 70864
+    },
+    "preparer": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/prepare_current_install_preflight_v1.py",
+      "sha256": "8d50039918cae48f20226789722a461d79be0408798c23d0a00573d7ec9c7154",
+      "size": 20410
+    }
+  },
+  "state": "registered_unstarted",
+  "version": 1
+}

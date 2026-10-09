@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
-fn fixture() -> (Registration, Marker, UploadRecord, UploadRecord) {
+pub(super) fn fixture() -> (Registration, Marker, UploadRecord, UploadRecord) {
     let run = Uuid::new_v4();
     let competitor_run = Uuid::new_v4();
     let account = Uuid::new_v4();

@@ -971,9 +971,17 @@ mod pre_trash_pause_controls {
         task: Option<tokio::task::JoinHandle<anyhow::Result<crate::transfers::TransferResult>>>,
         marker: serde_json::Value,
         source: Vec<u8>,
+        after_install_preflight: bool,
+        guard: Arc<Guard>,
     }
     impl Paused {
         async fn new(limit: Duration) -> anyhow::Result<Self> {
+            Self::new_at(limit, false).await
+        }
+        async fn new_install(limit: Duration) -> anyhow::Result<Self> {
+            Self::new_at(limit, true).await
+        }
+        async fn new_at(limit: Duration, after_install_preflight: bool) -> anyhow::Result<Self> {
             let mut fixture = Fixture::new_layout(true, true).await;
             fixture.state.disable_cleanup(true);
             fixture.directory.disable_cleanup(true);
@@ -1059,19 +1067,20 @@ mod pre_trash_pause_controls {
                 .lock()
                 .map_err(|_| anyhow::anyhow!("TLS state poisoned"))?
                 .flat_wire = Some((wire_size, wire_sha, semantic));
+            let guard = fixture.loss();
+            let active = tokio::time::Instant::now() + Duration::from_secs(60);
             let guard = Arc::new(
-                fixture
-                    .loss()
-                    .with_pre_trash_pause(
-                        tokio::time::Instant::now() + Duration::from_secs(60),
-                        limit,
-                    )
-                    .map_err(|_| anyhow::anyhow!("pause configuration refused"))?,
+                if after_install_preflight {
+                    guard.with_install_preflight_pause(active, limit)
+                } else {
+                    guard.with_pre_trash_pause(active, limit)
+                }
+                .map_err(|_| anyhow::anyhow!("pause configuration refused"))?,
             );
             let cancel = CancellationToken::new();
             let worker = TransferWorker::new(
                 fixture.context.journal(),
-                guard,
+                guard.clone(),
                 fixture.vault(),
                 cancel.clone(),
             );
@@ -1082,7 +1091,11 @@ mod pre_trash_pause_controls {
                     .map_err(|_| anyhow::anyhow!("worker transport error"))?
                     .context("worker found no operation")
             });
-            let path = fixture.directory.path().join("pre-trash-paused.json");
+            let path = fixture.directory.path().join(if after_install_preflight {
+                "install-preflight-paused.json"
+            } else {
+                "pre-trash-paused.json"
+            });
             let observed = tokio::time::timeout(Duration::from_secs(20), async {
                 loop {
                     if path.exists() {
@@ -1113,6 +1126,8 @@ mod pre_trash_pause_controls {
                 task: Some(task),
                 marker,
                 source: Vec::new(),
+                after_install_preflight,
+                guard,
             };
             let prepared = async {
                 let journal = paused.fixture.context.journal();
@@ -1128,8 +1143,17 @@ mod pre_trash_pause_controls {
                 );
                 anyhow::ensure!(
                     paused.marker["operation"] == row.id.to_string()
-                        && paused.marker["phase"] == "handoff-move-old-armed"
-                        && paused.marker["inner_commit_called"] == false
+                        && paused.marker["phase"]
+                            == if after_install_preflight {
+                                "after-final-install-preflight"
+                            } else {
+                                "handoff-move-old-armed"
+                            }
+                        && paused.marker[if after_install_preflight {
+                            "rename_called"
+                        } else {
+                            "inner_commit_called"
+                        }] == false
                 );
                 let saved = paused
                     .fixture
@@ -1142,7 +1166,10 @@ mod pre_trash_pause_controls {
                         == paused.marker["checkpoint_sha256"]
                 );
                 anyhow::ensure!(paused.marker["original_id"] != paused.marker["staged_id"]);
-                anyhow::ensure!(counts(&paused.fixture.server) == (1, 1, 1, 0, 0));
+                anyhow::ensure!(
+                    counts(&paused.fixture.server)
+                        == (1, 1, 1, usize::from(after_install_preflight), 0)
+                );
                 paused.source = std::fs::read(
                     journal
                         .lock()
@@ -1161,8 +1188,14 @@ mod pre_trash_pause_controls {
             Ok(paused)
         }
         fn release(&self) -> serde_json::Value {
-            serde_json::json!({"version":1,"run":self.marker["run"],"operation":self.marker["operation"],
-                "attempt":self.marker["attempt"],"checkpoint_sha256":self.marker["checkpoint_sha256"]})
+            let mut value = serde_json::json!({"version":1,"run":self.marker["run"],"operation":self.marker["operation"],
+                "attempt":self.marker["attempt"],"checkpoint_sha256":self.marker["checkpoint_sha256"]});
+            if self.after_install_preflight {
+                for key in ["phase", "original_id", "staged_id", "parent_id", "scope"] {
+                    value[key] = self.marker[key].clone();
+                }
+            }
+            value
         }
         fn publish(&self, value: &serde_json::Value) -> anyhow::Result<()> {
             let path = self.fixture.directory.path();
@@ -1176,7 +1209,11 @@ mod pre_trash_pause_controls {
             drop(file);
             std::fs::rename(
                 path.join("release.prepared.json"),
-                path.join("pre-trash-release.json"),
+                path.join(if self.after_install_preflight {
+                    "install-preflight-release.json"
+                } else {
+                    "pre-trash-release.json"
+                }),
             )?;
             std::fs::File::open(path)?.sync_all()?;
             Ok(())
@@ -1194,7 +1231,10 @@ mod pre_trash_pause_controls {
             }
         }
         fn preserved_before_trash(&self) -> anyhow::Result<()> {
-            anyhow::ensure!(counts(&self.fixture.server) == (1, 1, 1, 0, 0));
+            anyhow::ensure!(
+                counts(&self.fixture.server)
+                    == (1, 1, 1, usize::from(self.after_install_preflight), 0)
+            );
             let journal = self.fixture.context.journal();
             let journal = journal
                 .lock()
@@ -1374,6 +1414,112 @@ mod pre_trash_pause_controls {
         p.publish(&p.release())?;
         p.finished().await?;
         p.preserved_before_trash()?;
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_install_pause_release_identity_and_phase_refuse() -> anyhow::Result<()> {
+        for key in [
+            "run",
+            "operation",
+            "attempt",
+            "checkpoint_sha256",
+            "phase",
+            "original_id",
+            "staged_id",
+            "parent_id",
+            "scope",
+            "unknown",
+        ] {
+            let mut p = Paused::new_install(Duration::from_secs(120)).await?;
+            let mut value = p.release();
+            value[key] = "foreign".into();
+            p.publish(&value)?;
+            p.finished().await?;
+            p.preserved_before_trash()?;
+        }
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_install_pause_cancel_and_expiry_never_send() -> anyhow::Result<()> {
+        for cancel in [true, false] {
+            let mut p =
+                Paused::new_install(Duration::from_secs(if cancel { 120 } else { 1 })).await?;
+            if cancel {
+                p.cancel.cancel();
+            }
+            p.finished().await?;
+            p.publish(&p.release())?;
+            p.preserved_before_trash()?;
+        }
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_install_pause_changed_frontier_refuses() -> anyhow::Result<()> {
+        let mut p = Paused::new_install(Duration::from_secs(120)).await?;
+        {
+            let journal = p.fixture.context.journal();
+            let journal = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal poisoned"))?;
+            let mut row = journal.get(p.fixture.row.id)?;
+            row.failed_attempts += 1;
+            journal.db.execute(
+                "UPDATE uploads SET body=?1 WHERE id=?2",
+                rusqlite::params![serde_json::to_string(&row)?, row.id.to_string()],
+            )?;
+        }
+        p.publish(&p.release())?;
+        p.finished().await?;
+        p.preserved_before_trash()?;
+        Ok(())
+    }
+    #[tokio::test]
+    async fn native_final_install_pause_valid_release_and_same_operation_inspection_no_replay()
+    -> anyhow::Result<()> {
+        let mut p = Paused::new_install(Duration::from_secs(120)).await?;
+        let op = p.fixture.row.id.to_string();
+        let req = request(&p.fixture.row);
+        let saved = p
+            .fixture
+            .vault()
+            .load(&format!("upload/{op}"))
+            .await?
+            .context("saved checkpoint absent")?;
+        let probe = p.guard.install_probe_for_test(&op, &req, &saved);
+        use cirrove_icloud::NativeInstallPreflightProbe;
+        anyhow::ensure!(
+            probe
+                .after_final_preflight(
+                    p.marker["original_id"].as_str().context("old ID missing")?,
+                    p.marker["staged_id"].as_str().context("stage ID missing")?,
+                    p.marker["parent_id"]
+                        .as_str()
+                        .context("parent ID missing")?,
+                    &CancellationToken::new(),
+                )
+                .await
+                .is_err()
+        );
+        drop(probe);
+        p.preserved_before_trash()?;
+        p.publish(&p.release())?;
+        let row = p.finished().await?;
+        anyhow::ensure!(row.state == UploadState::VerifyRequired);
+        anyhow::ensure!(counts(&p.fixture.server) == (1, 1, 1, 1, 1));
+        let recovered = Arc::new(p.fixture.recover(&p.fixture.marker()));
+        let worker = TransferWorker::new(
+            p.fixture.context.journal(),
+            recovered,
+            p.fixture.vault(),
+            CancellationToken::new(),
+        );
+        // Match Fixture::withheld: the retained VerifyRequired row has a
+        // two-second retry frontier before its one verification-only inspection.
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let result = worker.run_once().await?.context("same operation missing")?;
+        anyhow::ensure!(result.id == row.id && result.state == UploadState::Uploaded);
+        anyhow::ensure!(counts(&p.fixture.server) == (1, 1, 1, 1, 1));
+        anyhow::ensure!(p.guard.install_pause_was_used_for_test());
         Ok(())
     }
 }

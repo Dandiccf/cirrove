@@ -687,6 +687,18 @@ async fn main() -> Result<()> {
         return Ok(());
     }
     if let [flag, registration, digest] = args.as_slice()
+        && flag == "--owned-native-after-install-preflight-preservation"
+    {
+        let proof =
+            cirrove_service::validation::icloud_owned_native_after_install_preflight_preservation(
+                Path::new(registration),
+                digest,
+            )
+            .await?;
+        println!("{}", serde_json::to_string(&proof)?);
+        return Ok(());
+    }
+    if let [flag, registration, digest] = args.as_slice()
         && flag == "--owned-native-pre-trash-preservation"
     {
         let proof = cirrove_service::validation::icloud_owned_native_pre_trash_preservation(

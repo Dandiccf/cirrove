@@ -9,6 +9,20 @@ use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, reads::Read
 use std::{path::Path, sync::Arc};
 const ARCHIVE_LIMIT: u64 = 64 * 1024 * 1024;
 
+/// Explicit developer-only pause at the native install race boundary. Normal
+/// session and replacement entrypoints never construct or invoke this probe.
+#[cfg(feature = "write-probe")]
+#[async_trait::async_trait]
+pub trait NativeInstallPreflightProbe: Send + Sync {
+    async fn after_final_preflight(
+        &self,
+        original_id: &str,
+        staged_id: &str,
+        parent_id: &str,
+        cancel: &CancellationToken,
+    ) -> Result<()>;
+}
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct NativePackageProof {
@@ -376,6 +390,34 @@ impl ICloudReadSession {
             != HandoffObserved::OldAtRecovery
         {
             return Ok(false);
+        }
+        if cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled.into());
+        }
+        tokio::select! { biased; _ = cancel.cancelled() => Err(ProviderError::Cancelled.into()),
+        result = self.send_rename(&plan.staged_id,&plan.staged_etag,&plan.target_name) => result }
+    }
+    /// Feature-only same-operation install. The probe runs AFTER the final full
+    /// OldAtRecovery observation and BEFORE the one rename. Do not add a second
+    /// preflight after release: that would test the older preflight-refusal arm.
+    #[cfg(feature = "write-probe")]
+    pub async fn install_native_handoff_stage_with_preflight_probe(
+        &mut self,
+        plan: &HandoffPlan,
+        directory: &Path,
+        cancel: &CancellationToken,
+        probe: &dyn NativeInstallPreflightProbe,
+    ) -> Result<bool> {
+        if self
+            .inspect_native_package_handoff(plan, directory, cancel)
+            .await?
+            != HandoffObserved::OldAtRecovery
+        {
+            return Ok(false);
+        }
+        tokio::select! { biased;
+            _ = cancel.cancelled() => return Err(ProviderError::Cancelled.into()),
+            result = probe.after_final_preflight(&plan.original_id, &plan.staged_id, &plan.folder_id, cancel) => result?,
         }
         if cancel.is_cancelled() {
             return Err(ProviderError::Cancelled.into());

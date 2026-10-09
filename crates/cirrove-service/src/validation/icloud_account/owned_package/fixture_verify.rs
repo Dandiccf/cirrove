@@ -1461,4 +1461,7 @@ mod native_trash_bridge_tests {
 }
 
 mod native_pre_trash_preservation;
-pub use native_pre_trash_preservation::icloud_owned_native_pre_trash_preservation;
+pub use native_pre_trash_preservation::{
+    icloud_owned_native_after_install_preflight_preservation,
+    icloud_owned_native_pre_trash_preservation,
+};

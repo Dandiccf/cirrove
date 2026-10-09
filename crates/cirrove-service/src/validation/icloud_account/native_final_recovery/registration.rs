@@ -92,6 +92,8 @@ struct Registration {
     recovery: Option<Recovery>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pause_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    install_preflight_pause_seconds: Option<u64>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -331,7 +333,11 @@ impl Registration {
                 && self.source_a.semantic != self.source_b.semantic,
             "native sources do not differ"
         );
-        if let Some(seconds) = self.pause_seconds {
+        ensure!(
+            self.pause_seconds.is_none() || self.install_preflight_pause_seconds.is_none(),
+            "native pause phases are mutually exclusive"
+        );
+        if let Some(seconds) = self.pause_seconds.or(self.install_preflight_pause_seconds) {
             ensure!(
                 self.recovery.is_none()
                     && (1..=120).contains(&seconds)
@@ -634,6 +640,7 @@ async fn loss(path: &Path, digest: &str) -> Result<()> {
     let cancel = CancellationToken::new();
     let deadline = registration.deadline_unix;
     let pause_seconds = registration.pause_seconds;
+    let install_preflight_pause_seconds = registration.install_preflight_pause_seconds;
     let shutdown = cancel.clone();
     tokio::spawn(async move {
         let mut terminate =
@@ -659,7 +666,7 @@ async fn loss(path: &Path, digest: &str) -> Result<()> {
                 run,
                 Mode::Lose,
             )?;
-            let guard = if let Some(seconds) = pause_seconds {
+            let guard = if let Some(seconds) = pause_seconds.or(install_preflight_pause_seconds) {
                 // Couple the original epoch deadline to a monotonic instant,
                 // retaining fractional wall time and no renewed phase clock.
                 let monotonic = tokio::time::Instant::now();
@@ -669,7 +676,15 @@ async fn loss(path: &Path, digest: &str) -> Result<()> {
                     .and_then(|end| Duration::from_secs(end).checked_sub(wall))
                     .filter(|remaining| !remaining.is_zero())
                     .ok_or_else(|| anyhow::anyhow!("native pre-Trash active window expired"))?;
-                guard.with_pre_trash_pause(monotonic + remaining, Duration::from_secs(seconds))?
+                if install_preflight_pause_seconds.is_some() {
+                    guard.with_install_preflight_pause(
+                        monotonic + remaining,
+                        Duration::from_secs(seconds),
+                    )?
+                } else {
+                    guard
+                        .with_pre_trash_pause(monotonic + remaining, Duration::from_secs(seconds))?
+                }
             } else {
                 guard
             };
@@ -1276,6 +1291,7 @@ pub(crate) fn test_frontier(
         },
         preflight_sha256: String::new(),
         pause_seconds: None,
+        install_preflight_pause_seconds: None,
         recovery: target.map(|operation| Recovery {
             operation,
             marker_sha256: String::new(),

@@ -120,6 +120,14 @@ fn row_tuple(
     Ok(())
 }
 fn read_upload(root: &Path, account: Uuid, id: Uuid) -> Result<UploadRecord> {
+    read_upload_with_retained_uncertainty(root, account, id, false)
+}
+fn read_upload_with_retained_uncertainty(
+    root: &Path,
+    account: Uuid,
+    id: Uuid,
+    allow_uncertain: bool,
+) -> Result<UploadRecord> {
     // Live paused writer may own owner.lock; this is only a query-only snapshot,
     // never an UploadJournal/RecoveryJournal open or a normalization/migration.
     let path = root
@@ -170,7 +178,19 @@ fn read_upload(root: &Path, account: Uuid, id: Uuid) -> Result<UploadRecord> {
             ))
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
-    row_tuple(&row, &sql_id, sequence, &state, &queue)?;
+    if allow_uncertain && row.state == UploadState::VerifyRequired {
+        let sequence = u64::try_from(sequence)?;
+        ensure!(
+            row.id.to_string() == sql_id
+                && row.sequence == sequence
+                && serde_json::to_value(row.state)? == state
+                && queue.len() == 1
+                && queue[0] == (i64::try_from(sequence)?, sql_id.clone(), 0),
+            "install uncertain row/queue tuple refused"
+        );
+    } else {
+        row_tuple(&row, &sql_id, sequence, &state, &queue)?;
+    }
     drop(db);
     let b = open_private(&path, false, 64 * 1024 * 1024)?.metadata()?;
     ensure!(
@@ -565,6 +585,9 @@ pub async fn icloud_owned_native_pre_trash_preservation(
         .await
         .map_err(|_| anyhow::anyhow!("owned native pre-Trash preservation refused"))
 }
+
+mod after_install_preflight;
+pub use after_install_preflight::icloud_owned_native_after_install_preflight_preservation;
 
 #[cfg(test)]
 #[path = "native_pre_trash_preservation/tests.rs"]
