@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "run": "5aff4a02-9b4b-4aea-812e-ed0f194ea8f5",
+  "question": "Does the normal tracked SDK with the folder-only421 correction return a typed authentication refusal for one preserved post-logout-session read?",
+  "prediction": "Typed Authentication through public mutation_error; retained rows,payloads,settings,ciphertext and key unchanged. HTTPstatus itself is not instrumented in this normal SDK observer.",
+  "endpoint": "One logical list_root, exact safe outcome and original process closure with data preservation; no new logout, authentication or provider-data mutation.",
+  "state": "closed_normal_sdk_typed_authentication_observed",
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 90,
+  "maximum_logical_root_reads": 1,
+  "logout_requests": 0,
+  "reauthentication_performed": false,
+  "provider_data_mutations": 0,
+  "HTTP_transmission_count": "not_instrumented",
+  "HTTP_status_observed": false,
+  "source_image_sha256": "9daf2d11a2ed81c2e90db547cd2bca3b4589995ae405e675fc561147ebfd2b14",
+  "installed_runtime": "1b734741c7b92d828a7d86fa94b294956b9a265e",
+  "installed_runtime_changed": false,
+  "normal_tracked_SDK_helper": true,
+  "full_490_closed": false,
+  "original_host_delivery": "HOLD",
+  "helper": {
+    "path": "/home/tester/cirrove-normal-post-logout-5aff4a02/bin/observer",
+    "size": 32638840,
+    "sha256": "3f5963b73d771a503d83020c9573691e611ef3d6c4700d6020e7121f4f0842a2"
+  },
+  "helper_export_sha256": "5254defb019dfa14958efb82ca031997b14260a59f6e4801e1857c41499128f4",
+  "checked_normal_SDK_sha256": "66a82b072c909f093b7d1b62a2c525e445caa18d59e148cec9d03caa2425a7d7",
+  "source_head": "1ccb5ac8e59cc7175db9e531cdfacb923b25bbee",
+  "source_worktree_dirty": true,
+  "preflight_passed": true,
+  "status": "closed_normal_sdk_typed_authentication_observed",
+  "started_unix": 1791576328.2608309,
+  "deadline_unix": 1791576774.1900735,
+  "closed_unix": 1791576407.4316425,
+  "retained_fixture_failure": {
+    "native_session": 52002,
+    "exit_code": 1,
+    "fixture_unlock": "completed dismissed true; no cloud helper or stage request",
+    "original_deadline_not_extended": true
+  },
+  "runtime_v2_inherits_original_deadline": true,
+  "success": true,
+  "original_native_session": 42000,
+  "original_native_exit_code": 0,
+  "observed": {
+    "classification": "remote_authentication_rejected",
+    "diagnostic": null,
+    "logical_root_reads": 1,
+    "HTTP_status": "not_instrumented",
+    "HTTP_transmissions": "not_instrumented",
+    "logout_requests": 0,
+    "reauthentication_performed": false,
+    "provider_data_mutations": 0
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-normal-post-logout-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5/runtime-v2/audit-independent-normal-sdk-closed-read-v1.json",
+    "size": 7261,
+    "sha256": "602f9621e92db408f33a48fbd88901c87a9162cf15b44c9c2fd4e59224230810"
+  },
+  "host_postflight": {
+    "path": "/home/dandiccf/Storage/cirrove-normal-post-logout-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5/runtime-v2/root-host-postflight-v1.json",
+    "size": 6832,
+    "sha256": "fdf5f54398a0a8618eac9345baf2d0cc464686dc031b5f35998256847ed07aad"
+  },
+  "backing_preservation": {
+    "count": 7,
+    "full_SHA_stat9_equal": true,
+    "strict_fuser_no_owner": true,
+    "receipt": {
+      "path": "/home/dandiccf/Storage/cirrove-normal-post-logout-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5/runtime-v2/audit-backings-result-v1.json",
+      "size": 6197,
+      "sha256": "ea4487355d51055a0290d33e08614c0eb1e2d277e0a01a75539eec38855718b2"
+    }
+  },
+  "retained_snapshot_equal": true,
+  "guest_preservation_basis": "Reviewed source and safe equality receipt; no independent raw guest SQL/payload extraction by auditor",
+  "first_runtime": {
+    "native_session": 52002,
+    "native_exit_code": 1,
+    "stage_or_helper_dispatched": false,
+    "cloud_helper_calls": 0,
+    "driver_closure": {
+      "path": "/home/dandiccf/Storage/cirrove-normal-post-logout-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5/driver-closed.json",
+      "size": 131,
+      "sha256": "e0c315a05350d5833ae41804f3fad0cd17fd604621fc77e7566c6eacebac908a"
+    },
+    "reason": "Fixture unlock prompt cancelled before staging; prior failure retained"
+  },
+  "provider_read_retry": false,
+  "natural_expiry_proved": false,
+  "reauthentication_proved": false,
+  "reliability_claim": false
+}

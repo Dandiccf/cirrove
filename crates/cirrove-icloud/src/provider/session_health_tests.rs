@@ -84,15 +84,18 @@ async fn fixture(
 
 #[tokio::test]
 async fn saved_session_rejection_after_initial_success_reaches_later_feed_poll() {
-    for status in [401, 403] {
+    for status in [401, 403, 421] {
         let (drive, scope, requests, server) = fixture(vec![200, status, status]).await;
         let cancel = CancellationToken::new();
         let first = drive.changes(&scope, None, &cancel).await.unwrap();
         let cursor = first.checkpoint.cursor().clone();
-        assert!(matches!(
-            drive.children(&scope, ROOT_ID, None, &cancel).await,
-            Err(ProviderError::Authentication)
-        ));
+        assert!(
+            matches!(
+                drive.children(&scope, ROOT_ID, None, &cancel).await,
+                Err(ProviderError::Authentication)
+            ),
+            "folder metadata session refusal must reach authentication health"
+        );
         let result = drive.changes(&scope, Some(&cursor), &cancel).await;
         assert!(
             matches!(result, Err(ProviderError::Authentication)),
@@ -138,4 +141,35 @@ async fn foreground_live_session_feed_keeps_its_local_only_projection() {
         .unwrap();
     assert!(next.changes.is_empty());
     assert_eq!(next.checkpoint.cursor(), first.checkpoint.cursor());
+}
+
+#[test]
+fn folder_session_refusal_keeps_other_http_boundaries_uncertain() {
+    for code in [421, 500, 503] {
+        let status = reqwest::StatusCode::from_u16(code).unwrap();
+        let error = crate::drive_request_failure(status, "generic Drive boundary");
+        assert!(matches!(map_read_error(&error), ProviderError::Unavailable));
+        assert!(matches!(
+            crate::mutation_error(error),
+            cirrove_core::mutation::MutationError::Uncertain
+        ));
+    }
+    for code in [401, 403, 421, 500, 503] {
+        let error = crate::content_request_failure(
+            reqwest::StatusCode::from_u16(code).unwrap(),
+            "signed content boundary",
+        );
+        assert!(matches!(map_read_error(&error), ProviderError::Unavailable));
+        assert!(matches!(
+            crate::mutation_error(error),
+            cirrove_core::mutation::MutationError::Uncertain
+        ));
+    }
+    assert!(matches!(
+        crate::mutation_error(crate::content_request_failure(
+            reqwest::StatusCode::INSUFFICIENT_STORAGE,
+            "signed content boundary",
+        )),
+        cirrove_core::mutation::MutationError::InsufficientStorage
+    ));
 }

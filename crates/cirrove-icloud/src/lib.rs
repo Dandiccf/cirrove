@@ -1082,6 +1082,13 @@ impl ICloudReadSession {
             })?;
         self.headers.absorb(response.headers());
         if !response.status().is_success() {
+            // Apple folder-metadata validation can refuse a saved session with
+            // 421. Keep this reauthentication boundary local to the existing
+            // authenticated listing endpoint. Generic and signed-content 421
+            // remain uncertain; other statuses keep their existing classification.
+            if response.status() == StatusCode::MISDIRECTED_REQUEST {
+                return Err(SessionRejected.into());
+            }
             return Err(drive_request_failure(
                 response.status(),
                 "iCloud Drive listing",

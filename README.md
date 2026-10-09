@@ -340,7 +340,13 @@ A [controlled session test](docs/benchmarks/icloud-scoped-session-recovery-2026-
 confirmed two valid saved sessions and received HTTP 200 for one scoped logout.
 The following target read returned an unclassified failure rather than a typed
 authentication rejection, so the test stopped without retry or reauthentication.
-This unresolved result does not close the reliability criterion.
+A subsequent [read-only diagnostic](docs/benchmarks/icloud-post-logout-read-diagnostic-2026-10-09-cccc3080-ca53-4397-9498-1b4d83152b78.json)
+observed HTTP 421 from the preserved post-logout session, with recovery data
+unchanged. The branch now treats 421 specifically at Apple's folder-metadata
+endpoint as requiring sign-in again; generic and signed-content 421 errors retain
+their previous handling. The [local regression](docs/benchmarks/icloud-folder421-session-rejection-fix-2026-10-09-f818b201-75bc-4606-a149-714d09e61f6c.json)
+fails before this correction and passes afterward. Real reauthentication,
+natural session expiry and the reliability criterion remain open.
 
 Read the [full integration record](docs/icloud-write-integration.md) for historical
 successes, retained failures and measured limits, and the

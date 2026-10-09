@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "run": "f818b201-75bc-4606-a149-714d09e61f6c",
+  "question": "Does scoped folder metadata HTTP421 after controlled logout reach typed authentication refusal without changing generic or content HTTP421 semantics?",
+  "prediction": "Existing provider health test extended to421 fails on original mapping and passes after folder-only correction; negative controls preserve uncertainty for generic/content421 and500/503. One complete scripts/check.sh passes.",
+  "endpoint": "Actual failing/passing same fixture, scoped production mapping, complete project check, no new provider access or delivery.",
+  "source_head": "1ccb5ac8e59cc7175db9e531cdfacb923b25bbee",
+  "live_diagnostic_run": "cccc3080-ca53-4397-9498-1b4d83152b78",
+  "state": "complete_project_check_passed",
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "temporary_filesystem": "ext4",
+  "TMPDIR": "/home/dandiccf/Storage/ct/f421-f818b201",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "provider_actions": 0,
+  "host_delivery": "HOLD",
+  "full_490_closed": false,
+  "started_unix": 1791575161.519655,
+  "arms": {
+    "red": {
+      "arm": "red",
+      "exit_code": 101,
+      "expected_exit": 101,
+      "original_pid": 185200,
+      "birth": "59972868",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 16.848826979054138,
+      "log_sha256": "174cb7c4b6aebb5ebe1a681d491aed0df5ac4c38c6b89eadfb77392af0c1b00a"
+    },
+    "green": {
+      "arm": "green",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 185996,
+      "birth": "59975252",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 4.640102211968042,
+      "log_sha256": "ee7f68fc24ceec7e8042afb97aef44a95c9df7c2021393649b14ba573ff35e02"
+    },
+    "fullcheck": {
+      "arm": "fullcheck",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 187031,
+      "birth": "59978864",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 781.5228650550125,
+      "log_sha256": "f0800a04afa173387d13c87586a7b537e9c193b7e8b3d56478b88672c49a4f07"
+    }
+  },
+  "red_green_review": {
+    "passed": 22,
+    "total": 22,
+    "sha256": "8214ada59e6603b9093a94d416a3ba024f262647a25d6b03945fe545d8b00c78",
+    "original_production_red_exit": 101,
+    "red_tests": {
+      "passed": 3,
+      "failed": 1
+    },
+    "corrected_green_exit": 0,
+    "green_tests": {
+      "passed": 4,
+      "failed": 0
+    },
+    "same_fixture_and_command": true,
+    "scope": "folder metadata only; generic/content/write classification unchanged"
+  },
+  "fullcheck_native_session": 14643,
+  "complete_check": {
+    "success": true,
+    "sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "rust_groups": 87,
+    "health_test_counts": {
+      "folder_session_refusal_keeps_other_http_boundaries_uncertain": 2,
+      "foreground_live_session_feed_keeps_its_local_only_projection": 2,
+      "saved_session_rejection_after_initial_success_reaches_later_feed_poll": 2,
+      "saved_session_transient_failure_is_not_authentication_and_retains_cursor": 2
+    },
+    "inputs": 601,
+    "all_inputs_tools_unchanged": true,
+    "owner": {
+      "arm": "fullcheck",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 187031,
+      "birth": "59978864",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 781.5228650550125,
+      "log_sha256": "f0800a04afa173387d13c87586a7b537e9c193b7e8b3d56478b88672c49a4f07"
+    },
+    "full490_closed": false,
+    "host_delivery": "HOLD",
+    "provider_actions": 0
+  },
+  "independent_fullcheck_review": {
+    "passed": 16,
+    "total": 16,
+    "sha256": "07f095ce5b495a78268b16661df332be9a51d1bb93629c004697da7458787e35",
+    "input_count": 601,
+    "tool_count": 9,
+    "scope": "exact complete project check; no provider or installed-runtime acceptance"
+  },
+  "actual_normal_SDK_read": {
+    "artifact": "icloud-normal-post-logout-read-2026-10-09-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5.json",
+    "native_session": 42000,
+    "native_exit_code": 0,
+    "classification": "remote_authentication_rejected",
+    "logical_root_calls": 1,
+    "snapshot_preserved": true,
+    "helper_diagnostic_instrumentation": false,
+    "HTTP_status_observed": false,
+    "logout_requests": 0,
+    "reauthentication_performed": false,
+    "provider_data_mutations": 0,
+    "natural_expiry_proved": false,
+    "installed_daemon_changed": false,
+    "independent_review": {
+      "passed": 18,
+      "total": 18,
+      "sha256": "602f9621e92db408f33a48fbd88901c87a9162cf15b44c9c2fd4e59224230810"
+    }
+  }
+}
