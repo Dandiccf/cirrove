@@ -1,0 +1,79 @@
+{
+  "run": "03e8eb3b-7a32-444c-be2b-de980cbeaa21",
+  "question": "Can the offline image-owner guard distinguish actual fuser usage exit1 from no owners, and refuse an exact file held open?",
+  "prediction": "Old exit1-only guard fails the primary usage rejection assertion. The corrected identical fixture passes that primary, empty-both-stream no-owner for two fixed paths, and live exact-file-holder refusal.",
+  "arms": [
+    "old_predicate_red1",
+    "strict_predicate_green3"
+  ],
+  "expected_durations_seconds": [
+    5,
+    15
+  ],
+  "window_per_arm": {
+    "work_seconds": 60,
+    "cleanup_seconds": 10
+  },
+  "scope": "Local synthetic files only; no VM, image mutation, provider, credentials, service, compiler or installed acceptance. Historical ae484 owner admission remains inconclusive.",
+  "active": false,
+  "active_measurement": false,
+  "state": "closed_sensitive_red1_green3",
+  "owner_successor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/own_offline_overlay_serial_once_v7.py",
+    "size": 17267,
+    "sha256": "9b687ccc31d0b8a0e48f7bd25bc4fa664a3702e6c3e3b6bd9ec60e71599cae4a"
+  },
+  "tests": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/fuser_guard_tests_v2.py",
+    "size": 4651,
+    "sha256": "05f182c8c39223e7e471edd5f85388dc05d1c2438a1340148c3340a16de18595"
+  },
+  "fuser": {
+    "path": "/usr/bin/fuser",
+    "size": 40072,
+    "sha256": "7edb04cb87f6ef13abfc3daaa0973f9589b36afd3bcce5043063898476fa1af2"
+  },
+  "historical_closed": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/evidence/base-use-check-closed.json",
+    "size": 583,
+    "sha256": "a38d39ead651a0c028bcebf97f42bf51cad4b2118f8f1470aff3e4e1aec53c4f"
+  },
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/fg-03e8eb3b",
+  "runtime_ready": false,
+  "original_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/registration-before-controls-v1.json",
+    "size": 1989,
+    "sha256": "1221ee286f0b4861802d96ba1d296d0b20c89c852268cbe8fe9b57350805d19f"
+  },
+  "actual": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/actual-controls-result-v1.json",
+    "size": 5056,
+    "sha256": "ffac30ab30ad05cf27bcd6600e71e7b252959c38c703df4a768c027ec95d26c7"
+  },
+  "actual_owner_closure_confirmation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/actual-owner-closure-confirmation-v1.json",
+    "size": 744,
+    "sha256": "fe51c400f0f8500e2612f1a690309d0f5a5d206866c8c7128c3ab223a67ee2a6"
+  },
+  "control_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/own_offline_overlay_serial_once_v6.py",
+    "size": 17214,
+    "sha256": "ee4d386188eb14724bf888530c7acf901305c7f3db524f155e235783c0db4418"
+  },
+  "proposal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/proposal-v3.json",
+    "size": 3982,
+    "sha256": "c80e277ab4e82b73ca7a12a9ff8a12d3d69264b58fc08d91c4f07e9ffd30bb30"
+  },
+  "unique_control_count": 3,
+  "actual_test_executions": {
+    "old_predicate_red": 1,
+    "corrected_green": 3
+  },
+  "historical_owner_admission": "INCONCLUSIVE: stderr was discarded and fuser binary unpinned; current reproduced usage cannot establish old stderr",
+  "scope_limits": [
+    "Only local synthetic owner-guard controls ran; no guest started or VM image changed.",
+    "Strict fuser is a preflight observation, not a general filesystem ownership lock. Existing QEMU file locking and full image before/after checks remain required.",
+    "No installed/cloud/gate acceptance from these controls."
+  ]
+}

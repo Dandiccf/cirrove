@@ -138,7 +138,34 @@
   "normal_guest_boot_tested": false,
   "independent_review": "CLEAR_SCOPED_OFFLINE_INSTALLED_UPGRADE",
   "corrections": [
-    "Exact fuser no-owner exit is1, all other three child exits0.",
+    "Recorded fuser exit was1, other three child exits0. Exit1 alone did not prove no owner: see ownership_admission_correction_2026_10_09.",
     "SQLite SHM both mtime and ctime changed; all identity, permissions, size and content digest fields remained equal."
-  ]
+  ],
+  "ownership_admission_correction_2026_10_09": {
+    "reviewed_unix": 1791546088.8731458,
+    "original_public_sha256": "4a2438a1174d329dca5d0e3322aacf60ff4497516569e00ad541acfc50ec9f07",
+    "original_fuser_receipt": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/evidence/base-use-check-closed.json",
+      "sha256": "a38d39ead651a0c028bcebf97f42bf51cad4b2118f8f1470aff3e4e1aec53c4f"
+    },
+    "recorded_argv": [
+      "/usr/bin/fuser",
+      "--",
+      "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2"
+    ],
+    "recorded_exit_code": 1,
+    "recorded_stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "original_stderr_preserved": false,
+    "historical_no_owner_admission_proved": false,
+    "limitation": "The owner accepted fuser exit1 alone and discarded stderr. Exit1 with empty stdout cannot distinguish no users from command/usage failure. The historical no-owner admission is inconclusive, not a pass.",
+    "separate_outcomes_retained": [
+      "actual three-package installation and public44/52 recovery exports",
+      "unchanged settings/persistent state, except explicitly enumerated SHM timestamps",
+      "full backing-disk before/after byte and stat equality",
+      "actual original four-child closure"
+    ],
+    "fresh_requirement": "Check both selected overlay and immutable backing with fixed absolute path arguments, no unsupported option separator; require exit1 and empty stdout AND stderr, preserve both stream digests and reject other outcomes.",
+    "does_not_retroactively_prove_exclusivity": true,
+    "gate_effect": "none;488/490 remain open; no provider or installed acceptance claim"
+  }
 }
