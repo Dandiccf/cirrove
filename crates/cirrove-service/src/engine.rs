@@ -2035,7 +2035,7 @@ impl Engine {
         .await
         .map_err(|_| ProviderError::Unavailable)?
     }
-    async fn fetch_directory(
+    pub(crate) async fn fetch_directory(
         self: &Arc<Self>,
         scope: &Scope,
         parent: &str,

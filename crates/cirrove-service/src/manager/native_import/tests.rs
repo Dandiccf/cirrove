@@ -257,6 +257,64 @@ async fn ordinary_import_enqueues_once_and_exposes_only_exact_account_record() {
     assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
     assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
 }
+async fn cached_destination_change(occupied_after_refresh: bool) {
+    let f = Fixture::new().await;
+    let scope = f.engine.scope("drive");
+    let parent = "FOLDER::com.apple.CloudDocs::parent";
+    let occupant = "FILE::com.apple.CloudDocs::old-package";
+    let mut package = node(occupant, Some(parent), "Imported.pages");
+    package.package = true;
+    f.provider
+        .nodes
+        .lock()
+        .unwrap()
+        .push(node(parent, Some(ROOT), "Parent"));
+    if !occupied_after_refresh {
+        f.provider.nodes.lock().unwrap().push(package.clone());
+    }
+    // Warm the same completed destination snapshot that file-manager browsing uses.
+    let cached = f.engine.children(&scope, parent).await.unwrap();
+    assert_eq!(cached.len(), usize::from(!occupied_after_refresh));
+    {
+        let mut remote = f.provider.nodes.lock().unwrap();
+        remote.retain(|n| n.id != occupant);
+        if occupied_after_refresh {
+            remote.push(package);
+        }
+    }
+    let mut input = f.input();
+    input.parent = "Parent".into();
+    let result = f
+        .manager
+        .enqueue_native_package(f.engine.clone(), input, CancellationToken::new())
+        .await;
+    if occupied_after_refresh {
+        assert!(
+            result.is_err(),
+            "a newly occupied remote destination was admitted"
+        );
+        f.empty();
+    } else {
+        let row = result.expect("a removed remote occupant remained in the admission cache");
+        assert!(
+            matches!(row.intent, UploadIntent::Create { parent: saved, .. } if saved == parent)
+        );
+        assert_eq!(f.journal.lock().unwrap().list(0, 100).unwrap().len(), 1);
+    }
+    assert_eq!(f.provider.reads.load(Ordering::SeqCst), 0);
+    f.engine.stop().await;
+}
+
+#[tokio::test]
+async fn native_import_refreshes_cached_destination_after_remote_removal() {
+    cached_destination_change(false).await;
+}
+
+#[tokio::test]
+async fn native_import_refreshes_cached_destination_before_remote_collision() {
+    cached_destination_change(true).await;
+}
+
 #[tokio::test]
 async fn disabled_stopped_busy_and_foreign_engine_refuse_before_capture() {
     let f = Fixture::new().await;

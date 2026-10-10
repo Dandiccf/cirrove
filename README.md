@@ -326,8 +326,8 @@ account marked Ready after a later authentication rejection. The identical
 [regression fixture](docs/benchmarks/icloud-saved-session-health-regression-2026-10-09-38c5c4b2-2c9a-4538-8b17-c37937a6654d.json)
 failed on the old code; three corrected controls and the complete project check
 passed. Each poll performs one nonrecursive root listing. This establishes
-synthetic rejection handling; recovery from a newly rejected or naturally
-expired Apple session still needs its own installed acceptance.
+synthetic rejection handling. The controlled installed rejection/recovery trial
+below adds live evidence; actual session-expiry recovery remains open.
 
 Normal daemon polls also [persist changed session cookies](docs/benchmarks/icloud-owned-session-cookie-writeback-2026-10-09.json)
 so restarts retain renewed cookies and deletions in local tests. Repeated updates
@@ -357,12 +357,39 @@ payloads and the already absent completed-upload payload. The new candidate's
 stopped at a local test guard before cloud access or Apple sign-in. A separate
 [local-only diagnosis](docs/benchmarks/icloud-installed-local-admission-diagnostic-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json)
 found that the test incorrectly refused a completed historical operation;
-there were no pending write-queue entries for that target connection. A corrected fixture is prepared,
-but the installed session-recovery trial has not passed.
-Earlier installed same-account reauthentication is already validated in the lifecycle trial above;
-recovery from this controlled rejection and from natural Apple session expiry
-still needs its own acceptance. Reliability criterion 490 and regular-host
-delivery remain open.
+there were no pending write-queue entries for that target connection.
+
+The [corrected installed session trial](docs/benchmarks/icloud-installed-session-recovery-2026-10-10-98fd1555-b0fc-4909-b064-ea65a0a0d9a5.json)
+then detected `sign_in_required`, completed one public same-account read-only
+reauthentication and returned to Ready with 261 mounted root entries. Active
+exports of the other connection's 44-byte sealed save and 52-byte dirty working
+file matched exactly; retained records, payloads and completed history were
+preserved. A local keyboard-control error was corrected before cloud access;
+the original controller failure remains recorded separately from the successful
+supplemental sequence under the same deadline. Independent closure review
+verified the ten backing images, nineteen host files and unchanged host daemon.
+This closes that bounded controlled-rejection recovery endpoint. It does not
+prove natural Apple session expiry or pending-byte recovery on the rejected
+connection. Reliability criterion 490 and regular-host delivery remain open.
+
+The [latest Numbers conflict trial](docs/benchmarks/icloud-native-final-install-race-2026-10-10-30828cf7-f274-442f-b7fa-f974dedef257.json)
+stopped at its initial import with an uncertain completion, before the planned
+replacement or competing import. Cirrove retained the complete 138,945-byte
+archive, and a separate public offline export recovered it byte-for-byte without
+credentials or cloud access. A [single read-only verification](docs/benchmarks/icloud-uncertain-import-readonly-inspection-2026-10-10-5ab26bb7-8fa1-4e08-a86d-89131e33b57a.json)
+subsequently confirmed that Apple holds the exact imported package. No upload
+was repeated. The normal daemon subsequently acknowledged and published that
+same operation successfully. A [separate continuation](docs/benchmarks/icloud-native-final-install-race-continuation-2026-10-10.json)
+reached the final replacement preflight, but its competing import failed before
+enqueueing any upload. A stale-directory admission defect was identified from
+the cached state and source; its exact original error was not retained. The
+replacement bytes remain retained. A separate [offline export](docs/benchmarks/icloud-native-retained-b-offline-export-2026-10-10-4993558b-6b25-49bc-9390-8054aabcb374.json)
+recovered all 139,044 replacement bytes with the original digest, without
+credentials or provider access. Import admission now refreshes complete provider
+directory listings before resolving the destination. Both [regression tests](docs/benchmarks/icloud-native-import-current-destination-regression-2026-10-10.json)
+failed before that fix and pass afterwards; 46 existing tests also pass. This
+source correction has not yet passed a new live conflict trial or been installed
+on the regular host. The conflict endpoint remains open.
 
 Read the [full integration record](docs/icloud-write-integration.md) for historical
 successes, retained failures and measured limits, and the

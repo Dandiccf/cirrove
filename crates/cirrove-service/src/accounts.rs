@@ -3070,6 +3070,89 @@ mod tests {
             account
         }
 
+        // Parallel process tests can inherit an operation's CLOEXEC open
+        // description between fork and exec. Wait only for that bounded lock
+        // contention after the logical owner has returned; never retry writes.
+        fn wait_for_operation_release(state: &Path, id: &str) {
+            wait_for_operation_release_with(state, id, || {});
+        }
+        fn wait_for_operation_release_with(state: &Path, id: &str, mut contended: impl FnMut()) {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+            loop {
+                match super::super::account_operation(state, id) {
+                    Ok(lease) => {
+                        // Release inherited copies of this probe's description too.
+                        fs2::FileExt::unlock(&lease).expect("release test operation lease");
+                        drop(lease);
+                        assert!(
+                            std::time::Instant::now() <= deadline,
+                            "operation release exceeded its bound"
+                        );
+                        return;
+                    }
+                    Err(error) => {
+                        assert!(
+                            error
+                                .downcast_ref::<std::io::Error>()
+                                .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock),
+                            "unexpected operation release error: {error:#}"
+                        );
+                        assert!(
+                            std::time::Instant::now() < deadline,
+                            "operation owner was not released: {error:#}"
+                        );
+                        contended();
+                        std::thread::sleep(std::time::Duration::from_millis(1));
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn bounded_operation_release_wait_preserves_busy_until_owner_releases() {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, false, Some(true));
+            let before = std::fs::read(state.join("accounts.json")).expect("settings");
+            let marker =
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker");
+            let held =
+                super::super::account_operation(&state, &account.id).expect("controlled owner");
+            assert_eq!(
+                set_enabled_by_id(&state, &account.id, true),
+                Err(PreferenceRefusal::Busy)
+            );
+            assert_eq!(
+                std::fs::read(state.join("accounts.json")).expect("settings"),
+                before
+            );
+            assert_eq!(
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker"),
+                marker
+            );
+            let (send, receive) = std::sync::mpsc::channel::<()>();
+            let release = std::thread::spawn(move || {
+                receive
+                    .recv_timeout(std::time::Duration::from_secs(1))
+                    .expect("bounded release signal");
+                drop(held);
+            });
+            let mut send = Some(send);
+            // CONTROL_WAIT_BEGIN: omission must expose the old immediate-success assumption.
+            wait_for_operation_release_with(&state, &account.id, || {
+                if let Some(send) = send.take() {
+                    send.send(()).expect("release controlled owner");
+                }
+            });
+            // CONTROL_WAIT_END
+            set_enabled_by_id(&state, &account.id, true)
+                .expect("preference after controlled owner release");
+            assert!(send.is_none(), "the wait must observe actual contention");
+            release.join().expect("controlled release thread closed");
+            heal_interrupted_sign_ins(&state).expect("heal latest wish");
+            assert!(Settings::load(&state).expect("load").accounts[0].enabled);
+        }
+
         #[test]
         fn persistence_failure_retains_explicit_durable_intent() {
             for requested in [false, true] {
@@ -3094,39 +3177,7 @@ mod tests {
                         Some(requested),
                         "a reported persistence error must not revive the old wish"
                     );
-                    // The injected failure has returned, so its logical operation
-                    // owner is gone. Parallel tests can still fork before exec
-                    // while that CLOEXEC open description is inherited. Wait
-                    // only for bounded lock contention, not failed healing.
-                    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
-                    loop {
-                        match super::super::account_operation(&state, &account.id) {
-                            Ok(lease) => {
-                                // Explicit unlock also releases any fork-inherited
-                                // copy of this test's newly acquired description.
-                                fs2::FileExt::unlock(&lease).expect("release test operation lease");
-                                drop(lease);
-                                assert!(
-                                    std::time::Instant::now() <= deadline,
-                                    "operation release exceeded its bound"
-                                );
-                                break;
-                            }
-                            Err(error) => {
-                                assert!(
-                                    error.downcast_ref::<std::io::Error>().is_some_and(|e| {
-                                        e.kind() == std::io::ErrorKind::WouldBlock
-                                    }),
-                                    "unexpected operation release error: {error:#}"
-                                );
-                                assert!(
-                                    std::time::Instant::now() < deadline,
-                                    "operation owner was not released: {error:#}"
-                                );
-                                std::thread::sleep(std::time::Duration::from_millis(1));
-                            }
-                        }
-                    }
+                    wait_for_operation_release(&state, &account.id);
                     heal_interrupted_sign_ins(&state).expect("finish durable intent");
                     account.enabled = requested;
                     assert_eq!(
@@ -3165,7 +3216,9 @@ mod tests {
                     Some(requested),
                     "failed cleanup must leave the new complete marker"
                 );
+                wait_for_operation_release(&state, &account.id);
                 assert!(!heal_interrupted_sign_ins(&state).expect("same wish"));
+                wait_for_operation_release(&state, &account.id);
                 set_enabled_by_id(&state, &account.id, !requested).expect("later preference");
                 heal_interrupted_sign_ins(&state).expect("heal again");
                 assert_eq!(

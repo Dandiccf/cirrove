@@ -1,0 +1,140 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "arms": [
+    "One fresh subject daemon, one guarded root listing before writes, one fresh own folder and A import",
+    "One original B replacement paused once after final preflight; one separately owned competitor C public import; exact marker released once",
+    "Same-operation read-only three-identity preservation inspection after both writers close",
+    "One normal recovery-only RO mount and one public export-save of the original failed B; all journal tables/persistent files/settings/checkpoint/payload/staged-member witnesses preserved"
+  ],
+  "automatic_retry": false,
+  "binary_sha256": {
+    "cirrove": "5c899a332bfaf27ed946f3e4b278bc72004e6fe9156ce8eb8c30f6ddff72ed3d",
+    "cirroved": "eda0429f5aee8651dbe375f75b0359051c74187999d05a5a9934ce5553917c28",
+    "native-final-probe": "f5f56788065ed7d49ccebcef978a44672d919c539e9f471e3aabcdc198713249"
+  },
+  "cleanup_reserve_seconds": 45,
+  "closure_owner": "Root must record actual original native return and actual controller closure; no inferred PASS",
+  "command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/controller_current_install_preflight_v3.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/inputs-final.json",
+    "--sha256",
+    "ed66441d9a849d435f39a73e6463729c0f06f095176f61cacb106782ff81c38a"
+  ],
+  "competitor_run": "2ad23b7a-1f4f-4be0-a49b-e907bf14b601",
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": [],
+    "native-final-probe": [
+      "icloud-write-probe"
+    ]
+  },
+  "controller_sha256": "74ff6de476d136216fd67e85a53045142ec19b42d5c576ab3fc24a9ca24e01a2",
+  "current_normal_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "documentation_head_at_dispatch": "a6b564b7606f75a5b10ed2c9a93f5a88ccfabd6c",
+  "endpoint": "Only exact Conflict/VerifyRequired with original operation retained, independently bound ATrash/BStage/CCanonical semantic proofs, actual named local staging snapshots, exact public B export, unchanged journal/settings/payload/checkpoint, original child and mount/socket closure is PASS. A refusal or unclear result stops with no automatic repeat.",
+  "feature_checkout_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "feature_source_count": 582,
+  "full_gate490_closed": false,
+  "maximum_pause_seconds": 120,
+  "maximum_seconds": 600,
+  "measurement_open": false,
+  "natural_expiry_proved": false,
+  "normal_source_count": 582,
+  "prediction": "One rename may refuse or remain uncertain. Accepted failure retains Conflict/VerifyRequired and all three exact semantic identities. The original B payload and checkpoint remain intact; one recovery-only public export returns the exact139044-byte B. Actual production native-import/package-upload-staging members and bytes are bounded and preserved across export. No global quota/peak/cleanup claim.",
+  "private_TMPDIR_by_context": {
+    "competitor": "/home/dandiccf/Storage/cirrove-tmp/nf-2ad23b7a",
+    "subject": "/home/dandiccf/Storage/cirrove-tmp/nf-30828cf7"
+  },
+  "private_evidence": "numbers-race/competitor-controller-result.json",
+  "question": "Does a genuine owned Numbers canonical competitor admitted after final native replacement preflight retain exact original/staged/competitor identities and export the failed original saved B without mutation replay?",
+  "role_binding_sha256": "7709fcbb1c764f83b28e875c44bab61d75c2f93eab455c9de209dd94ade467f0",
+  "run": "30828cf7-f274-442f-b7fa-f974dedef257",
+  "state": "closed_initial_import_uncertain_no_replay",
+  "version": 1,
+  "window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "deadline_monotonic": 647755.145379183,
+    "deadline_unix_seconds": 1791623128,
+    "started_monotonic": 647155.145379183,
+    "started_unix_seconds": 1791622528
+  },
+  "closed_unix": 1791622840.9048011,
+  "actual_native_exit_code": 1,
+  "actual_result": {
+    "success": false,
+    "failure_class": "Refusal",
+    "initial_saved_grant_root_read_passed": true,
+    "owned_folder_created": true,
+    "initial_A_import_state": "verify_required",
+    "operation": "5bbe02ab-cae7-4e0d-82c1-3eebde8d736f",
+    "source_size": 138945,
+    "source_sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "transferred_bytes": 138945,
+    "failed_attempts": 1,
+    "confirmed_remote_receipt": false,
+    "replacement_dispatched": false,
+    "competitor_dispatched": false,
+    "uncertain_import_replayed": false,
+    "closure_verified": true,
+    "source_unchanged": true,
+    "cause_established": false,
+    "final_preservation_audit": "passed"
+  },
+  "local_diagnostic_scope": "Readonly journal metadata establishes retained uncertain A import. Controller guard rejects Failed jobs; exact triggering assertion was not logged. An encrypted checkpoint remains; neither lost response nor product defect is inferred.",
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/competitor-controller-result.json",
+    "sha256": "91178ad941ad746de3609c1c09ec3f0fd3ead708c050674ef0634801e5e5d9a4"
+  },
+  "independent_audits": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/audit-independent-closed-numbers-race-v1.json",
+      "size": 33115,
+      "sha256": "78ac27b63e529ec94b2816a681accb59618be1d08b0e49a5849d281f7dc45127"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/audit-independent-closed-numbers-race-hoststat-amendment-v1.json",
+      "size": 12028,
+      "sha256": "c216abb8ecc2ec4257cef930432fa9b82aee339947a121e02ab85bcf7a515a91"
+    }
+  ],
+  "separate_local_offline_export": {
+    "success": true,
+    "size": 138945,
+    "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "source_journal_and_settings_preserved": true,
+    "copy_only_disabled": true,
+    "credentials_accessed": false,
+    "provider_calls": 0,
+    "scope": "initial A only; not planned replacement B or conflict acceptance",
+    "receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/initial-a-offline-retention-v1/result.json",
+      "size": 645,
+      "sha256": "e001a8660155b7d5970b3f234b701b89981a75f9c174dca8930513c03dceb5a2"
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/initial-a-offline-retention-v1/independent-audit-v1.json",
+      "size": 22321,
+      "sha256": "fce5a701e41e4690dcc83be6dc75497168dcf9a1420222317b54922d0812a7be"
+    }
+  },
+  "local_checkpoint_metadata": {
+    "public_artifact": "docs/benchmarks/icloud-uncertain-import-local-phase-2026-10-10-1bfb18c9-354b-4afa-9956-20f3e6eae8ca.json",
+    "phase": "RegistrationArmed",
+    "slot_present": true,
+    "registration_present": true,
+    "wire_present": true,
+    "provider_calls": 0,
+    "remote_completion_proved": false
+  },
+  "subsequent_readonly_inspection": {
+    "artifact": "docs/benchmarks/icloud-uncertain-import-readonly-inspection-2026-10-10-5ab26bb7-8fa1-4e08-a86d-89131e33b57a.json",
+    "classification": "PackageComplete",
+    "semantic_equals_source_A": true,
+    "provider_mutations": 0,
+    "journal_acknowledged": false,
+    "original_failed_arm_reclassified_as_pass": false
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/nr-98b3685d",
+  "TMPDIR": "/home/dandiccf/Storage/ct/nr-98b3685d",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "binaries": {
+    "cirrove": {
+      "path": "/var/tmp/cirrove-native-final-30828cf7-f274-442f-b7fa-f974dedef257/bin/cirrove",
+      "sha256": "5c899a332bfaf27ed946f3e4b278bc72004e6fe9156ce8eb8c30f6ddff72ed3d",
+      "size": 476809680
+    },
+    "cirroved": {
+      "path": "/var/tmp/cirrove-native-final-30828cf7-f274-442f-b7fa-f974dedef257/bin/cirroved",
+      "sha256": "eda0429f5aee8651dbe375f75b0359051c74187999d05a5a9934ce5553917c28",
+      "size": 478552824
+    },
+    "fusermount": {
+      "path": "/usr/bin/fusermount3",
+      "sha256": "a5d1d1e9eac4012cf1567c34a256d28913afa75d0f1f48c628d2ec162067865a",
+      "size": 39016
+    }
+  },
+  "checkpoint_cleanup_expected": true,
+  "cleanup_reserve_seconds": 20,
+  "command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/owner.py",
+    "--root-lane-released"
+  ],
+  "endpoint": "SameoperationUploaded+exactAtypedidentity/semantic, one public watch afterUploaded, packagepublicationdone; exactsource/settings/session/host preserved; originaldaemon/watch/unmount handlesclosed and mounts/socketabsent.",
+  "full490_closed": false,
+  "host_delivery": "HOLD",
+  "inputs": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/inputs.json",
+    "sha256": "cace1122cd77f403215f33e9cdf659a88a0e7582c6ab76b28cd42179532b5d4c",
+    "size": 79339
+  },
+  "local_receipt_acknowledgement": true,
+  "maximum_seconds": 120,
+  "normal_verification_network_reads": true,
+  "old_clock_extension": false,
+  "original_operation": "5bbe02ab-cae7-4e0d-82c1-3eebde8d736f",
+  "original_run": "30828cf7-f274-442f-b7fa-f974dedef257",
+  "owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/owner.py",
+    "sha256": "d378af4dcac595330edb4613d95c60a0222f53560f23531d4aa54b93629263cf",
+    "size": 9696
+  },
+  "prediction": "Original VerifyRequired becomesUploaded with exact confirmedA identity/semantic, queue/publication complete; no newupload ormutation rows. Original failedrace staysfailed.",
+  "provider_mutation_requests_authorized": 0,
+  "question": "Can one bounded normal daemon verification acknowledge the already independently confirmed original A package and publish it without submitting another archive or replaying registration?",
+  "run": "98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb",
+  "state": "closed_normal_reconciliation_failed",
+  "temporary_filesystem": "ext4",
+  "version": 1,
+  "prepared_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/owner-v2.py",
+    "size": 11094,
+    "sha256": "e26c92287d8ce4b17c0552aecff8e2a148884a31741cebf7a43b1468e62bedb5"
+  },
+  "prepared_inputs": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/inputs-v2.json",
+    "size": 79339,
+    "sha256": "cace1122cd77f403215f33e9cdf659a88a0e7582c6ab76b28cd42179532b5d4c"
+  },
+  "started_unix": 1791624731.316379,
+  "original_deadline_monotonic": 649478.439354348,
+  "actual_result": {
+    "version": 1,
+    "run": "98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb",
+    "success": false,
+    "failure": null,
+    "closure_errors": [
+      {
+        "phase": "final_preservation",
+        "class_name": "AssertionError"
+      }
+    ],
+    "closure_verified": false,
+    "children": [
+      {
+        "phase": "public-watch",
+        "pid": 767701,
+        "birth": "64936370",
+        "returncode": 0,
+        "original_handle_reaped": true,
+        "proc_absent": true,
+        "group_empty": true
+      },
+      {
+        "phase": "normal-daemon",
+        "pid": 767571,
+        "birth": "64935843",
+        "returncode": 0,
+        "original_handle_reaped": true,
+        "proc_absent": true,
+        "group_empty": true
+      }
+    ],
+    "mount_absent": true,
+    "socket_absent": true,
+    "source_host_unchanged": false,
+    "settings_session_sources_unchanged": false,
+    "original_clock_controller_untouched": true,
+    "original_failed_arm_remains_failed": true,
+    "no_import_resubmission": true,
+    "no_retry_stuck": true,
+    "elapsed_seconds": 7.46254873694852
+  },
+  "actual_executed_command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/owner-v2.py",
+    "--root-lane-released"
+  ],
+  "actual_executed_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/owner-v2.py",
+    "size": 11094,
+    "sha256": "e26c92287d8ce4b17c0552aecff8e2a148884a31741cebf7a43b1468e62bedb5"
+  },
+  "registered_draft_command_retained": true,
+  "actual_native_owner_return": {
+    "session_id": 14303,
+    "exit_code": 1,
+    "closed": true
+  },
+  "observed_operational_endpoint": {
+    "same_original_operation_uploaded": true,
+    "package_publication_done": true,
+    "public_watch_exit_code": 0,
+    "new_upload_rows": 0,
+    "new_mutation_rows": 0,
+    "only_changed_journal_tables": [
+      "uploads",
+      "package_metadata_publication",
+      "write_queue"
+    ],
+    "original_clock_not_extended": true,
+    "provider_mutation_replay": false
+  },
+  "fixture_limitation": {
+    "failed_original_preservation_assertion_retained": true,
+    "changed_input": "same-account sealed session ciphertext",
+    "source_explains_owned_successful_poll_writeback": "crates/cirrove-icloud/src/provider.rs:518,168; crates/cirrove-icloud/src/sealed_session.rs:318",
+    "cookie_plaintext_difference_not_inspected": true,
+    "no_session_rollback": true,
+    "independent_actual_audit_pending": false
+  },
+  "concurrent_metadata_correction_erratum": {
+    "path": ".local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/metadata-correction-concurrent-erratum-v1.json",
+    "sha256": "d3da708c955733f459605234a810565b6bef210da7536ff337316cb498c27d16",
+    "only_unused_descriptive_owner_sha256_changed": true,
+    "exact_dispatched_input_bytes_preserved": true
+  },
+  "independent_corrected_observation": {
+    "path": ".local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/independent-corrected-observation-v1.json",
+    "sha256": "6cb75a450e29fd026b45005851cc4511c7b0b960d1fcd64e242e9ee4868241c2",
+    "actual_normal_reconciliation_endpoint_passed": true,
+    "original_controller_result_preserved_false": true,
+    "physical_closure_verified": true,
+    "runtime_and_installed_host_preserved": true,
+    "settings_and_sources_preserved": true,
+    "expected_owned_session_writeback_retained": true,
+    "cookie_plaintext_fields_not_inspected": true
+  }
+}

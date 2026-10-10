@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "run": "c1ed4919-075c-4b36-962b-b84569f6d00c",
+  "question": "Does one verification-only inspection of the retained RegistrationArmed initial A import establish exact remote package completion without replay?",
+  "prediction": "If the original registration completed, PackageComplete must match exact A semantic; otherwise retain a typed uncertain/refusal classification and original journal.",
+  "endpoint": "One UploadProvider::inspect_upload_for_operation on exact stopped A checkpoint; no allocation/upload/registration/save/returned-step execution or journal acknowledgement. Seven inputs preserved; typed safe identity receipt only if semantically complete.",
+  "original_operation": "5bbe02ab-cae7-4e0d-82c1-3eebde8d736f",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-private-import-inspect-helper-20261010-v1/frozen/inspect-import-once"
+  ],
+  "binary_sha256": "72defeca9bb9c9558dfa659b06ac0dbca3e03bc797b7b3b41414c6d3e3c19dea",
+  "source_sha256": "424eb38d6c623993f042baaf56ea2d719afc6583a70ecd8ab01e83bcee39b69d",
+  "TMPDIR": "/home/dandiccf/Storage/ct/inspect-import-once-20261010",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/inspect-import-once-20261010",
+  "temporary_filesystem": "ext4",
+  "maximum_seconds": 150,
+  "cleanup_reserve_seconds": 20,
+  "started_unix": 1791623804.899445,
+  "deadline_unix": 1791623954.899445,
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "full_criterion490_closed": false,
+  "original_conflict_arm_remains_failed": true,
+  "actual_result": {
+    "exit_code": 1,
+    "pid": 748859,
+    "birth": "64843202",
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "signals": [],
+    "stdout_sha256": "36008090c446a23132ad94d31a57c4d399a6eb3d4d300d64f525e8d777705839",
+    "result": {
+      "classification": "Other",
+      "semantic_equals_source_A": false,
+      "raw_error_retained": false,
+      "observer_refusal_or_timeout": true
+    },
+    "closed_unix": 1791623804.9170885,
+    "elapsed_seconds": 0.017643451690673828
+  },
+  "private_evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-private-import-inspect-helper-20261010-v1/execution-c1ed4919-075c-4b36-962b-b84569f6d00c",
+  "local_refusal_diagnosis": {
+    "before_provider_call": true,
+    "before_session_restore": true,
+    "exact_guard": "required account.disabled, but actual original test account is enabled RW and stopped/unmounted",
+    "evidence": "Pinned original settings enabled=true; source returns before checkpoint load and provider construction at this guard. Read-only inspection itself does not need the disabled flag.",
+    "original_state_not_modified": true,
+    "correction": "Replace mistaken disabled-account guard with exact absent mount/socket fence; preserve failed observer and compile distinct successor."
+  }
+}

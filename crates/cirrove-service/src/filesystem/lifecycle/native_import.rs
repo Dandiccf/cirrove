@@ -71,6 +71,10 @@ impl WriteControl {
             if cancel.is_cancelled() {
                 return Err(unavailable());
             }
+            engine
+                .fetch_directory(&scope, &node.id)
+                .await
+                .map_err(|_| unavailable())?;
             let children = engine
                 .children(&scope, &node.id)
                 .await
@@ -101,6 +105,13 @@ impl WriteControl {
             node = observed;
             route.push(node.clone());
         }
+        // Browsing deliberately serves cached children. Admission needs a new
+        // complete provider observation: another client may have removed or
+        // occupied the destination since that snapshot was published.
+        engine
+            .fetch_directory(&scope, &node.id)
+            .await
+            .map_err(|_| unavailable())?;
         let children = engine
             .children(&scope, &node.id)
             .await

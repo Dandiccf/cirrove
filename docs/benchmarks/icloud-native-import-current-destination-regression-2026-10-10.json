@@ -1,0 +1,134 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "GREEN": {
+    "actual_exit": 0,
+    "failed": 0,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/green.log",
+      "sha256": "e1f100293f61e7cc9d5545b05b369b176553b2f4c2c31d88d00af316de577154",
+      "size": 648
+    },
+    "passed": 2,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/green-terminal.json",
+      "sha256": "27e03e2adec010fab1057b5229d77643c7d1ab03e9524e67ffbbc58eba504d7a",
+      "size": 551
+    }
+  },
+  "GREEN_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/green-registration.json",
+    "sha256": "d5d2e9cb5eb3ffe8270a32f5764687b1c45f73319be733d6494f198f4ab4ed8e",
+    "size": 1483
+  },
+  "RED": {
+    "actual_exit": 101,
+    "elapsed_seconds": 16.857682466506958,
+    "failed": 2,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/red.log",
+      "sha256": "06285b4fd5457c028d49df717d869c7e68685569d66ad6defca0839aae2ebb73",
+      "size": 1557
+    },
+    "passed": 0,
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/red-registration.json",
+      "sha256": "b210075d7ab24e139b697cd4aa9a79d4076bad71ea996832cefe7ab76ef854d9",
+      "size": 1440
+    },
+    "started_unix": 1791625546.4221752,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/red-terminal.json",
+      "sha256": "9552a57b7ef522dac0a1c5b385e3147cef11787c3feb74c2622b8c71892879f6",
+      "size": 556
+    }
+  },
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/nif-fix",
+  "TMPDIR": "/home/dandiccf/Storage/ct/nif-fix",
+  "active": false,
+  "active_measurement": false,
+  "arms": [
+    "Preliminary RED: warm a completed synthetic parent listing, remove its occupant remotely, then public enqueue must succeed; warm an empty listing, add an occupant remotely, then enqueue must refuse. Both failed with original behavior.",
+    "GREEN: the identical two regressions after fresh destination/route listings; then existing native import group including account, mount and journal-frontier guards."
+  ],
+  "cloud_dispatched": false,
+  "endpoint": "Both named regressions must execute and fail before the fix, then pass afterward; the existing native import test group must pass. No cloud calls, provider reliability result or gate closure is claimed.",
+  "existing_group": {
+    "actual_exit": 0,
+    "failed": 0,
+    "filtered": 562,
+    "ignored": 1,
+    "ignored_test": "public_socket_native_import_reaches_real_fuse_package_metadata_without_replay",
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/existing-corrected.log",
+      "sha256": "efd6b81663b2f9706e210ce1a23111009701bc987dcf02b8aad772865aa3900b",
+      "size": 6366
+    },
+    "passed": 46,
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/existing-corrected-registration.json",
+      "sha256": "40a986f9e317fab9a402a0b746e15543d9ac435ec8abd4c840d8514ac4a28b08",
+      "size": 1443
+    },
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/existing-corrected-terminal.json",
+      "sha256": "844aaeb4953aca2b783d3de6412165976e46f7308303e2111f67066a5494a483",
+      "size": 509
+    }
+  },
+  "existing_group_command_correction": {
+    "first_command_closed_before_tests": true,
+    "reason": "Preparation indexed the -- separator instead of the test filter; Cargo refused the extra positional argument. No test ran.",
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/existing-terminal.json",
+      "sha256": "beeddbec5cf2f4d670dd07843390007fd2f1a9664fc1c3f82416b51b3e88e1f6",
+      "size": 581
+    }
+  },
+  "existing_group_corrected_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/existing-corrected-registration.json",
+    "sha256": "40a986f9e317fab9a402a0b746e15543d9ac435ec8abd4c840d8514ac4a28b08",
+    "size": 1443
+  },
+  "existing_group_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/existing-registration.json",
+    "sha256": "7f8aaa02d0f2419ed16c91e0fb2c28f5cd565195ccdfef35484d27ca1cb9bf9d",
+    "size": 1497
+  },
+  "final_cargo_fmt_all_exit": 0,
+  "full_gate490_closed": false,
+  "late_public_registration": true,
+  "late_public_registration_limitation": "The RED command had a private pre-dispatch registration only. This public registration is written after its actual closed result and before GREEN; RED is retained as preliminary regression evidence, not retrospectively public-preregistered measurement.",
+  "measurement_open": false,
+  "original_failed_cloud_runs_remain_failed": true,
+  "prediction": "Both targeted cached-destination regressions pass after fresh full destination observation; the existing native import suite continues to pass.",
+  "question": "Does explicit native import reobserve a completed cached destination before admitting an upload, so remote removal permits import and a new remote occupant refuses?",
+  "registration_recorded_unix": 1791625618.213405,
+  "run": "f097ed82-6eb5-4843-a42e-04e5032df0c7",
+  "source_adoption_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-import-fresh-destination-fix-20261010-private-v1/closed-red-green-source-adoption-receipt.json",
+    "sha256": "4a3352e7cdf098218274adbfccdc3fb73edd75d83135754d0759b73ad0b62557",
+    "size": 6677
+  },
+  "source_pins": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/engine.rs",
+      "sha256": "009777a1bee6d7eaa80fef0d50a9188fc6b5bc17e5498b59e3aa3ed45f8ec449",
+      "size": 116026
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/filesystem/lifecycle/native_import.rs",
+      "sha256": "7ca3a911b6b24ce91ca9a75b356b0dd506cc27a1e6cc50aa1294e73d1a7c02bc",
+      "size": 6009
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/manager/native_import/tests.rs",
+      "sha256": "0030aa8163ea9b2a4f63341e79c37aef8f14950b0ea8909b7908b81277ead338",
+      "size": 25718
+    }
+  ],
+  "state": "closed_synthetic_regression_validation",
+  "success": true,
+  "synthetic_only": true,
+  "temporary_filesystem": "ext4",
+  "version": 1
+}

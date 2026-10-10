@@ -115,13 +115,93 @@ but one historical `Applied` folder creation and two completed queue entries
 legitimately remain. There were no incomplete queue entries. The selected
 payloads, settings and ciphertexts matched their original hashes; all ten
 backings, 19 host files and the host daemon were unchanged. The diagnosis
-closed with all owned processes reaped. A narrow fixture correction is prepared
-to admit and preserve exactly that completed history; it has not yet passed
-the installed recovery trial.
+closed with all owned processes reaped.
+
+The [corrected installed session trial](benchmarks/icloud-installed-session-recovery-2026-10-10-98fd1555-b0fc-4909-b064-ea65a0a0d9a5.json)
+admitted and preserved exactly that completed history. Its installed daemon
+reported target `sign_in_required` while the control remained Ready. One native
+public same-account read-only reauthentication preserved target identity and the
+disabled preference; both connections then reached Ready and the target mount
+returned 261 root entries. Active control exports matched the registered 44-byte
+sealed and 52-byte dirty-working payloads. All four selected record bodies,
+three retained payloads, existing completed-upload payload absence and exact
+completed history stayed unchanged. The target ended disabled and read-only.
+A Root QMP argument error prevented the initial local fixture-keyring inputs;
+no cloud or Apple sign-in had occurred. The corrected supplemental owner ran
+the registered commands once in the same guest under the unchanged deadline.
+Its success is recorded separately from the original owner's false sequence
+result. Independent audits verified all 55 guest commands and 15 host child
+closures, ten unchanged immutable backings, nineteen host files and the original
+host daemon identity. No credentials were logged and no cloud mutation or
+authentication was automatically retried.
 The target’s selected upload is completed and its journal payload was already
-collected; the retained 44/52/50 bytes belong to the other control
-connection. Reauthenticating the target cannot establish rejected-account pending
-recovery. Natural Apple expiry, full criterion 490 and regular-host delivery
+collected; retained 44/52/50 bytes belong to the other control connection.
+This bounded endpoint does not establish rejected-account pending-byte recovery
+or actual session expiry. Full criterion 490 and regular-host delivery remain open.
+
+The [bounded Numbers conflict arm](benchmarks/icloud-native-final-install-race-2026-10-10-30828cf7-f274-442f-b7fa-f974dedef257.json)
+stopped during its initial A import, before replacement or the competing second
+import. The saved grant first passed a root read and the owned folder creation
+was Applied. The 138,945-byte import then remained `VerifyRequired` after one
+attempt, without a confirmed remote or package-completion receipt. Its exact
+source archive is retained; a separate public offline export from a copied,
+disabled journal recovered all 138,945 bytes with the original SHA-256, without
+credentials or provider calls and without changing the source journal/settings.
+No import was replayed. The controller rejected the
+failed job and closed both contexts, with their mounts and sockets absent.
+Independent review verified frozen sources, binaries, nineteen host files and
+the unchanged running host daemon. This is a retained uncertain import outcome,
+not a completed conflict test or an established cause. A separate
+[local checkpoint inspection](benchmarks/icloud-uncertain-import-local-phase-2026-10-10-1bfb18c9-354b-4afa-9956-20f3e6eae8ca.json)
+found `RegistrationArmed`. One subsequent
+[verification-only provider inspection](benchmarks/icloud-uncertain-import-readonly-inspection-2026-10-10-5ab26bb7-8fa1-4e08-a86d-89131e33b57a.json)
+returned `PackageComplete` with the exact source A semantic identity in 5.60
+seconds. It performed no upload, registration, replacement or journal
+acknowledgement and preserved all seven original inputs. This establishes the
+remote import content. A subsequent [normal daemon reconciliation](benchmarks/icloud-original-import-normal-reconciliation-2026-10-10-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb.json)
+then acknowledged the same operation as `Uploaded`, completed metadata publication
+and returned success from public `watch-native-import`, without submitting an
+archive or replaying registration. Only the upload, publication and queue tables
+changed. Its original test report failed a ciphertext-invariance assertion:
+the normal owned provider persisted changed session cookies. Independent review
+verified the actual reconciliation and process closure, settings/source/host
+preservation and this expected session transition, while retaining the original
+false report. No cookie plaintext comparison or authentication retry was performed.
+An earlier observer refused locally because it incorrectly required a disabled
+account; it made no provider call and remains recorded separately. No
+replacement or competitor mutation had occurred at that checkpoint.
+
+A [separate continuation](benchmarks/icloud-native-final-install-race-continuation-2026-10-10.json)
+then independently verified the acknowledged A and paused one B replacement after
+its last installation preflight. The competitor was warmed before A moved to
+Trash; its cached completed child snapshot still contained A. Import admission
+refreshed root/parent nodes but reused those cached children, revealing a
+concrete occupied-name refusal. The competing import failed before durable
+enqueue; its generic job error does not uniquely identify the original admission
+error. Its journal has zero upload
+and queue rows. The controller stopped without capture, release or the planned
+three-identity verification. B remains `VerifyRequired` with its exact 139,044-byte
+payload and encrypted checkpoint. All six children, mounts and sockets closed;
+independent review preserved the source, host and prior evidence. This is a
+failed conflict arm and a concrete stale-directory admission defect, not another
+post-registration confirmation failure. No mutation was replayed.
+
+The retained B payload subsequently passed a separate [public offline export](benchmarks/icloud-native-retained-b-offline-export-2026-10-10-4993558b-6b25-49bc-9390-8054aabcb374.json):
+all 139,044 bytes matched the original SHA-256. The copied account was disabled,
+no credentials were copied and no provider call was made. The original journal,
+payload and settings stayed unchanged. This closes local retention/export for
+that failed fixture, without changing its failed conflict outcome.
+
+The [source correction](benchmarks/icloud-native-import-current-destination-regression-2026-10-10.json)
+refreshes a complete provider directory listing at every route component and
+the final destination before native-import admission. It preserves the existing
+mount, account, local-frontier and conditional write checks. Two synthetic
+regressions first failed against the old implementation: removal of a cached
+occupant must free the name, and a new remote occupant must prevent admission.
+Both pass with the correction; the existing group passed 46 tests, with one
+FUSE test ignored. The private RED registration preceded dispatch; its public
+registration was late and is explicitly recorded as such. This is a validated
+source fix, not a new controlled live conflict pass. Criterion 490 and delivery
 remain open.
 
 The following earlier checkpoints retain their failed and partial outcomes. The

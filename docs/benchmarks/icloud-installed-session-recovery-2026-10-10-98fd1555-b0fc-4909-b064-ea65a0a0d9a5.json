@@ -1,7 +1,7 @@
 {
   "version": 1,
   "run": "98fd1555-b0fc-4909-b064-ea65a0a0d9a5",
-  "status": "registered_not_dispatched_person_readiness_pending",
+  "status": "closed_bounded_live_session_recovery_passed",
   "active": false,
   "active_window": false,
   "active_measurement": false,
@@ -22,7 +22,40 @@
   "whole_criterion490_closed": false,
   "natural_expiry_proved": false,
   "rejected_target_pending_recovery_proved": false,
-  "actual_result": null,
+  "actual_result": {
+    "installed_rejected_session_classification": "sign_in_required",
+    "control_before_auth": "ready",
+    "public_same_account_readonly_reauth": true,
+    "manual_auth_count": 1,
+    "auth_streams_logged": false,
+    "target_after_auth": "ready",
+    "mounted_root_entry_count": 261,
+    "control_active_exports": [
+      {
+        "size": 44,
+        "sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472"
+      },
+      {
+        "size": 52,
+        "sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff"
+      }
+    ],
+    "four_selected_rows_three_payloads_and_completed_upload_gc_absence_preserved": true,
+    "exact_completed_history_preserved": true,
+    "target_ends_disabled_readonly": true,
+    "target_identity_preserved": true,
+    "original_owner_sequence_success": false,
+    "supplemental_sequence_success": true,
+    "original_window_unchanged": true,
+    "original_and_supplemental_handles_reaped": true,
+    "closure_failures": [],
+    "host_backing_preservation_final_audit": "passed",
+    "immutable_backings_preserved": 10,
+    "host_files_preserved": 19,
+    "host_daemon_identity_preserved": true,
+    "owned_host_children_closed": 15,
+    "guest_commands_closed": 55
+  },
   "source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
   "compiled_package_source": "028fa973019e9cc615c40ca7c1b411f0621d11f1",
   "installed_version": "0.2.0dev.r1021.g028fa97-1",
@@ -36,5 +69,57 @@
     "size": 17427,
     "sha256": "cf4b08868317abc74b2309e76e10b14765513d5779ca33d52f6c59b309fac4a6"
   },
-  "preparation_only_no_dispatch": true
+  "preparation_only_no_dispatch": false,
+  "started_unix": 1791621739.3213599,
+  "deadline_unix": 1791622939.3213599,
+  "closed_unix": 1791622174.9287603,
+  "harness_correction": {
+    "before_any_provider_or_apple_auth": "Root passed dict instead of required list to QMP talk helper; error replies were not checked, so fixture keys were never sent. First and second local unlock requests timed out with Locked=true. No cloud or auth retry occurred.",
+    "correction": "Third local-only fixture unlock used list commands, checked all eight QMP acknowledgements and observed Completed(False,[Login]); supplemental independently verified Locked=false.",
+    "execution": "A supplemental owner ran the exact registered stage/preauth/postauth commands once in the same guest under the unchanged original1200/90 clock. The original VM owner retained ownership and its unsuccessful sequence result, then powered off and reaped all children."
+  },
+  "actual_manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/manifest.json",
+    "size": 24594,
+    "sha256": "6b0c1ec2446dd5f9f09ec7c4be216c321d01dcedcb15356dbd6f2d5e09af9830"
+  },
+  "supplemental_owner": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/supplemental-admission-v2/owner.py",
+    "size": 6019,
+    "sha256": "e14b0fd3dd3b1ecc3a5326869ef4e284be391992a8ee44d50f2bc9d77f269341"
+  },
+  "actual_safe_receipts": {
+    "preauth-safe-output.jsonl": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/supplemental-admission-v2/preauth-safe-output.jsonl",
+      "size": 16480,
+      "sha256": "f2ea8bfe5ef066442114593f4ad7a710d2eb8eeda4f665a208f4610224987c04"
+    },
+    "postauth-safe-output.jsonl": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/supplemental-admission-v2/postauth-safe-output.jsonl",
+      "size": 35979,
+      "sha256": "44ac49c8dd3d1ade9bfcf7d7dcffcc2e767d26ece94613887d575c4a48ce3e0b"
+    },
+    "terminal.json": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/supplemental-admission-v2/terminal.json",
+      "size": 228,
+      "sha256": "9343d7ac6b4c242036596a50e1deccead951da625d038c578870c65337918c56"
+    }
+  },
+  "original_owner_closure": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/driver-closed.json",
+    "size": 131,
+    "sha256": "e0c315a05350d5833ae41804f3fad0cd17fd604621fc77e7566c6eacebac908a"
+  },
+  "independent_audits": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5-preparation-v1/audit-independent-closed-session-v1.json",
+      "size": 41854,
+      "sha256": "49e4e79216bc8cafba642768001f38665d28b88133e503f6fddc73b16b686910"
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/supplemental-admission-v2/audit-independent-closed-session-ci-status-v1.json",
+      "size": 14085,
+      "sha256": "7c74b56e75f02dfa15ac8933785ed256059b60aa4af51626cc9ead9c9b72a1dd"
+    }
+  ]
 }
