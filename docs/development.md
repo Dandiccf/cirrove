@@ -670,8 +670,10 @@ its typed acknowledgement. Schema21 adds explicit flat Numbers import and
 replacement archive tags; wrapped archive tags keep their existing wire format.
 It retains the native backup-first state and native-working prerequisites
 introduced by earlier schemas. This is not permission to upgrade installed
-accounts. Until recovery, successor and application acceptance is complete,
-validation must use explicitly isolated state, sockets, mounts and binaries. Do
+accounts. Canary 2 closes the six registered iCloud criteria within their
+[bounded assessment](benchmarks/icloud-full-integration-acceptance-2026-10-10.json),
+but does not lift the retained-state installation policy. Use explicitly isolated
+state, sockets, mounts and matching binaries for fresh testing. Do
 not open the user's current journal with a schema21 writer, restart the installed
 service or change package/developer installation state for these tests.
 

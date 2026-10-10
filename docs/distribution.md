@@ -1,14 +1,51 @@
 # Distribution and installation plan
 
-Status: [0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0) is published
-with Arch, Ubuntu 24.04 and Fedora packages. Current CI builds and checks those
-package families from the committed tree. The release is OneDrive-focused; Google
-Drive is available in the
-[0.2.0 Canary 1 testing snapshot](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
-and `main`; iCloud remains a separate development branch.
-This document also retains plans for broader distribution and update channels;
-consult [the compatibility matrix](compatibility.md) for recorded installation
-evidence.
+[0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0) remains the regular
+OneDrive-focused release. [0.2.0 Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2),
+published on 10 October 2026, is the current opt-in testing snapshot with
+OneDrive, Google Drive and experimental native iCloud support. It is built from
+`main`; iCloud is no longer confined to a development branch. Both releases have
+native Linux x86_64 packages. Broader distribution and update-channel plans below
+remain separate from published artifacts and recorded installation evidence.
+
+## Canary 2 published snapshot
+
+Download packages and follow the exact installation commands on the
+[Canary 2 release page](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2).
+Use a fresh isolated installation for iCloud testing. The
+[retained-state deployment hold](development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
+still applies to existing account data; do not bypass installer refusals or mix
+packages with a developer installation.
+
+| Build target | Published packages | Package metadata version |
+| --- | --- | --- |
+| Arch, x86_64 | Core, desktop, Dolphin and optional debug symbols | `0.2.0dev.r1024.gcab2051-1` |
+| Ubuntu 24.04, amd64 | Core and desktop | `0.2.0~dev.r1024.gcab2051-1` |
+| Fedora 42, x86_64 | Core, desktop and Dolphin | `0.2.0~dev.r1024.gcab2051-1.fc42` |
+
+The nine packages come unchanged from commit
+`cab20511fc80276fe96d68acb3adf01b0fa4e0a9` and
+[main CI run 38053590436](https://github.com/Dandiccf/cirrove/actions/runs/38053590436),
+with all seven jobs successful. Before publication, all eleven release assets
+were independently redownloaded and hash-matched, and each package's GitHub
+artifact attestation was verified against that exact source commit, `main` ref
+and CI workflow. The annotated `v0.2.0-canary.2` tag points to that commit.
+
+`SHA256SUMS` covers the nine packages; `BUILD-INFO.json` records filenames,
+versions, hashes and source/CI provenance. These two informational files are
+unsigned; package attestations establish provenance. GitHub asset filenames use
+`.` where DEB/RPM version metadata contains `~`; the package bytes and internal
+versions are unchanged. The release page provides checksum and attestation
+verification commands.
+
+Publication does not establish a general existing-state upgrade, natural Apple
+session-expiry recovery, full document fidelity or broad desktop acceptance.
+See [iCloud's bounded acceptance](benchmarks/icloud-full-integration-acceptance-2026-10-10.json)
+and the [compatibility matrix](compatibility.md). No automatic nightly, APT or
+COPR update channel is introduced, and 0.1.0 remains GitHub's regular latest
+release.
+
+## Distribution scope
 
 Cirrove is a Linux application, not an Omarchy-specific service. The current
 development machine uses Arch and CI uses Ubuntu 24.04. Building on Ubuntu is not
@@ -260,7 +297,7 @@ milestone 6, ending with the tag itself.
 
 ## Supported versions
 
-0.1.0 is the published OneDrive-focused release. 0.2.0 Canary 1 is an opt-in
+0.1.0 is the published OneDrive-focused release. 0.2.0 Canary 2 is the published opt-in
 testing snapshot and does not replace the regular release or close the stable
 Google release gates. The supported-release policy is the latest regular release
 and the one before it for one release cycle; the distribution floor is

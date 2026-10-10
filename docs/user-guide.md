@@ -4,7 +4,7 @@ Cirrove puts a cloud drive into Files without copying the cloud onto your
 disk. Files appear at once; their contents download when you open them and
 stay in a bounded local cache; changes you make upload in the background.
 What you want with you when there is no network, you mark once, and Cirrove
-keeps it. OneDrive, Google Drive and the current source's experimental iCloud
+keeps it. OneDrive, Google Drive and Canary 2’s experimental iCloud
 adapter are previews with documented validation boundaries. For iCloud, start
 with the [fresh isolated testing instructions](#icloud-development-preview).
 
@@ -20,11 +20,11 @@ and what has been checked against a real account, and what has not, in
 optional `cirrove-dolphin` package the KF6 plugins. The
 [0.1.0 release](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0) includes
 OneDrive-focused packages and installation commands.
-The [Releases page](https://github.com/Dandiccf/cirrove/releases) lists published
-Canary snapshots and their exact install/verification commands. Historical
-Canary 1 adds Google previews and has no iCloud adapter; Canary 2 is the intended
-first iCloud snapshot and must be published and verified before it can be used.
-The current iCloud source has a held retained-state deployment policy: do not
+[Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2),
+released on 10 October 2026, includes OneDrive, Google Drive and experimental
+iCloud previews, with exact install and verification commands for each package
+family. Canary 1 has no iCloud adapter. Canary 2 retains the existing-state
+deployment hold: do not
 use package/developer installation commands to upgrade an existing account with
 that candidate. See [Development](development.md#flat-numbers-source-journal-schema21-held-prerelease-policy).
 To build a committed tree instead:
@@ -135,9 +135,9 @@ Drive. The window presents the available drives after browser sign-in.
 
 ## iCloud development preview
 
-The current source includes a native iCloud adapter. It is not in 0.1.0 or
-Canary 1; consult [Releases](https://github.com/Dandiccf/cirrove/releases) for
-verified package availability. The six registered integration criteria have
+[Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2)
+is the first published snapshot with the native iCloud adapter. It is also in
+`main`, but not in 0.1.0 or Canary 1. The six registered integration criteria have
 [bounded acceptance](benchmarks/icloud-full-integration-acceptance-2026-10-10.json);
 this does not guarantee arbitrary-document fidelity or general reliability.
 The retained-state deployment policy remains
@@ -147,19 +147,21 @@ folder. Do not open existing installed state or mix a developer installation wit
 packages. Read the [deployment policy](development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
 before proceeding.
 
-For a fresh isolated read-only developer trial, build the reviewed source
-without installing it, following [Development](development.md#local-checks).
-Create new private directories for state, socket and mount, with mode `0700`;
-substitute their absolute paths below. These are development-binary examples,
-not commands for the released Canary 1 package:
+For a fresh isolated read-only trial on a fresh installation, install the
+verified Canary 2 core package following its release notes. Create new private
+directories for state, socket and mount, with mode `0700`; substitute their
+absolute paths below. The absolute binary paths select the packaged version.
+To test a source build without installing it, follow
+[Development](development.md#local-checks) and substitute its matching
+`./target/debug/cirrove` and `./target/debug/cirroved` binaries instead.
 
 ```sh
-./target/debug/cirrove connect-icloud \
+/usr/bin/cirrove connect-icloud \
   --label icloud-preview --apple-id YOUR_APPLE_ID \
   --state-dir /absolute/path/to/new-private-state \
   --mount-path /absolute/path/to/new-empty-mount
 
-./target/debug/cirroved \
+/usr/bin/cirroved \
   --state-dir /absolute/path/to/new-private-state \
   --socket /absolute/path/to/new-private-socket-directory/cirrove.sock
 ```
@@ -167,7 +169,7 @@ not commands for the released Canary 1 package:
 Keep the foreground daemon terminal open; in another terminal inspect it with:
 
 ```sh
-./target/debug/cirrove status \
+/usr/bin/cirrove status \
   --socket /absolute/path/to/new-private-socket-directory/cirrove.sock
 ```
 
@@ -392,7 +394,8 @@ deletes it in the cloud.
 0.1.0 is the regular OneDrive-focused release. Canary prereleases are opt-in
 testing snapshots; their exact provider scope and verified assets are listed on
 [Releases](https://github.com/Dandiccf/cirrove/releases). Historical Canary 1
-adds Google and excludes iCloud. A Canary is not stable 0.2.0.
+adds Google and excludes iCloud; [Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2)
+adds the experimental iCloud preview. A Canary is not stable 0.2.0.
 The supported-release policy is the latest regular release and the one before
 it for one release cycle; Canary does not replace the regular release. See
 [the compatibility matrix](compatibility.md) for recorded desktop and provider

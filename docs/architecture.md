@@ -6,11 +6,15 @@ Cirrove makes remote files usable through ordinary Linux applications. Cached
 metadata should stay available when a provider is slow; file bytes arrive on demand.
 The current implementation is a **writable preview under validation**. Accounts
 whose verified OAuth grant allows changes mount read-write; read-only grants stay
-read-only. The shared upload journal and workers protect sealed edits, persist
+read-only. Experimental native iCloud connections use Apple web-session sign-in
+and default to read-only, with a separate explicit write opt-in. The shared upload
+journal and workers protect sealed edits, persist
 resumable provider sessions through the keyring, reconcile uncertain attempts and
 preserve conflicts. They have synthetic HTTP/crash coverage and bounded live
-OneDrive and Google My Drive evidence; broader application and long-session
-acceptance remains in progress. See
+OneDrive and Google My Drive evidence, plus the
+[bounded iCloud acceptance](benchmarks/icloud-full-integration-acceptance-2026-10-10.json)
+shipped in Canary 2. Broader provider and long-session reliability remain outside
+those claims. See
 [durable local edits](adr/0002-durable-local-edits.md).
 
 A cloud API cannot provide instant uncached access or complete local POSIX semantics.
@@ -23,7 +27,7 @@ not an instantaneous real-time guarantee. See [change notifications](adr/0003-ch
 ```mermaid
 flowchart LR
     CLI[CLI: connect / status / desired state] --> Settings[Private account settings]
-    CLI --> Auth[Browser OAuth + keyring broker]
+    CLI --> Auth[Browser OAuth / native Apple sign-in + keyring broker]
     Desktop[GTK account overview] --> Settings
     Desktop --> Status[Private status socket]
     Manager --> Status

@@ -310,14 +310,14 @@ expires after seven days; signing in again is then expected. See
 
 ## Connect
 
-Choose a published testing snapshot from
-[Releases](https://github.com/Dandiccf/cirrove/releases), or follow
+Install the published [Canary 2 testing snapshot](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2),
+following its verification and installation instructions, or follow
 [Development](development.md) to build the current source. The 0.1.0 release does not include Google support. Canary does not close
 the public OAuth verification or exact-release clean-desktop sign-in gates; the
 built-in app remains restricted to approved testers, with a custom app optional.
-Canary 2 is the intended successor to Canary 1; use it only once verified
-packages appear on Releases. A new Canary does not by itself complete Google
-production verification.
+Canary 2 supersedes Canary 1 as the current testing snapshot and also includes
+experimental iCloud support. Its publication does not complete Google production
+verification.
 
 In the window, choose **Connect a drive → Provider → Google Drive**, enter a
 connection name and optionally change the proposed empty mount folder. The

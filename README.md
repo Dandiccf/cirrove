@@ -14,12 +14,13 @@ with a shared filesystem, cache and recovery journal for its cloud adapters.
 **Status: early preview, actively developed and under validation.**
 [Version 0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0), released
 on 18 September 2026, is the first OneDrive-focused release.
-[0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
-packages OneDrive and Google Drive previews; that historical snapshot does not
-include iCloud. **The current source includes an experimental native iCloud
-adapter.** Canary 2 is its intended first package snapshot; consult
-[Releases](https://github.com/Dandiccf/cirrove/releases) for actual publication,
-installation commands and the exact scope of each snapshot. The table below describes implementation and validation status; it is not a general reliability guarantee.
+**[0.2.0 Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2),
+released on 10 October 2026, adds experimental native iCloud Drive support**
+alongside the OneDrive and Google Drive previews. Packages for Linux x86_64 on
+Arch, Ubuntu 24.04 and Fedora 42 are available with installation commands,
+checksums and package-attestation instructions. Canary is an opt-in testing
+snapshot; 0.1.0 remains the regular release. The table below describes
+implementation and validation status, not a general reliability guarantee.
 See the [user guide](docs/user-guide.md) to get started and the
 [compatibility matrix](docs/compatibility.md) for the tested boundaries. Keep a
 separate copy of data you cannot replace while the preview is under validation.
@@ -61,9 +62,9 @@ filesystem operations have their own limits.
 | --- | --- | --- |
 | **Microsoft OneDrive** | Read/write preview in `main`; the focus of 0.1.0 | Browser sign-in, on-demand files, background saves, conflict recovery and offline pinning. Daily use and real-account recovery evidence are primarily from OneDrive for Business; Personal-account acceptance remains open. |
 | **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
-| **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
-| **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
-| **Apple iCloud Drive** | Experimental preview in the current source; package availability on [Releases](https://github.com/Dandiccf/cirrove/releases) | Native Linux sign-in, on-demand reads, opt-in ordinary-file saves and scoped iWork archive-copy/recovery workflows have bounded live evidence. See [progress and limits](#icloud-integration-progress). |
+| **Google Drive My Drive** | Read/write preview in `main` and Canary 2 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
+| **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 2 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
+| **Apple iCloud Drive** | Experimental preview in `main` and [Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2) | Native Linux sign-in, on-demand reads, opt-in ordinary-file saves and scoped iWork archive-copy/recovery workflows have bounded live evidence. See [progress and limits](#icloud-integration-progress). |
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -78,18 +79,17 @@ boundaries are recorded in the [validation record](docs/validation.md).
 
 ### Install a release
 
-The [Releases page](https://github.com/Dandiccf/cirrove/releases) lists the
-published Linux x86_64 packages for **Arch, Ubuntu 24.04 and Fedora**, exact
+[Download Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2)
+for the published Linux x86_64 packages for **Arch, Ubuntu 24.04 and Fedora 42**, exact
 installation commands, checksums and package-attestation instructions. Install
 the core and desktop packages for your distribution, then open **Cirrove** from
 the application menu. Optional Dolphin integration is packaged separately where
 supported.
 
 **0.1.0 is the regular OneDrive-focused release.** Canary snapshots are opt-in
-previews. Historical Canary 1 adds Google and does not include iCloud; Canary 2
-is the intended first iCloud snapshot and is available only once its verified
-prerelease is published. Choose packages by their release notes, not by assuming
-that current-source features are in an older download. Canary packages retain
+previews. Canary 2 is the first published iCloud snapshot; historical Canary 1
+adds Google and does not include iCloud. Choose packages by their release notes;
+older downloads do not gain the current source's features. Canary packages retain
 their development version and commit suffix; they do not close the
 [stable Google gates](docs/google-release-gate.json). Google's app is limited
 to approved testers; your own OAuth app is an alternative below.
@@ -166,9 +166,8 @@ account details removed.
 ## Connecting your own accounts
 
 You can try Cirrove with your own accounts before wider onboarding is available.
-Choose a published preview from
-[Releases](https://github.com/Dandiccf/cirrove/releases), checking its provider
-scope, or build the current source following
+Start with [Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2),
+checking its provider scope and installation limits, or build the current source following
 [the development installation guide](docs/development.md). Canary is an opt-in
 testing snapshot, with no automatic nightly/update channel. The 0.1.0 release
 remains OneDrive-focused. See [the user guide](docs/user-guide.md#connecting-a-drive)
@@ -211,12 +210,13 @@ package publication does not itself authorize a regular-host upgrade.
 
 ## iCloud integration progress
 
-**Experimental preview, 10 October 2026:** the current source includes native
-iCloud support. All six registered integration criteria are complete within
+**Released experimental preview, 10 October 2026:** native iCloud support is
+available in [Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2)
+and the current source. All six registered integration criteria are complete within
 [their documented test boundaries](docs/benchmarks/icloud-full-integration-acceptance-2026-10-10.json).
 This is bounded acceptance, not a general provider reliability guarantee.
-Canary 2 is the intended first iCloud package snapshot; consult
-[Releases](https://github.com/Dandiccf/cirrove/releases) for actual availability.
+The release contains nine packages from the [verified main build](https://github.com/Dandiccf/cirrove/actions/runs/38053590436),
+plus checksums and build provenance. See [distribution details](docs/distribution.md#canary-2-published-snapshot).
 The retained-state deployment policy remains on HOLD. The
 [integration record](docs/icloud-write-integration.md) preserves the measured
 scopes, corrections and failed trials.

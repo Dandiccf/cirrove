@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "question": "Does the documentation update for published Canary2 pass the complete required project check?",
+  "prediction": "Formatting, clippy, workspace tests, script tests, ledger and docs pass without source changes.",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "endpoint": "Exit0, owned processes reaped, frozen tracked inputs unchanged.",
+  "maximum_seconds": 1800,
+  "temporary_filesystem": "ext4",
+  "cargo_target_directory": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "state": "fullcheck_closed",
+  "source_head": "cab20511fc80276fe96d68acb3adf01b0fa4e0a9",
+  "input_count": 1600,
+  "manifest_sha256": "5bdacd2089b3cdd5d4bb2d2fd25172e097c0baf8d7fbfa3db33218414a187286",
+  "scope": "Documentation only; no provider mutation or host installation.",
+  "started_unix": 1791640362.5697453,
+  "arms": {
+    "fullcheck": {
+      "arm": "fullcheck",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 1096871,
+      "birth": "66498969",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 635.2108788850019,
+      "log_sha256": "3fc2ca57291fd6c3c094c384c2d53ffad604a73cf72423b24c992da3043eca7e"
+    }
+  }
+}

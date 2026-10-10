@@ -9,9 +9,14 @@ experimental opt-in. All six registered criteria, 485–490, are complete within
 the [joined acceptance boundaries](benchmarks/icloud-full-integration-acceptance-2026-10-10.json),
 including installed account lifecycle, Strata preservation and bounded conflict
 and recovery endpoints. The decision is accepted with documented limits, not a
-general reliability guarantee. Consult [Releases](https://github.com/Dandiccf/cirrove/releases)
-for package availability; Canary 2 is the intended first iCloud snapshot.
-The retained-state deployment policy remains held.
+general reliability guarantee. [Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2)
+was published on 10 October 2026 as the first iCloud package snapshot, from
+commit `cab20511fc80276fe96d68acb3adf01b0fa4e0a9`. All seven jobs in
+[main CI](https://github.com/Dandiccf/cirrove/actions/runs/38053590436) passed;
+all nine packages were independently redownloaded and their attestations verified
+before publication. See [package versions and provenance](distribution.md#canary-2-published-snapshot).
+The retained-state deployment policy remains held; publication did not upgrade
+the regular development host.
 
 Historical checkpoints below retain their original outcomes and limits; their
 open-row counts describe their dates, not current acceptance. Later successes
