@@ -1,5 +1,20 @@
 # Validation record
 
+## Current release checkpoint — 10 October 2026
+
+[Canary 2](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2)
+is published with the experimental native iCloud preview. Its
+[complete local check](benchmarks/icloud-final-release-check-2026-10-10.json),
+[seven successful main CI jobs](https://github.com/Dandiccf/cirrove/actions/runs/38053590436)
+and [package verification record](distribution.md#canary-2-published-snapshot)
+are separate from the [six bounded iCloud acceptance criteria](benchmarks/icloud-full-integration-acceptance-2026-10-10.json).
+The retained-state deployment hold and documented provider/format limits remain.
+
+The sections below preserve historical checks and their original scope. Dates,
+test counts and open gates belong to those checkpoints, not the current release.
+
+## Historical baseline — 6 September 2026
+
 Date: 2026-09-06. Local environment: Arch Linux, kernel 7.1.9-arch1-2,
 Rust 1.98.1, FUSE 3.18.2.
 This is evidence for a **read-only development preview**, not completed real-provider
@@ -8,7 +23,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **356 tests passed**, with 75 ignored. CI runs 58
+- Default workspace suite at this checkpoint: **356 tests passed**, with 75 ignored. CI runs 58
   of those 75 separately through kernel-FUSE and desktop steps; the remaining 17 are
   subprocess fixture entry points, capacity benchmarks and one host-keyring test,
   each excused by name in `scripts/ci-coverage.py`, which fails the build if an

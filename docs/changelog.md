@@ -3,7 +3,15 @@
 What a user notices, in the user's words. The milestone rows a change closes
 are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
-## Unreleased
+## 0.2.0 Canary 2 — 2026-10-10
+
+Published [testing snapshot `v0.2.0-canary.2`](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.2)
+from main commit `cab2051`. Nine Linux x86_64 packages cover Arch, Ubuntu 24.04
+and Fedora 42, with checksums, build metadata and verified package attestations.
+All seven [main CI jobs](https://github.com/Dandiccf/cirrove/actions/runs/38053590436)
+passed. This is an opt-in preview; 0.1.0 remains the regular release.
+Use a fresh isolated test installation; the retained-state upgrade hold remains
+in force. See [distribution details](distribution.md#canary-2-published-snapshot).
 
 - **Experimental iCloud preview under validation:** native Linux sign-in,
   on-demand reads, explicit ordinary-file write opt-in and scoped iWork
@@ -13,10 +21,10 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
   including conflict preservation and exact local recovery export. Native Linux
   iWork saving, general fidelity and provider reliability are unclaimed;
   retained-state deployment remains on HOLD.
-- **Canary 2 preparation:** provider/setup documentation distinguishes existing
-  OneDrive and Google testing packages from the pending iCloud snapshot, and
-  keeps own Microsoft/Google OAuth setup and community-provider contributions
-  visible. No new release or stable Google acceptance is claimed.
+- **Clearer provider setup:** documentation covers the available OneDrive,
+  Google Drive and iCloud previews, own Microsoft/Google OAuth registration,
+  upcoming providers and ways to contribute. Google's public OAuth verification
+  and broader stable-release gates remain open.
 
 - Developer installs and switches to packages rebuild user icon caches without
   requiring `index.theme`, including stale caches whose icon files are already
