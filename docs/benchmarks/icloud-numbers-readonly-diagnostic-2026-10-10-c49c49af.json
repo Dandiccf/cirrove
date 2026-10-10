@@ -1,0 +1,67 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-diagnostic-20261010-v2",
+  "TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-diagnostic-20261010-v2",
+  "active": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-diagnostic-20261010-v2/native-observer",
+    "sha256": "914dbd3d4f20029dcb5445a00e9ef83867697d4067e3541fe29ef26eb6ef3f12",
+    "size": 522389280
+  },
+  "cleanup_reserve_seconds": 45,
+  "deadline_unix": 1791632898,
+  "endpoint": "typed three-identity preservation receipt plus exact original child closure within600seconds",
+  "filesystem": "btrfs",
+  "full_gate490_closed": false,
+  "maximum_seconds": 600,
+  "original_run": "c49c49af-a8a3-42c0-ae69-90ae225c2514",
+  "original_trial_success": false,
+  "prediction": "All three identities retain their registered content; inspection reports conflict or uncertain; local authority and B bytes unchanged.",
+  "provider_mutation": false,
+  "question": "Are original A in Trash, staged B and canonical C semantically preserved after the one released conflict?",
+  "result": {
+    "authority_files_unchanged": true,
+    "elapsed_seconds": 6.812215160927735,
+    "exit_code": 1,
+    "failure_class": "AssertionError",
+    "full_gate490_closed": false,
+    "original_handle_reaped": true,
+    "original_window_unchanged": true,
+    "process_absent": true,
+    "provider_mutation": false,
+    "success": false,
+    "term_sent": false
+  },
+  "scope": "separate read-only continuation of closed failed c49c; no replay or original-window extension",
+  "started_monotonic": 656925.148870934,
+  "started_unix": 1791632298,
+  "version": 1,
+  "diagnostic": {
+    "observer_diagnostic": {
+      "baseline_occupant_equal": null,
+      "baseline_original_equal": null,
+      "baseline_parent_equal": null,
+      "baseline_stage_equal": null,
+      "baseline_trash_revision_equal": null,
+      "occupant": null,
+      "original_absent_from_active": true,
+      "parent_id_unique": true,
+      "parent_name_unique": true,
+      "parent_shape_and_name": true,
+      "phase": "stage_selection",
+      "stage": {
+        "canonical_name": false,
+        "exact_name": false,
+        "exact_parent": true,
+        "expected_revision": false,
+        "file_zone_and_document_id": true,
+        "nonempty_revision": true,
+        "numbers_extension": true,
+        "selected_id_unique": true
+      },
+      "stage_name_is_canonical": null,
+      "stage_name_unchanged": null
+    }
+  },
+  "diagnostic_sha256": "00e535b26384df84230dafa2dc8a7a2f2d86580691b99465a1e5eed202e7202d",
+  "interpretation": "Exact B ID remains unique under the owned parent and Numbers type, but its current name matches neither staged nor canonical name; revision differs. This failed observation did not reach semantic preservation or inspect C. No provider mutation was made."
+}

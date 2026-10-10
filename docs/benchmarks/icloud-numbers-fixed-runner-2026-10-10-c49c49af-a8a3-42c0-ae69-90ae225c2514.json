@@ -1,0 +1,69 @@
+{
+  "active_seconds": 555,
+  "arms": [
+    {
+      "competitor_run": "58ab788d-d06b-4627-81b9-ed211aa7dfd2",
+      "name": "fresh controlled Numbers conflict arm",
+      "operations": [
+        "one new personally owned parent folder",
+        "one new source-A public native import",
+        "one new source-B replacement of exact newly confirmed A, including staged B and original A Trash preservation",
+        "one new canonical competitor-C public import from genuine source-B archive after final B preflight"
+      ],
+      "runs": 1,
+      "subject_run": "c49c49af-a8a3-42c0-ae69-90ae225c2514"
+    }
+  ],
+  "automatic_retry": false,
+  "cleanup_seconds": 45,
+  "clock": null,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v1/controller.py",
+    "sha256": "1f8a4f2a19badc5fa6c8061c944121f7aab87efe0b438b3ee334c4fcdcfe7f64",
+    "size": 35385
+  },
+  "controller_post_marker_seconds": 115,
+  "dispatch": null,
+  "duration_seconds": 600,
+  "endpoint": {
+    "failure": "Any missing confirmation, admission failure, unclear provider result, missed cap, or failed closure preserves state and stops; no automatic repetition.",
+    "success": [
+      "New A confirmed Uploaded with exact scoped identity before B starts",
+      "Native B final-preflight marker exact operation/attempt and still-live daemon; one C imported successfully before release",
+      "Capture/release occurs under both the native original120s cap and unchanged outer555s active cutoff",
+      "B ends Conflict or VerifyRequired without a completed receipt or automatic mutation replay",
+      "A, staged B, and C exact scoped identities read back after stop",
+      "Retained local B recovery-only export equals the exact source-B archive semantic hash",
+      "All owned children reaped, isolated mounts/socket absent, protected host unchanged"
+    ]
+  },
+  "full_gate490_closed": false,
+  "lifecycle": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v1/lifecycle.py",
+    "sha256": "8647deb6cddf18b2aec72f45df1cf6e20e476f98cc021ec6830b898404910821",
+    "size": 75342
+  },
+  "local_loop_regression": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/import-loop-regression-v1/closed-loop-regression-receipt.json",
+    "sha256": "492fbe69793dd785af1dffb7171e1cf9d60d3b8dabe071165ef98afa7222160f",
+    "size": 6191
+  },
+  "old_failed_runs_preserved": true,
+  "original_failed_runs_remain_failed": true,
+  "outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v1/outer-owner.py",
+    "sha256": "3c87568b96e11e1cdf02ab92e6880197fed25f7060b32d43cb09f69eb589b838",
+    "size": 11531
+  },
+  "pause_seconds": 120,
+  "prediction": "The refreshed destination snapshot admits C after original A was moved aside; releasing B detects the now-occupied destination and retains B safely. One arm supplies an observation, not a broad reliability claim or closure of row490. The corrected observer tolerates healthy indexing only for its already-started import and requires native metadata publication before advancing; new mutation admission remains strict.",
+  "prior_failed_runs_unchanged": true,
+  "public_artifact_required_before_dispatch": true,
+  "question": "Does one fresh canonical competing import after the paused final install preflight make the exact original replacement fail safely while preserving original A, staged B, and competing C identities and the retained local B archive?",
+  "ready": true,
+  "result": null,
+  "run": "c49c49af-a8a3-42c0-ae69-90ae225c2514",
+  "source_role_binding_reused": true,
+  "status": "planned_not_dispatched",
+  "version": 1
+}

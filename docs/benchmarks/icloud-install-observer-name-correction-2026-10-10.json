@@ -1,0 +1,69 @@
+{
+  "question": "Does exact B identity/content preservation survive provider-assigned conflict renaming while retaining every other identity fence?",
+  "prediction": "Legacy canonical-name parity rejects the renamed node; corrected metadata parity accepts only B name/revision changes. Full remote semantic proof remains required.",
+  "active": false,
+  "full_gate490_closed": false,
+  "actual_prior_diagnostic": "docs/benchmarks/icloud-numbers-readonly-diagnostic-2026-10-10-c49c49af.json",
+  "active_window": false,
+  "active_measurement": false,
+  "state": "build_closed",
+  "started_unix": 1791632724.8410995,
+  "arms": {
+    "red": {
+      "arm": "red",
+      "exit_code": 101,
+      "expected_exit": 101,
+      "original_pid": 941100,
+      "birth": "65728219",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 21.840635125059634,
+      "log_sha256": "1ee7d03d35f448739f240fad59ced140ccde460ebcd5ff7efa9e29c952869c8a"
+    },
+    "green": {
+      "arm": "green",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 942452,
+      "birth": "65732494",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 18.836951905977912,
+      "log_sha256": "951866f28a78b35afc6dea2f4fa05d3437216d788af193f07d099c573d4f6208"
+    },
+    "build": {
+      "arm": "build",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 943664,
+      "birth": "65735196",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 10.033697059028782,
+      "log_sha256": "b5b98d8826fde2afafd3d26619c26378a1f1f8316c7855e7429f3f5efe18ccb2"
+    }
+  },
+  "result": {
+    "red_test": "native_install_preserves_provider_renamed_b_by_identity_and_content_authority",
+    "red_executed": 1,
+    "red_failures": 1,
+    "green_executed": 6,
+    "green_passed": 6,
+    "feature_only": true,
+    "provider_requests_during_controls": false,
+    "source_fixed_between_arms": true,
+    "all_owners_closed": true,
+    "source_unchanged_within_each_arm": true,
+    "green_log_sha256": "951866f28a78b35afc6dea2f4fa05d3437216d788af193f07d099c573d4f6208",
+    "red_log_sha256": "1ee7d03d35f448739f240fad59ced140ccde460ebcd5ff7efa9e29c952869c8a"
+  }
+}

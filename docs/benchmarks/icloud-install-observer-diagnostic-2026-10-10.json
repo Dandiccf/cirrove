@@ -1,0 +1,68 @@
+{
+  "question": "Does immutable separately bounded read-only observation preserve original identity authority and redact diagnostics?",
+  "prediction": "Legacy path admission fails UUID continuation test; corrected path admits it and rejects foreign or malformed paths. Typed diagnostic projection contains static phase and booleans only.",
+  "active": false,
+  "full_gate490_closed": false,
+  "active_window": false,
+  "active_measurement": false,
+  "state": "build_closed",
+  "started_unix": 1791632269.8167777,
+  "arms": {
+    "red": {
+      "arm": "red",
+      "exit_code": 101,
+      "expected_exit": 101,
+      "original_pid": 929188,
+      "birth": "65678066",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 45.85810558090452,
+      "log_sha256": "a614f067e55c43aee80c6c9bbfcd47b8f17f6a8768e50cf934ce0053369e472e"
+    },
+    "green": {
+      "arm": "green",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 931116,
+      "birth": "65684475",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 20.240138007095084,
+      "log_sha256": "46128615a4b8dcc684cc2d58a06840347b2706ab6e5ef7b5c1ae8390ec0969c3"
+    },
+    "build": {
+      "arm": "build",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 932619,
+      "birth": "65689694",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 20.041812072042376,
+      "log_sha256": "a6f2388d1911c855acab157e5d2b8440c7a100fcfb61202443257e24e7322893"
+    }
+  },
+  "result": {
+    "red_test": "native_install_preservation_registration_suffix_is_scoped",
+    "red_executed": 1,
+    "red_failures": 1,
+    "green_executed": 5,
+    "green_passed": 5,
+    "feature_only": true,
+    "provider_requests_during_controls": false,
+    "source_fixed_between_arms": true,
+    "all_owners_closed": true,
+    "source_unchanged_within_each_arm": true,
+    "green_log_sha256": "46128615a4b8dcc684cc2d58a06840347b2706ab6e5ef7b5c1ae8390ec0969c3",
+    "red_log_sha256": "a614f067e55c43aee80c6c9bbfcd47b8f17f6a8768e50cf934ce0053369e472e"
+  }
+}

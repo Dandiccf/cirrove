@@ -1,14 +1,23 @@
 # iCloud Drive write integration boundary
 
-The development branch now exposes explicit, experimental ordinary-file write
-access for iCloud accounts; new connections still default to read-only. This has
-not been installed into the user's regular daemon or accepted for release.
-Three owned-folder application runs passed create, save, replacement, relocation
-and recoverable Trash checks; the third includes selected-file admission. Installed
-acceptance remains under active validation;
-full iCloud support is not yet achieved.
-See [application evidence](benchmarks/icloud-real-applications-acceptance-2026-10-01.md)
-and [selected-file admission](benchmarks/icloud-selected-write-admission-2026-10-01.md).
+This is the detailed evidence and historical development record for Cirrove's
+experimental native iCloud adapter. Start with the
+[visitor-facing status](../README.md#icloud-integration-progress) and
+[fresh isolated testing guide](user-guide.md#icloud-development-preview).
+New connections default to read-only; ordinary-file changes require explicit
+experimental opt-in. All six registered criteria, 485–490, are complete within
+the [joined acceptance boundaries](benchmarks/icloud-full-integration-acceptance-2026-10-10.json),
+including installed account lifecycle, Strata preservation and bounded conflict
+and recovery endpoints. The decision is accepted with documented limits, not a
+general reliability guarantee. Consult [Releases](https://github.com/Dandiccf/cirrove/releases)
+for package availability; Canary 2 is the intended first iCloud snapshot.
+The retained-state deployment policy remains held.
+
+Historical checkpoints below retain their original outcomes and limits; their
+open-row counts describe their dates, not current acceptance. Later successes
+do not turn failed trials into passes.
+
+## Historical application checkpoints
 
 The 7 October [genuine Keynote PACKAGE replacement](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
 completed normal CLI import A and one replacement by Apple-edited B. Stopped
@@ -20,17 +29,16 @@ and retained its one-slide B title and subtitle after one reload, with no edits.
 The original managed processes closed and protected source/installed artifacts
 remained unchanged. This is one bounded PACKAGE workflow, with no claim for
 DATA coverage, ordinary/atomic editor saves, broader export fidelity or repeated
-reliability. Full-iCloud acceptance is now five criteria closed and one open;
-delivery to the user's regular installation remains on HOLD. The dated closure assessment below combines the
-measured replacement, removal, refusal and process-loss endpoints; historical
-open-row counts later in this record retain their original checkpoint meaning.
+reliability. At that checkpoint, broader application and installed acceptance
+were still pending. The current joined assessment above incorporates subsequent
+measured endpoints; delivery to the user's regular installation remains on HOLD.
 
 The [documented iWork application criterion](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json)
-now covers all twelve DATA/PACKAGE ordinary/atomic archive-copy workflows and
+subsequently covered all twelve DATA/PACKAGE ordinary/atomic archive-copy workflows and
 the supported DOCX, PPTX and Apple Excel export-copy checks. Native Linux iWork
 saving remains unsupported; the precise tested content and format limits are
-recorded in the latest dated assessment below. Reliability remains open;
-installed lifecycle and Strata preservation are closed.
+recorded in the linked application assessment. Reliability, installed lifecycle
+and Strata preservation were separate criteria, subsequently joined above.
 
 ## Occupied sealed publication slots
 
@@ -55,7 +63,19 @@ part of this change; further publication remains blocked until safe recovery.
 
 ## Current checkpoint, 10 October 2026
 
-Criteria 485–489 are closed; reliability criterion 490 remains open. The
+Criteria 485–490 are closed within the [joined bounded assessment](benchmarks/icloud-full-integration-acceptance-2026-10-10.json).
+The final Numbers continuation verified the original in Trash, retained
+replacement and competing document by exact identity and semantic content,
+without replaying a mutation. The replacement remained Conflict, including a
+numeric-name collision; canonical replacement installation was not established.
+A separate local public export recovered the exact retained replacement bytes.
+Natural Apple session expiry, arbitrary document fidelity, repeatability,
+host-wide staging quotas and automatic remote Stage cleanup remain unproved.
+These limits do not reopen the registered bounded endpoints, and their closure
+does not change the retained-state deployment HOLD.
+
+The following installed-package and session observations are historical steps
+toward that assessment. The
 [installed lifecycle assessment](benchmarks/icloud-installed-lifecycle-acceptance-2026-10-09.json)
 joins the earlier installed sign-in/opt-in and then-current package upgrade with two
 new controlled endpoints. In that completed lifecycle trial, genuine same-account

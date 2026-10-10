@@ -1,0 +1,263 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "asserted_by": [
+    {
+      "source": "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/native_pre_trash_preservation/after_install_preflight/tests.rs",
+      "tests": [
+        "native_install_observer_rejects_foreign_operation_checkpoint_and_scope",
+        "native_install_observer_accepts_retained_conflict_or_uncertainty_not_uploaded",
+        "native_install_observer_identity_selection_and_declared_b_rename_only"
+      ],
+      "verification": "Definitions present in current source; supporting sensitivity coverage, not independent live acceptance."
+    },
+    {
+      "source": "crates/cirrove-icloud/src/provider/session_health_tests.rs",
+      "tests": [
+        "saved_session_rejection_after_initial_success_reaches_later_feed_poll",
+        "saved_session_transient_failure_is_not_authentication_and_retains_cursor"
+      ],
+      "verification": "Definitions present in current source; supporting sensitivity coverage, not independent live acceptance."
+    },
+    {
+      "source": "crates/cirrove-icloud/src/cookie_tests.rs",
+      "tests": [
+        "saved_cookie_elapsed_max_age_is_not_restarted_by_restore",
+        "saved_cookie_exact_expiry_boundary_has_no_grace_or_reanchor"
+      ],
+      "verification": "Definitions present in current source; supporting sensitivity coverage, not independent live acceptance."
+    },
+    {
+      "source": "crates/cirrove-icloud/src/write_staging.rs",
+      "tests": [
+        "shared_budget_refuses_fifth_file_until_final_owner_closes",
+        "aborted_semantic_waiter_keeps_file_reservation_until_blocking_owner_finishes",
+        "aborted_body_reader_keeps_reservation_in_detached_blocking_read",
+        "chunk_and_archive_limits_refuse_before_writing_and_body_checks_exact_size"
+      ],
+      "verification": "Definitions present in current source; supporting sensitivity coverage, not independent live acceptance."
+    },
+    {
+      "source": "crates/cirrove-icloud/src/package_create/tests/roundtrip.rs",
+      "tests": [
+        "exhausted_staging_budget_refuses_package_allocation_before_any_http"
+      ],
+      "verification": "Definitions present in current source; supporting sensitivity coverage, not independent live acceptance."
+    },
+    {
+      "source": "crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs",
+      "tests": [
+        "native_stage_abandonment_proof_is_exact_and_only_reads_metadata",
+        "native_stage_abandonment_numbers_keeps_exact_operation_and_original",
+        "native_stage_abandonment_keynote_keeps_exact_operation_and_original"
+      ],
+      "verification": "Definitions present in current source; supporting sensitivity coverage, not independent live acceptance."
+    }
+  ],
+  "assessment_checks": "All20 cited public artifacts exist and were read; all15 supporting test definitions exist in the current six source files. Independent V4 audit23checks and local public export audit22checks passed. No test/build/provider/daemon action was executed for this consolidation.",
+  "basis": "The six literal criterion490 clauses are joined from separately registered bounded real-account endpoints and supporting controls. Original failed controllers and stopped uncertain operations remain failed. This closes the documented acceptance scope, not universal or repeatable provider reliability.",
+  "criteria_mapping": [
+    {
+      "actual": "A published; B paused after final install preflight; C imported; typed pre-release A-in-Trash/staged-B/canonical-C capture verified exact semantics; release marker written once; same B operation reached Conflict. Aggregate controller failed at cleanup ownership guard; original owners later physically closed. Separately registered read-only V4 completed37.828253s: original A in Trash and canonical C retain exact identities/revisions/metadata; B retains the exact scoped identity and all other metadata while the provider assigned canonical stem plus space2.numbers and a new revision. All three full semantic-v2 content trees match their declared sources; same original B operation inspects as Conflict. All14 protected inputs, old clock, child closure and absent mounts/sockets independently verified.",
+      "clause": "in-flight replacement/namespace uncertainty",
+      "evidence_keys": [
+        "current_race_registration",
+        "current_race_result",
+        "post_release_diagnostic",
+        "post_release_preservation"
+      ],
+      "status": "bounded_capture_release_conflict_and_post_release_preservation_passed"
+    },
+    {
+      "actual": "Failed original arms stay failed. Public recovery-only export returned exact139044-byte B SHA525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da in1.611853s; all33 journal tables, persistent journal bytes, settings, active sealed session, checkpoint and payload unchanged; two owned children reaped, mount/socket absent, host19 and original daemon preserved.",
+      "clause": "retained failed fixtures and recovery",
+      "evidence_keys": [
+        "original_uncertain_import",
+        "failed_fresh_predecessor",
+        "current_race_result",
+        "retained_B_public_export",
+        "active_abandoned_stage_recovery"
+      ],
+      "status": "bounded_local_export_endpoint_passed"
+    },
+    {
+      "actual": "Installed target sign_in_required, one public same-account read-only reauthentication, Ready and mounted root261; exact retained control exports44/52 and selected history preserved. Synthetic expiry controls reject elapsed lifetime without reanchoring; scheduled-health controls distinguish authentication rejection from transient failure.",
+      "clause": "expired/rejected sessions",
+      "evidence_keys": [
+        "registered_remaining_scope",
+        "controlled_installed_rejection_recovery",
+        "cookie_expiration_controls",
+        "scheduled_session_health",
+        "cookie_writeback"
+      ],
+      "limit": "Deliberate scoped rejection is distinct from naturally elapsed Apple expiry; natural Apple TTL and rejected-target pending-byte combination remain unproved.",
+      "status": "bounded_controlled_rejection_endpoint_passed"
+    },
+    {
+      "actual": "One initially cold normal read-only FUSE read returned exact138943 bytes under8192B/s opaque TLS pacing; separate same-retained-clone fair recovery returned the same bytes with all33 journal tables unchanged. Prior failed cut/recovery arms remain failed; one run per endpoint establishes no repeatability.",
+      "clause": "slow links",
+      "evidence_keys": [
+        "paced_read",
+        "retained_copy_fair_read"
+      ],
+      "status": "bounded_endpoints_passed"
+    },
+    {
+      "actual": "Reservation ownership/pressure has recorded omission failures and corrected controls; genuine full private ext4 device allowed exact sealed and dirty recovery exports before freeing space. Readback storage faults retain archive/checkpoint and refuse premature completion. Current B export preserved checkpoint2860B, archive139044B and both empty native-import/package-upload-staging inventories.",
+      "clause": "bounded storage/staging and recovery",
+      "evidence_keys": [
+        "bounded_native_write_staging",
+        "local_full_device_recovery",
+        "readback_storage_failure",
+        "retained_B_public_export"
+      ],
+      "limit": "Four64MiB reservations and64KiB chunks are implemented limits; no global quota or whole-run staging peak measurement.",
+      "status": "defined_limits_and_bounded_endpoints"
+    },
+    {
+      "actual": "Recorded Pages/Numbers/Keynote workflows and scoped Office exports define tested fidelity. Recovery-only abandoned Stage evidence preserves identity-bound history/checkpoint and exact66268-byte export; no abandon or retry call and no provider-file mutation.",
+      "clause": "tested size/format limits and safe abandoned-staging handling",
+      "evidence_keys": [
+        "format_limits",
+        "active_abandoned_stage_recovery",
+        "stage_format_controls"
+      ],
+      "limit": "Native Linux iWork saving remains unsupported by tested import-only filters. Safe handling retains recoverable bytes; no automatic remote Stage TTL cleanup, deletion or reclamation.",
+      "status": "bounded_policy_and_existing_endpoints"
+    }
+  ],
+  "criterion": "Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.",
+  "criterion_line": 490,
+  "date": "2026-10-10",
+  "decision": "accepted_with_documented_limits",
+  "delivery_policy": "Deployment/schema policy remains HELD. Closing all six bounded acceptance criteria does not install on the regular host, merge, release, migrate or permit older writers to reopen current state.",
+  "evidence": {
+    "active_abandoned_stage_recovery": {
+      "observed_status": "closed_active_native_stage_recovery_pass",
+      "path": "docs/benchmarks/icloud-active-abandoned-stage-recovery-2026-10-09-d6cb88f0-470c-4f76-87c5-624481e234f8.json"
+    },
+    "bounded_native_write_staging": {
+      "observed_status": "corrected-source04dc9e1-passed-complete-local-and-all-seven-remote-jobs",
+      "path": "docs/benchmarks/icloud-native-write-staging-budget-2026-10-03.json"
+    },
+    "controlled_installed_rejection_recovery": {
+      "observed_status": "closed_bounded_live_session_recovery_passed",
+      "path": "docs/benchmarks/icloud-installed-session-recovery-2026-10-10-98fd1555-b0fc-4909-b064-ea65a0a0d9a5.json"
+    },
+    "cookie_expiration_controls": {
+      "observed_status": "local synthetic RED1/GREEN11 passed",
+      "path": "docs/benchmarks/icloud-cookie-expiration-local-2026-10-09.json"
+    },
+    "cookie_writeback": {
+      "observed_status": "closed_focused_synthetic_pass",
+      "path": "docs/benchmarks/icloud-owned-session-cookie-writeback-2026-10-09.json"
+    },
+    "current_race_registration": {
+      "observed_status": "planned_not_dispatched",
+      "path": "docs/benchmarks/icloud-numbers-fixed-runner-v2-2026-10-10-c49c49af-a8a3-42c0-ae69-90ae225c2514.json"
+    },
+    "current_race_result": {
+      "observed_status": "closed_failed_cleanup_guard",
+      "path": "docs/benchmarks/icloud-numbers-fixed-runner-v2-2026-10-10-c49c49af-a8a3-42c0-ae69-90ae225c2514-result.json"
+    },
+    "failed_fresh_predecessor": {
+      "observed_status": "completed_failed_stopped_without_repeat",
+      "path": "docs/benchmarks/icloud-numbers-fresh-after-final-preflight-2026-10-10-f2cf03bf-2d9e-47f9-a43f-177a972a97a3-result.json"
+    },
+    "format_limits": {
+      "observed_status": "acceptance_487_closed_from_controlled_existing_endpoints",
+      "path": "docs/benchmarks/icloud-iwork-application-acceptance-2026-10-08.json"
+    },
+    "local_full_device_recovery": {
+      "observed_status": "arm2 passed; arm1 failed before guest test",
+      "path": "docs/benchmarks/icloud-full-device-export-2026-10-01.json"
+    },
+    "original_uncertain_import": {
+      "observed_status": "closed_initial_import_uncertain_no_replay",
+      "path": "docs/benchmarks/icloud-native-final-install-race-2026-10-10-30828cf7-f274-442f-b7fa-f974dedef257.json"
+    },
+    "paced_read": {
+      "observed_status": "closed_normal_fuse_static_rejection_diagnostic_content_pass",
+      "path": "docs/benchmarks/icloud-normal-fuse-finite-paced-read-2026-10-09-87aacc3b-80ff-4c86-a023-ca2fb6a77736.json"
+    },
+    "post_release_diagnostic": {
+      "observed_status": null,
+      "path": "docs/benchmarks/icloud-numbers-readonly-diagnostic-2026-10-10-c49c49af.json"
+    },
+    "post_release_preservation": {
+      "independent_audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v4/independent-preservation-v4-audit.json",
+        "sha256": "2515ff05f8f28a0d85ead2cda394bd8f38ae4f18f5731baa7f0c4024a4af039e",
+        "size": 2382
+      },
+      "observed_status": "closed_successful_separately_registered_readonly_preservation",
+      "path": "docs/benchmarks/icloud-numbers-readonly-preservation-wrapper-2026-10-10-c49c49af.json",
+      "typed_preservation_receipt": {
+        "path": "/var/tmp/cirrove-native-final-c49c49af-a8a3-42c0-ae69-90ae225c2514/install-preflight-identities-preserved-82300f92-7fc6-46c9-823f-089b624f73d3.json",
+        "sha256": "ef0627ec31f478c4f4350dc702ace525d961810e97e98e412311211f3d8fd5fb",
+        "size": 3800
+      }
+    },
+    "readback_storage_failure": {
+      "observed_status": "intended-red-controls-corrected-green-controls-and-full-contributor-command-passed",
+      "path": "docs/benchmarks/icloud-package-readback-storage-2026-10-03.json"
+    },
+    "registered_remaining_scope": {
+      "observed_status": "closed_literal_installed_lifecycle_488",
+      "path": "docs/benchmarks/icloud-installed-lifecycle-acceptance-2026-10-09.json"
+    },
+    "retained_B_public_export": {
+      "observed_status": "closed_passed",
+      "path": "docs/benchmarks/icloud-numbers-retained-B-public-readonly-export-2026-10-10-f087c4d5-d717-475a-9459-97ae722e17d9.json"
+    },
+    "retained_copy_fair_read": {
+      "observed_status": "closed_same_clone_recovery_read_pass",
+      "path": "docs/benchmarks/icloud-normal-read-interruption-recovery-2026-10-09-08bdbd8d-8f80-45bb-9555-22220b636611.json"
+    },
+    "scheduled_session_health": {
+      "observed_status": "closed_synthetic_red_green",
+      "path": "docs/benchmarks/icloud-saved-session-health-regression-2026-10-09-38c5c4b2-2c9a-4538-8b17-c37937a6654d.json"
+    },
+    "stage_format_controls": {
+      "observed_status": "format-correction-full-check-and-subsequent-b513-source-CI-passed-original-0e-timeout-retained",
+      "path": "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json"
+    }
+  },
+  "final_local_export_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-continuation-20261010-v3/independent-closed-audit-v1.json",
+    "sha256": "b77922a8e29687645d4b8900c9b47c9d5472d2f860d7d79f9baf6b95f451c743",
+    "size": 2379
+  },
+  "final_remote_proof": {
+    "B_name_policy": "Observed provider collision suffix canonical stem plus space2.numbers; exact item identity and full content, not canonical name or successful installation, bind preservation. No double native extension.",
+    "earlier_failed_diagnostics_remain_failed": true,
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v4/independent-preservation-v4-audit.json",
+      "sha256": "2515ff05f8f28a0d85ead2cda394bd8f38ae4f18f5731baa7f0c4024a4af039e",
+      "size": 2382
+    },
+    "public_artifact": "docs/benchmarks/icloud-numbers-readonly-preservation-wrapper-2026-10-10-c49c49af.json",
+    "same_operation_inspection": "conflict",
+    "semantic_versions": {
+      "occupant": 2,
+      "original_trash": 2,
+      "stage": 2
+    },
+    "status": "passed"
+  },
+  "full_icloud_acceptance_complete": true,
+  "gate490_closed": true,
+  "ledger_changed": true,
+  "release_scope": "full-icloud",
+  "retained_limits": [
+    "B remains Conflict under a provider-assigned collision name; no canonical installation success is claimed. Original writer and earlier read-only diagnostic arms remain failed.",
+    "One controlled arm per endpoint; no repeated/sustained/provider-wide reliability claim.",
+    "No naturally elapsed AppleTTL recovery or rejectedtargetpendingbytes proof.",
+    "No arbitrarysize/format fidelity, actualHTTP mutationcount, globaldiskquota or whole-run stagingpeak.",
+    "No automatic remoteStageTTLcleanup/deletion/safe reclamation.",
+    "Regularhostdelivery/schemahold/Canary2releasepolicy are distinct delivery steps, not additional490 reliability endpoints."
+  ],
+  "state": "closed_bounded_criterion490_acceptance",
+  "version": 1
+}

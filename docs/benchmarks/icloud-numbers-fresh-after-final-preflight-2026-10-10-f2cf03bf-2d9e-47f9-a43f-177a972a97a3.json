@@ -1,0 +1,31 @@
+{
+  "active": false,
+  "arms": [
+    "one fresh owned folder; import A and confirm publication",
+    "prime competitor cache; pause B replacement after final install preflight",
+    "one second import C under disputed name; capture A Trash/B staging/C canonical identities; release original B attempt once",
+    "verify conflict and same-identity preservation; export retained B through public recovery-only interface"
+  ],
+  "authorization_scope": "Fresh successor authorization remains pending after prior failed one-time case; local preparation has no provider calls.",
+  "automatic_retry": false,
+  "cleanup_seconds": 45,
+  "clock_started": false,
+  "committed_head": "94d10490a03e3139a27a1da839302dc6e85d52b8",
+  "competitor_capture_release_budget_seconds": 115,
+  "competitor_run": "8310852c-aade-48df-b5bf-d6166f929853",
+  "endpoint": "One attempt with original child ownership through physical closure, unchanged protected host installation, typed three-identity capture and preservation, no replacement replay, exact retained B export. Any uncertain phase stops the trial without automatic retry.",
+  "expected_seconds": 600,
+  "full_gate490_closed": false,
+  "historical_failed_runs_replayed": false,
+  "installed_actions": false,
+  "native_pause_seconds": 120,
+  "outer_policy": "At shared active deadline555 TERM controller once; never KILL owner of separate-session children. At600 latch failure permanently and retain original ownership until physical closure. Late closure cannot pass or extend mutation authority.",
+  "prediction": "Fresh provider destination reads admit the competitor despite its warm stale cache; replacement refuses the changed identity, retains B and exports it exactly. This is a bounded owned-account trial, not a general reliability claim.",
+  "question": "Does a competing second native Numbers import after replacement final preflight preserve the original, competing canonical document and local replacement, report conflict, and permit exact public recovery export?",
+  "registration_correction": "Competing change is a second import, not merely renaming a document.",
+  "result": null,
+  "run": "f2cf03bf-2d9e-47f9-a43f-177a972a97a3",
+  "source_count": 582,
+  "status": "planned_not_dispatched",
+  "version": 1
+}

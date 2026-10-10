@@ -5,6 +5,19 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Experimental iCloud preview under validation:** native Linux sign-in,
+  on-demand reads, explicit ordinary-file write opt-in and scoped iWork
+  archive-copy/recovery workflows. Twelve bounded application workflows and
+  installed account/Strata trials are recorded. All six registered integration
+  criteria are complete within [documented limits](benchmarks/icloud-full-integration-acceptance-2026-10-10.json),
+  including conflict preservation and exact local recovery export. Native Linux
+  iWork saving, general fidelity and provider reliability are unclaimed;
+  retained-state deployment remains on HOLD.
+- **Canary 2 preparation:** provider/setup documentation distinguishes existing
+  OneDrive and Google testing packages from the pending iCloud snapshot, and
+  keeps own Microsoft/Google OAuth setup and community-provider contributions
+  visible. No new release or stable Google acceptance is claimed.
+
 - Developer installs and switches to packages rebuild user icon caches without
   requiring `index.theme`, including stale caches whose icon files are already
   gone. This prevents missing Cirrove badges after switching installations.

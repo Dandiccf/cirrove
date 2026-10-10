@@ -1,0 +1,80 @@
+{
+  "active_seconds": 555,
+  "arms": [
+    {
+      "competitor_run": "58ab788d-d06b-4627-81b9-ed211aa7dfd2",
+      "name": "fresh controlled Numbers conflict arm",
+      "operations": [
+        "one new personally owned parent folder",
+        "one new source-A public native import",
+        "one new source-B replacement of exact newly confirmed A, including staged B and original A Trash preservation",
+        "one new canonical competitor-C public import from genuine source-B archive after final B preflight"
+      ],
+      "runs": 1,
+      "subject_run": "c49c49af-a8a3-42c0-ae69-90ae225c2514"
+    }
+  ],
+  "automatic_retry": false,
+  "cleanup_seconds": 45,
+  "clock": null,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v2/controller.py",
+    "sha256": "36dad92af6e490b1ca4a1aad08f4a1565f63ac07ac9037442d8e1f3b6d0337ec",
+    "size": 35436
+  },
+  "controller_post_marker_seconds": 115,
+  "dispatch": null,
+  "duration_seconds": 600,
+  "endpoint": {
+    "failure": "Any missing confirmation, admission failure, unclear provider result, missed cap, or failed closure preserves state and stops; no automatic repetition.",
+    "success": [
+      "New A confirmed Uploaded with exact scoped identity before B starts",
+      "Native B final-preflight marker exact operation/attempt and still-live daemon; one C imported successfully before release",
+      "Capture/release occurs under both the native original120s cap and unchanged outer555s active cutoff",
+      "B ends Conflict or VerifyRequired without a completed receipt or automatic mutation replay",
+      "A, staged B, and C exact scoped identities read back after stop",
+      "Retained local B recovery-only export equals the exact source-B archive semantic hash",
+      "All owned children reaped, isolated mounts/socket absent, protected host unchanged"
+    ]
+  },
+  "full_gate490_closed": false,
+  "lifecycle": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v2/lifecycle.py",
+    "sha256": "d36f3f08f7fcca886dc9eb110c3a4ebba9cfe396008805aa624172c6a4e47384",
+    "size": 75412
+  },
+  "local_C_loop_correction": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v1/competitor-observation-regression-v1/closed-C-loop-receipt.json",
+    "sha256": "9bde5ea2a80816684ac3e3d24fa56e1f16d45a718366fef3d7a340485c3ef1b6",
+    "size": 5181
+  },
+  "local_loop_regression": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/import-loop-regression-v1/closed-loop-regression-receipt.json",
+    "sha256": "492fbe69793dd785af1dffb7171e1cf9d60d3b8dabe071165ef98afa7222160f",
+    "size": 6191
+  },
+  "old_failed_runs_preserved": true,
+  "original_failed_runs_remain_failed": true,
+  "outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v2/outer-owner.py",
+    "sha256": "b81761718578e903e2b9e65f3542ca66fa59c30b38fcc427e6290d578815667e",
+    "size": 11531
+  },
+  "pause_seconds": 120,
+  "prediction": "The refreshed destination snapshot admits C after original A was moved aside; releasing B detects the now-occupied destination and retains B safely. One arm supplies an observation, not a broad reliability claim or closure of row490. The corrected observer tolerates healthy indexing only for its already-started import and requires native metadata publication before advancing; new mutation admission remains strict.",
+  "prior_failed_runs_unchanged": true,
+  "public_artifact_required_before_dispatch": true,
+  "question": "Does one fresh canonical competing import after the paused final install preflight make the exact original replacement fail safely while preserving original A, staged B, and competing C identities and the retained local B archive?",
+  "ready": true,
+  "result": null,
+  "run": "c49c49af-a8a3-42c0-ae69-90ae225c2514",
+  "source_base": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v2",
+  "source_role_binding_reused": true,
+  "status": "planned_not_dispatched",
+  "supersedes_inactive_registration": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-numbers-fixed-runner-2026-10-10-c49c49af-a8a3-42c0-ae69-90ae225c2514.json",
+    "sha256": "228d6489251a22bd70cb24a84aad10ad4e7dc0d3986782c8d716c990433370cf",
+    "size": 3753
+  },
+  "version": 1
+}

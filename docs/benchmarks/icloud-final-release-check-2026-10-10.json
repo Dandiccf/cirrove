@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "question": "Does the frozen final iCloud acceptance and visitor documentation tree pass the complete required project check?",
+  "prediction": "Formatting, clippy, workspace tests, script tests and acceptance ledger pass together.",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "endpoint": "Exit 0, all owned processes reaped, frozen input hashes unchanged.",
+  "maximum_seconds": 1800,
+  "temporary_filesystem": "ext4",
+  "cargo_target_directory": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "state": "fullcheck_closed",
+  "source_head": "94d10490a03e3139a27a1da839302dc6e85d52b8",
+  "input_count": 1599,
+  "manifest_sha256": "c2b6a08204d0e662c7c8083b3b2ffaa30c16b9d08445a644b699cd58572fd3de",
+  "started_unix": 1791633698.2099013,
+  "arms": {
+    "fullcheck": {
+      "arm": "fullcheck",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 965062,
+      "birth": "65832533",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 657.9986772050615,
+      "log_sha256": "36c671525a1a548fd81b3edb8926ae505983b48bed1c5ebbadf200deb9d30029"
+    }
+  }
+}

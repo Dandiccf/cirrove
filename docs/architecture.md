@@ -31,7 +31,7 @@ flowchart LR
     FUSE --> Engine[Per-account service]
     Engine --> Store[SQLite metadata and stable inodes]
     Engine --> Cache[Version-keyed disk blocks]
-    Engine --> Provider[OneDrive / Google Drive]
+    Engine --> Provider[OneDrive / Google Drive / iCloud Drive]
     Provider --> Auth
     Settings --> Manager[Mount and worker manager]
     Manager --> Engine

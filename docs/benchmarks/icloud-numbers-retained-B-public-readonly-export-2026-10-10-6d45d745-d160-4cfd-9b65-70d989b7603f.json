@@ -1,0 +1,60 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "arms": [
+    "One public --recovery-only daemon on the closed original isolated subject and one public export-save for its exact retained operation"
+  ],
+  "automatic_retry": false,
+  "cleanup_reserve_seconds": 45,
+  "endpoint": "Exact139044-byte B SHA525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da; all journal-table digests and persistent journal files (only volatile SHM excluded), settings, active sealed session, checkpoint/payload and bounded staging samples unchanged; all original owned handles reaped and RO mount/socket absent within300s.",
+  "full_gate490_closed": false,
+  "maximum_seconds": 300,
+  "operation": "6d3810f0-1653-4115-a025-36041a8f14da",
+  "original_failed_trial": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v2/outer-evidence-once-v1/terminal.json",
+    "sha256": "5d7f3302d34b5127d64af9de675a004fa4142aabef61201a799a6a851266345b",
+    "size": 985
+  },
+  "owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-continuation-20261010-v1/export-once.py",
+    "sha256": "9c80b8cda4a2349081ee9ef2b201ceb30075951ed032195bfed24188c8c856bc",
+    "size": 11237
+  },
+  "prediction": "Recovery-only startup exposes the saved local operation without a writable factory; public export returns its exact original retained archive and preserves the failed operation.",
+  "provider_reads_possible": true,
+  "provider_writes_permitted": false,
+  "question": "Can the already retained B from the failed fresh Numbers trial be exported once through the normal public recovery-only daemon without changing its journal, settings, sealed session, checkpoint, payload or bounded staging inventory?",
+  "result": {
+    "cause": "Evidence directory0755 refused by lifecycle private-parent0700 guard during retained snapshot save; journal and persistent-file reads passed.",
+    "children_started": 0,
+    "daemon_started": false,
+    "diagnosis": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-continuation-20261010-v2/local-permission-diagnosis.json",
+      "sha256": "ec140c2f1369e08127adfc5beefa90535d337ccb43ed84ba0962cdfe2a502eab",
+      "size": 970
+    },
+    "elapsed_seconds": 0.36668381793424487,
+    "export_created": false,
+    "failure_class": "Refusal",
+    "full_gate490_closed": false,
+    "original_failed_trial_remains_failed": true,
+    "provider_calls": 0,
+    "success": false,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-continuation-20261010-v1/terminal.json",
+      "sha256": "eb2451e57ff48b52765b6b6a8d66b3ea3296a57f2cd992f1abc4e1aad73ffd88",
+      "size": 461
+    }
+  },
+  "run": "6d45d745-d160-4cfd-9b65-70d989b7603f",
+  "runtime": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v2/subject/runtime-registration-final.json",
+    "sha256": "9f251dba816c5d2396359a7ee66c65e5fad72b660deb0e75d8a943c1086b3ac7",
+    "size": 160679
+  },
+  "scope_limit": "A local retained-byte recovery endpoint only, not a successful repetition of the original conflict arm or a new remote-identity proof.",
+  "state": "closed_local_admission_failure",
+  "version": 1,
+  "writer_started": false
+}

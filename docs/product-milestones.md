@@ -487,7 +487,7 @@ not permission to tick installed or native-editing requirements.
 - [x] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
 - [x] Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.
 - [x] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
-- [ ] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
+- [x] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
 
 The Pages import row is closed by two fresh, separately complete owned arms:
 [Desktop378](benchmarks/icloud-pages-live-desktop-import-owned-focus-2026-10-06.json)
@@ -557,8 +557,21 @@ readback and unsupported permanent-delete refusal. Existing account identities,
 retained records, immutable backing disks and the original host daemon were
 preserved; both new VM owners and all children closed cleanly. The fresh writable
 test connection was disabled at the end. This closes the literal installed
-lifecycle row with bounded real-account evidence. Five of six criteria are now
-closed; reliability (490) and installed delivery HOLD remain open.
+lifecycle row with bounded real-account evidence. Installed delivery stays on HOLD.
+
+The [joined reliability assessment (490)](benchmarks/icloud-full-integration-acceptance-2026-10-10.json)
+closes the six declared clauses with bounded evidence: after-final-preflight
+capture, one competing import/release and same-operation Conflict; a separately
+registered read-only full semantic read of original A in Trash, retained B and
+canonical C; exact public recovery-only B export; installed scoped session
+rejection/reauthentication; paced and retained-copy reads; storage/staging
+controls and explicit format/abandonment limits. B keeps its exact scoped
+identity under the provider-assigned numeric collision name; it is not reported
+as a successful canonical installation. Original failed trials remain failed.
+All six full-iCloud criteria are now closed within these documented limits.
+Natural Apple TTL, arbitrary document fidelity, repeated/provider-wide reliability,
+global disk quota and automatic remote Stage cleanup remain unproved. Deployment
+and schema policy remain on HOLD; this acceptance does not install, merge or release.
 
 The following historical checkpoints retain their original open-row counts.
 

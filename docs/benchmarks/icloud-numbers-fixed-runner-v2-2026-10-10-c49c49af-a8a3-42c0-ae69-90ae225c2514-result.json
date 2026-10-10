@@ -1,0 +1,158 @@
+{
+  "active": false,
+  "cleanup_seconds": 45,
+  "controller_sha256": "36dad92af6e490b1ca4a1aad08f4a1565f63ac07ac9037442d8e1f3b6d0337ec",
+  "correction": {
+    "preregistration_unchanged": {
+      "sha256": "63b3bbc48f4927d9af06451014288ba3eacf9074f197c934a28d83e48ac60e48",
+      "size": 4433
+    },
+    "previous_active": true,
+    "previous_public_result": {
+      "sha256": "899a602500a2a82d33ccc6431e7f0921586b362083584cc0743e9a99ec98c1d1",
+      "size": 944
+    },
+    "previous_result": null,
+    "previous_status": "running_once",
+    "reason": "The original owner closed with exit1 after a local cleanup ownership guard refused. Public status now records the actual closure and successful intermediate stages without claiming the final endpoint."
+  },
+  "expected_seconds": 600,
+  "full_gate490_closed": false,
+  "inputs_final_sha256": "c4d6b2e34cf9e2407ddeac187522ce56da496750b8479c3010d1940be89e7bbd",
+  "installed_actions": false,
+  "lifecycle_sha256": "d36f3f08f7fcca886dc9eb110c3a4ebba9cfe396008805aa624172c6a4e47384",
+  "result": {
+    "aggregate_failure": {
+      "class": "Refusal",
+      "safe_source_frames": [
+        {
+          "function": "main",
+          "line": 401
+        },
+        {
+          "function": "execute",
+          "line": 373
+        },
+        {
+          "function": "unmount",
+          "line": 1017
+        },
+        {
+          "function": "owners_gone",
+          "line": 452
+        },
+        {
+          "function": "require",
+          "line": 31
+        }
+      ],
+      "stage": "release_once"
+    },
+    "capture": {
+      "mutation_replayed": false,
+      "provider_mutation": false,
+      "receipt": {
+        "sha256": "85bc0d3d6f2a75e284960c23f5c524517876913dd9f229440febc3bb40bc5027",
+        "size": 3782
+      },
+      "typed_receipts": [
+        {
+          "archive_bytes": 75083,
+          "archive_sha256": "eec79b5d26baab5b39d00bda1234901c41a2776ca2475b7979c3b51755680ad5",
+          "identity": "original_trash",
+          "semantic": {
+            "entries": 46,
+            "expanded_bytes": 133153,
+            "files": 42,
+            "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+            "version": 2
+          },
+          "typed_receipt_canonical_sha256": "e795616409d6629077db4d124918f5cac6d42d887f95e9089f8af2d1d2de27f0"
+        },
+        {
+          "archive_bytes": 74717,
+          "archive_sha256": "29470b10ad7f3480b955d2182832022fad11f94fd71c09e2f23f1ac6a2a1b252",
+          "identity": "stage",
+          "semantic": {
+            "entries": 46,
+            "expanded_bytes": 133252,
+            "files": 42,
+            "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+            "version": 2
+          },
+          "typed_receipt_canonical_sha256": "1cfac028ad0dba3e63c2ca21b1de30cb9a31a93233b3d34e779325a200d481fa"
+        },
+        {
+          "archive_bytes": 75177,
+          "archive_sha256": "59d867e8c7bd3414d03d23ae6c70634911e842ba97cd55b5e4832df89b8429ed",
+          "identity": "occupant",
+          "semantic": {
+            "entries": 46,
+            "expanded_bytes": 133252,
+            "files": 42,
+            "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+            "version": 2
+          },
+          "typed_receipt_canonical_sha256": "94ad8fa125a3b0c9f5fe59e3dbea0a20b84c5661a783b421c1b349b3b9c49305"
+        }
+      ]
+    },
+    "closure_verified": true,
+    "completed_stages": {
+      "after_final_install_preflight_pause": true,
+      "competitor_C_import": true,
+      "fresh_folder": true,
+      "initial_A_import_and_publication": true,
+      "release_marker_written_once": true,
+      "retained_B_state": "conflict",
+      "three_identity_capture_semantic_verified": true
+    },
+    "controller_exit": 1,
+    "independent_closure_audit": {
+      "sha256": "b1edf251876eccf2d1275b0466cb4c500677176eeaecd26d9b03e9d0c1f88a87",
+      "size": 3095
+    },
+    "mutation_replayed": false,
+    "original_shared_window_extended": false,
+    "original_window_is_historical": true,
+    "physical_closure": {
+      "mounts_absent": true,
+      "original_children_reaped_absent": 10,
+      "original_controller_reaped_absent": true,
+      "outer_SIGKILL_or_killpg_used": false,
+      "outer_TERM_sent": false,
+      "outer_deadline_failed": false,
+      "sockets_absent": true
+    },
+    "remaining_endpoints": [
+      "post-release three-identity preservation and same-operation read-only inspection",
+      "post-release retained-local-bytes comparison",
+      "exact retained-B public export"
+    ],
+    "retained_local_bytes_paused": {
+      "checkpoint": {
+        "sha256": "d54c6e487f51e8eb09947a749f57c6ece98f5d0850f86c938c4a2b40b2184fc6",
+        "size": 2860
+      },
+      "sealed_b": {
+        "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+        "size": 139044
+      }
+    },
+    "scope_limit": "Capture before release verifies three identities. Post-release preservation/export were not reached. This closed failed arm cannot close criterion490. Any continuation requires a new separately registered read-only window without replay.",
+    "sources_unchanged_reported_by_controller": true,
+    "success": false
+  },
+  "root_native_session": 83243,
+  "run": "c49c49af-a8a3-42c0-ae69-90ae225c2514",
+  "status": "closed_failed_cleanup_guard",
+  "user_authorization": "Continue until iCloud completion and new release, including fresh owned tests. Prior uncertain operations are not replayed.",
+  "version": 1,
+  "window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "deadline_monotonic": 656377.804972951,
+    "deadline_unix_seconds": 1791631750,
+    "started_monotonic": 655777.804972951,
+    "started_unix_seconds": 1791631150
+  }
+}

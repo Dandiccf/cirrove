@@ -1,0 +1,69 @@
+{
+  "question": "Can the declared canonical archive wrapper preserve B content under an independently observed collision filename?",
+  "prediction": "Legacy observed-name-only proof rejects the canonical wrapper. The explicit two-root preservation proof accepts the same semantic content but refuses changed inner bytes and foreign wrapper; capture and C remain unchanged.",
+  "active": false,
+  "full_gate490_closed": false,
+  "prior_readonly_failure": "docs/benchmarks/icloud-numbers-readonly-preservation-2026-10-10-c49c49af.json",
+  "active_window": false,
+  "active_measurement": false,
+  "state": "build_closed",
+  "started_unix": 1791633075.6810024,
+  "arms": {
+    "red": {
+      "arm": "red",
+      "exit_code": 101,
+      "expected_exit": 101,
+      "original_pid": 949356,
+      "birth": "65762390",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 20.63970804796554,
+      "log_sha256": "c8c4422e258895a10bf07e77ac72d29640c6c834186068547394c01547dc7c2b"
+    },
+    "green": {
+      "arm": "green",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 950733,
+      "birth": "65767081",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 20.842144791036844,
+      "log_sha256": "238c8e16c00f817e0d42e380f6883ffc6c75e4ede2f062d8a3ac291fe7830bf8"
+    },
+    "build": {
+      "arm": "build",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 951935,
+      "birth": "65770280",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 10.037125775008462,
+      "log_sha256": "6fedd6be78e7bd9d881685f25574d55707ee33cf77e8b1673f95e25fbb69e4c3"
+    }
+  },
+  "result": {
+    "red_test": "native_install_archive_wrapper_does_not_replace_identity_or_content_authority",
+    "red_executed": 1,
+    "red_failures": 1,
+    "green_executed": 7,
+    "green_passed": 7,
+    "feature_only": true,
+    "provider_requests_during_controls": false,
+    "source_fixed_between_arms": true,
+    "all_owners_closed": true,
+    "source_unchanged_within_each_arm": true,
+    "green_log_sha256": "238c8e16c00f817e0d42e380f6883ffc6c75e4ede2f062d8a3ac291fe7830bf8",
+    "red_log_sha256": "c8c4422e258895a10bf07e77ac72d29640c6c834186068547394c01547dc7c2b"
+  }
+}
