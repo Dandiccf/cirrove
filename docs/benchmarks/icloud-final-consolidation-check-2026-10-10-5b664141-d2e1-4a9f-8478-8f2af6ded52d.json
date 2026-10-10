@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "run": "5b664141-d2e1-4a9f-8478-8f2af6ded52d",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "state": "complete_project_check_passed",
+  "question": "Does the complete required project check pass with the updated public iCloud status and the preserved offline installation/local admission evidence?",
+  "arms": {
+    "fullcheck": {
+      "arm": "fullcheck",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 597632,
+      "birth": "63820674",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 626.8403883489082,
+      "log_sha256": "b420cf5ef16ddf031364e24faad90709f584f68de9b6a75985d80085ad87a9d0"
+    }
+  },
+  "endpoint": "One unabridged scripts/check.sh: all ten sections including workspace tests, kernel mounts, scripts and ledger; bound inputs/tools unchanged, original process/group closed.",
+  "prediction": "Documentation-only consolidation leaves source behavior and the four folder-session classification controls unchanged; full check passes.",
+  "source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "maximum_seconds": 1830,
+  "TMPDIR": "/home/dandiccf/Storage/ct/fcon-5b664141",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/fcon-5b664141",
+  "temporary_filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "input_count": 607,
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-consolidation-5b664141-d2e1-4a9f-8478-8f2af6ded52d/fullcheck-manifest.json",
+    "sha256": "83a2fb7e2196948a6cd07b80217608cceffdfd51903a6a3ed484396abc9f9b5f"
+  },
+  "owner_sha256": "2e9fa57dacbf62fccba32dbc5861f726b7c837e29369fc94cb21e7ec9944d2c6",
+  "provider_actions": 0,
+  "installed_actions": 0,
+  "full490_closed": false,
+  "host_delivery": "HOLD",
+  "started_unix": 1791613579.6194396,
+  "complete_check": {
+    "success": true,
+    "sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "rust_groups": 87,
+    "health_test_counts": {
+      "folder_session_refusal_keeps_other_http_boundaries_uncertain": 2,
+      "foreground_live_session_feed_keeps_its_local_only_projection": 2,
+      "saved_session_rejection_after_initial_success_reaches_later_feed_poll": 2,
+      "saved_session_transient_failure_is_not_authentication_and_retains_cursor": 2
+    },
+    "inputs": 607,
+    "all_inputs_tools_unchanged": true,
+    "owner": {
+      "arm": "fullcheck",
+      "exit_code": 0,
+      "expected_exit": 0,
+      "original_pid": 597632,
+      "birth": "63820674",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 626.8403883489082,
+      "log_sha256": "b420cf5ef16ddf031364e24faad90709f584f68de9b6a75985d80085ad87a9d0"
+    },
+    "full490_closed": false,
+    "host_delivery": "HOLD",
+    "provider_actions": 0
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-consolidation-5b664141-d2e1-4a9f-8478-8f2af6ded52d/audit-independent-closed-fullcheck-ci-status-v1.json",
+    "size": 8585,
+    "sha256": "a5effa384610888885971fefadd1464b364dd154b3c25670c89b98fd129c06cb",
+    "passed_checks": 17
+  },
+  "post_check_prose_correction": {
+    "file": "docs/icloud-write-integration.md",
+    "before_sha256": "d194d5948d4166d36b12eb299dc50b441809cd85c147856cab6bf71229926a5f",
+    "after_sha256": "2b8ebef6e6f03987af9199b09b5ed09225ad2a027fe3920a7a20a88805a313f6",
+    "description": "CI had already completed on 9 October; changed On 10 October/completed to As of 10 October/had completed. Exact checked document snapshot retained.",
+    "runtime_sources_rehashed_unchanged": 582,
+    "additional_checks": {
+      "file_manager_documentation_tests": {
+        "passed": 3
+      },
+      "acceptance_ledger": "passed; full iCloud490 still open",
+      "git_diff_check": "passed"
+    },
+    "full_check_not_repeated_for_prose_only_timestamp_correction": true
+  }
+}

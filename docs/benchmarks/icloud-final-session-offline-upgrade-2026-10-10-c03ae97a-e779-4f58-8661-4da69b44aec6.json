@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "state": "closed_passed",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "run": "c03ae97a-e779-4f58-8661-4da69b44aec6",
+  "question": "Can the exact attested candidate be installed without network into a new COW from the preserved target rejection/control valid guest, preserving full state and current policies?",
+  "arms": [
+    "One network-free ArchISO candidate upgrade with no daemon startup or auth"
+  ],
+  "endpoint": "Exact package version; same twoaccountsettings/sealedciphers; four original row bodies/threepayloads/GCabsence; fullpersistentinventory unchanged except exactSQLiteSHM; nine immutable backings preserved; all originalowners reaped.",
+  "prediction": "Installation succeeds without statechange; control remainsenabledRO and targetdisabledRW.",
+  "candidate_source": "028fa973019e9cc615c40ca7c1b411f0621d11f1",
+  "source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "package_version": "0.2.0dev.r1021.g028fa97-1",
+  "exact_tree_equal": "bad3ecbf154501d047f7069c2d79f7e1eb3b39ab",
+  "package_authority": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/candidate-f9de7f7-arch-provenance-37985209834-private-v1/actual-artifacts-20261010-v1/package-authority-v1.json",
+    "size": 9302,
+    "sha256": "285545ac0939590d78273b0b4694821e7ac9b8fb3268d9d4ceee500ceb053a3b"
+  },
+  "preflight": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/root-preflight-v1.json",
+    "size": 18089,
+    "sha256": "19a606bbb57ec36572c4806391de1a28171f7027a3d2962950b1ef77ff337bd0"
+  },
+  "private_preparation": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/offline",
+  "result_disk": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/guest-runtime.qcow2",
+  "host_installation": false,
+  "provider_requests": false,
+  "auth": false,
+  "daemon_started": false,
+  "whole490_closed": false,
+  "scope_limit": "Installation/preservation prerequisite only. Targetreauth cannot prove rejectedaccountpendingrecovery; pending44/52/50belong otherCONTROL. Naturalexpiry/races/storagebounds remainopen.",
+  "status": "closed_passed",
+  "success": true,
+  "original_registration_before_result": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-final-session-offline-upgrade-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json",
+    "size": 2212,
+    "sha256": "84d0943c94b209c608f616a6c7b2b50ec635600c0717ad636acc77039ecd2849"
+  },
+  "started_unix": 1791611245.6419852,
+  "deadline_unix": 1791612145.6419852,
+  "closed_unix": 1791611323.1745322,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/offline-evidence/terminal.json",
+    "size": 115,
+    "sha256": "cac621050adc76ff4ee695f44f5fa20536112dde8e5c1cf03240d30096484ee5"
+  },
+  "result_receipt": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/offline-evidence/successful-result.json",
+    "size": 3762,
+    "sha256": "65936d97259c3a6682843d5ab0636c52728c23e2de0db6772650ac5ed7d3801c"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/offline-evidence/audit-independent-closed-offline-v1.json",
+    "size": 5305,
+    "sha256": "585f1e522ab98fc0e063119e9a01bd9612a0d33e58a6432b541495879d088a7e"
+  },
+  "ci_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/candidate-f9de7f7-arch-provenance-37985209834-private-v1/actual-artifacts-20261010-v1/run.json",
+    "size": 36233,
+    "sha256": "2c0e8cf813241c71a326ffa2bfdd392994924605727538341a4d3270849c9f9f"
+  },
+  "ci_all_seven_jobs_success": true,
+  "schema": {
+    "journal_schema": 21,
+    "metadata_schema": 8,
+    "product": "cirroved",
+    "version": 1
+  },
+  "observed": {
+    "old_package_version": "0.2.0dev.r1017.ga3fa14e-1",
+    "new_package_version": "0.2.0dev.r1021.g028fa97-1",
+    "runtime_packages_installed": 3,
+    "debug_package_installed": false,
+    "two_accounts_policy_preserved": true,
+    "four_selected_row_bodies_three_payloads_gc_absence_preserved": true,
+    "settings_and_two_ciphertexts_preserved": true,
+    "persistent_state_preserved_except_sqlite_shm_timestamps": true,
+    "sqlite_shm_contents_equal": true,
+    "nine_immutable_backings_unchanged": true,
+    "all_original_children_closed": true,
+    "normal_guest_boot_tested": false,
+    "provider_or_auth_or_daemon_actions": false
+  },
+  "limitations": [
+    "Offline installation/preservation only; no cloud acceptance credit.",
+    "Actual package provenance is PR merge ref 028fa973019e9cc615c40ca7c1b411f0621d11f1, with complete tree identical to branch head f9de7f7e07207052c758a031600540d615b9b73a; not a branch-ref attestation.",
+    "Earlier assumed r1020/head-ref verification failures remain retained in package authority.",
+    "Control owns retained 44/52/50 bytes; target owns completed Uploaded 4224 with already collected payload.",
+    "Full criterion 490, natural expiry and original-host delivery HOLD remain open."
+  ]
+}

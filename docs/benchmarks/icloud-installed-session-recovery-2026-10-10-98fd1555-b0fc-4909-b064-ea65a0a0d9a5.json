@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "run": "98fd1555-b0fc-4909-b064-ea65a0a0d9a5",
+  "status": "registered_not_dispatched_person_readiness_pending",
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "question": "Does the already installed attested candidate classify the preserved rejected target session as sign_in_required, then recover through one same-account native read-only publicreauth while retaining exact completed history and otheraccount recovery bytes?",
+  "prediction": "Target sign_in_required and controlReady beforeauth; one publicreauth leaves targetdisabledRO/sameidentity andrefreshescipher; targetReady/rootread plusOTHERaccount44/52activeexports verifyunchanged payloads.",
+  "endpoint": [
+    "Onefirstcandidatepreauth withnarrowexactcompletedhistory capturedunderidleleases beforedaemon; no newlogout.",
+    "Onemanualnative publicreauthRO afteractualpersonready+preauthsign_in_required.",
+    "OnepostauthReady/rootread andOTHERaccountactive44/52exports; all4selectedrows3payload/GCabsence and exactcompletedhistory unchanged.",
+    "Originalallchildclosure,10immutablebackings+19hostfiles/PID preservation."
+  ],
+  "maximum_seconds": 1200,
+  "cleanup_reserve_seconds": 90,
+  "person_readiness_required_before_dispatch": true,
+  "authentication_credentials_terminal_only": true,
+  "no_automatic_mutation_or_login_retry": true,
+  "main_host_install_restart_release_HOLD": true,
+  "whole_criterion490_closed": false,
+  "natural_expiry_proved": false,
+  "rejected_target_pending_recovery_proved": false,
+  "actual_result": null,
+  "source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "compiled_package_source": "028fa973019e9cc615c40ca7c1b411f0621d11f1",
+  "installed_version": "0.2.0dev.r1021.g028fa97-1",
+  "private_manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/manifest-review-ready-v2.json",
+    "size": 24595,
+    "sha256": "a015159dcf3816936666d189dd9eab00e07a11aaf2c5063b574fba1e15ab6ea1"
+  },
+  "private_owner": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-session-98fd1555-b0fc-4909-b064-ea65a0a0d9a5/owner-v2.py",
+    "size": 17427,
+    "sha256": "cf4b08868317abc74b2309e76e10b14765513d5779ca33d52f6c59b309fac4a6"
+  },
+  "preparation_only_no_dispatch": true
+}

@@ -53,14 +53,14 @@ Do not post these files or credentials in an issue. No automatic cleanup,
 acceptance of pending contents, session-expiry interpretation or cloud replay is
 part of this change; further publication remains blocked until safe recovery.
 
-## Current checkpoint, 9 October 2026
+## Current checkpoint, 10 October 2026
 
 Criteria 485–489 are closed; reliability criterion 490 remains open. The
 [installed lifecycle assessment](benchmarks/icloud-installed-lifecycle-acceptance-2026-10-09.json)
-joins the earlier installed sign-in/opt-in and current package upgrade with two
-new controlled endpoints. Genuine same-account reauthentication on the current
-attested packages preserved account/credential identity and the disabled
-preference while changing access to read-only. Explicit enable produced a normal
+joins the earlier installed sign-in/opt-in and then-current package upgrade with two
+new controlled endpoints. In that completed lifecycle trial, genuine same-account
+reauthentication on the predecessor attested packages preserved account/credential
+identity and the disabled preference while changing access to read-only. Explicit enable produced a normal
 read-only mount with EROFS refusal and exact active exports of the retained
 44-byte sealed save and 52-byte unlinked generation 4. All three selected retained
 record bodies, including the older conflict, stayed byte-identical.
@@ -76,6 +76,53 @@ all backing image pins were preserved, and the original host daemon stayed
 unchanged. Independent endpoint/closure audits passed 28/22 and 31/24 checks.
 This closes literal criterion 488, with no repeated-reliability or natural-expiry
 claim. The regular-host installation remains on HOLD.
+
+As of 10 October, [CI 37985209834](https://github.com/Dandiccf/cirrove/actions/runs/37985209834)
+had completed successfully with all seven jobs at branch head `f9de7f7e07207052c758a031600540d615b9b73a`.
+Its Arch artifacts were actually compiled and attested at PR merge ref
+`028fa973019e9cc615c40ca7c1b411f0621d11f1`, version `0.2.0dev.r1021.g028fa97-1`;
+the complete Git tree matches the branch head. The earlier branch-ref/version
+assumptions were refused and retained before this correction. All four package
+attestations were verified; the debug package was retained without installation.
+A state-free query of the attested daemon reported journal schema 21 and metadata
+schema 8.
+
+The [new offline installed upgrade](benchmarks/icloud-final-session-offline-upgrade-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json)
+installed the three runtime packages into a fresh test-machine copy without a
+network device, authentication or daemon startup. Both accounts and access
+preferences, settings, session ciphertexts, the four selected row bodies, three
+retained payloads and the completed upload's existing payload absence were
+preserved. The full persistent inventory was unchanged except the two SQLite
+shared-memory files' timestamps; their contents stayed unchanged. Nine immutable
+backings and original-child closure passed independent review. This is an
+installation/preservation prerequisite, not a live-provider acceptance result.
+
+The corrected [normal SDK target read](benchmarks/icloud-normal-post-logout-read-2026-10-09-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5.json)
+returned `remote_authentication_rejected`. A separate [normal SDK control read](benchmarks/icloud-normal-control-read-2026-10-09-8af2163f-c407-43f6-be9c-9593c118b05c.json)
+returned 261 entries with the selected retained state unchanged. Each made one
+logical root read, with no further logout, authentication or provider-data
+mutation; the HTTP transmission count was not instrumented. The original failed
+logout arm remains failed, without a retrospectively completed isolation chain.
+The [installed new candidate trial](benchmarks/icloud-final-session-installed-recovery-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json)
+stopped at a local snapshot-admission assertion before starting its normal daemon,
+enabling the target, making provider calls or attempting native Apple sign-in.
+The cleanup stopped guest consumers but its snapshot hit the same assertion; no
+successful post-snapshot preservation receipt is claimed. All original runtime
+and supplemental owners closed without relabelling the failed result. A separate
+[local-only diagnosis](benchmarks/icloud-installed-local-admission-diagnostic-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json)
+located the exact refusal: the private fixture required zero mutation rows,
+but one historical `Applied` folder creation and two completed queue entries
+legitimately remain. There were no incomplete queue entries. The selected
+payloads, settings and ciphertexts matched their original hashes; all ten
+backings, 19 host files and the host daemon were unchanged. The diagnosis
+closed with all owned processes reaped. A narrow fixture correction is prepared
+to admit and preserve exactly that completed history; it has not yet passed
+the installed recovery trial.
+The target’s selected upload is completed and its journal payload was already
+collected; the retained 44/52/50 bytes belong to the other control
+connection. Reauthenticating the target cannot establish rejected-account pending
+recovery. Natural Apple expiry, full criterion 490 and regular-host delivery
+remain open.
 
 The following earlier checkpoints retain their failed and partial outcomes. The
 [installed Arch trial](benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json)
@@ -140,7 +187,7 @@ separate classification. This adds one complete, nonrecursive root listing per
 saved-session poll, normally every 30 seconds plus request time, with the
 existing timeout, cancellation and response-size limits. Cached metadata,
 completed cursors and pending edits remain intact. Natural Apple session expiry
-and subsequent installed reauthentication still require live acceptance.
+and installed recovery from a newly rejected session still require live acceptance.
 
 The normal configured daemon now [writes back changed saved-session cookies](benchmarks/icloud-owned-session-cookie-writeback-2026-10-09.json)
 after successful scheduled polls, while retaining its existing exclusive account

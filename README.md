@@ -197,7 +197,7 @@ iCloud remains a development integration rather than a general onboarding route.
 
 ## iCloud integration progress
 
-**Experimental development, 9 October 2026:** iCloud is being validated in
+**Experimental development, 10 October 2026:** iCloud is being validated in
 [PR 86](https://github.com/Dandiccf/cirrove/pull/86). It is not part of `main`
 or a released Cirrove version. **Full iCloud acceptance remains open and
 candidate delivery is on HOLD.** New connections default to read-only;
@@ -326,8 +326,8 @@ account marked Ready after a later authentication rejection. The identical
 [regression fixture](docs/benchmarks/icloud-saved-session-health-regression-2026-10-09-38c5c4b2-2c9a-4538-8b17-c37937a6654d.json)
 failed on the old code; three corrected controls and the complete project check
 passed. Each poll performs one nonrecursive root listing. This establishes
-synthetic rejection handling; natural Apple expiry and installed recovery
-remain unproved.
+synthetic rejection handling; recovery from a newly rejected or naturally
+expired Apple session still needs its own installed acceptance.
 
 Normal daemon polls also [persist changed session cookies](docs/benchmarks/icloud-owned-session-cookie-writeback-2026-10-09.json)
 so restarts retain renewed cookies and deletions in local tests. Repeated updates
@@ -336,17 +336,33 @@ startup leaves credentials unchanged; legacy keyring sessions require foreground
 migration.
 Real Apple session-expiry recovery and wider reliability remain open.
 
-A [controlled session test](docs/benchmarks/icloud-scoped-session-recovery-2026-10-09-bfb9ebf2-4f2f-4155-a2b0-a949995ae022.json)
-confirmed two valid saved sessions and received HTTP 200 for one scoped logout.
-The following target read returned an unclassified failure rather than a typed
-authentication rejection, so the test stopped without retry or reauthentication.
-A subsequent [read-only diagnostic](docs/benchmarks/icloud-post-logout-read-diagnostic-2026-10-09-cccc3080-ca53-4397-9498-1b4d83152b78.json)
-observed HTTP 421 from the preserved post-logout session, with recovery data
-unchanged. The branch now treats 421 specifically at Apple's folder-metadata
-endpoint as requiring sign-in again; generic and signed-content 421 errors retain
-their previous handling. The [local regression](docs/benchmarks/icloud-folder421-session-rejection-fix-2026-10-09-f818b201-75bc-4606-a149-714d09e61f6c.json)
-fails before this correction and passes afterward. Real reauthentication,
-natural session expiry and the reliability criterion remain open.
+The original [controlled session test](docs/benchmarks/icloud-scoped-session-recovery-2026-10-09-bfb9ebf2-4f2f-4155-a2b0-a949995ae022.json)
+received HTTP 200 for one scoped logout, then an unclassified target-read failure.
+It remains a failed arm, stopped without retry or reauthentication. A separate
+[read-only diagnostic](docs/benchmarks/icloud-post-logout-read-diagnostic-2026-10-09-cccc3080-ca53-4397-9498-1b4d83152b78.json)
+observed folder-metadata HTTP 421. The [correction](docs/benchmarks/icloud-folder421-session-rejection-fix-2026-10-09-f818b201-75bc-4606-a149-714d09e61f6c.json)
+classifies that endpoint's response as requiring sign-in; generic and signed-content
+421 responses keep their previous handling. A subsequent [normal SDK target read](docs/benchmarks/icloud-normal-post-logout-read-2026-10-09-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5.json)
+returned typed Authentication, while a later [normal SDK control read](docs/benchmarks/icloud-normal-control-read-2026-10-09-8af2163f-c407-43f6-be9c-9593c118b05c.json)
+returned 261 entries. Both preserved the selected recovery data. These separate
+observations do not complete the original logout-isolation chain or prove natural expiry.
+
+[CI for this candidate](https://github.com/Dandiccf/cirrove/actions/runs/37985209834)
+passed all seven jobs. The resulting attested Arch candidate, `0.2.0dev.r1021.g028fa97-1`,
+was compiled from GitHub's PR merge ref with an identical source tree to branch
+head `f9de7f7e`. A [network-free test-machine upgrade](docs/benchmarks/icloud-final-session-offline-upgrade-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json)
+preserved both accounts, session ciphertexts, four selected journal records, three retained
+payloads and the already absent completed-upload payload. The new candidate's
+[installed session trial](docs/benchmarks/icloud-final-session-installed-recovery-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json)
+stopped at a local test guard before cloud access or Apple sign-in. A separate
+[local-only diagnosis](docs/benchmarks/icloud-installed-local-admission-diagnostic-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json)
+found that the test incorrectly refused a completed historical operation;
+there were no pending write-queue entries for that target connection. A corrected fixture is prepared,
+but the installed session-recovery trial has not passed.
+Earlier installed same-account reauthentication is already validated in the lifecycle trial above;
+recovery from this controlled rejection and from natural Apple session expiry
+still needs its own acceptance. Reliability criterion 490 and regular-host
+delivery remain open.
 
 Read the [full integration record](docs/icloud-write-integration.md) for historical
 successes, retained failures and measured limits, and the

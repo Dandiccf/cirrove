@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "run": "c03ae97a-e779-4f58-8661-4da69b44aec6-local-diagnostic-v1",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "state": "closed_local_diagnostic_pass_integration_not_tested",
+  "question": "Which exact local snapshot guard refuses the stopped installed candidate state before any cloud/native auth phase?",
+  "arms": [
+    "One restricted-network read-only local metadata snapshot diagnosis in a fresh COW guest"
+  ],
+  "endpoint": "Safe assertion source locations, exact fixed payload metadata and permitted target queue/state counts, all child handles closed and source backings unchanged.",
+  "prediction": "A historical Applied mkdir mutation with a completed queue relation remains in the retained target journal; requiring no mutation rows is stricter than no pending writes.",
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/local-diagnostic-v1/owner.py"
+  ],
+  "driver_sha256": "59265255800505ceab63ce550be5e39e1780bdac9e110ef1193492fc1251e343",
+  "manifest_sha256": "115adb98dd751ca2915412315b69cc0302773408f11057641db3078f824dfb31",
+  "diagnostic_source_sha256": "a2b8b64e31e5b61d6bf1fb422269ab85e2b922f6784c294b0d1bcd5b705ca979",
+  "maximum_seconds": 300,
+  "cleanup_reserve_seconds": 45,
+  "TMPDIR": "/home/dandiccf/Storage/ct/fs-c03ae97a",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/fs-c03ae97a",
+  "temporary_filesystem": "ext4",
+  "provider_access": "denied by QEMU restrict=on; host SSH forwarding only",
+  "authentication": false,
+  "vault_access": false,
+  "separate_local_question_no_extension_of_original_cloud_window": true,
+  "whole490_closed": false,
+  "started_unix": 1791613031.8703787,
+  "deadline_unix": 1791613331.8703787,
+  "closed_unix": 1791613042.403206,
+  "result": {
+    "local_diagnosis": "passed",
+    "integration_snapshot": "refused_before_any_daemon_start_or_cloud_phase",
+    "failed_source_function": "snapshot",
+    "failed_source_line": 149,
+    "cause": "Private test required zero mutations, but a historical Applied mkdir mutation is legitimately retained after its queue entry completes.",
+    "target_mutations": {
+      "applied": 1
+    },
+    "target_uploads": {
+      "uploaded": 1
+    },
+    "target_write_queue_total": 2,
+    "target_incomplete_write_queue": 0,
+    "fixed_payloads_and_settings_and_ciphertexts_unchanged": true,
+    "original_children_reaped": 7,
+    "immutable_backings_fresh_full_sha_and_stat_preserved": 10,
+    "host_files_and_daemon_preserved": true,
+    "authentication": false,
+    "provider_requests": 0,
+    "whole490_closed": false
+  },
+  "evidence": {
+    "safe_diagnostic": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/local-diagnostic-v1/diagnose-local-safe-output.jsonl",
+      "size": 3431,
+      "sha256": "24fcfe461fe2813cfb49431bbbe87863d5def00cc43b076f30b81694fc2cfb92"
+    },
+    "driver_closed": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/local-diagnostic-v1/driver-closed.json",
+      "size": 158,
+      "sha256": "5877bb27c272c64261d074aafc8007e813dee391e1448084ffc18911360b6aa0"
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/local-diagnostic-v1/audit-independent-closed-local-diagnostic-v1.json",
+      "size": 5231,
+      "sha256": "f057d7cec3add11f447c14f3bd2bb709e9391b0eae8ba3ff8bc60400c54533db"
+    }
+  },
+  "corrections": [
+    "Owner finally orderly-poweroff launch needs its own try/finally on cancellation; actual unmodified owner completed normally, no signals sent, all handles closed. Correct a successor before reuse."
+  ]
+}
