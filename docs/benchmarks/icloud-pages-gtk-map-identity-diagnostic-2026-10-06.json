@@ -1,0 +1,255 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-map-diagnostic-root-3818e2a3-v1/chooser_gtk_map_diagnostic_v17.py",
+    "sha256": "a5ae69195828070a013b53d312d389360a7036996075f10a39febc61822131b8",
+    "size": 47164
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "One owned GTK-only mapping snapshot before unchanged admission, with no raw unrelated mapping output and complete original process/socket closure.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "limits": [
+    "No full iCloud/provider credit.",
+    "The underlying chooser-Cancel path stays unchanged if admission unexpectedly passes; no key or mutation replay.",
+    "GTK-only filtered device/inode/path, max32 mappings; bounded1MiB maps read."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "One bounded GTK-only mapping snapshot will expose the physical identity discrepancy; the original mapped-library guard stays unchanged.",
+  "question": "Which exact owned GTK ELF mappings differ from the preflight-pinned library device/inode at mapped-library admission?",
+  "run": "3818e2a3-cd6d-42ac-8618-30ebe43da60d",
+  "source_count": 480,
+  "status": "performed-local-device-mismatch-diagnostic-before-input",
+  "version": 1,
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-map-diagnostic-root-3818e2a3-v1/public-map-identity-preregistration-byteexact-before-outcome-v1.json",
+      "size": 1617,
+      "sha256": "9895f1ad7085571819b0afd0d81ee9067124345f2cff2c72d38c05fb956acf25"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-map-diagnostic-root-3818e2a3-v1/root-public-chooser-registration-v2.json",
+      "size": 6604,
+      "sha256": "483544371caade7ef908e7a009ec391e809e3564aaf245746974a15d5e97b84a"
+    },
+    "public_pin_matches_launch": true,
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.2713422799715772,
+    "overall_chooser_success": false,
+    "bounded_owned_diagnostic_captured": true,
+    "mapping_diagnostic": {
+      "actions_before": 0,
+      "desktop_pid": 1331345,
+      "desktop_startticks": 28266983,
+      "expected_device": 31,
+      "expected_inode": 141524,
+      "expected_major": 0,
+      "expected_minor": 31,
+      "gtk_mappings": [
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        },
+        {
+          "device": "00:1d",
+          "inode": 141524,
+          "path": "/usr/lib/libgtk-4.so.1.2200.4"
+        }
+      ],
+      "map_bytes": 90716,
+      "original_action_deadline": 282819.29653156,
+      "pid": 1331345,
+      "run": "3818e2a3-cd6d-42ac-8618-30ebe43da60d",
+      "unchanged_guard": true
+    },
+    "actual_mapping_count": 5,
+    "bounds": {
+      "maps_bytes_observed": 90716,
+      "maps_byte_limit": 1048576,
+      "filtered_GTK_mapping_limit": 32
+    },
+    "device_comparison": {
+      "expected_stat_device": 31,
+      "expected_major": 0,
+      "expected_minor": 31,
+      "actual_map_device": "00:1d",
+      "actual_major": 0,
+      "actual_minor": 29,
+      "device_equal": false,
+      "inode_equal": true,
+      "exact_library_path_equal": true
+    },
+    "first_refusal": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_gtk_map_diagnostic_v17.py",
+          "function": "main",
+          "line": 857
+        },
+        {
+          "file": "chooser_gtk_map_diagnostic_v17.py",
+          "function": "run",
+          "line": 619
+        },
+        {
+          "file": "chooser_gtk_map_diagnostic_v17.py",
+          "function": "expand_account_keyboard",
+          "line": 513
+        },
+        {
+          "file": "chooser_gtk_map_diagnostic_v17.py",
+          "function": "gtk_ready",
+          "line": 420
+        },
+        {
+          "file": "chooser_gtk_map_diagnostic_v17.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "interpretation": "The pinned file stat device was 0:31 while all five exact-path GTK mappings reported 0:29; both carried inode141524. The unchanged exact device/inode guard refused before any utility, key, focus or UI action. This establishes the identity-field discrepancy, not its underlying cause or a keyboard/UI/provider defect.",
+    "host_filesystem_context_root_reported": {
+      "target": "/usr/lib/libgtk-4.so.1.2200.4",
+      "fstype": "btrfs",
+      "source": "/dev/mapper/root[/@]",
+      "mount_target": "/",
+      "no_OverlayFS_explanation_claimed": true
+    },
+    "utility_children": [],
+    "actions": [],
+    "keys_focus_UI_actions": 0,
+    "import_rpc_count": 0,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "cloud_called": false,
+    "provider_verified": false,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1331341,
+          "start_ticks": 28266963,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1331336,
+          "start_ticks": 28266951,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1331335,
+          "start_ticks": 28266951,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1331334,
+          "start_ticks": 28266951,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1331333,
+          "start_ticks": 28266950,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "five_outer_original_handles_reaped": true,
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1331345,
+        "returncode": -15,
+        "startticks": 28266983
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "chooser_closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_cleanup_errors": [],
+      "launcher_signals": [],
+      "desktop_signals": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-map-diagnostic-root-3818e2a3-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66421,
+        "sha256": "9f86e4246841e111f0d870b1a2a69b0f4e91d63cf1641b334408518d9697b48e"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-map-diagnostic-root-3818e2a3-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "8da63eb827a0c0da39738df88ab8efb188dacf7345261955a21d19caef4329dd"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-3818e2a3-cd6d-42ac-8618-30ebe43da60d/result.json",
+        "size": 4213,
+        "sha256": "8a2338ff298064613885d6f237e2ea444588e613ae6041e1b225e533ef9f89f9"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-3818e2a3-cd6d-42ac-8618-30ebe43da60d/chooser/result.json",
+        "size": 1377,
+        "sha256": "6e426ffcbc2bda89f5288034998b8596437a4e9a8ba5a346dde557e754209af9"
+      },
+      "map_diagnostic": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-3818e2a3-cd6d-42ac-8618-30ebe43da60d/chooser/owned-gtk-map-before-admission.json",
+        "size": 908,
+        "sha256": "0845d2009dfa7a5308218b9f7190b4d3858f2d29ddbedaa70f2def9afc014a90"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-3818e2a3-cd6d-42ac-8618-30ebe43da60d/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "59ebec1da2b55dea252fb76e72e87d822518652555bf298949a6971b663e0a93"
+      }
+    },
+    "closed_run_not_replayed": true,
+    "full_release_gates_closed": false,
+    "next_step": "A fresh separately registered owned-harness mapping calibration can establish the pinned library mapping identity in the same mount namespace. No identity-domain equivalence is inferred or old run replayed."
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "Calc_readonly_reopen_complete": false,
+  "active": false,
+  "active_measurement": false,
+  "allowed_Excel_export_attempts": 1,
+  "allowed_content_edits": 0,
+  "allowed_open_attempts": 1,
+  "allowed_reload_attempts": 0,
+  "allowed_uploads": 0,
+  "automatic_retries": 0,
+  "capture_receipt_correction": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1/download-receipt-corrected-v1.json",
+    "sha256": "c6872a8b1b4d680a826964f896a44eefba7102d8c43924dbecefe150a547b1c4",
+    "size": 1742
+  },
+  "cleanup_reserve_seconds": 45,
+  "document_name": "Cirrove-Numbers-Data-de0f154b-d2de-4daa-bce3-c734dd311ca2.numbers",
+  "elapsed_seconds": 405.45635867118835,
+  "endpoint": "Fresh exact parent+item DOM before one editor open; actual native source7/3/10+SUM+marker/disabledUndoRedo screenshot+AX immediately before one Download a Copy Excel; exact captured XLSX hash/size, all owned tabs close. Formula verification/Calc reopen follows after UI closure in separate offline window.",
+  "expected": {
+    "A2": 7,
+    "B2": 3,
+    "C2_display": 10,
+    "C2_formula": "SUM(A2:B2)",
+    "source_marker": "Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f"
+  },
+  "exported_XLSX": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1/apple-export-raw.xlsx",
+    "sha256": "2eeb79e968e9d40c030ecbf21fcaca52032e1c3118cdac914f33e6db057dbccf",
+    "size": 6964
+  },
+  "formula_fidelity_verified": false,
+  "full487_closed": false,
+  "historical_native_Apple_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-exact-apple-de0f-32f9269d-8713-463f-bf1d-b2834ca17cc9-private-v1/audit-independent-apple-terminal-v1.json",
+    "sha256": "8721ee54fe4c6424d7c7f2eafce752e78c673e706bd5bd0c1b3b86864ead6f32",
+    "size": 17224
+  },
+  "historical_raw_revision_is_current_claim": false,
+  "independent_UI_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1/audit-independent-apple-export-terminal-v1.json",
+    "sha256": "96518375d3465c455e8f0fe9008eca4e949600e0f7b324f6e6c36570e27f3c37",
+    "size": 8155
+  },
+  "independent_UI_audit_checks": 28,
+  "independent_UI_audit_pending": false,
+  "installed_HOLD_released": false,
+  "item": "FILE::com.apple.CloudDocs::9143A6CE-41E8-4769-A9E5-607BA8A84CDB",
+  "limits": [
+    "No current raw/ETag assurance from historical Apple antecedent.",
+    "No full native AX table extraction, broad formula/layout/media reliability or native Linux Numbers-save claim.",
+    "No automatic repeat after ambiguous export/download outcome.",
+    "No cloud content input/upload/rename/delete.",
+    "All full487\u2013490 and installedHOLD remain open."
+  ],
+  "maximum_seconds": 600,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1/original-window.json",
+    "sha256": "b64a16ded711279d6fc56f8ad2a524732f30cee10dda7beec4f69f8345439fbe",
+    "size": 322
+  },
+  "parent": "FOLDER::com.apple.CloudDocs::A8FDEAB6-8F68-44BA-81F1-C8E5B6E70298",
+  "parent_name": "Cirrove-Native-de0f154b-d2de-4daa-bce3-c734dd311ca2",
+  "prediction": "Native Calc import flattens SUM. Apple Excel export should instead serialize SUM into XLSX; this is a distinct route, not an importer fix.",
+  "private_evidence": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1",
+  "question": "Does one Apple Numbers Excel export of the exact existing owned de0f document preserve native SUM and values7/3/10, independently in XLSX OOXML and a later read-only Calc reopen?",
+  "read_only_Cloud_actions": true,
+  "ready": true,
+  "run": "4cfbc759-df14-4a24-a84d-9e1614eb3146",
+  "status": "closed_Apple_export_workflow_audited_Calc_fidelity_pending",
+  "subject_run": "de0f154b-d2de-4daa-bce3-c734dd311ca2",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-apple-excel-export-4cfbc759-df14-4a24-a84d-9e1614eb3146-private-v1/root-ui-terminal-v1.json",
+    "sha256": "30120fe6b840b7cbb2afd7a863c8e0c5c23d02a6f7da491ab8eab8897d924929",
+    "size": 2134
+  },
+  "version": 1
+}

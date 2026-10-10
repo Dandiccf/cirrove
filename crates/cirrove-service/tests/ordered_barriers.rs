@@ -431,7 +431,7 @@ fn schema_nine_migration_retains_pending_saves_and_missing_new_schema_is_refused
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        14
+        21
     );
     db.execute_batch("DROP TABLE write_prerequisites").unwrap();
     assert!(UploadJournal::open(tmp.path(), &scope().account, 1024 * 1024).is_err());
@@ -440,7 +440,15 @@ fn schema_nine_migration_retains_pending_saves_and_missing_new_schema_is_refused
             .unwrap(),
         2
     );
-    db.execute_batch("PRAGMA user_version=15").unwrap();
+    let future_schema = u32::try_from(
+        cirrove_service::storage_format_attestation()["journal_schema"]
+            .as_u64()
+            .unwrap(),
+    )
+    .unwrap()
+        + 1;
+    db.pragma_update(None, "user_version", future_schema)
+        .unwrap();
     assert!(matches!(
         UploadJournal::open(tmp.path(), &scope().account, 1024 * 1024),
         Err(JournalError::Schema)
@@ -448,6 +456,6 @@ fn schema_nine_migration_retains_pending_saves_and_missing_new_schema_is_refused
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        15
+        future_schema
     );
 }

@@ -1,0 +1,226 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/evidence",
+  "TMPDIR": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/evidence",
+  "active": false,
+  "active_measurement": false,
+  "actual_writer_audit_required": true,
+  "allow_exact_CONNECT_hosts": [
+    "graph.microsoft.com:443",
+    "www.googleapis.com:443",
+    "login.microsoftonline.com:443",
+    "oauth2.googleapis.com:443",
+    "openidconnect.googleapis.com:443"
+  ],
+  "approved_same_old_restore_on_refusal": true,
+  "arms": [
+    "one_fresh_normal_auth_recovery_only_maintenance"
+  ],
+  "auth_policy": "original_ready_stays_fresh_ready_google_sign_in_required_may_remain_typed_authentication_or_become_fresh_ready",
+  "candidate_credential_guard": "Observed old daemon pidfd/group/mount/socket closure and owned runtime mask; original operation leases; exclusive human auth window. Five exact opaque CONNECT hosts including OAuth+verified Google identity; unknown hosts denied before DNS/socket. Existing shared DesktopVault rotated credentials retained for same-old restart; no secret snapshot.",
+  "candidate_work_seconds": 600,
+  "cleanup_reserve": 45,
+  "clone_state": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/state",
+  "command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/run_normal574_recovery_only_maintenance_once_v3.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/root-maintenance-inputs-ready-v3.json",
+    "--sha256",
+    "exact input SHA in private root command manifest"
+  ],
+  "corrections": [
+    {
+      "diagnosis": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/source-diagnosis-maintenance-ca0930-protected-proc-v1.json",
+        "sha256": "13efd44db1ff9fd85ea541afce267bf56a8a8113716e3f6f57a4384e4c483dda",
+        "size": 4425
+      },
+      "kind": "source_guard_permission_correction_after_closed_failure",
+      "original_clock_not_reused": true,
+      "original_whole_failure_preserved": true,
+      "source_only": true,
+      "successor_driver": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/run_normal574_recovery_only_maintenance_once_v5.py",
+        "sha256": "6e556d564d05a4e758407c6dc0cff1fb2be2e7b199ec84033520943162a4924f",
+        "size": 63868
+      },
+      "summary": "Pre-mask Cirrove consumer scanning refused on protected same-UID executable inspection. V3 actual selected replay produced PermissionError; V5 actual selected live scanning passed while honestly recording protected non-Cirrove omissions. Inaccessible Cirrove names and unknown/inconsistent metadata still refuse, with no unknown argv read. Scope is ordinary named Cirrove processes, not global adversarial attestation. Source controls14 passed; no daemon/active-export/installed acceptance from the scanner correction."
+    }
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/run_normal574_recovery_only_maintenance_once_v3.py",
+    "sha256": "977d4c86c50a07b6a27a71c740ba7f7a5f4ad3a8246644b53e6513d7aafa1971",
+    "size": 60626
+  },
+  "endpoint": "normal574_recovery_only_auth_serialized_all11_then_same_old_restoration",
+  "exclusive_auth_consumer_window": true,
+  "expected_account_ids": [
+    "4cc9ebc3-2de7-467c-a464-fb0769444681",
+    "9c95aa03-0c57-4ce8-9ad7-ae151ea44a1c",
+    "d7e42a98-dc9f-4175-b3d2-c9f404a9c448"
+  ],
+  "expected_daemon_birth": 53026992,
+  "expected_daemon_pid": 2796420,
+  "expected_settings": {
+    "path": "/home/dandiccf/.local/state/cirrove/accounts.json",
+    "sha256": "957fc016ab46ea10171f3e88fe03367116e973e41d6e091db8a1f258a8dc564f",
+    "size": 3089
+  },
+  "fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/audit-independent-complete-fullcheck-committed-sync-v2.json",
+    "sha256": "5d6408b1267a2333afaa7eeb3c7096dc403b06f48664334fad92213635f03a6a",
+    "size": 82626
+  },
+  "gate488_closed": false,
+  "global_keyring_immutability_claimed": false,
+  "installation_performed": false,
+  "installed_service_actions": false,
+  "isolated_mount_paths": {
+    "4cc9ebc3-2de7-467c-a464-fb0769444681": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/mounts/4cc9ebc3-2de7-467c-a464-fb0769444681",
+    "9c95aa03-0c57-4ce8-9ad7-ae151ea44a1c": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/mounts/9c95aa03-0c57-4ce8-9ad7-ae151ea44a1c",
+    "d7e42a98-dc9f-4175-b3d2-c9f404a9c448": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/mounts/d7e42a98-dc9f-4175-b3d2-c9f404a9c448"
+  },
+  "journal_guard": "all33 full schema and typed cells exact; persistent DB and nonempty WAL physical bytes/stat9 exact; bounded exact-path transient SHM and zero-byte WAL exceptions recorded",
+  "namespace": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a",
+  "no_keyring_backup_or_rollback": true,
+  "normal_OAuth_credential_rotation_authorized": true,
+  "normal_OAuth_permitted_only_after_old_consumer_closed": true,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "5ba6d4f13c1503a94bd6f2e179ea5a1778e512c7e46fbe99c1527797fcdc6a1b",
+    "size": 79418
+  },
+  "normal_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/audit-independent-normal574-build-terminal-v1.json",
+    "sha256": "e44736841f5b61d9228ea306a1c0046b8df3a89deaaba3d84d3f40665fcba8f8",
+    "size": 7349
+  },
+  "normal_features": [],
+  "original_mount_paths": [
+    "/home/dandiccf/Cloud/Cirrove-Calista",
+    "/home/dandiccf/Cloud/Cirrove-GoogleDrive",
+    "/home/dandiccf/Cloud/Cirrove-OneDrive"
+  ],
+  "original_process_owner": "Root retained original Popen/pidfd; original900 wall+mono+boot; first600 work reserves300 for candidate closure and paired old restoration; unknown stop/start ownership retained passively; no force FUSE abort/KILL/retry",
+  "original_socket": "/run/user/1000/cirrove/control.sock",
+  "original_state": "/home/dandiccf/.local/state/cirrove",
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 537399.339393784,
+    "monotonic_start": 536499.339393784,
+    "seconds": 900,
+    "wall_end": 1791512772.2163146,
+    "wall_start": 1791511872.2163146
+  },
+  "paired_restoration_reservation": 300,
+  "passive_tray_policy": "Sole exact PID/birth/default argv/exe/dev/ino/uid installed19 tray exemption, no direct vault/token refresh; user must not interact. Any new tray or spawned desktop/auth CLI rejects. Tray menu settings writes remain covered by settings/operation leases and exact pre-mask settings fence.",
+  "planned_installed_service_actions": [
+    "owned runtime mask",
+    "once clean same-old stop",
+    "fresh stopped byte backup",
+    "remove only own mask",
+    "once same-old restoration if stopped"
+  ],
+  "prediction": "OneDrive should return fresh Ready; Google may report actual typed Authentication/sign_in_required or fresh Ready through normal refresh. All three must mount effective RO with exact identities/grants and no offline feed. Active IPC should export all11 byte hashes and preserve full33 logical journal state. Provider auth failure or deadline may refuse; every safe refusal enters same-old restoration, including incomplete fresh backup. No stale credential rollback, installed schema21 writer or gate488 completion is inferred.",
+  "preexisting_unknown_queue_risk_accepted": true,
+  "prestop_package_route": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/root-maintenance-fresh-passive-prestop-v2.json",
+    "sha256": "38bdfe59ba8ad25d7cc05bf172be6a9ad19ea4fac819365fb6adfe1844c777a8",
+    "size": 6848
+  },
+  "previous_Root_admission_refusal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/root-maintenance-original-exec-closed-admission-v2.json",
+    "sha256": "24cf26c2d39747684538cdd0228204968707b2aaac3a1401c2f987f18c545390",
+    "size": 1624
+  },
+  "previous_guarded_failure_audit": {
+    "path": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/evidence/audit-independent-recovery-only-failed-terminal-v1.json",
+    "sha256": "e9f6821d4edd50329ad8de0d22ce4112d1942cb0ab9d7bec2745c883ec5cb589",
+    "size": 155346
+  },
+  "previous_pre_mask_refusal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/root-maintenance-original-exec-closed-refusal-v1.json",
+    "sha256": "9c5f6a132d0f459adc1969f6edcfec98e433fa8250f91bc87446d9711903edc8",
+    "size": 6719
+  },
+  "provider_mutations_authorized": false,
+  "provider_reads_permitted": true,
+  "proxy_fixed_limits": {
+    "client_encrypted_bytes": 33554432,
+    "concurrent_pairs": 64,
+    "requests": 512,
+    "server_encrypted_bytes": 67108864
+  },
+  "question": "Can normal recovery-only21/8 startup expose all11 working generations under real normal authentication while the old consumer is closed, then safely resume the SAME OLD package with any newly validated credentials retained?",
+  "readiness_regular_reserve": 55,
+  "readiness_seconds": 180,
+  "ready": true,
+  "registered_passive_tray": {
+    "argv": [
+      "/usr/bin/cirrove-tray"
+    ],
+    "exe": "/usr/bin/cirrove-tray",
+    "exe_device": 31,
+    "exe_inode": 1826490,
+    "pid": 1583,
+    "started": 2494,
+    "uid": 1000
+  },
+  "relay": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/opaque_normal_auth_connect_guard_v1.py",
+    "sha256": "9f75871396e55c96e5c1666aecb79350e33c803ecdd9b60608b33318cfa36afe",
+    "size": 7614
+  },
+  "relay_pacing": false,
+  "required_active_exports": 11,
+  "required_filesystem": "ext4",
+  "roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirrove",
+      "sha256": "537d26bc081375745376674967c63ceeac9c3ab72ca4f769f3df56256c024b16",
+      "size": 476354464
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirroved",
+      "sha256": "dac71584fb9b5cc3dd3d6a67e362cfa1ef4e0f3f2a3de30a10e2032c67a5e1d6",
+      "size": 478050672
+    }
+  },
+  "run": "ca0930c9-6973-4a2e-82e0-7654af51aa3a",
+  "seconds": 900,
+  "settings_change": "only copied per-account mount_path remapped to registered private mount directories",
+  "socket": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/control.sock",
+  "source_count": 574,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/audit-independent-recovery-maintenance-tray-source-v3.json",
+    "sha256": "10213cb0cf79f245f0edd7bf96f726b6e1a2b0beb5b1aa235c0bd47fb94ec61d",
+    "size": 9420
+  },
+  "status": "closed_recovery_only_clone_refusal",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/romaintenance-ca0930c9-6973-4a2e-82e0-7654af51aa3a/evidence/failed-terminal-v1.json",
+    "sha256": "d62c8451963b6d9302647daabd5780ae6190a100d0003c37d1ffb2e209fbb2ae",
+    "size": 452
+  },
+  "upload_mutation_workers_enabled": false,
+  "version": 1,
+  "work_seconds": 855,
+  "writer_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6/audit-independent-writable-clone-terminal-v2.json",
+    "sha256": "441c57827465c518f0a68827ee34b328d5265dd79c0b089500496b19f4755e34",
+    "size": 19760
+  },
+  "writer_result": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/result.json",
+    "sha256": "0877fe9b349fb3affc0c3b230db998d44fea9a16c56b966c230ff797ef915da0",
+    "size": 5819
+  },
+  "writer_terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6/terminal-v1.json",
+    "sha256": "1e769c1b327e809078f742654187f931114b09adeca88922a6fed075ff480e0d",
+    "size": 2245
+  }
+}

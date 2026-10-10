@@ -1,0 +1,190 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "actual_outcome_summary": {
+    "all_33_tables_checked": true,
+    "all_original_handles_closed": true,
+    "audit_checks": 27,
+    "audit_success": true,
+    "canonical_current_tuple_verified": true,
+    "captured_bytes": 0,
+    "cause_scope": "EIO before cleanup and near30-second product content boundary is a compatible timing observation, not an observed typed timeout or proven cause. Controlled reproduction is required before changing production deadlines.",
+    "cold_residency_verified": true,
+    "cold_resident_bytes": 0,
+    "dispatch_to_failure_receipt_mtime_seconds": 30.0307719707489,
+    "encrypted_content_tls_bytes": 2659,
+    "failure_before_daemon_cleanup": true,
+    "full490_closed": false,
+    "independent_audit": {
+      "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-7f959f9c-0d90-4317-8011-3c46029558ca/evidence/audit-independent-300s-normal-ro-failed-terminal-v1.json",
+      "sha256": "51531a58dba1856bb262d90c54f5824829216839a5c8878f3205403a82cadf27",
+      "size": 11555
+    },
+    "installed_HOLD_released": false,
+    "kernel_errno": 5,
+    "kernel_read_complete": false,
+    "ordinary_publication_delta": {
+      "done": [
+        0,
+        1
+      ],
+      "failures": [
+        1,
+        3
+      ],
+      "operation_and_body_unchanged": true,
+      "other_32_tables_unchanged": true,
+      "retry_after_final": 0
+    },
+    "original_duration_seconds": 300,
+    "original_state_and_installed_artifacts_preserved": true,
+    "registered_journal_preservation_verified": true,
+    "relay_content_connections": 1,
+    "whole_success": false,
+    "whole_terminal_elapsed_mtime_seconds": 124.665441,
+    "work_budget_seconds": 285
+  },
+  "actual_terminal": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-7f959f9c-0d90-4317-8011-3c46029558ca/evidence/terminal-v1.json",
+    "sha256": "cf060328db148a86adefa0a1bdebfb706b67df2989165b9ee0b53aac0376bfca",
+    "size": 4056
+  },
+  "arms": [
+    "one normal[] daemon, saved RO grant on complete untouched copied state, exact all33-table singleton acknowledgment guard, cold0, one O_RDONLY kernel open/read"
+  ],
+  "automatic_retries": 0,
+  "cache_policy": "complete cloned state retained; resident0 required; no cache or journal deletion",
+  "cleanup_reserve_seconds": 15,
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": []
+  },
+  "daemon_command": [
+    "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/frozen/cirroved",
+    "--state-dir",
+    "/home/dandiccf/Storage/ct/normal-fuse-paced-7f959f9c-0d90-4317-8011-3c46029558ca/state",
+    "--socket",
+    "/home/dandiccf/Storage/ct/normal-fuse-paced-7f959f9c-0d90-4317-8011-3c46029558ca/control.sock"
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-300s-successor-7f959f9c-0d90-4317-8011-3c46029558ca-private-v1/run_normal_ro_fuse_paced_once_v1.py",
+    "sha256": "8222de193b9092efaa7c09be53996e4a9f3929f4fcf43517b8eda55a13f4f2d4",
+    "size": 29630
+  },
+  "duration_seconds": 300,
+  "endpoint": "ready owned RO mount, cold0 before file open, exact138943-byte/SHA223e capture, stable cached owned tuple, actual content TLS pacing, all original processes/groups/mount/socket/relay closed, original30 state and installed19+PID preserved; exact all33-table journal parity except registered sole publication done0-to1/retry_after-to0",
+  "full_490_closed": false,
+  "installed_HOLD": true,
+  "installed_actions": false,
+  "journal_guard": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-300s-successor-7f959f9c-0d90-4317-8011-3c46029558ca-private-v1/journal_semantic_guard_bounded_retries_v2.py",
+    "sha256": "8082b3625dcc8cddef79622d52d84ca148cdc97e27c3a5b37fb0f3b5282ad978",
+    "size": 9182
+  },
+  "journal_policy": "Complete schema/PRAGMAs/all33 tables/all typed cells and persistent payload exact; sole registered b13b publication row may be untouched OR acknowledged done1/retry_after0 with SAME operation/body and integer failures monotonically1..6, matching production min(failures+1,6). Record actual counter delta; no arbitrary pending retry timestamp or other-row changes.",
+  "limits": [
+    "one run, no repeatability claim",
+    "cached parent/item observations are not independent remote postflight",
+    "normal OrdinarySession streamed-window path and range fallback validate requested item ETag/size before/after fetched bytes; streamed response has an existing30-second product deadline",
+    "aggregate encrypted TLS pacing includes normal daemon metadata discovery; no decryption or raw transport/error logging",
+    "clone metadata/cache/blocks may change; journal complete semantic guard with only exact singleton acknowledgment plus source-capped monotonic failure-counter transition and known sidecar lifetimes; original30 remains exact",
+    "no editor/native save/expiry/auth recovery/delivery/installed lifecycle or full488-490 credit",
+    "unknown owner closure stays passively held and public remains active; no synthetic closure",
+    "cleanup sends TERM then original pidfd-bound KILL only inside remaining original reserve; no process-pattern/group signal; truly unclosed resources stay passive",
+    "Normal outer content-session deadline remains30 seconds for lookup, payload, and postflight; the new total window does not extend that product deadline. EIO alone will not be called a typed timeout."
+  ],
+  "maximum_send_quantum": 512,
+  "new_auth": false,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "8090463dcad034d24ad2d0c5b0e776e0a709c756d2666a85447e2175f9867da1",
+    "size": 78969
+  },
+  "normal_roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/frozen/cirrove",
+      "sha256": "f4c5f76bb499a721b2dfe963a57d9e536a37b3e78d86fb849c4dd7d4da8c2568",
+      "size": 476354712
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/frozen/cirroved",
+      "sha256": "0d7de6e4042b52f6a1b34214553022a49dd288f4a09bcd8c2dfffb6ad8e8b3d8",
+      "size": 478050920
+    }
+  },
+  "normal_startup_policy": "Actual ordinary normal RO startup; prepare_write returns None for saved AccessMode::ReadOnly, hence no WriteContext/write workers/FUSE working overlay; exact known metadata publication acknowledgment permitted and independently compared",
+  "observe_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-300s-successor-7f959f9c-0d90-4317-8011-3c46029558ca-private-v1/run_normal_ro_fuse_paced_once_v1.py",
+    "observe",
+    "--inputs",
+    "ROOT_APPROVED_OBSERVE_INPUT",
+    "--sha256",
+    "SHA256"
+  ],
+  "original_SQL": false,
+  "prediction": "The prior registered120-second arm spent about93 seconds before kernel-read admission because finite8192B/s metadata traffic shared the same relay. A fresh original300-second arm (285 work+15 cleanup) allows that actual startup workload, approximately17 seconds selected139KB payload at8192B/s, requested-revision pre/post metadata and cleanup. Anticipate endpoint before200 seconds, with explicit uncertainty: the unchanged normal outer content-session30-second deadline covers lookup+body+postflight and may still refuse. Retain failure/declared limit if so; no rate or product timeout change. Original e97 is not extended or rerun.",
+  "private_prepare_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-300s-successor-7f959f9c-0d90-4317-8011-3c46029558ca-private-v1/run_normal_ro_fuse_paced_once_v1.py",
+    "prepare",
+    "--inputs",
+    "ROOT_APPROVED_PREPARE_INPUT",
+    "--sha256",
+    "SHA256"
+  ],
+  "provider_mutations": false,
+  "question": "Does normal read-only startup complete its retained singleton metadata-publication acknowledgment and then one cold kernel FUSE read of the exact owned Numbers DATA revision under finite opaque aggregate8192-byte/s pacing, inside one original300-second window?",
+  "rate_bytes_per_second": 8192,
+  "read_only": true,
+  "reader": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/kernel_read_once_v3.py",
+    "sha256": "808f6a5358555758f8e3e25ee9de8257c0a367ba91d5445678cf26a017c4eb4b",
+    "size": 4170
+  },
+  "recovery_only": false,
+  "relay": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/opaque_finite_pace_v3.py",
+    "sha256": "98ecdcf08c9afed0555b10ede57276081c9c7b2004749d67daac0a3dd43bac6a",
+    "size": 6889
+  },
+  "root": "/home/dandiccf/Storage/ct/normal-fuse-paced-7f959f9c-0d90-4317-8011-3c46029558ca",
+  "run": "7f959f9c-0d90-4317-8011-3c46029558ca",
+  "source_count": 573,
+  "state": "closed_normal_fuse_finite_paced_read_failure",
+  "status": "closed_normal_fuse_finite_paced_read_failure",
+  "subject_run": "5c522758-bf2d-4203-941d-0a79567b7aca",
+  "system_roles": {
+    "fusermount": {
+      "path": "/usr/bin/fusermount3",
+      "sha256": "a5d1d1e9eac4012cf1567c34a256d28913afa75d0f1f48c628d2ec162067865a",
+      "size": 39016
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+      "size": 14424
+    }
+  },
+  "tmpdir": "/home/dandiccf/Storage/ct/normal-fuse-paced-7f959f9c-0d90-4317-8011-3c46029558ca/tmp",
+  "tuple": {
+    "etag": "i32b::i32a",
+    "item": "FILE::com.apple.CloudDocs::D304DC65-6716-4DEB-B786-ECA04C76ED0D",
+    "parent": "FOLDER::com.apple.CloudDocs::6F755250-4EE2-4220-9AEE-27BB1668DC57",
+    "parent_etag": "i328",
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "version": 1,
+  "window_reason": {
+    "aggregate_pacing_unchanged": true,
+    "outer_content_session_timeout_seconds": 30,
+    "per_response_product_timeout_seconds": 30,
+    "pre_read_seconds": 93.273454108,
+    "predecessor_metadata_tls_bytes": 658854,
+    "predecessor_run": "e97b2c11-841a-4aff-b1b8-8e2da3439f51",
+    "selected_payload_lower_bound_seconds": 16.9608154296875
+  },
+  "work_seconds": 285
+}

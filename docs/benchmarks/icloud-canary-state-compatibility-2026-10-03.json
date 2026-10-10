@@ -1,0 +1,2056 @@
+{
+  "question": "Does genuinely produced Canary schema14/7 ordinary pending/dirty state survive current migration19/8, independent local recovery, and actual old-code refusal without replay?",
+  "prediction": "Exact old producer writes14/7; current readonly recovery preserves DB bytes and exports both sealed saves plus dirty successor; current writer migrates19/8 preserving pending intent/state/identity, visible metadata and completed/pending cursors; exact old writer returns Schema/SchemaVersion without modifying state; current readonly recovery again exports identical bytes; completing saved next page publishes retained staged node together with final cursor.",
+  "source_baseline": {
+    "commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+    "provenance": "docs/benchmarks/canary-0.2.0-2026-10-02.json source_commit and attestation_source_commit",
+    "available_git_object": true,
+    "existing_exact_worktree_found": false,
+    "root_to_prepare_checkout": "/home/dandiccf/Storage/.cirrove-validation/canary-compat-20261003/source",
+    "current_head_requirement": "Root pins exact reviewed source SHA immediately before building current helper; tracked changes currently exist from other authorized tasks, so cannot claim current binary source yet."
+  },
+  "scope": {
+    "synthetic_only": true,
+    "cloud_requests": 0,
+    "credential_or_keyring_access": false,
+    "installed_state_opened": false,
+    "installed_daemon_restart": false,
+    "installed_packages_changed": false,
+    "manual_schema_header_edits": false,
+    "historical_schema_imitation": false,
+    "network_dependencies": "offline builds only; no new tracked dependencies or abstractions"
+  },
+  "fixture": {
+    "root": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98",
+    "account": "synthetic-canary-compatibility",
+    "scope": {
+      "account": "synthetic-canary-compatibility",
+      "provider": "synthetic",
+      "collection": "owned-fixture"
+    },
+    "journal": "journal/uploads.db",
+    "metadata": "metadata.db",
+    "pending_uploads": 2,
+    "dirty_working": 1,
+    "producer_contract": "One pending Create snapshot plus one sealed working Replace snapshot. The same working stream is modified again without sealing, retaining latest sealed UUID and higher dirty generation. Metadata has one completed baseline, plus one unpublished staged node and continued cursor."
+  },
+  "private_sources": [
+    {
+      "path": ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/old-producer.rs",
+      "sha256": "6b98ddf3a0e8982ce843694943366e32436ae60d0885cda397e2b330a0dbd83e"
+    },
+    {
+      "path": ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/current-verifier.rs",
+      "sha256": "fcedbbb1b04eb0ebce4e8f060f25418ada5bc64903883720c3ae04c471675ae9"
+    },
+    {
+      "path": ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/old/Cargo.toml",
+      "sha256": "19a1c72d0275d8f90581c54ee41bc90a6822350e7e8d57381b0b5b8c6aa1a445"
+    },
+    {
+      "path": ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/current/Cargo.toml",
+      "sha256": "9a627c28e758a62ac4c7d891e5f712ab1eabff4d865cf9d192a3c664f6e95cc5"
+    }
+  ],
+  "finite_protocol": [
+    {
+      "phase": "produce",
+      "argv": [
+        "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target/debug/cirrove-exact-canary-compatibility",
+        "produce"
+      ],
+      "duration_seconds": 15,
+      "endpoint": "Exit0, actual schemas14/7, exactly2 Pending uploads and1 dirty generation, producer.json created once. Pin producer.json SHA for all current calls. Store visible baseline unchanged despite continued stage."
+    },
+    {
+      "phase": "snapshot-old",
+      "command_constraint": "All writer processes have exited and owner lease released. Root inventories regular files and retains SHA256+size for journal uploads.db, objects/*, working/* and metadata.db, plus before/after relevant WAL/SHM presence. Capture readonly pragma schema/integrity checks and full logical upload+working+namespace+metadata rows privately; do not print bodies/cursor strings."
+    },
+    {
+      "phase": "recover14",
+      "argv": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "recover14",
+        "PINNED_PRODUCER_MANIFEST_SHA256"
+      ],
+      "duration_seconds": 15,
+      "endpoint": "Exit0,3 independent local exports exact UUID/generation/size/SHA/bytes, pending FileBytes contracts unchanged and schemas14/7; DB hashes and metadata logical digests unchanged. Retain recover14.json receipts."
+    },
+    {
+      "phase": "migrate",
+      "argv": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "migrate",
+        "PINNED_PRODUCER_MANIFEST_SHA256"
+      ],
+      "duration_seconds": 15,
+      "endpoint": "Exit0, actual19/8,2 Pending FileBytes rows preserved without auto-seal/claim/provider attempt, dirty generation preserved, visible original node/completed cursor/continued cursor/staged node unchanged; migrate.json. No staged completion yet."
+    },
+    {
+      "phase": "snapshot-migrated",
+      "command_constraint": "All writers closed; inventory full journal and metadata file digests/logical rows again. These exact snapshots are the old-refusal unchanged-state baseline. Include owner.lock and newly created native tables; empty native tables must not masquerade as native cloud acceptance."
+    },
+    {
+      "phase": "refuse-old",
+      "argv": [
+        "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target/debug/cirrove-exact-canary-compatibility",
+        "refuse"
+      ],
+      "duration_seconds": 15,
+      "endpoint": "Exit0 proves old code returned exact JournalError::Schema and StoreError::SchemaVersion, schemas remain19/8. Root independently requires before/after full DB+spool bytes and logical snapshots identical; inspect any WAL/SHM changes rather than ignoring them."
+    },
+    {
+      "phase": "recover19",
+      "argv": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "recover19",
+        "PINNED_PRODUCER_MANIFEST_SHA256"
+      ],
+      "duration_seconds": 15,
+      "endpoint": "Exit0, same3 selected generation byte exports after actual old refusal, current schemas19/8 and DB unchanged; recover19.json receipts. Root compares before/after receipts independent of path."
+    },
+    {
+      "phase": "resume-staged-refresh",
+      "argv": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "resume",
+        "PINNED_PRODUCER_MANIFEST_SHA256"
+      ],
+      "duration_seconds": 15,
+      "endpoint": "Exit0, saved continued checkpoint resumed; empty final page atomically publishes previously retained staged node and final completed checkpoint, visible2nodes, staged0,pendingfalse,nextcursorNone; resume.json."
+    }
+  ],
+  "negative_controls": [
+    "Root may exercise current recovery with an intentionally incorrect producer manifest SHA before any state/export open; require sanitized exit1 and unchanged fixture. This proves caller pin is enforced, not an empty test filter.",
+    "Do not change user_version manually to manufacture either producer or refusal outcome.",
+    "If testing a payload corruption fence, use a separately produced fresh exact-old fixture/root revision, modify one sealed payload byte while preserving size, require readonly export refusal and unchanged queue. Never corrupt the sole positive fixture or replay its produce phase."
+  ],
+  "claim_limit": "Successful protocol establishes isolated synthetic ordinary-byte state-format migration/recovery and actual exact-Canary code refusal. It does not establish package installation rollback, credential preservation in installed state, pending real-provider upload completion, native Apple fidelity, or permission to migrate the installed daemon. Full integration ledger remains partial until all independent gates close.",
+  "status": "controlled-synthetic-ordinary-compatibility-passed",
+  "registered_at": "2026-10-03T05:39:39.810319+00:00",
+  "plan_sha256": "e7bbb0e4d72fb65d2f2640c4d65e20c7998e336164a59e16ad5e6de1cad60d75",
+  "current_source_head": "621a5768875588d956222fb8223a70fc161d51e4",
+  "current_tracked_changes": "Chooser/CI/tests only; exact source hashes pinned by build manifest.",
+  "results": {
+    "canary-old-lock": {
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/old/Cargo.toml"
+      ],
+      "command_executable_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+      "started_at": "2026-10-03T05:39:51.614806+00:00",
+      "finished_at": "2026-10-03T05:39:51.772280+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-old-lock.json"
+    },
+    "canary-current-lock": {
+      "command": [
+        "cargo",
+        "metadata",
+        "--offline",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--format-version",
+        "1",
+        "--manifest-path",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/current/Cargo.toml"
+      ],
+      "command_executable_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+      "started_at": "2026-10-03T05:39:51.847928+00:00",
+      "finished_at": "2026-10-03T05:39:52.008250+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-current-lock.json"
+    },
+    "canary-old-build": {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/old/Cargo.toml"
+      ],
+      "command_executable_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+      "started_at": "2026-10-03T05:39:52.071201+00:00",
+      "finished_at": "2026-10-03T05:40:28.514909+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-old-build.json"
+    },
+    "canary-current-build": {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/current/Cargo.toml"
+      ],
+      "command_executable_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+      "started_at": "2026-10-03T05:40:32.953656+00:00",
+      "finished_at": "2026-10-03T05:41:25.580469+00:00",
+      "exit_code": 101,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-current-build.json"
+    },
+    "canary-current-build-corrected": {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/current/Cargo.toml"
+      ],
+      "command_executable_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+      "started_at": "2026-10-03T05:41:45.619453+00:00",
+      "finished_at": "2026-10-03T05:41:46.572453+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-current-build-corrected.json"
+    },
+    "canary-guard-fresh": {
+      "command": [
+        "python3",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/snapshot.py",
+        "guard-fresh"
+      ],
+      "command_executable_sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+      "started_at": "2026-10-03T05:41:59.352908+00:00",
+      "finished_at": "2026-10-03T05:41:59.391836+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-guard-fresh.json",
+      "sanitized_output": "{\"phase\": \"guard-fresh\", \"guard_passed\": true, \"snapshot\": \"/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/canary-compatibility-tool/guard-fresh-snapshot.json\", \"file_count\": 0, \"refusal_unchanged\": false}"
+    },
+    "canary-produce": {
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target/debug/cirrove-exact-canary-compatibility",
+        "produce"
+      ],
+      "command_executable_sha256": "4ed91dec39860bbd4b6de1934935b385c208e6c121815c3b2a72e8877cff32f6",
+      "started_at": "2026-10-03T05:41:59.548843+00:00",
+      "finished_at": "2026-10-03T05:41:59.591035+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-produce.json",
+      "sanitized_output": "{\"phase\":\"produce\",\"journal_schema\":14,\"metadata_schema\":7,\"pending_uploads\":2,\"dirty_working\":1,\"cloud_requests\":0}"
+    },
+    "canary-snapshot-old": {
+      "command": [
+        "python3",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/snapshot.py",
+        "old"
+      ],
+      "command_executable_sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+      "started_at": "2026-10-03T05:42:11.469340+00:00",
+      "finished_at": "2026-10-03T05:42:11.535818+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-snapshot-old.json",
+      "sanitized_output": "{\"phase\": \"old\", \"guard_passed\": true, \"snapshot\": \"/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/canary-compatibility-tool/old-snapshot.json\", \"file_count\": 11, \"refusal_unchanged\": false}"
+    },
+    "canary-negative-manifest-pin": {
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "recover14",
+        "0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "command_executable_sha256": "5fabfbca476593cd74a2190ccbfafbc7af8a4f2c1b787487ae455777764ee7bc",
+      "started_at": "2026-10-03T05:42:11.738158+00:00",
+      "finished_at": "2026-10-03T05:42:11.740792+00:00",
+      "exit_code": 1,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-negative-manifest-pin.json",
+      "sanitized_output": "synthetic current compatibility phase failed"
+    },
+    "canary-snapshot-pin-refusal": {
+      "command": [
+        "python3",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/snapshot.py",
+        "after-pin-refusal"
+      ],
+      "command_executable_sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+      "started_at": "2026-10-03T05:42:11.794599+00:00",
+      "finished_at": "2026-10-03T05:42:11.853996+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-snapshot-pin-refusal.json",
+      "sanitized_output": "{\"phase\": \"after-pin-refusal\", \"guard_passed\": true, \"snapshot\": \"/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/canary-compatibility-tool/after-pin-refusal-snapshot.json\", \"file_count\": 11, \"refusal_unchanged\": false}"
+    },
+    "canary-recover14": {
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "recover14",
+        "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90"
+      ],
+      "command_executable_sha256": "5fabfbca476593cd74a2190ccbfafbc7af8a4f2c1b787487ae455777764ee7bc",
+      "started_at": "2026-10-03T05:42:22.184917+00:00",
+      "finished_at": "2026-10-03T05:42:22.210586+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-recover14.json",
+      "sanitized_output": "{\"phase\":\"recover14\",\"exports_verified\":3,\"state_unchanged\":true,\"cloud_requests\":0}"
+    },
+    "canary-migrate": {
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "migrate",
+        "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90"
+      ],
+      "command_executable_sha256": "5fabfbca476593cd74a2190ccbfafbc7af8a4f2c1b787487ae455777764ee7bc",
+      "started_at": "2026-10-03T05:42:22.385893+00:00",
+      "finished_at": "2026-10-03T05:42:22.412132+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-migrate.json",
+      "sanitized_output": "{\"phase\":\"migrate\",\"journal_schema\":19,\"metadata_schema\":8,\"cloud_requests\":0}"
+    },
+    "canary-snapshot-before-refusal": {
+      "command": [
+        "python3",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/snapshot.py",
+        "before-refusal"
+      ],
+      "command_executable_sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+      "started_at": "2026-10-03T05:42:22.465608+00:00",
+      "finished_at": "2026-10-03T05:42:22.523675+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-snapshot-before-refusal.json",
+      "sanitized_output": "{\"phase\": \"before-refusal\", \"guard_passed\": true, \"snapshot\": \"/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/canary-compatibility-tool/before-refusal-snapshot.json\", \"file_count\": 16, \"refusal_unchanged\": false}"
+    },
+    "canary-refuse-old": {
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target/debug/cirrove-exact-canary-compatibility",
+        "refuse"
+      ],
+      "command_executable_sha256": "4ed91dec39860bbd4b6de1934935b385c208e6c121815c3b2a72e8877cff32f6",
+      "started_at": "2026-10-03T05:42:31.237336+00:00",
+      "finished_at": "2026-10-03T05:42:31.241550+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-refuse-old.json",
+      "sanitized_output": "{\"phase\":\"refuse\",\"journal_refused\":true,\"metadata_refused\":true,\"cloud_requests\":0}"
+    },
+    "canary-snapshot-after-refusal": {
+      "command": [
+        "python3",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/snapshot.py",
+        "after-refusal"
+      ],
+      "command_executable_sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+      "started_at": "2026-10-03T05:42:31.324776+00:00",
+      "finished_at": "2026-10-03T05:42:31.383513+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-snapshot-after-refusal.json",
+      "sanitized_output": "{\"phase\": \"after-refusal\", \"guard_passed\": true, \"snapshot\": \"/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/canary-compatibility-tool/after-refusal-snapshot.json\", \"file_count\": 16, \"refusal_unchanged\": true}"
+    },
+    "canary-recover19": {
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "recover19",
+        "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90"
+      ],
+      "command_executable_sha256": "5fabfbca476593cd74a2190ccbfafbc7af8a4f2c1b787487ae455777764ee7bc",
+      "started_at": "2026-10-03T05:42:31.591076+00:00",
+      "finished_at": "2026-10-03T05:42:31.625054+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-recover19.json",
+      "sanitized_output": "{\"phase\":\"recover19\",\"exports_verified\":3,\"state_unchanged\":true,\"cloud_requests\":0}"
+    },
+    "canary-resume": {
+      "command": [
+        "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+        "resume",
+        "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90"
+      ],
+      "command_executable_sha256": "5fabfbca476593cd74a2190ccbfafbc7af8a4f2c1b787487ae455777764ee7bc",
+      "started_at": "2026-10-03T05:42:31.819142+00:00",
+      "finished_at": "2026-10-03T05:42:31.828223+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-resume.json",
+      "sanitized_output": "{\"phase\":\"resume\",\"visible_nodes\":2,\"staged_remaining\":0,\"cloud_requests\":0}"
+    },
+    "canary-snapshot-final": {
+      "command": [
+        "python3",
+        ".local-state/icloud-full-integration-20261003/canary-compatibility-tool/snapshot.py",
+        "final"
+      ],
+      "command_executable_sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+      "started_at": "2026-10-03T05:42:31.881763+00:00",
+      "finished_at": "2026-10-03T05:42:31.950791+00:00",
+      "exit_code": 0,
+      "filesystem": "ext4",
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target",
+      "manifest": ".local-state/icloud-full-integration-20261003/canary-snapshot-final.json",
+      "sanitized_output": "{\"phase\": \"final\", \"guard_passed\": true, \"snapshot\": \"/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/canary-compatibility-tool/final-snapshot.json\", \"file_count\": 21, \"refusal_unchanged\": false}"
+    }
+  },
+  "corrections": [
+    {
+      "at": "2026-10-03T05:41:45.569359+00:00",
+      "phase": "current helper compilation before state execution",
+      "classification": "validation harness authoring error, not product regression",
+      "detail": "SQLite COUNT(*) must deserialize to supported i64, not u64. First build failed; fixture not created or opened.",
+      "corrected_helper_sha256": "410148fb46121cdd69faa4c1615e32f3b02481b03c8fc594a7a4e4ef614a21eb"
+    }
+  ],
+  "producer_manifest_sha256": "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90",
+  "binary_pins": {
+    "old": {
+      "head": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "source_inventory_sha256": "54eff03e5dc485f36c9ad63fe1252d5d1d35daa7a5cb2030a6788bc4a410f88b",
+      "binary": "/home/dandiccf/Storage/.cirrove-builds/canary-compat-20261003/target/debug/cirrove-exact-canary-compatibility",
+      "binary_sha256": "4ed91dec39860bbd4b6de1934935b385c208e6c121815c3b2a72e8877cff32f6",
+      "helper_sha256": "6b98ddf3a0e8982ce843694943366e32436ae60d0885cda397e2b330a0dbd83e",
+      "lock_sha256": "7a152980114a2ced6f48fc58edf7ed41f9ff1ce6bf874b8286372d1e2f352334"
+    },
+    "current": {
+      "head": "621a5768875588d956222fb8223a70fc161d51e4",
+      "source_inventory_sha256": "a9c94fde9a6231dcba4c5d8e0e8022fabf789c916767723cd44070c92096618f",
+      "binary": "/home/dandiccf/Storage/.cirrove-builds/current-canary-compat-20261003/target/debug/cirrove-current-canary-compatibility",
+      "binary_sha256": "5fabfbca476593cd74a2190ccbfafbc7af8a4f2c1b787487ae455777764ee7bc",
+      "helper_sha256": "410148fb46121cdd69faa4c1615e32f3b02481b03c8fc594a7a4e4ef614a21eb",
+      "lock_sha256": "0b5321fe89f8f9eb30be459dd534f22dfc2dc0e884ef093d4da2b9477c84ebdc"
+    }
+  },
+  "dependency_pins": {
+    "old": {
+      "private_lock_sha256": "7a152980114a2ced6f48fc58edf7ed41f9ff1ce6bf874b8286372d1e2f352334",
+      "registry_dependencies_unmodified": true,
+      "new_registry_dependencies": [],
+      "checksum_changes": []
+    },
+    "current": {
+      "private_lock_sha256": "0b5321fe89f8f9eb30be459dd534f22dfc2dc0e884ef093d4da2b9477c84ebdc",
+      "registry_dependencies_unmodified": true,
+      "new_registry_dependencies": [],
+      "checksum_changes": []
+    }
+  },
+  "state_evidence": {
+    "old": {
+      "phase": "old",
+      "root": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98",
+      "filesystem": "ext4",
+      "no_symlink_or_mount_in_fixture": true,
+      "script_sha256": "80f364d0d4676983a643576eb1b3ed56e1a1191f8b4b1901da6d46e8d439b7f6",
+      "at": "2026-10-03T05:42:11.501237+00:00",
+      "files": {
+        "journal/objects/281bc84d-09b4-4277-aca5-6045c74c443a": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 256
+        },
+        "journal/objects/4c82a72f-1ba4-4b36-ad5e-99a57cf28f87": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 256
+        },
+        "journal/owner.lock": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/uploads.db": {
+          "sha256": "24a06ca4e253c34824698cc7785e2ebfbb127914d293b41f8188682401ea8cae",
+          "size": 258048,
+          "mode": 384
+        },
+        "journal/uploads.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 384
+        },
+        "journal/uploads.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/working/288bccae-479b-4b5a-911f-9b0aed024475": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "metadata.db": {
+          "sha256": "bfcfedfc0053ddd595dcdfa163edcb8ef8f8769809da196962b99290dbcbaf33",
+          "size": 176128,
+          "mode": 420
+        },
+        "metadata.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 420
+        },
+        "metadata.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 420
+        },
+        "producer.json": {
+          "sha256": "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90",
+          "size": 1483,
+          "mode": 384
+        }
+      },
+      "logical": {
+        "journal/uploads.db": {
+          "schema": 14,
+          "integrity": "ok",
+          "tables": {
+            "file_replacements": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "identity": {
+              "rows": 1,
+              "sha256": "04e229921aa4bd5a5109b72357d4cd3ecf0d1ca4508cc6279313272235a9f479"
+            },
+            "mutations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "namespace_changes": {
+              "rows": 1,
+              "sha256": "f74b4db43d911db7b0d355391cb0ba24b9e27a51beb9b6655fc11c4253a16b83"
+            },
+            "namespace_clock": {
+              "rows": 1,
+              "sha256": "62525b031f4b2b2738f2f99a0b03986d7a0ebf0a9911fe8f3ff9a76a08826c24"
+            },
+            "namespace_entries": {
+              "rows": 1,
+              "sha256": "85a50ec6c5ed65d1dd5917fc65ea142440de84c65eb076a95b106f8e9247cdc2"
+            },
+            "namespace_objects": {
+              "rows": 1,
+              "sha256": "1e84f3e93373c846b6affd89dbba5cae2d6b9fc0c6158a2a6f14ed99b17a69b9"
+            },
+            "namespace_operations": {
+              "rows": 1,
+              "sha256": "df737da499e113fd25f97205ac67e41106b455acecba32f673a35cebb5fac681"
+            },
+            "namespace_remote": {
+              "rows": 1,
+              "sha256": "a958353682e9ae6a115022d7a00015fd9b786ce49c0a5c2e0839452d4adee446"
+            },
+            "namespace_scopes": {
+              "rows": 1,
+              "sha256": "a34a759e64f64de80da98311c75875d561f147a1d4af4ae22599eb414882aa7c"
+            },
+            "retired_working": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "sqlite_sequence": {
+              "rows": 2,
+              "sha256": "4a447d75d7acbce28bc58ba2df78a01d5d7d99fcd37994959c3f2f52948d9622"
+            },
+            "upload_preparations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "uploads": {
+              "rows": 2,
+              "sha256": "fbafa589cc57726a4ee04ccf0de8bce340227902599877369dca8c139fd79a8f"
+            },
+            "working_files": {
+              "rows": 1,
+              "sha256": "a18868a89dfd6738cda7dac56ca1915d0c17bc7fad6c330bb6348342192b5467"
+            },
+            "write_destinations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_prerequisites": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_queue": {
+              "rows": 2,
+              "sha256": "572728daeb7d070394115c63210ca7cf221d7ba95133668e2ddcce9be8db7c25"
+            },
+            "write_resources": {
+              "rows": 2,
+              "sha256": "8e5825b54526ebcb1921a72677bf6de6e6f64d7c1e871a36b3d7d17edb100c53"
+            },
+            "write_successors": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        },
+        "metadata.db": {
+          "schema": 7,
+          "integrity": "ok",
+          "tables": {
+            "cache_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directories": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_entries": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "feeds": {
+              "rows": 1,
+              "sha256": "7ef2b48dfd242c40c349a757f4daaa9286238c4f7286f91520a07b165a066f06"
+            },
+            "health": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "inodes": {
+              "rows": 1,
+              "sha256": "d019b2e9f13a78d87fce06ca061be77047aaf54d6b1bd19eebebe5e4608cae0d"
+            },
+            "metadata_clock": {
+              "rows": 1,
+              "sha256": "61b7818b2cab352c120a0e2520622f7bc4a16025205ac3832cc50068e2e18290"
+            },
+            "metadata_versions": {
+              "rows": 1,
+              "sha256": "57218bd6e6c41da77251e1f80a3f620128e905789aeaff54b575ee509d447a77"
+            },
+            "nodes": {
+              "rows": 1,
+              "sha256": "4b05eb2966e3feb91bec3670999a77187b2dd3ca43620738dfd10ebb90737e2a"
+            },
+            "observed": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "observed_absent": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pin_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pins": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "rounds": {
+              "rows": 1,
+              "sha256": "97af77d9d4d052055bee03dfe468ebca60b9827cb21f429f92df86a827081b7c"
+            },
+            "sqlite_sequence": {
+              "rows": 1,
+              "sha256": "e08eb0583fd13eaed24cff298d424f9232ae8276fe8c733f391653cd565c71d3"
+            },
+            "staged": {
+              "rows": 1,
+              "sha256": "b52323596c5547608d7e472e8815269b9543e8d3626fc12fffe56897b3be8c85"
+            },
+            "subscriptions": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        }
+      }
+    },
+    "after-pin-refusal": {
+      "phase": "after-pin-refusal",
+      "root": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98",
+      "filesystem": "ext4",
+      "no_symlink_or_mount_in_fixture": true,
+      "script_sha256": "80f364d0d4676983a643576eb1b3ed56e1a1191f8b4b1901da6d46e8d439b7f6",
+      "at": "2026-10-03T05:42:11.827397+00:00",
+      "files": {
+        "journal/objects/281bc84d-09b4-4277-aca5-6045c74c443a": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 256
+        },
+        "journal/objects/4c82a72f-1ba4-4b36-ad5e-99a57cf28f87": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 256
+        },
+        "journal/owner.lock": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/uploads.db": {
+          "sha256": "24a06ca4e253c34824698cc7785e2ebfbb127914d293b41f8188682401ea8cae",
+          "size": 258048,
+          "mode": 384
+        },
+        "journal/uploads.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 384
+        },
+        "journal/uploads.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/working/288bccae-479b-4b5a-911f-9b0aed024475": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "metadata.db": {
+          "sha256": "bfcfedfc0053ddd595dcdfa163edcb8ef8f8769809da196962b99290dbcbaf33",
+          "size": 176128,
+          "mode": 420
+        },
+        "metadata.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 420
+        },
+        "metadata.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 420
+        },
+        "producer.json": {
+          "sha256": "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90",
+          "size": 1483,
+          "mode": 384
+        }
+      },
+      "logical": {
+        "journal/uploads.db": {
+          "schema": 14,
+          "integrity": "ok",
+          "tables": {
+            "file_replacements": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "identity": {
+              "rows": 1,
+              "sha256": "04e229921aa4bd5a5109b72357d4cd3ecf0d1ca4508cc6279313272235a9f479"
+            },
+            "mutations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "namespace_changes": {
+              "rows": 1,
+              "sha256": "f74b4db43d911db7b0d355391cb0ba24b9e27a51beb9b6655fc11c4253a16b83"
+            },
+            "namespace_clock": {
+              "rows": 1,
+              "sha256": "62525b031f4b2b2738f2f99a0b03986d7a0ebf0a9911fe8f3ff9a76a08826c24"
+            },
+            "namespace_entries": {
+              "rows": 1,
+              "sha256": "85a50ec6c5ed65d1dd5917fc65ea142440de84c65eb076a95b106f8e9247cdc2"
+            },
+            "namespace_objects": {
+              "rows": 1,
+              "sha256": "1e84f3e93373c846b6affd89dbba5cae2d6b9fc0c6158a2a6f14ed99b17a69b9"
+            },
+            "namespace_operations": {
+              "rows": 1,
+              "sha256": "df737da499e113fd25f97205ac67e41106b455acecba32f673a35cebb5fac681"
+            },
+            "namespace_remote": {
+              "rows": 1,
+              "sha256": "a958353682e9ae6a115022d7a00015fd9b786ce49c0a5c2e0839452d4adee446"
+            },
+            "namespace_scopes": {
+              "rows": 1,
+              "sha256": "a34a759e64f64de80da98311c75875d561f147a1d4af4ae22599eb414882aa7c"
+            },
+            "retired_working": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "sqlite_sequence": {
+              "rows": 2,
+              "sha256": "4a447d75d7acbce28bc58ba2df78a01d5d7d99fcd37994959c3f2f52948d9622"
+            },
+            "upload_preparations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "uploads": {
+              "rows": 2,
+              "sha256": "fbafa589cc57726a4ee04ccf0de8bce340227902599877369dca8c139fd79a8f"
+            },
+            "working_files": {
+              "rows": 1,
+              "sha256": "a18868a89dfd6738cda7dac56ca1915d0c17bc7fad6c330bb6348342192b5467"
+            },
+            "write_destinations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_prerequisites": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_queue": {
+              "rows": 2,
+              "sha256": "572728daeb7d070394115c63210ca7cf221d7ba95133668e2ddcce9be8db7c25"
+            },
+            "write_resources": {
+              "rows": 2,
+              "sha256": "8e5825b54526ebcb1921a72677bf6de6e6f64d7c1e871a36b3d7d17edb100c53"
+            },
+            "write_successors": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        },
+        "metadata.db": {
+          "schema": 7,
+          "integrity": "ok",
+          "tables": {
+            "cache_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directories": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_entries": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "feeds": {
+              "rows": 1,
+              "sha256": "7ef2b48dfd242c40c349a757f4daaa9286238c4f7286f91520a07b165a066f06"
+            },
+            "health": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "inodes": {
+              "rows": 1,
+              "sha256": "d019b2e9f13a78d87fce06ca061be77047aaf54d6b1bd19eebebe5e4608cae0d"
+            },
+            "metadata_clock": {
+              "rows": 1,
+              "sha256": "61b7818b2cab352c120a0e2520622f7bc4a16025205ac3832cc50068e2e18290"
+            },
+            "metadata_versions": {
+              "rows": 1,
+              "sha256": "57218bd6e6c41da77251e1f80a3f620128e905789aeaff54b575ee509d447a77"
+            },
+            "nodes": {
+              "rows": 1,
+              "sha256": "4b05eb2966e3feb91bec3670999a77187b2dd3ca43620738dfd10ebb90737e2a"
+            },
+            "observed": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "observed_absent": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pin_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pins": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "rounds": {
+              "rows": 1,
+              "sha256": "97af77d9d4d052055bee03dfe468ebca60b9827cb21f429f92df86a827081b7c"
+            },
+            "sqlite_sequence": {
+              "rows": 1,
+              "sha256": "e08eb0583fd13eaed24cff298d424f9232ae8276fe8c733f391653cd565c71d3"
+            },
+            "staged": {
+              "rows": 1,
+              "sha256": "b52323596c5547608d7e472e8815269b9543e8d3626fc12fffe56897b3be8c85"
+            },
+            "subscriptions": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        }
+      }
+    },
+    "before-refusal": {
+      "phase": "before-refusal",
+      "root": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98",
+      "filesystem": "ext4",
+      "no_symlink_or_mount_in_fixture": true,
+      "script_sha256": "80f364d0d4676983a643576eb1b3ed56e1a1191f8b4b1901da6d46e8d439b7f6",
+      "at": "2026-10-03T05:42:22.497112+00:00",
+      "files": {
+        "journal/objects/281bc84d-09b4-4277-aca5-6045c74c443a": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 256
+        },
+        "journal/objects/4c82a72f-1ba4-4b36-ad5e-99a57cf28f87": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 256
+        },
+        "journal/owner.lock": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/uploads.db": {
+          "sha256": "70d6c7491f00a092a2d46267151d7de4f5b98b3baa8078bdc852bdcf4a00e98e",
+          "size": 434176,
+          "mode": 384
+        },
+        "journal/uploads.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 384
+        },
+        "journal/uploads.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/working/288bccae-479b-4b5a-911f-9b0aed024475": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "metadata.db": {
+          "sha256": "08b90965873445d864c1e009b3551297811602adfe161a22434babb0a29702f5",
+          "size": 180224,
+          "mode": 420
+        },
+        "metadata.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 420
+        },
+        "metadata.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 420
+        },
+        "migrate.json": {
+          "sha256": "99dd7f848d934b47add2b2614f2f52d483d25887e7df03c4adf2dc64c84c46a2",
+          "size": 428,
+          "mode": 384
+        },
+        "producer.json": {
+          "sha256": "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90",
+          "size": 1483,
+          "mode": 384
+        },
+        "recover14/dirty.bin": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "recover14/pending.bin": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 384
+        },
+        "recover14/sealed.bin": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 384
+        },
+        "recover14.json": {
+          "sha256": "3c49a6b49abe1b0bbccac297f5263136b9508d80ba4edc99fdffb1d0f593bd48",
+          "size": 1666,
+          "mode": 384
+        }
+      },
+      "logical": {
+        "journal/uploads.db": {
+          "schema": 19,
+          "integrity": "ok",
+          "tables": {
+            "file_replacements": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "identity": {
+              "rows": 1,
+              "sha256": "04e229921aa4bd5a5109b72357d4cd3ecf0d1ca4508cc6279313272235a9f479"
+            },
+            "mutations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "namespace_changes": {
+              "rows": 1,
+              "sha256": "f74b4db43d911db7b0d355391cb0ba24b9e27a51beb9b6655fc11c4253a16b83"
+            },
+            "namespace_clock": {
+              "rows": 1,
+              "sha256": "62525b031f4b2b2738f2f99a0b03986d7a0ebf0a9911fe8f3ff9a76a08826c24"
+            },
+            "namespace_entries": {
+              "rows": 1,
+              "sha256": "85a50ec6c5ed65d1dd5917fc65ea142440de84c65eb076a95b106f8e9247cdc2"
+            },
+            "namespace_objects": {
+              "rows": 1,
+              "sha256": "1e84f3e93373c846b6affd89dbba5cae2d6b9fc0c6158a2a6f14ed99b17a69b9"
+            },
+            "namespace_operations": {
+              "rows": 1,
+              "sha256": "df737da499e113fd25f97205ac67e41106b455acecba32f673a35cebb5fac681"
+            },
+            "namespace_remote": {
+              "rows": 1,
+              "sha256": "a958353682e9ae6a115022d7a00015fd9b786ce49c0a5c2e0839452d4adee446"
+            },
+            "namespace_scopes": {
+              "rows": 1,
+              "sha256": "a34a759e64f64de80da98311c75875d561f147a1d4af4ae22599eb414882aa7c"
+            },
+            "native_backup_gaps": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_backup_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_detached_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_replacement_abandonments": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_retired_slots": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_temporary_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_trash_metadata_publication": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_bindings": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_heads": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_operations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_transfers": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "package_metadata_publication": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "retired_working": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "sqlite_sequence": {
+              "rows": 2,
+              "sha256": "4a447d75d7acbce28bc58ba2df78a01d5d7d99fcd37994959c3f2f52948d9622"
+            },
+            "upload_preparations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "uploads": {
+              "rows": 2,
+              "sha256": "fbafa589cc57726a4ee04ccf0de8bce340227902599877369dca8c139fd79a8f"
+            },
+            "working_files": {
+              "rows": 1,
+              "sha256": "a18868a89dfd6738cda7dac56ca1915d0c17bc7fad6c330bb6348342192b5467"
+            },
+            "write_destinations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_prerequisites": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_queue": {
+              "rows": 2,
+              "sha256": "572728daeb7d070394115c63210ca7cf221d7ba95133668e2ddcce9be8db7c25"
+            },
+            "write_resources": {
+              "rows": 2,
+              "sha256": "8e5825b54526ebcb1921a72677bf6de6e6f64d7c1e871a36b3d7d17edb100c53"
+            },
+            "write_successors": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        },
+        "metadata.db": {
+          "schema": 8,
+          "integrity": "ok",
+          "tables": {
+            "cache_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directories": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_entries": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_sources": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "feeds": {
+              "rows": 1,
+              "sha256": "7ef2b48dfd242c40c349a757f4daaa9286238c4f7286f91520a07b165a066f06"
+            },
+            "health": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "inodes": {
+              "rows": 1,
+              "sha256": "d019b2e9f13a78d87fce06ca061be77047aaf54d6b1bd19eebebe5e4608cae0d"
+            },
+            "metadata_clock": {
+              "rows": 1,
+              "sha256": "61b7818b2cab352c120a0e2520622f7bc4a16025205ac3832cc50068e2e18290"
+            },
+            "metadata_versions": {
+              "rows": 1,
+              "sha256": "57218bd6e6c41da77251e1f80a3f620128e905789aeaff54b575ee509d447a77"
+            },
+            "nodes": {
+              "rows": 1,
+              "sha256": "4b05eb2966e3feb91bec3670999a77187b2dd3ca43620738dfd10ebb90737e2a"
+            },
+            "observed": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "observed_absent": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pin_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pins": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "rounds": {
+              "rows": 1,
+              "sha256": "97af77d9d4d052055bee03dfe468ebca60b9827cb21f429f92df86a827081b7c"
+            },
+            "sqlite_sequence": {
+              "rows": 1,
+              "sha256": "e08eb0583fd13eaed24cff298d424f9232ae8276fe8c733f391653cd565c71d3"
+            },
+            "staged": {
+              "rows": 1,
+              "sha256": "b52323596c5547608d7e472e8815269b9543e8d3626fc12fffe56897b3be8c85"
+            },
+            "subscriptions": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        }
+      }
+    },
+    "after-refusal": {
+      "phase": "after-refusal",
+      "root": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98",
+      "filesystem": "ext4",
+      "no_symlink_or_mount_in_fixture": true,
+      "script_sha256": "80f364d0d4676983a643576eb1b3ed56e1a1191f8b4b1901da6d46e8d439b7f6",
+      "at": "2026-10-03T05:42:31.356499+00:00",
+      "files": {
+        "journal/objects/281bc84d-09b4-4277-aca5-6045c74c443a": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 256
+        },
+        "journal/objects/4c82a72f-1ba4-4b36-ad5e-99a57cf28f87": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 256
+        },
+        "journal/owner.lock": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/uploads.db": {
+          "sha256": "70d6c7491f00a092a2d46267151d7de4f5b98b3baa8078bdc852bdcf4a00e98e",
+          "size": 434176,
+          "mode": 384
+        },
+        "journal/uploads.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 384
+        },
+        "journal/uploads.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/working/288bccae-479b-4b5a-911f-9b0aed024475": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "metadata.db": {
+          "sha256": "08b90965873445d864c1e009b3551297811602adfe161a22434babb0a29702f5",
+          "size": 180224,
+          "mode": 420
+        },
+        "metadata.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 420
+        },
+        "metadata.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 420
+        },
+        "migrate.json": {
+          "sha256": "99dd7f848d934b47add2b2614f2f52d483d25887e7df03c4adf2dc64c84c46a2",
+          "size": 428,
+          "mode": 384
+        },
+        "producer.json": {
+          "sha256": "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90",
+          "size": 1483,
+          "mode": 384
+        },
+        "recover14/dirty.bin": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "recover14/pending.bin": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 384
+        },
+        "recover14/sealed.bin": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 384
+        },
+        "recover14.json": {
+          "sha256": "3c49a6b49abe1b0bbccac297f5263136b9508d80ba4edc99fdffb1d0f593bd48",
+          "size": 1666,
+          "mode": 384
+        }
+      },
+      "logical": {
+        "journal/uploads.db": {
+          "schema": 19,
+          "integrity": "ok",
+          "tables": {
+            "file_replacements": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "identity": {
+              "rows": 1,
+              "sha256": "04e229921aa4bd5a5109b72357d4cd3ecf0d1ca4508cc6279313272235a9f479"
+            },
+            "mutations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "namespace_changes": {
+              "rows": 1,
+              "sha256": "f74b4db43d911db7b0d355391cb0ba24b9e27a51beb9b6655fc11c4253a16b83"
+            },
+            "namespace_clock": {
+              "rows": 1,
+              "sha256": "62525b031f4b2b2738f2f99a0b03986d7a0ebf0a9911fe8f3ff9a76a08826c24"
+            },
+            "namespace_entries": {
+              "rows": 1,
+              "sha256": "85a50ec6c5ed65d1dd5917fc65ea142440de84c65eb076a95b106f8e9247cdc2"
+            },
+            "namespace_objects": {
+              "rows": 1,
+              "sha256": "1e84f3e93373c846b6affd89dbba5cae2d6b9fc0c6158a2a6f14ed99b17a69b9"
+            },
+            "namespace_operations": {
+              "rows": 1,
+              "sha256": "df737da499e113fd25f97205ac67e41106b455acecba32f673a35cebb5fac681"
+            },
+            "namespace_remote": {
+              "rows": 1,
+              "sha256": "a958353682e9ae6a115022d7a00015fd9b786ce49c0a5c2e0839452d4adee446"
+            },
+            "namespace_scopes": {
+              "rows": 1,
+              "sha256": "a34a759e64f64de80da98311c75875d561f147a1d4af4ae22599eb414882aa7c"
+            },
+            "native_backup_gaps": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_backup_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_detached_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_replacement_abandonments": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_retired_slots": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_temporary_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_trash_metadata_publication": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_bindings": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_heads": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_operations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_transfers": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "package_metadata_publication": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "retired_working": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "sqlite_sequence": {
+              "rows": 2,
+              "sha256": "4a447d75d7acbce28bc58ba2df78a01d5d7d99fcd37994959c3f2f52948d9622"
+            },
+            "upload_preparations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "uploads": {
+              "rows": 2,
+              "sha256": "fbafa589cc57726a4ee04ccf0de8bce340227902599877369dca8c139fd79a8f"
+            },
+            "working_files": {
+              "rows": 1,
+              "sha256": "a18868a89dfd6738cda7dac56ca1915d0c17bc7fad6c330bb6348342192b5467"
+            },
+            "write_destinations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_prerequisites": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_queue": {
+              "rows": 2,
+              "sha256": "572728daeb7d070394115c63210ca7cf221d7ba95133668e2ddcce9be8db7c25"
+            },
+            "write_resources": {
+              "rows": 2,
+              "sha256": "8e5825b54526ebcb1921a72677bf6de6e6f64d7c1e871a36b3d7d17edb100c53"
+            },
+            "write_successors": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        },
+        "metadata.db": {
+          "schema": 8,
+          "integrity": "ok",
+          "tables": {
+            "cache_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directories": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_entries": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_sources": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "feeds": {
+              "rows": 1,
+              "sha256": "7ef2b48dfd242c40c349a757f4daaa9286238c4f7286f91520a07b165a066f06"
+            },
+            "health": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "inodes": {
+              "rows": 1,
+              "sha256": "d019b2e9f13a78d87fce06ca061be77047aaf54d6b1bd19eebebe5e4608cae0d"
+            },
+            "metadata_clock": {
+              "rows": 1,
+              "sha256": "61b7818b2cab352c120a0e2520622f7bc4a16025205ac3832cc50068e2e18290"
+            },
+            "metadata_versions": {
+              "rows": 1,
+              "sha256": "57218bd6e6c41da77251e1f80a3f620128e905789aeaff54b575ee509d447a77"
+            },
+            "nodes": {
+              "rows": 1,
+              "sha256": "4b05eb2966e3feb91bec3670999a77187b2dd3ca43620738dfd10ebb90737e2a"
+            },
+            "observed": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "observed_absent": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pin_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pins": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "rounds": {
+              "rows": 1,
+              "sha256": "97af77d9d4d052055bee03dfe468ebca60b9827cb21f429f92df86a827081b7c"
+            },
+            "sqlite_sequence": {
+              "rows": 1,
+              "sha256": "e08eb0583fd13eaed24cff298d424f9232ae8276fe8c733f391653cd565c71d3"
+            },
+            "staged": {
+              "rows": 1,
+              "sha256": "b52323596c5547608d7e472e8815269b9543e8d3626fc12fffe56897b3be8c85"
+            },
+            "subscriptions": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        }
+      }
+    },
+    "final": {
+      "phase": "final",
+      "root": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98",
+      "filesystem": "ext4",
+      "no_symlink_or_mount_in_fixture": true,
+      "script_sha256": "80f364d0d4676983a643576eb1b3ed56e1a1191f8b4b1901da6d46e8d439b7f6",
+      "at": "2026-10-03T05:42:31.920306+00:00",
+      "files": {
+        "journal/objects/281bc84d-09b4-4277-aca5-6045c74c443a": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 256
+        },
+        "journal/objects/4c82a72f-1ba4-4b36-ad5e-99a57cf28f87": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 256
+        },
+        "journal/owner.lock": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/uploads.db": {
+          "sha256": "70d6c7491f00a092a2d46267151d7de4f5b98b3baa8078bdc852bdcf4a00e98e",
+          "size": 434176,
+          "mode": 384
+        },
+        "journal/uploads.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 384
+        },
+        "journal/uploads.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 384
+        },
+        "journal/working/288bccae-479b-4b5a-911f-9b0aed024475": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "metadata.db": {
+          "sha256": "f98a278f237f278a5f46d3e8b6ea7022a28ecb8c853f08da133cfdc8ddcf5e3a",
+          "size": 180224,
+          "mode": 420
+        },
+        "metadata.db-shm": {
+          "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+          "size": 32768,
+          "mode": 420
+        },
+        "metadata.db-wal": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "mode": 420
+        },
+        "migrate.json": {
+          "sha256": "99dd7f848d934b47add2b2614f2f52d483d25887e7df03c4adf2dc64c84c46a2",
+          "size": 428,
+          "mode": 384
+        },
+        "producer.json": {
+          "sha256": "558396417f1518919b7473574a9d8f375bdf7d554ed484d9437a70ecb6d26e90",
+          "size": 1483,
+          "mode": 384
+        },
+        "recover14/dirty.bin": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "recover14/pending.bin": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 384
+        },
+        "recover14/sealed.bin": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 384
+        },
+        "recover14.json": {
+          "sha256": "3c49a6b49abe1b0bbccac297f5263136b9508d80ba4edc99fdffb1d0f593bd48",
+          "size": 1666,
+          "mode": 384
+        },
+        "recover19/dirty.bin": {
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "size": 69,
+          "mode": 384
+        },
+        "recover19/pending.bin": {
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50,
+          "mode": 384
+        },
+        "recover19/sealed.bin": {
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54,
+          "mode": 384
+        },
+        "recover19.json": {
+          "sha256": "5c2cd151fa974c3b75cb28f3eb6a67bfcd34271bf96ff79d3793a8dc38db0636",
+          "size": 1666,
+          "mode": 384
+        },
+        "resume.json": {
+          "sha256": "dc9db6d402f26098a7c45d0d3a54b62878b226ab0c4608f135e49b1d88706f82",
+          "size": 191,
+          "mode": 384
+        }
+      },
+      "logical": {
+        "journal/uploads.db": {
+          "schema": 19,
+          "integrity": "ok",
+          "tables": {
+            "file_replacements": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "identity": {
+              "rows": 1,
+              "sha256": "04e229921aa4bd5a5109b72357d4cd3ecf0d1ca4508cc6279313272235a9f479"
+            },
+            "mutations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "namespace_changes": {
+              "rows": 1,
+              "sha256": "f74b4db43d911db7b0d355391cb0ba24b9e27a51beb9b6655fc11c4253a16b83"
+            },
+            "namespace_clock": {
+              "rows": 1,
+              "sha256": "62525b031f4b2b2738f2f99a0b03986d7a0ebf0a9911fe8f3ff9a76a08826c24"
+            },
+            "namespace_entries": {
+              "rows": 1,
+              "sha256": "85a50ec6c5ed65d1dd5917fc65ea142440de84c65eb076a95b106f8e9247cdc2"
+            },
+            "namespace_objects": {
+              "rows": 1,
+              "sha256": "1e84f3e93373c846b6affd89dbba5cae2d6b9fc0c6158a2a6f14ed99b17a69b9"
+            },
+            "namespace_operations": {
+              "rows": 1,
+              "sha256": "df737da499e113fd25f97205ac67e41106b455acecba32f673a35cebb5fac681"
+            },
+            "namespace_remote": {
+              "rows": 1,
+              "sha256": "a958353682e9ae6a115022d7a00015fd9b786ce49c0a5c2e0839452d4adee446"
+            },
+            "namespace_scopes": {
+              "rows": 1,
+              "sha256": "a34a759e64f64de80da98311c75875d561f147a1d4af4ae22599eb414882aa7c"
+            },
+            "native_backup_gaps": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_backup_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_detached_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_replacement_abandonments": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_retired_slots": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_temporary_streams": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_trash_metadata_publication": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_bindings": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_heads": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_operations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "native_working_transfers": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "package_metadata_publication": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "retired_working": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "sqlite_sequence": {
+              "rows": 2,
+              "sha256": "4a447d75d7acbce28bc58ba2df78a01d5d7d99fcd37994959c3f2f52948d9622"
+            },
+            "upload_preparations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "uploads": {
+              "rows": 2,
+              "sha256": "fbafa589cc57726a4ee04ccf0de8bce340227902599877369dca8c139fd79a8f"
+            },
+            "working_files": {
+              "rows": 1,
+              "sha256": "a18868a89dfd6738cda7dac56ca1915d0c17bc7fad6c330bb6348342192b5467"
+            },
+            "write_destinations": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_prerequisites": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "write_queue": {
+              "rows": 2,
+              "sha256": "572728daeb7d070394115c63210ca7cf221d7ba95133668e2ddcce9be8db7c25"
+            },
+            "write_resources": {
+              "rows": 2,
+              "sha256": "8e5825b54526ebcb1921a72677bf6de6e6f64d7c1e871a36b3d7d17edb100c53"
+            },
+            "write_successors": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        },
+        "metadata.db": {
+          "schema": 8,
+          "integrity": "ok",
+          "tables": {
+            "cache_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directories": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_entries": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "directory_sources": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "feeds": {
+              "rows": 1,
+              "sha256": "a8c1b4db901bf016767b491fb0d0c7a733d4b27fcee616dfa6664ccb41f85d9b"
+            },
+            "health": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "inodes": {
+              "rows": 1,
+              "sha256": "d019b2e9f13a78d87fce06ca061be77047aaf54d6b1bd19eebebe5e4608cae0d"
+            },
+            "metadata_clock": {
+              "rows": 1,
+              "sha256": "7b33d8d92d21777abf07cf09022bac978b6fd8ad951a59b6f47050711bad5d4a"
+            },
+            "metadata_versions": {
+              "rows": 4,
+              "sha256": "364e16167be494359a7b7e16a2972e60f26018b69aa938fa4c8e6f878e57b3c6"
+            },
+            "nodes": {
+              "rows": 2,
+              "sha256": "8cb02cb2af57aad055a3bd09c547d6ef20c632eeb996d6b16aaa6af92c55eace"
+            },
+            "observed": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "observed_absent": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pin_blocks": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "pins": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "rounds": {
+              "rows": 1,
+              "sha256": "97af77d9d4d052055bee03dfe468ebca60b9827cb21f429f92df86a827081b7c"
+            },
+            "sqlite_sequence": {
+              "rows": 1,
+              "sha256": "e08eb0583fd13eaed24cff298d424f9232ae8276fe8c733f391653cd565c71d3"
+            },
+            "staged": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "subscriptions": {
+              "rows": 0,
+              "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          }
+        }
+      }
+    }
+  },
+  "phase_receipts": {
+    "producer": {
+      "account": "synthetic-canary-compatibility",
+      "auto_seal_after_dirty_write": false,
+      "cloud_requests": 0,
+      "credential_access": false,
+      "dirty": {
+        "generation": 2,
+        "latest": "4c82a72f-1ba4-4b36-ad5e-99a57cf28f87",
+        "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+        "size": 69,
+        "working": "288bccae-479b-4b5a-911f-9b0aed024475"
+      },
+      "journal_schema": 14,
+      "metadata": {
+        "completed_cursor_sha256": "bcae64c6c583f45efde8ce2951ae3aedfb00dca63660fd573fc7af445898c15f",
+        "pending_cursor_sha256": "c27642ef08c93c218863acc2e12a9847aa811b8a0ce94b03244b1c8290175b6e",
+        "staged_ids": [
+          "staged-item"
+        ],
+        "visible_ids": [
+          "ordinary-working-item"
+        ]
+      },
+      "metadata_schema": 7,
+      "pending": {
+        "operation": "281bc84d-09b4-4277-aca5-6045c74c443a",
+        "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+        "size": 50
+      },
+      "root": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98",
+      "scope": {
+        "account": "synthetic-canary-compatibility",
+        "collection": "owned-fixture",
+        "provider": "synthetic"
+      },
+      "sealed": {
+        "operation": "4c82a72f-1ba4-4b36-ad5e-99a57cf28f87",
+        "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+        "size": 54,
+        "working": "288bccae-479b-4b5a-911f-9b0aed024475"
+      },
+      "source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "version": 1
+    },
+    "recover14": {
+      "cloud_requests": 0,
+      "db_sha256": [
+        "24a06ca4e253c34824698cc7785e2ebfbb127914d293b41f8188682401ea8cae",
+        "bfcfedfc0053ddd595dcdfa163edcb8ef8f8769809da196962b99290dbcbaf33"
+      ],
+      "journal_schema": 14,
+      "metadata": {
+        "feed_sha256": "98ec7065b56b0041b9c87a9c980e8f9a4743abb0304764896a33a421ab809424",
+        "staged_sha256": "9b6d803cc01ef08b905238476de98860636ca90e592fe91f3a1ddeb813fd0d99",
+        "visible_sha256": "60a4867955b75f9ea53348c34f1511932d0bda485c64f8e0595172ee5434d04d"
+      },
+      "metadata_schema": 7,
+      "phase": "recover14",
+      "receipts": [
+        {
+          "destination": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98/recover14/pending.bin",
+          "operation": "281bc84d-09b4-4277-aca5-6045c74c443a",
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50
+        },
+        {
+          "destination": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98/recover14/sealed.bin",
+          "operation": "4c82a72f-1ba4-4b36-ad5e-99a57cf28f87",
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54
+        },
+        {
+          "destination": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98/recover14/dirty.bin",
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "source": {
+            "file": "288bccae-479b-4b5a-911f-9b0aed024475",
+            "generation": 2,
+            "name": "working.txt",
+            "recorded_size": 69,
+            "size": 69,
+            "unlinked": false
+          }
+        }
+      ]
+    },
+    "migrate": {
+      "cloud_requests": 0,
+      "dirty_working": 1,
+      "journal_schema": 19,
+      "metadata": {
+        "feed_sha256": "98ec7065b56b0041b9c87a9c980e8f9a4743abb0304764896a33a421ab809424",
+        "staged_sha256": "9b6d803cc01ef08b905238476de98860636ca90e592fe91f3a1ddeb813fd0d99",
+        "visible_sha256": "60a4867955b75f9ea53348c34f1511932d0bda485c64f8e0595172ee5434d04d"
+      },
+      "metadata_schema": 8,
+      "pending_uploads": 2,
+      "phase": "migrate"
+    },
+    "recover19": {
+      "cloud_requests": 0,
+      "db_sha256": [
+        "70d6c7491f00a092a2d46267151d7de4f5b98b3baa8078bdc852bdcf4a00e98e",
+        "08b90965873445d864c1e009b3551297811602adfe161a22434babb0a29702f5"
+      ],
+      "journal_schema": 19,
+      "metadata": {
+        "feed_sha256": "98ec7065b56b0041b9c87a9c980e8f9a4743abb0304764896a33a421ab809424",
+        "staged_sha256": "9b6d803cc01ef08b905238476de98860636ca90e592fe91f3a1ddeb813fd0d99",
+        "visible_sha256": "60a4867955b75f9ea53348c34f1511932d0bda485c64f8e0595172ee5434d04d"
+      },
+      "metadata_schema": 8,
+      "phase": "recover19",
+      "receipts": [
+        {
+          "destination": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98/recover19/pending.bin",
+          "operation": "281bc84d-09b4-4277-aca5-6045c74c443a",
+          "sha256": "b03f0b30afeaf4b0faa0bf0085112f6c982eb8ae1f8ab5c23c42e6f6c671fb1d",
+          "size": 50
+        },
+        {
+          "destination": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98/recover19/sealed.bin",
+          "operation": "4c82a72f-1ba4-4b36-ad5e-99a57cf28f87",
+          "sha256": "0bd7b565f7952f49017ecf554dae61aeb99fce14645b3cbd2388a1792afa1773",
+          "size": 54
+        },
+        {
+          "destination": "/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98/recover19/dirty.bin",
+          "sha256": "6d5679fe8acdd429080cd3da9c71c574dbf4cb9d4f1cbe2b086ad0f4b9963cf4",
+          "source": {
+            "file": "288bccae-479b-4b5a-911f-9b0aed024475",
+            "generation": 2,
+            "name": "working.txt",
+            "recorded_size": 69,
+            "size": 69,
+            "unlinked": false
+          }
+        }
+      ]
+    },
+    "resume": {
+      "cloud_requests": 0,
+      "completed_cursor_sha256": "90e601b5bac05af409a75bb9ec0c655f97f5587a49b0155bffe98d10db326f0e",
+      "phase": "resume",
+      "staged_remaining": 0,
+      "visible_nodes": 2
+    }
+  },
+  "before_after_recovered_bytes_identical": true,
+  "actual_canary_refusal_all_file_bytes_sizes_modes_and_logical_rows_unchanged": true,
+  "gates_closed": false,
+  "installed_migration_hold_removed": false,
+  "reproduction_sources": {
+    "old-producer.rs": "//! Private synthetic-only producer/refusal helper. Compile against exact a9e2429.\n//! No CLI path or account overrides; no provider, credential or daemon methods.\nuse cirrove_core::{Change, ChangePage, Checkpoint, Cursor, Node, NodeKind, Scope};\nuse cirrove_service::journal::{JournalError, UploadIntent, UploadJournal, UploadState};\nuse cirrove_store::{Store, StoreError};\nuse rusqlite::{Connection, OpenFlags};\nuse serde_json::json;\nuse sha2::{Digest, Sha256};\nuse std::{\n    fs::{File, OpenOptions},\n    io::Write,\n    os::unix::fs::OpenOptionsExt,\n    path::{Path, PathBuf},\n};\n\nconst ROOT: &str = \"/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98\";\nconst ACCOUNT: &str = \"synthetic-canary-compatibility\";\nconst QUOTA: u64 = 1024 * 1024;\nconst PENDING: &[u8] = b\"ordinary pending bytes from exact Canary producer\\n\";\nconst SEALED: &[u8] = b\"sealed ordinary generation from exact Canary producer\\n\";\nconst DIRTY: &[u8] = b\"dirty ordinary successor from exact Canary producer retained locally\\n\";\n\nfn scope() -> Scope {\n    Scope {\n        account: ACCOUNT.into(),\n        provider: \"synthetic\".into(),\n        collection: \"owned-fixture\".into(),\n    }\n}\nfn node(id: &str, name: &str, bytes: &[u8]) -> Node {\n    Node {\n        id: id.into(),\n        parent_id: Some(\"root\".into()),\n        name: name.into(),\n        kind: NodeKind::File,\n        size: bytes.len() as u64,\n        modified_unix: 1,\n        etag: Some(\"synthetic-original-revision\".into()),\n        content_version: Some(\"synthetic-content-revision\".into()),\n        target: None,\n        package: false,\n    }\n}\nfn digest(bytes: &[u8]) -> String {\n    hex::encode(Sha256::digest(bytes))\n}\nfn schema(path: &Path) -> Result<u32, Box<dyn std::error::Error>> {\n    let db = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;\n    Ok(db.pragma_query_value(None, \"user_version\", |r| r.get(0))?)\n}\nfn paths() -> (PathBuf, PathBuf) {\n    let root = PathBuf::from(ROOT);\n    (root.join(\"journal\"), root.join(\"metadata.db\"))\n}\nfn produce() -> Result<(), Box<dyn std::error::Error>> {\n    let root = Path::new(ROOT);\n    // A failed attempt must never be replayed over an existing fixture.\n    if root.exists() {\n        return Err(\"fresh fixture root already exists\".into());\n    }\n    cirrove_service::private_dir(root)?;\n    let (journal_path, metadata_path) = paths();\n    let mut journal = UploadJournal::open(&journal_path, ACCOUNT, QUOTA)?;\n    let pending = journal.enqueue(\n        scope(),\n        UploadIntent::Create {\n            parent: \"root\".into(),\n            name: \"pending.txt\".into(),\n        },\n        PENDING,\n    )?;\n    let original = node(\"ordinary-working-item\", \"working.txt\", b\"\");\n    let working = journal.create_working(scope(), original.clone(), false, b\"\".as_slice())?;\n    let (count, _) = journal.write_working(working.id, 0, SEALED)?;\n    if count as usize != SEALED.len() {\n        return Err(\"incomplete sealed write\".into());\n    }\n    let sealed = journal\n        .seal_working(working.id)?\n        .ok_or(\"missing sealed generation\")?;\n    let (count, dirty) = journal.write_working(working.id, 0, DIRTY)?;\n    if count as usize != DIRTY.len() || !dirty.dirty || dirty.latest != Some(sealed.id) {\n        return Err(\"dirty successor contract failed\".into());\n    }\n    File::open(journal_path.join(\"working\").join(working.id.to_string()))?.sync_all()?;\n    if journal.read_working(working.id, 0, 4096)? != DIRTY\n        || journal.get(pending.id)?.state != UploadState::Pending\n        || journal.get(sealed.id)?.state != UploadState::Pending\n    {\n        return Err(\"producer bytes/state failed\".into());\n    }\n    drop(journal);\n    let mut store = Store::open(&metadata_path)?;\n    store.begin(&scope(), false)?;\n    store.stage(\n        &scope(),\n        None,\n        &ChangePage {\n            changes: vec![Change::Upsert(original.clone())],\n            checkpoint: Checkpoint::Complete(Cursor(\"synthetic-completed-checkpoint\".into())),\n        },\n    )?;\n    let cursor = store\n        .begin(&scope(), false)?\n        .ok_or(\"missing baseline cursor\")?;\n    let staged = node(\"staged-item\", \"staged.txt\", b\"staged metadata\");\n    store.stage(\n        &scope(),\n        Some(&cursor),\n        &ChangePage {\n            changes: vec![Change::Upsert(staged)],\n            checkpoint: Checkpoint::Continue(Cursor(\"synthetic-interrupted-continuation\".into())),\n        },\n    )?;\n    if store.nodes(&scope())? != vec![original] {\n        return Err(\"staged refresh replaced visible baseline\".into());\n    }\n    drop(store);\n    if schema(&journal_path.join(\"uploads.db\"))? != 14 || schema(&metadata_path)? != 7 {\n        return Err(\"producer was not exact Canary schema14/7\".into());\n    }\n    let manifest = json!({\"version\":1,\"source_commit\":\"a9e24291230b213c00843f939ee94c57213b1fa5\",\n        \"root\":ROOT,\"account\":ACCOUNT,\"scope\":scope(),\"journal_schema\":14,\"metadata_schema\":7,\n        \"pending\":{\"operation\":pending.id,\"size\":PENDING.len(),\"sha256\":digest(PENDING)},\n        \"sealed\":{\"operation\":sealed.id,\"working\":working.id,\"size\":SEALED.len(),\"sha256\":digest(SEALED)},\n        \"dirty\":{\"working\":working.id,\"generation\":dirty.generation,\"latest\":dirty.latest,\"size\":DIRTY.len(),\"sha256\":digest(DIRTY)},\n        \"metadata\":{\"visible_ids\":[\"ordinary-working-item\"],\"staged_ids\":[\"staged-item\"],\n            \"completed_cursor_sha256\":digest(b\"synthetic-completed-checkpoint\"),\n            \"pending_cursor_sha256\":digest(b\"synthetic-interrupted-continuation\")},\n        \"cloud_requests\":0,\"credential_access\":false,\"auto_seal_after_dirty_write\":false});\n    let mut output = OpenOptions::new()\n        .write(true)\n        .create_new(true)\n        .mode(0o600)\n        .open(root.join(\"producer.json\"))?;\n    serde_json::to_writer_pretty(&mut output, &manifest)?;\n    output.write_all(b\"\\n\")?;\n    output.sync_all()?;\n    File::open(root)?.sync_all()?;\n    println!(\n        \"{{\\\"phase\\\":\\\"produce\\\",\\\"journal_schema\\\":14,\\\"metadata_schema\\\":7,\\\"pending_uploads\\\":2,\\\"dirty_working\\\":1,\\\"cloud_requests\\\":0}}\"\n    );\n    Ok(())\n}\nfn refuse() -> Result<(), Box<dyn std::error::Error>> {\n    let (journal_path, metadata_path) = paths();\n    if schema(&journal_path.join(\"uploads.db\"))? != 19 || schema(&metadata_path)? != 8 {\n        return Err(\"refusal requires actual migrated current fixture\".into());\n    }\n    if !matches!(\n        UploadJournal::open(&journal_path, ACCOUNT, QUOTA),\n        Err(JournalError::Schema)\n    ) {\n        return Err(\"exact Canary journal writer did not refuse newer state\".into());\n    }\n    if !matches!(Store::open(&metadata_path), Err(StoreError::SchemaVersion)) {\n        return Err(\"exact Canary metadata writer did not refuse newer state\".into());\n    }\n    if schema(&journal_path.join(\"uploads.db\"))? != 19 || schema(&metadata_path)? != 8 {\n        return Err(\"old writer lowered schema after refusal\".into());\n    }\n    println!(\n        \"{{\\\"phase\\\":\\\"refuse\\\",\\\"journal_refused\\\":true,\\\"metadata_refused\\\":true,\\\"cloud_requests\\\":0}}\"\n    );\n    Ok(())\n}\nfn main() {\n    let args: Vec<_> = std::env::args().collect();\n    let result = match args.as_slice() {\n        [_, mode] if mode == \"produce\" => produce(),\n        [_, mode] if mode == \"refuse\" => refuse(),\n        _ => Err(\"exactly one finite phase required\".into()),\n    };\n    if result.is_err() {\n        eprintln!(\"synthetic Canary compatibility phase failed\");\n        std::process::exit(1);\n    }\n}\n",
+    "current-verifier.rs": "//! Private finite-phase offline verifier, compiled against the current source.\nuse cirrove_core::{CancellationToken, ChangePage, Checkpoint, Cursor, Node, NodeKind, Scope};\nuse cirrove_service::journal::{\n    RecoveryJournal, UploadIntent, UploadJournal, UploadRecord, UploadState,\n};\nuse cirrove_store::Store;\nuse rusqlite::{Connection, OpenFlags, params};\nuse serde_json::{Value, json};\nuse sha2::{Digest, Sha256};\nuse std::{\n    fs::{File, OpenOptions},\n    io::{Read, Write},\n    os::unix::fs::OpenOptionsExt,\n    path::{Path, PathBuf},\n};\nuse uuid::Uuid;\nconst ROOT: &str = \"/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98\";\nconst ACCOUNT: &str = \"synthetic-canary-compatibility\";\nconst PENDING: &[u8] = b\"ordinary pending bytes from exact Canary producer\\n\";\nconst SEALED: &[u8] = b\"sealed ordinary generation from exact Canary producer\\n\";\nconst DIRTY: &[u8] = b\"dirty ordinary successor from exact Canary producer retained locally\\n\";\ntype Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;\nfn digest(bytes: &[u8]) -> String {\n    hex::encode(Sha256::digest(bytes))\n}\nfn scope() -> Scope {\n    Scope {\n        account: ACCOUNT.into(),\n        provider: \"synthetic\".into(),\n        collection: \"owned-fixture\".into(),\n    }\n}\nfn original() -> Node {\n    Node {\n        id: \"ordinary-working-item\".into(),\n        parent_id: Some(\"root\".into()),\n        name: \"working.txt\".into(),\n        kind: NodeKind::File,\n        size: 0,\n        modified_unix: 1,\n        etag: Some(\"synthetic-original-revision\".into()),\n        content_version: Some(\"synthetic-content-revision\".into()),\n        target: None,\n        package: false,\n    }\n}\nfn paths() -> (PathBuf, PathBuf) {\n    (\n        Path::new(ROOT).join(\"journal\"),\n        Path::new(ROOT).join(\"metadata.db\"),\n    )\n}\nfn ro(path: &Path) -> Result<Connection> {\n    Ok(Connection::open_with_flags(\n        path,\n        OpenFlags::SQLITE_OPEN_READ_ONLY,\n    )?)\n}\nfn schema(path: &Path) -> Result<u32> {\n    Ok(ro(path)?.pragma_query_value(None, \"user_version\", |r| r.get(0))?)\n}\nfn id(manifest: &Value, section: &str, field: &str) -> Result<Uuid> {\n    Ok(Uuid::parse_str(\n        manifest[section][field]\n            .as_str()\n            .ok_or(\"missing producer identity\")?,\n    )?)\n}\nfn manifest(expected: &str) -> Result<Value> {\n    let bytes = std::fs::read(Path::new(ROOT).join(\"producer.json\"))?;\n    if digest(&bytes) != expected {\n        return Err(\"producer manifest digest changed\".into());\n    }\n    let value: Value = serde_json::from_slice(&bytes)?;\n    if value[\"version\"] != 1\n        || value[\"source_commit\"] != \"a9e24291230b213c00843f939ee94c57213b1fa5\"\n        || value[\"root\"] != ROOT\n        || value[\"account\"] != ACCOUNT\n        || value[\"scope\"] != serde_json::to_value(scope())?\n        || value[\"journal_schema\"] != 14\n        || value[\"metadata_schema\"] != 7\n    {\n        return Err(\"producer scope/schema mismatch\".into());\n    }\n    for (section, bytes) in [(\"pending\", PENDING), (\"sealed\", SEALED), (\"dirty\", DIRTY)] {\n        if value[section][\"size\"] != bytes.len() || value[section][\"sha256\"] != digest(bytes) {\n            return Err(\"producer byte contract mismatch\".into());\n        }\n    }\n    if id(&value, \"pending\", \"operation\")? == id(&value, \"sealed\", \"operation\")?\n        || id(&value, \"sealed\", \"working\")? != id(&value, \"dirty\", \"working\")?\n        || value[\"dirty\"][\"latest\"] != value[\"sealed\"][\"operation\"]\n    {\n        return Err(\"producer operation chain mismatch\".into());\n    }\n    Ok(value)\n}\nfn validate_rows(rows: &[UploadRecord], m: &Value) -> Result<()> {\n    if rows.len() != 2 {\n        return Err(\"unexpected upload inventory\".into());\n    }\n    for (section, bytes) in [(\"pending\", PENDING), (\"sealed\", SEALED)] {\n        let operation = id(m, section, \"operation\")?;\n        let row = rows\n            .iter()\n            .find(|r| r.id == operation)\n            .ok_or(\"missing exact producer operation\")?;\n        let intent = if section == \"pending\" {\n            UploadIntent::Create {\n                parent: \"root\".into(),\n                name: \"pending.txt\".into(),\n            }\n        } else {\n            UploadIntent::Replace {\n                item: \"ordinary-working-item\".into(),\n                expected_etag: \"synthetic-original-revision\".into(),\n            }\n        };\n        if row.scope != scope()\n            || row.intent != intent\n            || row.state != UploadState::Pending\n            || row.size != bytes.len() as u64\n            || row.sha256 != digest(bytes)\n            || row.attempt.is_some()\n            || row.remote.is_some()\n            || !row.representation.is_file_bytes()\n            || row.package_completion.is_some()\n            || row.session_key.is_some()\n            || row.transferred_bytes != 0\n            || row.base.is_some()\n            || row.working_file\n                != if section == \"sealed\" {\n                    Some(id(m, \"sealed\", \"working\")?)\n                } else {\n                    None\n                }\n        {\n            return Err(\"ordinary pending record changed\".into());\n        }\n    }\n    Ok(())\n}\nfn metadata_snapshot() -> Result<Value> {\n    let (_, path) = paths();\n    let db = ro(&path)?;\n    let key = serde_json::to_string(&scope())?;\n    let feed: (Option<String>, bool, Option<String>, bool) = db.query_row(\n        \"SELECT cursor,pending,next_cursor,reset FROM feeds WHERE scope=?1\",\n        [&key],\n        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),\n    )?;\n    if feed.0.as_deref() != Some(\"synthetic-completed-checkpoint\")\n        || !feed.1\n        || feed.2.as_deref() != Some(\"synthetic-interrupted-continuation\")\n        || feed.3\n    {\n        return Err(\"completed cursor or staged continuation changed\".into());\n    }\n    let nodes: Vec<(String, String)> = db\n        .prepare(\"SELECT id,body FROM nodes WHERE scope=?1 ORDER BY id\")?\n        .query_map([&key], |r| Ok((r.get(0)?, r.get(1)?)))?\n        .collect::<std::result::Result<_, _>>()?;\n    if nodes.len() != 1\n        || nodes[0].0 != \"ordinary-working-item\"\n        || serde_json::from_str::<Node>(&nodes[0].1)? != original()\n    {\n        return Err(\"visible metadata changed before completed refresh\".into());\n    }\n    let staged: Vec<(String, Option<String>)> = db\n        .prepare(\"SELECT id,body FROM staged WHERE scope=?1 ORDER BY id\")?\n        .query_map([&key], |r| Ok((r.get(0)?, r.get(1)?)))?\n        .collect::<std::result::Result<_, _>>()?;\n    if staged.len() != 1 || staged[0].0 != \"staged-item\" {\n        return Err(\"interrupted staged metadata lost\".into());\n    }\n    let mut expected = original();\n    expected.id = \"staged-item\".into();\n    expected.name = \"staged.txt\".into();\n    expected.size = 15;\n    if serde_json::from_str::<Node>(staged[0].1.as_deref().ok_or(\"missing staged body\")?)?\n        != expected\n    {\n        return Err(\"staged metadata changed\".into());\n    }\n    Ok(\n        json!({\"visible_sha256\":digest(&serde_json::to_vec(&nodes)?),\"staged_sha256\":digest(&serde_json::to_vec(&staged)?),\"feed_sha256\":digest(&serde_json::to_vec(&feed)?)}),\n    )\n}\nfn write_receipt(name: &str, value: &Value) -> Result<()> {\n    let mut file = OpenOptions::new()\n        .write(true)\n        .create_new(true)\n        .mode(0o600)\n        .open(Path::new(ROOT).join(name))?;\n    serde_json::to_writer_pretty(&mut file, value)?;\n    file.write_all(b\"\\n\")?;\n    file.sync_all()?;\n    File::open(ROOT)?.sync_all()?;\n    Ok(())\n}\nfn recover(phase: &str, m: &Value) -> Result<()> {\n    let expected = if phase == \"recover14\" {\n        (14, 7)\n    } else {\n        (19, 8)\n    };\n    let (journal, metadata) = paths();\n    let db = journal.join(\"uploads.db\");\n    if schema(&db)? != expected.0 || schema(&metadata)? != expected.1 {\n        return Err(\"unexpected recovery schema\".into());\n    }\n    let before = [\n        digest(&std::fs::read(&db)?),\n        digest(&std::fs::read(&metadata)?),\n    ];\n    let metadata_before = metadata_snapshot()?;\n    let exports = Path::new(ROOT).join(phase);\n    if exports.exists() {\n        return Err(\"recovery phase already attempted\".into());\n    }\n    cirrove_service::private_dir(&exports)?;\n    let cancel = CancellationToken::new();\n    let recovery = RecoveryJournal::open(&journal, ACCOUNT)?;\n    validate_rows(&recovery.list(0, 100)?, m)?;\n    let mut receipts = Vec::new();\n    for (section, bytes) in [(\"pending\", PENDING), (\"sealed\", SEALED)] {\n        let operation = id(m, section, \"operation\")?;\n        let destination = exports.join(format!(\"{section}.bin\"));\n        let receipt =\n            recovery\n                .local_export_source(operation)?\n                .copy_to(&destination, &cancel, |_| {})?;\n        if receipt.operation != operation\n            || receipt.size != bytes.len() as u64\n            || receipt.sha256 != digest(bytes)\n            || std::fs::read(destination)? != bytes\n        {\n            return Err(\"sealed export identity/bytes mismatch\".into());\n        }\n        receipts.push(serde_json::to_value(receipt)?);\n    }\n    let (working, next) = recovery.working_list(None, 100)?;\n    if next.is_some()\n        || working.len() != 1\n        || working[0].file != id(m, \"dirty\", \"working\")?\n        || working[0].generation\n            != m[\"dirty\"][\"generation\"]\n                .as_u64()\n                .ok_or(\"missing generation\")?\n        || working[0].size != DIRTY.len() as u64\n        || working[0].recorded_size != DIRTY.len() as u64\n        || working[0].unlinked\n        || working[0].name != \"working.txt\"\n    {\n        return Err(\"dirty generation inventory changed\".into());\n    }\n    let destination = exports.join(\"dirty.bin\");\n    let receipt = recovery.export_working(\n        working[0].file,\n        working[0].generation,\n        &destination,\n        &cancel,\n        |_| {},\n    )?;\n    if receipt.sha256 != digest(DIRTY) || std::fs::read(destination)? != DIRTY {\n        return Err(\"dirty bytes recovery mismatch\".into());\n    }\n    receipts.push(serde_json::to_value(receipt)?);\n    drop(recovery);\n    if before\n        != [\n            digest(&std::fs::read(&db)?),\n            digest(&std::fs::read(&metadata)?),\n        ]\n        || metadata_before != metadata_snapshot()?\n        || schema(&db)? != expected.0\n        || schema(&metadata)? != expected.1\n    {\n        return Err(\"read-only recovery modified state\".into());\n    }\n    write_receipt(\n        &format!(\"{phase}.json\"),\n        &json!({\"phase\":phase,\"journal_schema\":expected.0,\"metadata_schema\":expected.1,\"db_sha256\":before,\"metadata\":metadata_before,\"receipts\":receipts,\"cloud_requests\":0}),\n    )?;\n    println!(\n        \"{{\\\"phase\\\":\\\"{phase}\\\",\\\"exports_verified\\\":3,\\\"state_unchanged\\\":true,\\\"cloud_requests\\\":0}}\"\n    );\n    Ok(())\n}\nfn migrate(m: &Value) -> Result<()> {\n    let root = Path::new(ROOT);\n    let before: Value = serde_json::from_slice(&std::fs::read(root.join(\"recover14.json\"))?)?;\n    let (journal, metadata) = paths();\n    if schema(&journal.join(\"uploads.db\"))? != 14\n        || schema(&metadata)? != 7\n        || root.join(\"migrate.json\").exists()\n    {\n        return Err(\"migration requires unreplayed old fixture\".into());\n    }\n    if before[\"metadata\"] != metadata_snapshot()?\n        || before[\"db_sha256\"]\n            != json!([\n                digest(&std::fs::read(journal.join(\"uploads.db\"))?),\n                digest(&std::fs::read(&metadata)?)\n            ])\n    {\n        return Err(\"old state changed since read-only recovery\".into());\n    }\n    let writer = UploadJournal::open(&journal, ACCOUNT, 1024 * 1024)?;\n    validate_rows(&writer.list(0, 100)?, m)?;\n    for (section, bytes) in [(\"pending\", PENDING), (\"sealed\", SEALED)] {\n        let mut file = writer.payload(id(m, section, \"operation\")?)?;\n        let mut actual = Vec::new();\n        file.read_to_end(&mut actual)?;\n        if actual != bytes {\n            return Err(\"migration changed sealed bytes\".into());\n        }\n    }\n    let working = writer.working_files()?;\n    if working.len() != 1\n        || working[0].id != id(m, \"dirty\", \"working\")?\n        || !working[0].dirty\n        || working[0].latest != Some(id(m, \"sealed\", \"operation\")?)\n        || working[0].generation\n            != m[\"dirty\"][\"generation\"]\n                .as_u64()\n                .ok_or(\"missing generation\")?\n        || working[0].scope != scope()\n        || writer.read_working(working[0].id, 0, 4096)? != DIRTY\n    {\n        return Err(\"migration changed dirty successor\".into());\n    }\n    drop(writer);\n    let mut store = Store::open(&metadata)?;\n    if store.nodes(&scope())? != vec![original()]\n        || store.cursor(&scope())? != Some(Cursor(\"synthetic-completed-checkpoint\".into()))\n        || store.begin(&scope(), false)?\n            != Some(Cursor(\"synthetic-interrupted-continuation\".into()))\n    {\n        return Err(\"metadata migration lost visibility or continuation\".into());\n    }\n    drop(store);\n    if schema(&journal.join(\"uploads.db\"))? != 19\n        || schema(&metadata)? != 8\n        || metadata_snapshot()? != before[\"metadata\"]\n    {\n        return Err(\"actual forward migration did not preserve state\".into());\n    }\n    write_receipt(\n        \"migrate.json\",\n        &json!({\"phase\":\"migrate\",\"journal_schema\":19,\"metadata_schema\":8,\"metadata\":metadata_snapshot()?,\"cloud_requests\":0,\"pending_uploads\":2,\"dirty_working\":1}),\n    )?;\n    println!(\n        \"{}\",\n        r#\"{\"phase\":\"migrate\",\"journal_schema\":19,\"metadata_schema\":8,\"cloud_requests\":0}\"#\n    );\n    Ok(())\n}\nfn resume() -> Result<()> {\n    let root = Path::new(ROOT);\n    if !root.join(\"recover19.json\").is_file() || root.join(\"resume.json\").exists() {\n        return Err(\"resume requires recovered post-refusal fixture\".into());\n    }\n    metadata_snapshot()?;\n    let (_, metadata) = paths();\n    let mut store = Store::open(metadata)?;\n    let continuation = store\n        .begin(&scope(), false)?\n        .ok_or(\"missing interrupted continuation\")?;\n    if continuation != Cursor(\"synthetic-interrupted-continuation\".into()) {\n        return Err(\"unexpected continuation\".into());\n    }\n    store.stage(\n        &scope(),\n        Some(&continuation),\n        &ChangePage {\n            changes: vec![],\n            checkpoint: Checkpoint::Complete(Cursor(\"synthetic-next-completed-checkpoint\".into())),\n        },\n    )?;\n    let mut nodes = store.nodes(&scope())?;\n    nodes.sort_by(|a, b| a.id.cmp(&b.id));\n    let mut staged = original();\n    staged.id = \"staged-item\".into();\n    staged.name = \"staged.txt\".into();\n    staged.size = 15;\n    if nodes != vec![original(), staged]\n        || store.cursor(&scope())? != Some(Cursor(\"synthetic-next-completed-checkpoint\".into()))\n    {\n        return Err(\"completed refresh did not publish retained staged page\".into());\n    }\n    drop(store);\n    let db = ro(&Path::new(ROOT).join(\"metadata.db\"))?;\n    let key = serde_json::to_string(&scope())?;\n    let count: i64 = db.query_row(\"SELECT COUNT(*) FROM staged WHERE scope=?1\", [&key], |r| {\n        r.get(0)\n    })?;\n    let (pending, next): (bool, Option<String>) = db.query_row(\n        \"SELECT pending,next_cursor FROM feeds WHERE scope=?1\",\n        params![key],\n        |r| Ok((r.get(0)?, r.get(1)?)),\n    )?;\n    if count != 0 || pending || next.is_some() {\n        return Err(\"completed refresh left incomplete staging\".into());\n    }\n    drop(db);\n    write_receipt(\n        \"resume.json\",\n        &json!({\"phase\":\"resume\",\"visible_nodes\":2,\"staged_remaining\":0,\"completed_cursor_sha256\":digest(b\"synthetic-next-completed-checkpoint\"),\"cloud_requests\":0}),\n    )?;\n    println!(\n        \"{}\",\n        r#\"{\"phase\":\"resume\",\"visible_nodes\":2,\"staged_remaining\":0,\"cloud_requests\":0}\"#\n    );\n    Ok(())\n}\nfn main() {\n    let args: Vec<_> = std::env::args().collect();\n    let result = (|| -> Result<()> {\n        if args.len() != 3 {\n            return Err(\"phase and pinned producer manifest digest required\".into());\n        }\n        let m = manifest(&args[2])?;\n        match args[1].as_str() {\n            \"recover14\" => recover(\"recover14\", &m),\n            \"migrate\" => migrate(&m),\n            \"recover19\" => recover(\"recover19\", &m),\n            \"resume\" => resume(),\n            _ => Err(\"unknown finite phase\".into()),\n        }\n    })();\n    if result.is_err() {\n        eprintln!(\"synthetic current compatibility phase failed\");\n        std::process::exit(1);\n    }\n}\n",
+    "snapshot.py": "import pathlib,os,subprocess,hashlib,json,sqlite3,sys,datetime\nroot=pathlib.Path('/home/dandiccf/Storage/cirrove-tmp/canary-compatibility-20261003-38106519-24f2-4299-bb47-35ebd99f3c98')\nbase=pathlib.Path(__file__).resolve().parent\nphase=sys.argv[1]\nassert phase in ['guard-fresh','old','before-refusal','after-refusal','after-pin-refusal','final']\nfor parent in [root,*root.parents]:\n assert not parent.is_symlink(), 'symlink ancestry'\nassert root.parent.resolve()==root.parent\nassert subprocess.check_output(['findmnt','-n','-o','FSTYPE','-T',str(root.parent)],text=True).strip()=='ext4'\nmounts=json.loads(subprocess.check_output(['findmnt','--json','-o','TARGET'],text=True))\ndef flatten(items):\n for item in items:\n  yield pathlib.Path(item['target'])\n  yield from flatten(item.get('children',[]))\nfor mount in flatten(mounts['filesystems']):\n assert mount!=root and root not in mount.parents,'mount in fixture'\nfor protected in [pathlib.Path.home()/'Cloud/Cirrove-OneDrive',pathlib.Path.home()/'.local/state/cirrove',pathlib.Path.home()/'.local/bin/cirroved',pathlib.Path.cwd()/'.local-state']:\n protected=protected.resolve()\n assert protected!=root and protected not in root.parents and root not in protected.parents,'protected overlap'\nresult={'phase':phase,'root':str(root),'filesystem':'ext4','no_symlink_or_mount_in_fixture':True,'script_sha256':hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),'at':datetime.datetime.now(datetime.timezone.utc).isoformat()}\nif phase=='guard-fresh':\n assert not root.exists(),'fixture not fresh'\nelse:\n files={}\n for path in sorted(root.rglob('*')):\n  assert not path.is_symlink(),'fixture symlink'\n  if path.is_file():\n   files[str(path.relative_to(root))]={'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'size':path.stat().st_size,'mode':path.stat().st_mode & 0o777}\n result['files']=files\n result['logical']={}\n for relative in ['journal/uploads.db','metadata.db']:\n  path=root/relative\n  assert not path.with_name(path.name+'-wal').exists() or path.with_name(path.name+'-wal').stat().st_size==0,'nonempty WAL; no immutable snapshot'\n  db=sqlite3.connect(path.as_uri()+'?mode=ro&immutable=1',uri=True)\n  assert db.execute('pragma integrity_check').fetchall()==[('ok',)]\n  tables=[row[0] for row in db.execute(\"select name from sqlite_master where type='table' order by name\")]\n  def normalized(value):\n   return {'bytes_sha256':hashlib.sha256(value).hexdigest(),'size':len(value)} if isinstance(value,bytes) else value\n  digest_tables={}\n  for table in tables:\n   quoted='\"'+table.replace('\"','\"\"')+'\"'\n   rows=sorted(json.dumps([normalized(v) for v in row],sort_keys=True,separators=(',',':')) for row in db.execute('select * from '+quoted))\n   digest_tables[table]={'rows':len(rows),'sha256':hashlib.sha256(json.dumps(rows,separators=(',',':')).encode()).hexdigest()}\n  result['logical'][relative]={'schema':db.execute('pragma user_version').fetchone()[0],'integrity':'ok','tables':digest_tables}\n  db.close()\noutput=base/(phase+'-snapshot.json')\nwith output.open('x') as f: json.dump(result,f,indent=2);f.write('\\n')\nif phase in ['after-refusal','after-pin-refusal']:\n before=json.loads((base/('before-refusal-snapshot.json' if phase=='after-refusal' else 'old-snapshot.json')).read_text())\n assert before['logical']==result['logical'],'logical state changed'\n assert before['files']==result['files'],'files or sidecars changed; retained evidence requires investigation'\nprint(json.dumps({'phase':phase,'guard_passed':True,'snapshot':str(output),'file_count':len(result.get('files',{})),'refusal_unchanged':phase=='after-refusal'}))\n",
+    "old/Cargo.toml": "[package]\nname = \"cirrove-exact-canary-compatibility\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = \"1.98.1\"\npublish = false\n[workspace]\n[dependencies]\ncirrove-service = { path = \"/home/dandiccf/Storage/.cirrove-validation/canary-compat-20261003/source/crates/cirrove-service\" }\ncirrove-core = { path = \"/home/dandiccf/Storage/.cirrove-validation/canary-compat-20261003/source/crates/cirrove-core\" }\ncirrove-store = { path = \"/home/dandiccf/Storage/.cirrove-validation/canary-compat-20261003/source/crates/cirrove-store\" }\nrusqlite = { version = \"0.40\", features = [\"bundled\", \"hooks\"] }\nsha2 = \"0.11\"\nhex = \"0.4\"\nserde_json = \"1.0\"\n[[bin]]\nname = \"cirrove-exact-canary-compatibility\"\npath = \"../old-producer.rs\"\n",
+    "current/Cargo.toml": "[package]\nname = \"cirrove-current-canary-compatibility\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = \"1.98.1\"\npublish = false\n[workspace]\n[dependencies]\ncirrove-service = { path = \"/home/dandiccf/Work/cirrove/crates/cirrove-service\" }\ncirrove-core = { path = \"/home/dandiccf/Work/cirrove/crates/cirrove-core\" }\ncirrove-store = { path = \"/home/dandiccf/Work/cirrove/crates/cirrove-store\" }\nrusqlite = { version = \"0.40\", features = [\"bundled\", \"hooks\"] }\nsha2 = \"0.11\"\nhex = \"0.4\"\nserde_json = \"1.0\"\nuuid = { version = \"1.18\", features = [\"v4\", \"serde\"] }\n[[bin]]\nname = \"cirrove-current-canary-compatibility\"\npath = \"../current-verifier.rs\"\n"
+  },
+  "observation_limits": [
+    "One finite run per phase; no performance or reliability claim.",
+    "Harness compilation correction retained; not a production regression.",
+    "Recovery and migration only ordinary synthetic bytes; pending real cloud work and native package/application fidelity remain unproven.",
+    "No installed daemon/package/credentials touched. No cloud requests."
+  ]
+}

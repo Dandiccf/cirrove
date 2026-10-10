@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "run": "a55c81d2-bc01-4597-a708-7ca8f05f05ed",
+  "subject_run": "01da7cef-1407-4830-9f76-08c498a11a76",
+  "ready": true,
+  "active": false,
+  "active_measurement": false,
+  "status": "closed_success",
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "current": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "cloud_mutated": false,
+    "content_identity_verified": true,
+    "etag": "i2z6::i2z5",
+    "format": "keynote",
+    "gui_fidelity_verified": false,
+    "item": "FILE::com.apple.CloudDocs::78018D7A-E9E1-4261-A758-BBE76C48BB86",
+    "manifest_sha256": "9067de84b48af6ccc47674ea58336408100b4ac6cdeb2cf938c27f02f0f2f6e8",
+    "parent": "FOLDER::com.apple.CloudDocs::D22776E6-6397-40AE-A7CA-F71CE0BFF512",
+    "representation": "data",
+    "run": "01da7cef-1407-4830-9f76-08c498a11a76",
+    "semantic": null,
+    "sha256": "3109039377ae445885265e22fe7574f7301bcbb61810a4496f1230848383a9b8",
+    "size": 527694
+  },
+  "expected": {
+    "slide_count": 1,
+    "subtitle": "Owned genuine editor replacement source B",
+    "title": "Cirrove Keynote B bb3eab7e-9f00-4289-a67e-6bf7fb37de8a"
+  },
+  "question": "Does the exact atomically saved Keynote DATA B show its one expected slide before and after one reload in Apple Keynote?",
+  "endpoint": "Exact Drive parent and item observed; one document open; expected title/subtitle/slidecount before and after one reload; no content edits; both own tabs closed.",
+  "prediction": "The confirmed B raw archive renders the source B title/subtitle and one slide before and after reload.",
+  "full487_closed": false,
+  "installed_HOLD_released": false,
+  "posteditor_raw_or_ETag_preservation_claimed": false,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-exact-apple-01da-a55c81d2-bc01-4597-a708-7ca8f05f05ed-private-v1/original-window.json",
+    "size": 379,
+    "sha256": "6255bca5ed3cde024ae9fd9feaefb035fcab664eba4534cad4082aabfb88ad35"
+  },
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-exact-apple-01da-a55c81d2-bc01-4597-a708-7ca8f05f05ed-private-v1/root-ui-terminal-v1.json",
+    "size": 9763,
+    "sha256": "db49dfd27f3ee902f7686d134219e308c82c49be08f5865882f16049251898a9"
+  },
+  "elapsed_seconds": 169.9083752632141,
+  "intentional_content_edits": 0,
+  "open_count": 1,
+  "reload_count": 1,
+  "completed_matrix_workflow": true,
+  "complete_iWork_workflows": 9,
+  "required_iWork_workflows": 12,
+  "full_487_closed": false,
+  "independent_chain": {
+    "writer_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-01da7cef-1407-4830-9f76-08c498a11a76/audit-independent-keynote-data-atomic-terminal-v1.json",
+      "size": 17632,
+      "sha256": "e4e73eaa423b21baf96cc63700dd45ad4539e021490fd13dee04bfe9f8a57e3f"
+    },
+    "normal_readonly_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/audit-independent-readonly-terminal-v1.json",
+      "size": 6887,
+      "sha256": "353a274b1db621c4f026f9d8b203c7d5465cc17d5f6b6085c2aa7ed2d312c017"
+    },
+    "apple_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-exact-apple-01da-a55c81d2-bc01-4597-a708-7ca8f05f05ed-private-v1/audit-independent-apple-terminal-v1.json",
+      "size": 6375,
+      "sha256": "b46770c357a0e0263babeba74795d2a3584d186c4fc59610c6aa8e4b9a798247"
+    }
+  }
+}

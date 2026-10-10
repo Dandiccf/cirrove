@@ -1,0 +1,33 @@
+{
+  "active_measurement": false,
+  "assessment": {
+    "all_original_handles_closed": true,
+    "completion_field_appended_after_check": true,
+    "elapsed_seconds": 644.351869,
+    "formatter_changed_paths": [
+      "crates/cirrove-service/src/validation.rs",
+      "crates/cirrove-service/src/validation/icloud_account.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/numbers_data.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/numbers_data/keynote_tests.rs"
+    ],
+    "independent_audit_checks": 38,
+    "independent_audit_sha256": "0f43217049fb1d9994405b440428124c4e280ec2372ec5f93b7a7eab1f204df2",
+    "new_named_tests_executed": 12,
+    "runtime_source_count": 571,
+    "rust_result_groups": 87,
+    "sections": 10,
+    "terminal_sha256": "c6182a353a938cbf0eb17531f08344c66d96a9a3c96cc709a72e5e33bcf09dbd"
+  },
+  "date": "2026-10-07",
+  "endpoint": "Full scripts/check.sh exit0, exact12 new names, final571 source map and original ownership closure; focused15 arms completed separately.",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "prediction": "Formatting changes only the9 integrated paths; all10 sections pass including12 Keynote controls.",
+  "provider_actions": false,
+  "question": "Does explicit native Keynote DATA proof tooling preserve existing contracts and pass the complete project check?",
+  "status": "complete_check_passed",
+  "version": 1
+}

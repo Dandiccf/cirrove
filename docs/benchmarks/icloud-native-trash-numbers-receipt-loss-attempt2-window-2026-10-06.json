@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+  "status": "closed_failed_before_upload_enqueue_or_trash",
+  "active_measurement": false,
+  "result_pending": false,
+  "registered_at_unix": 1791306395.8744519,
+  "primary_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-native-trash-numbers-receipt-loss-attempt2-2026-10-06.json",
+    "size": 7162,
+    "sha256": "25efc635c3a6e0da15ccc77688184beb2a1b9a8d3cf5e56942c16a980c50b112"
+  },
+  "root_launch_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-f6c6fed4-3179-43a0-b91d-99b6514f1e22-private-v1/root-launch-registration-v1.json",
+    "size": 1880,
+    "sha256": "f59310e84072b11378f24bcac100946753fbcdf50d14e19a330bfbd857c33326"
+  },
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-f6c6fed4-3179-43a0-b91d-99b6514f1e22-private-v1/controller_native_trash_v6.py",
+    "size": 36049,
+    "sha256": "d2675de66080f0430588dc07df78030c9c5f01a3544215cf4ccf2b49a4fb4efd"
+  },
+  "local_controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/aggregate-result-v1.json",
+    "size": 6702,
+    "sha256": "9b84a1e867999352af89910e24e637dc1ed3f5da1b1f76197566934bea273593"
+  },
+  "controls_match_predictions": true,
+  "source_selected_not_daemon_runtime_proof": true,
+  "static_review": "Root and two independent reviewers clear; fresh controller exact single-nonce substitution from V6 tested source",
+  "root": "/var/tmp/cirrove-native-trash-f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/nt-f6c6fed4",
+  "maximum_seconds": 600,
+  "cleanup_reserve_inside_original_window": 45,
+  "original_clock_authority": "Root outer writes original-window once before any provider dispatch; no renewal",
+  "automatic_retry": false,
+  "installed_actions": false,
+  "full_integration_accepted": false,
+  "outer_result": {
+    "automatic_retry": false,
+    "cloud_controller_dispatch_attempted": true,
+    "controller_child_record_retained": true,
+    "controller_pid_observed": 2572896,
+    "elapsed_seconds": 43.389852193999104,
+    "full_integration_accepted": false,
+    "inner_result": {
+      "actions": [
+        "owned-folder-created"
+      ],
+      "automatic_retry": false,
+      "children": [
+        {
+          "exit_code": 0,
+          "original_handle_reaped": true,
+          "phase": "start-import",
+          "pid": 2572901,
+          "proc_absent": true
+        },
+        {
+          "exit_code": -15,
+          "original_handle_reaped": true,
+          "phase": "import",
+          "pid": 2573770,
+          "proc_absent": true
+        }
+      ],
+      "errors": [],
+      "failure": {
+        "class": "Refusal",
+        "positions": [
+          {
+            "file": "controller_native_trash_v6.py",
+            "function": "main",
+            "line": 491
+          },
+          {
+            "file": "controller_native_trash_v6.py",
+            "function": "execute",
+            "line": 456
+          },
+          {
+            "file": "controller_native_trash_v6.py",
+            "function": "folder_and_import",
+            "line": 373
+          },
+          {
+            "file": "controller_native_trash_v6.py",
+            "function": "require",
+            "line": 21
+          }
+        ]
+      },
+      "full_integration_accepted": false,
+      "independent_trash_raw_zip_equality_claimed": false,
+      "installed_actions": false,
+      "mount_absent": true,
+      "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+      "socket_absent": true,
+      "sources_unchanged": true,
+      "success": false
+    },
+    "installed_actions": false,
+    "issues": [],
+    "original_children": [
+      {
+        "automatic_retry": false,
+        "exit_code": 0,
+        "issues": [],
+        "live_birth_observed": false,
+        "original_handle_reaped": true,
+        "phase": "root-local-finalize",
+        "pid": 2572880,
+        "process_absent": true,
+        "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+        "signals": [],
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "9c5b66a3a5f71603bee3dd3a5a3358be2c950b3356894dc545668d6578a1e954",
+        "window": {
+          "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+          "deadline_monotonic": 331636.12307715416,
+          "deadline_unix": 1791307009,
+          "root": "/var/tmp/cirrove-native-trash-f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+          "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+          "started_monotonic": 331036.461498554,
+          "started_unix": 1791306409
+        }
+      },
+      {
+        "automatic_retry": false,
+        "exit_code": 1,
+        "issues": [],
+        "live_birth_observed": false,
+        "original_handle_reaped": true,
+        "phase": "root-controller",
+        "pid": 2572896,
+        "process_absent": true,
+        "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+        "signals": [],
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "window": {
+          "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+          "deadline_monotonic": 331636.12307715416,
+          "deadline_unix": 1791307009,
+          "root": "/var/tmp/cirrove-native-trash-f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+          "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+          "started_monotonic": 331036.461498554,
+          "started_unix": 1791306409
+        }
+      }
+    ],
+    "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+    "success": false,
+    "window": {
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+      "deadline_monotonic": 331636.12307715416,
+      "deadline_unix": 1791307009,
+      "root": "/var/tmp/cirrove-native-trash-f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+      "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+      "started_monotonic": 331036.461498554,
+      "started_unix": 1791306409
+    }
+  },
+  "terminal_audit": {
+    "run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+    "recorded_at": 1791306725.4489198,
+    "success": false,
+    "outer_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-f6c6fed4-3179-43a0-b91d-99b6514f1e22-private-v1/root-outer-result.json",
+      "size": 3898,
+      "sha256": "5c7304071b9ebfc0680ac66868f59009cd472d1ed9c4547f23e59826a202a3c3"
+    },
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-f6c6fed4-3179-43a0-b91d-99b6514f1e22-private-v1/controller-result.json",
+      "size": 1226,
+      "sha256": "1f37f90669f819693b12c6c745f0a067a41e3beca0d91c1d416486bc8fafb80d"
+    },
+    "original_pids_absent": [
+      2572871,
+      2572880,
+      2572896,
+      2572901,
+      2573770
+    ],
+    "original_handles_reaped": true,
+    "owned_mounts_absent": true,
+    "owned_socket_absent": true,
+    "source_count": 561,
+    "current_runtime_sources_match": true,
+    "compiled_and_fresh_role_hashes_match": true,
+    "installed_nineteen_files_unit_pid_birth_unchanged": true,
+    "raw_journal_uploads": 0,
+    "raw_journal_mutations": 1,
+    "raw_queue_rows": 1,
+    "raw_queue_complete": 1,
+    "confirmed_owned_folder_operation": "14114d1c-5c8a-4906-b70b-88d42b04cb8b",
+    "confirmed_folder_creates": 1,
+    "native_trash_admissions": 0,
+    "import_public_cli_started": true,
+    "import_completion_proved": false,
+    "original_import_cli_exit": -15,
+    "original_daemon_exit": 0,
+    "source_staging_observed": false,
+    "startup_guard_passed": true,
+    "failure_stage": "public-import-job-composite-guard",
+    "actual_guard_operands_retained": false,
+    "cause": "unproved; source contract permits valid initial job, so no guard relaxation justified",
+    "provider_reads_counted": false,
+    "provider_retries": false,
+    "closed_arm_replayed": false,
+    "installed_actions": false,
+    "full_integration_accepted": false
+  }
+}

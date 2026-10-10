@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "run": "63316c8a-a07b-4d57-89f5-9431e01c3ca0",
+  "source_count": 573,
+  "status": "complete_check_passed",
+  "active_measurement": false,
+  "question": "Does the formatted573 DATA atomic validation candidate pass the complete contributor check after all four classified focused arms?",
+  "prediction": "All ten sections, at least87 Rust groups, the previous36 and new10 named tests pass; Root/W source and document maps remain exact and all original owners close.",
+  "arms": [
+    "One scripts/check.sh from beginning without --fast"
+  ],
+  "endpoint": "Exit0, all ten sections, all46 required names, no skipped or failed groups, original owners/groups closed and preservation exact.",
+  "expected_seconds": 1800,
+  "maximum_seconds": 5400,
+  "cleanup_seconds": 10,
+  "command": [
+    "/usr/bin/bash",
+    "scripts/check.sh"
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/fullcheck-preparation-private-v1/root_complete_check_data_atomic_once_v1.py",
+    "size": 12741,
+    "sha256": "c6bb1672443a5a7866f32aa7b5bff4c2ccd5cdeb5f140ed96f5e95b3be883053"
+  },
+  "inputs": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/fullcheck-preparation-private-v1/root-approved-inputs-v1.json",
+    "size": 82940,
+    "sha256": "7851a13c3cf84816be620b57f9f8d163d094402ad110879b67b1db5325beede5"
+  },
+  "owner_adapter": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/root-adoption-private-v1/run_data_atomic_controls_once_v2.py",
+    "size": 15952,
+    "sha256": "97334c07585c53b2322a6200c199f8846346b42ff17002de0774bc21a2fac6f6"
+  },
+  "focused_controls_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/root-adoption-private-v1/root-execution-v1/terminal-v1.json",
+    "size": 89123,
+    "sha256": "b5973ab495031049143e8d3a264ec1524c171ef8489254df9d0edac5320e4358"
+  },
+  "format_sync_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/format-preparation-private-v1/root-execution-v1/terminal-v1.json",
+    "size": 155118,
+    "sha256": "df40b597dfa9094ceed55112b772fe2c137947025a84a22dd5c8eae1c544a84a"
+  },
+  "toolpins": {
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "size": 40680304,
+      "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14"
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+      "size": 645952,
+      "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustdoc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustdoc",
+      "size": 12803440,
+      "sha256": "3ff7fed6d1064d8d75d24ae8beff9fe1d68031d3d819966481d22c3c9002b709"
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustfmt": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustfmt",
+      "size": 5254488,
+      "sha256": "99e625e0640b50d773a0f54b93a7e66a0e89afd5351a4de9a17abe7087c11ac4"
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo-fmt": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo-fmt",
+      "size": 2066368,
+      "sha256": "565dd9620e543887d4b955f6985a903a9ef30ef85b9efeac6c233ccf7aee9b6c"
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo-clippy": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo-clippy",
+      "size": 1266040,
+      "sha256": "56478e37c2bc0a09b7442cb975bad0f00cd16a9c80463daca022756a12ef1b93"
+    },
+    "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/clippy-driver": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/clippy-driver",
+      "size": 17059040,
+      "sha256": "ac4a71be2cb2df0f3947419e757a76dabb6110ce4196e1b0bde43296f702287b"
+    },
+    "/usr/bin/bash": {
+      "path": "/usr/bin/bash",
+      "size": 1195144,
+      "sha256": "575e03ac834b739349a4484de481abcd06a6f7193cefc795260a32a1943f20a5"
+    },
+    "/usr/bin/python3.14": {
+      "path": "/usr/bin/python3.14",
+      "size": 14424,
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    }
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct/dafc7v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/dafc7v1",
+  "filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "provider_actions": false,
+  "installed_actions": false,
+  "full487_closed": false,
+  "immutable_initial_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/fullcheck-preparation-private-v1/root-execution-v1/public-preregistration-initial.json",
+    "size": 5181,
+    "sha256": "4a355ac953867bf038052c63aa5fd508b469b45f1b839872f9350855ba4c733b"
+  },
+  "assessment": {
+    "sections": 10,
+    "rust_result_groups": 87,
+    "required_names": 46,
+    "source_count": 573,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/fullcheck-preparation-private-v1/root-execution-v1/terminal-v1.json",
+      "size": 194567,
+      "sha256": "ae5b3ceb4d582cf1c9304589a021663e243539e8186e4ba911de91ccc893f2f7"
+    },
+    "completion_appended_after_check": true
+  },
+  "independent_actual_audit": {
+    "receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/fullcheck-preparation-private-v1/root-execution-v1/audit-independent-complete-check-terminal-v1.json",
+      "size": 11518,
+      "sha256": "ecc0144dce4841c0ee20b1550109c4525f2150961a7b4f44e5bc7becc786e850"
+    },
+    "passed": 22,
+    "total": 22,
+    "scope": "Actual closed local source validation/build only; no cloud, installed or full-iCloud acceptance."
+  }
+}

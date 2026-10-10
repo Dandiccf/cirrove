@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "status": "actual-baseline-desired-failure-corrected-eight-pass",
+  "question": "Does replacing unsupported GTK GrabFocus with bounded addressed TAB focus the exact owned row before its single SPACE activation?",
+  "prediction": "V19 fails the valid-row endpoint through synthetic NotSupportedError; V20 v2 passes eight controls including 0/1/8 TABs, zero SPACE without focus, foreign-window or deadline refusal.",
+  "endpoint": "Actual-method AST controls, no real process, GI, key, cloud or installed action.",
+  "baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-calibrated-library-private-v1/chooser_keyboard_cancel_v19.py",
+    "size": 48983,
+    "sha256": "dc5510ebff8157afb0207a0aef08556d7fc249f7f5b202259af64bc3c83f98c0"
+  },
+  "corrected": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-window-tab-cancel-private-v1/chooser_keyboard_cancel_v20_v2.py",
+    "size": 51334,
+    "sha256": "c32e9d60160385a941e4911f595ccbd78ade7731b7211b887af7a2c0b0ed2a9b"
+  },
+  "controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-window-tab-cancel-private-v1/test_owned_tab_navigation_v1.py",
+    "size": 10220,
+    "sha256": "68bbca1e968ea8e46b9038795e4026fa0cfb56365df7b5fd6ab8876b00bc620f"
+  },
+  "limits": [
+    "Fixtures are not live UI/chooser or provider acceptance.",
+    "Baseline must have exactly one desired assertion failure, zero setup errors."
+  ],
+  "automatic_retry": false,
+  "performed": {
+    "baseline": true,
+    "corrected": true,
+    "live_ui": false,
+    "provider": false,
+    "installed_actions": false
+  },
+  "actual_outcome": {
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/public-tab-controls-preregistration-byteexact-before-outcome-v1.json",
+      "size": 1565,
+      "sha256": "23b4852e2ea38bb6505ffa3e9a985695909600b5810e96cd695e3f98e44722f8"
+    },
+    "arms": [
+      {
+        "arm": "baseline",
+        "actual_test_count": 1,
+        "failures": 1,
+        "errors": 0,
+        "terminal": {
+          "exit_code": 1,
+          "duration_seconds": 0.06966332503361627,
+          "sources_unchanged": true,
+          "log_sha256": "e14752ad0c50eff070be66a2f76dd3d9a8491a0c6682afc21547b15fcd33e177",
+          "cloud_mutated": false,
+          "installed_actions": false
+        },
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-tab-baseline-controls-v1-registration.json",
+          "size": 70451,
+          "sha256": "027c7e2f4525b2ba6a4018454f0788c66230455e3c246102fdcb961403585dd0"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-tab-baseline-controls-v1-result.json",
+          "size": 233,
+          "sha256": "2c4647a1baf8dd8e27f9765c59dd61cdafc9d9860006ca3c274e95e197d8eb13"
+        },
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-tab-baseline-controls-v1.log",
+          "size": 1137,
+          "sha256": "e14752ad0c50eff070be66a2f76dd3d9a8491a0c6682afc21547b15fcd33e177"
+        }
+      },
+      {
+        "arm": "corrected",
+        "actual_test_count": 8,
+        "failures": 0,
+        "errors": 0,
+        "terminal": {
+          "exit_code": 0,
+          "duration_seconds": 0.05562039604410529,
+          "sources_unchanged": true,
+          "log_sha256": "9f9aee737cbf4c5af63e8322e8739f642edbfd604bb9f0950347ae68f1f6cdca",
+          "cloud_mutated": false,
+          "installed_actions": false
+        },
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-tab-corrected-controls-v1-registration.json",
+          "size": 70390,
+          "sha256": "af4bcb82b652d8598da39eef1ed95c2132b2c8b9f588c14eac2cc7e983084cf5"
+        },
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-tab-corrected-controls-v1-result.json",
+          "size": 233,
+          "sha256": "ad486d99ff35df0fd36e6ab3f85dd8c0e5ab53c07c67fd8cd3006b20b64b2ac0"
+        },
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-gtk-tab-corrected-controls-v1.log",
+          "size": 424,
+          "sha256": "9f9aee737cbf4c5af63e8322e8739f642edbfd604bb9f0950347ae68f1f6cdca"
+        }
+      }
+    ],
+    "baseline_endpoint": "Actual V19 expand-account method reached the desired assertIsNone failure after fixture NotSupportedError; no setup/API error.",
+    "corrected_endpoint": "Actual V20 v2 method AST passed all eight controls: zero/one/eight TAB navigation, no SPACE without focus, foreign window/identity and finite-clock refusal.",
+    "scope": "Pure mocked actual-method controls. No GI, actual processes, library loading, key input, provider call or installed action. Passing controls do not complete the live chooser."
+  }
+}

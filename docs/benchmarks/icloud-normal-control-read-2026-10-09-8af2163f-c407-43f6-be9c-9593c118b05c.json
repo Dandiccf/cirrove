@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "run": "8af2163f-c407-43f6-be9c-9593c118b05c",
+  "question": "Does the preserved old control session with real retained edits remain valid after the separately observed target rejection?",
+  "prediction": "Control remains valid if the logout was session-scoped; Authentication is also meaningful but does not prove natural expiry. Unknown stops without retry.",
+  "endpoint": "One normal SDK control root read with exact four row/three payload/GCabsence/settings/ciphers/key preservation, then select at most one public reauthentication path.",
+  "state": "closed_successful_control_read",
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 90,
+  "maximum_logical_root_reads": 1,
+  "HTTP_transmission_count": "not_instrumented",
+  "HTTP_status_observed": false,
+  "logout_requests": 0,
+  "reauthentication_performed": false,
+  "provider_data_mutations": 0,
+  "source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "normal_SDK_source_sha256": "66a82b072c909f093b7d1b62a2c525e445caa18d59e148cec9d03caa2425a7d7",
+  "parent_normal_target_read": "5aff4a02-9b4b-4aea-812e-ed0f194ea8f5 closed successful typedAuthentication",
+  "backing_images": 8,
+  "original_host_delivery": "HOLD",
+  "full490_closed": false,
+  "natural_expiry_proved": false,
+  "helper": {
+    "path": "/home/tester/cirrove-normal-control-8af2163f/bin/observer",
+    "size": 32632648,
+    "sha256": "29ee710b43eb08ea4f521d27f0833463d166576ac73fde5f66108c75034f6976"
+  },
+  "helper_export_sha256": "34cb67016e5c613ba09d3308d45506d90dd4a55952ecf3bec752e85fc6eca973",
+  "preflight_passed": true,
+  "status": "closed_passed",
+  "started_unix": 1791577159.6535249,
+  "deadline_unix": 1791577759.6535249,
+  "closed_unix": 1791577274.5345511,
+  "success": true,
+  "native_session": 54246,
+  "native_exit_code": 0,
+  "observed": {
+    "classification": "saved_session_valid",
+    "returned_count": 261,
+    "logical_root_reads": 1,
+    "HTTP_status": "not_instrumented",
+    "HTTP_transmissions": "not_instrumented",
+    "logout_requests": 0,
+    "reauthentication_performed": false,
+    "provider_data_mutations": 0
+  },
+  "retained_snapshot_equal": true,
+  "all_original_handles_closed": true,
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-control-read-8af2163f-c407-43f6-be9c-9593c118b05c/audit-independent-normal-control-closed-read-v1.json",
+    "size": 9885,
+    "sha256": "328bfd4f066b4bd448b394d8b6ff46b28d8f0ff27d9246eeb0b6e500792e22e0"
+  },
+  "backing_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-control-read-8af2163f-c407-43f6-be9c-9593c118b05c/audit-backings-result-v1.json",
+    "size": 7004,
+    "sha256": "c3fc9743d6e37241ba4781888317c7cd31484fe2cabc6389aef3441bfbb763ea"
+  },
+  "host_postflight": {
+    "path": "/home/dandiccf/Storage/cirrove-control-read-8af2163f-c407-43f6-be9c-9593c118b05c/root-host-postflight-v1.json",
+    "size": 6715,
+    "sha256": "cd7c3b2f75e21c497c9fff3e6d43c2c56cb539ae453add5019c748d8cdfb14d2"
+  },
+  "safe_observation": {
+    "path": "/home/dandiccf/Storage/cirrove-control-read-8af2163f-c407-43f6-be9c-9593c118b05c/diagnose-safe-output.jsonl",
+    "size": 1249,
+    "sha256": "d0b1834b9c4fc855bc44403a55948f23e0691ce9619737677efef7306ba1ab15"
+  },
+  "limitations": [
+    "Guest four row-body digests, three required control payloads and target Uploaded object absence are supported by reviewed guest source and safe equality receipt; not independently extracted from guest by reviewer.",
+    "Host19 full byte hashes delegated to pinned Root postflight; current19 stat9 and protected PID/birth/executable independently checked.",
+    "This is a later control observation, not a completed original logout-isolation chain, natural expiry, same-account reauthentication, reliability or criterion490 closure.",
+    "CONTROL owns retained44/52/50. Rejected TARGET owns only Uploaded4224 with GC-absent journal object; target reauthentication cannot prove target pending recovery.",
+    "Native54246 original exec closure delegated to Root hostpostflight; ten child closure records independently checked against current PID/group absence."
+  ],
+  "session_isolation_chain_completed": false,
+  "rejected_target_pending_recovery_proved": false
+}

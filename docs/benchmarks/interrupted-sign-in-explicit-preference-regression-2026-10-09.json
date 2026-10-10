@@ -1,0 +1,157 @@
+{
+  "run": "interrupted-preference-20261009",
+  "question": "Does a later explicit enable/disable supersede an interrupted sign-in restore wish, including durable failure and concurrent settings preservation?",
+  "prediction": "The unchanged production code fails the exact new primary assertion; corrected code passes the same case and focused ownership/persistence controls. Synthetic coverage does not close installed recovery gate488.",
+  "state": "closed_synthetic_red_green_pass",
+  "active": false,
+  "active_measurement": false,
+  "worktree": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009",
+  "base_head": "cd3a2809b06d41dd0c3413e38350f0d2d2d97da6",
+  "target": "/home/dandiccf/Storage/.cirrove-builds/interrupted-preference-20261009/target",
+  "TMPDIR": "/home/dandiccf/Storage/ct/interrupted-preference-20261009",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/interrupted-preference-20261009",
+  "filesystem": "ext4 /dev/nvme1n1p1",
+  "maximum_work_seconds_per_command": 1800,
+  "cleanup_seconds_per_command": 30,
+  "arms": [
+    "old-production-red1",
+    "corrected-same-green1",
+    "corrected-focused-controls"
+  ],
+  "scope": "Local synthetic account settings only; no credentials, provider, service, guest or original journal actions.",
+  "base_source_sha256": "45be9017f6a03b28d54e57bd5a9d53521ffc4fcd10354b48106907881606dad4",
+  "corrected_source": {
+    "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/crates/cirrove-service/src/accounts.rs",
+    "size": 142657,
+    "sha256": "ef1a0238e967c1dc582db4ec9b4163fdb2b5a8b00512c1dcc4a1dd5cde4d4175"
+  },
+  "patch": {
+    "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/interrupted-preference-fix-v1.patch",
+    "size": 16302,
+    "sha256": "3fc9bf13d7413cd0059ecc5b872f099d0e0a3a5285aff72b7c4dafd552cf6242"
+  },
+  "same_primary_test_unchanged": true,
+  "primary_test_sha256": "239a1cfb2998867b1c08811082c673095dc259b9912818b1558850eea00b080f",
+  "focused_controls": [
+    "accounts::tests::interrupted_preference_tests::marker_failure_before_rename_preserves_previous_file",
+    "accounts::tests::interrupted_preference_tests::live_sign_in_refuses_both_public_preference_routes",
+    "accounts::tests::interrupted_preference_tests::healer_uses_current_account_not_initial_inventory",
+    "accounts::tests::interrupted_preference_tests::cleanup_failure_retains_only_latest_wish",
+    "accounts::tests::interrupted_preference_tests::persistence_failure_retains_explicit_durable_intent",
+    "accounts::tests::interrupted_preference_tests::id_preference_preserves_other_accounts_and_no_marker_behavior"
+  ],
+  "results": [
+    {
+      "arm": "old-production-red1",
+      "exit_code": 101,
+      "elapsed_seconds": 100.66895677999128,
+      "within_original_window": true,
+      "original_owner_reaped": true,
+      "process_absent": true,
+      "process_group_members": [],
+      "signals": [],
+      "receipt": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/old-production-red1-result-v1.json",
+        "size": 1630,
+        "sha256": "c3e1c29c295d5e4e7f19145c062f2547b09e541b70ab7bb253a11215dbc379c6"
+      },
+      "stdout": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/old-production-red1-stdout.txt",
+        "size": 308,
+        "sha256": "6ecbcf83712da487310eb31dd039c69721fb571b51cf2ccaf682ded2ca9ff981"
+      },
+      "stderr": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/old-production-red1-stderr.txt",
+        "size": 13259,
+        "sha256": "307f4384fa6385616f59877d2b60233962750cfbf43c0bdb744570c06c3dea09"
+      },
+      "test_executables": [
+        {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/interrupted-preference-20261009/target/debug/deps/cirrove_service-d91d0d72c92dd39f",
+          "size": 591850984,
+          "sha256": "21032afb5fc3123c4fc1de5e8803fc0b6c1d5a04cde94f37580fe991809d4b03"
+        }
+      ]
+    },
+    {
+      "arm": "corrected-same-green1",
+      "exit_code": 0,
+      "elapsed_seconds": 21.673844518023543,
+      "within_original_window": true,
+      "original_owner_reaped": true,
+      "process_absent": true,
+      "process_group_members": [],
+      "signals": [],
+      "receipt": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/corrected-same-green1-result-v1.json",
+        "size": 1646,
+        "sha256": "aa54526f065d464a96a840f8aa0dd95f165fe23f22dbff20e3b7536dcff2530d"
+      },
+      "stdout": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/corrected-same-green1-stdout.txt",
+        "size": 200,
+        "sha256": "b5b334e2f128f0c62219a98633ab29f8c6ec179ec3185978ecea97e9b62b3978"
+      },
+      "stderr": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/corrected-same-green1-stderr.txt",
+        "size": 360,
+        "sha256": "db62d3ba7ab88e8328a062be23715dfdc82926af6e485421c657dcc78cbefd4a"
+      },
+      "test_executables": [
+        {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/interrupted-preference-20261009/target/debug/deps/cirrove_service-d91d0d72c92dd39f",
+          "size": 591721912,
+          "sha256": "db2b7084870b7e26d3c9ae45f09fdc586279e3ea26b227bdb3a5492059519c1e"
+        }
+      ]
+    },
+    {
+      "arm": "corrected-focused-controls",
+      "exit_code": 0,
+      "elapsed_seconds": 0.42459953599609435,
+      "within_original_window": true,
+      "original_owner_reaped": true,
+      "process_absent": true,
+      "process_group_members": [],
+      "signals": [],
+      "receipt": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/corrected-focused-controls-result-v1.json",
+        "size": 1667,
+        "sha256": "2873f83fa9ba248e4ca7e0876d399b4ee74c795c380f6e4d651524335d5e3985"
+      },
+      "stdout": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/corrected-focused-controls-stdout.txt",
+        "size": 778,
+        "sha256": "ae6e58614d7a1dc9a9cc70ddaf49900e9e14df5687cf77052b1286533f3542ce"
+      },
+      "stderr": {
+        "path": "/home/dandiccf/Storage/cirrove-interrupted-preference-20261009/.local-state/interrupted-preference-regression-private-v1/corrected-focused-controls-stderr.txt",
+        "size": 231,
+        "sha256": "019f8a91460e54a9cab8c7153c7e5c315b05ba2c214af3e3830c5bd61ea9a0b4"
+      },
+      "test_executables": [
+        {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/interrupted-preference-20261009/target/debug/deps/cirrove_service-d91d0d72c92dd39f",
+          "size": 591721912,
+          "sha256": "db2b7084870b7e26d3c9ae45f09fdc586279e3ea26b227bdb3a5492059519c1e"
+        }
+      ]
+    }
+  ],
+  "failure_semantics": "An existing marker is atomically superseded with the latest explicit preference before settings persistence. A persistence error, including after marker rename, does not promise rollback: the new complete marker may remain and healing applies that explicitly requested wish. Failure before marker rename preserves the prior marker. Failed cleanup retains only the new wish.",
+  "limitations": [
+    "Synthetic account settings only; no credentials, service, provider or retained real journal touched.",
+    "No installed downgrade or active retained-export evidence; gate488 remains open.",
+    "Separate generic browser reauthentication stale-snapshot finding was not changed.",
+    "Full scripts/check.sh remains Root-owned and is required before committing."
+  ],
+  "root_integration": {
+    "source_sha256": "bb74ac6505a005ebe9f4af726856eb898093a8ffa36ed1b2fb65fae37b5c2d45",
+    "delta_from_frozen_GREEN": "Add a no-marker exists hint before ownership to retain healthy-account cheap skipping; marker and current account are still reread under both locks. Independently reviewed.",
+    "frozen_GREEN_source_sha256": "ef1a0238e967c1dc582db4ec9b4163fdb2b5a8b00512c1dcc4a1dd5cde4d4175",
+    "complete_combined_check": "icloud-preference-and-main-integration-check-2026-10-09-b07b8f0e-10fd-47c1-8239-ffb6b2e12f5c.json",
+    "relabelled_focused_GREEN": false,
+    "real_provider_calls": 0,
+    "installed_acceptance_closed": false
+  }
+}

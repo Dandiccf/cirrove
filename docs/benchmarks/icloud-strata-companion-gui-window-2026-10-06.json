@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "run": "a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+  "status": "closed_synthetic_gui_passed",
+  "active_measurement": false,
+  "recorded_unix": 1791310415.5775666,
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/supervise_v3.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/root-inputs-reviewed-v1.json",
+    "--sha256",
+    "2d6c7d21a7024027ef102ca0a974404c4c89169bf5d58b6ed10ee4c5c2489627"
+  ],
+  "supervisor_sha256": "ec6dd5cdd33dddb2db7d6dd1e625bdbe428f54fb211f51a8639f019e4a98a002",
+  "expected_seconds": 330,
+  "work_seconds": 300,
+  "cleanup_seconds": 30,
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/st-a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+  "SQLITE_TMPDIR": "container /tmp on the same ext4 disk bind",
+  "provider_requests": 0,
+  "installed_actions": false,
+  "original_clock_is_recorded_before_Docker_in_private_attempt": true,
+  "preregistration": "icloud-strata-companion-gui-2026-10-06.json",
+  "result_pending": false,
+  "success": true,
+  "actual_seconds": 9.42713269602973,
+  "actual_clock": {
+    "start_epoch": 1791310422.722885,
+    "start_monotonic": 335049.845961493,
+    "work_deadline_monotonic": 335349.845961493,
+    "deadline_monotonic": 335379.845961493,
+    "duration_seconds": 330,
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+  },
+  "original_docker_reaped": true,
+  "recorded_birth_gone": true,
+  "container_exited": true,
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/result.json",
+    "size": 8205,
+    "sha256": "e61836a7fb67e62a15e617b46b0d0032fcb18d35b42488870c2b127f2d17b8d3"
+  },
+  "gui_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/result.json",
+    "size": 1429,
+    "sha256": "7d9ca8ae8a6769b2c228442c9943cf5cd7fdb9a6ab83331178345283c2291741",
+    "stamp": [
+      57,
+      75030934,
+      1429,
+      33188,
+      1000,
+      1,
+      1791310431963675949,
+      1791310431963675949
+    ]
+  },
+  "gate489_closed": false
+}

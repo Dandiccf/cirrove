@@ -1,0 +1,159 @@
+{
+  "TMPDIR_filesystem": "ext4",
+  "arms": [
+    "one fresh actual public chooser/Cancel arm"
+  ],
+  "automatic_retry": false,
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "Real public chooser confirmation then Cancel with importRPC0, exact original Desktop reap and all own child closures. This is preflight, not actual provider import acceptance.",
+  "evidence": {
+    "birth_identity_sha256": "d205d5b836e02ee2a98361d9a26069800d970daa5d9588a54d3a5d193cea19f5",
+    "frozen_prereg_sha256": "1a5a64a29af375691ed9e9c4a53031a73d3b8875d55d978c80da0410a08b3f23",
+    "result_sha256": "305c3bced845db1443afae6416df29f0ba70032a239c422d10009fd281bb19a6"
+  },
+  "full_icloud_gate_closed": false,
+  "independent_prior_health_run": "c5c06ab2-a67d-4a08-bf2f-a8babf3ff3a0",
+  "installed_actions": false,
+  "outcome": {
+    "all_five_original_children_reaped": true,
+    "all_recorded_process_ids_absent": true,
+    "automatic_retry": false,
+    "cause_of_empty_argv_proven": false,
+    "chooser_expected_exe_and_ppid_match": true,
+    "chooser_observed_argv": [
+      ""
+    ],
+    "chooser_owner_ack_sent": false,
+    "desktop_launched": false,
+    "full_icloud_gate_closed": false,
+    "raw_cmdline_byte_count_recorded": false,
+    "result": {
+      "automatic_retry": false,
+      "children": [
+        {
+          "name": "chooser",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              ""
+            ],
+            "exe": "/usr/bin/python3.14",
+            "pid": 995650,
+            "ppid": 995624,
+            "startticks": 27021926
+          },
+          "pid": 995650,
+          "returncode": -15
+        },
+        {
+          "name": "health",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/bin/python3.14",
+              "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-isolated-chooser-successor-private-v3/health_child.py",
+              "--address",
+              "unix:path=/var/tmp/cirrove-pages-isolated-chooser-a4e34ef9-53df-4d0d-be43-f89286cff7ec/a.bus",
+              "--registry-pid",
+              "995632",
+              "--owner-ack",
+              "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-a4e34ef9-53df-4d0d-be43-f89286cff7ec/health-ack.json",
+              "--run",
+              "a4e34ef9-53df-4d0d-be43-f89286cff7ec",
+              "--registration-sha256",
+              "12e240c91ee3064986c15b647e8c24ec6c0dd2316b18bbc6505053f54d5dec3d",
+              "--output",
+              "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-a4e34ef9-53df-4d0d-be43-f89286cff7ec/health.json",
+              "--deadline-monotonic",
+              "270248.927674805"
+            ],
+            "exe": "/usr/bin/python3.14",
+            "pid": 995635,
+            "ppid": 995624,
+            "startticks": 27021915
+          },
+          "pid": 995635,
+          "returncode": 0
+        },
+        {
+          "name": "registry",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/lib/at-spi2-registryd"
+            ],
+            "exe": "/usr/lib/at-spi2-registryd",
+            "pid": 995632,
+            "ppid": 995624,
+            "startticks": 27021914
+          },
+          "pid": 995632,
+          "returncode": -15
+        },
+        {
+          "name": "a-bus",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/bin/dbus-daemon",
+              "--nofork",
+              "--config-file=/var/tmp/cirrove-pages-isolated-chooser-a4e34ef9-53df-4d0d-be43-f89286cff7ec/a.conf"
+            ],
+            "exe": "/usr/bin/dbus-daemon",
+            "pid": 995629,
+            "ppid": 995624,
+            "startticks": 27021914
+          },
+          "pid": 995629,
+          "returncode": 0
+        },
+        {
+          "name": "s-bus",
+          "original_handle_reaped": true,
+          "owner": {
+            "argv": [
+              "/usr/bin/dbus-daemon",
+              "--nofork",
+              "--config-file=/var/tmp/cirrove-pages-isolated-chooser-a4e34ef9-53df-4d0d-be43-f89286cff7ec/s.conf"
+            ],
+            "exe": "/usr/bin/dbus-daemon",
+            "pid": 995627,
+            "ppid": 995624,
+            "startticks": 27021914
+          },
+          "pid": 995627,
+          "returncode": 0
+        }
+      ],
+      "cloud_allowed": false,
+      "desktop_identity_observed": false,
+      "desktop_original_handle_reap_confirmed": false,
+      "desktop_process_absent": false,
+      "desktop_signals": [],
+      "errors": [
+        "RuntimeError"
+      ],
+      "fixture_socket_absent": true,
+      "gate485_complete": false,
+      "health": true,
+      "health_only": false,
+      "inputs_unchanged": true,
+      "local_public_chooser_complete": false,
+      "overall_success": false,
+      "owned_bus_sockets_absent": true,
+      "provider_verified": false,
+      "run": "a4e34ef9-53df-4d0d-be43-f89286cff7ec"
+    },
+    "ui_action_complete": false
+  },
+  "prediction": "Fresh private bus health succeeds; exact owned Desktop acknowledgments permit actual chooser actions, confirmation Cancel sends no mutation RPC, all six original child/grandchild handles are reaped and sockets removed. Portal ambiguity or any unknown RPC refuses without retry.",
+  "question": "Does the actual default production Desktop open the public Pages file chooser, select one own archive, reach confirmation and Cancel without an import RPC, through an isolated healthy accessibility bus with parent ownership acknowledgment before GI?",
+  "registered_at": "2026-10-06T00:13:11.465931+00:00",
+  "run": "a4e34ef9-53df-4d0d-be43-f89286cff7ec",
+  "source_count": 477,
+  "source_head": "3179522bd1a0323bd6937222ae989f0e03fcc957",
+  "status": "health-passed-chooser-birth-argv-refused-before-ack",
+  "version": 1,
+  "window_seconds": 180
+}

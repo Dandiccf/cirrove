@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "run": "d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611",
+  "subject_run": "ff5abf15-0264-46a1-9efd-94a70ae724a7",
+  "status": "closed_exact_title_subtitle_visual_success",
+  "active_measurement": false,
+  "question": "Does Apple Keynote open the exact new PACKAGE B from the independently audited ff5 atomic writer and normal read-only remount, displaying the genuine title and subtitle before and after one reload?",
+  "prediction": "One causally selected exact Drive row opens one Keynote editor with the genuine B slide. One intentional reload retains its exact title and subtitle; any refusal stops with no second open or automatic retry.",
+  "expected": {
+    "slide_count": 1,
+    "title": "Cirrove Keynote B bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+    "subtitle": "Owned genuine editor replacement source B"
+  },
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "open_limit": 1,
+  "reload_limit": 1,
+  "automatic_retry_limit": 0,
+  "intentional_edits_or_uploads": false,
+  "source_count": 572,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-exact-apple-ff5-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611-private-v1/registration-v1.json",
+    "size": 84518,
+    "sha256": "2bd2b0ee3cd87d810b371eb15d9d5829a90cdce26c724e52c4d1fba1173296ea"
+  },
+  "normal_RO": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-package-atomic-ro-184da3f0-452f-44df-917f-f442913a048c/root-terminal-result.json",
+    "size": 439,
+    "sha256": "3e7b2dd535376c5777e51ced6347b8ec6c9a746c6c61543225f859392a0495ae"
+  },
+  "normal_RO_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-package-atomic-ro-184da3f0-452f-44df-917f-f442913a048c/audit-independent-readonly-terminal-v1.json",
+    "size": 7822,
+    "sha256": "1284464f0b2a952bd803a9a7ddcc62fcff159c38fa7c05e7320ae84f4522bd97"
+  },
+  "limits": "This proves only read-only observed Apple rendering/reload of the exact selected replacement. Apple opening may change revision, metadata or representation; no byte/revision-preservation or cause inference. No typing, edit controls, rename, duplicate, recovery, download, conversion, new-document substitution or native Linux save. Retain no tokens, cookie/cursor/signed URLs, raw provider bodies or account identifiers from routes. Full487/native Linux/HOLD remain open.",
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-exact-apple-ff5-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611-private-v1/original-window-v1.json",
+    "size": 314,
+    "sha256": "ec0e02220ba0bf4c04079823dabe548f153015a207c2ec3d8a168d7191ec94d7"
+  },
+  "clock_calibration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-exact-apple-ff5-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611-private-v1/monotonic-clock-calibration-v1.json",
+    "size": 740,
+    "sha256": "648eefcddada02e6c95f57fd0111fe057f986c521cbe5038897701397ae096ff"
+  },
+  "root_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-exact-apple-ff5-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611-private-v1/root-ui-terminal-v1.json",
+    "size": 7970,
+    "sha256": "46a6a10d1dd1c772d62438568a5594860398055425aa5efa91c7daa72c9e990c"
+  },
+  "elapsed_seconds": 200.2326185470447,
+  "owned_tabs_closed": true,
+  "independent_terminal_audit": {
+    "receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-atomic-exact-apple-ff5-d26b6cbe-d96b-45ab-9c31-ab6d7a5ef611-private-v1/audit-independent-apple-terminal-v1.json",
+      "size": 7113,
+      "sha256": "6e996ec02de305d34b529ba7f9609f019f3c91707bad404919eb7d2cb3fb8f4d"
+    },
+    "success": true,
+    "passed": 26,
+    "total": 26,
+    "source_count_at_execution": 572,
+    "scope": "Same owned case and original terminal closure; full integration gate remains open."
+  }
+}

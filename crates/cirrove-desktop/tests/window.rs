@@ -61,14 +61,17 @@ fn buttons(widget: &gtk::Widget, label: &str) -> Vec<gtk::Button> {
 }
 
 fn provider_selector(widget: &gtk::Widget) -> Option<adw::ComboRow> {
+    combo_row(widget, "Provider")
+}
+fn combo_row(widget: &gtk::Widget, title: &str) -> Option<adw::ComboRow> {
     if let Some(row) = widget.downcast_ref::<adw::ComboRow>()
-        && row.title() == "Provider"
+        && row.title() == title
     {
         return Some(row.clone());
     }
     let mut child = widget.first_child();
     while let Some(current) = child {
-        if let Some(found) = provider_selector(&current) {
+        if let Some(found) = combo_row(&current, title) {
             return Some(found);
         }
         child = current.next_sibling();
@@ -210,6 +213,11 @@ struct FakeService {
     socket: PathBuf,
     response: Arc<Mutex<Status>>,
     hold_next: Arc<AtomicBool>,
+    working_supported: Arc<AtomicBool>,
+    retryable_fixture: Arc<AtomicBool>,
+    native_import_enabled: Arc<AtomicBool>,
+    native_imports: Arc<Mutex<Vec<cirrove_service::journal::NativeImportSelection>>>,
+    native_drop_status: Arc<AtomicBool>,
     reply_gate: Arc<tokio::sync::Semaphore>,
     requests: Arc<Mutex<Vec<String>>>,
     task: tokio::task::JoinHandle<()>,
@@ -226,10 +234,22 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
     };
     let response = Arc::new(Mutex::new(status));
     let replies = response.clone();
+    let retryable_fixture = Arc::new(AtomicBool::new(false));
+    let retryable = retryable_fixture.clone();
+    let working_supported = Arc::new(AtomicBool::new(true));
+    let working_support = working_supported.clone();
     let hold_next = Arc::new(AtomicBool::new(false));
     let hold = hold_next.clone();
     let reply_gate = Arc::new(tokio::sync::Semaphore::new(0));
     let gate = reply_gate.clone();
+    let native_import_enabled = Arc::new(AtomicBool::new(false));
+    let native_enabled = native_import_enabled.clone();
+    let native_imports = Arc::new(Mutex::new(Vec::<
+        cirrove_service::journal::NativeImportSelection,
+    >::new()));
+    let native_saved = native_imports.clone();
+    let native_drop_status = Arc::new(AtomicBool::new(false));
+    let native_drop = native_drop_status.clone();
     let requests = Arc::new(Mutex::new(Vec::new()));
     let seen = requests.clone();
     let task = runtime.spawn(async move {
@@ -239,21 +259,51 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                 accepted = server.accept() => {
                     let (stream, _) = accepted.unwrap();
                     let replies = replies.clone();
-                    let held = hold.swap(false, Ordering::SeqCst);
+                    let hold = hold.clone();
                     let gate = gate.clone();
                     let seen = seen.clone();
+                    let working_support = working_support.clone();
+                    let retryable = retryable.clone();
+                    let native_enabled=native_enabled.clone();let native_saved=native_saved.clone();let native_drop=native_drop.clone();
                     clients.spawn(async move {
                         let mut reader = tokio::io::BufReader::new(stream);
                         let mut line = String::new();
                         reader.read_line(&mut line).await.unwrap();
                         let mut stream = reader.into_inner();
                         let data = if line == "status\n" {
-                            if held {
+                            if hold.swap(false, Ordering::SeqCst) {
                                 gate.acquire().await.unwrap().forget();
                             }
                             // A slow service must not block native GTK events.
                             tokio::time::sleep(Duration::from_millis(200)).await;
-                            serde_json::to_vec(&*replies.lock().unwrap()).unwrap()
+                            if native_drop.swap(false,Ordering::SeqCst) {Vec::new()}
+                            else {serde_json::to_vec(&*replies.lock().unwrap()).unwrap()}
+                        } else if line == "capabilities\n" {
+                            serde_json::to_vec(&cirrove_service::Capabilities::current()).unwrap()
+                        } else if line.starts_with("import-native-package ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            if native_enabled.load(Ordering::SeqCst) {
+                                let request:cirrove_service::ImportNativePackageRequest=serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                                let saved=native_saved.lock().unwrap().iter().find(|row|row.name==request.name).cloned().unwrap();
+                                let job=cirrove_service::jobs::Job {id:"native-submitted-job".into(),kind:cirrove_service::jobs::JobKind::ImportNativePackage,
+                                    name:request.name,files_total:1,bytes_total:10,native_import:Some(cirrove_service::jobs::NativeImportProgress {operation:saved.operation,remote:None}),..Default::default()};
+                                replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                                serde_json::to_vec(&cirrove_service::ImportNativePackageReply {job:Some(job),refusal:None}).unwrap()
+                            } else {serde_json::to_vec(&cirrove_service::ImportNativePackageReply { job:None, refusal:Some("synthetic import refusal".into()) }).unwrap()}
+                        } else if line.starts_with("list-native-imports ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request:cirrove_service::ListNativeImportsRequest=serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let reply=if request.after.is_none() {cirrove_service::ListNativeImportsReply {next:Some(1),..Default::default()}}
+                                else {cirrove_service::ListNativeImportsReply {operations:native_saved.lock().unwrap().clone(),next:None,refusal:None}};
+                            serde_json::to_vec(&reply).unwrap()
+                        } else if line.starts_with("watch-native-import ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request:cirrove_service::WatchNativeImportRequest=serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let saved=native_saved.lock().unwrap().iter().find(|row|row.operation==request.operation).cloned().unwrap();
+                            let job=cirrove_service::jobs::Job {id:"native-observer-job".into(),kind:cirrove_service::jobs::JobKind::ImportNativePackage,
+                                name:saved.name,files_total:1,bytes_total:10,native_import:Some(cirrove_service::jobs::NativeImportProgress {operation:saved.operation,remote:None}),..Default::default()};
+                            replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                            serde_json::to_vec(&cirrove_service::ImportNativePackageReply {job:Some(job),refusal:None}).unwrap()
                         } else if line.starts_with("recent ") {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             // One thing from the cloud and one saved here,
@@ -270,6 +320,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         removed: false,
                                     }],
                                     local: vec![cirrove_service::recent::LocalChange {
+                            operation: Some("00000000-0000-4000-8000-000000000001".parse().unwrap()),
                                         sequence: 1,
                                         name: "Notes.txt".into(),
                                         item: None,
@@ -289,7 +340,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         what: "delete folder".into(),
                                         name: "Old invoices".into(),
                                         path: Some("Accounts/Old invoices".into()),
-                                        state: "conflict".into(),
+                                        state: if retryable.load(Ordering::SeqCst) { "failed" } else { "conflict" }.into(),
                                         instead: None,
                                     }],
                                     failed: Vec::new(),
@@ -299,6 +350,42 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                 cirrove_service::RecentReply::default()
                             };
                             serde_json::to_vec(&reply).unwrap()
+                        } else if line.starts_with("recovery-working ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            if !working_support.load(Ordering::SeqCst) {
+                                br#"{"error":"unknown request"}"#.to_vec()
+                            } else {
+                                let request: cirrove_service::RecoveryWorkingRequest = serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                                let first = "00000000-0000-4000-8000-000000000001".parse().unwrap();
+                                let second = "00000000-0000-4000-8000-000000000002".parse().unwrap();
+                                let (files,next) = match request.after {
+                                    None => (Vec::new(), Some(first)),
+                                    Some(id) if id == first => (Vec::new(), Some(second)),
+                                    _ => (vec![sample_working_recovery()], None),
+                                };
+                                serde_json::to_vec(&cirrove_service::RecoveryWorkingReply { files, next, refusal:None }).unwrap()
+                            }
+                        } else if line.starts_with("export-working ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request: cirrove_service::ExportWorkingRequest = serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            if request.generation != 9 {
+                                serde_json::to_vec(&cirrove_service::ExportSaveReply { job:None, refusal:Some("working version changed".into()) }).unwrap()
+                            } else {
+                                let job = cirrove_service::jobs::Job { id:"working-recovery-job".into(), kind:cirrove_service::jobs::JobKind::ExportLocal,
+                                    name:request.destination.to_string_lossy().into_owned(), bytes_total:3, ..Default::default() };
+                                replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                                serde_json::to_vec(&cirrove_service::ExportSaveReply { job:Some(job), refusal:None }).unwrap()
+                            }
+                        } else if line.starts_with("export-save ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request: cirrove_service::ExportSaveRequest = serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let job = cirrove_service::jobs::Job {
+                                id: "recovery-job".into(), kind: cirrove_service::jobs::JobKind::ExportLocal,
+                                name: request.destination.to_string_lossy().into_owned(), bytes_total: 3,
+                                ..Default::default()
+                            };
+                            replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                            serde_json::to_vec(&cirrove_service::ExportSaveReply { job: Some(job), refusal: None }).unwrap()
                         } else if line.starts_with("unpin ") || line.starts_with("pin ") {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             let body: cirrove_service::PinRequest =
@@ -339,6 +426,8 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         started_at: 0,
                                         state: cirrove_service::jobs::JobState::Running,
                                         issue: None,
+                                        export: None,
+                                        native_import: None, native_replace: None, native_trash: None, native_abandon: None, working_export: None,
                                     });
                                     accepted = true;
                                 }
@@ -403,6 +492,11 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
         socket,
         response,
         hold_next,
+        working_supported,
+        retryable_fixture,
+        native_import_enabled,
+        native_imports,
+        native_drop_status,
         reply_gate,
         requests,
         task,
@@ -1218,6 +1312,464 @@ fn a_second_google_account_reuses_the_app_and_receives_a_default_folder() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn icloud_connect_defaults_read_only_and_requires_explicit_write_selection() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    write_settings(&state, &sample.settings.unwrap());
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("ICloudConnect");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("window", || ui.current().is_some());
+    let window = ui.window.upgrade().unwrap();
+    if std::env::var_os("CIRROVE_ICLOUD_CONNECT_ACCESS_SNAPSHOT").is_some() {
+        window.set_default_size(800, 1100);
+    }
+    button(window.upcast_ref(), "Connect a drive")
+        .unwrap()
+        .emit_clicked();
+    pump_until("connect dialog", || {
+        entry_row(window.upcast_ref(), "Name").is_some()
+    });
+    entry_row(window.upcast_ref(), "Name")
+        .unwrap()
+        .set_text("iCloudTest");
+    provider_selector(window.upcast_ref())
+        .unwrap()
+        .set_selected(2);
+    pump_until("iCloud fields", || {
+        button(window.upcast_ref(), "Sign in to iCloud").is_some()
+    });
+    let sign_in = button(window.upcast_ref(), "Sign in to iCloud").unwrap();
+    assert!(!sign_in.is_sensitive());
+    assert!(entry_row(window.upcast_ref(), "Apple Account email").is_some());
+    assert!(entry_row(window.upcast_ref(), "Apple Account password").is_some());
+    let changes = action_row(window.upcast_ref(), "Allow changes")
+        .unwrap()
+        .downcast::<adw::SwitchRow>()
+        .unwrap();
+    assert!(changes.is_visible());
+    assert!(!changes.is_active(), "iCloud starts read-only");
+    changes.set_active(true);
+    assert!(
+        changes.is_active(),
+        "ordinary writes require an explicit choice"
+    );
+    provider_selector(window.upcast_ref())
+        .unwrap()
+        .set_selected(1);
+    changes.set_active(true);
+    provider_selector(window.upcast_ref())
+        .unwrap()
+        .set_selected(2);
+    assert!(
+        !changes.is_active(),
+        "another provider's enabled switch is not an iCloud opt-in"
+    );
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "not by a narrower Apple permission"
+    ));
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "native document packages remain protected"
+    ));
+    entry_row(window.upcast_ref(), "Apple Account email")
+        .unwrap()
+        .set_text("person@example.invalid");
+    entry_row(window.upcast_ref(), "Apple Account password")
+        .unwrap()
+        .set_text("synthetic-password");
+    pump_until("iCloud sign-in ready", || sign_in.is_sensitive());
+    let folder = action_row(window.upcast_ref(), "Folder in Files").unwrap();
+    assert!(
+        folder
+            .subtitle()
+            .is_some_and(|subtitle| subtitle.ends_with("/Cloud/Cirrove-iCloudTest"))
+    );
+    recovery_snapshot(&window, "CIRROVE_ICLOUD_CONNECT_ACCESS_SNAPSHOT");
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn icloud_access_dialog_captures_intent_and_cancel_preserves_account() {
+    for explicit_write in [false, true] {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let state = temp.path().join("state");
+        cirrove_service::private_dir(&state).unwrap();
+        let mut sample = demo::snapshot().unwrap();
+        let account = &mut sample.settings.as_mut().unwrap().accounts[0];
+        account.registration = cirrove_auth::AppRegistration::ICloud;
+        account.identity.tenant_id.clear();
+        account.identity.graph_user_id.clear();
+        account.drive.id = "drive".into();
+        account.drive.drive_type = "icloud_drive".into();
+        account.drive.name = "iCloud Drive".into();
+        account.root_id = cirrove_icloud::ROOT_ID.into();
+        account.access = cirrove_auth::AccessMode::ReadOnly;
+        let id = account.id.clone();
+        sample.status.as_mut().unwrap().accounts[0].provider = "icloud".into();
+        write_settings(&state, sample.settings.as_ref().unwrap());
+        let before = std::fs::read(state.join("accounts.json")).unwrap();
+        let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+        let app = application(if explicit_write {
+            "ICloudExplicitAccess"
+        } else {
+            "ICloudPreserveAccess"
+        });
+        let ui = Window::new(
+            &app,
+            Backend::Live {
+                runtime: runtime.handle().clone(),
+                state: state.clone(),
+                socket: service.socket.clone(),
+            },
+        );
+        pump_until("iCloud account", || ui.current().is_some());
+        let window = ui.window.upgrade().unwrap();
+        if std::env::var_os("CIRROVE_ICLOUD_REAUTH_ACCESS_SNAPSHOT").is_some() {
+            window.set_default_size(800, 800);
+        }
+        window.present();
+        if explicit_write {
+            ui.change_access(&id);
+        } else {
+            ui.sign_in(&id);
+        }
+        pump_until("native access dialog", || {
+            entry_row(window.upcast_ref(), "Apple Account password").is_some()
+        });
+        let expected = if explicit_write {
+            "will allow ordinary-file changes"
+        } else {
+            "will keep this drive read-only"
+        };
+        pump_until("native access policy rendered", || {
+            displays_text_containing(window.upcast_ref(), "This is a local Cirrove policy")
+        });
+        assert!(displays_text_containing(window.upcast_ref(), expected));
+        assert!(displays_text_containing(
+            window.upcast_ref(),
+            "not a narrower Apple permission"
+        ));
+        assert_eq!(std::fs::read(state.join("accounts.json")).unwrap(), before);
+        if explicit_write {
+            recovery_snapshot(&window, "CIRROVE_ICLOUD_REAUTH_ACCESS_SNAPSHOT");
+        }
+        window.visible_dialog().unwrap().close();
+        pump_until("native dialog closed", || window.visible_dialog().is_none());
+        assert_eq!(std::fs::read(state.join("accounts.json")).unwrap(), before);
+        window.close();
+        service.task.abort();
+        runtime.shutdown_timeout(Duration::from_secs(1));
+    }
+}
+
+fn sample_working_recovery() -> cirrove_service::journal::WorkingRecovery {
+    serde_json::from_value(
+        serde_json::json!({"file":"00000000-0000-4000-8000-000000000009",
+        "generation":9,"name":"Working notes.txt","size":3,"recorded_size":3,"unlinked":false}),
+    )
+    .unwrap()
+}
+fn recovery_snapshot(window: &adw::ApplicationWindow, variable: &str) {
+    if let Ok(path) = std::env::var(variable) {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(snapshot.to_node().unwrap(), None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+}
+
+fn recovery_progress_requires_the_matching_service_receipt() {
+    recovery_progress_requires_the_matching_service_receipt_for_mode(false);
+}
+fn recovery_progress_requires_the_matching_service_receipt_for_mode(read_only: bool) {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = if read_only {
+        cirrove_auth::AccessMode::ReadOnly
+    } else {
+        cirrove_auth::AccessMode::ReadWrite
+    };
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let mut status = sample.status.unwrap();
+    status.accounts[0].local_recovery = read_only;
+    let service = fake_service(&runtime, temp.path(), status);
+    let app = application(if read_only {
+        "ReadonlyRecoveryProgress"
+    } else {
+        "RecoveryProgress"
+    });
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    let save: cirrove_service::recent::LocalChange = serde_json::from_value(serde_json::json!({
+        "operation":"00000000-0000-4000-8000-000000000001", "sequence":1, "name":"Notes.txt", "state":"conflict", "size":3
+    })).unwrap();
+    let destination = temp.path().join("recovered.txt");
+    for outcome in ["confirmed", "missing_receipt", "missing_job", "stopped"] {
+        let with_receipt = outcome == "confirmed";
+        service.response.lock().unwrap().accounts[0].jobs.clear();
+        ui.export_saved_version(&id, save.clone(), destination.clone());
+        pump_until("export progress", || {
+            displays_text(window.upcast_ref(), "0 of 3 bytes copied")
+        });
+        {
+            let mut status = service.response.lock().unwrap();
+            let job = status.accounts[0]
+                .jobs
+                .iter_mut()
+                .find(|j| j.id == "recovery-job")
+                .unwrap();
+            job.state = cirrove_service::jobs::JobState::Succeeded;
+            job.bytes_done = 3;
+            if outcome == "stopped" {
+                job.state = cirrove_service::jobs::JobState::Stopped;
+            }
+            if with_receipt {
+                job.export = Some(cirrove_service::journal::LocalExportReceipt {
+                    operation: save.operation.unwrap(),
+                    size: 3,
+                    sha256: "a".repeat(64),
+                    destination: destination.clone(),
+                });
+            }
+            if outcome == "missing_job" {
+                status.accounts[0].jobs.clear();
+            }
+        }
+        pump_until("export result", || {
+            displays_text_containing(
+                window.upcast_ref(),
+                if with_receipt {
+                    "Verified copy saved to"
+                } else {
+                    "Export was not confirmed."
+                },
+            )
+        });
+        button(window.upcast_ref(), "Close").unwrap().emit_clicked();
+        pump_until("export dialog dismissed", || {
+            button(window.upcast_ref(), "Close").is_none()
+        });
+    }
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn recovery_picker_uses_bounded_local_history_without_cloud_mutation() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("RecoveryPicker");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|view| {
+            view.accounts
+                .iter()
+                .any(|c| c.id == id && c.mounted && c.writable)
+        })
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("recovery button", || {
+        button(window.upcast_ref(), "Save a local copy…").is_some()
+    });
+    button(window.upcast_ref(), "Save a local copy…")
+        .unwrap()
+        .emit_clicked();
+    pump_until("saved generation picker", || {
+        displays_text_containing(window.upcast_ref(), "Notes.txt — saved version 1, 3 bytes")
+    });
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("recent ") && line.contains("200"))
+    );
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("keep-both ")
+                || line.starts_with("retry ")
+                || line.starts_with("export-save "))
+    );
+    if let Ok(path) = std::env::var("CIRROVE_RECOVERY_SNAPSHOT") {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(&window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        let node = snapshot.to_node().unwrap();
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(&node, None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn uncertain_writes_have_a_separate_non_destructive_status() {
+    let app = application("UnconfirmedWrites");
+    let ui = Window::new(&app, Backend::Demo);
+    let mut snapshot = demo::snapshot().unwrap();
+    let account = &mut snapshot.settings.as_mut().unwrap().accounts[0];
+    account.registration = cirrove_auth::AppRegistration::ICloud;
+    account.drive.name = "iCloud Drive".into();
+    let mut status = serde_json::to_value(snapshot.status.as_ref().unwrap()).unwrap();
+    status["accounts"][0]["unconfirmed_changes"] = 2.into();
+    status["accounts"][0]["provider"] = "icloud".into();
+    snapshot.status = Ok(serde_json::from_value(status).unwrap());
+    ui.render(cirrove_desktop::model::Overview::from_snapshot(snapshot));
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("confirmation notice visible", || {
+        displays_text(window.upcast_ref(), "Checking cloud confirmation")
+    });
+    let row = action_row(window.upcast_ref(), "Checking cloud confirmation").unwrap();
+    assert!(row.is_visible());
+    assert!(row.subtitle().unwrap().contains("2"));
+    assert!(buttons(row.upcast_ref(), "Try again").is_empty());
+    assert!(buttons(row.upcast_ref(), "Discard").is_empty());
+    if let Some(path) = std::env::var_os("CIRROVE_CONFIRMATION_SNAPSHOT") {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(&window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        let node = snapshot.to_node().unwrap();
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(&node, None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+    let clean = demo::snapshot().unwrap();
+    ui.render(cirrove_desktop::model::Overview::from_snapshot(clean));
+    assert!(!row.is_visible(), "completed checks must clear the notice");
+    window.close();
+}
+
+fn connected_icloud_account_can_sign_in_again_before_expiry() {
+    let app = application("ICloudReauthReady");
+    let ui = Window::new(&app, Backend::Demo);
+    let mut snapshot = demo::snapshot().unwrap();
+    let account = &mut snapshot.settings.as_mut().unwrap().accounts[0];
+    account.registration = cirrove_auth::AppRegistration::ICloud;
+    account.drive.name = "iCloud Drive".into();
+    account.access = cirrove_auth::AccessMode::ReadOnly;
+    snapshot.status.as_mut().unwrap().accounts[0].provider = "icloud".into();
+    ui.render(cirrove_desktop::model::Overview::from_snapshot(snapshot));
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    assert!(displays_text(window.upcast_ref(), "iCloud Drive"));
+    let sign_in = buttons(window.upcast_ref(), "Sign in again");
+    assert_eq!(
+        sign_in.len(),
+        1,
+        "a connected iCloud account can renew its session"
+    );
+    assert!(sign_in[0].is_sensitive());
+    assert!(
+        !action_row(window.upcast_ref(), "Delete a file permanently")
+            .unwrap()
+            .is_visible()
+    );
+    assert!(!displays_text_containing(
+        window.upcast_ref(),
+        "changes upload in the background"
+    ));
+    window.close();
+}
+
 /// What an account keeps offline, in the window, and taking one back.
 ///
 /// Pinning existed only in the CLI and the Files context menu, so the question
@@ -1396,6 +1948,12 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
                 started_at: 0,
                 state: cirrove_service::jobs::JobState::Running,
                 issue: None,
+                export: None,
+                native_import: None,
+                native_replace: None,
+                native_trash: None,
+                native_abandon: None,
+                working_export: None,
             },
             // One that gave up. Its row stays until somebody has seen it: a
             // progress bar that simply vanishes tells nobody anything.
@@ -1410,6 +1968,12 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
                 started_at: 0,
                 state: cirrove_service::jobs::JobState::Failed,
                 issue: Some("the cloud was unreachable".into()),
+                export: None,
+                native_import: None,
+                native_replace: None,
+                native_trash: None,
+                native_abandon: None,
+                working_export: None,
             },
         ];
     }
@@ -1488,7 +2052,515 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn disabled_account_offers_local_recovery_without_a_daemon() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut settings = demo::snapshot().unwrap().settings.unwrap();
+    settings.accounts.truncate(1);
+    settings.accounts[0].enabled = false;
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadOnly;
+    settings.accounts[0].registration = cirrove_auth::AppRegistration::ICloud;
+    settings.accounts[0].drive.name = "iCloud Drive".into();
+    settings.accounts[0].drive.id = "drive".into();
+    settings.accounts[0].drive.drive_type = "icloud_drive".into();
+    settings.accounts[0].root_id = "FOLDER::com.apple.CloudDocs::root".into();
+    settings.accounts[0].identity.tenant_id.clear();
+    settings.accounts[0].identity.graph_user_id.clear();
+    let id = settings.accounts[0].id.clone();
+    let root = state.join("accounts").join(&id).join("journal");
+    let mut journal = cirrove_service::journal::UploadJournal::open(&root, &id, 1048576).unwrap();
+    let node=serde_json::from_value(serde_json::json!({"id":"local", "parent_id":"root", "name":"Draft notes.txt", "kind":"file", "size":0,"etag":null,"target":null})).unwrap();
+    let scope = serde_json::from_value(
+        serde_json::json!({"account":id,"provider":"icloud","collection":"drive"}),
+    )
+    .unwrap();
+    let working = journal.create_working(scope, node, true, &b""[..]).unwrap();
+    journal
+        .write_working(working.id, 0, b"retained working bytes")
+        .unwrap();
+    drop(journal);
+    let before = std::fs::read(root.join("uploads.db")).unwrap();
+    write_settings(&state, &settings);
+    let mut page = cirrove_desktop::recovery::offline::load(
+        &state,
+        &settings.accounts[0].label,
+        &id,
+        Default::default(),
+    )
+    .unwrap();
+    let selection = page.selections.remove(0);
+    let app = application("OfflineRecovery");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state: state.clone(),
+            socket: temp.path().join("absent.sock"),
+        },
+    );
+    pump_until("disabled account", || {
+        ui.current().is_some_and(|view| {
+            !view.accounts.is_empty() && !view.accounts[0].enabled && !view.accounts[0].mounted
+        })
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("offline recovery action", || {
+        expand_all(window.upcast_ref());
+        button(window.upcast_ref(), "Save a local copy…").is_some()
+    });
+    let export = button(window.upcast_ref(), "Save a local copy…").unwrap();
+    assert!(
+        export.is_sensitive(),
+        "disabled accounts must offer local recovery"
+    );
+    export.emit_clicked();
+    pump_until("offline working picker", || {
+        displays_text_containing(window.upcast_ref(), "Draft notes.txt — working file")
+    });
+    if let Ok(path) = std::env::var("CIRROVE_OFFLINE_RECOVERY_SNAPSHOT") {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(&window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(snapshot.to_node().unwrap(), None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    pump_until("picker dismissed", || {
+        button(window.upcast_ref(), "Cancel").is_none()
+    });
+    let destination = temp.path().join("rescued.txt");
+    ui.export_offline_version(&id, selection.clone(), destination.clone());
+    pump_until("offline export confirmed", || {
+        displays_text_containing(window.upcast_ref(), "Working-file copy saved to")
+    });
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        b"retained working bytes"
+    );
+    assert_eq!(std::fs::read(root.join("uploads.db")).unwrap(), before);
+    button(window.upcast_ref(), "Close").unwrap().emit_clicked();
+    pump_until("export dismissed", || {
+        button(window.upcast_ref(), "Close").is_none()
+    });
+    let mut stale = selection;
+    if let cirrove_desktop::recovery::offline::Selection::Working(ref mut working) = stale {
+        working.generation += 1;
+    }
+    let rejected = temp.path().join("stale.txt");
+    ui.export_offline_version(&id, stale, rejected.clone());
+    pump_until("stale export refused", || {
+        displays_text_containing(window.upcast_ref(), "Export was not confirmed.")
+    });
+    assert!(!rejected.exists());
+    window.close();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn active_working_recovery_handles_empty_pages_and_old_services() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("WorkingRecoveryPicker");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    ui.choose_recovery_save(&id);
+    pump_until("first saved page", || {
+        displays_text_containing(window.upcast_ref(), "Notes.txt — saved version 1")
+    });
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("empty working page", || {
+        displays_text(window.upcast_ref(), "No recoverable versions on this page.")
+    });
+    assert!(button(window.upcast_ref(), "Next page").is_some());
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("working version picker", || {
+        displays_text_containing(
+            window.upcast_ref(),
+            "Working notes.txt — working version 9, 3 bytes",
+        )
+    });
+    recovery_snapshot(&window, "CIRROVE_ACTIVE_WORKING_PICKER_SNAPSHOT");
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("recovery-working "))
+            .count()
+            == 3
+    );
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("export-working ") || line.starts_with("keep-both "))
+    );
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    pump_until("picker dismissed", || {
+        button(window.upcast_ref(), "Cancel").is_none()
+    });
+    service.working_supported.store(false, Ordering::SeqCst);
+    ui.choose_recovery_save(&id);
+    pump_until("old daemon fallback", || {
+        displays_text_containing(window.upcast_ref(), "Working files could not be loaded.")
+    });
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "Notes.txt — saved version 1"
+    ));
+    assert!(button(window.upcast_ref(), "Next page").is_none());
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn active_working_recovery_requires_exact_receipts_and_reports_stale_selection() {
+    active_working_recovery_requires_exact_receipts_and_reports_stale_selection_for_mode(false);
+}
+fn active_working_recovery_requires_exact_receipts_and_reports_stale_selection_for_mode(
+    read_only: bool,
+) {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = if read_only {
+        cirrove_auth::AccessMode::ReadOnly
+    } else {
+        cirrove_auth::AccessMode::ReadWrite
+    };
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let mut status = sample.status.unwrap();
+    status.accounts[0].local_recovery = read_only;
+    let service = fake_service(&runtime, temp.path(), status);
+    let app = application(if read_only {
+        "ReadonlyWorkingRecoveryProgress"
+    } else {
+        "WorkingRecoveryProgress"
+    });
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    let working = sample_working_recovery();
+    let destination = temp.path().join("working-copy.txt");
+    for outcome in [
+        "confirmed",
+        "wrong_generation",
+        "missing_receipt",
+        "missing_job",
+        "stopped",
+        "stale_selection",
+    ] {
+        service.response.lock().unwrap().accounts[0].jobs.clear();
+        let mut selected = working.clone();
+        if outcome == "stale_selection" {
+            selected.generation += 1;
+        }
+        ui.export_active_version(
+            &id,
+            cirrove_desktop::recovery::Selection::Working(selected),
+            destination.clone(),
+        );
+        if outcome != "stale_selection" {
+            pump_until("working export progress", || {
+                displays_text(window.upcast_ref(), "0 of 3 bytes copied")
+            });
+            let mut status = service.response.lock().unwrap();
+            let job = status.accounts[0]
+                .jobs
+                .iter_mut()
+                .find(|job| job.id == "working-recovery-job")
+                .unwrap();
+            job.state = cirrove_service::jobs::JobState::Succeeded;
+            job.bytes_done = 3;
+            if outcome == "confirmed" || outcome == "wrong_generation" {
+                let mut source = working.clone();
+                if outcome == "wrong_generation" {
+                    source.generation += 1;
+                }
+                job.working_export = Some(cirrove_service::journal::WorkingExportReceipt {
+                    source,
+                    sha256: "a".repeat(64),
+                    destination: destination.clone(),
+                });
+            }
+            if outcome == "stopped" {
+                job.state = cirrove_service::jobs::JobState::Stopped;
+            }
+            if outcome == "missing_job" {
+                status.accounts[0].jobs.clear();
+            }
+        }
+        pump_until("working export result", || {
+            displays_text_containing(
+                window.upcast_ref(),
+                if outcome == "confirmed" {
+                    "Working copy saved to"
+                } else {
+                    "Export was not confirmed."
+                },
+            )
+        });
+        if outcome == "confirmed" {
+            recovery_snapshot(
+                &window,
+                if read_only {
+                    "CIRROVE_READONLY_RECOVERY_RESULT_SNAPSHOT"
+                } else {
+                    "CIRROVE_ACTIVE_WORKING_RESULT_SNAPSHOT"
+                },
+            );
+        }
+        button(window.upcast_ref(), "Close").unwrap().emit_clicked();
+        pump_until("working export dialog dismissed", || {
+            button(window.upcast_ref(), "Close").is_none()
+        });
+    }
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("export-working "))
+    );
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("export-save ") || line.starts_with("keep-both "))
+    );
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn readonly_recovery_requires_exact_saved_and_working_receipts() {
+    recovery_progress_requires_the_matching_service_receipt_for_mode(true);
+    active_working_recovery_requires_exact_receipts_and_reports_stale_selection_for_mode(true);
+}
+
+fn readonly_recovery_requires_live_capability_and_never_enables_mutations() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts.truncate(1);
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadOnly;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let mut status = sample.status.unwrap();
+    status.accounts.truncate(1);
+    status.accounts[0].local_recovery = false;
+    status.accounts[0].stuck_changes = 1;
+    status.accounts[0].failed_uploads = 1;
+    let service = fake_service(&runtime, temp.path(), status);
+    service.retryable_fixture.store(true, Ordering::SeqCst);
+    let app = application("ReadonlyRecoveryCapability");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("read-only account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("read-only retained data", || {
+        displays_text_containing(window.upcast_ref(), "Local saves are retained")
+    });
+    assert!(button(window.upcast_ref(), "Save a local copy…").is_none());
+    let working = cirrove_desktop::recovery::Selection::Working(sample_working_recovery());
+    let destination = temp.path().join("copy");
+    ui.choose_recovery_save(&id);
+    ui.export_active_version(&id, working.clone(), destination.clone());
+    assert!(
+        !service.requests.lock().unwrap().iter().any(
+            |line| line.starts_with("recovery-working ") || line.starts_with("export-working ")
+        )
+    );
+
+    service.response.lock().unwrap().accounts[0].local_recovery = true;
+    ui.refresh();
+    pump_until("recovery capability", || {
+        ui.current().is_some_and(|v| v.accounts[0].local_recovery)
+    });
+    pump_until("read-only recovery button", || {
+        button(window.upcast_ref(), "Save a local copy…").is_some_and(|b| b.is_sensitive())
+    });
+    for label in ["Discard", "Try again", "Keep both copies", "Choose a file…"] {
+        assert!(
+            button(window.upcast_ref(), label).is_none(),
+            "unexpected read-only mutation: {label}"
+        );
+    }
+    pump_until("retained retryable count", || {
+        ui.current().is_some_and(|v| v.accounts[0].retryable > 0)
+    });
+    // Call action entry points too: stale widgets/programmatic activation must
+    // not turn retained counts into permission to mutate.
+    ui.discard(&id);
+    ui.retry_refused(&id);
+    ui.keep_both_saves(&id);
+    ui.choose_file_to_destroy(&id);
+    ui.choose_recovery_save(&id);
+    pump_until("read-only picker", || {
+        displays_text_containing(window.upcast_ref(), "Notes.txt — saved version 1")
+    });
+    recovery_snapshot(&window, "CIRROVE_READONLY_RECOVERY_PICKER_SNAPSHOT");
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    pump_until("picker dismissed", || {
+        button(window.upcast_ref(), "Cancel").is_none()
+    });
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("recovery-working "))
+    );
+
+    service.response.lock().unwrap().accounts[0].local_recovery = false;
+    ui.refresh();
+    pump_until("capability withdrawn", || {
+        ui.current().is_some_and(|v| !v.accounts[0].local_recovery)
+    });
+    ui.export_active_version(&id, working, destination);
+    // Refresh acts as an event-loop barrier for any queued request.
+    ui.refresh();
+    pump_until("export action hidden", || {
+        button(window.upcast_ref(), "Save a local copy…").is_none()
+    });
+    assert!(!service.requests.lock().unwrap().iter().any(
+        |line| line.starts_with("export-working ")
+            || line.starts_with("export-save ")
+            || line.starts_with("retry ")
+            || line.starts_with("discard-stuck ")
+            || line.starts_with("keep-both ")
+            || line.starts_with("destroy ")
+    ));
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "saved_native_imports_are_paged_account_bound_and_observer_only",
+        saved_native_imports_are_paged_account_bound_and_observer_only,
+    ),
+    (
+        "readonly_recovery_requires_exact_saved_and_working_receipts",
+        readonly_recovery_requires_exact_saved_and_working_receipts,
+    ),
+    (
+        "native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request",
+        native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request,
+    ),
+    (
+        "permanent_delete_rechecks_capability_before_sending_a_request",
+        permanent_delete_rechecks_capability_before_sending_a_request,
+    ),
+    (
+        "readonly_recovery_requires_live_capability_and_never_enables_mutations",
+        readonly_recovery_requires_live_capability_and_never_enables_mutations,
+    ),
+    (
+        "active_working_recovery_handles_empty_pages_and_old_services",
+        active_working_recovery_handles_empty_pages_and_old_services,
+    ),
+    (
+        "active_working_recovery_requires_exact_receipts_and_reports_stale_selection",
+        active_working_recovery_requires_exact_receipts_and_reports_stale_selection,
+    ),
+    (
+        "disabled_account_offers_local_recovery_without_a_daemon",
+        disabled_account_offers_local_recovery_without_a_daemon,
+    ),
+    (
+        "recovery_progress_requires_the_matching_service_receipt",
+        recovery_progress_requires_the_matching_service_receipt,
+    ),
+    (
+        "recovery_picker_uses_bounded_local_history_without_cloud_mutation",
+        recovery_picker_uses_bounded_local_history_without_cloud_mutation,
+    ),
+    (
+        "uncertain_writes_have_a_separate_non_destructive_status",
+        uncertain_writes_have_a_separate_non_destructive_status,
+    ),
     (
         "the_x11_window_class_is_the_application_id_a_shell_looks_for",
         the_x11_window_class_is_the_application_id_a_shell_looks_for,
@@ -1514,6 +2586,18 @@ const SCENARIOS: &[(&str, fn())] = &[
         a_second_google_account_reuses_the_app_and_receives_a_default_folder,
     ),
     (
+        "icloud_connect_defaults_read_only_and_requires_explicit_write_selection",
+        icloud_connect_defaults_read_only_and_requires_explicit_write_selection,
+    ),
+    (
+        "icloud_access_dialog_captures_intent_and_cancel_preserves_account",
+        icloud_access_dialog_captures_intent_and_cancel_preserves_account,
+    ),
+    (
+        "connected_icloud_account_can_sign_in_again_before_expiry",
+        connected_icloud_account_can_sign_in_again_before_expiry,
+    ),
+    (
         "a_fetch_in_flight_shows_its_progress_and_can_be_stopped",
         a_fetch_in_flight_shows_its_progress_and_can_be_stopped,
     ),
@@ -1522,26 +2606,126 @@ const SCENARIOS: &[(&str, fn())] = &[
         the_window_shows_what_is_kept_offline_and_can_release_it,
     ),
 ];
+
+fn permanent_delete_rechecks_capability_before_sending_a_request() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("PermanentDeleteCapability");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("writable account", || {
+        ui.current()
+            .is_some_and(|v| v.accounts[0].can_delete_permanently())
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    let mut changed = cirrove_desktop::model::Overview::from_snapshot(demo::snapshot().unwrap());
+    changed.accounts[0].writable = true;
+    changed.accounts[0].supports_writes = true;
+    changed.accounts[0].supports_permanent_delete = false;
+    changed.accounts[0].provider_id = "icloud";
+    changed.accounts[0].title = "iCloud Drive (synthetic)".into();
+    ui.render(changed);
+    expand_all(window.upcast_ref());
+    assert!(
+        !action_row(window.upcast_ref(), "Delete a file permanently")
+            .unwrap()
+            .is_visible()
+    );
+    recovery_snapshot(&window, "CIRROVE_DELETE_CAPABILITY_SNAPSHOT");
+    // Simulate activation retained from a previously writable provider/card.
+    ui.destroy_path(&id, "blocked.txt");
+    ui.choose_file_to_destroy(&id);
+    let observe_until = Instant::now() + Duration::from_millis(500);
+    while Instant::now() < observe_until {
+        while glib::MainContext::default().pending() {
+            glib::MainContext::default().iteration(false);
+        }
+        assert!(
+            !service
+                .requests
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|line| line.contains("blocked.txt")),
+            "stale iCloud action dispatched a permanent deletion"
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let mut supported = cirrove_desktop::model::Overview::from_snapshot(demo::snapshot().unwrap());
+    supported.accounts[0].writable = true;
+    ui.render(supported);
+    ui.destroy_path(&id, "allowed.txt");
+    pump_until("supported provider request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.contains("allowed.txt"))
+    });
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.contains("blocked.txt"))
+    );
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const NEEDS: &str = "requires a graphical display; synthetic local socket/accounts only";
 
 fn main() {
     let mut args = std::env::args().skip(1);
     let mut run_ignored = false;
     let mut filters = Vec::new();
+    let mut skips = Vec::new();
+    let mut exact = false;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--ignored" | "--include-ignored" => run_ignored = true,
+            "--exact" => exact = true,
+            "--skip" => skips.push(args.next().expect("--skip requires a test name")),
+            flag if flag.starts_with("--skip=") => skips.push(flag[7..].to_owned()),
             // Flags that take a value we do not use.
-            "--test-threads" | "--skip" | "--color" | "--format" | "--logfile" | "-Z" => {
+            "--test-threads" | "--color" | "--format" | "--logfile" | "-Z" => {
                 args.next();
             }
             flag if flag.starts_with('-') => {}
             _ => filters.push(arg),
         }
     }
+    let matches = |name: &str, filter: &str| {
+        if exact {
+            name == filter
+        } else {
+            name.contains(filter)
+        }
+    };
     let selected: Vec<_> = SCENARIOS
         .iter()
-        .filter(|(name, _)| filters.is_empty() || filters.iter().any(|f| name.contains(f.as_str())))
+        .filter(|(name, _)| {
+            (filters.is_empty() || filters.iter().any(|f| matches(name, f)))
+                && !skips.iter().any(|skip| matches(name, skip))
+        })
         .collect();
     println!("\nrunning {} tests", selected.len());
     if !run_ignored {
@@ -1575,4 +2759,622 @@ fn main() {
     if failed > 0 {
         std::process::exit(101);
     }
+}
+
+fn native_import_dialog_rechecks_identity_and_dispatches_one_explicit_request() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap().keep();
+    let state = temp.as_path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut sample = demo::snapshot().unwrap();
+    let settings = sample.settings.as_mut().unwrap();
+    settings.accounts[0].registration = cirrove_auth::AppRegistration::ICloud;
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    settings.accounts[0].drive.id = "drive".into();
+    settings.accounts[0].drive.drive_type = "icloud_drive".into();
+    settings.accounts[0].root_id = cirrove_icloud::ROOT_ID.into();
+    settings.accounts[0].identity.tenant_id.clear();
+    settings.accounts[0].identity.graph_user_id.clear();
+    write_settings(&state, settings);
+    let status = sample.status.as_mut().unwrap();
+    status.accounts[0].provider = "icloud".into();
+    status.accounts[0].drive_id = "drive".into();
+    status.accounts[0].root_id = cirrove_icloud::ROOT_ID.into();
+    status.accounts[0].tenant.clear();
+    status.accounts[0].mounted = true;
+    status.accounts[0].state = "ready".into();
+    let service = fake_service(&runtime, temp.as_path(), sample.status.unwrap());
+    let app = application("NativeImport");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("eligible native import", || {
+        ui.current()
+            .is_some_and(|v| v.accounts[0].can_import_native_package())
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    let selected = ui.current().unwrap().accounts[0].clone();
+    assert!(
+        action_row(window.upcast_ref(), "Import an iWork document")
+            .unwrap()
+            .is_visible()
+    );
+    let archive = temp.as_path().join("Document.pages");
+    // No archive is opened in the desktop; a real daemon owns validation.
+    ui.native_import_dialog(selected.clone(), archive.clone());
+    pump_until("import fields", || {
+        entry_row(window.upcast_ref(), "New document name").is_some()
+    });
+    let name = entry_row(window.upcast_ref(), "New document name").unwrap();
+    assert_eq!(
+        name.text(),
+        "Document.pages",
+        "regular .pages archives keep their full suggested name"
+    );
+    assert_eq!(
+        entry_row(window.upcast_ref(), "Document folder")
+            .unwrap()
+            .text(),
+        "Document.pages"
+    );
+    assert!(entry_row(window.upcast_ref(), "Destination folder").is_some());
+    name.set_text("New 'document'.pages");
+    recovery_snapshot(&window, "CIRROVE_NATIVE_IMPORT_SNAPSHOT");
+    let mut changed = ui.current().unwrap();
+    changed.accounts[0].writable = false;
+    ui.render(changed);
+    // A previously opened chooser cannot authorize writes after downgrade.
+    pump_until("import confirmation mapped", || {
+        button(window.upcast_ref(), "Import").is_some()
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("import-native-package "))
+    );
+    let mut restored = ui.current().unwrap();
+    restored.accounts[0] = selected.clone();
+    ui.render(restored);
+    ui.submit_native_import(
+        &selected,
+        archive.clone(),
+        "Document.pages".into(),
+        "Reports".into(),
+        "New 'document'.pages".into(),
+    );
+    pump_until("single explicit import request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("import-native-package "))
+    });
+    let lines = service.requests.lock().unwrap();
+    let imports: Vec<_> = lines
+        .iter()
+        .filter(|line| line.starts_with("import-native-package "))
+        .collect();
+    assert_eq!(imports.len(), 1);
+    let request: cirrove_service::ImportNativePackageRequest =
+        serde_json::from_str(imports[0].strip_prefix("import-native-package ").unwrap()).unwrap();
+    assert_eq!(request.label, selected.label);
+    assert_eq!(
+        request.expected_account_id.as_deref(),
+        Some(selected.id.as_str())
+    );
+    assert_eq!(request.archive, archive);
+    assert_eq!(request.expected_root.as_deref(), Some("Document.pages"));
+    assert_eq!(
+        request.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::Wrapped
+    );
+    assert_eq!(request.parent, "Reports");
+    assert_eq!(request.name, "New 'document'.pages");
+    drop(lines);
+    pump_until("explicit refusal visible", || {
+        displays_text(window.upcast_ref(), "synthetic import refusal")
+    });
+    // The fixture refuses the import; it must never cause a retry.
+    pump_until("refusal answered", || {
+        button(window.upcast_ref(), "Import document…").is_some_and(|b| b.is_sensitive())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        1
+    );
+    // The explicit flat choice drives the real form and still submits only once.
+    let flat_archive = temp.as_path().join("actual-flat-export.numbers");
+    assert!(!flat_archive.exists());
+    ui.native_import_dialog(selected.clone(), flat_archive.clone());
+    pump_until("explicit archive layout", || {
+        combo_row(window.upcast_ref(), "Archive layout").is_some()
+    });
+    let layout = combo_row(window.upcast_ref(), "Archive layout").unwrap();
+    assert_eq!(
+        layout.selected(),
+        0,
+        "existing wrapped choice is the default"
+    );
+    let root = entry_row(window.upcast_ref(), "Document folder").unwrap();
+    assert!(root.is_sensitive());
+    layout.set_selected(1);
+    assert!(!root.is_sensitive());
+    root.set_text("This must not become a fabricated wrapper.numbers");
+    entry_row(window.upcast_ref(), "New document name")
+        .unwrap()
+        .set_text("Explicit copy.numbers");
+    entry_row(window.upcast_ref(), "Destination folder")
+        .unwrap()
+        .set_text("Reports");
+    pump_until("flat import enabled", || {
+        button(window.upcast_ref(), "Import").is_some_and(|b| b.is_sensitive())
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("one additional explicit flat request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count()
+            == 2
+    });
+    let requests = service.requests.lock().unwrap();
+    let line = requests
+        .iter()
+        .filter(|line| line.starts_with("import-native-package "))
+        .nth(1)
+        .unwrap();
+    let wire: serde_json::Value =
+        serde_json::from_str(line.strip_prefix("import-native-package ").unwrap()).unwrap();
+    let flat: cirrove_service::ImportNativePackageRequest =
+        serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(
+        flat.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::FlatNumbers
+    );
+    assert!(flat.expected_root.is_none());
+    assert!(wire["expected_root"].is_null());
+    assert_eq!(wire["source_layout"], "flat_numbers");
+    assert_eq!(
+        flat.expected_account_id.as_deref(),
+        Some(selected.id.as_str())
+    );
+    assert_eq!(flat.archive, flat_archive);
+    assert_eq!(flat.name, "Explicit copy.numbers");
+    assert_eq!(flat.parent, "Reports");
+    assert!(
+        !flat.archive.exists(),
+        "Desktop must not open or rewrite the archive"
+    );
+    drop(requests);
+    pump_until("flat Numbers refusal answered", || {
+        button(window.upcast_ref(), "Import document…").is_some_and(|b| b.is_sensitive())
+    });
+    let pages_archive = temp.as_path().join("actual-flat-export.pages");
+    assert!(!pages_archive.exists());
+    ui.native_import_dialog(selected.clone(), pages_archive.clone());
+    pump_until("explicit Pages archive layout", || {
+        combo_row(window.upcast_ref(), "Archive layout").is_some()
+    });
+    let layout = combo_row(window.upcast_ref(), "Archive layout").unwrap();
+    assert_eq!(
+        layout.selected(),
+        0,
+        "Pages filenames do not select a layout"
+    );
+    let root = entry_row(window.upcast_ref(), "Document folder").unwrap();
+    assert!(root.is_sensitive());
+    layout.set_selected(2);
+    assert!(!root.is_sensitive());
+    root.set_text("This must not become a fabricated wrapper.pages");
+    let name = entry_row(window.upcast_ref(), "New document name").unwrap();
+    name.set_text("Wrong format.numbers");
+    pump_until("flat Pages wrong format refused", || {
+        button(window.upcast_ref(), "Import").is_some_and(|b| !b.is_sensitive())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        2
+    );
+    name.set_text("Explicit copy.pages");
+    entry_row(window.upcast_ref(), "Destination folder")
+        .unwrap()
+        .set_text("Reports");
+    pump_until("flat Pages import enabled", || {
+        button(window.upcast_ref(), "Import").is_some_and(|b| b.is_sensitive())
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("one additional explicit flat Pages request", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count()
+            == 3
+    });
+    let requests = service.requests.lock().unwrap();
+    let line = requests
+        .iter()
+        .filter(|line| line.starts_with("import-native-package "))
+        .nth(2)
+        .unwrap();
+    let wire: serde_json::Value =
+        serde_json::from_str(line.strip_prefix("import-native-package ").unwrap()).unwrap();
+    let pages: cirrove_service::ImportNativePackageRequest =
+        serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(
+        pages.source_layout,
+        cirrove_service::native_import::PackageSourceLayout::FlatPages
+    );
+    assert!(pages.expected_root.is_none());
+    assert!(wire["expected_root"].is_null());
+    assert_eq!(wire["source_layout"], "flat_pages");
+    assert_eq!(
+        pages.expected_account_id.as_deref(),
+        Some(selected.id.as_str())
+    );
+    assert_eq!(pages.archive, pages_archive);
+    assert_eq!(pages.name, "Explicit copy.pages");
+    assert_eq!(pages.parent, "Reports");
+    assert!(
+        !pages.archive.exists(),
+        "Desktop must not open or rewrite the archive"
+    );
+    drop(requests);
+    pump_until("flat Pages refusal answered", || {
+        button(window.upcast_ref(), "Import document…").is_some_and(|b| b.is_sensitive())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        3,
+        "a refused Pages import must not be retried"
+    );
+    window.close();
+    service.task.abort();
+}
+
+fn saved_native_imports_are_paged_account_bound_and_observer_only() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    let account = &mut settings.accounts[0];
+    account.registration = cirrove_auth::AppRegistration::ICloud;
+    account.access = cirrove_auth::AccessMode::ReadWrite;
+    account.drive.id = "drive".into();
+    account.drive.drive_type = "icloud_drive".into();
+    account.root_id = cirrove_icloud::ROOT_ID.into();
+    account.identity.tenant_id.clear();
+    account.identity.graph_user_id.clear();
+    write_settings(&state, &settings);
+    let mut status = sample.status.unwrap();
+    status.accounts[0].provider = "icloud".into();
+    status.accounts[0].drive_id = "drive".into();
+    status.accounts[0].root_id = cirrove_icloud::ROOT_ID.into();
+    status.accounts[0].tenant.clear();
+    status.accounts[0].mounted = true;
+    status.accounts[0].state = "ready".into();
+    status.accounts[0].jobs.clear();
+    let service = fake_service(&runtime, temp.path(), status);
+    service.native_import_enabled.store(true, Ordering::SeqCst);
+    *service.native_imports.lock().unwrap() = vec![
+        cirrove_service::journal::NativeImportSelection {
+            operation: "00000000-0000-4000-8000-000000000041".parse().unwrap(),
+            sequence: 2,
+            state: cirrove_service::journal::UploadState::Uploaded,
+            parent: cirrove_icloud::ROOT_ID.into(),
+            name: "Earlier.pages".into(),
+            remote_item: Some("FILE::com.apple.CloudDocs::earlier".into()),
+            completion_receipt_recorded: true,
+        },
+        cirrove_service::journal::NativeImportSelection {
+            operation: "00000000-0000-4000-8000-000000000042".parse().unwrap(),
+            sequence: 3,
+            state: cirrove_service::journal::UploadState::Pending,
+            parent: cirrove_icloud::ROOT_ID.into(),
+            name: "Imported.pages".into(),
+            remote_item: None,
+            completion_receipt_recorded: false,
+        },
+    ];
+    let app = application("SavedNativeImports");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state: state.clone(),
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("saved import capabilities", || {
+        ui.current().is_some_and(|v| {
+            v.accounts[0].can_list_native_imports() && v.accounts[0].can_watch_native_import()
+        })
+    });
+    let window = ui.window.upgrade().unwrap();
+    expand_all(window.upcast_ref());
+    let selected = ui.current().unwrap().accounts[0].clone();
+    ui.native_import_dialog(selected.clone(), temp.path().join("Imported.pages"));
+    pump_until("explicit import button", || {
+        button(window.upcast_ref(), "Import").is_some()
+    });
+    button(window.upcast_ref(), "Import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("typed running import", || {
+        ui.current().is_some_and(|v| {
+            v.accounts[0].running.iter().any(|job| {
+                job.running
+                    && job.import_progress.as_ref().is_some_and(|p| {
+                        p.operation.to_string() == "00000000-0000-4000-8000-000000000042"
+                    })
+            })
+        })
+    });
+    assert!(!displays_text(
+        window.upcast_ref(),
+        "Document imported and available in Files."
+    ));
+    let make_visible = |job: &mut cirrove_service::jobs::Job| {
+        job.state = cirrove_service::jobs::JobState::Succeeded;
+        job.files_done = 1;
+        job.bytes_done = 10;
+        job.native_import.as_mut().unwrap().remote = Some(cirrove_core::Node {
+            id: format!("FILE::com.apple.CloudDocs::{}", job.name),
+            parent_id: Some(cirrove_icloud::ROOT_ID.into()),
+            name: job.name.clone(),
+            kind: cirrove_core::NodeKind::Folder,
+            size: 10,
+            modified_unix: 1,
+            etag: Some("verified-E1".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        });
+    };
+    make_visible(&mut service.response.lock().unwrap().accounts[0].jobs[0]);
+    ui.refresh();
+    pump_until("published import receipt shown", || {
+        displays_text(
+            window.upcast_ref(),
+            "Document imported and available in Files.",
+        )
+    });
+    // A service restart loses transient jobs. A socket hiccup cannot resubmit them.
+    service.response.lock().unwrap().accounts[0].jobs.clear();
+    service.native_drop_status.store(true, Ordering::SeqCst);
+    ui.refresh();
+    pump_until("socket outage visible", || {
+        ui.current().is_some_and(|v| !v.service_reachable)
+    });
+    ui.refresh();
+    pump_until("reconnected without jobs", || {
+        ui.current()
+            .is_some_and(|v| v.service_reachable && v.accounts[0].running.is_empty())
+    });
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        1
+    );
+    button(window.upcast_ref(), "Saved imports…")
+        .unwrap()
+        .emit_clicked();
+    pump_until("empty historical page", || {
+        displays_text(window.upcast_ref(), "No saved imports on this page.")
+    });
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("historical completion wording", || {
+        displays_text(
+            window.upcast_ref(),
+            "Upload completion recorded. Check to confirm current availability.",
+        )
+    });
+    assert!(!displays_text(
+        window.upcast_ref(),
+        "Document imported and available in Files."
+    ));
+    // The initial import toast must not queue the observer-acceptance toast
+    // beyond the held status exchange's existing deadline.
+    pump_until("earlier import toast cleared", || {
+        !displays_text(
+            window.upcast_ref(),
+            "Import started. Progress appears with this connection's transfers.",
+        )
+    });
+    // Hold the status request started after the watch reply. Only the accepted
+    // reply can expose a live operation before fresh status becomes available.
+    service.hold_next.store(true, Ordering::SeqCst);
+    let earlier = action_row(window.upcast_ref(), "Earlier.pages").unwrap();
+    button(earlier.upcast_ref(), "Check saved import")
+        .unwrap()
+        .emit_clicked();
+    pump_until("exact operation observer", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("watch-native-import "))
+    });
+    pump_until("watch reply accepted", || {
+        displays_text(
+            window.upcast_ref(),
+            "Checking the saved import. Progress appears with this connection's transfers.",
+        )
+    });
+    let observed = ui.current();
+    assert!(
+        observed
+            .as_ref()
+            .is_some_and(|v| v.accounts[0].running.iter().any(|job| job.running
+                && job.import_progress.as_ref().is_some_and(
+                    |p| p.operation.to_string() == "00000000-0000-4000-8000-000000000041"
+                ))),
+        "accepted observer reply must publish its exact operation before held status refresh; observed reachable/jobs: {:?}",
+        observed
+            .as_ref()
+            .map(|v| (v.service_reachable, &v.accounts[0].running))
+    );
+    let watch_line = service
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|line| line.starts_with("watch-native-import "))
+        .cloned()
+        .unwrap();
+    let watched: cirrove_service::WatchNativeImportRequest =
+        serde_json::from_str(watch_line.split_once(' ').unwrap().1).unwrap();
+    assert_eq!(watched.expected_account_id, selected.id);
+    assert_eq!(watched.label, selected.label);
+    assert_eq!(
+        watched.operation.to_string(),
+        "00000000-0000-4000-8000-000000000041"
+    );
+    // The response was accepted, but its status request is still held. A
+    // second explicit request must be stopped by the newly published job.
+    ui.watch_saved_native_import(&selected, watched.clone());
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("watch-native-import "))
+            .count(),
+        1
+    );
+    make_visible(&mut service.response.lock().unwrap().accounts[0].jobs[0]);
+    service.reply_gate.add_permits(1);
+    ui.refresh();
+    pump_until("watched publication shown", || {
+        displays_text(
+            window.upcast_ref(),
+            "Document imported and available in Files.",
+        )
+    });
+    // Fresh read-only policy may discover history but cannot attach watchers.
+    service.response.lock().unwrap().accounts[0].jobs.clear();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadOnly;
+    write_settings(&state, &settings);
+    ui.refresh();
+    pump_until("read-only history capability", || {
+        ui.current().is_some_and(|v| {
+            v.accounts[0].can_list_native_imports() && !v.accounts[0].can_watch_native_import()
+        })
+    });
+    let before_watch = service
+        .requests
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|line| line.starts_with("watch-native-import "))
+        .count();
+    ui.watch_saved_native_import(&selected, watched.clone());
+    button(window.upcast_ref(), "Saved imports…")
+        .unwrap()
+        .emit_clicked();
+    pump_until("read-only first page", || {
+        button(window.upcast_ref(), "Next page").is_some()
+    });
+    button(window.upcast_ref(), "Next page")
+        .unwrap()
+        .emit_clicked();
+    pump_until("read-only historical rows", || {
+        displays_text(
+            window.upcast_ref(),
+            "Upload completion recorded. Check to confirm current availability.",
+        ) && button(window.upcast_ref(), "Check saved import").is_some()
+    });
+    let earlier = action_row(window.upcast_ref(), "Earlier.pages").unwrap();
+    let check = button(earlier.upcast_ref(), "Check saved import").unwrap();
+    assert!(!check.is_sensitive());
+    check.emit_clicked();
+    assert_eq!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|line| line.starts_with("watch-native-import "))
+            .count(),
+        before_watch
+    );
+    let lines = service.requests.lock().unwrap();
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|line| line.starts_with("import-native-package "))
+            .count(),
+        1
+    );
+    for line in lines
+        .iter()
+        .filter(|line| line.starts_with("list-native-imports "))
+    {
+        let request: cirrove_service::ListNativeImportsRequest =
+            serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+        assert_eq!(request.expected_account_id, selected.id);
+        assert_eq!(request.label, selected.label);
+        assert_eq!(request.limit, 25);
+    }
+    assert!(!lines.iter().any(|line| line.starts_with("retry ")
+        || line.starts_with("retry-stuck ")
+        || line.starts_with("discard-stuck ")
+        || line.starts_with("keep-both ")
+        || line.starts_with("replace-native-package ")));
+    drop(lines);
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
 }

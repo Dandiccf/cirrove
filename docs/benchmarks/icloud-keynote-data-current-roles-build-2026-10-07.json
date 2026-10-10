@@ -1,0 +1,25 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/kdb7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/kdb7v1",
+  "active": false,
+  "active_measurement": false,
+  "command": "sequential cargo build normal CLI/daemon, then feature CLI/mounted probe",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-data-proof-development-20261007-private-v1/root-build-keynote-data-roles-v1.py",
+    "sha256": "05a2a54095078ba6717797ce7b7dd99133bee972ca5998faaa3e0e32435612b5",
+    "size": 7615
+  },
+  "endpoint": "Two original owners closed, four frozen ELF roles pinned and571 sources unchanged; no provider or installed action",
+  "filesystem": "ext4",
+  "maximum_seconds_per_build": 900,
+  "prediction": "Both builds pass and frozen normal roles remain unchanged by feature compilation",
+  "question": "Do exact fully checked571 candidate sources build normal roles before isolated feature roles?",
+  "real_Keynote_DATA_acceptance": false,
+  "status": "closed_success",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-keynote-data-proof-development-20261007-private-v1/root-current-roles-build-v1/terminal-v1.json",
+    "sha256": "915a4b1110b2e4e76d3867c953f64128e0bc4ff7333654c2273e00cf6ffaf6ed",
+    "size": 80018
+  },
+  "version": 1
+}

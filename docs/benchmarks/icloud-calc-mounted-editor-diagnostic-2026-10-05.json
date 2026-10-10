@@ -1,0 +1,750 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "ordinary-unlinked-successor-regression-fixed-synthetic-controls-passed-live-validation-pending",
+  "run": "467420c9-16c3-44d0-87d8-b4ed055d92ad",
+  "source_head": "5118cefff487fccf55782b6bddf374bd96a0eb67",
+  "runtime_build_head": "039265af5056daed10e691d562e859a393445096",
+  "question": "Can the normal iCloud runtime complete an actual Calc XLSX create and one editor update with independent DATA current readback and read-only remount, or which exact pre-cleanup refusal first prevents completion?",
+  "prediction": "Fresh account readiness should settle. If an upload becomes uncertain, retained pre-cleanup status and scalar journal witnesses will identify the actual stopping boundary without attributing shutdown cancellations to the provider. A and B completion remain unproven.",
+  "arms": [
+    {
+      "name": "fresh-owned-calc-a-then-conditionally-b",
+      "maximum_seconds": 600,
+      "cleanup_reserve_seconds": 45,
+      "store_as_a_count_max": 1,
+      "store_b_count_max": 1,
+      "b_admission": "complete stopped journal and exact current generic DATA A proof",
+      "automatic_save_retry": false
+    }
+  ],
+  "execution_policy": {
+    "provider_mutations_authorized": true,
+    "provider_mutations": "Only the new owned folder and its document/editor-generated lock/temp items; one A store and at most one B store",
+    "old_writer_reopened": false,
+    "old_fixture_mutation_replayed": false,
+    "installed_actions": false,
+    "other_clients_changed": false,
+    "compile_during_cloud_arm": false,
+    "pre_cleanup_sanitized_diagnostic": true,
+    "stop_on_uncertainty": true
+  },
+  "scope": {
+    "folder": "Cirrove-Native-467420c9-16c3-44d0-87d8-b4ed055d92ad",
+    "document": "Cirrove-Calc-467420c9-16c3-44d0-87d8-b4ed055d92ad.xlsx",
+    "native_iwork_editing": false,
+    "atomic_destination_replacement_not_assumed": true,
+    "full_release_gate_closure": false
+  },
+  "inputs": {
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2/cloud-controller-draft-v7.py",
+      "size": 52033,
+      "sha256": "feba0c71d08e81aba2ff43fbdb5b35cb058de1200f1d4b6fc95b1b2bb5945dab"
+    },
+    "worker": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-cb7860c8-9c06-44f2-9fd9-1a6c202f72d2/mounted-calc-worker-draft-v4.py",
+      "size": 12550,
+      "sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106"
+    },
+    "normal_runtime_sources_unchanged": true,
+    "all474_sources_unchanged": false,
+    "only_source_delta": [
+      {
+        "built_source_sha256": "016c078d8a81b07d1a792c0ad46d50ffd71649f614803e8c66e8187598907304",
+        "current_sha256": "6e7df265d9c9f6e97e540262e1527b4f709bce873606153ed9d7e3a955a7574f",
+        "path": "crates/cirrove-service/tests/owned_account_snapshot.rs"
+      }
+    ]
+  },
+  "limits": [
+    "The old CB fixture remains preserved and closed; this new arm cannot acknowledge its pending operations.",
+    "Calc window API checks are not a human GUI witness.",
+    "XLSX success does not establish native Pages/Numbers/Keynote editing or full iCloud reliability.",
+    "No installed migration/transition/Strata acceptance is claimed."
+  ],
+  "cloud_dispatched": true,
+  "actual_outcome": {
+    "tool_exit_code": 1,
+    "actual_a_store_and_reopen": true,
+    "a_snapshot": {
+      "size": 5282,
+      "sha256": "d65b846080cee969ecf7d2b51d3c7c9b3aa194304f81456f3b6cb2088a22b5ab"
+    },
+    "a_reopened": {
+      "A2": 7.0,
+      "B2": 3.0,
+      "C2": 10.0,
+      "formula": "=SUM(A2:B2)"
+    },
+    "human_gui_witness_recorded": false,
+    "independent_cloud_confirmation_attempted": false,
+    "second_editor_store_attempted": false,
+    "read_only_remount_attempted": false,
+    "precleanup_initiating_guard": [
+      {
+        "basename": "cloud-controller-draft-v7.py",
+        "function": "execute",
+        "line": 802
+      },
+      {
+        "basename": "cloud-controller-draft-v7.py",
+        "function": "office",
+        "line": 668
+      },
+      {
+        "basename": "cloud-controller-draft-v7.py",
+        "function": "require",
+        "line": 29
+      }
+    ],
+    "precleanup_status": {
+      "account_count": 1,
+      "enabled": true,
+      "failed_uploads": 0,
+      "mounted": true,
+      "observed_monotonic": 251851.595438647,
+      "observed_unix_seconds": 1791227224.47236,
+      "protocol_version": 1,
+      "registered_account_matches": true,
+      "restart_required": false,
+      "state": "ready",
+      "stuck_changes": 0,
+      "unconfirmed_changes": 0
+    },
+    "precleanup_journal": {
+      "mutations": [
+        {
+          "attempt_present": false,
+          "checkpoint_key_present": false,
+          "failed_attempts": 0,
+          "retry_at": 0,
+          "sequence": 1,
+          "state": "applied",
+          "transferred_bytes": null
+        },
+        {
+          "attempt_present": false,
+          "checkpoint_key_present": false,
+          "failed_attempts": 0,
+          "retry_at": 0,
+          "sequence": 6,
+          "state": "pending",
+          "transferred_bytes": null
+        },
+        {
+          "attempt_present": false,
+          "checkpoint_key_present": false,
+          "failed_attempts": 0,
+          "retry_at": 0,
+          "sequence": 7,
+          "state": "pending",
+          "transferred_bytes": null
+        }
+      ],
+      "queue": [
+        {
+          "complete": true,
+          "sequence": 1
+        },
+        {
+          "complete": false,
+          "sequence": 2
+        },
+        {
+          "complete": false,
+          "sequence": 3
+        },
+        {
+          "complete": false,
+          "sequence": 4
+        },
+        {
+          "complete": false,
+          "sequence": 5
+        },
+        {
+          "complete": false,
+          "sequence": 6
+        },
+        {
+          "complete": false,
+          "sequence": 7
+        }
+      ],
+      "unfinished_queue_count": 6,
+      "uploads": [
+        {
+          "attempt_present": true,
+          "checkpoint_key_present": true,
+          "failed_attempts": 0,
+          "retry_at": 0,
+          "sequence": 2,
+          "state": "uploading",
+          "transferred_bytes": 0
+        },
+        {
+          "attempt_present": true,
+          "checkpoint_key_present": true,
+          "failed_attempts": 0,
+          "retry_at": 0,
+          "sequence": 3,
+          "state": "uploading",
+          "transferred_bytes": 0
+        },
+        {
+          "attempt_present": false,
+          "checkpoint_key_present": false,
+          "failed_attempts": 0,
+          "retry_at": 0,
+          "sequence": 4,
+          "state": "pending",
+          "transferred_bytes": 0
+        },
+        {
+          "attempt_present": false,
+          "checkpoint_key_present": false,
+          "failed_attempts": 0,
+          "retry_at": 0,
+          "sequence": 5,
+          "state": "pending",
+          "transferred_bytes": 0
+        }
+      ]
+    },
+    "exact_office_stop_exception_not_recorded": true,
+    "provider_error_or_upload_uncertainty_trigger_proven": false,
+    "original_child_closure_settled": false,
+    "original_child_reap_not_proven_for": [
+      "office-restart-a"
+    ],
+    "later_all_recorded_owners_absent": true,
+    "later_mount_socket_absent": true,
+    "installed_19_hashes_unit_pid_startticks_unchanged": true,
+    "sealed_data_retained": true,
+    "automatic_retry": false,
+    "old_writer_reopened": false,
+    "failure_diagnostic_sha256": "b6413343bdbc57fc75f10a8e87c313c89d408791b1dec658f19496d3fea24f14",
+    "release_gates_closed": 0,
+    "sealed_payload_audit": [
+      {
+        "sequence": 2,
+        "size": 124,
+        "sha256": "6f2d0be707abb97bed0d06cba20f2a0bb678838e2b60bc8afe7d0dc73dc90e57",
+        "state_after_cleanup": "verify_required",
+        "failed_attempts_after_cleanup": 1,
+        "sealed_object_hash_matches_row": true
+      },
+      {
+        "sequence": 3,
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "state_after_cleanup": "verify_required",
+        "failed_attempts_after_cleanup": 1,
+        "sealed_object_hash_matches_row": true
+      },
+      {
+        "sequence": 4,
+        "size": 5282,
+        "sha256": "d65b846080cee969ecf7d2b51d3c7c9b3aa194304f81456f3b6cb2088a22b5ab",
+        "state_after_cleanup": "pending",
+        "failed_attempts_after_cleanup": 0,
+        "sealed_object_hash_matches_row": true
+      },
+      {
+        "sequence": 5,
+        "size": 5282,
+        "sha256": "d65b846080cee969ecf7d2b51d3c7c9b3aa194304f81456f3b6cb2088a22b5ab",
+        "state_after_cleanup": "pending",
+        "failed_attempts_after_cleanup": 0,
+        "sealed_object_hash_matches_row": true
+      }
+    ],
+    "shutdown_state_change": "Before cleanup, seq2/3 were Uploading with failed_attempts0; after shutdown both were VerifyRequired with failed_attempts1. Seq4/5 remained Pending. This arm stopped at Office cleanup before wait_complete and does not establish a provider uncertainty as the initiating trigger."
+  },
+  "local_process_control_preregistration": {
+    "question": "Does actual retained Popen reap an exit between poll and strict /proc identity inspection, while a still-live mismatch and supervised cancellation remain refused?",
+    "prediction": "V7 will refuse the constructed zombie boundary before reap; the corrected controller will reap its original terminal child with exit0, still refuse the original live child identity mismatch without signals, and propagate supervised cancellation. The statically rejected V8 should incorrectly accept the constructed supervised stop when its original child is terminal; V9 must propagate it.",
+    "arms": [
+      "frozen-v7-original-terminal-race",
+      "frozen-v8-supervised-stop-terminal-fallback",
+      "corrected-original-terminal-race",
+      "corrected-live-identity-mismatch",
+      "corrected-supervised-stop"
+    ],
+    "real_local_child_handles": true,
+    "provider_requests": false,
+    "old_fixture_reopened": false,
+    "maximum_seconds_per_arm": 20,
+    "actual_original_office_race_reconstructed": false,
+    "script_sha256": "5c4d92b3a3123339e4dcd4129338178e87f35cd126c7e66efe98496ee730542b",
+    "corrected_controller_sha256": "509a43bdf32e8d84b74aac8aec26d66d8894a8d2797ee37cf2d51031117c1fe5",
+    "v8_not_executed_at_preregistration": "Static review found that its broad terminal fallback could swallow the existing supervised-stop Refusal; a distinct cancellation subtype must propagate."
+  },
+  "local_process_control_outcome": {
+    "recorded_unix_seconds": 1791227961.0725658,
+    "arms": [
+      {
+        "source_version": "v7",
+        "arm": "terminal",
+        "expected_tool_exit": 1,
+        "actual_tool_exit": 1,
+        "endpoint_refusal_class": "Refusal",
+        "terminal_cleanup_accepted": false,
+        "actual_child_original_handle_reaped": true,
+        "actual_child_exit_code": 0,
+        "actual_child_proc_absent": true,
+        "real_zombie_before_reap_observed": true,
+        "signal_calls": 0,
+        "cloud_calls": 0,
+        "source_unchanged": true,
+        "registration_sha256": "0120bdd2ddac10db78fa8fc3fabf0bcb5a5954a41c7de7af579e9b950c80aaeb",
+        "source_sha256": "feba0c71d08e81aba2ff43fbdb5b35cb058de1200f1d4b6fc95b1b2bb5945dab",
+        "endpoint_sha256": "d0a9ab92f629a3696a1eda357f6401bf461f4fc9ffa67e083275ac1655cf23a5"
+      },
+      {
+        "source_version": "v8",
+        "arm": "supervised_stop",
+        "expected_tool_exit": 1,
+        "actual_tool_exit": 1,
+        "endpoint_refusal_class": null,
+        "terminal_cleanup_accepted": true,
+        "actual_child_original_handle_reaped": true,
+        "actual_child_exit_code": 0,
+        "actual_child_proc_absent": true,
+        "real_zombie_before_reap_observed": true,
+        "signal_calls": 0,
+        "cloud_calls": 0,
+        "source_unchanged": true,
+        "registration_sha256": "352deefb1ff8f54025637bfe8d259190b1215ebea286698e37f0ec7292afe107",
+        "source_sha256": "101553f7aeaccec8601c15dbe2a9c81b4d4657ba9df1109932fe7544b0338446",
+        "endpoint_sha256": "6a381918b42d154bb8958d0360dea2245523dc7ce9ea2f343e97cefa15e9697c"
+      },
+      {
+        "source_version": "v9",
+        "arm": "terminal",
+        "expected_tool_exit": 0,
+        "actual_tool_exit": 0,
+        "endpoint_refusal_class": null,
+        "terminal_cleanup_accepted": true,
+        "actual_child_original_handle_reaped": true,
+        "actual_child_exit_code": 0,
+        "actual_child_proc_absent": true,
+        "real_zombie_before_reap_observed": true,
+        "signal_calls": 0,
+        "cloud_calls": 0,
+        "source_unchanged": true,
+        "registration_sha256": "2be6a555f7dab246a083f06a19d2da05cd81ff23f9239906eb7282263b76eabb",
+        "source_sha256": "509a43bdf32e8d84b74aac8aec26d66d8894a8d2797ee37cf2d51031117c1fe5",
+        "endpoint_sha256": "3e29b1b0263264a6cc7c5b42f92f826efe4444fb94451fd5f2567901c6b2f259"
+      },
+      {
+        "source_version": "v9",
+        "arm": "live",
+        "expected_tool_exit": 0,
+        "actual_tool_exit": 0,
+        "endpoint_refusal_class": "Refusal",
+        "terminal_cleanup_accepted": false,
+        "actual_child_original_handle_reaped": true,
+        "actual_child_exit_code": 0,
+        "actual_child_proc_absent": true,
+        "real_zombie_before_reap_observed": false,
+        "signal_calls": 0,
+        "cloud_calls": 0,
+        "source_unchanged": true,
+        "registration_sha256": "8626c7a5e0a4a5501ed0885c3b8d21d6b3f3adf5f1a04c233caae845999186e6",
+        "source_sha256": "509a43bdf32e8d84b74aac8aec26d66d8894a8d2797ee37cf2d51031117c1fe5",
+        "endpoint_sha256": "b98a1ce3dd7afb35ab3f5e8e0e51525af73a95b0e4ad77e800747a18cff286fb"
+      },
+      {
+        "source_version": "v9",
+        "arm": "supervised_stop",
+        "expected_tool_exit": 0,
+        "actual_tool_exit": 0,
+        "endpoint_refusal_class": "SupervisedStop",
+        "terminal_cleanup_accepted": false,
+        "actual_child_original_handle_reaped": true,
+        "actual_child_exit_code": 0,
+        "actual_child_proc_absent": true,
+        "real_zombie_before_reap_observed": true,
+        "signal_calls": 0,
+        "cloud_calls": 0,
+        "source_unchanged": true,
+        "registration_sha256": "9fe30a5a86d69f56f0557484236ed2ec01aa9a508d48f288cf5c1ce4a2cb90ff",
+        "source_sha256": "509a43bdf32e8d84b74aac8aec26d66d8894a8d2797ee37cf2d51031117c1fe5",
+        "endpoint_sha256": "01a62ec3843a6a40d59929079f03863867c45b4f697d3aea09becaa0e104609f"
+      }
+    ],
+    "v7_desired_terminal_endpoint_failed": true,
+    "v8_desired_cancellation_endpoint_failed": true,
+    "v9_all3_desired_endpoints_passed": true,
+    "historical_actual_office_stop_exception_still_unknown": true,
+    "no_provider_fix_or_release_claim": true
+  },
+  "corrected_cloud_arm": {
+    "run": "36c71697-e7e4-46dc-addc-dcff1a78fa3e",
+    "controller_sha256": "509a43bdf32e8d84b74aac8aec26d66d8894a8d2797ee37cf2d51031117c1fe5",
+    "registered_before_dispatch": true,
+    "maximum_seconds": 600,
+    "cleanup_reserve_seconds": 45,
+    "automatic_save_retry": false,
+    "old_writer_reopened": false,
+    "question": "Does the locally validated original-child cleanup allow the full actual Calc A create/B editor update/current DATA readback/RO remount to complete under the same stop-on-uncertainty policy?",
+    "prediction": "The constructed local lifetime failure and cancellation regression are corrected. A fresh actual Office exit can now be safely reaped from its retained Popen. Provider transfer and current-content completion remain unproven and may expose a separate boundary.",
+    "scope": {
+      "folder": "Cirrove-Native-36c71697-e7e4-46dc-addc-dcff1a78fa3e",
+      "document": "Cirrove-Calc-36c71697-e7e4-46dc-addc-dcff1a78fa3e.xlsx",
+      "maximum_store_as_a": 1,
+      "maximum_store_b": 1,
+      "b_admission": "complete stopped A journal plus exact current generic DATA A proof",
+      "native_iwork_editing": false,
+      "full_release_gate_closure": false
+    },
+    "only_changes_from_v7": [
+      "Retain original child exit after identity-check error; still-live error refuses without additional signals.",
+      "Record original cleanup exception before aggregate Office refusal.",
+      "Distinct supervised-stop exception always propagates."
+    ],
+    "upload_uncertainty_guards_weakened": false,
+    "actual_outcome": {
+      "tool_exit_code": 1,
+      "actual_a_store_reopen": true,
+      "a_snapshot": {
+        "size": 5282,
+        "sha256": "f1e033561ef975ba82bcf7e1f2c20965d86d8d1a1e950ce2ee3e0ce2266e93ce"
+      },
+      "a_reopened": {
+        "A2": 7.0,
+        "B2": 3.0,
+        "C2": 10.0,
+        "formula": "=SUM(A2:B2)"
+      },
+      "office_cleanup_completed": true,
+      "all4_original_child_handles_reaped": true,
+      "office_restart_exit_code": 0,
+      "all_recorded_owners_absent": true,
+      "own_mount_socket_absent": true,
+      "installed_19_hashes_unit_pid_startticks_unchanged": true,
+      "precleanup_guard": [
+        {
+          "basename": "cloud-controller-draft-v9.py",
+          "function": "execute",
+          "line": 833
+        },
+        {
+          "basename": "cloud-controller-draft-v9.py",
+          "function": "wait_complete",
+          "line": 501
+        },
+        {
+          "basename": "cloud-controller-draft-v9.py",
+          "function": "require",
+          "line": 33
+        }
+      ],
+      "precleanup_status": {
+        "account_count": 1,
+        "enabled": true,
+        "failed_uploads": 0,
+        "mounted": true,
+        "observed_monotonic": 252789.74982427,
+        "observed_unix_seconds": 1791228162.6267455,
+        "protocol_version": 1,
+        "registered_account_matches": true,
+        "restart_required": false,
+        "state": "ready",
+        "stuck_changes": 0,
+        "unconfirmed_changes": 0
+      },
+      "precleanup_journal": {
+        "mutations": [
+          {
+            "attempt_present": false,
+            "checkpoint_key_present": false,
+            "failed_attempts": 0,
+            "retry_at": 0,
+            "sequence": 1,
+            "state": "applied",
+            "transferred_bytes": null
+          },
+          {
+            "attempt_present": false,
+            "checkpoint_key_present": false,
+            "failed_attempts": 0,
+            "retry_at": 0,
+            "sequence": 6,
+            "state": "pending",
+            "transferred_bytes": null
+          },
+          {
+            "attempt_present": false,
+            "checkpoint_key_present": false,
+            "failed_attempts": 0,
+            "retry_at": 0,
+            "sequence": 7,
+            "state": "pending",
+            "transferred_bytes": null
+          }
+        ],
+        "queue": [
+          {
+            "complete": true,
+            "sequence": 1
+          },
+          {
+            "complete": false,
+            "sequence": 2
+          },
+          {
+            "complete": true,
+            "sequence": 3
+          },
+          {
+            "complete": false,
+            "sequence": 4
+          },
+          {
+            "complete": false,
+            "sequence": 5
+          },
+          {
+            "complete": false,
+            "sequence": 6
+          },
+          {
+            "complete": false,
+            "sequence": 7
+          }
+        ],
+        "unfinished_queue_count": 5,
+        "uploads": [
+          {
+            "attempt_present": true,
+            "checkpoint_key_present": true,
+            "failed_attempts": 0,
+            "retry_at": 0,
+            "sequence": 2,
+            "state": "uploading",
+            "transferred_bytes": 124
+          },
+          {
+            "attempt_present": false,
+            "checkpoint_key_present": true,
+            "failed_attempts": 0,
+            "retry_at": 0,
+            "sequence": 3,
+            "state": "uploaded",
+            "transferred_bytes": 0
+          },
+          {
+            "attempt_present": false,
+            "checkpoint_key_present": false,
+            "failed_attempts": 1,
+            "retry_at": 1791228164,
+            "sequence": 4,
+            "state": "verify_required",
+            "transferred_bytes": 0
+          },
+          {
+            "attempt_present": true,
+            "checkpoint_key_present": true,
+            "failed_attempts": 0,
+            "retry_at": 0,
+            "sequence": 5,
+            "state": "uploading",
+            "transferred_bytes": 0
+          }
+        ]
+      },
+      "upload_uncertainty_predates_shutdown": true,
+      "exact_first_transfer_exception_not_persisted": true,
+      "independent_current_data_proof_attempted": false,
+      "second_editor_store_attempted": false,
+      "readonly_remount_attempted": false,
+      "sealed_payload_audit": [
+        {
+          "sequence": 2,
+          "size": 124,
+          "sha256": "36339c1f446700cb152772196a68e6c8b067c4aa117612b5215d167c160bd422",
+          "terminal_state": "verify_required",
+          "payload_present": true,
+          "payload_matches_row": true,
+          "completed_empty_payload_not_retained": false
+        },
+        {
+          "sequence": 3,
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "terminal_state": "uploaded",
+          "payload_present": false,
+          "payload_matches_row": null,
+          "completed_empty_payload_not_retained": true
+        },
+        {
+          "sequence": 4,
+          "size": 5282,
+          "sha256": "f1e033561ef975ba82bcf7e1f2c20965d86d8d1a1e950ce2ee3e0ce2266e93ce",
+          "terminal_state": "verify_required",
+          "payload_present": true,
+          "payload_matches_row": true,
+          "completed_empty_payload_not_retained": false
+        },
+        {
+          "sequence": 5,
+          "size": 5282,
+          "sha256": "f1e033561ef975ba82bcf7e1f2c20965d86d8d1a1e950ce2ee3e0ce2266e93ce",
+          "terminal_state": "verify_required",
+          "payload_present": true,
+          "payload_matches_row": true,
+          "completed_empty_payload_not_retained": false
+        }
+      ],
+      "old_writer_reopened": false,
+      "automatic_retry": false,
+      "failure_diagnostic_sha256": "74e67fd04ff06d17b88ff7b9ad1e665e9dd75c574398120814941d524a2343c4",
+      "closure_sha256": "8ce6f21c16aa49b42fd13839737bb26bc25e6fdde6a5bba6b9d280c79f1da799",
+      "release_gates_closed": 0,
+      "retained_unlinked_successor_lineage": {
+        "database_opened_read_only": true,
+        "normalized_checks": {
+          "acknowledged_empty_predecessor": true,
+          "same_upload_scope": true,
+          "same_working_stream": true,
+          "content_upload_base_is_resolved_predecessor": true,
+          "replace_targets_predecessor_exact_item": true,
+          "replace_targets_predecessor_exact_etag": true,
+          "namespace_remote_equals_predecessor_receipt": true,
+          "owner_scope_matches": true,
+          "owner_is_unlinked": true,
+          "owner_latest_is_actual_remove_successor": true,
+          "remove_same_scope": true,
+          "remove_intent_is_remove_file": true,
+          "remove_base_is_exact_content_predecessor": true,
+          "owner_has_recorded_working_stream": true,
+          "identity_handoff_not_reserved": true,
+          "no_destination_victim_replacement": true
+        },
+        "failing_existing_reservation_predicates": [
+          "owner.unlinked && victim.is_none()",
+          "owner.latest != Some(upload.id) without native successor exception"
+        ],
+        "confirmation_rejects_same_unlinked_case": true,
+        "provider_begin_preceded_by_reservation_in_source": true,
+        "exact_first_live_transfer_exception_not_persisted": true,
+        "same_field_shape_is_not_full_runtime_causal_trace": true,
+        "provider_empty_data_failure_not_proven": true
+      }
+    }
+  },
+  "service_regression_preregistration": {
+    "question": "Can a valid sealed ordinary content upload finish its identity handoff after its exact dependent RemoveFile successor unlinks the same namespace owner, then conditionally delete the newly acknowledged remote ID without resurrecting the local name?",
+    "prediction": "The existing reservation rejects the legitimate unlinked/latest-successor state before any provider begin. A narrow lineage-bound implementation must allow reservation and confirmation for this exact chain while rejecting hostile or missing successor bindings.",
+    "arms": [
+      "current-source-exact-regression-red-before-provider",
+      "corrected-source-exact-regression-green",
+      "hostile-owner-scope-etag-successor-controls"
+    ],
+    "cloud_requests": false,
+    "full_provider_or_application_acceptance_claim": false,
+    "test_execution_dispatched": true,
+    "baseline_actual_outcome": {
+      "exit_code": 101,
+      "expected_test_count": 1,
+      "actual_passed": 0,
+      "actual_failed": 1,
+      "sources_unchanged": true,
+      "duration_seconds": 1.546686376008438,
+      "log_sha256": "d98d0e639e54b3c3052ea8be2a0aaa0482dacba40489f21515a9b36bd454330b",
+      "registration_sha256": "7002ca3f1b55b0d12a748910b2eb3c3be842476a826cbcb4ed8d500b63cfd9eb",
+      "endpoint": "desired Uploaded rejected as VerifyRequired before successor provider begin; retained payload and independent final-file record assertions passed",
+      "production_change_present": false,
+      "cloud_requests": false,
+      "installed_actions": false,
+      "corrected_source_validation": "not_run"
+    },
+    "correction_contract": {
+      "status": "synthetic-regression-and-controls-passed-live-validation-pending",
+      "ordinary_only": true,
+      "same_namespace_owner_and_working_uuid": true,
+      "exact_upload_to_unresolved_pending_remove_edge": true,
+      "exact_scope_sequence_queue_and_old_remote_id_etag": true,
+      "remove_attempt_receipt_and_prepared_item_absent": true,
+      "reservation_and_transactional_confirmation_use_same_predicate": true,
+      "confirmation_accounts_for_upload_queue_complete_transition": true,
+      "local_name_remains_unlinked": true,
+      "remove_resolves_from_confirmed_new_identity": true,
+      "original_identity_binds_hidden_recovery": true,
+      "post_unlink_descriptor_writes_remain_local": true,
+      "newer_dirty_working_bytes_and_generation_preserved": true,
+      "only_captured_local_size_and_mtime_may_drift": true,
+      "sealed_upload_payload_is_not_replaced_by_mutable_bytes": true,
+      "native_and_unrelated_successors_not_enabled": true,
+      "fresh_cloud_acceptance_required": true
+    },
+    "additional_registered_arms": [
+      "post-unlink-descriptor-write-and-truncate-retained-across-reopen",
+      "reservation-before-unlink-and-confirmation-after-exclusive-reopen",
+      "hostile-stable-node-fields-and-queue-owner-working-edge-bindings"
+    ],
+    "corrected_actual_outcome": {
+      "phase": "root-unlinked-staged-successor-green-v1",
+      "exit_code": 0,
+      "actual_passed": 1,
+      "actual_failed": 0,
+      "duration_seconds": 6.084952195000369,
+      "sources_unchanged": true,
+      "log_sha256": "747f622cfee64c0c37d7959fba8edc06bfec508d648773935c594bdd2361309e",
+      "registration_sha256": "4d0375fe898fe00b2aeeefa22c7506811937727f51106134231d09cf06c69d3f"
+    },
+    "controls_setup_failure": {
+      "phase": "root-unlinked-staged-successor-controls-v1",
+      "exit_code": 101,
+      "actual_passed": 2,
+      "actual_failed": 4,
+      "duration_seconds": 0.24154128998634405,
+      "sources_unchanged": true,
+      "log_sha256": "7fc9cb94511ba983a7d84cf7d9a4522016b94d22dc7467a359f0696c9b60d861",
+      "registration_sha256": "ddb054850239b222f46e4c4816191f44c2fef56d6b8b2705f769025db8b50f9b",
+      "cause": "Existing retained fixture root was0755; private journal refused it before lineage. Corrected fixture creates a private journal child; no production change or old fixture cleanup."
+    },
+    "controls_actual_outcome": {
+      "phase": "root-unlinked-staged-successor-controls-v2",
+      "exit_code": 0,
+      "actual_passed": 6,
+      "actual_failed": 0,
+      "duration_seconds": 3.3682977790012956,
+      "sources_unchanged": true,
+      "log_sha256": "1ee2c1dc683ef47f61f6b3b2b9b65431bd26c9c3436275a9bc9ef0bb36ce8383",
+      "registration_sha256": "4a1ff69c65b4e14f31b09955a8126ca9bb1937d79cc748b90f143a7d2a25fe36",
+      "hostile_arms_per_matrix": 40,
+      "independent_hostile_matrices": 3,
+      "post_delete_exclusive_reopen": true,
+      "reservation_before_unlink_restart": true,
+      "post_unlink_write_and_resize_retained": true
+    },
+    "corrected_production_sha256": "ec9baf9df4519949bb9f951fe9c956653da4358e6b09eb2239d4ffe4ca0fde8e",
+    "corrected_test_sha256": "ca5850eb25669a85ed115770b9f806a1b2526fadd9c62228c9141d6dc242528c",
+    "complete_project_check": {
+      "command": "scripts/check.sh",
+      "exit_code": 0,
+      "duration_seconds": 610.9853754620126,
+      "sources_unchanged_during_run": true,
+      "log_sha256": "e9a7cd108174714df3e14ff7e1697c560cc2b2f17512c6836b0cd842708f99c8",
+      "registration_sha256": "de3a17838564328827d56acd71eddec18999ff723e70375adcd61b0709db1516",
+      "desktop_display_scenarios_included": false,
+      "subsequent_changes": "prose causality clarification and result metadata only"
+    },
+    "corrected_runtime_cloud_arm": "not_dispatched",
+    "full_icloud_acceptance_gate_closed": false
+  },
+  "published_source_ci": {
+    "head": "5118cefff487fccf55782b6bddf374bd96a0eb67",
+    "run_id": 37360573861,
+    "overall_conclusion": "failure",
+    "successful_jobs": 6,
+    "headless_package_install": "cancelled-before-first-step",
+    "linux_snapshot_tests_passed": 7,
+    "linux_snapshot_log_subordinate_panic_found": false,
+    "new_production_fix_covered": false
+  }
+}

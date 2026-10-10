@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "controlled-source-correction-verified-locally-live-cleanup-open",
+  "baseline_head": "587c55727587f13214a5085c2a2db8cedec077ca",
+  "question": "Can an exact operation-bound, resolved ordinary Remove use its completed upload receipt when the new item has no metadata-index row, while retaining rooted parent ancestry and independent provider verification?",
+  "prediction": "The genuine sealed successor, unlink, handoff acknowledgment and resolved Remove fixture will fail source planning with Conflict on the unchanged indexed-source behavior. A corrected zero-row leaf fallback will admit that exact receipt only, and will refuse foreign or altered requests, broken lineage, explicit absence and changed indexed metadata. It will not establish live cloud cleanup or release acceptance.",
+  "arms": [
+    {
+      "name": "baseline-positive-regression",
+      "transport": "synthetic-only",
+      "expected": "one desired positive test fails at source planning before any network call"
+    },
+    {
+      "name": "corrected-positive-and-hostile-controls",
+      "transport": "synthetic-only",
+      "expected": "same positive test passes; incorrect authority or ancestry remains refused"
+    }
+  ],
+  "endpoint": "Source planning through the normal operation-bound iCloud mutation preparation path, following real journal handoff and resolution APIs. Independent digest capture and remote trash verification remain required before any mutation.",
+  "context": {
+    "stopped_cloud_run": "e044c01a-01d8-4acb-8ec5-3cd840464e33",
+    "observed": "All four ordinary uploads were acknowledged; temporary Remove6 remained pending. Its resolved current ID was absent from nodes, observed and observed_absent, and its parent was indexed.",
+    "first_live_error_proven": false,
+    "old_writer_reopened": false,
+    "cloud_mutations": false,
+    "installed_actions": false,
+    "release_gate_closed": false
+  },
+  "execution_discipline": {
+    "local_execution_lane": "one root-owned compile/test command at a time",
+    "target": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "temporary_filesystem": "ext4; private per-arm TMPDIR and SQLITE_TMPDIR asserted before execution",
+    "source_binary_and_command_registration": "private durable manifest before each command",
+    "retained_failed_fixtures": true
+  },
+  "baseline_results": [
+    {
+      "phase": "root-receipt-remove-source-red-v1",
+      "exit_code": 101,
+      "actual_tests_executed": 0,
+      "log_sha256": "832822fdf92508a82c22c0af8a2fdc146284b79a605f983f6e63731e05129225",
+      "correction": "Fixture-only SQLite count read changed from unsupported u64 to signed i64; no production correction was present."
+    },
+    {
+      "phase": "root-receipt-remove-source-red-v2",
+      "exit_code": 101,
+      "actual_tests_executed": 1,
+      "desired_positive_failed": true,
+      "endpoint": "Conflict after real journal handoff/resolved Remove and snapshot-preservation checks; before independent content verification or any network call",
+      "duration_seconds": 11.459023809002247,
+      "sources_unchanged": true,
+      "log_sha256": "452ecf8af01891585e5d35603bb1a0439a6d05e1054a08ac159477df06374fb8",
+      "production_baseline": "Original indexed-source behavior plus a no-op operation wrapper forwarding to the same existing folder plan; no receipt fallback."
+    }
+  ],
+  "corrected_results": [
+    {
+      "phase": "root-receipt-remove-source-green-v1",
+      "actual_tests_passed": 6,
+      "exit_code": 0,
+      "duration_seconds": 28.2160676989879,
+      "sources_unchanged": true,
+      "log_sha256": "db86208518eb3dd5e311258c2891bad9a07d91a607053c9ee476435334b47543",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "root-receipt-remove-store-controls-v1",
+      "actual_tests_passed": 5,
+      "exit_code": 0,
+      "duration_seconds": 5.972538600995904,
+      "sources_unchanged": true,
+      "log_sha256": "a65e5f4f305a59ce5ef7187156aacc8e562454271b206d8b6d6995ef85f3e6f3",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  ],
+  "service_control_scope": {
+    "hostile_admission_arms": 38,
+    "indexed_metadata_mismatches": 5,
+    "present_leaf_bad_or_absent_ancestry_arms": 7,
+    "actual_preparation_deferrals": 8,
+    "newer_unlinked_bytes_retained_after_reopen": true,
+    "indexed_relocate_to_remove_parity": true,
+    "independent_provider_verification_still_required": true,
+    "live_cleanup_verified": false
+  },
+  "full_check_attempts": [
+    {
+      "phase": "root-receipt-remove-source-full-check-v1",
+      "exit_code": 101,
+      "duration_seconds": 629.9125130570028,
+      "sources_unchanged": true,
+      "log_sha256": "7da70d071ca376049d8dcfa6d3718c02071951666a6c08a2ec46a60fdca64f4c",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "complete_check_passed": false,
+      "failure": "Three writable-session fixtures failed while binding or awaiting a Unix control socket. The retained fixture socket paths are108bytes, at Linux SUN_LEN; two errors explicitly report the path-length limit.",
+      "correction": "Retain failed fixtures and use a shorter private ext4 TMPDIR for an unchanged-source complete check; no source fix or timeout change."
+    },
+    {
+      "phase": "root-receipt-remove-source-full-check-v2",
+      "exit_code": 0,
+      "duration_seconds": 540.0163682179991,
+      "sources_unchanged": true,
+      "log_sha256": "dcd595dfb602f4b492b6510e540ac73c6819609d4075d9da63b2987cea861293",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "complete_check_passed": true,
+      "command": "scripts/check.sh",
+      "temporary_filesystem": "ext4",
+      "temporary_root_path_bytes": 50,
+      "previous_three_socket_fixture_failures_now_pass": true,
+      "display_scenarios_included": false
+    }
+  ],
+  "limits": [
+    "This validates local source planning and the complete local project check, not fresh real-provider cleanup or full editor acceptance.",
+    "All six full-iCloud acceptance criteria and the installed schema hold remain open."
+  ]
+}

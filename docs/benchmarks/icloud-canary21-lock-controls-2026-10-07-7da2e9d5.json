@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "run": "7da2e9d5-116c-4e47-a142-279ac3f9db29",
+  "status": "closed-passed",
+  "active_measurement": false,
+  "registered_at": "2026-10-07T03:53:28.233206+00:00",
+  "question": "Does the same strict registry guard refuse old generate-lockfile but accept workspace-only lock updates for old and current helpers?",
+  "prediction": "Three Cargo resolver commands exit0; baseline old registry guard refuses; old/current workspace-only updates preserve every registry version/checksum. No helper build or provider call.",
+  "arms": [
+    "old generate-lockfile --offline",
+    "old update --offline --workspace",
+    "current update --offline --workspace"
+  ],
+  "endpoint": "Exactly3 expected guard outcomes with all original process receipts closed and original locks/source maps unchanged.",
+  "maximum_seconds_per_command": 60,
+  "cleanup_seconds_per_command": 10,
+  "expected_duration_seconds": 10,
+  "private_TMPDIR_pattern": "/home/dandiccf/Storage/ct/cl21-7da2e9d5/ARM/tmp",
+  "targets_pattern": "/home/dandiccf/Storage/ct/cl21-7da2e9d5/ARM/target",
+  "filesystem_assertion": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/lock-only-controls-preparation-private-v1/execution-7da2e9d5-116c-4e47-a142-279ac3f9db29/actual-findmnt-before-run-v1.json",
+    "size": 196,
+    "sha256": "0a1a40b49b7a75b38f2c73489d7727e6e5fe46d830e24fb4c987a245f486a4b0"
+  },
+  "runner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/lock-only-controls-preparation-private-v1/run_lock_controls_v1.py",
+    "size": 9441,
+    "sha256": "e1910c77a21cb0335c72bcf4f8b5de42dadaaf1a02238f356ef668216cf7a78c"
+  },
+  "RUSTC": {
+    "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+    "size": 645952,
+    "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+  },
+  "RUSTUP_TOOLCHAIN": "1.98.1",
+  "original_failed_run": "8119e9b5-093a-4b77-bfdc-4c546c56c2f4",
+  "provider_actions": false,
+  "helper_builds": false,
+  "installed_changes": false,
+  "full_gate488_closed": false,
+  "automatic_retry": false,
+  "actual_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/lock-only-controls-preparation-private-v1/execution-7da2e9d5-116c-4e47-a142-279ac3f9db29/lock-controls-terminal-result-v1.json",
+    "size": 11866,
+    "sha256": "ab08d3b1305f30b460f532e9e3e14ae13918578891198610dd1ea213903e687f"
+  },
+  "actual_completed_commands": 3,
+  "actual_guard_outcomes": [
+    false,
+    true,
+    true
+  ],
+  "source_and_original_locks_unchanged": true,
+  "original_handles_closed": true,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/lock-only-controls-preparation-private-v1/execution-7da2e9d5-116c-4e47-a142-279ac3f9db29/audit-independent-lock-controls-terminal-v1.json",
+    "size": 2176,
+    "sha256": "bf13f2600faec2a1f1df92e331c5e0b9b4f9bd393d5780f0823e159f85283842"
+  }
+}

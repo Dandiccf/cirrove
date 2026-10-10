@@ -1,0 +1,579 @@
+{
+  "version": 1,
+  "status": "local-source-and-synthetic-validation-passed-finite-controller-preparation-in-progress",
+  "registered_at": "2026-10-04T07:38:09.470604+00:00",
+  "run": "caebe595-3053-4c3f-8c90-0ebcfe2a8db4",
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "label": "iCloudNumbersFuseValidation",
+  "session_directory": "/var/tmp/cirrove-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4",
+  "folder": "Cirrove-Native-caebe595-3053-4c3f-8c90-0ebcfe2a8db4",
+  "document": "Cirrove-Numbers-Parent-caebe595-3053-4c3f-8c90-0ebcfe2a8db4.numbers",
+  "source_head_before_preparation": "512178c23262a0f2bf22f724ff32ae533df55452",
+  "source_provenance_run": "f7e33734-347e-46ba-ae79-1fc631958fac",
+  "source_provenance": "docs/benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json",
+  "original_source_pins": {
+    "source-a.numbers": {
+      "path": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/source-a.numbers",
+      "sha256": "add6c6f634ab18e792c3ec15b892da895d323661df29c8cef2f9fc639d9adf18",
+      "size": 140101
+    },
+    "source-b.numbers": {
+      "path": "/var/tmp/cirrove-numbers-parent-f7e33734-347e-46ba-ae79-1fc631958fac/source-b.numbers",
+      "sha256": "d0a1b35bd5b7c32c5c1831a59729bbfff8ab7445e0dd74c8821f09578f9bda66",
+      "size": 68997
+    }
+  },
+  "source_semantics": {
+    "A": {
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133089,
+      "version": 2,
+      "sha256": "67e0f4d4ed8a098959e7a32630dede70bd726b75fc7dd45414e726014658646b"
+    },
+    "B": {
+      "entries": 46,
+      "expanded_bytes": 133151,
+      "files": 42,
+      "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+      "version": 2
+    },
+    "Apple_B_values": [
+      7,
+      3,
+      10
+    ],
+    "Apple_B_formula": "SUM(A2:B2)",
+    "provenance": "docs/benchmarks/icloud-iwork-next-owned-fixtures-2026-10-02.json"
+  },
+  "question": "Does one normal-account canonical Numbers PACKAGE archive save through FUSE publish B while retaining held original A, recoverable original A in Trash, and no replay after clean fsync/remount?",
+  "prediction": "The UUID-named canonical archive requires the same ZIP root; re-rooting Apple-created B preserves its v2 semantic identity. One bounded FUSE truncate/write/fsync seals one native operation, confirmed remote publication contains B, held original descriptor contains A, and remount adds no operation.",
+  "scope": "One fresh owned UUID folder, one A import, one B canonical archive save through FUSE, held-A/current-B/Trash-A independent checks, one clean fsync and one isolated read-only remount. No atomic save, editor-application acceptance, retry on ambiguity, restore, delete or prior-run replay.",
+  "endpoint": [
+    "Offline exact-source-root semantic checks and meaningful guard counterfactuals before authorization.",
+    "One durable local seal is separate from Uploaded and completed metadata publication.",
+    "Exact account/collection/item/revision receipts, source-to-owner native-working association, zero unsettled/dirty rows.",
+    "Held original archive A, new archive B, original A in typed Trash; exact no-extra-operation frontier after clean fsync/remount."
+  ],
+  "preparation_expected_seconds": 1800,
+  "live_expected_seconds": 1800,
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+  "temp_filesystem": "ext4",
+  "session_filesystem": "btrfs",
+  "authorization": null,
+  "cloud_requests": 0,
+  "cloud_mutations": 0,
+  "results": null,
+  "full_iCloud_gates_closed": 0,
+  "installed_state_changed": false,
+  "installed_service_restarted": false,
+  "limits": [
+    "Preparing local fixtures and read-only receipt binding proves no real FUSE save.",
+    "This archive-copy arm is not an Apple Numbers or Linux editor ordinary/atomic save acceptance.",
+    "One successful live arm cannot establish general reliability, DATA/Pages/Keynote fidelity or installed schema transition acceptance."
+  ],
+  "stop_conditions": [
+    "Any unclear mutation outcome: stop, retain evidence, no automatic second dispatch.",
+    "Session rejection, unexpected identity/revision/source hash or extra queued operation: stop."
+  ],
+  "local_preparation": {
+    "prepared_at": "2026-10-04T07:38:09.484643+00:00",
+    "source_registration": "/var/tmp/cirrove-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/source-registration.json",
+    "source_registration_sha256": "46a4abe88dc37ef7c76b8f81eab04a2bc226c224bec661c4333a396fbe440a1c",
+    "private_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4",
+    "zip_member_contents_and_types_preserved": true,
+    "zip_members": 42,
+    "semantic_scanner_status": "passed-actual-registered-A-original-B-and-root-rewritten-B",
+    "rewritten_source": {
+      "path": "/var/tmp/cirrove-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/source-b-fuse.numbers",
+      "size": 73449,
+      "sha256": "a4d3ae602a847e4da89f13abc1d48c32e445a4472f5ac3673ff28e70e55ffd71",
+      "root": "Cirrove-Numbers-Parent-caebe595-3053-4c3f-8c90-0ebcfe2a8db4.numbers",
+      "semantic": {
+        "entries": 46,
+        "expanded_bytes": 133151,
+        "files": 42,
+        "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+        "version": 2
+      }
+    }
+  },
+  "local_verification_preregistration": {
+    "registered_at": "2026-10-04T07:53:16.151492+00:00",
+    "status": "executed-exact-eight-tests-with-restored-source",
+    "new_synthetic_tests_expected": 8,
+    "new_synthetic_test_names": [
+      "owned_fuse_registration_is_distinct_and_digest_bound",
+      "owned_fuse_source_scan_binds_rewrite_root_hash_and_semantics",
+      "owned_fuse_capture_scan_binds_purpose_master_and_actual_content",
+      "owned_fuse_actual_journal_proves_preflight_active_and_retired_save",
+      "owned_fuse_actual_cli_receipt_without_native_association_is_refused",
+      "owned_fuse_actual_association_refuses_foreign_registered_working_uuid",
+      "owned_fuse_actual_working_inventory_refuses_dirty_and_extra_streams",
+      "owned_fuse_association_refuses_detached_owner_and_changed_original"
+    ],
+    "scope": [
+      "Digest-pinned original A/original B/UUID-root B proof using production v2 archive scanner, offline only.",
+      "Local canonical-A/held-A/current-B/remounted-B captures bind master source registration, exact UUID paths/root and A/B semantic identity; no keyring/settings/journal/provider access.",
+      "Real local journal import with no namespace attachment, then native working hydrate/seal/ack/publication, active and retired association binding.",
+      "Explicit CLI replacement without native working association refused by FUSE observer; global working count and dirty/unlinked fence."
+    ],
+    "counterfactual": {
+      "guard": "plan.working == Some(*working)",
+      "test": "owned_fuse_actual_association_refuses_foreign_registered_working_uuid",
+      "prediction": "Removing this exact registered-working association guard makes the foreign-working test fail; restoring source makes it pass.",
+      "source_restoration_required": true
+    },
+    "source_root_proof_status": "passed-production-v2-scanner-offline",
+    "cloud_requests": 0,
+    "cloud_mutations": 0,
+    "release_gates_closed": 0
+  },
+  "writer_window_counterfactual_preregistration": {
+    "registered_at": "2026-10-04T07:58:11.312869+00:00",
+    "guard": "0 < (deadline - started).total_seconds() <= 1800",
+    "omission": "Remove ONLY the <=1800 upper bound in a private altered component copy, retaining approval/time order and positive interval; canonical component remains byte-identical.",
+    "test": "ContractGuards.test_excessive_launch_window_cannot_repin_into_authority",
+    "canonical_component_sha256": "abb7b7852aafda8fbd18d35bbac74d7aaf1fdd48fc8c6e1f02685b38dc50a1d7",
+    "prediction": "One excessive-window test fails with the omitted guard by reaching synthetic readiness, passes against pinned canonical component with refusal before hooks.",
+    "arms": [
+      "writer-window-omission-v1-red",
+      "writer-window-v3-restored-green"
+    ],
+    "expected_tests_per_arm": 1,
+    "status": "expected-red-and-canonical-green-executed",
+    "scope": "Pure synthetic authorization predicates and readiness spy; no FUSE/socket/credentials/state/provider IO."
+  },
+  "local_validation_results": {
+    "recorded_at": "2026-10-04T08:04:38.202265+00:00",
+    "scope": "Local source scans and synthetic journal/authorization validation; no provider request, mount save or installed acceptance.",
+    "rust": {
+      "focused_before": {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-focused-final.json",
+        "manifest_sha256": "9eb4df89347cab9e8e75843afff8ce506e1a591e4c35a7f2035f5e35e5aea028",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-focused-final.log",
+        "log_sha256": "a797ea9d513b1158e2b71a663a030eeae157c1af1507989bdcd89290b5bd67be",
+        "exit_code": 0
+      },
+      "counterfactual": {
+        "passed": 0,
+        "failed": 1,
+        "ignored": 0,
+        "assertion": "foreign registered working UUID accepted",
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-working-pin-omitted.json",
+        "restored_byte_exact": true,
+        "manifest_sha256": "bb50104ffb8b8f6704af9c613ed23f46140e3ccdcf4c8c2af40cd89b687accc7",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-working-pin-omitted.log",
+        "log_sha256": "f872a7a016b7a3186968e0708bdeb32a1821440b95eb484d3931e14b66d3c759",
+        "exit_code": 101
+      },
+      "focused_restored": {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-focused-restored.json",
+        "manifest_sha256": "98ca66c7567d1dcdbfd7927a8413bd6e6459631d80a5bc7e349001300b37b3f4",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-focused-restored.log",
+        "log_sha256": "eeb5fbfc2e0fd63b9c492d3ed478da0c56523c884bb94451c03e799d9b4dd725",
+        "exit_code": 0
+      },
+      "legacy": {
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0,
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-legacy-scope-tests.json",
+        "manifest_sha256": "a10409d939b708b52c31527f427fe6657f3cd596b8de0385ef0203b8c20f9ceb",
+        "log": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/fuse-legacy-scope-tests.log",
+        "log_sha256": "b8233ac57d0590e116121d395baf4ddf380520fb7aea68715f51185042de86a5",
+        "exit_code": 0
+      }
+    },
+    "source_proof": {
+      "path": "/var/tmp/cirrove-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/source-verified.json",
+      "sha256": "d5a1aad71cc7057026c0f59020daf102360525ac22a03fcb9532c8c7138c89d6",
+      "registration_sha256": "46a4abe88dc37ef7c76b8f81eab04a2bc226c224bec661c4333a396fbe440a1c",
+      "semantic_b_matches_original": true,
+      "offline_only": true
+    },
+    "source_sha256": {
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/fuse.rs": "9461aac6c191919df8a57e39169c7d3612a5b672a437a160c5dde62ee6ad5323",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/fuse/tests.rs": "80426837840a216109fab4d72e41e5aecebfd7447cd2b3570d6d29eb39394abf",
+      "crates/cirrove-service/src/journal/export.rs": "f459488972197bea381e7f7108cd0c9567cc2f764353ddaeda252e48ab40ac51",
+      "crates/cirrove-service/src/bin/cirrove-icloud-mounted-write-probe.rs": "37cb2edf56a1d3de8af61009378857f2bfa6c14ae318f19bf2e311bc7961817b"
+    },
+    "authoring_corrections": {
+      "scope": "Fixture authoring corrections, not product fail-before-fix evidence",
+      "corrections": [
+        {
+          "manifest": "fuse-focused-positive.json",
+          "passed": 3,
+          "failed": 5,
+          "phase": "reserve_identity_handoff",
+          "cause": "Synthetic recovery local_name equaled original document name; real contract requires different recovery name.",
+          "fix": "Test-only recovery-{operation}.numbers."
+        },
+        {
+          "manifest": "fuse-focused-corrected.json",
+          "passed": 7,
+          "failed": 1,
+          "phase": "extra-stream setup",
+          "cause": "Synthetic create_working(new=true) used nonzero size5; public new-file contract requires zero-size source.",
+          "fix": "First corrected ordinary parent; parent-only rerun still failed unchanged size/new contract."
+        },
+        {
+          "manifest": "fuse-focused-corrected-parent.json",
+          "passed": 7,
+          "failed": 1,
+          "phase": "extra-stream setup",
+          "cause": "Same new=true nonzero-size authoring mismatch.",
+          "fix": "Actual existing ordinary-file hydration: new=false, explicit ETag and plain parent; assert clean/unlinkedfalse to test extra-count fence directly."
+        }
+      ],
+      "correction_scope": "No product/admission guard changed for these setup corrections; actual8 passed before separately registered omission counterfactual."
+    },
+    "source_restored_byte_exact": true,
+    "root_source_and_writer_review": {
+      "artifact": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/root-source-and-writer-proof-review.json",
+      "sha256": "c1d31b6426bf605a13d4f1552cf3d618ad2d12fa3450be4974e0eb1810c4cdd2"
+    },
+    "writer": {
+      "component_sha256": "abb7b7852aafda8fbd18d35bbac74d7aaf1fdd48fc8c6e1f02685b38dc50a1d7",
+      "offline_tests": {
+        "executed": 11,
+        "passed": 11,
+        "controls": "10 scope/auth mutations; 8 runtime-pin refusals; root/source/expiry/1800-second window guards; readonly inventory empty-page paging and extra-operation cardinality; mutation command refusal before socket stat",
+        "manifest": "writer-offline-guards-v4.json",
+        "authoring_correction": "v3 test expected old expiry error label; new finite-window guard refused correctly. Exact expected static reason corrected before v4; no behavior red claim."
+      },
+      "window_guard_counterfactual": {
+        "public_preregistration": "docs/benchmarks/icloud-numbers-fuse-save-2026-10-04.json#writer_window_counterfactual_preregistration",
+        "private_preregistration": {
+          "path": "writer-window-omission-preregistration-v1.json",
+          "sha256": "30bc5bc94e95e7b70d7e1bee454416cfc7a21308b4d86dcb6221df1f6dc95e8d"
+        },
+        "test": "ContractGuards.test_excessive_launch_window_cannot_repin_into_authority",
+        "controlled_change": "Remove only <=1800 upper interval bound in private pinned copy; canonical component never edited",
+        "canonical_sha256_unchanged": "abb7b7852aafda8fbd18d35bbac74d7aaf1fdd48fc8c6e1f02685b38dc50a1d7",
+        "arms": [
+          {
+            "arm": "writer-window-omission-v1-red",
+            "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/writer-window-omission-v1-red.json",
+            "manifest_sha256": "2793c09b585001514c2ba3c69e1fd201517818176d8e1703ac088b6b5dfb5187",
+            "log": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/writer-window-omission-v1-red.log",
+            "log_sha256": "f1ca902c2f54946ac521273f36282f374cd7a1a675a93f0c377bd55c3415b702",
+            "exit_code": 1,
+            "executed_tests": 1,
+            "failed_tests": 1,
+            "endpoint": "Expected finite-window refusal assertion failed after reaching synthetic-readiness-endpoint",
+            "reader_pid": 1876043,
+            "child_pid": 1876050,
+            "filesystem": "ext4"
+          },
+          {
+            "arm": "writer-window-v3-restored-green",
+            "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/writer-window-v3-restored-green.json",
+            "manifest_sha256": "1e22e13e4b21c5f7d445151ef427c6744c67ae49e8b51786ba7660ef2c935ef1",
+            "log": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/writer-window-v3-restored-green.log",
+            "log_sha256": "7df2c7ce2b5d8499bc897447c6d567211eecffecde190fce726ff29ef84008a9",
+            "exit_code": 0,
+            "executed_tests": 1,
+            "failed_tests": 0,
+            "endpoint": "finite-launch-window-invalid before readiness",
+            "reader_pid": 1876496,
+            "child_pid": 1876507,
+            "filesystem": "ext4"
+          }
+        ],
+        "scope": "Synthetic authorization model only; no operational socket/FUSE/state/credential IO, no real reliability or installed acceptance."
+      },
+      "runtime_ready": false,
+      "scope": "Unimplemented integration hooks in the component draft; no operational invocation.",
+      "annex_sha256": "95feb70dba886b762a57a3da766c2da01ed61f445bd171cc744e6f40812a296a"
+    },
+    "limits": [
+      "Actual import/hydrate/seal/receipt/publication fixtures are local synthetic journal coverage; they are not a real provider or kernel FUSE arm.",
+      "Actual A/B scanner proof verifies local source fidelity only; it does not prove the future upload.",
+      "No release gate has closed; new runtime binary pins/controller review/fullcheck and fresh task authorization remain pending."
+    ]
+  },
+  "full_contributor_check_attempts": [
+    {
+      "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/full-contributor-check-before-fuse-preparation-commit.json",
+      "manifest_sha256": "1505a8642bd015aefd7b20204b3b178e9a6b7a082100c64f25f4c5d67b986fee",
+      "log_sha256": "a3630736a14fb9e413bd148a5d03fc16569a7c36106f08e4f5943f36ca7cf589",
+      "command": [
+        "scripts/check.sh"
+      ],
+      "status": "failed",
+      "exit_code": 101,
+      "phase": "feature-gated isolated write-probe clippy",
+      "finding": "cmp_owned: allocating PathBuf solely for a path/string comparison.",
+      "correction": "Compare session_directory directly to formatted exact root string, as the unchanged legacy wrapper already does; UUID/path/scope predicate unchanged.",
+      "corrected_at": "2026-10-04T08:06:45.421197+00:00",
+      "source_proof_scope": "Earlier restored source hashes and actual offline archive proof remain historical; this lint-only comparison correction is later and does not alter package scanning or association guards."
+    }
+  ],
+  "controller_local_verification_preregistration": {
+    "registered_at": "2026-10-04T08:22:45.155219+00:00",
+    "controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
+    "suites": [
+      {
+        "path": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/test_controller_offline.py",
+        "sha256": "73a78e6e9f60c690199669c91fb0c771dd61d49a28f830ed6acd4cbb11cd7488",
+        "expected_tests": 16,
+        "tests": [
+          "test_exact_scope_shape_accepts_in_memory_contract",
+          "test_wrong_root_scope_and_routes_refuse_before_io",
+          "test_valid_fresh_approval_accepts_in_memory",
+          "test_missing_or_unapproved_authorization_refuses",
+          "test_each_scope_and_pin_mismatch_refuses",
+          "test_stale_expired_and_future_approval_refuse",
+          "test_expired_stop_only_preserves_exact_identity_guard",
+          "test_attempted_dispatch_refuses_even_without_confirmed_result",
+          "test_real_controller_descriptor_passes_real_writer_schema",
+          "test_manual_abort_signals_only_exact_owned_identity",
+          "test_manual_abort_refuses_changed_identity_without_signal",
+          "test_ambiguous_live_identity_refuses_but_confirmed_gone_needs_no_signal",
+          "test_exit_between_abort_checks_never_signals_reused_or_unknown_pid",
+          "test_blocked_fuse_owner_is_released_by_exact_daemon_abort",
+          "test_unknown_phase_identity_never_authorizes_kill_or_false_gone",
+          "test_abort_tracks_late_nested_local_scanner_without_broad_kill"
+        ]
+      },
+      {
+        "path": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/test_controller_local_integration.py",
+        "sha256": "5e48fabe14dcc1e8e3aaa217301858a106366d5bc6ea052d0360b998661e6975",
+        "expected_tests": 3,
+        "tests": [
+          "test_actual_system_python_original_refuses_new_pin_accepts",
+          "test_unsafe_executable_owners_modes_and_private_owner_refuse",
+          "test_actual_proc_ticks_new_descriptor_accepted_string_shape_refused"
+        ]
+      }
+    ],
+    "expected_duration_seconds_per_suite": 120,
+    "scope": "Pure in-memory guards and read-only actual system-Python/current-process compatibility; no controller main, socket, daemon, FUSE, provider access or persisted authorization.",
+    "prediction": "The corrected trusted-executable predicate accepts actual root-owned Python while private artifacts retain current-user ownership; actual integer process ticks interoperate with the writer; manual abort closes only exact owned identities including late local scanners.",
+    "limits": "Guard and compatibility checks establish no live Numbers save or cloud reliability.",
+    "compatibility_rerun": {
+      "registered_at": "2026-10-04T08:24:21.567003+00:00",
+      "expected_tests": 3,
+      "test_source_sha256": "d356d590704add06819488c213ddfb066f29075b5fb14519895eb4dbecc5f392",
+      "controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
+      "system_python_path": "/usr/bin/python3.14",
+      "same_controller_as_initial_run": true
+    }
+  },
+  "full_contributor_check_results": {
+    "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/full-contributor-check-after-cmp-owned-correction.json",
+    "manifest_sha256": "f7db5a26707b540833891e5700e1586dc8364d8fbb60be1373e9102212312cf4",
+    "log_sha256": "f5fe71a22a533acc2caa48f4ae849d5b6df57a5e17c94a38eea118dd9f277056",
+    "started_at": "2026-10-04T08:06:45.552745+00:00",
+    "finished_at": "2026-10-04T08:14:39.426623+00:00",
+    "command": [
+      "scripts/check.sh"
+    ],
+    "exit_code": 0,
+    "source_sha256": {
+      "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+      "README.md": "50de12a55cd6e6f9bef09884c5e6d0ced47d88261710233b681cd6c3516089a3",
+      "crates/cirrove-service/src/bin/cirrove-icloud-mounted-write-probe.rs": "37cb2edf56a1d3de8af61009378857f2bfa6c14ae318f19bf2e311bc7961817b",
+      "crates/cirrove-service/src/journal/export.rs": "f459488972197bea381e7f7108cd0c9567cc2f764353ddaeda252e48ab40ac51",
+      "crates/cirrove-service/src/validation.rs": "43e0a31cb0701866e63fb400fe611a72e52f8161ba8e02b0d825252032b6fdef",
+      "crates/cirrove-service/src/validation/icloud_account.rs": "6c4b025f0d85f2d84e39851eae306d939f6568883b68adbce9daa3eaa911d5ed",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package.rs": "fef2b859800dc7ea2a8cbf7f6123fcc939d7a17f23a83b769311797d52b9daac",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify.rs": "540e1f60fd8e52f4f240dc72d121b75c147de16730d149605bdb94dcef51ef8c",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound.rs": "fc8be3b401a509b6df0e20d6e6368d0d344ecea94077169bc81684ebf49a9b36",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/fuse.rs": "c76acde57a65afecde2ed7e03e3ebf0bc031b227a9e96c6ee02f54ca464065d6",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/fuse/tests.rs": "80426837840a216109fab4d72e41e5aecebfd7447cd2b3570d6d29eb39394abf",
+      "docs/benchmarks/icloud-numbers-fuse-save-2026-10-04.json": "37441978cda6cf7d092f965d44d1e15f654ff0295cbd82aacee7e2686278d01c",
+      "docs/icloud-write-integration.md": "427fafc3cb76f38404f87344607bf9706d3838fba0a541867af8236b033110da",
+      "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4"
+    },
+    "scope": "Complete scripts/check.sh on tracked implementation after cmp_owned correction; no live provider run or installed delivery."
+  },
+  "controller_authoring_corrections": [
+    {
+      "recorded_at": "2026-10-04T08:24:21.566911+00:00",
+      "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/controller-local-compatibility-v1.json",
+      "manifest_sha256": "d2dbdc1e62b7258c20a4a88bd9a733d9dfd084eb11c0c644aa8e79ca9d854817",
+      "log_sha256": "fd776bc2c811f1329e7a19c4e775dd155c421ad5c607e4d7eec091a6c0241bb5",
+      "tests": 3,
+      "passed": 2,
+      "failed": 1,
+      "failure": "Test assumed sys.executable was root-owned system Python; this runner uses user-owned mise Python.",
+      "correction": "First test now explicitly inspects canonical /usr/bin/python3.14, the planned runtime executable; controller unchanged.",
+      "before_test_source_sha256": "5e48fabe14dcc1e8e3aaa217301858a106366d5bc6ea052d0360b998661e6975",
+      "after_test_source_sha256": "d356d590704add06819488c213ddfb066f29075b5fb14519895eb4dbecc5f392",
+      "not_counterfactual_fix_proof": true
+    }
+  ],
+  "controller_local_verification_results": {
+    "controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
+    "suites": [
+      {
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/controller-pure-guards-v1.json",
+        "manifest_sha256": "5100d6dc49924fc95df8f1fc46b85b27712a364f02592531d1a40380ba54d076",
+        "log_sha256": "27aeba3f06b9768b07439464dd1a417ec055fc6e211e01b225ad0a3ae8e4ec21",
+        "executed_tests": 16,
+        "passed": 16,
+        "exit_code": 0
+      },
+      {
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/controller-local-compatibility-v2-system-python.json",
+        "manifest_sha256": "93f3367dc45ecf586cb22e5df6c3fc7a770e02898d3027d8747195abdbd84ec0",
+        "log_sha256": "921b60a7fd52e978fbb551cacd29df2d6708879400278e1fcc70fceeb0c6f8e0",
+        "executed_tests": 3,
+        "passed": 3,
+        "exit_code": 0
+      }
+    ],
+    "provider_access": false,
+    "cloud_mutations": 0,
+    "runtime_registration_present": false,
+    "authorization_present": false,
+    "scope": "Pure controller guards and read-only system Python/current process compatibility; frozen runtime integration and final review remain pending.",
+    "independent_review": "Exact private controller ff19eeac reviewed independently; no concrete source blocker identified. Actual frozen runtime manifest/binaries remain unprepared and unreviewed."
+  },
+  "controller_abort_counterfactual_preregistration": {
+    "registered_at": "2026-10-04T08:25:41.940052+00:00",
+    "canonical_controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
+    "expected_duration_seconds_per_arm": 120,
+    "arms": [
+      {
+        "arm": "abort-daemon-omitted-red",
+        "driver": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-daemon-omitted-red-test.py",
+        "driver_sha256": "9256047037297297c1edf8fa43bc9d3ccc6ba6e80a283cc1bebe0fe4ffda09d9",
+        "controller": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-daemon-omitted-controller.py",
+        "controller_sha256": "9af6d3fcee34849fbec24477c9998003439a7914b584cf3f59aa2261b8318956",
+        "exact_test": "test_blocked_fuse_owner_is_released_by_exact_daemon_abort",
+        "expected_tests": 1,
+        "expected_exit_code": 1
+      },
+      {
+        "arm": "abort-daemon-omitted-green",
+        "driver": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-daemon-omitted-green-test.py",
+        "driver_sha256": "196222ee3fe3c87e3d1dae4c133b1818cc894900d5bd3fba50df94cfc42ee197",
+        "controller": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/controller.py",
+        "controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
+        "exact_test": "test_blocked_fuse_owner_is_released_by_exact_daemon_abort",
+        "expected_tests": 1,
+        "expected_exit_code": 0
+      },
+      {
+        "arm": "abort-late-scanner-omitted-red",
+        "driver": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-late-scanner-omitted-red-test.py",
+        "driver_sha256": "5f498888b3e54b419403146be9bb9c07b71a48368f557137ef4709cb0a41d447",
+        "controller": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-late-scanner-omitted-controller.py",
+        "controller_sha256": "d925d44951b4d2e6cc2f600a31e0ed2a891e4f696fa74734835fada0a4d8a2c1",
+        "exact_test": "test_abort_tracks_late_nested_local_scanner_without_broad_kill",
+        "expected_tests": 1,
+        "expected_exit_code": 1
+      },
+      {
+        "arm": "abort-late-scanner-omitted-green",
+        "driver": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-late-scanner-omitted-green-test.py",
+        "driver_sha256": "c7704cdb728569991c6622df3a21e5feab7d112faa565d0b8936f7c6579d697a",
+        "controller": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/controller.py",
+        "controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
+        "exact_test": "test_abort_tracks_late_nested_local_scanner_without_broad_kill",
+        "expected_tests": 1,
+        "expected_exit_code": 0
+      }
+    ],
+    "prediction": "Removing exact daemon cancellation leaves a blocked writer unresolved; removing late-scanner refresh falsely settles while its recorded scanner remains alive. Exact controls pass unchanged.",
+    "scope": "Private proposal sensitivity controls with in-memory process/signal seams. No real process signals, daemon, FUSE, account, provider requests or historical production regression claim."
+  },
+  "controller_abort_counterfactual_results": {
+    "verified_at": "2026-10-04T08:26:27.887503+00:00",
+    "arms": [
+      {
+        "arm": "abort-daemon-omitted-red",
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-daemon-omitted-red.json",
+        "manifest_sha256": "f1ac5b0265a8a890ce3603cce9cadde3abd925d691a6c50f6769208b1ef0748e",
+        "log_sha256": "6d70dbf85496fa83cc6532609ef1ef28cbdc615bfbb8f52a5d1df042fb5bf7e4",
+        "executed_tests": 1,
+        "exit_code": 1,
+        "failure_kind": "assertion"
+      },
+      {
+        "arm": "abort-daemon-omitted-green",
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-daemon-omitted-green.json",
+        "manifest_sha256": "5359725c63875e75e8622cc9a0fafa80f7572022ca2c225b5542dceaa96ceffe",
+        "log_sha256": "15d5cfbbd72cefbf9454bdd79554cbb4eab60d771770dd49b9ee940306bfa968",
+        "executed_tests": 1,
+        "exit_code": 0,
+        "failure_kind": null
+      },
+      {
+        "arm": "abort-late-scanner-omitted-red",
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-late-scanner-omitted-red.json",
+        "manifest_sha256": "ff28f0024489bfc5e18ce29a09bf3d6a1cc3daec80907a873133a9f7fcbc5e64",
+        "log_sha256": "e24e5809e052140242eec2ea8bb9e88dc4cf3381c4460d5a7522f0d335c1edf1",
+        "executed_tests": 1,
+        "exit_code": 1,
+        "failure_kind": "assertion"
+      },
+      {
+        "arm": "abort-late-scanner-omitted-green",
+        "manifest": ".local-state/icloud-numbers-fuse-caebe595-3053-4c3f-8c90-0ebcfe2a8db4/abort-late-scanner-omitted-green.json",
+        "manifest_sha256": "e52f50fb8e51602dfc054ec8a0bfb95682193ccbe00978b2cd9fd73d07712267",
+        "log_sha256": "609aa7b43fcf8c6aa72a80caa7ab3e8642fe679e3f0aa78c7e4933216ae1ac09",
+        "executed_tests": 1,
+        "exit_code": 0,
+        "failure_kind": null
+      }
+    ],
+    "canonical_controller_unchanged": true,
+    "canonical_controller_sha256": "ff19eeac52d28512b8cbe27955604d68639ae52b840d164e96a7297f394164d6",
+    "scope": "Proposal safety sensitivity only: one daemon-abort omission and one late-scanner-refresh omission; each exact assertion failed, unchanged canonical controls passed. No actual process signals or cloud access."
+  },
+  "live_execution_20261004": {
+    "authorization": "Fresh direct standing user authorization for writable iCloud access and tests, recorded privately. Earlier closed CLI grant not reused.",
+    "run": "caebe595-3053-4c3f-8c90-0ebcfe2a8db4",
+    "result": "Stopped after first create-folder status guard refusal; no Numbers import or FUSE save attempted.",
+    "daemon_start": {
+      "pid": 2283190,
+      "start_ticks": 14845793,
+      "actual_tool_exit": 0,
+      "actual_tool_chunk": "aed406"
+    },
+    "readiness": "One exact isolated iCloud account, ready and mounted RW, validated.",
+    "folder_dispatches": 1,
+    "mkdir_child_exit_code": 0,
+    "first_status_poll": {
+      "exit_code": 1,
+      "actual_tool_chunk": "d4ae10",
+      "result": "finite-controller-refused-or-ambiguous"
+    },
+    "later_local_journal": {
+      "folder_operation": "27ef13d4-9f45-459d-92d0-7d068924fb1c",
+      "folder_state": "Applied",
+      "complete_queue_rows": 1,
+      "uploads": 0
+    },
+    "interpretation": "Remote-confirmation lag is a matching controller-interleaving hypothesis; no snapshot of the first failing frontier was retained, so its unique cause is unproven.",
+    "stop": {
+      "pid": 2283190,
+      "actual_signal_tool_exit": 0,
+      "actual_signal_tool_chunk": "92de08",
+      "actual_gone_unmounted_tool_exit": 0,
+      "actual_gone_unmounted_tool_chunk": "c0e02e"
+    },
+    "root_stopped_audit_sha256": "3a13d0b69861ff7c9fe92a841fa71e1c1b59dbf3d504fc4d3ac734db808369b6",
+    "original_plan_sha256": "58d9352a4180ad27a1ce72b08dbbde4ea5e7639e169dc58197747de1624bed92",
+    "original_public_preregistration_sha256": "99bf2fc6e103ac8bce4327056765d4260f0b25fda4a092dd4a1133d3a249a799",
+    "preserved_original_public_copy": ".local-state private retained original bytes",
+    "settings_and_sealed_ciphertext_unchanged": true,
+    "all_exact_owned_processes_gone": true,
+    "mount_absent": true,
+    "mutations_replayed": 0,
+    "new_arm_required_for_future_execution": true,
+    "installed_changes": false,
+    "full_icloud_gates_closed": 0
+  }
+}

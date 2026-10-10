@@ -1,0 +1,30 @@
+{
+  "active": false,
+  "active_window": false,
+  "arms": [
+    "uncommitted cookie fix integrated atop aa02 after genuine old RED/new eleven GREEN"
+  ],
+  "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "endpoint": "scripts/check.sh completes without --fast; format, clippy, workspace/script/kernel tests, ledger and docs pass",
+  "expected_duration_seconds": 900,
+  "failure_summary": "3 desktop accounts tests fail with SUN_LEN/InvalidInput because registered TMPDIR exceeds Unix socket path length after fixture suffix. No product change inferred.",
+  "full_icloud_closed": false,
+  "fullcheck_passed": false,
+  "installed_HOLD": true,
+  "installed_actions": false,
+  "original_chunk": "3bf83d",
+  "original_exec_session": 11642,
+  "original_exit_code": 101,
+  "prediction": "Complete script passes; installed service remains unchanged",
+  "provider_mutations": false,
+  "question": "Does the integrated cookie lifetime fix pass the complete mandatory project check?",
+  "run": "6d7d6a8e-11a8-4897-8a88-e8d0a5e4dbd0",
+  "sqlite_tmpdir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/cookie-expiry-fullcheck-20261009-tmp",
+  "state": "closed_failed_desktop_unix_socket_path_limit",
+  "temporary_filesystem": "/dev/nvme1n1p1 ext4 /home/dandiccf/Storage",
+  "tmpdir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/cookie-expiry-fullcheck-20261009-tmp",
+  "version": 1
+}

@@ -1,0 +1,26 @@
+{
+  "actual_loop_controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/import-loop-regression-v1/closed-loop-regression-receipt.json",
+    "sha256": "492fbe69793dd785af1dffb7171e1cf9d60d3b8dabe071165ef98afa7222160f",
+    "size": 6191
+  },
+  "classifier_controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/import-observation-correction-v2/closed-pure-controls-receipt.json",
+    "sha256": "c677ca337b134b3d09c11111d83ef34fda755f1764b421d436f75d365756066c",
+    "size": 3002
+  },
+  "corrected_runner_adoption": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fixed-runner-20261010-v1/validated-source-adoption.json",
+    "sha256": "beaa0e37f76d5a4e72d6123e9c63084927c7174af9303dfcee15e251ab7c44d8",
+    "size": 1777
+  },
+  "full_gate490_closed": false,
+  "limitation": "The failed live status card was not retained. Persisted indexing corroborates the guard defect but does not prove the exact failed live status field. These controlled local regressions do not close cloud reliability.",
+  "new_cloud_trial_run": false,
+  "old_failed_new_passed": true,
+  "production_rust_changed": false,
+  "question": "Does the actual import observation loop survive valid indexing while requiring completed publication, preserving a single import and its original deadline?",
+  "registration": "Private test registration preceded dispatch; this public result was recorded afterwards.",
+  "status": "local_regression_passed_source_adopted",
+  "version": 1
+}

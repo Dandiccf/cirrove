@@ -1,0 +1,331 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_receiver_refusal_current_presence_unverified",
+  "question": "Does the exact Created folder identity from stopped175 currently exist as the same typed folder under its retained parent, when inspected once through the read-only reconciliation path?",
+  "prediction": "The exact retained Created-ID folder is currently visible under its original parent. One fresh read-only reconciliation can return an exact-ID typed Upsert supporting current presence; any other result remains separately classified. No result triggers acknowledgement, replay, retry, import or a cloud mutation, and all13 original state files remain unchanged.",
+  "subject": {
+    "original_run": "175a90ac-a82d-40d4-9214-518101308d1b",
+    "account_id": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "operation_id": "875969b5-b87d-4bbb-8049-7f240e53de76",
+    "current_id": "FOLDER::com.apple.CloudDocs::8DF53411-120A-481E-9286-35C4DAA569F3",
+    "identity_case": "Exact uppercase Created ID from authenticated retained checkpoint; do not substitute lowercase/name/path lookup.",
+    "original_trial_state": "closed VerifyRequired folder creation before import/Trash; this observation neither resumes nor extends it."
+  },
+  "arms": [
+    "ONE separately registered fresh bounded READ-ONLY exact-ID reconciliation of the stopped175 subject; no automatic repeat."
+  ],
+  "endpoint": [
+    "Fresh approved read-only registration pins this exact subject/operation/currentID, current compiled source/artifacts and one original60-second clock before any credential load or HTTP.",
+    "One direct ICloudFolderCreate.reconciliation_only().reconcile_operation(operation,exactrequest,None,cancellation) call; no service worker, prepare, mutate, journal reopening, checkpoint save, ACK or import.",
+    "Classify actual returned typed outcome. Applied requires a fresh exact-ID folder Upsert and exact retained route/scope/expected request binding. Created checkpoint classification alone is not current-presence proof.",
+    "Retain only sanitized classification/flags/identity binding and private output/log hashes; never tokens, cursor or signed URLs, session/key plaintext or raw provider bodies.",
+    "External Root wrapper hashes/protects all13 original state files before and after; internally six approved immutable inputs are guarded. No journal/queue mutation on any outcome.",
+    "Original helper Popen/pidfd is retained and actually waited/reaped, exact recorded owners absent, original subject mount/socket absent; no installed action or restart."
+  ],
+  "maximum_seconds": 60,
+  "cleanup_reserve_seconds": 10,
+  "cleanup_reserve_inside_original_window": true,
+  "one_original_clock": true,
+  "original_cloud_window_extended": false,
+  "automatic_retry": false,
+  "authorization": "Standing authorization for a bounded own-account read; explicitly no write, acknowledgement or replay authorized by this observation.",
+  "call_limits": {
+    "planned_direct_reconciliation_invocations": 1,
+    "HTTP_request_count": "uninstrumented: one backend invocation may perform multiple read-only HTTP requests; do not claim one HTTP request.",
+    "prepare_calls": 0,
+    "cloud_mutations": 0,
+    "worker_calls": 0,
+    "journal_acknowledgements": 0,
+    "retry_or_replay_calls": 0,
+    "import_calls": 0,
+    "checkpoint_saves": 0
+  },
+  "frozen_helper": {
+    "proposal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/proposal-v3.json",
+      "size": 5287,
+      "sha256": "009ff92bed329850b0b28bc472089be2a9ab425b43f8e41fcef806df99c1b5df"
+    },
+    "source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/src/main.rs",
+      "size": 28083,
+      "sha256": "165d8210940a68ef1119519a1c2926b2c257f8a66f1cf2a32dcc31b82cb23cce"
+    },
+    "executable": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/folder175-checkpoint-only-163b84cd-80d3-4e8d-9c1a-b23c92fbaf76/exact-id-read",
+      "size": 195726576,
+      "sha256": "e84ca540778a6cd02ee0262dd11e222dba82f435fcd13bcf8227d700da07eda2"
+    },
+    "offline_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/offline-controls-registration-v1.json",
+      "size": 83153,
+      "sha256": "466caa8ca0667db2033c91f059a722da29c0c7ed80f9300a7a6c195cedf7ffb5"
+    },
+    "dependency_pins": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/dependency-pins-v1.json",
+      "size": 3274,
+      "sha256": "28e31535dc82d18a2a2bdf0112116f3450d261eb9c67254a973e7086a0919145"
+    },
+    "source_binding": "Offline helper registration captured561 current source files and13 unchanged matched library artifacts. The known difference from historical ready capsule is scripts/validate-strata.py; Root must bind fresh current sources rather than claiming an older whole map unchanged."
+  },
+  "synthetic_controls_completed": {
+    "tests_passed": 15,
+    "failed": 0,
+    "ignored": 0,
+    "existing_guard_tests": 9,
+    "new_control_tests": 6,
+    "actual_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/offline-controls-result-v1.json",
+      "size": 8815,
+      "sha256": "ff3bcce1fdeacd82ecb58f7e6bad79589832d1df0316875af2e5e9fc02a34185"
+    },
+    "test_log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/synthetic-tests-v1.log",
+      "size": 1262,
+      "sha256": "f7dfc2750aa2ccc1edc8b3d7f116179e918812c53f1fcd8860cb69685830ac48"
+    },
+    "actual_result_codec_fixtures": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/actual-result-codec-fixtures-v1.json",
+      "size": 3117,
+      "sha256": "e0326ea456bc8722281ea319f65342fd84c8aab14491c8ba93f26a53b4a27088"
+    },
+    "sources_unchanged": true,
+    "real_helper_executed": false,
+    "real_checkpoint_key_loads": 0,
+    "provider_calls": 0,
+    "scope": "Shared constructor/classifier, singleton settings guards and actual emitted result codec fixtures only; not real credential/provider proof."
+  },
+  "lifetime_registration": {
+    "root_wrapper": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/root_exact_read_once_v4.py",
+      "size": 11072,
+      "sha256": "8591b8f73a8f449d0a877fef8048fb2909a4c3ef3a665036fa38103c219132bf"
+    },
+    "root_wrapper_sha256": "8591b8f73a8f449d0a877fef8048fb2909a4c3ef3a665036fa38103c219132bf",
+    "runtime_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/read-registration-v1.json",
+      "size": 392,
+      "sha256": "dabae3d616261d75ef85de6e9467b87be4b7fb8618fcb7d41f7924eb5b8dda72"
+    },
+    "runtime_registration_sha256": "dabae3d616261d75ef85de6e9467b87be4b7fb8618fcb7d41f7924eb5b8dda72",
+    "runtime_registration_template": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/read-registration-template-v1.json",
+      "size": 381,
+      "sha256": "9a10ef033f692746d14ee44e83a8b466fb22666a141e093aed5f38ac5b9c799d"
+    },
+    "started_unix": 1791311338,
+    "deadline_unix": 1791311398,
+    "original_Popen_pidfd_owner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/exact-id-read-owner-v1.json",
+      "size": 516,
+      "sha256": "74abc653fad6ea43083d131ec6d8478378a82339e491506eeb8431f67fd1ee1a"
+    },
+    "state13_before_after_manifest": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/exact-id-read-registration-v1.json",
+      "size": 79440,
+      "sha256": "5dbadf0803aa3d9a8557b8ec89862be56a1e4591a318438f239b50d2369314ea"
+    },
+    "command": [
+      "/home/dandiccf/Storage/.cirrove-builds/folder175-checkpoint-only-163b84cd-80d3-4e8d-9c1a-b23c92fbaf76/exact-id-read",
+      "--exact-id-read",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/read-registration-v1.json",
+      "ROOT_FILLS_REGISTRATION_SHA256"
+    ],
+    "pending": null,
+    "root_command": [
+      "/usr/bin/python3",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/root_exact_read_once_v4.py"
+    ],
+    "pre_spawn_fence": "V4 checks monotonic time against original deadline minus10s immediately before original Popen; no window reset."
+  },
+  "state_preservation": {
+    "original_file_count": 13,
+    "externally_verified_before_after_required": true,
+    "protected": "Exact file bytes/digests, identities, sizes, modes and protected stamps, including original journal/queue/checkpoint/session files; no original database open.",
+    "journal_expected_after_observation": "Still VerifyRequired; read-only Applied does not ACK or change local durable state.",
+    "internal_immutable_input_count": 6,
+    "load_only_key_scope": "Exact pinned outer-plan, inner-checkpoint and session credential IDs only; memory load once each; save/remove refuse."
+  },
+  "on_unclear_result": "Stop and preserve the observation. Indeterminate, Conflict or an anonymous failure does not prove absence, identify a provider cause or authorize replay. No automatic second read.",
+  "active_measurement": false,
+  "real_helper_executed": true,
+  "real_key_loads": null,
+  "provider_call_dispatched": null,
+  "actual_result": {
+    "status": "unclassified_receiver_refusal",
+    "root_wrapper_exit": 1,
+    "helper_exit": 0,
+    "receiver_error_class": "AssertionError",
+    "classification": null,
+    "current_presence_verified": false,
+    "prediction_evaluated": false,
+    "actual_seconds": 0.9495484459912404,
+    "maximum_seconds": 60,
+    "cleanup_reserve_seconds": 10,
+    "timed_out": false,
+    "deadline_overrun": false,
+    "signals": [],
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "state_files_unchanged": true,
+    "state_file_count": 13,
+    "runtime_sources_unchanged": true,
+    "runtime_source_count": 561,
+    "read_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/read-registration-v1.json",
+      "size": 392,
+      "sha256": "dabae3d616261d75ef85de6e9467b87be4b7fb8618fcb7d41f7924eb5b8dda72"
+    },
+    "root_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/exact-id-read-registration-v1.json",
+      "size": 79440,
+      "sha256": "5dbadf0803aa3d9a8557b8ec89862be56a1e4591a318438f239b50d2369314ea"
+    },
+    "original_owner_receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/exact-id-read-owner-v1.json",
+      "size": 516,
+      "sha256": "74abc653fad6ea43083d131ec6d8478378a82339e491506eeb8431f67fd1ee1a"
+    },
+    "result_receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/exact-id-read-result-v1.json",
+      "size": 620,
+      "sha256": "a3f06d5380b2f3d923618dacd5a024910147e38b413208b5393e9584e5c9e95f"
+    },
+    "direct_reconciliation_calls_authorized": 1,
+    "direct_reconciliation_calls_independently_retained": null,
+    "HTTP_request_count": "uninstrumented",
+    "cloud_mutations": 0,
+    "journal_ACKs": 0,
+    "replay_or_retry": false,
+    "installed_actions": false,
+    "raw_stdout_retained": false,
+    "raw_stderr_retained": false,
+    "source_inference": "From the frozen helper callgraph, helper exit0 implies completion of the direct reconciliation path. This is a source-and-exit inference; exact phase and returned provider classification were not retained and no provider-call-dispatched flag is asserted.",
+    "mutation_evidence_basis": "Read-only helper/reconciliation callgraph forbids prepare, mutate, worker, save, ACK and replay; no HTTP mutation counter was instrumented.",
+    "interpretation": "The outer receiver refused with AssertionError after helper0 and retained classification:null. Current exact-ID presence, absence and the prediction therefore remain unverified. The payload was not retained; no precise response/cause is inferred and no repeat was performed.",
+    "original_trial": "Stopped175 remains closed with VerifyRequired journal state. No import/Trash or journal acknowledgement is established by this read.",
+    "static_receiver_contract_mismatch": {
+      "status": "source_backed_static_finding_only",
+      "finding": "The helper calls the write-probe-only reconciliation_only API, so its selected iCloud library supports write-probe. In that feature build, folder_metadata_envelope creates a Timing guard and Timing::drop unconditionally emits a static phase duration to stderr, including the root-parent list route. The outer success branch requires stderr to be exactly empty before parsing classification. These contracts are incompatible whenever that timed route emits.",
+      "evidence": [
+        {
+          "file": {
+            "path": "/home/dandiccf/Work/cirrove/crates/cirrove-icloud/src/probe_timing.rs",
+            "size": 942,
+            "sha256": "34b9fd2581b0fbdf2d98506b7e603ec859a7d2c674a7548d4a83385eaf523209"
+          },
+          "source_role": "write-probe Timing::drop eprintln"
+        },
+        {
+          "file": {
+            "path": "/home/dandiccf/Work/cirrove/crates/cirrove-icloud/src/lib.rs",
+            "size": 77132,
+            "sha256": "5bf97a58ac3dbbf4efdf3488fc41ac2277a5f299dedae235cce66f3fa5986caf"
+          },
+          "source_role": "folder_metadata_envelope/root listing Timing::start"
+        },
+        {
+          "file": {
+            "path": "/home/dandiccf/Work/cirrove/crates/cirrove-icloud/src/folder_create.rs",
+            "size": 23153,
+            "sha256": "410265dffe3c8e3192c9d63ea7cdf853571504aae820f87812f4fae881eae7b3"
+          },
+          "source_role": "reconciliation_only is cfg(write-probe); observe_child lists retained parent"
+        },
+        {
+          "file": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/root_exact_read_once_v4.py",
+            "size": 11072,
+            "sha256": "8591b8f73a8f449d0a877fef8048fb2909a4c3ef3a665036fa38103c219132bf"
+          },
+          "source_role": "success branch asserts stdout limit and stderr empty before safe_output"
+        }
+      ],
+      "causal_limit": "Actual stdout/stderr and the failing assertion operand were not retained. This static incompatibility does not establish that timing output caused this run, identify its response/classification or prove current folder presence.",
+      "no_runtime_retry": true
+    }
+  },
+  "installed_actions": false,
+  "gate_closed": false,
+  "full_integration_accepted": false,
+  "limitations": [
+    "This asks current exact-ID existence, not historical HTTP success or the causal explanation of stopped175.",
+    "A current Applied read does not retrospectively prove original journal acknowledgement, folder frontier completion, import, native Trash or full integration.",
+    "The original checkpoint/journal and all13 state files remain preserved; no installer/service/unit/config change occurs."
+  ],
+  "root_runner_sha256": "8591b8f73a8f449d0a877fef8048fb2909a4c3ef3a665036fa38103c219132bf",
+  "binary_sha256": "e84ca540778a6cd02ee0262dd11e222dba82f435fcd13bcf8227d700da07eda2",
+  "output_receiver_controls": {
+    "tests_passed": 79,
+    "actual_shared_codec_outputs_accepted": 4,
+    "hostile_derivatives_rejected": 75,
+    "real_keys_or_provider_used": false,
+    "receipts": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/actual-result-receiver-registration-v1.json",
+        "sha256": "5b2a2adb8676b58bc6ac5f9915f57b7765c66dd8570c08828bcb19bd24babc07",
+        "size": 75569
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/actual-result-receiver-v1.log",
+        "sha256": "805a32f11cf0b4ae384f26e6883c7be51aaa0247ea839f27680a7e7c15d9cad7",
+        "size": 7315
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/actual-result-receiver-result-v1.json",
+        "sha256": "83e90e00e2089de0fba27637650a30eeb53ef39d75eb3e423f2972ad9f7f11f9",
+        "size": 1878
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/actual-result-receiver-final-v4-compatibility-v1.json",
+        "sha256": "759a9c89b27a7c6f9c8ee8b1e6324bce514bb540c266b39f0326a2a2c9277d54",
+        "size": 1963
+      }
+    ]
+  },
+  "preregistration_before_read": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/public-registration-original-v1.json",
+    "size": 11553,
+    "sha256": "f4c059bc7980669a66fe024569f1474d401e251d1c7f63acfeae25cc7cc6a2a2"
+  },
+  "local_stream_receiver_correction": {
+    "status": "completed_offline_controls_only",
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/actual-stream-receiver-registration-v1.json",
+      "size": 82122,
+      "sha256": "dd06ed1129aacd9a67e065774419465427bba779a6c24f7e80f62e1f0eaedf27"
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-read-private-v1/actual-stream-receiver-result-v1.json",
+      "size": 7515,
+      "sha256": "566a0a2c748364680a56e63cb44e1701864323e15c708eef5528bd5a301656e2"
+    },
+    "actual_controls": {
+      "V4_same_endpoint": {
+        "tests": 1,
+        "failures": 1,
+        "errors": 0
+      },
+      "V5_same_endpoint": {
+        "tests": 1,
+        "passed": 1,
+        "errors": 0
+      },
+      "V5_full_module": {
+        "tests": 26,
+        "passed": 26,
+        "errors": 0
+      }
+    },
+    "production_fixture": "The linked production dependency, with an unconfigured session on the root-list route, emitted one fixed 49-byte root folder metadata 0.000s timing line; no HTTP or real keys were used.",
+    "all_six_original_children_reaped_and_absent": true,
+    "signals": [],
+    "runtime_source_count": 561,
+    "matched_dependency_count": 13,
+    "source_and_dependency_pins_unchanged": true,
+    "V5_real_account_executed": false,
+    "original_read_repeated": false,
+    "limit": "The offline controls reproduce and fix the empty-stderr receiver incompatibility. The historical payload and failing operand were not retained; its classification, cause and current folder presence remain unverified. No acknowledgement, replay or gate closure follows."
+  }
+}

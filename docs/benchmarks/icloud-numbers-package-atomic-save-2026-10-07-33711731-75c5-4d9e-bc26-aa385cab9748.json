@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "run": "33711731-75c5-4d9e-bc26-aa385cab9748",
+  "question": "Does a native temporary write and fsync stay local, followed by one canonical rename that creates one typed PACKAGE replacement and preserves held A, current B and exact original A in Trash?",
+  "prediction": "The selected clean canonical working owner plus one exact local temporary remains at the unchanged upload frontier until the sole rename. That promotion yields one completed PackageReplacementArchive, current full V2 B and exact full V2 original A in Trash.",
+  "endpoint": "One fresh Numbers PACKAGE import and one atomic temporary promotion; exact heldA/currentB/TrashA content plus no additional clean-fsync operation and all original handles/mounts closed. RO and Apple followups are separate.",
+  "status": "closed_atomic_failure",
+  "active": false,
+  "active_measurement": false,
+  "window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/original-window.json",
+    "size": 297,
+    "sha256": "fb838b93414d38c51472f92c8148e5ccae3bea493238467451b72c4a60fd9a8b"
+  },
+  "original_seconds": 1200,
+  "cleanup_reserve_seconds": 120,
+  "root_head": "b498af7d3b363b4e0bb255fad336a029aed3d7fb",
+  "source_count": 571,
+  "historical_compiled_role_heads_kept_separate": true,
+  "provider_actions_started": true,
+  "cloud_mutations_started": true,
+  "standing_write_authorization": true,
+  "installed_actions": false,
+  "full_487_closed": false,
+  "is_native_editor_save": false,
+  "source_proposal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/proposal-v5.json",
+    "size": 11065,
+    "sha256": "8ddea86bb86c1c62910047d1ba25024e78b17009ba4dc6dbf1f6eb84815bd386"
+  },
+  "local_preparation_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-assets-prepare-v1/registration-v1.json",
+    "size": 82051,
+    "sha256": "1efc78188861f2497e34903964392ae856fa69a72dba6e5928f1cfb5b469d23b"
+  },
+  "local_preparation_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-assets-prepare-v1/terminal-v1.json",
+    "size": 2011,
+    "sha256": "b7c7528eca0e3fb9e75d5cfb3ad5db8b55e7b763328902d2fdc39fcb9021c5f9"
+  },
+  "local_preparation_owner_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-assets-prepare-v1/owned-command-closure-v1.json",
+    "size": 470,
+    "sha256": "b6019c6acb076e5d84760bdcd3536241734265b08f6d686a5150029c39aa6f73"
+  },
+  "offline_source_probe_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-assets-source-scan-v3/registration-v1.json",
+    "size": 86980,
+    "sha256": "527f20dab9e933689880a6ae7a6a0c5b8600e33a8490942fad67834a91a60708"
+  },
+  "local_preparation_assessment": "Materialization passed. Generic64MiB executable guard refused the known516MiB probe before any source-probe registration/dispatch. No preparation replay.",
+  "offline_source_preparation_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-assets-source-scan-v3/terminal-v1.json",
+    "size": 4429,
+    "sha256": "d08a753cec939ecf94e358542c945d60843c5a2ae94ca3bbb695e9767cfa88f8"
+  },
+  "offline_source_preparation_owner_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-assets-source-scan-v3/owned-command-closure-v1.json",
+    "size": 900,
+    "sha256": "d15df378cb775edef1c0c19019b50c92496ad54a3d1960ce6812ba122facc257"
+  },
+  "independent_local_assets_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-local-assets-v1.json",
+    "size": 7144,
+    "sha256": "761a48bf7f9c8069b3e903996602c420ce7bfc11e3903a0a246465228954615f"
+  },
+  "independent_assets_passed_checks": 13,
+  "inode_controller_actual_check": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-controller-local-check-v2/terminal-v1.json",
+    "size": 1873,
+    "sha256": "ebaf349dfe43cb64f1ef066a512420afb09194c00d0872db0100072a54614583"
+  },
+  "actual_inode_controller_check_exit": 0,
+  "original_clock_not_started": false,
+  "current_source_proposal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/proposal-v6-inode-authority.json",
+    "size": 6208,
+    "sha256": "9b744f796c0abc8451441d8f7ba0c3a743a8733978a1893880536c90faf1d094"
+  },
+  "checked_ready_successor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/inputs-inode-v8-ready-v1.json",
+    "size": 81996,
+    "sha256": "e0a3991180a885078a4d1475600754dd5a39126106e264d5f959fef7c20120ac"
+  },
+  "immutable_current_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-private-preregistration-v2.json",
+    "size": 3938,
+    "sha256": "67c2679c7be4bbbe4242bcc154307121f8c29e49becb7808f0190e50994303f9"
+  },
+  "once_root_executor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-live-outer-v3.py",
+    "size": 12929,
+    "sha256": "c6baf80b36c58911519b397836eb64a33d6e64efced38bda4a55c78bcc75760a"
+  },
+  "independent_actual_inodes_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-inode-controls-v1.json",
+    "size": 11267,
+    "sha256": "cc342c9b46d41ba2cac5d2d04df70e49c63d18f17702c9c77141db69fb931371"
+  },
+  "independent_actual_inodes_checks": 33,
+  "independent_V8_source_admission": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-v8-source-admission-v1.json",
+    "size": 3366,
+    "sha256": "4999c919df0b8f11030f9d513ab7d029be659786a81b5d16d91c48368efee5dc"
+  },
+  "outer_v2_review_correction": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-outer-v2-exceptional-correction-v1.json",
+    "size": 926,
+    "sha256": "528d11c7e8e19838a1ab24da644f9cfa4cf48c925c5750b3e9ac27cfbeaa45bd"
+  },
+  "outer_v3_peer_verdict": "CLEAR narrow identified exception-holder delta; source only, actual run pending",
+  "root_outer_events": [
+    {
+      "status": "exclusive_root_once_before_controller_clock",
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-live-outer-registration-v3.json",
+        "size": 2107,
+        "sha256": "c77982f9c1ed86f37c3e07cc4bbdaa83133c74e2bc373d1870c65157d2f7810f"
+      }
+    },
+    {
+      "status": "exclusive_atomic_original_clock",
+      "window": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/original-window.json",
+        "size": 297,
+        "sha256": "fb838b93414d38c51472f92c8148e5ccae3bea493238467451b72c4a60fd9a8b"
+      }
+    },
+    {
+      "status": "closed_atomic_failure",
+      "terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-live-outer-result-v3.json",
+        "size": 944,
+        "sha256": "de13ebfb3f7d6b4ee852338d10758d73ec23703c8b93473d06ca2d90712e538f"
+      }
+    }
+  ],
+  "root_outer_status": "closed_atomic_failure",
+  "actual_root_tool_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-actual-tool-terminal-v1.json",
+    "size": 762,
+    "sha256": "636c59014d16d1d45b5fff0219249600e21f339d541e5528aa2607a5ab39674a"
+  },
+  "actual_root_tool_exit": 1,
+  "case_success": false,
+  "actual_partial_scope": {
+    "fresh_folder_created": true,
+    "import_A_uploaded": true,
+    "atomic_replacement_uploaded": true,
+    "public_watch_succeeded": true,
+    "held_A_and_current_B_local_full_V2": true,
+    "clean_fsync_no_extra_operation": true,
+    "independent_stopped_Trash_A_postflight": false,
+    "normal_RO_followup": false,
+    "Apple_followup": false
+  },
+  "partial_terminal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-atomic-stopped-partial-terminal-v1.json",
+    "size": 7106,
+    "sha256": "9726b683b320cc25a184adbc0f8be09a2b82507a7acd2b2af59f9bdefe7cdb0e"
+  },
+  "partial_audit_checks": 32,
+  "stopped_guard_diagnostic": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-stopped-controller-guard-diagnostic-v2.json",
+    "size": 952,
+    "sha256": "3154595f1167e43d352aeac2c5b41125002d0ebb3403585905e22decf4f7b064"
+  },
+  "guard_correction": "V8 controller snapshot falsely equates current indexed native binding source with immutable original binding body.source after acknowledgement. Production successors intentionally advances only the index and head; stopped source/journal analysis identifies proof guard error. Original failed outcome retained; no writer replay or retrospective success.",
+  "independent_outer_v3_source_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-outer-v3-source-v1.json",
+    "size": 1420,
+    "sha256": "10f265405081914c08abc4df9b2548749aee9661f05f81d7e276c4c0727b28b5"
+  },
+  "automatic_retries": 0,
+  "all_original_owned_handles_closed": true,
+  "stopped_guard_audit_annex": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-atomic-stopped-guard-annex-v1.json",
+    "size": 1905,
+    "sha256": "85817033673868294221d6dc06e04c84a6459d6c51afd138830e6f8f5dff792c"
+  },
+  "postflight_inventory_gap": {
+    "existing_compiled_FUSE_observer_expected": "active canonical only, total0/1 and dirty-or-unlinked0",
+    "actual": "one clean active canonical plus one typed clean unlinked detached original; total2, dirty-or-unlinked1",
+    "status": "source-identified validation gap; no blocked observer dispatched",
+    "proposal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/post_atomic_inventory_fix_proposal_v1.json",
+      "size": 6007,
+      "sha256": "59e5426211e8cd679a3b699d271494e2beb2552436f0f1618bfa89de164a8937"
+    },
+    "detached_projection": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-stopped-detached-projection-v1.json",
+      "size": 1815,
+      "sha256": "011a18f874bb4e557fc93ed0f17aa52aaaf596ebd9d59be28a64d20120d16549"
+    }
+  },
+  "separate_readonly_followup": {
+    "artifact": "docs/benchmarks/icloud-numbers-atomic-postflight-read-2026-10-07-60fc4036-f746-4f74-a796-052cd70d276a.json",
+    "status": "closed_readonly_success",
+    "current_B_full_semantic_v2": true,
+    "original_A_Trash_full_semantic_v2": true,
+    "independent_checks": 28,
+    "provider_mutations": false,
+    "writer_replays": 0,
+    "original_trial_outcome_unchanged": true,
+    "normal_readonly_remount": false,
+    "Apple_reopen": false
+  }
+}

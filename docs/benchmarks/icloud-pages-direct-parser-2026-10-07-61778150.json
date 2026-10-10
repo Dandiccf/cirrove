@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "status": "closed_parser_completed",
+  "active_measurement": false,
+  "run": "61778150-96a5-4851-b17a-98bbb11860ed",
+  "question": "Does installed libetonyek pages2text parse the unchanged genuine80B source and preserve its actual93-byte paragraph, independently of the failed Writer loader?",
+  "prediction": "The parser may reject the actual source or produce text; a measured rejection narrows this fixture only, never all Pages. Exact text or exactly one trailing LF match is measured separately from successful exit.",
+  "command": [
+    "/usr/bin/pages2text",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages"
+  ],
+  "executable": {
+    "path": "/usr/bin/pages2text",
+    "size": 18688,
+    "sha256": "2fd5b0633e67ff4d7a76d96c14ee212acb53669511fb3aeb203a7e1c4bc1a3fa"
+  },
+  "input": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages",
+    "size": 101769,
+    "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc"
+  },
+  "expected_text": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/text-b-reloaded-readback.txt",
+    "size": 93,
+    "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+  },
+  "libraries": {
+    "libetonyek-0.1.so.1": {
+      "load_path": "/usr/lib/libetonyek-0.1.so.1",
+      "resolved_pin": {
+        "path": "/usr/lib/libetonyek-0.1.so.1.0.13",
+        "size": 2408544,
+        "sha256": "db313a4b4c50a3365a18ae8f538ba730ccce14c27f418aa5c9efc0c6c00cbdf7"
+      }
+    },
+    "librevenge-generators-0.0.so.0": {
+      "load_path": "/usr/lib/librevenge-generators-0.0.so.0",
+      "resolved_pin": {
+        "path": "/usr/lib/librevenge-generators-0.0.so.0.0.6",
+        "size": 395384,
+        "sha256": "9548462e0fd0d52e5f29c65eda9582ca761d0df4baf651682a02f4c42d650b08"
+      }
+    },
+    "librevenge-0.0.so.0": {
+      "load_path": "/usr/lib/librevenge-0.0.so.0",
+      "resolved_pin": {
+        "path": "/usr/lib/librevenge-0.0.so.0.0.6",
+        "size": 194608,
+        "sha256": "93cb64210229f98549ec851e72f3529b52f6630ca55d446feb1484b7b918aa16"
+      }
+    },
+    "librevenge-stream-0.0.so.0": {
+      "load_path": "/usr/lib/librevenge-stream-0.0.so.0",
+      "resolved_pin": {
+        "path": "/usr/lib/librevenge-stream-0.0.so.0.0.6",
+        "size": 133176,
+        "sha256": "d78b043ada5f7de346c71236bf5f1de285ac7252c7f67beafa7fbbe02e7c6ac7"
+      }
+    },
+    "libstdc++.so.6": {
+      "load_path": "/usr/lib/libstdc++.so.6",
+      "resolved_pin": {
+        "path": "/usr/lib/libstdc++.so.6.0.36",
+        "size": 2939928,
+        "sha256": "f5fc7380f2ae46fa4053a64be04e7b98109f1066a4bbfff3c37042488aa0be0e"
+      }
+    },
+    "libgcc_s.so.1": {
+      "load_path": "/usr/lib/libgcc_s.so.1",
+      "resolved_pin": {
+        "path": "/usr/lib/libgcc_s.so.1",
+        "size": 182512,
+        "sha256": "e618cb9c90c2eb3a1dad1cfea5b6c1eebcf2e799ad805976f4ae47bdd61c716a"
+      }
+    },
+    "libc.so.6": {
+      "load_path": "/usr/lib/libc.so.6",
+      "resolved_pin": {
+        "path": "/usr/lib/libc.so.6",
+        "size": 2215072,
+        "sha256": "e221b10fee9ee4776d8f0f1701253bc06817f7a4dbe6c5292487277d0bf8ffff"
+      }
+    }
+  },
+  "executor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages2text-parser-61778150-96a5-4851-b17a-98bbb11860ed-private-v1/root_parse_once_v3.py",
+    "size": 7468,
+    "sha256": "36f159acc0465c8905dd913ac9678cfa736d2f1bdf0cb11a665f5eb24f29aa80"
+  },
+  "maximum_seconds": 30,
+  "work_seconds": 25,
+  "cleanup_seconds": 5,
+  "output_limit_per_stream": 65536,
+  "source_only_author_checks": "AST parse, no parser/app/provider execution",
+  "limits": [
+    "Direct parser only, no LibreOffice/GUI/native edit/export/installed credit",
+    "One fresh original child under private PID+network/user namespace, rawlocal output private",
+    "No repeat of closed Writer300 or earlier arms",
+    "Individual internal parser PID uninstrumented; original bwrap Popen/pidfd and own PGID closure retained",
+    "gate487 stays open"
+  ],
+  "initial_source_v1": "Preserved unexecuted draft; V2 adds bounded stream reads and safe no-child result classification before any dispatch.",
+  "registered_at": "2026-10-07T05:33:04.659193+00:00",
+  "source_head": "56a2496a284434e94be9cce70f290a95c9f45d83",
+  "preregistration_corrections": [
+    "Root unexecuted V3 adds exact executor pin check and durable public active/closed state; preserves command,25+5 budget, source/lib pinning and endpoint semantics."
+  ],
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages2text-parser-61778150-96a5-4851-b17a-98bbb11860ed-private-v1/registration.json",
+    "size": 5929,
+    "sha256": "f629cdf1a210f13aefc2039c73774a2fd45f78df071c78ecd3e7714e83b156e7",
+    "stat": [
+      57,
+      75143504,
+      33024,
+      1000,
+      1,
+      1791351219259280524,
+      1791351219259280524
+    ]
+  },
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages2text-parser-61778150-96a5-4851-b17a-98bbb11860ed-private-v1/result.json",
+    "size": 1283,
+    "sha256": "a418dc03af6b4b74036d9bad0f16f3f4fbba760f2089eff16e8939cf4d965d84",
+    "stat": [
+      57,
+      75143507,
+      33024,
+      1000,
+      1,
+      1791351219418304504,
+      1791351219418304504
+    ]
+  },
+  "independent_outcome_assessment": {
+    "audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages2text-parser-61778150-96a5-4851-b17a-98bbb11860ed-private-v1/audit-independent-direct-parser-v1.json",
+      "size": 4261,
+      "sha256": "287fbd66ea19dbd510a6306a7ff2a7ab92ce80501830c9e02b81eb48b71f5c62"
+    },
+    "passed": 21,
+    "total": 21,
+    "actual94_matches_expected93_plus_oneLF": true,
+    "stderr0": true,
+    "original_bwrap_closed_and_currentgroup_absent": true,
+    "registered11_pins_and_stamps_unchanged": true,
+    "scope": "Direct parser only, not LibreOffice/GUI/native editing/general Pages support",
+    "Writer_null_load_cause_unproved": true,
+    "gate487_closed": false
+  }
+}

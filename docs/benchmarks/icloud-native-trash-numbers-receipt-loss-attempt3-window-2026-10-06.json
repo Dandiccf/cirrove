@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+  "status": "closed_uncertain_folder_creation",
+  "active_measurement": false,
+  "result_pending": false,
+  "registered_at_unix": 1791307988.761074,
+  "primary_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-native-trash-numbers-receipt-loss-attempt3-2026-10-06.json",
+    "size": 8024,
+    "sha256": "7dae1e4f565385ef0deee8dc1e52efbe208ddf296cb2db09e885f11ab060b26b"
+  },
+  "root_launch_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root-launch-registration-v1.json",
+    "size": 1835,
+    "sha256": "3643efad8d3b90c84fde19d422c69f31cfc6e3220d45ef930a0d80e8c21c9787"
+  },
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/controller_native_trash_v8.py",
+    "size": 41382,
+    "sha256": "b6ef8de91ceea534c860168d69decb94ea104897d0f14ce66b878b2a0700edf5"
+  },
+  "root": "/var/tmp/cirrove-native-trash-175a90ac-a82d-40d4-9214-518101308d1b",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/nt-175a90ac",
+  "maximum_seconds": 600,
+  "cleanup_reserve_inside_original_window": 45,
+  "automatic_retry": false,
+  "installed_actions": false,
+  "full_integration_accepted": false,
+  "controls_and_static_review_clear": true,
+  "other_measurements_or_compilers_before_launch": false,
+  "clock_authority": "one original outer-created window, never renewed",
+  "outer_result": {
+    "automatic_retry": false,
+    "cloud_controller_dispatch_attempted": true,
+    "controller_child_record_retained": true,
+    "controller_pid_observed": 2622128,
+    "elapsed_seconds": 28.401790537987836,
+    "full_integration_accepted": false,
+    "inner_result": {
+      "actions": [
+        "owned-folder-created"
+      ],
+      "automatic_retry": false,
+      "children": [
+        {
+          "exit_code": 0,
+          "original_handle_reaped": true,
+          "phase": "start-import",
+          "pid": 2622134,
+          "proc_absent": true
+        }
+      ],
+      "errors": [],
+      "failure": {
+        "class": "Refusal",
+        "positions": [
+          {
+            "file": "controller_native_trash_v8.py",
+            "function": "main",
+            "line": 555
+          },
+          {
+            "file": "controller_native_trash_v8.py",
+            "function": "execute",
+            "line": 520
+          },
+          {
+            "file": "controller_native_trash_v8.py",
+            "function": "folder_and_import",
+            "line": 423
+          },
+          {
+            "file": "controller_native_trash_v8.py",
+            "function": "require",
+            "line": 21
+          }
+        ]
+      },
+      "full_integration_accepted": false,
+      "independent_trash_raw_zip_equality_claimed": false,
+      "installed_actions": false,
+      "mount_absent": true,
+      "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+      "socket_absent": true,
+      "sources_unchanged": true,
+      "success": false
+    },
+    "installed_actions": false,
+    "issues": [],
+    "original_children": [
+      {
+        "automatic_retry": false,
+        "exit_code": 0,
+        "issues": [],
+        "live_birth_observed": false,
+        "original_handle_reaped": true,
+        "phase": "root-local-finalize",
+        "pid": 2622108,
+        "process_absent": true,
+        "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+        "signals": [],
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "2f988b51a73209439896b3662fd49c9538e4638f30a2f5f3f298eff124e20ab3",
+        "window": {
+          "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+          "deadline_monotonic": 333232.12307715416,
+          "deadline_unix": 1791308605,
+          "root": "/var/tmp/cirrove-native-trash-175a90ac-a82d-40d4-9214-518101308d1b",
+          "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+          "started_monotonic": 332632.324443947,
+          "started_unix": 1791308005
+        }
+      },
+      {
+        "automatic_retry": false,
+        "exit_code": 1,
+        "issues": [],
+        "live_birth_observed": false,
+        "original_handle_reaped": true,
+        "phase": "root-controller",
+        "pid": 2622128,
+        "process_absent": true,
+        "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+        "signals": [],
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "window": {
+          "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+          "deadline_monotonic": 333232.12307715416,
+          "deadline_unix": 1791308605,
+          "root": "/var/tmp/cirrove-native-trash-175a90ac-a82d-40d4-9214-518101308d1b",
+          "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+          "started_monotonic": 332632.324443947,
+          "started_unix": 1791308005
+        }
+      }
+    ],
+    "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+    "success": false,
+    "window": {
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+      "deadline_monotonic": 333232.12307715416,
+      "deadline_unix": 1791308605,
+      "root": "/var/tmp/cirrove-native-trash-175a90ac-a82d-40d4-9214-518101308d1b",
+      "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+      "started_monotonic": 332632.324443947,
+      "started_unix": 1791308005
+    }
+  },
+  "terminal_audit": {
+    "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+    "recorded_at": 1791308333.9010656,
+    "success": false,
+    "outer_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root-outer-result.json",
+      "size": 3736,
+      "sha256": "84736470319adb29161c3c48330fa0900359403f7be62acdf6d60c3bfa1a41de"
+    },
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/controller-result.json",
+      "size": 1078,
+      "sha256": "745b543e2bb8513f537870be09f5a63e6928bd90c9a52702c0381c83d88b8bc8"
+    },
+    "raw_frontier": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/raw-folder-frontier-v1.json",
+      "size": 978,
+      "sha256": "e86ef5d184639dcc110efcf6936d6b3abe5ef6f59032cd8a2ae180c1d05df249"
+    },
+    "original_pids_absent": [
+      2622103,
+      2622108,
+      2622128,
+      2622134
+    ],
+    "original_handles_reaped": true,
+    "mount_socket_absent": true,
+    "source_count": 561,
+    "current_sources_and_compiled_fresh_role_hashes_match": true,
+    "installed19_unit_pid_birth_unchanged": true,
+    "operation": "875969b5-b87d-4bbb-8049-7f240e53de76",
+    "state": "verify_required",
+    "attempt_present": false,
+    "receipt_recorded": false,
+    "queue_complete": false,
+    "raw_uploads": 0,
+    "raw_mutations": 1,
+    "local_mkdir_acknowledged": true,
+    "cloud_folder_outcome": "uncertain",
+    "confirmed_cloud_folder_receipt": false,
+    "import_started": false,
+    "native_trash_started": false,
+    "failure_stage": "folder-creation-state-guard",
+    "cause": "unproved; VerifyRequired alone does not prove HTTP error or cloud presence/absence",
+    "provider_reads_counted": false,
+    "requeue_or_retry": false,
+    "closed_arm_replayed": false,
+    "installed_actions": false,
+    "full_integration_accepted": false
+  }
+}

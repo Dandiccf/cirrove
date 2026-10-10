@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "run": "8653574f-c244-47b2-9284-99828cb9ecbf",
+  "subject_run": "2b4c7986-df74-4332-b24f-9d6bfd435fcd",
+  "question": "Does Apple Keynote open exact new DATA B after the corrected writer and successful normal RO byte capture, preserving genuine B slide text after one reload?",
+  "prediction": "One exact own currentB opens with title and subtitle after one reload; a visible refusal stops without a reopen retry.",
+  "arms": [
+    "one new exact B read-only editor open; one reload only if content opens"
+  ],
+  "endpoint": {
+    "item": "FILE::com.apple.CloudDocs::33164B85-DBF1-4A55-BC00-62B141EA53E5",
+    "parent": "FOLDER::com.apple.CloudDocs::220D5CD7-E576-4FAA-85CB-6A0828DADDCB",
+    "pre_Apple_etag": "i2u7::i2u6",
+    "document": "Cirrove-Keynote-Data-2b4c7986-df74-4332-b24f-9d6bfd435fcd.key",
+    "title": "Cirrove Keynote B bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+    "subtitle": "Owned genuine editor replacement source B",
+    "expected_slides": 1
+  },
+  "subject_writer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-2b4c7986-df74-4332-b24f-9d6bfd435fcd/controller-result.json",
+    "size": 6520,
+    "sha256": "a415e1948242641edf98d64fc120b21a3d28fed2bf48f6ead43c628eb21d62d7"
+  },
+  "subject_writer_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-2b4c7986-df74-4332-b24f-9d6bfd435fcd/audit-independent-keynote-data-terminal-v1.json",
+    "size": 9823,
+    "sha256": "41a9ae25376d479ab6c1580f5fe931d364d50736586ccc2a1f719d9603848c8c"
+  },
+  "normal_RO": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-ro-edba5896-a07e-4cf8-98a7-d52735c5f3d1/root-ro-result.json",
+    "size": 2017,
+    "sha256": "37da2e4ce2b6c4be301bcedb76e8a20f7858bc122ffc2985433da3d4be2b69a3"
+  },
+  "normal_RO_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-ro-edba5896-a07e-4cf8-98a7-d52735c5f3d1/audit-independent-readonly-terminal-v1.json",
+    "size": 8729,
+    "sha256": "4432dfeeaf24c732bf9cc137096728a2036c088e447a9671d226d5735ea1cdb8"
+  },
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-2b4-8653574f-c244-47b2-9284-99828cb9ecbf-private-v1/original-window.json",
+    "size": 397,
+    "sha256": "54a9bab0653f665024daf43851aabb1afadf326d1ac05167ebe92b2f7c9749b5"
+  },
+  "expected_seconds": 180,
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "active_measurement": false,
+  "status": "closed_passed_one_new_DATA_subject_open_and_one_reload",
+  "browser": "Chrome1 own fresh tabs only",
+  "intentional_edits_or_uploads": false,
+  "old672_refusal_replayed": false,
+  "installed_actions": false,
+  "full487_closed": false,
+  "actual": {
+    "elapsed_seconds": 352.23967027664185,
+    "original_deadline_met": true,
+    "exact_row_identity_verified": true,
+    "expected_B_title_and_subtitle_before_and_after_one_reload": true,
+    "slide_count": 1,
+    "intentional_edits_or_uploads": false,
+    "own_tabs_closed": true,
+    "root_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-2b4-8653574f-c244-47b2-9284-99828cb9ecbf-private-v1/root-ui-terminal-v1.json",
+      "size": 3823,
+      "sha256": "35b87f16f4f9e846d24d488546a2bff57a76d01b74a6b2a6bbd2d7ed3bb5cb8d"
+    },
+    "independent_audit": {
+      "status": "passed",
+      "checks": 26,
+      "artifact": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-2b4-8653574f-c244-47b2-9284-99828cb9ecbf-private-v1/audit-independent-apple-data-terminal-v1.json",
+        "size": 9506,
+        "sha256": "b055fda04370cc3235092542e3fc35648971853a9d7ceaaba381724ab247a32e"
+      },
+      "scope": "original registered endpoint and closure only"
+    }
+  },
+  "limits": "One new subject only; no metadata-version preservation claim after editor opening, no MIME cause attribution, no native Linux save/format reliability.",
+  "independent_actual_audit": {
+    "status": "passed",
+    "checks": 26,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-2b4-8653574f-c244-47b2-9284-99828cb9ecbf-private-v1/audit-independent-apple-data-terminal-v1.json",
+      "size": 9506,
+      "sha256": "b055fda04370cc3235092542e3fc35648971853a9d7ceaaba381724ab247a32e"
+    },
+    "scope": "original registered endpoint and closure only"
+  }
+}

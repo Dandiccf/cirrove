@@ -1,0 +1,74 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v4",
+  "TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v4",
+  "active": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v4/native-observer",
+    "sha256": "a11631be2775d08ec0ec0e2d0eefd69a189217708c3a1042ce103048931b0736",
+    "size": 522462800
+  },
+  "cleanup_reserve_seconds": 45,
+  "deadline_unix": 1791633699,
+  "endpoint": "typed three-identity preservation receipt plus exact original child closure within600seconds",
+  "filesystem": "btrfs",
+  "full_gate490_closed": false,
+  "independent_audit": {
+    "all_checks_passed": true,
+    "checks_count": 23,
+    "exact_b_identity_except_name_revision": true,
+    "exact_c_identity_metadata_revision": true,
+    "exact_original_and_trash_revision": true,
+    "exact_parent_metadata": true,
+    "name_projection": {
+      "base_is_canonical_filename": false,
+      "canonical_stem_with_parenthesized_numeric_collision_suffix": false,
+      "canonical_stem_with_space_numeric_collision_suffix": true,
+      "display_is_canonical": false,
+      "display_is_canonical_plus_extension": false,
+      "double_native_extension": false
+    },
+    "original_window_unchanged": true,
+    "owners_closed_mounts_and_sockets_absent": true,
+    "protected_input_count": 14,
+    "receipt_sha256": "2515ff05f8f28a0d85ead2cda394bd8f38ae4f18f5731baa7f0c4024a4af039e",
+    "result": "PASS",
+    "same_operation_inspection": "conflict",
+    "semantic_versions": {
+      "occupant": 2,
+      "original_trash": 2,
+      "stage": 2
+    }
+  },
+  "interpretation": "Separately registered read-only preservation succeeded: original A in Trash and canonical C remain exact, and the original B identity retains all metadata except its provider-assigned numeric collision name/revision plus its complete recorded semantic-v2 contents. B archive wrapper is independently bound to the declared canonical wire root. Same-operation reconciliation remains conflict. This proves retained bytes under uncertainty, not successful canonical B installation. Original writer and earlier read-only failures remain failed; their clocks were not extended.",
+  "limits": [
+    "This result is one bounded owned Numbers fixture. It does not establish arbitrary size/format, natural cookie TTL, or all-provider reliability.",
+    "Criterion490 is assessed by the joined registered evidence, including original capture/release/retention and the separately audited local recovery export."
+  ],
+  "maximum_seconds": 600,
+  "original_run": "c49c49af-a8a3-42c0-ae69-90ae225c2514",
+  "original_trial_success": false,
+  "prediction": "The exact B identity exports the declared canonical archive wrapper despite its observed third display name. Full semantic-v2 content must match using only current or declared canonical wrapper; all A/C/parent metadata remains exact and same-operation reconciliation retains conflict/uncertainty. Prior failures remain failed.",
+  "provider_mutation": false,
+  "question": "Does the exact staged B identity retain its full content under the observed provider-assigned name while original A in Trash and canonical C remain exact?",
+  "result": {
+    "authority_files_unchanged": true,
+    "elapsed_seconds": 37.82825297594536,
+    "exit_code": 0,
+    "failure_class": null,
+    "full_gate490_closed": false,
+    "original_handle_reaped": true,
+    "original_window_unchanged": true,
+    "preservation_sha256": "ef0627ec31f478c4f4350dc702ace525d961810e97e98e412311211f3d8fd5fb",
+    "process_absent": true,
+    "provider_mutation": false,
+    "receipt_count": 3,
+    "same_operation_inspection": "conflict",
+    "semantic_preservation_verified": true,
+    "success": true,
+    "term_sent": false
+  },
+  "scope": "separate read-only continuation of closed failed c49c; no replay or original-window extension",
+  "started_monotonic": 657726.849888997,
+  "started_unix": 1791633099,
+  "version": 1
+}

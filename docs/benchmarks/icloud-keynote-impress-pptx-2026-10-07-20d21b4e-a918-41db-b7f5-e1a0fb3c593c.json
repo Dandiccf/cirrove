@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "run": "20d21b4e-a918-41db-b7f5-e1a0fb3c593c",
+  "root": "/home/dandiccf/Storage/kiP-20d21b4e",
+  "question": "Can installed Impress readonly-load unchanged genuine Keynote B, perform exactly one supported PPTX export, then readonly-reopen it retaining the exact one-slide title/subtitle?",
+  "prediction": "Expected one slide, exact two nonempty texts at import and reopen, and identical independent slide XML paragraphs; source and all tool/registry/module pins remain unchanged. Failure records fixed source-load operands and closure; no automatic replay.",
+  "clock": {
+    "inner_work": 60,
+    "inner_cleanup": 30,
+    "outer_maximum": 100,
+    "renewal": false
+  },
+  "source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-edited-source-bb3eab7e-9f00-4289-a67e-6bf7fb37de8a/apple-source-b.key",
+    "size": 527694,
+    "sha256": "3109039377ae445885265e22fe7574f7301bcbb61810a4496f1230848383a9b8"
+  },
+  "expected": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-impress-pptx-20d21b4e-a918-41db-b7f5-e1a0fb3c593c-private-v1/expected-keynote-b-v1.json",
+    "size": 1078,
+    "sha256": "195aad4bfe4fe5e12c4fc4c4eed3054dc8df8e51cfb42aa8357722178d791704"
+  },
+  "filters": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-impress-pptx-20d21b4e-a918-41db-b7f5-e1a0fb3c593c-private-v1/installed-filter-source-bindings-v1.json",
+    "size": 1634,
+    "sha256": "7ad70bbf1b18dcd1a861978c0f8c7eb2dfe9a24ca1fe47c9fe6e7b8463c66073"
+  },
+  "input_layout": "unchanged original native Apple Keynote export; not Source.key wrapper",
+  "dependency_choice": "No private WPG override: the installed Keynote and PPTX components resolve locally with no missing library or undefined symbol. Inherited LD_LIBRARY_PATH and LD_PRELOAD are refused; the capsule uses a clean system-library environment. The bundled Writer component has a separate WPG dependency.",
+  "endpoint": [
+    "source before stamp/hash",
+    "readonly PresentationDocument load Apple Keynote; fixed document/service/read_only operands",
+    "actual DrawPages shape text one slide exact title+subtitle without trim; group traversal bounded",
+    "exact one export Impress MS PowerPoint 2007 XML to fresh PPTX",
+    "close source, readonly-open PPTX, compare exact canonical slide text",
+    "independent allZIPmember CRC and slide1 XML exact title/subtitle",
+    "original launcher/bwrap/supervisor handles reaped and namespace absent; all source/tool pins unchanged"
+  ],
+  "fidelity_limit": "PPTX text content only; no assertion for full layout, fonts, media pixels, transitions, animations, nativeKeynote save or editing. Empty placeholders/paragraphs are excluded; nonempty strings are not trimmed or normalized.",
+  "semantic_success_is_separate": "Worker success=completed export/reopen workflow; fidelity_passed additionally requires all exact text endpoints. A true workflow alone does not mean fidelity pass.",
+  "active_measurement": false,
+  "status": "closed_completed",
+  "registered_at": "2026-10-07T06:16:27.178143+00:00",
+  "source_head": "97bee0e6634ec1bbd540d405e8bd2560e42f11e7",
+  "source_peer_review": "CLEAR; exact filters, actual Apple witness and bounded original closure reviewed",
+  "provider_calls_authorized": 0,
+  "system_package_install_performed": false,
+  "gate487_closed": false,
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-impress-pptx-20d21b4e-a918-41db-b7f5-e1a0fb3c593c-private-v1/root-outer-registration-v1.json",
+    "size": 2980,
+    "sha256": "9f82d1c6d39026a7be6c3df5995d9d2a6d8b27df6af9bc645fb6cfe8a02bf42b",
+    "protected_stat": [
+      57,
+      75145745,
+      33024,
+      1000,
+      1,
+      1791353791958063803,
+      1791353791958063803
+    ]
+  },
+  "outcome": {
+    "root_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-impress-pptx-20d21b4e-a918-41db-b7f5-e1a0fb3c593c-private-v1/root-outer-result-v1.json",
+      "size": 1131,
+      "sha256": "e6f25a05a2e4151a7a4a417f12644bdbe69dadb04b78d43c88b71a8f34b578f2",
+      "protected_stat": [
+        57,
+        75145748,
+        33024,
+        1000,
+        1,
+        1791353792862773168,
+        1791353792862773168
+      ]
+    },
+    "workflow_completed": true,
+    "fidelity_passed": true,
+    "all_owned_processes_closed": true,
+    "gate487_closed": false
+  },
+  "independent_assessment": {
+    "status": "passed",
+    "checks_passed": 28,
+    "checks_total": 28,
+    "audit": {
+      "path": ".local-state/keynote-impress-pptx-20d21b4e-a918-41db-b7f5-e1a0fb3c593c-private-v1/audit-independent-keynote-pptx-terminal-v1.json",
+      "size": 5657,
+      "sha256": "ca6cb4e2a13269e9914838b5dd9324226754495242ff0de7f126b9d8848d8ea7"
+    },
+    "actual_endpoint": "Read-only genuine Keynote B import, exactly one PPTX export and read-only reopen retained the exact title and subtitle on one slide. Independent reading checked all 14 ZIP member CRCs and exact slide XML paragraphs.",
+    "output": {
+      "size": 7561,
+      "sha256": "7c2f05a1eb6f520dac5f831a222ecf7cda723d3a5bece354fff8bcb3e109605f"
+    },
+    "preservation": "Source bytes and protected stamps matched before/after/current; all 18 inner declared pins (17 apart from supervisor) and outer pins matched. Original supervisor/sandbox/Office launcher handles closed; current host supervisor/sandbox PIDs absent; private Office namespace empty, no signals or overruns. Bootstrap children were not individually instrumented.",
+    "elapsed_outer_seconds": 0.905020052974578,
+    "limits": "One headless offline text conversion; no fonts/layout/media/transitions/animations/native Keynote save, GUI, installed delivery, general format fidelity or gate487 closure. No provider access; network namespace isolated, HTTP count not instrumented."
+  }
+}

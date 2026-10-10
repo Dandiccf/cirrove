@@ -1,0 +1,479 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "local-visible-calc-save-reopen-passed-cloud-mount-pending",
+  "source_base": "6043c84be3c7a47e74466b9a32fc29317d0b8043",
+  "question": "Can an actual Linux Calc save of one owned XLSX be independently verified as ordinary iCloud DATA through the normal isolated writable mount, with formula-preserving reopen and a fresh read-only remount?",
+  "prediction": "The library already supports ordinary DATA reads; its service fixture whitelist initially refuses a valid owned XLSX. A narrow XLSX DATA/null-root/no-semantic admission should permit raw-digest verification without permitting XLSX PACKAGE or changing native iWork rules. The installed Calc XLSX import/export filter should preserve 7/3/SUM=10, then a single A2=11 save should reopen as 11/3/SUM=14. The actual save protocol and journal lineage will determine ordinary versus replacement behavior, not an assumed editor pattern.",
+  "arms": [
+    {
+      "name": "original-verifier-positive-control",
+      "endpoint": "Run the exact new owned_fixture_xlsx_data_accepts_exact_raw_registration test through digest-bound decode and actual validate against unchanged production. Predict one desired unsupported-format assertion failure, not an API/setup error."
+    },
+    {
+      "name": "corrected-verifier-controls",
+      "endpoint": "After the narrow correction run both XLSX tests, including PACKAGE with and without semantics, DATA semantic, wrapped root and mismatched extensions. Preserve existing Pages/Numbers/Keynote contracts; these synthetic controls do not establish live behavior."
+    },
+    {
+      "name": "receipt-selected-xlsx-metadata-controls",
+      "endpoint": "Run five concrete digest/schema/account/route/window/duplicate-entry controls through the new feature-only metadata helper. Actual captured ordinary receipt Nodes select fresh full DriveEntries; B may have a new item ID and parent revision is freshly acquired. These controls do not prove the saved-session/network facade end to end, current DATA bytes, journal or application fidelity."
+    },
+    {
+      "name": "local-real-calc-readonly-numbers-import",
+      "endpoint": "Before own XLSX creation, load the unchanged pinned ddffa wrapped Numbers B with ReadOnly=True in actual Calc. Verify exact model URL, read-only state, visible-window API and one-sheet A2/B2/C2=11/3/14; record actual getFormula/type/error. No store, recalculation, repair or conversion; hash/inode/mode/mtime/ctime remain preserved. Numeric cached14 is not inferred to be a SUM formula."
+    },
+    {
+      "name": "local-real-calc-rehearsal",
+      "endpoint": "One fresh private LibreOffice profile and UUID UNO pipe, actual visible Calc, create an own XLSX A through its documented import/export filter, reopen and verify values/formula, change A2 once and call store once, then close/reopen B and verify values/formula. Register exact process/binary/script/temp pins before launch. No cloud or normal user profile changes."
+    },
+    {
+      "name": "normal-mounted-calc-save",
+      "endpoint": "Not ready for dispatch. Require a fresh owned cloud folder and isolated normal daemon/settings/session, exact ownership, provider A verification before one editor B save, typed current/revision/representation/raw-digest verification, actual journal lineage and fresh read-only remount. Stop on ambiguity without another Save or mutation replay."
+    }
+  ],
+  "execution_policy": {
+    "root_execution_lanes": 1,
+    "cargo_target_directory": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "temporary_filesystem": "ext4; not tmpfs",
+    "cloud_dispatch_before_rehearsal_and_review": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "full_check_before_commit": "scripts/check.sh",
+    "fixture_filesystem": "disk-backed btrfs or ext4; actual type recorded separately from ext4 temporary files"
+  },
+  "references": [
+    "https://api.libreoffice.org/docs/idl/ref/interfacecom_1_1sun_1_1star_1_1frame_1_1XStorable.html",
+    "https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html",
+    "https://github.com/LibreOffice/core/blob/master/include/desktop/exithelper.h",
+    "https://github.com/LibreOffice/core/blob/master/desktop/unx/source/start.cxx"
+  ],
+  "limits": [
+    "XLSX supporting evidence does not close the native Pages/Numbers/Keynote DATA/PACKAGE editor matrix or the full-iCloud requirement487.",
+    "Installed LibreOffice native iWork filters are IMPORT-only; no Numbers/Pages/Keynote save/export capability is inferred from XLSX.",
+    "Programmatic UNO save in an actual editor is not a physical keyboard clickthrough; actual visible frame/model observations must be separately stated.",
+    "Local save success remains separate from provider acknowledgement. No installed daemon delivery or release is claimed."
+  ],
+  "actual_outcome": {
+    "verifier_original_red": {
+      "exit_code": 101,
+      "duration_seconds": 26.429860219999682,
+      "sources_unchanged": true,
+      "log_sha256": "e06fa46a8749b1887bed970159a8ee4b1e97bf20c4923ee701930e226f909c69",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "original_executed_tests": 1,
+    "original_failure": "fixture format unsupported at the intended positive validation endpoint",
+    "verifier_corrected_green": {
+      "exit_code": 0,
+      "duration_seconds": 18.671509050996974,
+      "sources_unchanged": true,
+      "log_sha256": "5269ac7ad3331626f30a22ce6482bc120d831d4c0a8c4454e5003597f56eb892",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "corrected_executed_tests": 2,
+    "negative_arms": 6,
+    "provider_calls": 0,
+    "installed_actions": false,
+    "full_icloud_gates_closed": false,
+    "local_rehearsal_v1": {
+      "run": "f445519b-6d3e-4dff-8b69-17367d6be9b9",
+      "root_phase": {
+        "exit_code": 1,
+        "duration_seconds": 0.06303005499648862,
+        "sources_unchanged": true,
+        "log_sha256": "3dfaa87aada8561caf32552f7ea97709e8c0385c9770d8476792e4ce6516a05b",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "closure": {
+        "run": "f445519b-6d3e-4dff-8b69-17367d6be9b9",
+        "children": [
+          {
+            "pid": 311934,
+            "reaped": false,
+            "unresolved": true,
+            "role": "worker"
+          },
+          {
+            "pid": 311933,
+            "start_ticks": 24439785,
+            "exit_code": -15,
+            "reaped": true,
+            "role": "office"
+          }
+        ],
+        "all_recorded_children_reaped": false,
+        "passed": false,
+        "provider_calls": 0,
+        "installed_actions": false
+      },
+      "root_followup_worker_absent": true,
+      "root_followup_closure_sha256": "72643e302c27f6038050643b2f8bbdf7a01bd67a0348444e8f5886f4e7b8aa3f",
+      "numbers_import_dispatched": false,
+      "xlsx_create_dispatched": false,
+      "uno_proof_obtained": false,
+      "provider_calls": 0,
+      "cause": "Worker identity acquisition failed before its owner record; actual mismatch fields were not captured, so cause remains unknown. Root subsequently found the recorded PID absent.",
+      "readonly_inspection_correction": "First isolated admission diagnosis used unregistered /usr/bin/python and hit the role guard. The same read-only registration diagnosis with exact /usr/bin/python3.14 passed; neither launches Office or retries the rehearsal."
+    },
+    "metadata_controls": {
+      "exit_code": 0,
+      "duration_seconds": 54.330464587023016,
+      "sources_unchanged": true,
+      "log_sha256": "eb5af891863edd1b8f51a76d23b3cca8fb943ee49285c878b39d13c05ca9666c",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "executed_tests": 5,
+      "scope": "schema/route/account/window/receipt selection; no provider calls",
+      "warning_correction": "Removed redundant unused Context trait import after the passing targeted run; full check remains required."
+    },
+    "local_rehearsal_v2": {
+      "run": "abc90474-2f19-49d0-a3d2-6d83e3431fc4",
+      "root_phase": {
+        "exit_code": 1,
+        "duration_seconds": 68.84807613299927,
+        "sources_unchanged": true,
+        "log_sha256": "3dfaa87aada8561caf32552f7ea97709e8c0385c9770d8476792e4ce6516a05b",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "closure": {
+        "run": "abc90474-2f19-49d0-a3d2-6d83e3431fc4",
+        "children": [
+          {
+            "pid": 337146,
+            "start_ticks": 24546617,
+            "exit_code": -15,
+            "reaped": true,
+            "role": "worker"
+          },
+          {
+            "pid": 337145,
+            "start_ticks": 24546617,
+            "exit_code": 81,
+            "reaped": true,
+            "role": "office"
+          }
+        ],
+        "all_recorded_children_reaped": true,
+        "passed": false,
+        "provider_calls": 0,
+        "installed_actions": false
+      },
+      "all_recorded_children_absent": true,
+      "numbers_import_dispatched": false,
+      "xlsx_create_dispatched": false,
+      "save_dispatched": false,
+      "office_exit_code": 81,
+      "interpretation": "LibreOffice declares exit81 as normal restart. Direct soffice.bin bypassed the standard startup restart manager. No document or cloud operation occurred; root stopped exact controller after observing terminal Office to close the waiting worker. V5 worker identity failure remains a separate unknown cause."
+    },
+    "local_rehearsal_v3": {
+      "run": "4ca4a41a-aba3-4b21-96d6-34e1f2cb9729",
+      "root_phase": {
+        "exit_code": 0,
+        "duration_seconds": 3.294608030002564,
+        "sources_unchanged": true,
+        "log_sha256": "a2e06f0e5dfbfc01f0485dbc1594e61ad205e503f2bd280ac831b20594067698",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "closure": {
+        "run": "4ca4a41a-aba3-4b21-96d6-34e1f2cb9729",
+        "children": [
+          {
+            "pid": 345174,
+            "start_ticks": 24578399,
+            "exit_code": 0,
+            "reaped": true,
+            "role": "office-restart"
+          },
+          {
+            "pid": 345142,
+            "start_ticks": 24578379,
+            "exit_code": 0,
+            "reaped": true,
+            "role": "worker"
+          },
+          {
+            "pid": 345141,
+            "start_ticks": 24578379,
+            "exit_code": 81,
+            "reaped": true,
+            "role": "office"
+          }
+        ],
+        "all_recorded_children_reaped": true,
+        "passed": true,
+        "provider_calls": 0,
+        "installed_actions": false
+      },
+      "independent_inspection": {
+        "version": 1,
+        "run": "4ca4a41a-aba3-4b21-96d6-34e1f2cb9729",
+        "closure_all_children_reaped_and_absent": true,
+        "readonly_numbers_source_preserved": true,
+        "xlsx_independent_ooxml_inspection": {
+          "a": {
+            "size": 5281,
+            "sha256": "ae4c2cba9de0c4967cd41cd450d3ebf4e70503fc2bcfecfe4b578e2a38160fa7",
+            "sheet": "Cirrove-4ca4a41a",
+            "cells": {
+              "A2": 7.0,
+              "B2": 3.0,
+              "C2": 10.0
+            },
+            "C2_formula_ooxml": "SUM(A2:B2)"
+          },
+          "b": {
+            "size": 5609,
+            "sha256": "c9649e5a3d6647762cdc18c17f31f98837b289c7c3712d857f5c6ebd4a7fb023",
+            "sheet": "Cirrove-4ca4a41a",
+            "cells": {
+              "A2": 11.0,
+              "B2": 3.0,
+              "C2": 14.0
+            },
+            "C2_formula_ooxml": "SUM(A2:B2)"
+          }
+        },
+        "cloud_calls": 0,
+        "installed_actions": false
+      },
+      "inspection_sha256": "6be7116fed3e93b5e45b3429cdd6f63c3b6caf447e70461ad80b23f621cd7526",
+      "numbers_import": {
+        "source_sha256": "2b948470d8fa2e65a64f15a0e7be65c28dbd81ac10b89f7b785501eda3804b75",
+        "model_url": "file:///var/tmp/cirrove-numbers-browser-editor-ddffa041-7b1b-4173-9f8d-8cb93b1f1010/source-b.numbers",
+        "sheet": "Sheet 1_Table 1",
+        "cells": [
+          {
+            "cell": "A2",
+            "column_zero_based": 0,
+            "row_zero_based": 1,
+            "value": 11.0,
+            "formula": "11",
+            "type": "VALUE",
+            "error": 0
+          },
+          {
+            "cell": "B2",
+            "column_zero_based": 1,
+            "row_zero_based": 1,
+            "value": 3.0,
+            "formula": "3",
+            "type": "VALUE",
+            "error": 0
+          },
+          {
+            "cell": "C2",
+            "column_zero_based": 2,
+            "row_zero_based": 1,
+            "value": 14.0,
+            "formula": "14",
+            "type": "VALUE",
+            "error": 0
+          }
+        ],
+        "read_only": true,
+        "store_calls": 0,
+        "formula_repair_calls": 0,
+        "SUM_formula_preserved_by_import": false,
+        "visible_window_api_checked": true,
+        "human_gui_witness_recorded": false
+      },
+      "xlsx_initial": {
+        "sheet": "Cirrove-4ca4a41a",
+        "A2": 7.0,
+        "B2": 3.0,
+        "C2": 10.0,
+        "C2_formula": "=SUM(A2:B2)",
+        "C2_type": "FORMULA",
+        "C2_error": 0
+      },
+      "xlsx_reopened_a": {
+        "sheet": "Cirrove-4ca4a41a",
+        "A2": 7.0,
+        "B2": 3.0,
+        "C2": 10.0,
+        "C2_formula": "=SUM(A2:B2)",
+        "C2_type": "FORMULA",
+        "C2_error": 0
+      },
+      "xlsx_reopened_b": {
+        "sheet": "Cirrove-4ca4a41a",
+        "A2": 11.0,
+        "B2": 3.0,
+        "C2": 14.0,
+        "C2_formula": "=SUM(A2:B2)",
+        "C2_type": "FORMULA",
+        "C2_error": 0
+      },
+      "save_b_calls": 1,
+      "bootstrap_restarts_before_document_actions": 1,
+      "visible_window_api_checked": true,
+      "human_gui_witness_recorded": false,
+      "native_iwork_save_claimed": false,
+      "atomic_filesystem_save_claimed": false
+    },
+    "complete_check": {
+      "exit_code": 0,
+      "duration_seconds": 639.1835710229934,
+      "sources_unchanged": true,
+      "log_sha256": "ca38e7de2162c0c07c4dae9044d4f49afe20f8588a8597a3362732cd547fe544",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "host_overlap_note": "An external cargo kernel-test process in the separate Strata worktree was observed during early check execution and later absent. This functional pass is not a controlled performance or memory result."
+    },
+    "cli_dispatch": {
+      "binary_sha256": "344916078e1f9d47be3baf35d212c45cc4d98ff0f17d8434312099d6a79b8a63",
+      "command_available": true,
+      "help_exit_code": 0,
+      "missing_registration_refused_before_session": true,
+      "missing_registration_exit_code": 1,
+      "stdout_bytes": 0,
+      "stderr_sha256": "9966198bb10bb0e4b8036535c064ae21bccf551998f7cdad742e874c8f367631",
+      "cloud_calls": 0,
+      "installed_actions": false
+    },
+    "feature_roles_build": {
+      "exit_code": 0,
+      "duration_seconds": 27.077511278999737,
+      "sources_unchanged": true,
+      "log_sha256": "3f368425315f9b0bc16cd2e0f8bc0718822c5116c34fea7e6ca5a88d56e00663",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "artifacts": [
+        {
+          "target": "cirrove",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+          "size": 502872656,
+          "sha256": "344916078e1f9d47be3baf35d212c45cc4d98ff0f17d8434312099d6a79b8a63",
+          "fresh": false,
+          "test": false
+        },
+        {
+          "target": "cirrove-icloud-mounted-write-probe",
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+          "size": 499028144,
+          "sha256": "048cd260b81bd11eaf481f9707fb63850d84de60ff70a53f48b380ebdc6e8fcd",
+          "fresh": false,
+          "test": false
+        }
+      ]
+    },
+    "installed_native_filter_flags": [
+      {
+        "application": "calc",
+        "filter": "Apple Numbers",
+        "flags": "IMPORT ALIEN 3RDPARTYFILTER PREFERRED",
+        "registry_sha256": "0f80d126c44547ddf22e2e533e7830a71eb4768f4f2690439816fc58a22f4edc"
+      },
+      {
+        "application": "writer",
+        "filter": "Apple Pages",
+        "flags": "IMPORT ALIEN 3RDPARTYFILTER PREFERRED",
+        "registry_sha256": "b4d700e4df0f3c826b279f9a5b849a791a6e62fda3c4f5c4a3f9774b0e60ac38"
+      },
+      {
+        "application": "impress",
+        "filter": "Apple Keynote",
+        "flags": "IMPORT ALIEN 3RDPARTYFILTER PREFERRED",
+        "registry_sha256": "b49213dc9f405a876b66ba38cc0d6e78e43e3e2ecbda50b2e7019455a9ba61cc"
+      }
+    ]
+  },
+  "readonly_numbers_source": {
+    "size": 64903,
+    "sha256": "2b948470d8fa2e65a64f15a0e7be65c28dbd81ac10b89f7b785501eda3804b75",
+    "observation_run": "ddffa041-7b1b-4173-9f8d-8cb93b1f1010"
+  },
+  "local_rehearsal_registration": {
+    "run": "f445519b-6d3e-4dff-8b69-17367d6be9b9",
+    "driver_sha256": "d825f386946f1f757647e86aaea282ab724fea2c031567d8aec9f1466088cb3c",
+    "registration_sha256": "8e06c15a83d6971076e4d92b19585ea36e8c33150a175dd9f84a7eb922c9cd72",
+    "maximum_seconds": 120,
+    "filesystems": {
+      "root": "btrfs",
+      "TMPDIR": "ext4"
+    },
+    "temporary_directory": "/home/dandiccf/Storage/cirrove-tmp/cu-f445519b",
+    "roles": {
+      "python": {
+        "path": "/usr/bin/python3.14",
+        "size": 14424,
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+      },
+      "soffice": {
+        "path": "/usr/lib/libreoffice/program/soffice.bin",
+        "size": 14424,
+        "sha256": "a26f3d813ee0743cd9f03a74188fe3baa2984b21d2dedee794fa7070703e8372"
+      },
+      "uno_py": {
+        "path": "/usr/lib/python3.14/site-packages/uno.py",
+        "size": 17767,
+        "sha256": "b92b8058408cc9b071e0f300631250d707a11c560db9ba3d1346f4d0fe732190"
+      },
+      "pyuno": {
+        "path": "/usr/lib/libreoffice/program/pyuno.so",
+        "size": 14192,
+        "sha256": "0924fee617270addb158d49aea3e263f33c0dc97fa350c43c64215ae9ef1dc7e"
+      }
+    },
+    "pre_dispatch_correction": "Unexecuted V3 required an ext4 /var/tmp root on this btrfs host. V4 accepts disk-backed btrfs/ext4 roots and passes a separately registered owned ext4 temporary directory through parent, worker and Calc. V3 remains retained and was never launched.",
+    "pre_dispatch_sheet_name_correction": "V4 generated a 44-character sheet name, longer than the XLSX 31-character limit. Before any launch, V5 shortens both creation and exact reopen checks to the same 16-character Cirrove-UUIDprefix name; full document/run identity remains in root and filename. V4 is preserved unexecuted."
+  },
+  "local_rehearsal_registration_v2": {
+    "run": "abc90474-2f19-49d0-a3d2-6d83e3431fc4",
+    "script_sha256": "f44d96e53e58d6d6ff27a4d66c1431e348e3bdcc9ec34f05e8c53b71742f5a44",
+    "registration_sha256": "6cc0dd5a80a23b65866306001971e7eefee982cabaf607b0fbbfc66e502acf79",
+    "filesystems": {
+      "root": "btrfs",
+      "TMPDIR": "ext4"
+    },
+    "temporary_directory": "/home/dandiccf/Storage/cirrove-tmp/cu-abc90474",
+    "maximum_seconds": 120,
+    "correction": "Parent-bound owner handshake before UNO and typed identity diagnostics; fresh owned run, no replay of closed V5. Static peer review passed; previous failure cause remains unknown."
+  },
+  "local_rehearsal_registration_v3": {
+    "run": "4ca4a41a-aba3-4b21-96d6-34e1f2cb9729",
+    "script_sha256": "2f0680578863ed460aa3df43b432815c29dc7b84bd70024e94b3534936b36f50",
+    "registration_sha256": "4fff8731675f1e3af560ab2a771e2ed8ab6c0a70e0b0c672b8b3c4e7800e2afc",
+    "temporary_directory": "/home/dandiccf/Storage/cirrove-tmp/cu-4ca4a41a",
+    "filesystems": {
+      "root": "btrfs",
+      "TMPDIR": "ext4"
+    },
+    "maximum_seconds": 120,
+    "bootstrap_policy": "At most one exact exit81 Office restart before first document attempt; same profile and original cutoff. Parent restart fence and first worker attempt publication are serialized by private flock. No exit79/crash restart, document retry, cloud calls or installed actions.",
+    "pre_dispatch_correction": "Static review caught unsynchronized first-document admission in initial V7 draft. Shared private lock added before execution; no earlier V7 was executed."
+  },
+  "complete_check_registration": {
+    "command": [
+      "/bin/bash",
+      "scripts/check.sh"
+    ],
+    "expected_duration_seconds": 900,
+    "phase": "root-calc-editor-full-check-v1",
+    "scope": "Complete formatting, clippy normal and iCloud feature roles, workspace and iCloud tests, kernel mounts, script tests and acceptance ledger before committing current source and documentation. No cloud/account mutation or installed daemon restart.",
+    "source_freeze": true
+  },
+  "post_check_runtime_binding": {
+    "initial_help_control": "Refused unrecognized subcommand: the final normal-feature workspace build occupied target/debug/cirrove. No registration command or provider action ran. This is a conditional-feature binary selection error, not a metadata-helper failure.",
+    "required_build": [
+      "cargo",
+      "build",
+      "-p",
+      "cirrove-service",
+      "--features",
+      "icloud-write-probe",
+      "--bin",
+      "cirrove",
+      "--bin",
+      "cirrove-icloud-mounted-write-probe",
+      "--locked",
+      "--message-format=json"
+    ],
+    "followup": "Use freshly built feature roles for help/refusal and live observer; preserve the normal installed executable."
+  }
+}

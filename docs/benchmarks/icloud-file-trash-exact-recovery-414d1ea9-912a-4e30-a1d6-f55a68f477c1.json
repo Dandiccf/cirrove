@@ -1,0 +1,49 @@
+{
+  "run": "414d1ea9-912a-4e30-a1d6-f55a68f477c1",
+  "binary_sha256": "22b81b57b0094096dd91a238a7d3865d4c7fe814473b72bee0487dbf56202645",
+  "TMPDIR": "/var/tmp/cirrove-exact-trash-xsevinda",
+  "SQLITE_TMPDIR": "/var/tmp/cirrove-exact-trash-xsevinda",
+  "filesystem": "btrfs",
+  "supervisor_pid": 3697116,
+  "status": "passed",
+  "arms": [
+    {
+      "phase": "discard",
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-write-probe",
+        "--general-trash-lost-response"
+      ],
+      "started_at": "2026-09-30T22:20:35.458940+00:00",
+      "expected_duration_seconds": 900,
+      "status": "finished",
+      "pid": 3697128,
+      "exit_code": 0,
+      "elapsed_seconds": 61.321,
+      "finished_at": "2026-09-30T22:21:36.779678+00:00"
+    },
+    {
+      "phase": "reconcile",
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-write-probe",
+        "--general-trash-reconcile",
+        "a28bc0e3-0f4f-4f07-a79a-333288817638"
+      ],
+      "started_at": "2026-09-30T22:21:36.780120+00:00",
+      "expected_duration_seconds": 900,
+      "status": "finished",
+      "pid": 3698671,
+      "exit_code": 0,
+      "elapsed_seconds": 96.835,
+      "finished_at": "2026-09-30T22:23:13.614856+00:00"
+    }
+  ],
+  "fixture_run": "a28bc0e3-0f4f-4f07-a79a-333288817638",
+  "independent_journal_audit": {
+    "single_operation": true,
+    "applied": true,
+    "prepared_exact": true,
+    "request_exact": true,
+    "account_exact": true,
+    "receipt_exact": true
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pamd7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pamd7v1",
+  "active": false,
+  "active_measurement": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-isolated-build-controls-v1.py",
+    "sha256": "54a5af4c2bcdb68ee4cd2f381576d23d48310c63b7085583a5fc9efda2bd8102",
+    "size": 9946
+  },
+  "endpoint": "Module4/helper2 and frozen actual CargoJSON-selected ELF; original owners closed",
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "maximum_seconds_per_child": 1200,
+  "prediction": "All six pass before any real session read; no production files change",
+  "private_modified_source_count": 572,
+  "private_source_copy": true,
+  "provider_actions": false,
+  "question": "Does isolated exact-ID Pages metadata diagnostic compile and pass six projection/authentication controls?",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-isolated-build-controls-v1/registration-v1.json",
+    "sha256": "2b1845c4b260a0c2f9ffda1ec0e92e4db81ff067ec231481ace631229d0f61c6",
+    "size": 331208
+  },
+  "root_head": "16fcad3799442c5f6e3edc1c50cc07d94908944f",
+  "root_source_count": 571,
+  "status": "closed_success",
+  "vault_actions": false,
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-isolated-build-controls-v1/terminal-v1.json",
+    "size": 7632,
+    "sha256": "1e2d57f8af477d7f0eaa1792a88610efb62ecfa44619fe7ec9f503ca882f875a"
+  },
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 31,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-isolated-build-controls-v1/audit-independent-terminal-v1.json",
+      "size": 12237,
+      "sha256": "ba8137b30882904e096304274e2f35603e5d584b4910c48045ba0705ce8f0b9b"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfrs7v2",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfrs7v2",
+  "active": false,
+  "active_measurement": false,
+  "actual_real_row_eligibility_proved": false,
+  "endpoint": "One intended exact positive assertion RED, sameGREEN and all6 mocked source controls; original handles closed",
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "prediction": "Oldpredicate fails exact positive1; corrected branch passes that same1 and all6 source-selected mocked controls, retaining all Uploaded/Applied and complete queue guards.",
+  "provider_actions": false,
+  "question": "Does the actual settled-admission predicate accept only completed ordinary Resolved records with retained exact bytes and refuse malformed or native resolutions?",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/root-resolved-controls-v2/registration-v1.json",
+    "sha256": "17f3520099e789d74c2f51534f5c16c9333997aaa5ee134a1373d5092caaea38",
+    "size": 79318
+  },
+  "status": "closed_source_controls_success",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/root-resolved-controls-v2/terminal-v1.json",
+    "size": 4589,
+    "sha256": "e4f88a2735ff68873dc44b19d3f4a1c8fa4f42830f446ce2bf5ff7b2fc623bd8"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/root-resolved-controls-v2/owned-command-closure-v1.json",
+    "size": 902,
+    "sha256": "792cbb55daf29c8b41c92b50a161560783d920802fea59a0b50f9e4ea076ec64"
+  },
+  "independent_actual_controls_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/audit-independent-resolved-controls-v1.json",
+    "size": 7211,
+    "sha256": "dc92bc07eb12dfa8f6a6b737d6f5893cee4f5aa7337add333cc57d53783b1d4d"
+  },
+  "independent_passed_checks": 8,
+  "assessment": "Old ordinary Resolved exclusion actually fails the intended assertion; corrected positive and all6 controls pass. Initial GREEN failed a noniterable cursor mock; fixture-only correction preserved source. No actual retained-row eligibility or installed admission claim."
+}

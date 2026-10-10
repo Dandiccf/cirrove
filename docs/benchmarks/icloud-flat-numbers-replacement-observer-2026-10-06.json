@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "status": "local_observer_red_green_and_complete_project_check_passed",
+  "question": "Can the existing feature-only read observer independently verify original/current/Trash content for exact two-identity replacement of genuine flat Numbers exports, keeping the caller source unwrapped and preserving historical observer guards?",
+  "prediction": "Explicit flat Numbers preflight/postflight arms with separately bound observation and subject runs, mandatory nullable source root, and strictV2 scanners will admit this own fixture without weakening wrapped/Pages scope. Legacy observer rejects desired registered JSON; corrected observer admits same desired source.",
+  "arms": [
+    "Desired own flat preflight/postflight JSON observed failing against original implementation",
+    "Same test source after explicit flat observer correction",
+    "Historical wrapped/Pages module controls and wrongscope,root,revision,identity,Trash rejection controls"
+  ],
+  "endpoint": "Desired registration admission and generated independently observed fixture remain complete account/parent/item/revision/content bound; no provider calls. Baseline failure must be retained; localpassing tests establish no live replacement/recovery acceptance.",
+  "actual_live_fixture_context": "158d8df0-fe5d-458f-ad05-b82a1fee9978 corrected import, exact Appleopen, unchanged sourceV2 ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+  "source_base_head": "e630ec07e98ebe5c7cae01240de1bc34a7fc33d4",
+  "cloud_calls": 0,
+  "installed_actions": false,
+  "temporary_filesystem": "ext4",
+  "one_test_process_at_a_time": true,
+  "full_check_required_before_commit": "bash scripts/check.sh",
+  "replacement_and_recovery_acceptance_open": true,
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "future_recovery_scope_decision": {
+    "status": "static_only_not_acceptance",
+    "choice": "Separate fresh NativeFinal arm with actual newfolder and actual flatA import, then genuine B replacement/finalconfirmationloss/restart.",
+    "reason": "Preserves existing exact folder/import journal frontier without copying or fabricating historical158d journal rows.",
+    "version_distinction": "Inner flat staging checkpointv2 contains bound wire receipt; outer native handoff checkpoint remainsv1. Final lost acknowledgement occurs at handoff-install-armed after stage consumption.",
+    "prerequisites": [
+      "Complete pureflat readobserver controls",
+      "Genuine Numbers B export from distinct own donor with A unchanged",
+      "Normal public exact-revision replacement and currentB/TrashA independent proof"
+    ],
+    "no_cloud_dispatch": true
+  },
+  "results": {
+    "observer-flat-shape-red-v1": {
+      "exit_code": 101,
+      "elapsed_seconds": 12.93368500797078,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "c2f8323b7deeb0d5141f4b25df59c969c024f732022d956e2f29a921b744aee5"
+    },
+    "observer-flat-shape-green-v1": {
+      "exit_code": 0,
+      "elapsed_seconds": 24.577332735992968,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "6538eb249aae38352510e27ac4374a4e9e75cc00802823d4c026b3c1804f639c"
+    },
+    "observer-flat-shape-module-v1": {
+      "exit_code": 0,
+      "elapsed_seconds": 0.15395274298498407,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "0d59d2b3e41fba6042f58b0c3dc03fcb2def455bc8fb9d8aea0f74f71ba71701"
+    }
+  },
+  "actual_test_counts": {
+    "baseline": {
+      "passed": 0,
+      "failed": 2
+    },
+    "corrected_same_tests": {
+      "passed": 2,
+      "failed": 0
+    },
+    "full_module": {
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  "same_regression_region_sha256": "b91da004d0db40d6b3eb58f8795d7fc879807917595be8b32fd0ea2ba8db49fe",
+  "whole_tests_file_unchanged": false,
+  "test_file_changes": "Legacy constructor nullable-root/exhaustive-arm adapters, four additional guard controls, and later workspace formatting of three guard signatures.",
+  "source_sha256_before_fullcheck": {
+    "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/native_import_fixture.rs": "c695a0b1ab527818fec7e91689bc7aff8cb1728bf2ef81b6fb9f063ac8291ec1",
+    "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/native_import_fixture/tests.rs": "553e0034e6454b66d192ea0a6e235d0a29b87a16c0c62cd73defb94d4cbb24c7"
+  },
+  "corrections": [
+    {
+      "stage": "workspace formatting preflight after focused terminal tests",
+      "finding": "Workspace cargo fmt --check showed three added guard signatures had a different line break from the separately formatted test source. First combined observation command continued to its read-only proof inspection, so its overall shell exit0 did not mean fmt passed.",
+      "resolution": "Ran cargo fmt --all separately and cargo fmt --all -- --check separately; each completed0. Production code and the two desired JSON regression bodies were unchanged. Fullcheck registers and validates newly formatted source pins."
+    }
+  ],
+  "evidence_pins": {
+    "observer-flat-shape-question-v1.json": "021fe0f564e47ccddf81b394718910ffdf5397b389270a85a85ca48296ac88ae",
+    "observer-flat-shape-corrected-question-v1.json": "b74daf1a5449d125d33bbb21bcca81f03f7eaa8457d5c033191b13094cb87260",
+    "observer-flat-results-audit-v1.json": "bdc12d2138c195c77dabdfe627e139dbbcefba8ac4221c2609c572cb511d3361",
+    "observer-flat-primary-preregistration-reconstructed-v1.json": "09a91453ae5530b213535ab84b71c786edfb0e723837496aade82aa723489e05",
+    "observerflatfull1-registration.json": "a6b89c119081b133baac54a8a629d203af7c0a09f7baaf8d7ccce331341cbbf2",
+    "observerflatfull1-result.json": "c4ddc8209981ab7be16f98c864fff78cf3d2b53aa7363a5d7b3cffd912eabfa7",
+    "observerflatfull1.log": "91a1b647e6b8355fe02c9a5cc0076aba2f78997283025b60568569845bb8435d"
+  },
+  "claim_limits": [
+    "Feature-only read observer, no provider/cloud calls or installed actions.",
+    "No genuineBexport, replacement, Trash proof or checkpoint/restart endpoint closed by synthetic controls.",
+    "Legacy observer JSON remains unchanged except explicit new-arm fields; missingroot stillrefuses.",
+    "No schema/checkpoint/deployment-policy change; installedHOLD persists."
+  ],
+  "full_check": {
+    "command": "bash scripts/check.sh",
+    "fast": false,
+    "exit_code": 0,
+    "elapsed_seconds": 555.5610042270273,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 546,
+    "log_sha256": "91a1b647e6b8355fe02c9a5cc0076aba2f78997283025b60568569845bb8435d",
+    "observer_module_actual_tests_passed": 14,
+    "display_scenarios_not_repeated": true
+  },
+  "preregistration_reconstruction": "Unchanged original fields reconstruct byteexact public preregistration matching digest recorded beforeRED. The recovered copy was saved after execution; it is not claimed to have been saved before execution."
+}

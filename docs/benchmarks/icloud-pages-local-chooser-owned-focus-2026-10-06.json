@@ -1,0 +1,107 @@
+{
+  "actual_outcome": {
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "focus-own-chooser-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once"
+    ],
+    "cause": "The poll active guard refused; it jointly checks time and child liveness. Operands were not retained. A timeout versus child exit is not proved.",
+    "closure_errors": [],
+    "cloud_called": false,
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-9f75445d-de89-4a26-85c1-09fba1024f64/result.json",
+      "sha256": "164d6104c98a519e086afa107b63b19542bb2283b68a8a22bab034d6f152d725",
+      "size": 4214
+    },
+    "desktop_reaped_and_absent": true,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_owned_focus_v28.py",
+          "function": "main",
+          "line": 1266
+        },
+        {
+          "file": "chooser_owned_focus_v28.py",
+          "function": "run",
+          "line": 949
+        },
+        {
+          "file": "chooser_owned_focus_v28.py",
+          "function": "poll",
+          "line": 295
+        },
+        {
+          "file": "chooser_owned_focus_v28.py",
+          "function": "active",
+          "line": 234
+        },
+        {
+          "file": "chooser_owned_focus_v28.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "gate485_complete": false,
+    "import_rpc_count": 0,
+    "inputs_unchanged": true,
+    "local_chooser_confirmation_cancel": false,
+    "original_tool_session": 52321,
+    "outer_original_children_reaped": true,
+    "owned-chooser-focus-once": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-9f75445d-de89-4a26-85c1-09fba1024f64/chooser/owned-chooser-focus-once.json",
+      "sha256": "2f9eb61288c6502f6e5c131150c6546c10b39b1e73cc17f70b0a8f1a1d840332",
+      "size": 325
+    },
+    "private_sockets_absent": true,
+    "root_result": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1431762,
+      "controller_proc_absent": true,
+      "duration_seconds": 50.89727901201695,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "9f75445d-de89-4a26-85c1-09fba1024f64",
+      "signals": []
+    },
+    "three_confirmation_field_readbacks_verified": false,
+    "ui_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-9f75445d-de89-4a26-85c1-09fba1024f64/chooser/result.json",
+      "sha256": "96a03b024c563e094f6cfc4ae2288233775dfce37357c5f1bc8ffd3114290332",
+      "size": 5198
+    },
+    "utility_children_reaped": 27
+  },
+  "automatic_retry": false,
+  "baseline": "Actual72 five observations remained foreign and refused before Ctrl+l; closed arm not replayed.",
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "hyprland_primary_source": "https://raw.githubusercontent.com/hyprwm/Hyprland/efb50993780079460b0cbed1363e2166a2de1d9f/src/config/lua/bindings/LuaBindingsDispatchers.cpp",
+  "installed_actions": false,
+  "limits": "Only the own chooser address may be focused. Keys retain strict active PID/address guards. Cancel only; no live provider. One run establishes this path, not general reliability.",
+  "owned_chooser_focus_limit": 1,
+  "prediction": "The exact address and live child birth will be revalidated around a durable one-focus permit, then the actual activewindow must match before Ctrl+l. File selection, all three values and Cancel will complete with zero imports and provider calls.",
+  "question": "Can one exact owned chooser focus action overcome the observed background chooser and retain all three field checks and Cancel?",
+  "run": "9f75445d-de89-4a26-85c1-09fba1024f64",
+  "scope": "local-public-pages-isolated-chooser-fields-cancel-only",
+  "status": "actual-local-partial-refused",
+  "utility_limit": 43,
+  "version": 1,
+  "window_seconds": 180
+}

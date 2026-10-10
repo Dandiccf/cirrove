@@ -1,0 +1,17 @@
+{
+  "run": "b6cc58c4-19de-487e-ba72-0069d74ccfdf",
+  "binary_sha256": "911c472c709f6a0e7f814c7b8e343eea5ce54aafe213ccfe12cd0272e7508b29",
+  "filesystem": "btrfs",
+  "exit_code": 1,
+  "elapsed_seconds": 1.268,
+  "phases_seconds": {
+    "root folder metadata": [
+      0.757
+    ],
+    "partial folder metadata": [
+      0.394
+    ]
+  },
+  "pairs": [],
+  "passed": false
+}

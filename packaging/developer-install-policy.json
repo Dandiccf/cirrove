@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "state": "held",
+  "journal_schema": 21,
+  "metadata_schema": 8,
+  "policy_document": "docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy"
+}

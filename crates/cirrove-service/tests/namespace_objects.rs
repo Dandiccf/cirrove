@@ -49,6 +49,147 @@ fn payload(j: &UploadJournal, id: uuid::Uuid) -> Vec<u8> {
 }
 
 #[test]
+fn same_parent_folder_rename_keeps_identity_and_rejects_parent_move() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("journal");
+    let mut j = open(&path, 1024);
+    let mut folder = node("folder-id", "Old Folder", 0);
+    folder.kind = NodeKind::Folder;
+    folder.content_version = None;
+    let object = j.observe_namespace_file(scope(), folder.clone()).unwrap();
+    assert!(matches!(
+        j.relocate_namespace_item(
+            object.id,
+            object.revision,
+            "other-parent".into(),
+            "Moved Folder".into(),
+        ),
+        Err(JournalError::Intent)
+    ));
+    let rename = j
+        .relocate_namespace_item(
+            object.id,
+            object.revision,
+            "root".into(),
+            "New Folder".into(),
+        )
+        .unwrap();
+    let visible = j
+        .namespace_overlay(&scope(), "root", vec![folder.clone()])
+        .unwrap();
+    assert_eq!(visible.nodes.len(), 1);
+    assert_eq!(visible.nodes[0].id, folder.id);
+    assert_eq!(visible.nodes[0].name, "New Folder");
+    drop(j);
+    let mut j = open(&path, 1024);
+    let recovered = j.namespace_object(object.id).unwrap();
+    assert_eq!(recovered.latest, Some(rename.id));
+    let claimed = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(claimed.request.intent.before(), Some(&folder));
+    folder.name = "New Folder".into();
+    folder.etag = Some("renamed-etag".into());
+    j.acknowledge_mutation(
+        claimed.id,
+        claimed.attempt.unwrap(),
+        MutationReceipt::Upsert(folder.clone()),
+    )
+    .unwrap();
+    let applied = j.namespace_object(object.id).unwrap();
+    assert_eq!(applied.remote, Some(folder));
+}
+
+#[test]
+fn cross_parent_folder_move_retains_local_descendant_route_after_restart() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("journal");
+    let mut j = open(&path, 4096);
+    let mut source = node("source", "Source", 0);
+    source.kind = NodeKind::Folder;
+    source.content_version = None;
+    let mut destination = node("destination", "Destination", 0);
+    destination.kind = NodeKind::Folder;
+    destination.content_version = None;
+    let mut moved = node("moved", "Moved", 0);
+    moved.kind = NodeKind::Folder;
+    moved.parent_id = Some(source.id.clone());
+    moved.content_version = None;
+    let mut child = node("child", "Child", 0);
+    child.kind = NodeKind::Folder;
+    child.parent_id = Some(moved.id.clone());
+    child.content_version = None;
+    j.capture_namespace_ancestors(vec![
+        (scope(), source.clone()),
+        (scope(), destination.clone()),
+        (scope(), moved.clone()),
+        (scope(), child.clone()),
+    ])
+    .unwrap();
+    let object = j.observe_namespace_file(scope(), moved.clone()).unwrap();
+    let mut local = node("", "pending.txt", 0);
+    local.parent_id = Some(child.id.clone());
+    local.etag = None;
+    local.content_version = None;
+    let working = j.create_working(scope(), local, true, &b""[..]).unwrap();
+    j.write_working(working.id, 0, b"saved before move")
+        .unwrap();
+    j.seal_working(working.id).unwrap();
+
+    let queued = j
+        .relocate_namespace_item(
+            object.id,
+            object.revision,
+            destination.id.clone(),
+            moved.name.clone(),
+        )
+        .unwrap();
+    assert_eq!(queued.request.intent.before(), Some(&moved));
+    drop(j);
+
+    let mut j = open(&path, 4096);
+    let root = j.namespace_overlay(&scope(), "root", vec![]).unwrap();
+    assert!(root.nodes.iter().any(|entry| entry.id == destination.id));
+    assert!(!root.nodes.iter().any(|entry| entry.id == source.id));
+    let at_source = j
+        .namespace_overlay(&scope(), &source.id, vec![moved.clone()])
+        .unwrap();
+    assert!(at_source.nodes.is_empty());
+    let at_destination = j
+        .namespace_overlay(&scope(), &destination.id, vec![])
+        .unwrap();
+    assert_eq!(at_destination.nodes.len(), 1);
+    assert_eq!(at_destination.nodes[0].id, moved.id);
+    assert_eq!(
+        at_destination.nodes[0].parent_id.as_deref(),
+        Some(destination.id.as_str())
+    );
+    assert_eq!(
+        j.namespace_overlay(&scope(), &moved.id, vec![])
+            .unwrap()
+            .nodes[0]
+            .id,
+        child.id
+    );
+    assert_eq!(
+        j.namespace_overlay(&scope(), &child.id, vec![])
+            .unwrap()
+            .nodes[0]
+            .name,
+        "pending.txt"
+    );
+
+    let moved_object = j.namespace_object(object.id).unwrap();
+    assert!(matches!(
+        j.relocate_namespace_item(
+            moved_object.id,
+            moved_object.revision,
+            child.id,
+            "Cycle".into(),
+        ),
+        Err(JournalError::Intent)
+    ));
+}
+
+#[test]
 fn huge_online_only_file_moves_without_working_bytes_and_survives_restart() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("journal");
@@ -56,7 +197,7 @@ fn huge_online_only_file_moves_without_working_bytes_and_survives_restart() {
     let remote = node("cloud-id", "Huge.bin", 500 * 1024 * 1024 * 1024);
     let original = j.observe_namespace_file(scope(), remote.clone()).unwrap();
     let renamed = j
-        .relocate_namespace_file(
+        .relocate_namespace_item(
             original.id,
             original.revision,
             "other".into(),
@@ -105,7 +246,7 @@ fn hydration_after_pending_rename_keeps_identity_name_and_receipt_dependency() {
     let remote = node("cloud-id", "Before.txt", 3);
     let object = j.observe_namespace_file(scope(), remote.clone()).unwrap();
     let rename = j
-        .relocate_namespace_file(
+        .relocate_namespace_item(
             object.id,
             object.revision,
             "root".into(),
@@ -160,7 +301,7 @@ fn hydration_uses_current_local_path_when_the_old_name_has_been_reused() {
     let mut j = open(&tmp.path().join("journal"), 1024);
     let remote = node("cloud-id", "Before.txt", 3);
     let object = j.observe_namespace_file(scope(), remote.clone()).unwrap();
-    j.relocate_namespace_file(
+    j.relocate_namespace_item(
         object.id,
         object.revision,
         "root".into(),
@@ -219,7 +360,7 @@ fn truncated_online_only_object_keeps_its_original_remote_version_without_hydrat
     let remote = node("cloud-id", "Huge.bin", 500 * 1024 * 1024 * 1024);
     let object = j.observe_namespace_file(scope(), remote.clone()).unwrap();
     let rename = j
-        .relocate_namespace_file(object.id, object.revision, "other".into(), "New.bin".into())
+        .relocate_namespace_item(object.id, object.revision, "other".into(), "New.bin".into())
         .unwrap();
     let working = j.create_truncated_working(scope(), remote.clone()).unwrap();
     assert_eq!(working.initial_remote, Some(remote));
@@ -244,7 +385,7 @@ fn failed_metadata_transaction_does_not_change_path_or_consume_predecessor() {
     let db = rusqlite::Connection::open(path.join("uploads.db")).unwrap();
     db.execute_batch("CREATE TRIGGER fail_namespace BEFORE INSERT ON namespace_entries BEGIN SELECT RAISE(ABORT,'fixture'); END;").unwrap();
     assert!(
-        j.relocate_namespace_file(
+        j.relocate_namespace_item(
             original.id,
             original.revision,
             "root".into(),
@@ -256,7 +397,7 @@ fn failed_metadata_transaction_does_not_change_path_or_consume_predecessor() {
     assert!(j.list_mutations(0, 10).unwrap().is_empty());
     db.execute_batch("DROP TRIGGER fail_namespace;").unwrap();
     let first = j
-        .relocate_namespace_file(
+        .relocate_namespace_item(
             original.id,
             original.revision,
             "root".into(),
@@ -266,17 +407,17 @@ fn failed_metadata_transaction_does_not_change_path_or_consume_predecessor() {
     let next = j.namespace_object(original.id).unwrap();
     db.execute_batch("CREATE TRIGGER fail_namespace BEFORE INSERT ON namespace_entries BEGIN SELECT RAISE(ABORT,'fixture'); END;").unwrap();
     assert!(
-        j.relocate_namespace_file(next.id, next.revision, "other".into(), "Last.txt".into())
+        j.relocate_namespace_item(next.id, next.revision, "other".into(), "Last.txt".into())
             .is_err()
     );
     assert_eq!(j.namespace_object(next.id).unwrap().latest, Some(first.id));
     db.execute_batch("DROP TRIGGER fail_namespace;").unwrap();
     assert!(
-        j.relocate_namespace_file(next.id, next.revision, "other".into(), "Last.txt".into())
+        j.relocate_namespace_item(next.id, next.revision, "other".into(), "Last.txt".into())
             .is_ok()
     );
     assert!(matches!(
-        j.relocate_namespace_file(
+        j.relocate_namespace_item(
             next.id,
             next.revision,
             "elsewhere".into(),
@@ -295,12 +436,12 @@ fn local_destination_collisions_preserve_objects_and_remote_collisions_are_expli
     let first = j.observe_namespace_file(scope(), remote.clone()).unwrap();
     let second = j.observe_namespace_file(scope(), other.clone()).unwrap();
     assert!(matches!(
-        j.relocate_namespace_file(first.id, first.revision, "root".into(), "SECOND.txt".into()),
+        j.relocate_namespace_item(first.id, first.revision, "root".into(), "SECOND.txt".into()),
         Err(JournalError::Stale)
     ));
     assert_eq!(j.namespace_object(second.id).unwrap().node, other);
     let change = j
-        .relocate_namespace_file(
+        .relocate_namespace_item(
             first.id,
             first.revision,
             "other".into(),

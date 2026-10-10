@@ -1,0 +1,106 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/settledfocus-c998fd86-119f-4c87-88ac-f8db6517deb6",
+  "TMPDIR": "/home/dandiccf/Storage/ct/settledfocus-c998fd86-119f-4c87-88ac-f8db6517deb6",
+  "active": false,
+  "active_measurement": false,
+  "arms": [
+    "one read-only existing disposable diagnostic tree"
+  ],
+  "author_factual_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/a11-disposable-settlement-diagnostic-private-v1/focused-existing-tree-private-v1/actual-focused-disposable-read-terminal-v3.json",
+    "sha256": "816f763f70fbc5d5e750677b6aab79398db56524775c912cba8de1a49d334f83",
+    "size": 3396
+  },
+  "cleanup_reserve": 45,
+  "command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/a11-disposable-settlement-diagnostic-private-v1/focused-existing-tree-private-v1/observe_existing_disposable_once_v3.py"
+  ],
+  "copied_persistence": {
+    "clean_working_records": 11,
+    "journal_schemas": [
+      14,
+      14,
+      14
+    ],
+    "metadata_schemas": [
+      7,
+      7,
+      7,
+      7
+    ],
+    "ordinal2_pending_mutations": 7,
+    "ordinal2_queue_incomplete": 9,
+    "ordinal2_queue_total": 64,
+    "quick_checks_passed": 7
+  },
+  "corrections": [
+    {
+      "detail": "The corrected filename adapter and nine-field stability stamp enabled the first actual SQL observation in this focused sequence. All three copied journals were schema14, all four copied metadata databases schema7, and all seven quick_checks passed. The strict retained reader accepted journals at ordinals1/3 and refused ordinal2 as unresolved-or-incoherent-row; independent reduced counts showed seven pending mutations and nine incomplete queue entries of64. All11 working bodies were clean dictionaries with matching account scope. These are disposable-copy observations, not current remote state, exact first-operation diagnosis, replay/delivery, original settlement, full488 or installation proof.",
+      "independent_audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/a11-disposable-settlement-diagnostic-private-v1/focused-existing-tree-private-v1/audit-independent-focused-disposable-terminal-v1.json",
+        "sha256": "4f801422d89387ed8bf0f44f127a8f61bcc66f30411280de095bf1efaa22c2a4",
+        "size": 7598
+      },
+      "original_success_retained": true,
+      "prior_status": "closed_focused_disposable_read_only",
+      "scope": "independent_source_receipt_classification_c998_v1"
+    }
+  ],
+  "delivery_credit": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/a11-disposable-settlement-diagnostic-private-v1/focused-existing-tree-private-v1/observe_existing_disposable_once_v3.py",
+    "sha256": "521a60c6618c536baa8e9160515562eb48032a00d4338c75740a4a1813cb1f92",
+    "size": 11951
+  },
+  "endpoint": "first sanitized admission refusal and per-account schema, integrity, terminal state, working shape and unfinished publication counts",
+  "first_admission": {
+    "category": "unresolved-or-incoherent-row",
+    "exception_type": "Refusal",
+    "static_local_frame": {
+      "line": 27,
+      "source": "retained_admission"
+    }
+  },
+  "gate488_closed": false,
+  "independent_focused_classification_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/registered-lazy-operation-lease-successor-private-v1/a11-disposable-settlement-diagnostic-private-v1/focused-existing-tree-private-v1/audit-independent-focused-disposable-terminal-v1.json",
+    "sha256": "4f801422d89387ed8bf0f44f127a8f61bcc66f30411280de095bf1efaa22c2a4",
+    "size": 7598
+  },
+  "limitations": [
+    "No original or backup before/after inventory comparison was executed in this focused read or this audit. Historical preservation audit remains separate.",
+    "Reduced copied counts do not identify the exact first bad operation/body, prove current remote state, or demonstrate replay/delivery.",
+    "No full488 closure, settlement, installation, or HOLD-lift credit.",
+    "Current wholecheck remains the sole compiler lane; this audit only reads small frozen sources and receipts."
+  ],
+  "no_original_or_backup_read": true,
+  "no_provider_or_service": true,
+  "no_recopy": true,
+  "original_failed_run": "5846231b-419f-4c5b-a6bd-b98015c61063",
+  "original_failed_whole_preserved": true,
+  "predecessor_focused_run": "6aee7b15-ce42-4982-bf3c-c62f1c8fefa3",
+  "predecessor_preSQL_failed_preserved": true,
+  "predecessor_preSQL_run": "83eec519-9ec0-4c93-ba32-edc20c14d9fd",
+  "predecessor_type_error_preserved": true,
+  "prediction": "The existing nine-field stability stamp excludes read-updated atime while preserving dev/inode/mode/uid/gid/nlink/size/mtime/ctime. Corrected filename adapter may expose actual strict settlement category; no installation or whole-preparation acceptance inferred.",
+  "python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "question": "Which exact retained admission category and typed journal counts prevent a11 settlement?",
+  "run": "c998fd86-119f-4c87-88ac-f8db6517deb6",
+  "seconds": 120,
+  "settlement_credit": false,
+  "source_reader": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/admission-v5-ordinary-resolved.py.proposed",
+    "sha256": "4fae06fcd46c7962566be17ddb9823c650f3d7115b846388008576db8d5b748c",
+    "size": 20736
+  },
+  "status": "closed_focused_disposable_counts_observed",
+  "success": true,
+  "terminal": "/home/dandiccf/Storage/ct/settledfocus-c998fd86-119f-4c87-88ac-f8db6517deb6/terminal-v1.json",
+  "version": 1
+}

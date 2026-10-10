@@ -1,0 +1,58 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/na337c7v3",
+  "TMPDIR": "/home/dandiccf/Storage/ct/na337c7v3",
+  "active": false,
+  "active_measurement": false,
+  "cloud_mutations": 0,
+  "endpoint": "Actual20 local AST/source controls with corrected fixture API arity and OS flag; all original handles closed. Two earlier actual RED/GREEN controls retained separately.",
+  "failed_predecessor": {
+    "all20_log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-local-controls-v2/all20-V7-corrected-GREEN-stderr.log",
+      "sha256": "a5428d322ea91d6eb053d660269b8b8ea4fae6b662c0155c81552290d26a184a",
+      "size": 6835
+    },
+    "classification": "Three missing fixture getpid errors; original source sensitivity RED/GREENs remain in predecessorV1",
+    "closure": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-local-controls-v2/owned-command-closure-v1.json",
+      "sha256": "d5523200fe6d00c9c90bac7317e1d632e53f5a617e7bc4d2047ebe2f802b76b4",
+      "size": 480
+    },
+    "final_suite_passed": false,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-local-controls-v2/terminal-v1.json",
+      "sha256": "9679683ac9e16146457e5994ec9b231d7e4807ae49ff2e4e103e10a7b24fb1f7",
+      "size": 2051
+    }
+  },
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "prediction": "The preserved main/footer defect and one omitted post-publication fence each fail their exact control; corrected V7 passes both and all20 authored controls. No FUSE or provider actions occur.",
+  "provider_actions": false,
+  "question": "Do actual atomic Numbers controller/worker source guards preserve successful main/footer exit and refuse sync publication beyond the original deadline?",
+  "real_atomic_run": false,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-local-controls-v3/registration-v1.json",
+    "sha256": "34f2a0b0c58cb6f625c6e2d95a3382640179de5fba802c6410c36098ab886d15",
+    "size": 79260
+  },
+  "status": "closed_local_controls_success",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-local-controls-v3/terminal-v1.json",
+    "size": 2126,
+    "sha256": "ac1d410c63735e02fe601075d9eabad46470913a6708769bf8056ea6817be8e0"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-local-controls-v3/owned-command-closure-v1.json",
+    "size": 472,
+    "sha256": "29c7c1aa9cd6f745df3bfccbfdf44da11a10546c3b4b9e81af920b91cb37cd58"
+  },
+  "independent_local_controls_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/audit-independent-local-controls-v1.json",
+    "size": 11784,
+    "sha256": "41314a00298bedbe1bb0a0a3396d2d4aedd2bd74befa1400fb3ee15c29a41592"
+  },
+  "independent_passed_checks": 9,
+  "assessment": "Original control arms retained meaningful main/footer and publication RED/GREEN. Initial full suites encountered mock arity/missing getpid errors; corrected final suite actually ran all20 successfully. No provider actions."
+}

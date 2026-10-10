@@ -1,0 +1,110 @@
+{
+  "question": "Can sealed and latest dirty bytes be exported from a genuinely full private ext4 device?",
+  "prediction": "Both exact local versions export without changing queues; both source boundaries independently report ENOSPC.",
+  "source_commit": "6f37eff",
+  "uncommitted_fixture_patch_sha256": "fa361ebe0fb3c708a649e40db7140bd3877f870af083f5c63bddf434dd343af5",
+  "arms": [
+    {
+      "arm": 1,
+      "phase": "failed",
+      "failure": "SSH unavailable; no guest disk formatted",
+      "test_executed": false,
+      "base_metadata_unchanged": true,
+      "evidence": "/var/tmp/cirrove-enospc-20261001-arm1"
+    },
+    {
+      "arm": 2,
+      "phase": "passed",
+      "binary_sha256": "b403e312ce34e798b04160cffe7bdc247c02c4c3b475bc298451f123b71dbb27",
+      "runner_sha256": "047d646423c04695f0a18e1ce7b23867e07c2590bf4757650c7c15c147bd47c0",
+      "qemu_pid": 630047,
+      "qemu_exit_code": 0,
+      "base_metadata_unchanged": true,
+      "host_filesystem": "btrfs",
+      "network": "SLIRP restrict=on, ipv6=off; only loopback SSH forward",
+      "evidence": "/var/tmp/cirrove-enospc-20261001-arm2",
+      "guest": {
+        "phase": "passed",
+        "binary_sha256": "b403e312ce34e798b04160cffe7bdc247c02c4c3b475bc298451f123b71dbb27",
+        "command": [
+          "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/working_files-test",
+          "a_genuinely_full_filesystem_explains_what_to_free",
+          "--exact",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "test_timeout_seconds": 120,
+        "disk_serial": "cvfull-3b419eff0e24",
+        "disk_bytes": 67108864,
+        "runner_pid": 882,
+        "guest_root_filesystem": "ext4",
+        "fixture": {
+          "disk_serial": "cvfull-3b419eff0e24",
+          "disk_bytes": 67108864,
+          "device": "/dev/vdb",
+          "fixture": "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/full-device/fixture"
+        },
+        "source_device": 65040,
+        "export_device": 65026,
+        "source_filesystem": "ext4",
+        "environment": {
+          "TMPDIR": "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/tmp",
+          "SQLITE_TMPDIR": "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/tmp",
+          "CIRROVE_FULL_DISK_DIR": "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/full-device/fixture",
+          "CIRROVE_FULL_DISK_EXPORT_DIR": "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/exports"
+        },
+        "started_at": "2026-10-01T06:16:08.447327+00:00",
+        "test_pid": 908,
+        "exit_code": 0,
+        "ended_at": "2026-10-01T06:16:08.611479+00:00"
+      },
+      "result": {
+        "ballast_bytes": 55092224,
+        "first_message": "the disk holding Cirrove's local state is full; unsent changes are kept, but nothing can be saved until space is freed on that filesystem",
+        "first_variant": "DeviceFull",
+        "payload_survived": true,
+        "probe_errno": 28,
+        "readable_while_full": true,
+        "recovery_exports": {
+          "independent_working_model_verified": true,
+          "journal_unchanged": true,
+          "performed_before_freeing_ballast": true,
+          "sealed": {
+            "destination": "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/exports/full-disk-recovery-8b09f52d-6f2c-4df6-b7a4-036fc8bae858/sealed-copy",
+            "operation": "0bcec974-7658-4df9-9684-cacb67ef0c38",
+            "sha256": "9d463bde2a7e62f4cec6f00fd5e1b2511e92b5999abe43bdfba68f355f560099",
+            "size": 8
+          },
+          "sealed_boundary_errno": 28,
+          "working": {
+            "destination": "/var/tmp/cirrove-enospc-3b419eff0e244f8fb4f4d9a5993ec196/exports/full-disk-recovery-8b09f52d-6f2c-4df6-b7a4-036fc8bae858/working-copy",
+            "sha256": "95c16fe06d7c77c51f195d08836a49b1e9b72ae7ce2e629c23b3e3a05d8f1637",
+            "source": {
+              "file": "4f7e57d0-795b-4af8-b61b-e34af83b4916",
+              "generation": 2,
+              "name": "Kärnten & Grüße.txt",
+              "recorded_size": 8,
+              "size": 8,
+              "unlinked": false
+            }
+          },
+          "working_boundary_errno": 28
+        },
+        "recovery_exports_requested": true,
+        "steps": [
+          {
+            "message": "the disk holding Cirrove's local state is full; unsent changes are kept, but nothing can be saved until space is freed on that filesystem",
+            "step": "write_working",
+            "variant": "DeviceFull"
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "One correctness arm; no performance comparison",
+    "First failing write_working path; not every partial truncate or seal failure",
+    "Recovery core on isolated ext4; not installed GUI or live provider quota"
+  ]
+}

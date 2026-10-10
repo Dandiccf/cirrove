@@ -1,0 +1,158 @@
+{
+  "active": false,
+  "active_execution_seconds": 555,
+  "active_measurement": false,
+  "actual_A_recovery_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/numbers-race/normal-reconciliation-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb/independent-corrected-observation-v1.json",
+    "sha256": "6cb75a450e29fd026b45005851cc4511c7b0b960d1fcd64e242e9ee4868241c2",
+    "size": 28230
+  },
+  "arms": [
+    "Admission only: actual closed normal A recovery, Uploaded/publication exact identity and semantic, then independent typed A fixture verification; no parent creation or A import",
+    "One previously unused B replacement, paused once after final native install preflight; one previously unused public competitor C import; exact marker released once",
+    "After both writers close, same-operation read-only three-identity preservation inspection; one recovery-only public export of the retained original B"
+  ],
+  "automatic_retry": false,
+  "cleanup_reserve_seconds": 45,
+  "clock": {
+    "started_unix_seconds": 1791625057,
+    "deadline_unix_seconds": 1791625657,
+    "started_monotonic": 649685.071870652,
+    "deadline_monotonic": 650285.071870652,
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+  },
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": [],
+    "native-final-probe": [
+      "icloud-write-probe"
+    ]
+  },
+  "confirmed_A_identity": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-private-import-inspect-helper-20261010-v2/runtime-evidence/confirmed-identity.json",
+    "sha256": "4f2d56790caefbf594b53ea7adc44b1f65f08e54e28bfdad74f89f93398138c6",
+    "size": 629
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/owner.py",
+    "sha256": "7b1703c04f79258a3f237a7c542ea950b44f747284428c073a8205f8baa5982c",
+    "size": 10344
+  },
+  "endpoint": "PASS requires retained Conflict or VerifyRequired for the original B operation, independently bound ATrash/BStage/CCanonical semantic proofs, unchanged retained B payload/checkpoint/staging witnesses, exact public B export, journal/settings preservation across recovery-only export, and original children/mount/socket closure. An unclear result stops without automatic mutation repeat.",
+  "full_gate490_closed": false,
+  "installed_actions": false,
+  "maximum_pause_seconds": 120,
+  "maximum_seconds": 600,
+  "measurement_open": false,
+  "mutation_replay_allowed": false,
+  "natural_expiry_proved": false,
+  "original_A_reimported": false,
+  "original_competitor_run": "2ad23b7a-1f4f-4be0-a49b-e907bf14b601",
+  "original_failed_arm_remains_failed": true,
+  "original_folder_recreated": false,
+  "original_subject_run": "30828cf7-f274-442f-b7fa-f974dedef257",
+  "original_window_extended": false,
+  "outer_termination_grace_seconds": 20,
+  "prediction": "The competitor can make final installation refuse or remain uncertain; exact original/staged/competitor identities and the original saved B must survive, with one recovery-only export returning the exact B bytes. This supports only this controlled case, not general provider reliability.",
+  "privacy": "No raw provider bodies, authentication material, cursor/signed URLs or raw stderr are retained. Only scoped typed identity and semantic receipts are used.",
+  "private_inputs": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/inputs-final.json",
+    "size": 7472,
+    "sha256": "4f5d9e290704ce6e3673c3168e462e8771672cf2756055cba2cad6d91465d392"
+  },
+  "question": "After the original owned Numbers A import is independently verified and acknowledged through normal public recovery, does one previously unused B replacement with one canonical competitor retain the exact A/B/C identities and export the retained failed B without replay?",
+  "ready": true,
+  "result": {
+    "version": 1,
+    "success": false,
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "owner.py",
+          "function": "main",
+          "line": 101
+        },
+        {
+          "file": "execute-suffix.py",
+          "function": "<module>",
+          "line": 12
+        },
+        {
+          "file": "controller_current_install_preflight_v3.py",
+          "function": "competitor_import",
+          "line": 138
+        },
+        {
+          "file": "controller_current_install_preflight_v3.py",
+          "function": "need",
+          "line": 14
+        }
+      ],
+      "stage": "B-and-one-competitor"
+    },
+    "closure_verified": true,
+    "original_window_extended": false,
+    "original_folder_recreated": false,
+    "original_A_reimported": false,
+    "provider_mutation_retried": false,
+    "full_gate490_closed": false
+  },
+  "reviewed": true,
+  "run": "68809df4-1ec2-4797-9aef-39f39f5356d2",
+  "source_count": 582,
+  "state": "continuation_failed_or_closure_unresolved",
+  "suffix_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/execute-suffix.py",
+    "sha256": "7d7368797a3f1fb2c18615ebe76d849bf1d28fea126c568353721f4de3808d64",
+    "size": 2685
+  },
+  "version": 1,
+  "outer_closed": {
+    "pid": 773925,
+    "birth": "64968507",
+    "exit_code": 1,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "signals": [],
+    "safe_stdout": null,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "elapsed_seconds": 171.96982253191527
+  },
+  "independent_closed_preservation_audit": {
+    "path": ".local-state/icloud-numbers-continuation-20261010-private-v1/independent-closed-audit-empty-wal-amendment-v1.json",
+    "sha256": "9fddf5cd2cdc49aae748ef0b54e792c45dae0c4a88eb516aa97395baa61990d6",
+    "passed": true,
+    "detail_sha256": "2cf37e5a9b83a03f9e797dc8a10f6562c6217aeafa9f1327b5c71667f1052344",
+    "original_v1_absent_WAL_assumption_corrected": true
+  },
+  "actual_boundary": {
+    "replacement_paused_after_final_preflight": true,
+    "replacement_operation": "d6b28546-6db0-466d-8147-e0536846671f",
+    "replacement_state": "verify_required",
+    "retained_B_size": 139044,
+    "retained_B_sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+    "retained_checkpoint_size": 2860,
+    "retained_checkpoint_sha256": "49b2006766089206c1fc1f4ff7547f93e9762f6642460680d94555d8f4294de5",
+    "competitor_public_import_attempted_once": true,
+    "competitor_upload_rows": 0,
+    "competitor_queue_rows": 0,
+    "competitor_checkpoint_directory_absent": true,
+    "capture_executed": false,
+    "release_executed": false,
+    "three_identity_preservation_executed": false,
+    "retained_B_export_executed": false
+  },
+  "local_admission_diagnosis": {
+    "competitor_directory_primed_before_original_moved": true,
+    "cached_original_remained_in_completed_child_snapshot": true,
+    "root_and_parent_node_refresh_did_not_refresh_children": true,
+    "native_import_destination_occupied_guard_preceded_capture_and_enqueue": true,
+    "not_a_registration_confirmation_failure": true,
+    "production_fix_under_validation": true,
+    "no_mutation_replay": true,
+    "exact_original_enqueue_error_not_retained": true,
+    "concrete_stale_destination_refusal_identified_from_source_and_cached_state": true,
+    "unique_live_failure_cause_not_proven": true
+  }
+}

@@ -1,7 +1,12 @@
 //! Mutable application bytes and their atomically linked immutable saves.
 //! All calls use the journal owner's blocking-worker lock. No network work here.
 use super::*;
+pub(super) mod native;
 use cirrove_core::mutation::{MutationIntent, MutationRequest};
+pub use native::atomic::{CapturedNativeTemporary, NativeTemporaryCapture};
+pub use native::{
+    CapturedNativeWorking, NativeWorkingCapture, NativeWorkingHydration, ValidatedNativeWorking,
+};
 use std::os::unix::fs::FileExt;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -20,6 +25,9 @@ pub struct WorkingFile {
     /// The pathname is gone; descriptor writes remain local recovery data.
     #[serde(default)]
     pub unlinked: bool,
+    /// Native archive bytes require typed sealing; never upload as FileBytes.
+    #[serde(default)]
+    pub(crate) native: bool,
 }
 impl WorkingFile {
     fn mutation_source(&self) -> Node {
@@ -43,7 +51,7 @@ pub struct WorkingSource {
     size: u64,
     written: u64,
     // Reserved bytes keep journal ownership alive across asynchronous I/O.
-    _owner: File,
+    _owner: Arc<JournalOwner>,
 }
 impl WorkingSource {
     pub(super) fn complete_descriptor(&self, directory: &Path) -> Result<File> {
@@ -90,9 +98,12 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     Ok(())
 }
 
-fn slot(db: &Connection, record: &WorkingFile) -> Result<Option<String>> {
+pub(super) fn slot(db: &Connection, record: &WorkingFile) -> Result<Option<String>> {
     if record.unlinked {
         return Ok(None);
+    }
+    if record.native {
+        return Ok(Some(format!("native-working-{}", record.id)));
     }
     super::namespace::entry_slot(
         db,
@@ -135,7 +146,7 @@ impl UploadJournal {
             temporary,
             size,
             written: 0,
-            _owner: self._owner.try_clone()?,
+            _owner: self._owner.clone(),
         })
     }
     pub fn working_files(&self) -> Result<Vec<WorkingFile>> {
@@ -339,6 +350,7 @@ impl UploadJournal {
             generation: 0,
             initial_remote,
             unlinked: false,
+            native: false,
         };
         if !new {
             record.unlinked = self
@@ -443,6 +455,9 @@ impl UploadJournal {
 
     pub fn seal_working(&mut self, id: Uuid) -> Result<Option<UploadRecord>> {
         let record = self.working_file(id)?;
+        if record.native {
+            return Err(JournalError::Intent);
+        }
         let mut bytes = self.working_descriptor(id, true)?;
         bytes.sync_all()?;
         #[cfg(feature = "test-support")]
@@ -490,7 +505,7 @@ impl UploadJournal {
         .validate()
         .map_err(|_| JournalError::Intent)?;
         let current = self.working_file(id)?;
-        if current.unlinked || current.node.id == parent {
+        if current.native || current.unlinked || current.node.id == parent {
             return Err(JournalError::Intent);
         }
         if current.dirty {

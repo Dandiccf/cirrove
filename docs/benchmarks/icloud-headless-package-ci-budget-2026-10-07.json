@@ -1,0 +1,103 @@
+{
+  "active_measurement": false,
+  "arms": [
+    {
+      "attempts": [
+        1,
+        2
+      ],
+      "endpoint": "Retained cancelled CI results and exact timeout diagnosis.",
+      "name": "historical-20-minute-budget",
+      "run_id": 37663479034
+    },
+    {
+      "endpoint": "All existing core-only, desktop recommended integration and removal assertions complete successfully in the same job; every CI job must pass before a seven-job green claim.",
+      "head": null,
+      "name": "corrected-40-minute-budget",
+      "run_id": null
+    }
+  ],
+  "decision": "Use 40 minutes, preserving every existing assertion and Recommends. The private diagnosis suggested a possible 60-minute budget; this preregistration records Root\u2019s narrower chosen 40-minute correction before any new CI result.",
+  "historical_head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "independent_diagnosis": {
+    "path": ".local-state/ci-37663479034-attempt2-readonly-audit-private-v1/audit-attempt2-and-keynote672-v1.json",
+    "sha256": "abb8b46060a0c456c40e63f592657c06328f809f1444da5fcefba7f57abd8339",
+    "size": 7542
+  },
+  "limits": [
+    "The retained failure is the configured timeout during apt download, not evidence of a Cirrove runtime failure.",
+    "The larger budget has not been validated yet; no green CI or installed delivery is claimed.",
+    "No iCloud provider, daemon, compiler, installation or browser action accompanies this correction.",
+    "Criteria 487\u2013490 and installed release HOLD are unchanged."
+  ],
+  "prediction": "Doubling the budget to 40 minutes will allow the existing recommended dependency download and subsequent integration and removal assertions to complete. A future controlled CI run must establish this; neither cancelled attempt is a passing run.",
+  "question": "Does a 40-minute budget let the unchanged headless package installation and recommended desktop integration checks complete, after the same job twice hit its 20-minute budget?",
+  "retained_attempts": [
+    {
+      "attempt": 1,
+      "completed_at": "2026-10-07T18:35:07Z",
+      "conclusion": "cancelled",
+      "head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+      "headless_job": 112943090255,
+      "metadata": {
+        "path": ".local-state/ci-37663479034-attempt2-readonly-audit-private-v1/attempt1-metadata-retained.json",
+        "sha256": "ef8df1efc2d475e74816e51b05337608da162982a8642d89d8ae2984375b074d",
+        "size": 24534
+      },
+      "run_id": 37663479034,
+      "seven_jobs_green": false,
+      "started_at": "2026-10-07T18:15:04Z",
+      "status": "completed",
+      "successful_jobs": 6
+    },
+    {
+      "apt_error_lines": 0,
+      "attempt": 2,
+      "completed_at": "2026-10-07T19:16:54Z",
+      "conclusion": "cancelled",
+      "configured_timeout_minutes": 20,
+      "core_install_and_help_version_checks": "passed",
+      "desktop_archive_summary_mb": [
+        417,
+        423
+      ],
+      "desktop_install": "cancelled while recommended dependencies were still downloading",
+      "desktop_integration_and_removal": "not reached",
+      "desktop_new_packages": 848,
+      "exact_annotation": "The job has exceeded the maximum execution time of 20m0s",
+      "head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+      "headless_job": 112961437823,
+      "last_download_at": "2026-10-07T19:16:32.3846984Z",
+      "last_download_index": 501,
+      "metadata": {
+        "path": ".local-state/ci-37663479034-attempt2-readonly-audit-private-v1/job-metadata.json",
+        "sha256": "c7981a7b8365f1195308a430e1f30c1eed2ee259d07ab158fddae494c5b511c9",
+        "size": 24534
+      },
+      "panic_marker_present": false,
+      "run_id": 37663479034,
+      "seven_jobs_green": false,
+      "started_at": "2026-10-07T18:56:50Z",
+      "status": "completed",
+      "successful_jobs": 6
+    }
+  ],
+  "scope": {
+    "checks_changed": false,
+    "desktop_recommends_changed": false,
+    "installed_changes": false,
+    "job": "headless-package-install",
+    "new_timeout_minutes": 40,
+    "previous_timeout_minutes": 20,
+    "source_runtime_changed": false,
+    "workflow": ".github/workflows/ci.yml",
+    "workflow_dispatched_by_this_correction": false
+  },
+  "status": "preregistered-budget-correction-not-run",
+  "version": 1,
+  "workflow_after": {
+    "path": ".github/workflows/ci.yml",
+    "sha256": "ef55c03f3da319349eec4da33e41a330b1e26dd848d8b44a9d8ff09405ed6e26",
+    "size": 39287
+  }
+}

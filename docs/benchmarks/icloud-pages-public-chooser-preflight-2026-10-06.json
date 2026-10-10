@@ -1,0 +1,71 @@
+{
+  "arms": [
+    {
+      "endpoint": "actual isolated NON_UNIQUE Desktop; Import\u2192real FileDialog selection\u2192confirmation\u2192Cancel; at least status/capabilities/recent reads and exactly zero import/mutation RPCs",
+      "name": "real-public-chooser-confirmation-cancel"
+    }
+  ],
+  "execution_policy": {
+    "SQLITE_TMPDIR_filesystem": "ext4",
+    "TMPDIR_filesystem": "ext4",
+    "active_seconds": 100,
+    "cleanup_reserve_seconds": 20,
+    "harness_seconds": 120,
+    "no_parallel_compile_or_measurement": true,
+    "one_shot_no_automatic_retry": true,
+    "original_handle_pidfd_only": true,
+    "outer_absolute_expected_ceiling_seconds": 150,
+    "outer_cleanup_observation_seconds": 20,
+    "outer_observation_seconds": 120
+  },
+  "inputs": {
+    "build_binding_sha256": "67fe92b2b23f2f99b7007c2a05676b08f36ccf413cfa2f738c18eb6da3d3a5bc",
+    "harness_sha256": "8165722696d531afeaee2d18ac58e99bd21b7db3665b438c2327fba033859584",
+    "production_desktop_sha256": "36237b4e269507c04224156db0cd28d5c87f8c599545c16f9bef26de9577f0ee",
+    "source_archive_sha256": "96e2dcc2446452229377a55052c107e02b52ee098e48b6bb4cdc826f0289bc6e",
+    "source_count": 477
+  },
+  "limits": [
+    "A successful chooser/Cancel proves local public UI routing only; it does not prove actual Pages import, provider completion, original warm mount publication, semantic cloud readback or Apple Pages open.",
+    "Timeout or missing original child reap remains failure; disappearance alone is not historical handle closure."
+  ],
+  "outcome": {
+    "all_477_sources_unchanged_during_original_ui_arm": true,
+    "automatic_retry": false,
+    "core_confirmed_stack": "GLib fatal log -> libatspi _atspi_bus -> GI reference accessible",
+    "core_signal": "SIGABRT",
+    "desktop_now_proc_absent": true,
+    "desktop_original_handle_reap_proven": false,
+    "fatal_log": "AT-SPI bus socket connection refused",
+    "first_gui_action_completed": false,
+    "gate485_complete": false,
+    "harness_exit_code": -6,
+    "harness_finally_ran": false,
+    "harness_now_proc_absent": true,
+    "own_stale_socket_retained": true,
+    "recorded_import_requests": 0,
+    "recorded_rpc_counts": {},
+    "root_exact_desktop_pidfd_terminal_observed": true,
+    "success": false
+  },
+  "outcome_evidence": {
+    "coredump_info_sha256": "6ca0ed01a0c272b3ff19bcf49dbe1c2267a9e79f82dc81f203e75ecd0f1e52a7",
+    "crash_and_terminal_audit_sha256": "5d3d250b882af1f6f161cc22d069be7e1a2a25cc0c2e5f26aebea01bb97e1107",
+    "outer_result_sha256": "a330936f34d6e5d4fbe6c4626fe133d4e440c39efac4aa1bfe1ece9aac011be5"
+  },
+  "prediction": "Synthetic ready iCloud account/capability replies enable the real public import UI. Process-bound AT-SPI should select the exact retained source and Cancel. An inaccessible or unbound portal/chooser refuses, and no global input or import fallback is allowed.",
+  "question": "Can the current unmodified production Desktop expose its real public Pages import control, select the owned archive through its actual GTK chooser, reach confirmation and Cancel without dispatching an import or touching installed/cloud state?",
+  "registered_at": "2026-10-05T23:22:15.431229+00:00",
+  "registered_date": "2026-10-06",
+  "run": "717d161b-5f29-4d96-85fb-39795cd076d5",
+  "scope": {
+    "actual_mount": false,
+    "cloud_requests": false,
+    "gate485_closed": false,
+    "installed_actions": false,
+    "synthetic_backend_only": true
+  },
+  "source_head": "abc6d73b272981aaf98902b7cb69f5531d8985c4",
+  "status": "harness-aborted-before-first-public-ui-action",
+  "version": 1
+}

@@ -1,0 +1,143 @@
+{
+  "actual_outcome": {
+    "acceptance": "At completion of this arm, Desktop endpoints were verified and row485 still needed one complete fresh CLI arm. Native editing and full-release acceptance were not established.",
+    "actual_public_job_completed": true,
+    "actual_public_submit_completed": true,
+    "apple_pages_open_record": "icloud-pages-desktop-apple-open-2026-10-06.json",
+    "automatic_cloud_retry": false,
+    "closure": {
+      "controller_reaped_and_absent": true,
+      "installed_daemon_unchanged": true,
+      "mounts_remaining": 0,
+      "original_children_reaped_and_absent": 8,
+      "private_sockets_remaining": 0,
+      "utility_children_reaped_and_absent": 27
+    },
+    "controller_proof_reader_refusal": "Exact0400 reader rejected actual0600 producer files; separate offline control and stopped audit verified the unchanged evidence. Original exit1 result remains unchanged.",
+    "independent_observer_exit_code": 0,
+    "journal_audit_caveat": "Read-only audit preserved DB/WAL/SHM bytes; SHM timestamps changed. Full journal stat equality is not claimed.",
+    "offline_mode_control": {
+      "duration_seconds": 0.006996351003181189,
+      "exit_code": 0,
+      "files_tested": 2,
+      "origin_files_bytes_and_protected_stamps_unchanged": true,
+      "original_reader400_refused": true,
+      "provider_calls": false,
+      "result_sha256": "7f71266ff3933d3557f65114da754b81be080a5c6edfe54e317c96b274111192",
+      "same_source_reader600_accepted": true
+    },
+    "original_tool_session": 68309,
+    "original_warm_mount_archive_captured": true,
+    "producer_proofs_exist": true,
+    "root_result": {
+      "automatic_retry": false,
+      "duration_seconds": 105.59593543596566,
+      "errors": [],
+      "exit_code": 1,
+      "full_integration_accepted": false,
+      "installed_actions": false,
+      "original_controller_reaped": true,
+      "run": "37881b60-0a66-400c-ae0a-1711becef9b2",
+      "signals": [],
+      "success": false
+    },
+    "terminal_audit": {
+      "bound_proof_checks_passed": 20,
+      "installed_files_unchanged": 19,
+      "mode": "0400",
+      "private_path": "pages-desktop-assets-preparation-private-c334-v1/audit-admission-378-terminal-import-proof-v1.json",
+      "sha256": "5cc86019ce1751e3d5901d26d035b350a8840f2d67627ad3e894e43c2470f316",
+      "size": 49858,
+      "source_pins_unchanged": 537
+    },
+    "verified_import": {
+      "etag": "i1q9::i1q8",
+      "independent_archive_bytes": 55695,
+      "item": "FILE::com.apple.CloudDocs::95D0FAD1-AE4F-4131-87B2-F01C5291EFF8",
+      "operation": "0225457e-d6d2-4afa-b8a8-e26ea027082a",
+      "original_mount_archive_bytes": 55695,
+      "parent": "FOLDER::com.apple.CloudDocs::843C5D03-4F89-4A84-A1C3-E7447D814D7F",
+      "raw_archive_bytes_equal": false,
+      "semantic_v2_matches_source": true,
+      "typed_receipt_and_publication_verified_separately": true
+    }
+  },
+  "arms": [
+    {
+      "folder_creation_limit": 1,
+      "name": "fresh-owned-public-desktop-pages-import",
+      "public_import_submission_limit": 1,
+      "source_archive_bytes": 55715,
+      "source_archive_sha256": "96e2dcc2446452229377a55052c107e02b52ee098e48b6bb4cdc826f0289bc6e",
+      "source_semantic": {
+        "entries": 10,
+        "expanded_bytes": 98835,
+        "files": 7,
+        "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
+        "version": 2
+      }
+    }
+  ],
+  "authorization": "Standing user authorization for iCloud writes and tests; this arm remains limited to one fresh owned folder and one public Desktop import.",
+  "automatic_retry": false,
+  "checkout_head_before_preregistration": "891f03b8082b12a4bd5d2efda5b1ea2df7e2f40c",
+  "cleanup_reserve_seconds": 45,
+  "cloud_allowed": true,
+  "endpoint": "Actual public UI admission and successful job bound to the exact journal operation; canonical archive captured on the original warm mount; stopped journal receipt authority and independent iCloud version-2 semantic read; complete closure of original child handles, mount and private sockets.",
+  "installed_actions": false,
+  "limits": [
+    "No reopening or replaying earlier writer state, journals or uncertain mutations; reuse only the pinned owned source archive bytes and same-account sealed session ciphertext.",
+    "No CLI submission substituted for the Desktop import. Independent observer calls are read-only.",
+    "Apple Pages open of the exact newly allocated document remains separate evidence unless actually observed.",
+    "A single owned import does not establish broader Pages editing, Numbers/Keynote fidelity, installed transitions or general provider reliability.",
+    "All six full-iCloud release acceptance areas remain open until their complete scopes are verified."
+  ],
+  "offline_mode_control_preregistration": {
+    "actions": "Read-only local offline control of actual unchanged files; no cloud retry.",
+    "files": [
+      "native-import-fixture-verified.json",
+      "native-import-fixture-acquired.json"
+    ],
+    "prediction": "Exact AST-selected pin reader400 fails both files; same source reader600 accepts both with complete digest and identity checks. No Controller construction, candidate import, provider calls, chmod or body logging.",
+    "question": "Does the actual isolated controller pin guard reject the producer0600 files when expecting0400, and accept those unchanged private files with the documented producer0600 mode?",
+    "source": "pages-live-desktop-import-37881b60-0a66-400c-ae0a-1711becef9b2-private-v1/controller_v4.py"
+  },
+  "original_window_seconds": 600,
+  "prediction": "One exact-owned chooser focus and observation-only fresh cache/defunct-node handling will reach one public confirmation Submit. Original mount and independent read will match the immutable source content tree. Stop on any uncertain result without replay.",
+  "prerequisite": {
+    "actual_health_passed": true,
+    "local_exact_owned_focus_and_transition": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-local-chooser-defunct-transition-2026-10-06.json",
+      "sha256": "823e9d4871097a3504f7858f0af1e8e04a5cf22846a2763068b1db52490c2942",
+      "size": 4601
+    },
+    "local_focus_and_three_fields": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-local-chooser-focus-fields-2026-10-06.json",
+      "sha256": "f646ba67476bd919cec3269675c221de4ea9176cfbd36e0542c06fbd7587538c",
+      "size": 5186
+    },
+    "local_health": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-desktop-health-prefix-2026-10-06.json",
+      "sha256": "c73f21fe35d18583f1515327316986778b9fcbe2b612b9f5bcab822eb86a7a78",
+      "size": 4079
+    },
+    "original_11f_cloud_arm_closed_not_replayed": true,
+    "original_72_cloud_arm_closed_not_replayed": true,
+    "original_c334_cloud_arm_closed_not_replayed": true
+  },
+  "question": "Can the actual local V31 owned-focus and fresh accessible-transition route submit one actual public Pages import, complete its bound job, publish to the original mount and verify independent semantic readback?",
+  "root_result_pin_policy": "Exact immutable identity/content stamps exclude access time; initial/final/path checks retain device, inode, mode, uid, link count, size, mtime and ctime.",
+  "run": "37881b60-0a66-400c-ae0a-1711becef9b2",
+  "runtime_build_head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "runtime_source_count": 480,
+  "source_binding_requirement": "All registered runtime sources and checked code/script/policy inputs must match the frozen build and completed full check. Documentation-only checkout differences are recorded separately from the actual build head.",
+  "status": "actual-desktop-import-original-mount-independent-read-and-apple-open-verified-with-controller-mode-failure",
+  "subsequent_scope_resolution": {
+    "original_controller_exit_one_preserved": true,
+    "pages_import_criterion_closed_by_separately_complete_cli_and_desktop_arms": true,
+    "record": "icloud-pages-fresh-cli-import-2026-10-06.json",
+    "remaining_full_icloud_criteria": 5
+  },
+  "temporary_filesystem_requirement": "TMPDIR and SQLITE_TMPDIR on ext4, recorded and checked before launch; no tmpfs staging.",
+  "version": 1
+}

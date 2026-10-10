@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "run": "60aa8a2c-9c62-4835-bd1d-9c0bcc28df51",
+  "status": "closed-success-independently-audited",
+  "active_measurement": false,
+  "question": "Does the exact receipt-bound Pages replacement current B open once in Apple Pages and retain its genuine edited one-paragraph text after one reload?",
+  "prediction": "One unique observed Drive row matches exact currentB GUID, owned parent and name; one actual Open reaches Apple Pages, with exact genuine B paragraph visible before and after one reload. Ambiguous identity, incomplete RO closure, unexpected content or repair/conversion prompt stops the arm.",
+  "endpoint": "Observed currentB Drive identity/parent/name \u2192 one actual Apple Pages open \u2192 exact registered B paragraph before and after one same-tab reload \u2192 own created tabs closed within the original window.",
+  "subject_run": "96aa715d-5a55-46f8-934f-fb4feae0190f",
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "collection": "drive",
+  "selected_current": {
+    "item": "FILE::com.apple.CloudDocs::7C7789C7-AA9F-4E67-A41D-BC4D968AF427",
+    "guid": "7C7789C7-AA9F-4E67-A41D-BC4D968AF427",
+    "parent_id": "FOLDER::com.apple.CloudDocs::227E7492-CB64-415E-8944-9F8F379DA1F3",
+    "parent_guid": "227E7492-CB64-415E-8944-9F8F379DA1F3",
+    "parent_name": "Cirrove-Native-96aa715d-5a55-46f8-934f-fb4feae0190f",
+    "name": "Cirrove-Pages-Replacement-96aa715d-5a55-46f8-934f-fb4feae0190f.pages",
+    "etag_at_completed_postflight": "i1wn::i1wm",
+    "semantic": {
+      "entries": 15,
+      "expanded_bytes": 100205,
+      "files": 12,
+      "sha256": "a30087186f914633fe5d511b44b0ea398f717fae3922a683da5ec8414d07e3ba",
+      "version": 2
+    }
+  },
+  "expected_text": {
+    "exact_one_paragraph": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+    "scope": "Actual source80 UI witness concatenation, not the original requested newline text. No newline/layout fidelity assertion.",
+    "source_readback": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/text-b-reloaded-readback.txt",
+      "size": 93,
+      "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+    },
+    "genuine_pair_witness": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/genuine-pair-witness-v1.json",
+      "size": 2343,
+      "sha256": "c8d4e10ebe85aacf60fa88787e7dff63b48c1217b17959e76cad6bccf03315d0"
+    },
+    "scope_amendment": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/one-paragraph-scope-amendment-v1.json",
+      "size": 682,
+      "sha256": "07bdc9cec8c7bacc3ebe4a3ed801832b960c81e20a075c6941ea91e87f7d4718"
+    }
+  },
+  "prerequisites": {
+    "completed_replacement_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/root-terminal-result.json",
+      "size": 2752,
+      "sha256": "b917d0e1ce442b3286f28a8c618a880cfa5e023b65619d2c8e93a558de721a16"
+    },
+    "typed_postflight": {
+      "path": "/var/tmp/cirrove-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/replacement-postflight-verified.json",
+      "size": 3141,
+      "sha256": "83a99a22e01a81a5fe1dbd10e0bd5e1a25ceccf966f7a5a5cac0c66041e8854b"
+    },
+    "compatible_subject_closure_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-replacement-96aa715d-5a55-46f8-934f-fb4feae0190f/subject-closure-audit-v1.json",
+      "size": 78468,
+      "sha256": "f9df0e5e40992e8597b8a2e9a18d562c9702cb5694fb35a5a3ef2a96345c5f81"
+    },
+    "successful_RO_subject_run": "7f9c92b1-e552-4d2e-940a-ff2fdcfbb6f0",
+    "successful_RO_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-readonly-remount-7f9c92b1-e552-4d2e-940a-ff2fdcfbb6f0/root-terminal-result.json",
+      "size": 807,
+      "sha256": "1d0049688e1cea250b43007a76463343571521876489fe50023698d381c4237e"
+    },
+    "successful_RO_independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-readonly-remount-7f9c92b1-e552-4d2e-940a-ff2fdcfbb6f0/audit-independent-pages-readonly-terminal-v1.json",
+      "size": 128499,
+      "sha256": "5944a43575da3e9f4eea5bfb7bc9be22f57bf8256c0a8a1f1bd1d4459a1d608a"
+    },
+    "RO_currentB_identity_and_semantic_match_required": true
+  },
+  "root_future_bindings": {
+    "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-apple-reopen-60aa8a2c-9c62-4835-bd1d-9c0bcc28df51",
+    "private_TMPDIR": "/home/dandiccf/Storage/ct/pui-60aa8a2c",
+    "filesystem": "ext4",
+    "browser": "Chrome1",
+    "owned_drive_tab": null,
+    "owned_apple_tab": null,
+    "original_window": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-apple-reopen-60aa8a2c-9c62-4835-bd1d-9c0bcc28df51/original-window.json",
+      "size": 314,
+      "sha256": "d24ffb84070e6a5b0bab7ef63fc523e0b18fa2aff91f1a613aac074274a5fd8e"
+    },
+    "registration_before_dispatch_pin": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-apple-reopen-60aa8a2c-9c62-4835-bd1d-9c0bcc28df51/registration-before-dispatch.json",
+      "size": 7824,
+      "sha256": "72011d7e403701102793f2e43c58d58f1e8513cc0d66d099e25805e35b74dc2d"
+    },
+    "authorization": "Standing user authorization for own iCloud tests"
+  },
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "original_paired_wall_monotonic_window_required": true,
+  "automatic_retries": 0,
+  "read_only": true,
+  "actions_allowed": {
+    "owned_parent_navigation": true,
+    "unique_receipt_bound_document_open": 1,
+    "same_opened_tab_reload": 1,
+    "edits": 0,
+    "exports": 0,
+    "uploads": 0,
+    "sharing_or_trash": 0
+  },
+  "witness_plan": [
+    {
+      "stage": "register",
+      "require": "Actual successful closed RO terminal+audit and exact currentB identity/fullV2; Root writes public prereg before observing Drive, then issues fresh original600/45 clock. New browser run/TMP/tab pins remain unset until this."
+    },
+    {
+      "stage": "bind_drive",
+      "require": "Actual observed unique row data-id exactly FILE::com.apple.CloudDocs::7C7789C7-AA9F-4E67-A41D-BC4D968AF427, exact owned parent and registered filename. Capture DOM facts/screenshot and observed parent route. If Drive hides .pages suffix, capture actual displayed label plus observed exact filename evidence; never use title-only identity."
+    },
+    {
+      "stage": "open",
+      "require": "One guarded actual row Open/double-click only. Record action and observed same-tab/new-tab route and document title; no guessed editor URL, private API, copied owner segment or opaque-ID decoding. Bind resulting editor to this actual selection provenance."
+    },
+    {
+      "stage": "observe",
+      "require": "Retain actual visible/AX paragraph text and screenshot, Root visually inspects expected genuineB. Source readback is a prediction witness, never a substitute for new actual editor observation. No accepting repair/conversion prompts."
+    },
+    {
+      "stage": "reload",
+      "require": "Reload exactly the already-owned opened tab once inside original deadline, then capture actual same paragraph and screenshot independently. Identical screenshots alone do not prove reload; retain actual action/time."
+    },
+    {
+      "stage": "close",
+      "require": "Close only tabs created for this arm within original deadline. Record complete/partial/refused outcome and own-tab closure; no repeat Open/reload if unclear."
+    }
+  ],
+  "limits": [
+    "Actual RO7f9 is closed successful and independently audited; Apple result remains unproven.",
+    "No browser/provider/keyring/compiler/installed actions by author; draft only.",
+    "Apple open/reload can normalize remote representation. No post-Apple unchanged ETag/fullV2 claim without separately registered evidence.",
+    "This cell covers genuine text/package replacement/open/reload only, not direct unmodified native-export admission, broad formatting/layout/media/Pages fidelity, native Linux save, repeatability or installed acceptance.",
+    "Full487 and remaining integration gates remain open; installed HOLD."
+  ],
+  "outcome": {
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-apple-reopen-60aa8a2c-9c62-4835-bd1d-9c0bcc28df51/root-ui-terminal-v1.json",
+      "size": 5445,
+      "sha256": "a4c1d1292f754c38011c964bd4a35c418161ffd45fff3beb91441e21aee63400"
+    },
+    "elapsed_seconds": 325.33858542499365,
+    "exact_B_before_and_after": true,
+    "document_open_count": 1,
+    "reload_count": 1,
+    "own_tabs_closed": true,
+    "full_iCloud_gate_closures": 0
+  },
+  "root_clock_enforcement": "Root actual Python monotonic/wall checkpoints before major stages; CUA wall check within each block. Original clocks were not reset.",
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-apple-reopen-60aa8a2c-9c62-4835-bd1d-9c0bcc28df51/audit-independent-pages-apple-terminal-v1.json",
+    "size": 9188,
+    "sha256": "cefa0aca0641666b8425dae2690696ea7daa3464ac2e54356084cf0ed4528ea3"
+  }
+}

@@ -2,8 +2,18 @@
 //! One marker per object bounds storage independently of the number of writes.
 use super::*;
 
+/// Local-only byte ownership, derived from journal tables at the same frontier.
+/// This is not provider authority and is never inferred from a filename.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeLocalStream {
+    pub source_owner: Uuid,
+    pub detached: bool,
+    /// Exact retained backup marker; never inferred from a visible name.
+    pub backup: bool,
+}
 #[derive(Clone, Debug)]
 pub struct NamespaceSnapshot {
+    pub native_local: Option<NativeLocalStream>,
     pub object: NamespaceObject,
     pub working: Option<WorkingFile>,
 }
@@ -105,7 +115,12 @@ impl UploadJournal {
             if object.working_file != working.as_ref().map(|w| w.id) {
                 return Err(JournalError::Corrupt);
             }
-            objects.push(NamespaceSnapshot { object, working });
+            let native_local = working::native::atomic::snapshot_role(&tx, &object)?;
+            objects.push(NamespaceSnapshot {
+                native_local,
+                object,
+                working,
+            });
         }
         if objects.len() > 10_000 {
             return Err(JournalError::Quota);

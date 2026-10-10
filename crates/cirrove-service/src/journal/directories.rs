@@ -138,6 +138,7 @@ impl UploadJournal {
         }
         let id = Uuid::new_v4();
         let object = NamespaceObject {
+            native_archive: None,
             id,
             names: namespace::policy(&self.db, &scope)?,
             scope,
@@ -227,6 +228,7 @@ impl UploadJournal {
             state: MutationState::Pending,
             attempt: None,
             receipt: None,
+            verified_content: None,
             retry_at: 0,
             failed_attempts: 0,
             base,

@@ -1,0 +1,142 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/oc-9135edb2",
+  "TMPDIR": "/home/dandiccf/Storage/ct/oc-9135edb2",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "arms": {
+    "fullcheck": {
+      "arm": "fullcheck",
+      "exit_code": 101,
+      "expected_exit": 0,
+      "original_pid": 796222,
+      "birth": "65073593",
+      "original_reaped": true,
+      "process_absent": true,
+      "group_members": [],
+      "signals": [],
+      "changed_inputs": [],
+      "elapsed_seconds": 147.79513640108053,
+      "log_sha256": "97c0c942f09bee57f22cd575bac89c4a6d149cdbb0210e9f19309ef5217f704e"
+    }
+  },
+  "collector_sha256": "a9600844209146c74d33aa23ed9e64e8946fe84cc10ea8394c0faf8b83d7f5de",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "compiled_role_source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "endpoint": "One unabridged scripts/check.sh; ten exact sections including workspace tests, kernel mounts, scripts, ledger and docs; actual successful result groups collected, all registered inputs/tools unchanged, original process/group closed.",
+  "exclusive_lane_released": true,
+  "full490_closed": false,
+  "host_delivery": "HOLD",
+  "input_count": 1579,
+  "installed_actions": 0,
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-9135edb2-64bd-4391-a458-bcd0a0e902c4/fullcheck-manifest.json",
+    "sha256": "8a825ba1718135788405415ebc17d72a78fc687048da7290a45875a7217c9687"
+  },
+  "maximum_seconds": 1200,
+  "owner_sha256": "2e9fa57dacbf62fccba32dbc5861f726b7c837e29369fc94cb21e7ec9944d2c6",
+  "prediction": "The exact three-file native-import admission correction, its RED/GREEN evidence and consolidated outcome documentation pass the complete check. Old frozen role binaries remain f9de. This run does not retry the failed conflict arm, close490 or install the fix.",
+  "provider_actions": 0,
+  "question": "Does one complete required scripts/check.sh pass against the exact corrected sources and final public installed-session, import reconciliation, failed conflict and retained-B export evidence, with every registered input and tool unchanged?",
+  "run": "9135edb2-64bd-4391-a458-bcd0a0e902c4",
+  "runtime_sources_expected_unchanged": null,
+  "source_head": "a6b564b7606f75a5b10ed2c9a93f5a88ccfabd6c",
+  "state": "full_project_check_failed",
+  "temporary_filesystem": "ext4",
+  "version": 1,
+  "original_preparation_prediction": "Outcome documentation and evidence preserve unchanged582 runtime sources; complete check passes. This run does not retry the uncertain import or establish490.",
+  "runtime_source_adoption": {
+    "baseline_count": 582,
+    "changed_files": 3,
+    "authority_sha256": "612351d81aa242f00f2ffa19786afa2a187daa0404398564ca4c56ce26fea3ad",
+    "prior_compiled_role_source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+    "old_compiled_roles_relabelled": false,
+    "revision_before_measurement": true
+  },
+  "final_documentation_HEAD": "a6b564b7606f75a5b10ed2c9a93f5a88ccfabd6c",
+  "included_outcomes": [
+    "docs/benchmarks/icloud-native-final-install-race-2026-10-10-30828cf7-f274-442f-b7fa-f974dedef257.json",
+    "docs/benchmarks/icloud-installed-session-recovery-2026-10-10-98fd1555-b0fc-4909-b064-ea65a0a0d9a5.json",
+    "docs/benchmarks/icloud-uncertain-import-local-phase-2026-10-10-1bfb18c9-354b-4afa-9956-20f3e6eae8ca.json",
+    "docs/benchmarks/icloud-uncertain-import-readonly-inspection-2026-10-10-c1ed4919-075c-4b36-962b-b84569f6d00c.json",
+    "docs/benchmarks/icloud-uncertain-import-readonly-inspection-2026-10-10-5ab26bb7-8fa1-4e08-a86d-89131e33b57a.json",
+    "docs/benchmarks/icloud-original-import-normal-reconciliation-2026-10-10-98b3685d-77b1-4df2-a51e-a7fdd1dc5bfb.json",
+    "docs/benchmarks/icloud-native-final-install-race-continuation-2026-10-10.json",
+    "docs/benchmarks/icloud-native-retained-b-offline-export-2026-10-10-4993558b-6b25-49bc-9390-8054aabcb374.json",
+    "docs/benchmarks/icloud-native-import-current-destination-regression-2026-10-10.json"
+  ],
+  "started_unix": 1791626108.8082309,
+  "actual_failure_assessment": {
+    "fullcheck_passed": false,
+    "exit_code": 101,
+    "elapsed_seconds": 147.79513640108053,
+    "failed_test": "accounts::tests::interrupted_preference_tests::cleanup_failure_retains_only_latest_wish",
+    "safe_failure_message": "later preference: Busy",
+    "panic_location": "crates/cirrove-service/src/accounts.rs:3169:68",
+    "failing_service_group": {
+      "passed": 579,
+      "failed": 1,
+      "ignored": 29
+    },
+    "sections_reached": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests"
+    ],
+    "unreached_sections": [
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "no_signals": true,
+    "original_owner_reaped_process_and_group_absent": true,
+    "frozen1579_inputs_and9_tools_unchanged": true,
+    "exact_three_authorized_runtime_source_changes_preserved": true,
+    "host19_fullsha_stat9_preserved": true,
+    "installed_daemon_not_restarted": true,
+    "success_collector_executed": false,
+    "repeat_executed": false,
+    "full490_closed": false,
+    "host_delivery": "HOLD",
+    "scope": "The registered complete project check failed in a pre-existing accounts preference test. Closure and source/tool/installed-host preservation passed independently. This is not a complete passing check, and kernel-mount/script/docs sections were not reached. The source fix retains synthetic RED/GREEN evidence only; the live conflict frontier remains open."
+  },
+  "failure_receipts": {
+    "fullcheck-manifest.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-9135edb2-64bd-4391-a458-bcd0a0e902c4/fullcheck-manifest.json",
+      "size": 302921,
+      "sha256": "8a825ba1718135788405415ebc17d72a78fc687048da7290a45875a7217c9687"
+    },
+    "fullcheck-owner.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-9135edb2-64bd-4391-a458-bcd0a0e902c4/fullcheck-owner.json",
+      "size": 219,
+      "sha256": "5dbcb76e68eadfa71efb701483a6853284145d4e830106631ab4e7067bcf32c3"
+    },
+    "fullcheck-closed.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-9135edb2-64bd-4391-a458-bcd0a0e902c4/fullcheck-closed.json",
+      "size": 358,
+      "sha256": "5067b482de89913d1015fe6e957d48c45bd508cb141bbb530ed0e0ce00b0dc26"
+    },
+    "independent-closed-failure-audit-v1.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-9135edb2-64bd-4391-a458-bcd0a0e902c4/independent-closed-failure-audit-v1.json",
+      "size": 19991,
+      "sha256": "648b0f075bbfd00319bc86522a534940eed9f4268500c975533e5309d4f97240"
+    },
+    "source-adoption-final.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-9135edb2-64bd-4391-a458-bcd0a0e902c4/source-adoption-final.json",
+      "size": 2636,
+      "sha256": "612351d81aa242f00f2ffa19786afa2a187daa0404398564ca4c56ce26fea3ad"
+    },
+    "public_before_assessment": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-9135edb2-64bd-4391-a458-bcd0a0e902c4/public-before-failure-assessment.json",
+      "size": 4155,
+      "sha256": "4b2891afba9c56b1c0f3bfc58dfa668dc9dae0f026e568c0f158b4f3ecd9d627"
+    }
+  }
+}

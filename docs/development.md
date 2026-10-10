@@ -26,6 +26,11 @@ scripts/install-developer.sh --no-build # install what is already in target/rele
 scripts/switch-to-package.sh            # after pacman -U, move off the developer install
 ```
 
+In a separate worktree, set `CARGO_TARGET_DIR` to that worktree's own build
+directory when running `install-developer.sh` (including `--no-build`). The
+installer uses the same directory for Cargo binaries and optional Dolphin
+plugins, rather than picking up artifacts from another checkout.
+
 `install-developer.sh` puts the binaries in `~/.local/bin`, the unit in
 `~/.config/systemd/user`, the tray's autostart entry in `~/.config/autostart`,
 and the icons, desktop entry, metainfo and Files extension under
@@ -618,9 +623,155 @@ while `cirroved` holds the state.
 This is written down because it happened: a `pin` invocation aimed at
 demonstrating an error message was run without `--state-dir`, migrated a live
 account's index on the way to failing, and left the installed daemon unable to
-read it. Recovery is `PRAGMA user_version=<previous>` on that database — the
-migration only adds empty tables, and `CREATE TABLE IF NOT EXISTS` makes the real
-migration idempotent afterwards — followed by a service restart.
+read it. That historical metadata-index incident involved only added empty tables;
+it is not a general downgrade procedure. In particular, never lower a journal's
+`user_version` to make an older writer accept new persisted semantics. The journal
+schema policy below requires a compatible recovery reader instead.
 
 Upgrading properly is: install the new binaries first, then restart the service,
 then use the new commands.
+
+
+### Explicit recovery-only startup on the iCloud development branch
+
+`cirroved --recovery-only` enforces read-only mounts for the entire daemon run,
+including account reloads, re-enabling and interrupted-sign-in healing. It keeps
+the saved account's access grant, session and identity intact. The read provider
+uses that saved grant; the effective filesystem policy permits reads and local
+recovery only. No write factory, writable upload-journal migration or upload worker
+starts, and pending ordinary metadata publications are not repaired on startup
+or remount. Existing sealed-save and dirty-working export commands remain available.
+Account status exposes `recovery_only: true` separately from `local_recovery`.
+
+For development validation, use only an explicitly isolated state, private socket
+and separate mount paths:
+
+```sh
+./target/debug/cirroved --recovery-only \
+  --state-dir /absolute/path/to/isolated-state \
+  --socket /absolute/path/to/private-socket
+```
+
+This mode still performs provider reads and normal metadata-index/cache work;
+it does not promise zero network activity or an unchanged metadata database.
+The restriction is temporary: restarting without the flag resumes normal startup
+according to the saved grants. It is not a downgrade procedure, installer-policy
+release or permission to open installed state with a development binary. The
+schema21 hold below continues to apply. The
+[registered controls](benchmarks/icloud-recovery-only-startup-2026-10-07.json)
+distinguish synthetic journal-preservation evidence from installed acceptance.
+
+<a id="ordinary-metadata-publication-journal-schema20-held-prerelease-policy"></a>
+
+### Flat Numbers source journal schema21: held prerelease policy
+
+Schema20 introduced a durable queue for publishing ordinary handoff metadata after
+its typed acknowledgement. Schema21 adds explicit flat Numbers import and
+replacement archive tags; wrapped archive tags keep their existing wire format.
+It retains the native backup-first state and native-working prerequisites
+introduced by earlier schemas. This is not permission to upgrade installed
+accounts. Until recovery, successor and application acceptance is complete,
+validation must use explicitly isolated state, sockets, mounts and binaries. Do
+not open the user's current journal with a schema21 writer, restart the installed
+service or change package/developer installation state for these tests.
+
+Fresh flat Numbers package uploads also use a version-2 encrypted provider
+checkpoint containing a separately derived transport receipt. The journal remains
+schema21; this checkpoint is not compatible with the earlier schema21 candidate.
+Keep its matching binaries with isolated state rather than treating a shared
+journal version as downgrade permission. Legacy flat version-1 package checkpoints
+can be inspected but cannot allocate, send a body or register the raw source.
+Already verified replacement handoff recovery retains its existing conditional
+operations. Original pending source bytes remain available through read-only rescue
+export; no cloud replay is needed to recover them locally.
+
+Every writable journal opened by this build migrates, including ordinary-only
+accounts with no native documents. Read-only metadata repair opens only an existing
+schema20 or schema21 journal; it does not migrate it or claim uploads or mutations.
+Read-only recovery retains schemas14 through21. The fence protects retained native
+bytes, ordinary publication jobs and explicit source layouts from older code that
+cannot interpret those semantics. Schema20 and older writers must refuse schema21
+rather than ignore its tags or lower the version. A table being additive does not
+make the writer downgrade safe.
+
+The developer installer enforces this hold through
+`packaging/developer-install-policy.json`. Before building and again before its
+first installed-file copy, a read-only preflight inspects the exact user service,
+its effective command, any live process and the shipped future unit template.
+It checks the union of their state directories, using the service owner's passwd
+home rather than the caller's `XDG_STATE_HOME`. Retained account, index or journal
+markers refuse installation, including ordinary-only, disabled and read-only
+accounts. It does not parse account settings, open SQLite, read credentials or
+contact a provider. A held `--no-build` installation is also refused because the
+source policy cannot establish arbitrary build-artifact provenance. Unknown,
+ambiguous or changing routes and unsafe symlink ancestry refuse installation.
+
+A benchmark can declare a top-level `restart_embargo` object with `version: 1`,
+`hostname`, numeric `uid`, `scope: "user"`, `unit: "cirroved.service"` and
+`state: "active"` or `"closed"`. An active declaration matching this host, user
+and service refuses installation; malformed declarations also refuse. Optional
+`owner_pid` and timezone-bearing `owner_started_at` identify the owner and do not
+expire an embargo. Historical status words alone are not such a declaration.
+The second preflight catches changes declared while the build ran.
+
+This is a bounded guard, not a measurement lease: it neither discovers every
+legacy window nor excludes a concurrent launch after the final check. Continue
+the manual measurement audit and prohibit concurrent measurement starts during
+deployment. The package switch script also runs this helper before its first stop
+or removal. Its separate mode inspects the user manager's authoritative unit search
+path, current fragment and overrides, the exact supported packaged unit, and the
+identity and bytes of the four packaged binaries. Additional unit candidates,
+unit or service-wide drop-ins, unsupported routes and changing observations refuse
+switching. Empty standard generator or transient search directories are allowed;
+a relevant unit there is refused. The current, live and packaged state routes must
+all be inspectable and empty of retained account, index or journal markers.
+
+For supported empty state routes, the package-switch preflight queries the exact
+selected `cirroved` with `--storage-format-json`.
+Its versioned declaration reports the journal and metadata writer formats from
+the compiled schema constants, without opening state, mounting accounts or
+starting the service. The preflight requires the exact supported JSON fields and
+integer schema versions to match the source policy. It binds the query to the
+selected executable's identity and bytes, repeats it, and rechecks service routes,
+policy, embargoes and retained-state markers after the queries. An old binary
+without this flag, a malformed or mismatched declaration, a timeout or a changed
+target refuses switching.
+
+**Any retained state still refuses package switching, even when the reported
+formats match and the source policy is released.** The declaration does not
+release the prerelease hold or establish package authenticity, read compatibility,
+migration safety or a safe downgrade. Inaccessible state or benchmark directories
+also refuse inspection instead of being treated as empty. Portable script controls
+run in the normal check and CI; the actual switch proof uses an isolated filesystem
+namespace with unchanged HOME and inert mutation commands.
+The [package switch evidence](benchmarks/package-switch-preflight-2026-10-04.json)
+and [developer installer evidence](benchmarks/icloud-installation-preflight-2026-10-03.json)
+establish guarded refusal, not installed iCloud transition acceptance.
+
+Arbitrary package-manager actions and reboot still need their own checks; the
+helper does not intercept them or reserve a concurrent measurement lease. Releasing
+the source hold still requires the recovery and application acceptance above.
+
+Before any later authorized deployment, identify the actual installed version,
+state ownership and any active measurement; inventory retained uploads and dirty
+working generations using compatible read-only recovery. Export needed sealed
+and working bytes to an explicitly chosen independent local filesystem, checking
+operation/generation, length and digest. Keep the export receipts. A coherent
+backup of state requires coordinated ownership and consistent database/WAL and
+spool files; copying a live database file alone is not a validated backup.
+
+Exports and backups preserve selected local data, not cloud history or mutation
+rollback. They cannot reverse a completed two-ID replacement, recreate sharing
+links, undo deletion, or establish that an uncertain request never reached Apple.
+Do not restore an old pending queue and let an older daemon replay it. If an
+upgrade must be rolled back, retain the newer state and use a compatible
+read-only recovery reader first; decide any account reconnection or state
+restoration from its actual provider and journal outcomes. There is no blanket
+version-reset or database-copy downgrade recipe.
+
+Native recovery must remain byte-based when the binding is missing/corrupt or the
+latest archive is incomplete. Read-only export must not parse ZIP, reconstruct
+upload authority, migrate, auto-seal, retry or contact Apple. Validate saved and
+dirty generations independently, including uncertain predecessor and queued
+successor states, without changing the journal. Ordinary schema17 records must
+remain readable after the migration. Keep these gates explicit before deployment.

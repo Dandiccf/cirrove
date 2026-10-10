@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+  "status": "closed_failed_before_folder_import_or_trash",
+  "active_measurement": false,
+  "question_record": "docs/benchmarks/icloud-native-trash-numbers-receipt-loss-2026-10-06.json",
+  "private_launch_registration": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/root-launch-registration-v1.json",
+  "launch_registration_sha256": "299432d40b1d8cb03c18f448c50e2b65660158f8081c3d0f08a6b5d7cf7866db",
+  "original_window_record": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/original-window.json",
+  "outer_once_record": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/root-outer-once.json",
+  "root": "/var/tmp/cirrove-native-trash-52959331-7924-4e1d-891b-8e4a79ff67e6",
+  "maximum_seconds": 600,
+  "closure_reserve_inside_window_seconds": 45,
+  "automatic_retry": false,
+  "real_account_dispatch_started": true,
+  "installed_actions": false,
+  "result_pending": false,
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "original_outer_pid": 2546185,
+  "outer_once_recorded": true,
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "deadline_monotonic": 330343.1230773926,
+    "deadline_unix": 1791305716,
+    "root": "/var/tmp/cirrove-native-trash-52959331-7924-4e1d-891b-8e4a79ff67e6",
+    "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+    "started_monotonic": 329743.378143446,
+    "started_unix": 1791305116
+  },
+  "outer_result": {
+    "automatic_retry": false,
+    "cloud_controller_dispatch_attempted": true,
+    "controller_child_record_retained": true,
+    "controller_pid_observed": 2546274,
+    "elapsed_seconds": 5.14931822498329,
+    "full_integration_accepted": false,
+    "inner_result": {
+      "actions": [],
+      "automatic_retry": false,
+      "children": [
+        {
+          "exit_code": -9,
+          "original_handle_reaped": true,
+          "phase": "start-import",
+          "pid": 2546279,
+          "proc_absent": true
+        }
+      ],
+      "errors": [
+        {
+          "class": "OSError",
+          "phase": "immutable-final-pins"
+        }
+      ],
+      "failure": {
+        "class": "Refusal",
+        "positions": [
+          {
+            "file": "controller_native_trash_v4.py",
+            "function": "main",
+            "line": 453
+          },
+          {
+            "file": "controller_native_trash_v4.py",
+            "function": "execute",
+            "line": 418
+          },
+          {
+            "file": "controller_native_trash_v4.py",
+            "function": "folder_and_import",
+            "line": 316
+          },
+          {
+            "file": "controller_native_trash_v4.py",
+            "function": "ready",
+            "line": 280
+          },
+          {
+            "file": "controller_native_trash_v4.py",
+            "function": "status",
+            "line": 274
+          },
+          {
+            "file": "controller_native_trash_v4.py",
+            "function": "require",
+            "line": 21
+          }
+        ]
+      },
+      "full_integration_accepted": false,
+      "independent_trash_raw_zip_equality_claimed": false,
+      "installed_actions": false,
+      "mount_absent": false,
+      "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+      "socket_absent": true,
+      "sources_unchanged": false,
+      "success": false
+    },
+    "installed_actions": false,
+    "issues": [],
+    "original_children": [
+      {
+        "automatic_retry": false,
+        "exit_code": 0,
+        "issues": [],
+        "live_birth_observed": false,
+        "original_handle_reaped": true,
+        "phase": "root-local-finalize",
+        "pid": 2546203,
+        "process_absent": true,
+        "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+        "signals": [],
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "4351809fb209b22033f71afe93b80571b6c2e279c0354e25fa6656d4aa6e2e3d",
+        "window": {
+          "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+          "deadline_monotonic": 330343.1230773926,
+          "deadline_unix": 1791305716,
+          "root": "/var/tmp/cirrove-native-trash-52959331-7924-4e1d-891b-8e4a79ff67e6",
+          "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+          "started_monotonic": 329743.378143446,
+          "started_unix": 1791305116
+        }
+      },
+      {
+        "automatic_retry": false,
+        "exit_code": 1,
+        "issues": [],
+        "live_birth_observed": false,
+        "original_handle_reaped": true,
+        "phase": "root-controller",
+        "pid": 2546274,
+        "process_absent": true,
+        "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+        "signals": [],
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "window": {
+          "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+          "deadline_monotonic": 330343.1230773926,
+          "deadline_unix": 1791305716,
+          "root": "/var/tmp/cirrove-native-trash-52959331-7924-4e1d-891b-8e4a79ff67e6",
+          "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+          "started_monotonic": 329743.378143446,
+          "started_unix": 1791305116
+        }
+      }
+    ],
+    "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+    "success": false,
+    "window": {
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+      "deadline_monotonic": 330343.1230773926,
+      "deadline_unix": 1791305716,
+      "root": "/var/tmp/cirrove-native-trash-52959331-7924-4e1d-891b-8e4a79ff67e6",
+      "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+      "started_monotonic": 329743.378143446,
+      "started_unix": 1791305116
+    }
+  },
+  "terminal_audit": {
+    "run": "52959331-7924-4e1d-891b-8e4a79ff67e6",
+    "outer_exit_code": 1,
+    "outer_result_sha256": "0e6030fbefeb0c4a3180a52e0521a331d44b3e7991219cf72bd0a1a667e27c41",
+    "original_parent_and_daemon_absent": true,
+    "original_child_receipts_reaped": true,
+    "journal_counts": {
+      "uploads": 0,
+      "mutations": 0,
+      "write_queue": 0
+    },
+    "native_test_folder_create_dispatched": false,
+    "public_import_dispatched": false,
+    "public_trash_dispatched": false,
+    "original_failed_inner_retained": true,
+    "controller_failure": "startup composite status predicate, original operands not retained; Source protocol1 confirmed; likely empty initial account vector remains an inference",
+    "dead_owned_mount_unmount_result": {
+      "exit_code": 0,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "bound_mount_absent": true,
+      "elapsed_seconds": 0.0011183779570274055,
+      "cloud_mutation": false,
+      "installed_actions": false
+    },
+    "final_mount_absent": true,
+    "socket_absent": true,
+    "current_all_561_runtime_pins_match": true,
+    "all_frozen_and_copied_role_binary_sha_match": true,
+    "installed_snapshot_before_after_verified": true,
+    "automatic_replay": false,
+    "full_integration_accepted": false
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/nrs7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/nrs7v1",
+  "active": false,
+  "active_measurement": false,
+  "actual_exit_codes": [
+    0,
+    0,
+    1,
+    1,
+    1
+  ],
+  "arms": [
+    "goodB",
+    "goodA",
+    "wrongraw",
+    "wrongroot",
+    "changedmember"
+  ],
+  "cleanup_seconds_each": 10,
+  "compiler_invocations": 0,
+  "date": "2026-10-07",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root_numbers_scanner_controls_once_v1.py",
+    "sha256": "dbf0be85e8fcca68ad9adb1de5635b433a2109977a51e957421650f6aa99a280",
+    "size": 12266
+  },
+  "endpoints": [
+    "Exact genuine A/B full semantic V2 identities pass; wrong digest/root and changed IWA refuse",
+    "Five original owners close; installed19 and source/fixture bytes and stamps preserved"
+  ],
+  "expected_exit_codes": [
+    0,
+    0,
+    1,
+    1,
+    1
+  ],
+  "expected_seconds": 15,
+  "filesystem_required": "ext4",
+  "gate487_credit": false,
+  "head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-scanner-controls-v1/audit-independent-scanner-controls-v1.json",
+    "sha256": "9fa443ea94cf45fbb5f5852ca2b621cd343e1cdcd03aa7b4782c0417313a14a0",
+    "size": 7581
+  },
+  "independent_audit_passed": 59,
+  "independent_audit_total": 59,
+  "installed_actions": false,
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-scanner-controls-v1/manifest-v1.json",
+    "sha256": "31c534e35cf8e4c9446ad065c00610531cf673bbcf53319b38cbbf082ec79786",
+    "size": 77237
+  },
+  "maximum_seconds_each_control": 20,
+  "original_partial_build_failure_retained": true,
+  "prediction": "Genuine B and A each pass their own fullV2 identities; wrong raw/root and CRC-valid changed .iwa refuse:0,0,1,1,1. All five original owners close and source/installed bytes and stamps remain unchanged.",
+  "prior_actual_partial_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-build-v2/root-actual-tool-terminal-v1.json",
+    "sha256": "b1512df4ebe0fc702a85eae99c9d165b804c6355566c804edd99784abe5b6c3c",
+    "size": 701
+  },
+  "provider_calls": false,
+  "question": "Do five independent offline controls pass/refuse exactly with the already compiled strict Numbers scanner from closed partial buildV5, without rebuilding roles or scanner?",
+  "root_actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-scanner-controls-v1/root-actual-tool-terminal-v1.json",
+    "sha256": "805cc575bab65383020828f975a9db3c664d1d48882ba4b2a6c4dc82cc90dc67",
+    "size": 747
+  },
+  "status": "closed_passed",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-scanner-controls-v1/terminal-v1.json",
+    "sha256": "6baafba4a72be4e8859a3d4da40679a08c4a77115368370bf76b7f362cb685ee",
+    "size": 95745
+  },
+  "version": 1
+}

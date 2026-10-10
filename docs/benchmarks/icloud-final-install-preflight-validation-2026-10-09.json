@@ -1,0 +1,175 @@
+{
+  "broader_claims": {
+    "actual_after_final_preflight_cloud_pass": false,
+    "closed_release_gates": 4,
+    "full_gate490_closed": false,
+    "gate488_closed": false,
+    "natural_expiry_proved": false,
+    "new_Root_fullcheck": {
+      "state": "closed_pass",
+      "evidence": "icloud-final-preflight-consolidation-check-2026-10-09-a404ca5a-9991-4571-a459-6406287c42a5.json",
+      "runtime_source_count": 578,
+      "terminal": {
+        "exit": 0,
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "signals": [],
+        "source_changed": [],
+        "elapsed_seconds": 820.6092350482941
+      },
+      "rust_result_groups": 87
+    },
+    "total_release_gates": 6
+  },
+  "first_real_cloud_arm807": {
+    "B_replacement_dispatched": false,
+    "C_import_dispatched": false,
+    "all_five_closed": true,
+    "competitor_children": 2,
+    "detached_parent_predicates_passed": 7,
+    "exit_code": 1,
+    "failure_boundary": "After competitor prime-parent and before start-loss; metadata0644 rejected private-mode guard before SQLite. Separate summary publication rejected parent0755.",
+    "independent_audit": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/audit-independent-first-real-preflight-failure-v1.json",
+      "sha256": "c9f8ff02b2aec65bfe3c758b230d8b94a9f966c326e2af13172ea91697104519",
+      "size": 6841
+    },
+    "independent_verification_checks": 18,
+    "original_exec_session": 28929,
+    "owner_closure": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/root-original-cloud-exec-closed-failure-v1.json",
+      "sha256": "3b15cb718aa97aa822d2bdedf78ea7b07a71aa6709777511a29dcae8b63cb4fc",
+      "size": 1330
+    },
+    "parent_and_A_created": true,
+    "pause_or_release_dispatched": false,
+    "run": "807aaa15-1866-4c52-9b36-b20da7e1385a",
+    "subject_children": 3,
+    "success": false
+  },
+  "local_controls": {
+    "actual_terminal": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-68683c95-0a1d-4de6-a456-9e51fbe7c5f7/terminal-v1.json",
+      "sha256": "7df31b3c62ee09c2b600113cace0521d8039217d19cc50470d32cae173b26db8",
+      "size": 25980
+    },
+    "genuine_original_source_RED": {
+      "compiler_failure": false,
+      "expected_assertion_exit": 101,
+      "tests": 1
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-68683c95-0a1d-4de6-a456-9e51fbe7c5f7/audit-independent-local-controls-and-roles-v1.json",
+      "sha256": "068fc1196df5067c138d4b1cbee1bb61e033267040448dab04c15b9b36edf152",
+      "size": 18160
+    },
+    "prior_failed_groups": [
+      {
+        "closure": {
+          "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-30181e97-e6e0-41c4-8942-0a010b7d1c1b/original-exec-closure-v1.json",
+          "sha256": "f19912279130d27f6270a2ff3509f40653c6ef09de7ac2ed586c06bcb4e74cc7",
+          "size": 692
+        },
+        "failure_kind": "service_lib_test_compiler_errors_E0433_E0616",
+        "original_exec_session": 90697,
+        "run": "30181e97-e6e0-41c4-8942-0a010b7d1c1b",
+        "success": false
+      },
+      {
+        "closure": {
+          "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-0bf2b70c-4267-401d-9678-2c75ea935107/original-exec-closure-v1.json",
+          "sha256": "364220182b46e99f0efd1622db351978ac98846356b5cd527e5257df5ffdc261",
+          "size": 705
+        },
+        "failure_kind": "service_lib_test_compiler_error_E0502_opaque_probe_borrow",
+        "original_exec_session": 97299,
+        "run": "0bf2b70c-4267-401d-9678-2c75ea935107",
+        "success": false
+      },
+      {
+        "closure": {
+          "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/build-controls-private-v1/build-execution-14b22cfd-6ffe-4d98-bfe8-f4b271111ae1/original-exec-closure-v1.json",
+          "sha256": "189e128910ffb5d5867225b1181288694ac1107a801e05eaaed62de3a0c0f378",
+          "size": 733
+        },
+        "failure_kind": "positive_test_missing_existing_retry_after_backoff",
+        "original_exec_session": 2897,
+        "run": "14b22cfd-6ffe-4d98-bfe8-f4b271111ae1",
+        "success": false
+      }
+    ],
+    "restored_GREEN": {
+      "failed": 0,
+      "groups": [
+        3,
+        4,
+        3
+      ],
+      "passed": 10
+    },
+    "role_builds": {
+      "feature_source_count": 578,
+      "normal_cli_features": [],
+      "normal_daemon_features": [],
+      "normal_source_count": 575,
+      "probe_features": [
+        "icloud-write-probe"
+      ],
+      "roles": 3,
+      "scope": "Preconsolidation mixed roles; not relabelled as new formatted Root binaries"
+    }
+  },
+  "observed_at_utc": "2026-10-09T07:24:37.661636+00:00",
+  "review_limits": "No compilation/tests, cloud request, credentials/session output, service action, original/live SQL, or source edit by reviewer. Rustfmt stdout comparisons are read-only. Frozen feature source and failed807 evidence retained.",
+  "source_scope": {
+    "Root_matches_formatted_patch": true,
+    "Root_readonly_comparison": {
+      "all_equal_rustfmt_patch_after": true,
+      "all_frozen_sources_unchanged": true,
+      "detail": {
+        "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/root-bfeda-feature-consolidation-private-v1/public-validation-summary-proposed-v1.json",
+        "sha256": "56614a956fbe3e4a8a46abcbdab01e2bde8348f8bac2a514a7213d186dba7afa",
+        "size": 15619
+      },
+      "files": 17
+    },
+    "base": "bfeda1ba4705a94d90e7fc88200358e5ef67b11b",
+    "changed_files": 17,
+    "explicit_developer_feature_only": true,
+    "fresh_mkdir_fix_already_committed_excluded": true,
+    "new_files": 3,
+    "normal_install_commit_reconcile_LostComplete_unchanged": true,
+    "only_post_frozen_test_correction": "declared_B -> declared_b test name; formatting only otherwise",
+    "patch": {
+      "path": "/home/dandiccf/Storage/cirrove-final-preflight-current-20261009/.local-state/final-preflight-current-source-private-v1/root-bfeda-feature-consolidation-private-v1/feature-relative-bfeda-v1.patch",
+      "sha256": "c9b10fc34901cea8938deb8ec48a28b3cc48088e89d68cae96883566a0b20ff7",
+      "size": 75568
+    }
+  },
+  "successor421": {
+    "automatic_rejected_action_not_repeated": true,
+    "closure_limit": "Current quiescence and retained partial registration verified; not an independently reconstructed original preparation owner/reaping proof.",
+    "competitor_preparation_absent": true,
+    "final_inputs_absent": true,
+    "local_subject_prepare": {
+      "exit_code": 0,
+      "original_exec_session": 85915,
+      "source_of_closure": "Root original-handle report; no standalone terminal pin supplied to this reviewer"
+    },
+    "no_mount_or_control_socket_found": true,
+    "no_relevant_processes_found": true,
+    "original_cloud_window_unstarted": true,
+    "protected_relevant_process_metadata_omissions": 0,
+    "public_all_activity_flags_false": true,
+    "public_observed": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-native-after-final-install-preflight-race-2026-10-09-421f0b0b-f769-43c2-8ade-30c7b5a99aa9.json",
+      "sha256": "3fe729ec0bffdf7c11b2c10640dfcaeda8c874170d723a20194fdf173d6e14c8",
+      "size": 7939
+    },
+    "run": "421f0b0b-f769-43c2-8ade-30c7b5a99aa9",
+    "state": "registered_unstarted_partial_local_preparation",
+    "subject_staged_only": true
+  },
+  "title": "After-final-install-preflight feature validation and retained real-arm failure",
+  "version": 2
+}

@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "run": "1bfb18c9-354b-4afa-9956-20f3e6eae8ca",
+  "question": "Which durable armed frontier is retained for the stopped initial Numbers A import?",
+  "prediction": "RegistrationArmed with slot, registration and flat-wire receipt; armed state alone does not prove dispatch or remote completion.",
+  "endpoint": "One local vault load of exact checkpoint, request/scope/op/size/hash validation; whitelisted phase/presence only; exact ciphertext and original host data preserved. No session/provider/daemon/save/replay.",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-private-checkpoint-phase-helper-20261010-v1/frozen/checkpoint-phase-helper"
+  ],
+  "binary_sha256": "01d0d94c87bb4cebd41b94b97b55472d9449f7472ffd96f557855bbc4909199d",
+  "source_sha256": "839d945e7613da21946c161580bb7fd087efa070a4c87250f8522f5573a965ef",
+  "TMPDIR": "/home/dandiccf/Storage/ct/cp-1bfb18c9",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/cp-1bfb18c9",
+  "temporary_filesystem": "ext4",
+  "maximum_seconds": 30,
+  "cleanup_reserve_seconds": 5,
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "provider_calls": 0,
+  "full_criterion490_closed": false,
+  "actual_result": {
+    "exit_code": 0,
+    "pid": 741793,
+    "birth": "64808106",
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "signals": [],
+    "stdout_sha256": "6c9611d07c22d56da2a99a1735327d8e86e5edf92e1f607e83fb006641b617b6",
+    "result": {
+      "ciphertext_preserved": true,
+      "operation": "5bbe02ab-cae7-4e0d-82c1-3eebde8d736f",
+      "parent_consistent": true,
+      "phase": "RegistrationArmed",
+      "provider_calls": 0,
+      "raw_values_retained": false,
+      "registration_present": true,
+      "request_scope_size_hash_consistent": true,
+      "session_loaded": false,
+      "slot_item_identity_present": true,
+      "slot_present": true,
+      "success": true,
+      "wire_present": true
+    },
+    "closed_unix": 1791623453.982282
+  },
+  "started_unix": 1791623453.9455712,
+  "private_evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-private-checkpoint-phase-helper-20261010-v1/local-execution-1bfb18c9-354b-4afa-9956-20f3e6eae8ca",
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-private-checkpoint-phase-helper-20261010-v1/local-execution-1bfb18c9-354b-4afa-9956-20f3e6eae8ca/independent-audit-v1.json",
+    "size": 24958,
+    "sha256": "0c243cd953cf67e6ee1b9fb5b45127fa5c07b729aac33719acdf2d05b6e2a7b5"
+  },
+  "scope_limit": "Persisted armed frontier only; not proof of registration dispatch, remote item existence or completion."
+}

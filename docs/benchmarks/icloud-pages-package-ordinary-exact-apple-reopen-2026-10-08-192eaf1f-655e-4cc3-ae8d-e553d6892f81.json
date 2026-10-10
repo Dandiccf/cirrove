@@ -1,0 +1,74 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "cleanup_reserve_seconds": 45,
+  "complete_iWork_workflows": 11,
+  "completed_matrix_workflow": true,
+  "current": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "cloud_mutated": false,
+    "content_identity_verified": true,
+    "etag": "i30t::i30s",
+    "format": "pages",
+    "gui_fidelity_verified": false,
+    "item": "FILE::com.apple.CloudDocs::8D3663F2-8201-45DF-B7E4-A50037460B60",
+    "manifest_sha256": "b49d896052db9afaecc9e2c6fbe2b65daccc73e74f1a6a9d460cfb29b02fba7d",
+    "parent": "FOLDER::com.apple.CloudDocs::EB99D436-F634-4A74-B457-2DCE76EDDF04",
+    "representation": "package",
+    "run": "8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9",
+    "semantic": {
+      "entries": 15,
+      "expanded_bytes": 100205,
+      "files": 12,
+      "sha256": "a30087186f914633fe5d511b44b0ea398f717fae3922a683da5ec8414d07e3ba",
+      "version": 2
+    },
+    "sha256": "fa0e97b20e5598c6dbab537f59265b4601c14a307d0da7a1bcd1ed2c4830efc6",
+    "size": 100205
+  },
+  "document_name": "Cirrove-Pages-Parent-8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9.pages",
+  "expected": {
+    "bytes": 93,
+    "paragraph": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+    "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+  },
+  "full487_closed": false,
+  "independent_audit_pending": false,
+  "independent_chain": {
+    "apple_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-ordinary-exact-apple-8bbb-192eaf1f-655e-4cc3-ae8d-e553d6892f81-private-v1/audit-independent-apple-terminal-v1.json",
+      "sha256": "3df7f07b282c3dee16f2a615e5599c53d13a93a7b3b087c4e1ee68994a0ec514",
+      "size": 7469
+    },
+    "normal_readonly_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-package-ordinary-ro-b6d2dbdb-7691-4113-aa9d-de69668d38b4/audit-independent-readonly-terminal-v1.json",
+      "sha256": "624e61e48a63fd0cbf3f170d490eebea56551b5f5d0ed54477a84243062b40ae",
+      "size": 10578
+    },
+    "writer_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-package-ordinary-8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9/audit-independent-pages-ordinary-terminal-v1.json",
+      "sha256": "8758a34accce3642934ff27af821de46a2e247515d24a9f7a81b3357368bff70",
+      "size": 12295
+    }
+  },
+  "installed_HOLD_released": false,
+  "maximum_seconds": 600,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-ordinary-exact-apple-8bbb-192eaf1f-655e-4cc3-ae8d-e553d6892f81-private-v1/original-window.json",
+    "sha256": "b10dbbe9bc75625935e18a947155a2075a22e4461a479e3690c9b88a00b01ded",
+    "size": 377
+  },
+  "parent_name": "Cirrove-Native-8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9",
+  "prediction": "The exact known93-byte paragraph will match before/after one open+reload, with no content edit; own tabs close within original600/45.",
+  "question": "Does the exact fresh ordinarily saved Pages PACKAGE show the known paragraph before and after one Apple reload?",
+  "ready": true,
+  "required_iWork_workflows": 12,
+  "run": "192eaf1f-655e-4cc3-ae8d-e553d6892f81",
+  "status": "closed_success",
+  "subject_run": "8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-ordinary-exact-apple-8bbb-192eaf1f-655e-4cc3-ae8d-e553d6892f81-private-v1/root-ui-terminal-v1.json",
+    "sha256": "7769ccd37af7e17c71cb1292b671868501cdf88cd90bd44d73def2142cf048cf",
+    "size": 10091
+  }
+}

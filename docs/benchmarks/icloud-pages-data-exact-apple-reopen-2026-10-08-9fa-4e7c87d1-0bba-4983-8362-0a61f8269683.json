@@ -1,0 +1,89 @@
+{
+  "run": "4e7c87d1-0bba-4983-8362-0a61f8269683",
+  "E": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-apple-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683-private-v1",
+  "public": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-data-exact-apple-reopen-2026-10-08-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683.json",
+  "subject_run": "9fa551d8-c617-4ae7-ac5c-d4d5360bafb9",
+  "question": "Does Apple Pages open exact new DATA B after corrected writer and normal RO byte capture, preserving the genuine93-byte B paragraph after one reload?",
+  "prediction": "One exact own current B opens with genuine93-byte paragraph; one reload preserves it. A refusal stops without a reopen/reload retry.",
+  "endpoint": {
+    "item": "FILE::com.apple.CloudDocs::8E4DB261-F9F9-4CE8-BB39-1B4062E261A7",
+    "parent": "FOLDER::com.apple.CloudDocs::1A0EA205-DABC-4B93-84E1-EB5967994F55",
+    "pre_Apple_etag": "i2ut::i2us",
+    "document": "Cirrove-Pages-Data-9fa551d8-c617-4ae7-ac5c-d4d5360bafb9.pages",
+    "paragraph": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+    "paragraph_bytes": 93,
+    "scope": "one paragraph, no newline/layout fidelity claim"
+  },
+  "writer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-9fa551d8-c617-4ae7-ac5c-d4d5360bafb9/controller-result.json",
+    "size": 6525,
+    "sha256": "8e4c44fc8d94b2068598f657bcf1de6e5f54aa32befd805c6ac9b36782eaa2b6"
+  },
+  "writer_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-9fa551d8-c617-4ae7-ac5c-d4d5360bafb9/audit-independent-pages-data-terminal-v1.json",
+    "size": 10757,
+    "sha256": "887afcb5dc1ea9520f434c0d9c6e3d2a988ba58ec5785643ea35357e055ed204"
+  },
+  "normal_RO": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-ro-6231f854-e2dd-4a83-a018-38526ed315ca/root-ro-result.json",
+    "size": 2017,
+    "sha256": "7974894096d95f8c861c15a6d238f7a5c7bf3c5a9b54a80833685ff448317552"
+  },
+  "normal_RO_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-data-ro-6231f854-e2dd-4a83-a018-38526ed315ca/audit-independent-readonly-terminal-v1.json",
+    "size": 10197,
+    "sha256": "29fd16f41890eee51944db087fd15eddcc38146b79260890a6e12f6e70172f60"
+  },
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "intentional_edits_or_uploads": false,
+  "old_failed_case_replayed": false,
+  "limits": "One newsubject; no post-editor ETAG/raw preservation assertion, no MIME cause/native Linux fidelity/full487/installed claim.",
+  "active_measurement": false,
+  "status": "closed_passed_one_new_DATA_subject_open_and_one_reload",
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-apple-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683-private-v1/original-window.json",
+    "size": 397,
+    "sha256": "6314ef6c5f8fc0faed3b2d851881ec0f106307ecb06f654328d9ba06cb89329f"
+  },
+  "arms": [
+    "one exact new B Pages open; one reload only if content opens"
+  ],
+  "expected_seconds": 180,
+  "actual": {
+    "elapsed_seconds": 249.49236154556274,
+    "expected_93_byte_paragraph_before_and_after_one_reload": true,
+    "native_AX_text_sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97",
+    "intentional_edits_or_uploads": false,
+    "own_tabs_closed": true,
+    "root_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-apple-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683-private-v1/root-ui-terminal-v1.json",
+      "size": 5022,
+      "sha256": "d4a9407226bf9eaebf435682757936ff9535941da4e40d61b71ee0f937aca889"
+    },
+    "independent_audit": {
+      "status": "passed",
+      "checks": 28,
+      "artifact": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-apple-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683-private-v1/audit-independent-apple-data-terminal-v1.json",
+        "size": 11363,
+        "sha256": "74b1f52505bc722dcd0b7b71170834852ebbfe54394a3b28653e2cb59724acc4"
+      },
+      "proof_scope": "ExactnativeAX paragraph93B and identity/closure; screenshot text too small for independent visual transcription."
+    },
+    "read_only_observation_failures_retained": [
+      "read-only DOM textbox locator timed out before evaluation/action",
+      "undefined expected binding halted subsequent guard before action; exact registered literal then initialized"
+    ]
+  },
+  "independent_actual_audit": {
+    "status": "passed",
+    "checks": 28,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-apple-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683-private-v1/audit-independent-apple-data-terminal-v1.json",
+      "size": 11363,
+      "sha256": "74b1f52505bc722dcd0b7b71170834852ebbfe54394a3b28653e2cb59724acc4"
+    },
+    "proof_scope": "ExactnativeAX paragraph93B and identity/closure; screenshot text too small for independent visual transcription."
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "question": "Does the process-death fixture publish final readiness before the UUID bytes are complete, and does staging then renaming eliminate that boundary without changing crash assertions?",
+  "registered_before_local_execution": true,
+  "source_head": "7500d2bd223f6a5baa8a687f3a4e5a749e039bc5",
+  "observed_ci_failure": {
+    "run": 37193319219,
+    "pr_merge": "beb4d379d79a292d28820eebacd4c9128b585c89",
+    "linux_log_sha256": "09c18d718193578187491ea3006bab3b5ca3b01a4e296eed481a3ea127e7b371",
+    "test": "actual_process_death_preserves_the_swapped_name_and_the_reader_gate",
+    "location": "crates/cirrove-service/tests/namespace_replacement.rs:737:14",
+    "error": "UUID Error(ParseLength { len: 0 })",
+    "linux": "failure",
+    "other_jobs_successful": 6,
+    "downstream_linux_scope": "skipped after workspace failure"
+  },
+  "instrumentation": {
+    "helper": "publish_replacement_ready",
+    "baseline_equivalence": "File::create(final ready) plus Write::write_all UUID mirrors std::fs::write create/truncate/write order; no-op callback in existing child. Deterministic control observes the post-create/pre-write boundary.",
+    "source": "crates/cirrove-service/tests/namespace_replacement.rs",
+    "baseline_source_sha256": "b762ca5f4825a0c3f25f65f183d9b7324291eeabe64e56c493af9e1562926af5"
+  },
+  "arms": [
+    {
+      "name": "direct-final-baseline",
+      "selected_tests": 1,
+      "prediction": "Final ready exists with empty bytes at callback; complete UUID read then final absence assertion fails."
+    },
+    {
+      "name": "same-directory-stage-rename",
+      "selected_tests": 1,
+      "prediction": "Final ready absent at callback; after complete write/drop and rename it contains exact UUID; identical control passes."
+    },
+    {
+      "name": "existing-actual-process-death",
+      "selected_tests": 1,
+      "fixture_phases": [
+        "replaced",
+        "released"
+      ],
+      "prediction": "Original crash/durable name, unlinked state and retained bytes assertions pass using corrected publisher."
+    }
+  ],
+  "endpoint": "replacement_readiness_is_visible_only_after_complete_uuid_publication; final path absent at callback and exact UUID after helper returns",
+  "bounds": {
+    "compile_seconds": 300,
+    "runtime_seconds": 60,
+    "existing_child_readiness_seconds": 10,
+    "no_added_sleep_retry_or_timeout_increase": true
+  },
+  "environment": {
+    "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ci-replacement-readiness-20261004",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ci-replacement-readiness-20261004",
+    "required_filesystem": "ext4",
+    "private_manifest_directory": ".local-state/ci-replacement-readiness-20261004"
+  },
+  "scope": "Test-only publication fixture; no production behavior, provider, installed daemon, schema or iCloud acceptance gate change. A deterministic sensitivity run is not timing-repeatability evidence.",
+  "results": {
+    "direct_final_baseline": {
+      "executed": 1,
+      "passed": 0,
+      "failed": 1,
+      "filtered": 22,
+      "exit_code": 101,
+      "failure": "intended final absence assertion: observed Some([]), expected None; complete UUID equality passed first",
+      "manifest": ".local-state/ci-replacement-readiness-20261004/baseline-runtime.json",
+      "manifest_sha256": "e31c5cd4476114d1670478af0158f150fd77a4be171b62ec4187b9aa9a129b6c",
+      "log": ".local-state/ci-replacement-readiness-20261004/baseline-runtime.log",
+      "log_sha256": "7e5a0ee4ae2c5d48b92bd5fc215528b3789cc26fa80fa8330f7adde7685f4e87",
+      "executable_sha256": "4f6a9b91b52b2320086519170017a895929e532e3ff4f7440f4b4a5628347bff",
+      "source_before_after_equal": true,
+      "baseline_source_copy": ".local-state/ci-replacement-readiness-20261004/namespace_replacement-baseline.rs",
+      "baseline_source_copy_sha256": "b762ca5f4825a0c3f25f65f183d9b7324291eeabe64e56c493af9e1562926af5"
+    },
+    "same_directory_stage_rename": {
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 22,
+      "test_reported_seconds": 0.0,
+      "exit_code": 0,
+      "manifest": ".local-state/ci-replacement-readiness-20261004/final-control-runtime.json",
+      "manifest_sha256": "40eff378dc8ad2e7b8136115601d5e065cc20268f56d7a146d4c11e59ec769e6",
+      "log": ".local-state/ci-replacement-readiness-20261004/final-control-runtime.log",
+      "log_sha256": "6926000546d93e22acc260a6e2b1a6c42fca37c1f217d1032e8d8b2805c4eceb",
+      "executable_sha256": "f9865c2592cb3cd8da75e7fae79542107e31cd68d29365de62611c912e259aaf",
+      "source_before_after_equal": true
+    },
+    "existing_actual_process_death": {
+      "executed": 1,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 22,
+      "test_reported_seconds": 0.08,
+      "exit_code": 0,
+      "manifest": ".local-state/ci-replacement-readiness-20261004/final-process-death-runtime.json",
+      "manifest_sha256": "7b3de293c381d63faaa80d14c334ad723f358ce2f4a4964e41915fad88846cf2",
+      "log": ".local-state/ci-replacement-readiness-20261004/final-process-death-runtime.log",
+      "log_sha256": "786b9f40dd529271b6fb9d5567dca22715fcaf756f701d56cd437f102f3d0988",
+      "executable_sha256": "f9865c2592cb3cd8da75e7fae79542107e31cd68d29365de62611c912e259aaf",
+      "source_before_after_equal": true,
+      "fixture_phases": [
+        "replaced",
+        "released"
+      ],
+      "original_durability_assertions_unchanged": true
+    }
+  },
+  "corrected_source_sha256": "1062b470e2b99aff28870068f6a9b05e795e99e0fe5d7a072864ab75e70e91e6",
+  "final_compiler": {
+    "manifest": ".local-state/ci-replacement-readiness-20261004/final-build.json",
+    "manifest_sha256": "874327ebbebbf6fd422384b531ff2239dbb9fcd3e3be813b5fed24a6d8d7b82c",
+    "log_sha256": "074d8467d00c27ad907d6b8c26bffe6650a24f5f72bfaf6db0d7e96f319a6a21",
+    "artifact_selection": "exact compiler-artifact namespace_replacement test target, one executable",
+    "warnings": 0,
+    "executable": {
+      "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/namespace_replacement-ab3ff89f7259a935",
+      "sha256": "f9865c2592cb3cd8da75e7fae79542107e31cd68d29365de62611c912e259aaf",
+      "compiler_manifest": "final-build.json"
+    }
+  },
+  "formatting_note": "Initial corrected source passed both exact controls; targeted rustfmt only wrapped the new assertion. Final formatted source was compiled again and both exact controls executed again; earlier immutable manifests retained separately.",
+  "remaining_limits": "The complete scripts/check.sh passed on unchanged final source; a new exact remote CI run remains pending. This test-only fix proves complete readiness publication at the chosen boundary, not provider durability, repeated timing reliability or closure of an iCloud release gate.",
+  "full_local_check": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "exit_code": 0,
+    "finished_at": "2026-10-04T10:51:34.921076+00:00",
+    "manifest_sha256": "2bbcd9813a29e570d2552268bf46b974aaa3b85e95f803ae735b4aeeb61b1c58",
+    "log_sha256": "de2dfdf396da54fed05b77a0f4faea78f8f6e80fe064db4028386f1f351eb498",
+    "source_before_after_equal": true,
+    "scope": "Formatting, clippy/probes, workspace, kernel fixtures, scripts, ledger and docs; local display scenarios not repeated. No provider or installed-state acceptance.",
+    "root_verification": ".local-state/icloud-readonly-consolidation-20261004/root-fullcheck-v2-verification.json"
+  }
+}

@@ -2,5 +2,6 @@
 pub mod demo;
 pub mod i18n;
 pub mod model;
+pub mod recovery;
 pub mod tray;
 pub mod ui;

@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-06",
+  "registered_at": "2026-10-05T22:26:05.926184+00:00",
+  "status": "baseline-two-red-same-two-green-nine-controls-pass",
+  "source_baseline": "b144846a85ec82582f8512702120b5a63b77267a",
+  "question": "Can an already sealed ordinary temporary-file upload finish its exact staged identity handoff after a durable atomic replacement has renamed the same owner and become latest, while preserving destination identity, newer working bytes, prerequisite and cleanup lineage?",
+  "prediction": "The existing reservation refuses the genuine pending source prerequisite before provider delegation because latest and visible name changed. The narrow durable ordinary atomic-source authority should pass that same sequence, publish the predecessor receipt for replacement and cleanup, and refuse hostile scope, stream, owner, edge, queue, victim, revision and captured-route changes. Same-directory and different confirmed source/destination parent routes must be supported without inferring identity from a path.",
+  "arms": [
+    {
+      "name": "baseline-genuine-atomic-source",
+      "endpoint": "actual journal/working/namespace ordering reserves and confirms source predecessor, then exact final replacement and temporary cleanup",
+      "expected": "RED before fix at source reservation; original and sealed bytes retained"
+    },
+    {
+      "name": "corrected-same-endpoint",
+      "expected": "GREEN after fix with exact two-identity receipt propagation and preserved local destination"
+    },
+    {
+      "name": "hostile-durable-authority-controls",
+      "expected": "changed bindings refuse at fresh/saved reservation and transactional confirmation; no partially published receipt"
+    }
+  ],
+  "execution_policy": {
+    "synthetic_only": true,
+    "cloud_mutations": false,
+    "installed_actions": false,
+    "one_compile_runtime_lane": true,
+    "baseline_red_required_before_fix": true,
+    "tmpfs_forbidden": true,
+    "retained_cloud_writer_reopened": false,
+    "retained_cloud_mutation_replayed": false
+  },
+  "observed_cloud_boundary": {
+    "run": "28a274e6-8017-4b9d-becb-462f0b28b1f1",
+    "source_sequence": 12,
+    "replacement_sequence": 13,
+    "cleanup_sequence": 14,
+    "exact_runtime_exception_retained": false,
+    "source_derived_guard_failure": "owner latest and visible name no longer match ordinary upload; pending atomic replacement directly requires that source upload",
+    "source_journal_audit_sha256": "77f87f1aaf3727def24b2c463267d5e54862ff2cae2070f35bdb2812cd09ac99"
+  },
+  "limits": [
+    "Synthetic results do not prove B cloud contents, a complete real editor workflow, native iWork editing or installed release acceptance.",
+    "All six full-iCloud acceptance criteria remain open."
+  ],
+  "outcome": {
+    "status": "baseline-two-red-same-two-green-nine-controls-pass",
+    "source_count": 477,
+    "production_source_sha256": "2db90b821f4c853c78afd47e20b979568eb6345b21ed7ad00cf717b6f9b9c522",
+    "test_source_sha256": "f8d4986b4c5832a32955762b8050564b9dfd5ee9d921c51ea7e9c74e25378648",
+    "baseline": {
+      "actual_tests": 2,
+      "failed_at_desired_endpoint": 2,
+      "original_guard_sha256": "ec9baf9df4519949bb9f951fe9c956653da4358e6b09eb2239d4ffe4ca0fde8e",
+      "source_replace_provider_begin_reached": false
+    },
+    "same_endpoint_corrected": {
+      "actual_tests": 2,
+      "passed": 2,
+      "same_test_bytes_as_baseline": true,
+      "source_final_cleanup_exclusive_reopen_completed": true
+    },
+    "corrected_controls": {
+      "actual_tests": 9,
+      "passed": 9,
+      "hostile_authority_arms": 47,
+      "fresh_reserve": 15,
+      "saved_reserve": 15,
+      "acknowledgement": 15,
+      "earlier_unlatched_missing_replacement": 2,
+      "exclusive_reopen_saved_reservation_passed": true,
+      "atomic_later_dirty_bytes_preserved_passed": true,
+      "ordinary_newer_sealed_save_parity_passed": true
+    },
+    "inspection_correction": {
+      "previous_phase": "root-atomic-source-controls-v1",
+      "previous_result": {
+        "exit_code": 101,
+        "duration_seconds": 2.6243732779985294,
+        "sources_unchanged": true,
+        "log_sha256": "de2efa9f7cbf1a97dc60efdd84018273434f355aa0d5bb67c631c04666adcc18",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "actual_tests_ran": 9,
+      "passed": 6,
+      "failed": 3,
+      "failure_boundary": "three hostile matrices used production payload integrity reader to snapshot bytes after deliberately changing target expected digest, so snapshot refused before authority endpoint",
+      "production_changed": false,
+      "correction": "snapshot known owned fixture sealed objects by UUID directly, independently of deliberately corrupted expected digest",
+      "expected_authority_controls_not_claimed_complete_before_correction": true
+    },
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "provider_runtime_reliability_claimed": false,
+    "full_release_gate_closed": false
+  },
+  "actual_results": {
+    "root-atomic-source-baseline-red-v1": {
+      "exit_code": 101,
+      "duration_seconds": 1.7018116809776984,
+      "log_sha256": "97bb6b5022f6ccc467cf9d4aeb5164fdf3f1024914df5337dfc9de38dccd92db",
+      "sources_unchanged": true
+    },
+    "root-atomic-source-green-v1": {
+      "exit_code": 0,
+      "duration_seconds": 13.435756589984521,
+      "log_sha256": "67a13c29fb78f6a7a62f4f62f2b55e114fd748815c59454ecf00992be4141c21",
+      "sources_unchanged": true
+    },
+    "root-atomic-source-controls-v1": {
+      "exit_code": 101,
+      "duration_seconds": 2.6243732779985294,
+      "log_sha256": "de2efa9f7cbf1a97dc60efdd84018273434f355aa0d5bb67c631c04666adcc18",
+      "sources_unchanged": true
+    },
+    "root-atomic-source-controls-v2": {
+      "exit_code": 0,
+      "duration_seconds": 4.071517613017932,
+      "log_sha256": "96050de59fa983b80d25422e1c2b1915ceafd4ee82c9ed70e9f8f3b4dc1ab8ba",
+      "sources_unchanged": true
+    }
+  },
+  "outcome_evidence": {
+    "audit_sha256": "0c3f077cc3c149b26400dd3d8542266e89c8b8798243fa0285e478278bafb591",
+    "baseline_audit_sha256": "303de70b70168ad0f638e7a98b996ed6d22acac92b609e47fa2e334abeafaa37",
+    "production_patch_sha256": "d0574c42bcfd98faee3224f5dd39bc3205da5287b290c1be350c3ebc93d010ed",
+    "peer_static_review_v1_sha256": "e114a7f06112f0a626bdbf02d9bbd7bc30247d742cfd09fbfac35ce0d687e99d",
+    "peer_actual_review_sha256": "c2cb430ccc83c310a95d47cb1b426a89535c6e15073b58d2479b72bbfdd7ae69"
+  },
+  "full_validation": {
+    "command": "scripts/check.sh",
+    "fast": false,
+    "exit_code": 0,
+    "duration_seconds": 674.4607473309734,
+    "log_sha256": "6bb4d190b7f3bd0965d215a1b0db97785c53933be6f98c4612c2bee200ebcf35",
+    "source_count": 477,
+    "all_rust_cargo_sources_unchanged": true,
+    "stages": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "kernel_mount_scenarios_ran": true,
+    "desktop_display_scenarios_ran": false,
+    "installed_unit_pid_ticks_and_19_packaged_files_unchanged": true,
+    "full_icloud_gate_closed": false
+  }
+}

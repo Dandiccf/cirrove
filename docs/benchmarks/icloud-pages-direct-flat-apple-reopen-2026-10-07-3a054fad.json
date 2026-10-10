@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "run": "3a054fad-6089-4e05-bb50-7bc68b6866b8",
+  "subject_run": "ab8555d8-15cf-4f56-af80-56e4592db479",
+  "status": "closed-success-independently-audited",
+  "active_measurement": false,
+  "question": "Does the exact current B from the new raw Flat Pages replacement open once in Apple Pages and retain the genuine B paragraph after one same-tab reload?",
+  "prediction": "A unique observed Drive row binds current item, parent and name from the actual completed postflight. One Pages open and one reload retain the exact 93-byte source-witness paragraph; ambiguity, changed identity, repair/conversion prompt or incomplete RO closure refuses.",
+  "endpoint": "Actual receipt-bound Drive row \u2192 one actual Apple Pages open \u2192 full exact B paragraph before and after one reload \u2192 all arm-created tabs closed within the original window.",
+  "reference_method": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-apple-reopen-2026-10-07-60aa8a2c.json",
+    "size": 9274,
+    "sha256": "73d269979452b6fdb1ead858e3abe14f9785853f5d5d9855bdbdfaa4eba55cab",
+    "scope": "Successful 60aa method only; none of its current identity, clocks, tabs or outcome is evidence for this new arm."
+  },
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "collection": "drive",
+  "selected_current": {
+    "item": "FILE::com.apple.CloudDocs::1B10580E-325E-48FD-8EB7-830077D19717",
+    "guid": "1B10580E-325E-48FD-8EB7-830077D19717",
+    "parent_id": "FOLDER::com.apple.CloudDocs::E7AA29D7-3B62-4B94-A7D2-32999B22157D",
+    "parent_guid": "E7AA29D7-3B62-4B94-A7D2-32999B22157D",
+    "parent_name": "Cirrove-Native-ab8555d8-15cf-4f56-af80-56e4592db479",
+    "name": "Cirrove-Pages-Replacement-ab8555d8-15cf-4f56-af80-56e4592db479.pages",
+    "etag_at_completed_postflight": "i1xb::i1xa",
+    "semantic": {
+      "entries": 15,
+      "expanded_bytes": 100205,
+      "files": 12,
+      "sha256": "a30087186f914633fe5d511b44b0ea398f717fae3922a683da5ec8414d07e3ba",
+      "version": 2
+    }
+  },
+  "expected_text": {
+    "exact_one_paragraph": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+    "scope": "Actual source80 UI witness concatenation, not the original requested newline text. No newline/layout fidelity assertion.",
+    "source_readback": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/text-b-reloaded-readback.txt",
+      "size": 93,
+      "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+    },
+    "genuine_pair_witness": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/genuine-pair-witness-v1.json",
+      "size": 2343,
+      "sha256": "c8d4e10ebe85aacf60fa88787e7dff63b48c1217b17959e76cad6bccf03315d0"
+    },
+    "scope_amendment": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/one-paragraph-scope-amendment-v1.json",
+      "size": 682,
+      "sha256": "07bdc9cec8c7bacc3ebe4a3ed801832b960c81e20a075c6941ea91e87f7d4718"
+    }
+  },
+  "prerequisites": {
+    "completed_replacement_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/root-terminal-result.json",
+      "size": 3251,
+      "sha256": "f72c796b5ca20d290503b3b7fb04af24f7372983ddc63bf5a922a967a1f1d98a"
+    },
+    "typed_postflight": {
+      "path": "/var/tmp/cirrove-pages-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/replacement-postflight-verified.json",
+      "size": 3209,
+      "sha256": "570441ca560caf26e9442141d256b1d4c27dabcd45029217ade6a4292e3662f3"
+    },
+    "compatible_subject_closure_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/audit-independent-closure-source-v1.json",
+      "size": 1784,
+      "sha256": "7bf310928d07da2d9f2a18333d6e3341a8dbb1839f9a735e5910c80094dcd00d"
+    },
+    "subject_host_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-replacement-ab8555d8-15cf-4f56-af80-56e4592db479/audit-independent-host-terminal-v1.json",
+      "size": 4760,
+      "sha256": "254be7bf2194734ddb1c24f876a230c63acc030efefdf1af7b02e19a84988894"
+    },
+    "successful_RO_subject_run": "805f4b1e-ad9f-4d65-8d81-fbecf28c05ef",
+    "successful_RO_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-ro-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef/root-terminal-result.json",
+      "size": 819,
+      "sha256": "077af0af6f62dc94bbbbb0f83f76fd2710b56f4456e0923357539bb9f6cea7bb"
+    },
+    "successful_RO_independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-ro-remount-805f4b1e-ad9f-4d65-8d81-fbecf28c05ef/audit-independent-readonly-terminal-v1.json",
+      "size": 3331,
+      "sha256": "ebbf06df4d881eb25be9155c941971e2d82e3240af146706db5a004adc2bfb34"
+    },
+    "RO_currentB_identity_and_semantic_match_required": true
+  },
+  "root_future_bindings": {
+    "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8",
+    "private_TMPDIR": "/home/dandiccf/Storage/ct/pf-ui-3a054fad",
+    "filesystem": "ext4",
+    "browser": "Chrome selected browser1",
+    "owned_drive_tab": "1216489907",
+    "owned_apple_tab": "1216489908",
+    "original_window": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/original-window.json",
+      "size": 314,
+      "sha256": "175db61ddac2e3b907c1d07ed327252bcc7b474e3bf8d9e3cf1faf7fe9f314aa"
+    },
+    "registration_before_dispatch_pin": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/preregistration-before-clock.json",
+      "size": 9022,
+      "sha256": "9fd3d1da65db3046b6b2f0e683dcd798b90533c7686aa0308b4d71c10d27e3b3"
+    },
+    "authorization": "Standing user authorization for own iCloud tests; this UI arm opens and reloads only its receipt-bound test document."
+  },
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "original_paired_wall_monotonic_window_required": true,
+  "automatic_retries": 0,
+  "read_only": true,
+  "actions_allowed": {
+    "owned_parent_navigation": true,
+    "unique_receipt_bound_document_open": 1,
+    "same_opened_tab_reload": 1,
+    "edits": 0,
+    "exports": 0,
+    "uploads": 0,
+    "sharing_or_trash": 0
+  },
+  "witness_plan": [
+    {
+      "stage": "register",
+      "require": "Actual completed new ab855 postflight and independently audited fresh RO current B must match exact item/parent/name/ETag/fullV2. Bind new public preregistration and fresh original 600/45 wall+monotonic+boot clock before browser observation."
+    },
+    {
+      "stage": "bind_drive",
+      "require": "Retain actual unique Drive row GUID, parent GUID, exact filename stem and Pages document kind. Full .pages name is independently bound by stopped provider receipt and the just-completed strict actual-name RO archive scanner; do not claim that a hidden suffix is visibly displayed. No title-only identity or guessed editor route."
+    },
+    {
+      "stage": "open",
+      "require": "One guarded row Open/double-click after an active-clock check. Bind the actual resulting editor tab to this selection; no guessed editor URL, copied opaque owner segment, private API or additional Open."
+    },
+    {
+      "stage": "observe",
+      "require": "Retain full actual visible/AX paragraph and screenshot; Root visually inspects exact genuine B. Compare all 93 bytes to the pinned source readback. Source expectation cannot substitute for actual editor text. Refuse repair/conversion prompts."
+    },
+    {
+      "stage": "reload",
+      "require": "Record one actual same-owned-tab reload inside the original active deadline; independently retain full actual paragraph and screenshot afterward. Record action/time; screenshots alone do not establish reload."
+    },
+    {
+      "stage": "close",
+      "require": "Use the reserved 45 seconds to close only tabs created by this arm. Record action counts, actual text before/after, complete/partial/refused outcome and own-tab closure. Never repeat Open or reload when unclear."
+    }
+  ],
+  "limits": [
+    "Actual completed raw FlatPages subject and separately audited RO mount bind one actual Apple Pages open and one same-tab reload. Exact 93-byte paragraph retained before/after; independent UI audit passed27/27. No full gate487 closure.",
+    "Raw Flat Pages source admission and completed provider package proof are prior prerequisites, not established by this browser arm.",
+    "Only the actual single paragraph is asserted; no newline, layout, media or broad fidelity claim.",
+    "Apple open/reload may normalize remote representation; no post-Apple unchanged ETag/fullV2 assertion without separate evidence.",
+    "No native Linux editor save, repeatability, installed acceptance or full gate487 closure. Installed HOLD and existing open gates remain."
+  ],
+  "outcome": {
+    "version": 1,
+    "run": "3a054fad-6089-4e05-bb50-7bc68b6866b8",
+    "status": "closed-success-independently-audited",
+    "success": true,
+    "active_measurement": false,
+    "actual_close_elapsed_wall_seconds": 519.7659652233124,
+    "terminal_checkpoint": {
+      "unix": 1791344228.9903414,
+      "monotonic": 368856.113420743,
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+    },
+    "original_window": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/original-window.json",
+      "size": 314,
+      "sha256": "175db61ddac2e3b907c1d07ed327252bcc7b474e3bf8d9e3cf1faf7fe9f314aa"
+    },
+    "events": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/ui-events-v1.json",
+      "size": 1408,
+      "sha256": "1845ed5f2d7901fd66f0e9fdd91dde6d62b22de7ecef01c341168e69d743271a"
+    },
+    "tab_closure": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/tab-closure-v1.json",
+      "size": 165,
+      "sha256": "287ffb6bdabc9cdf8a983985d7341588ee1baf3bca1f42c7ceb2197b90840c00"
+    },
+    "evidence": {
+      "parent-ui-identity.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/parent-ui-identity.json",
+        "size": 222,
+        "sha256": "4967ede9eef533bd12e75fa74d86c673291094e5a044ff3d5f32c99461d49e6d"
+      },
+      "current-ui-identity.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/current-ui-identity.json",
+        "size": 274,
+        "sha256": "5ea493c08bde77543610393f76f7bad881424aaf65c1bbad50391a35f6476f5a"
+      },
+      "text-before-reload.txt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/text-before-reload.txt",
+        "size": 93,
+        "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+      },
+      "text-after-reload.txt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/text-after-reload.txt",
+        "size": 93,
+        "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+      },
+      "editor-before-reload.jpg": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/editor-before-reload.jpg",
+        "size": 62544,
+        "sha256": "a5eb8d2db460e5ed9452b69feac5dd15e70b58ebc94679cd3f2bfe8b8071eb39"
+      },
+      "editor-after-reload.jpg": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/editor-after-reload.jpg",
+        "size": 62544,
+        "sha256": "a5eb8d2db460e5ed9452b69feac5dd15e70b58ebc94679cd3f2bfe8b8071eb39"
+      },
+      "editor-after-reload-ax.txt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/editor-after-reload-ax.txt",
+        "size": 6549,
+        "sha256": "587f716966b7f8a182bd26fde500512bd1207b88aff548530420845c37091e3d"
+      }
+    },
+    "counts": {
+      "document_open": 1,
+      "same_tab_reload": 1,
+      "edits": 0,
+      "exports": 0,
+      "uploads": 0,
+      "automatic_retries": 0
+    },
+    "limitations": [
+      "Before-reload text is actual selected clipboard readback and screenshot; full before AX was observed in tool output but not separately retained.",
+      "After-reload full AX and exact independently copied paragraph retained.",
+      "No post-Apple ETag/fullV2 or broader fidelity claim."
+    ],
+    "execution_note": "A REPL variable assignment failed after successful first selection/copy and before saving readback. The already-copied clipboard was then read and retained without another selection/copy or document open."
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/audit-independent-ui-terminal-v1.json",
+    "size": 4139,
+    "sha256": "b2baa3d956d72efc30f410689f34e19570cc20841dcf262b52d71a2fe5177882"
+  },
+  "scope_registration_correction": "Before clock/observation: a hidden Pages suffix is established through actual receipt/RO wrapper evidence combined with exact DOM GUID+parent+stem+Pages kind, following the disclosed successful prior method; no separately displayed suffix claim.",
+  "registered_at": "2026-10-07T03:28:06.893078+00:00",
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-direct-flat-apple-reopen-3a054fad-6089-4e05-bb50-7bc68b6866b8/original-window.json",
+    "size": 314,
+    "sha256": "175db61ddac2e3b907c1d07ed327252bcc7b474e3bf8d9e3cf1faf7fe9f314aa"
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "active_measurement": false,
+  "arms": [
+    "existing-account normal RO Ready, disable and stop",
+    "disabled explicit write opt-in/initialize only missing empty local journal",
+    "owned ordinary revision/list/read fences and local pending+dirty seed",
+    "same-account saved-session reauthentication while disabled",
+    "disabled read-only downgrade",
+    "retained normal RO Ready, disable and stop; exact retained journal",
+    "offline sealed+dirty recovery export"
+  ],
+  "bindings": {
+    "executor": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/root_saved_session_existing_account_v7.py",
+      "sha256": "a8c6475b2d0cd228afc8c4cf6aea130bfb09d266a01f90f1e6c8cdb86a62afac",
+      "size": 30480
+    },
+    "helper_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/main-v5.rs.proposed",
+      "sha256": "61ffc334f3c493d65ad34eda8c2049c9921427fdd3df335d5c824c24d3bf61d0",
+      "size": 25754
+    },
+    "installed_before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/followup-existing-account-b8483086-79fb-4226-b3e0-bc7a659668f6/installed-before.json",
+      "sha256": "c64af92c7387615a6431b448820b854de3426384f3ce2b5d1b91fd0af1b0c959",
+      "size": 4323
+    },
+    "receiver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/receiver_v5.py",
+      "sha256": "a7c5a59dd59d3cd797bdee5f7e9049322cc0899e4d9d056f36ae70ce26697f65",
+      "size": 12305
+    },
+    "roles": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/normal56-lifecycle-build-v1/roles-binding.json",
+      "sha256": "c18ed4355c750e0a2b96b60376d2cb38e730ad0ce1ea2f99027bf9c5da5d23e5",
+      "size": 7480
+    },
+    "source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-b640ce19-8011-434c-a37d-2b4f86004798/source-pins-terminal.json",
+      "sha256": "4dbf845a526479b8aee4cf39ab8ac81592747bec7a6ab4d1f834e5045e73f2e7",
+      "size": 72732
+    },
+    "tmp_proof": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/followup-existing-account-b8483086-79fb-4226-b3e0-bc7a659668f6/tmp-filesystem-proof.json",
+      "sha256": "92d09cc350f6702c65e05ed4a8a0aac51be1365cbb60107d2fcca633a8c0c496",
+      "size": 199
+    }
+  },
+  "cloud_mutations_intended": 0,
+  "gate488_closed": false,
+  "http_request_count_instrumented": false,
+  "independent_assessment": {
+    "achieved": [
+      "Two normal configured read-only mounts reached exact-account Ready; both owned daemons then stopped cleanly.",
+      "Disabled write opt-in, local ordinary-file sealed/dirty seed, same-account saved-session reauthentication with retention, read-only downgrade and exact offline exports completed.",
+      "Sealed5658-byte and dirty5701-byte exports matched actual seed hashes and generation lineage; no upload attempt, provider receipt or recovery checkpoint was created.",
+      "Ten inner originals and the executor original recorded by its outer receipt were reaped and absent; groups/sessions empty, streams joined, mount/socket absent.",
+      "Current568 source bytes, installed19 files/unit file/PID birth and original donor content hashes remained exact."
+    ],
+    "audit": {
+      "path": ".local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/followup-existing-account-b8483086-79fb-4226-b3e0-bc7a659668f6/audit-independent-existing-account-terminal-v1.json",
+      "sha256": "3b8dde2c0f2c6e48b90392c025cc766f6449ce2e77e3a4ea83252086d181577c",
+      "size": 5131
+    },
+    "checks_passed": 21,
+    "checks_total": 21,
+    "connect_repeated": false,
+    "gate488_closed": false,
+    "installed_delivery_accepted": false,
+    "limits": [
+      "The prior ebb Ready-refusal trial remains failed; this success does not prove its actual refusal cause.",
+      "HTTP request counts were not instrumented. Cloud mutation paths were excluded; ordinary seed was retained locally with the RW account disabled.",
+      "Fresh password, 2FA, expired-session renewal, pending-write worker enablement and delivery of the current daemon remain unproved.",
+      "Full gate488 remains open and installation HOLD is unchanged."
+    ],
+    "new_helper_phases": 5,
+    "prior_connect_phases_reconstructed": 1,
+    "status": "passed_bounded_existing_account_lifecycle"
+  },
+  "installed_delivery": "HOLD",
+  "limits": [
+    "Historical connect is reconstructed from pinned accepted output; connect not invoked in this observation.",
+    "Only disabled account may have writable local grant; no writable daemon/upload worker.",
+    "No expired-session fallback or fresh password login proved.",
+    "No installed upgrade/downgrade, provider reliability, general repeatability or gate488 closure."
+  ],
+  "original_window": {
+    "boot": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_seconds": 45,
+    "deadline": 1791351394.0,
+    "mono_end": 376021.12307834625,
+    "mono_start": 375421.127625065,
+    "observation_run": "b8483086-79fb-4226-b3e0-bc7a659668f6",
+    "started": 1791350794.0
+  },
+  "prediction": "Both normal RO mounts reach exact owned Ready before75s each; five remaining once-only helper phases accepted, pending and dirty bytes preserved, exact offline exports; donor and installed service unchanged.",
+  "prior_connect_accepted": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/execution-ebbd9f71-ec22-4904-8f77-8d2224487346/connect-accepted.json",
+    "sha256": "529a29925ea65614ff7b448e0801490e259252e558d31fa35c08e5528334d3fd",
+    "size": 691
+  },
+  "prior_trial": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/execution-ebbd9f71-ec22-4904-8f77-8d2224487346/result.json",
+    "sha256": "6664a85168b1120bc44a7af4eb1ac9ec1a1c441867ffaf28a2f4afc7747b4cdc",
+    "size": 1018
+  },
+  "question": "Can the already connected genuine saved-session account reach normal read-only Ready, preserve locally queued sealed and dirty changes through disabled explicit write opt-in, saved-session reauthentication and downgrade, remount read-only and export exact recovery bytes?",
+  "registered_at": "2026-10-07T05:24:01.102630+00:00",
+  "result_pin": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/followup-existing-account-b8483086-79fb-4226-b3e0-bc7a659668f6/result.json",
+    "sha256": "802c64f88c686c738b702a45d3bd77cf6d0ab5034b9f0ff754ec2971b932832a",
+    "size": 3710
+  },
+  "run": "b8483086-79fb-4226-b3e0-bc7a659668f6",
+  "scope": "Fresh separately bounded observation of the existing own account created by closed ebb; does not replay connect, extend the old window, or relabel its failed result. No installed daemon or writable mount action.",
+  "source_head": "56a2496a284434e94be9cce70f290a95c9f45d83",
+  "status": "closed_passed",
+  "stop_rule": "Stop at first refusal or unclear outcome; no repeated helper phases, password fallback, replacement file selection or automatic cloud mutation retry.",
+  "subject_namespace_run": "ebbd9f71-ec22-4904-8f77-8d2224487346",
+  "version": 1,
+  "window": {
+    "cleanup_seconds": 45,
+    "maximum_seconds": 600,
+    "mount_start_cap_seconds": 75,
+    "no_renewal": true,
+    "original_clock": null,
+    "outer_additional_cap_seconds": 600
+  }
+}

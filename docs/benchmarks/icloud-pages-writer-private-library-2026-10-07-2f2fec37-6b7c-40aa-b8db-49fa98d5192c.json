@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "run": "2f2fec37-6b7c-40aa-b8db-49fa98d5192c",
+  "root": "/home/dandiccf/Storage/pgE-2f2fec37",
+  "question": "Can the installed Writer load the same genuine Pages B readonly, export exactly one DOCX, and readonly-reopen it with exact one-paragraph text after the proven missing filter dependency is supplied only from the verified private capsule?",
+  "prediction": "Corrected component availability now permits the source load to advance; document semantics and export/reopen remain separately observed. Expected paragraph is exact retained93bytes, not normalized text.",
+  "scope": "Fresh corrected dependency envelope; no native Pages save, imported editing, provider access or prior-case replay. One readonly source load; one DOCX export; one readonly DOCX reopen.",
+  "clock": {
+    "inner_work": 60,
+    "inner_cleanup": 30,
+    "outer_closure": 10,
+    "outer_maximum": 100,
+    "renewal": false
+  },
+  "source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages",
+    "size": 101769,
+    "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc"
+  },
+  "expected": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/text-b-reloaded-readback.txt",
+    "size": 93,
+    "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+  },
+  "limits": [
+    "Writer fidelity result is emitted paragraph text+oneparagraph only, not full layout/font/image fidelity.",
+    "A successful single DOCX conversion is not native Pages editing or native Pages save/export.",
+    "All iWork acceptance beyond this bounded own case remains open as documented.",
+    "No dependency deployment/system installation; private library only.",
+    "Stop on ambiguous outcome; no automatic replay."
+  ],
+  "active_measurement": false,
+  "status": "closed_completed",
+  "registered_at": "2026-10-07T06:09:31.099152+00:00",
+  "source_head": "97bee0e6634ec1bbd540d405e8bd2560e42f11e7",
+  "private_library": {
+    "directory": "/home/dandiccf/Work/cirrove/.local-state/libwpg-verified-private-capsule-20261007-v1/lib",
+    "library": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/libwpg-verified-private-capsule-20261007-v1/lib/libwpg-0.3.so.3",
+      "size": 124976,
+      "sha256": "532279196939058f4f6b66399e13323836a2313b6575cee0508c8d498a1080aa"
+    },
+    "resolver_map": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/libwpg-verified-private-capsule-20261007-v1/verified-capsule-and-resolver-map-v1.json",
+      "size": 47348,
+      "sha256": "4eb30c71d93e0e8e0d2768e65e2d740f6a7bede923594ca427d5e7bc26dd1c59"
+    },
+    "reviewed_dependency_resolution": true
+  },
+  "single_export": true,
+  "provider_calls_authorized": 0,
+  "system_package_install_performed": false,
+  "gate487_closed": false,
+  "source_peer_review": "CLEAR; unchanged full load/export/reopen/fidelity body; fresh dependency envelope only",
+  "prerequisite": "Actual8e73 service, stream, seek and detection pass; actual697 failed service construction retained.",
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-private-lib-2f2fec37-6b7c-40aa-b8db-49fa98d5192c-private-v1/root-outer-registration-v1.json",
+    "size": 3009,
+    "sha256": "0c5718a4b31398ea33bf929bee5636dbf72ca122e85568b5c8a3094fb24f40ba",
+    "protected_stat": [
+      57,
+      75145427,
+      33024,
+      1000,
+      1,
+      1791353376019539356,
+      1791353376019539356
+    ]
+  },
+  "outcome": {
+    "root_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-private-lib-2f2fec37-6b7c-40aa-b8db-49fa98d5192c-private-v1/root-outer-result-v1.json",
+      "size": 1132,
+      "sha256": "58e0fc44cacc25b81caa73e7b6f2f2d2cf00e7776af00db746bb02db037dddbc",
+      "protected_stat": [
+        57,
+        75145430,
+        33024,
+        1000,
+        1,
+        1791353376824238590,
+        1791353376824238590
+      ]
+    },
+    "workflow_completed": true,
+    "fidelity_passed": true,
+    "all_owned_processes_closed": true,
+    "gate487_closed": false
+  },
+  "independent_assessment": {
+    "audit": {
+      "path": ".local-state/pages-writer-private-lib-2f2fec37-6b7c-40aa-b8db-49fa98d5192c-private-v1/audit-independent-writer-docx-terminal-v1.json",
+      "size": 3431,
+      "sha256": "f8a94b0494cfcc3d2c786f7bebae772b25bbbac163f1aac5bbe760e8076007be"
+    },
+    "passed": 24,
+    "total": 24,
+    "actual_workflow_completed": true,
+    "bounded_text_fidelity_passed": true,
+    "single_DOCX_export": true,
+    "independent_ZIP_CRC": {
+      "members": 10,
+      "all_passed": true,
+      "expanded_bytes": 14180
+    },
+    "independent_OOXML": {
+      "paragraphs": 1,
+      "text_bytes": 93,
+      "text_sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+    },
+    "source_and_pins_preserved": true,
+    "all_recorded_original_handles_closed": true,
+    "host_system_repair_performed": false,
+    "interpretation": "The corrected private-library envelope imported this genuine Pages B read-only and exported one DOCX whose reopened and independently parsed paragraph text matched the registered 93 bytes. This does not establish historical failed null-load causes, general document fidelity, native Pages save, or full gate 487."
+  }
+}

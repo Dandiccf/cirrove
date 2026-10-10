@@ -1,0 +1,50 @@
+{
+  "run": "c03ae97a-e779-4f58-8661-4da69b44aec6",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "state": "closed_pass",
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/offline/sources/own_offline_overlay_serial_once_v8.py",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/offline/host-inputs-ready-v1.json",
+    "8e0790fb4f596da75049a6492ee338061845275d39abc2fcacf54b055ae7118e"
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/offline/sources/own_offline_overlay_serial_once_v8.py",
+    "size": 17896,
+    "sha256": "8f12f14cc149fc47e73aba83c8bf42f6f2ff84ee5e7a52c6da4497fe45a787ad"
+  },
+  "input": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6-preparation-v1/offline/host-inputs-ready-v1.json",
+    "size": 10134,
+    "sha256": "8e0790fb4f596da75049a6492ee338061845275d39abc2fcacf54b055ae7118e"
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct/fs-c03ae97a",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/fs-c03ae97a",
+  "window": {
+    "started_unix": 1791611245.6419852,
+    "deadline_unix": 1791612145.6419852,
+    "started_boottime": 635872.765064115,
+    "deadline_boottime": 636772.765064115,
+    "cleanup_reserve_seconds": 45,
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+  },
+  "registered_unix": 1791611292.8597684,
+  "network": false,
+  "host_service_restart": false,
+  "original_registration": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-final-session-offline-upgrade-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json",
+    "size": 2212,
+    "sha256": "84d0943c94b209c608f616a6c7b2b50ec635600c0717ad636acc77039ecd2849"
+  },
+  "closed_unix": 1791611323.1745322,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/offline-evidence/terminal.json",
+    "sha256": "cac621050adc76ff4ee695f44f5fa20536112dde8e5c1cf03240d30096484ee5"
+  },
+  "result": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/offline-evidence/successful-result.json",
+    "sha256": "65936d97259c3a6682843d5ab0636c52728c23e2de0db6772650ac5ed7d3801c"
+  }
+}

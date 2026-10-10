@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "run": "3d114776-4344-4869-b628-502e45fd1b06",
+  "subject_run": "672e98c3-39b6-45a1-85bd-16cc77a6404b",
+  "active_measurement": false,
+  "status": "closed_failure",
+  "question": "Does a fresh normal read-only mount preserve the exact completed Keynote DATA B identity and return its genuine raw bytes?",
+  "prediction": "The exact current item and revision remain visible, one held read-only descriptor returns527694 bytes with the registered B SHA, copied journal frontier and original subject state remain unchanged, and all original owners close. A mismatch refuses without write or retry.",
+  "window": null,
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "endpoint": {
+    "item": "FILE::com.apple.CloudDocs::CA40E09C-022C-4137-8197-84B7F99216B5",
+    "parent": "FOLDER::com.apple.CloudDocs::23CFB74E-048C-40AA-8461-D577EF6E3ECB",
+    "etag": "i2tn::i2tm",
+    "size": 527694,
+    "sha256": "3109039377ae445885265e22fe7574f7301bcbb61810a4496f1230848383a9b8",
+    "representation": "data",
+    "semantic": null
+  },
+  "actual_result": null,
+  "provider_mutations": false,
+  "automatic_retries": 0,
+  "limits": "One read-only remount and raw capture only. OriginalA Trash proof is retained from the completed subject; no new Trash read, package scanner, Apple opening or Linux native edit. Full487 stays open.",
+  "source_head": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "source_count": 571,
+  "subject_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-672e98c3-39b6-45a1-85bd-16cc77a6404b/audit-independent-keynote-data-terminal-v1.json",
+    "size": 8060,
+    "sha256": "3e9bbb22eb9e569ee57de92113e16ac3922495ecc98f25950b4d56ab9233c495"
+  },
+  "source_independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-readonly-remount-3d114776-4344-4869-b628-502e45fd1b06-preparation-private-v1/audit-independent-source-v1.json",
+    "size": 5844,
+    "sha256": "b2356d643c428b18a50b0b46d1aed406a9db13e6aee1e467c3d11ed3ebb86dfc"
+  },
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-ro-3d114776-4344-4869-b628-502e45fd1b06/original-window.json",
+    "size": 314,
+    "sha256": "1ed188bf76569b166674af5b3948c8bed8ee25512383f79880c9c9d7573e7356"
+  },
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-ro-3d114776-4344-4869-b628-502e45fd1b06/observe-outer-owner.json",
+    "size": 930,
+    "sha256": "7f12ce747727597ff8492deaec73528b684ab8d1a77d10c144485deeea85a4e6"
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-ro-3d114776-4344-4869-b628-502e45fd1b06/root-terminal-result.json",
+    "size": 346,
+    "sha256": "c2df7a6f869fa07a705c4676b669c218655eab6676e4c0c8b4f9f3b496aa4b75"
+  },
+  "actual_unified_exit": 1,
+  "actual_tool_chunk": "422ce7",
+  "actual_elapsed_seconds": 6.314655105001293,
+  "all_original_handles_closed": true,
+  "independent_raw_capture_completed": false,
+  "metadata_guard_failure": "Cached current identity retains staged name and i2te revision; durable completed publication receipt records final .key name and i2tn revision. Product projection versus observer assumption remains under investigation.",
+  "root_actual_diagnostic": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-ro-3d114776-4344-4869-b628-502e45fd1b06/root-actual-ro-failure-diagnostic-v1.json",
+    "size": 1541,
+    "sha256": "96adf354da6799eaf9bca7522a579eb12467b00a5e9e4027340a07a4c85220e2"
+  },
+  "local_preparation_corrections": [
+    "Original thin driver lacked required Collector CARGO_TARGET_DIR: zero registrations or children, no clone/provider.",
+    "Corrected driver completed clone then its receipt normalizer read wrapper instead of result body; original child exit0 remains distinct from caller exit1.",
+    "Separate check-only continuation passed without repeating clone; local failures preserved."
+  ],
+  "full487_closed": false
+}

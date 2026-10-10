@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "run": "d6466c5a-d307-4552-90a1-887a91ff9300",
+  "status": "closed_Apple_open_refused",
+  "active": false,
+  "active_measurement": false,
+  "question": "Does exact Numbers DATA B open with genuine nonce,7/3/10 and SUM(A2:B2), retaining them after one same-tab reload?",
+  "prediction": "The exact B item opens and retains nonce, values and formula after one reload. Pages DATA failed earlier; this independent Numbers outcome is not presumed.",
+  "endpoint": "Exact own parent and FILE DOM identity then one open, values and actual formula before/after one reload, own tabs closed within600/45",
+  "plan": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/apple-reopen-plan-v1.json",
+    "size": 4416,
+    "sha256": "e9b9af359e7b0a357d49085237f272b3b79707939f3db8409ea2f5b98af9a963"
+  },
+  "RO_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/root-terminal-result.json",
+    "size": 345,
+    "sha256": "875015ec2824d438b8b557899cfca5ce80b2f48ddb63cc908c7950c008af5e73"
+  },
+  "RO_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/audit-independent-numbers-data-readonly-terminal-v1.json",
+    "size": 5043,
+    "sha256": "59dbac1252b52d8727d7b1d995e7404656c752c76bcb76dcaafc08d3455b9c22"
+  },
+  "subject": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "collection": "drive",
+    "current_item": "FILE::com.apple.CloudDocs::920F2C08-F789-4B29-9384-289A4732DD68",
+    "document_uuid": "920F2C08-F789-4B29-9384-289A4732DD68",
+    "parent_item": "FOLDER::com.apple.CloudDocs::452E0006-ECF8-4997-A40E-E04E37D6FBDF",
+    "parent_name": "Cirrove-Native-0803e72b-bba6-4f25-acb1-2b407b1befc4",
+    "document_name": "Cirrove-Numbers-Data-0803e72b-bba6-4f25-acb1-2b407b1befc4.numbers",
+    "pre_Apple_etag": "i1bm::i1bl",
+    "raw_b": {
+      "path": "/var/tmp/cirrove-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/source-b.numbers",
+      "size": 138943,
+      "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724"
+    }
+  },
+  "expected_content": {
+    "A1": "Cirrove b5c8041e-18e3-4d6a-82fa-9429af5d3c4f",
+    "A2": 7,
+    "B2": 3,
+    "C2_displayed": 10,
+    "C2_formula": "SUM(A2:B2)",
+    "acceptable_Apple_formula_display": "=SUM(A2:B2)",
+    "native_pair_witness": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-readonly-followup-8d791c0c-5902-44e6-b184-d39a2ad5935e-preparation-private-v1/native-pair-source-witness-excerpt-v1.json",
+      "size": 3072,
+      "sha256": "f3241cc239d9a26ac9fc17ee4724b8d8dab959069593c99a6a679e63dee4302b"
+    },
+    "genuine_native_export": true,
+    "not_XLSX_conversion": true,
+    "historical_screenshot_absent": true
+  },
+  "actual_ro_node": {
+    "content_version": null,
+    "etag": "i1bm::i1bl",
+    "id": "FILE::com.apple.CloudDocs::920F2C08-F789-4B29-9384-289A4732DD68",
+    "kind": "file",
+    "modified_unix": 0,
+    "name": "Cirrove-Numbers-Data-0803e72b-bba6-4f25-acb1-2b407b1befc4.numbers",
+    "parent_id": "FOLDER::com.apple.CloudDocs::452E0006-ECF8-4997-A40E-E04E37D6FBDF",
+    "size": 138943,
+    "target": null
+  },
+  "installed_actions": false,
+  "explicit_edits": 0,
+  "mutation_replay": false,
+  "automatic_retries": 0,
+  "full487_closed": false,
+  "provider_post_open_revision": null,
+  "post_open_representation": null,
+  "compiler_overlap": false,
+  "clock": {
+    "started_wall_unix": 1791371575.096321,
+    "started_monotonic_ns": 396202219400291,
+    "total_seconds": 600,
+    "cleanup_reserve_seconds": 45
+  },
+  "assessment": {
+    "run": "d6466c5a-d307-4552-90a1-887a91ff9300",
+    "success": false,
+    "stage": "Apple_numbers_open",
+    "message": "This spreadsheet can\u2019t be opened right now.",
+    "exact_row_identity_verified": true,
+    "exact_editor_document_uuid_verified": true,
+    "opens": 1,
+    "reloads": 0,
+    "explicit_edits": 0,
+    "retries": 0,
+    "values_and_formula_observed": false,
+    "provider_post_open_revision": null,
+    "post_open_representation": null,
+    "observed_wall_unix": 1791371681.638,
+    "status": "closed_Apple_open_refused",
+    "elapsed_seconds_to_owned_tab_closure": 106.5926787853241,
+    "all_owned_tabs_closed": true,
+    "original_600_45_window_preserved": true,
+    "cause": "unproven; same refusal category as Pages DATA, no causal protocol conclusion",
+    "installed_actions": false,
+    "full487_closed": false,
+    "local_observation_guard": "First text assertion refused on non-breaking spaces before any evidence write; corrected only the failure-message matcher, no further UI open/reload/edit."
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-apple-reopen-d6466c5a-d307-4552-90a1-887a91ff9300/terminal-v1.json",
+    "size": 994,
+    "sha256": "bdbbf34a1a591c44b463d7aede0b53ab72ad9e2f5a982613fcf3b94def6a24ea"
+  },
+  "evidence_sha256": {
+    "registration-v1.json": "0516b4fe154827a0bfeb9145387509b418b3a283c8320df7681de49a30639542",
+    "parent-row-v1.json": "fe194a509b563d5024df0c44890efabccf2ca9fabe5e1baef1a3809d46af2d77",
+    "current-row-v1.json": "15268ab1a4334e0e67239a61c2ebfcb8347f4efc71f393225a3761eae4b7682e",
+    "current-row-before-open.png": "6145871de42472927f7d0926d9306050ea8c0df3c6663b09cbd788426e356202",
+    "open-event-v1.json": "a1ae9c28d0a8c7f1e52d40ca374d2ca8feeb20024b62d2faf93a8d78de02dd15",
+    "editor-binding-v1.json": "9f88bf7a3b9ea6ed4201f2e1f1e304d22d6472ea121f191dc3b994ced12704b5",
+    "editor-open-failure-ax.txt": "4b8738088d1e38374475bbc6917f03e442fee48a0439ddfa569ac8be8fa546ff",
+    "editor-open-failure.png": "ba46900d113d53d36b9e136169ed85703e4a73570a36499a8778e5119e4a5896",
+    "failure-observation-v1.json": "4cfa6024126dcb00db231dcfaee8acb4217d458ce57cfeaed3cd5ae34e0c3da2",
+    "tab-closure-v1.json": "82237c0e2a598018f4f05a871575a865be15f74d3b6d55dae956fc7966cc6f50",
+    "terminal-v1.json": "bdbbf34a1a591c44b463d7aede0b53ab72ad9e2f5a982613fcf3b94def6a24ea"
+  },
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 22,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-apple-reopen-d6466c5a-d307-4552-90a1-887a91ff9300/audit-independent-numbers-data-apple-failure-v1.json",
+      "size": 5765,
+      "sha256": "7dfddb2d92756177b8c280603e0426b6c66d5bfc48b94531db6486a418543137"
+    }
+  }
+}

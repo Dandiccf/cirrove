@@ -1,0 +1,118 @@
+{
+  "active": false,
+  "automatic_retry": false,
+  "cleanup_seconds": 45,
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/outer-owner-v2.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/inputs-final.json",
+    "--sha256",
+    "e6ba8237881c53489a404d29de64dc04ba48f4da5ac6f998673fe9b4ca4694cd",
+    "--evidence",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/outer-evidence-once-v1"
+  ],
+  "expected_seconds": 600,
+  "full_gate490_closed": false,
+  "installed_actions": false,
+  "owner_sha256": "7f4c000717185440fe0b9c31300db3cfd38dd02a61b47ea6621d906065df5c69",
+  "result": {
+    "a_archive_bytes": 138945,
+    "a_archive_sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "a_import_confirmed": false,
+    "a_original_source_archive_retained": true,
+    "a_original_upload_payload_gc": true,
+    "a_package_metadata_publication_done": false,
+    "a_package_metadata_publication_failures": 0,
+    "a_package_metadata_publication_observed": false,
+    "a_remote_receipt_and_package_completion_present": true,
+    "a_upload_durable_state": "Uploaded",
+    "a_upload_failed_attempts": 0,
+    "b_replacement_started": false,
+    "closure_preservation_pass": true,
+    "closure_verified": true,
+    "competitor_import_started": false,
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/competitor-controller-result.json",
+      "sha256": "b9385414e3f64be53dcbd91028b096874e54e7a2e9327d4d5be472873b3ce74f",
+      "size": 1383
+    },
+    "failure": {
+      "class": "Refusal",
+      "safe_source_frames": [
+        {
+          "function": "main",
+          "line": 401
+        },
+        {
+          "function": "execute",
+          "line": 334
+        },
+        {
+          "function": "import_a",
+          "line": 940
+        },
+        {
+          "function": "ready",
+          "line": 370
+        },
+        {
+          "function": "require",
+          "line": 31
+        }
+      ],
+      "stage": "fresh_a_import"
+    },
+    "first_root_read_passed": true,
+    "fresh_folder_confirmed": true,
+    "full_gate490_closed": false,
+    "host_installation_and_daemon_preserved": true,
+    "independent_audit_pending": false,
+    "independent_closure_preservation_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/independent-closed-fresh-measurement-summary-v1.json",
+      "sha256": "b1d39544fb0ac68fcceb5791f4f5d260fc3b5f80a0dffe75bd8c1971cd167cce",
+      "size": 3475
+    },
+    "live_endpoint_pass": false,
+    "local_observation_guard_correction": {
+      "controls": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/import-observation-correction-v2/closed-pure-controls-receipt.json",
+        "sha256": "c677ca337b134b3d09c11111d83ef34fda755f1764b421d436f75d365756066c",
+        "size": 3002
+      },
+      "controls_passed": 26,
+      "live_adopted": false,
+      "provider_calls": 0,
+      "scope": "Observation of already-started A may wait only during valid indexing; strict new-mutation admission unchanged. Failed trial cause subfield remains unproved.",
+      "source": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/lifecycle-observation-v2.py",
+        "sha256": "8647deb6cddf18b2aec72f45df1cf6e20e476f98cc021ec6830b898404910821",
+        "size": 75342
+      }
+    },
+    "outer_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/outer-evidence-once-v1/terminal.json",
+      "sha256": "846339df6d08630b0653260bf49985adbe49a49fcc00132558234c103ccc1980",
+      "size": 887
+    },
+    "provider_mutations_retried": false,
+    "readiness_failure_subfield": "not captured; exact field unknown",
+    "readiness_indexing_transient": "valid source-level explanation; not proved for this run",
+    "retained_b_export_reached": false,
+    "source582_and_roles_tools_preserved": true,
+    "success": false,
+    "three_identity_endpoint_proved": false
+  },
+  "root_native_session": 93668,
+  "run": "f2cf03bf-2d9e-47f9-a43f-177a972a97a3",
+  "scope_authorized": true,
+  "status": "completed_failed_stopped_without_repeat",
+  "version": 1,
+  "window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "deadline_monotonic": 654642.053579558,
+    "deadline_unix_seconds": 1791630014,
+    "started_monotonic": 654042.053579558,
+    "started_unix_seconds": 1791629414
+  }
+}

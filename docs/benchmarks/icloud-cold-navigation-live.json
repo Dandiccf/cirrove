@@ -1,0 +1,54 @@
+{
+  "status": "complete_reproduced_false_empty_cold_folders",
+  "date": "2026-09-26",
+  "question": "How long does a new isolated read-only iCloud mount with an empty Cirrove metadata cache take to publish a complete root listing, and how long do first openings of a root folder and a nested folder take?",
+  "arms": [
+    "new private account state with only the existing Cirrove-owned sealed iCloud session and short key, no metadata or content cache",
+    "first root listing and its item count",
+    "first listing of a root folder, then a nested folder of roughly 50 entries, then a second root folder",
+    "warm repeat of the same paths"
+  ],
+  "endpoint": "Record monotonic elapsed time, item counts and filesystem errors for each listing. A result is complete only when the directory iterator finishes; do not infer completeness from a partially rendered File Manager window. Compare with counts in the existing mount. Record no secrets, provider bodies, item IDs, file names, cursor URLs or signed URLs.",
+  "prediction": "The root and each cold folder will wait for an Apple metadata request and may take seconds or tens of seconds; warm repeats will be much faster. The current on-demand design will not index the entire account when connecting.",
+  "scope": "A new isolated Cirrove state and read-only mount; the existing iCloud validation mount, regular Cirrove service and other providers remain untouched. No cloud mutations.",
+  "environment": {
+    "binary_sha256": "20a26eeab98e2d8d5235a81c01ca82c99442e5e416238e95d7bf148b099dd125",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 20,
+    "private_manifest": ".local-state/icloud-cold-navigation-validation/manifest.json"
+  },
+  "results": [
+    {
+      "arm": "fresh_state_startup",
+      "mounted_and_ready_seconds": 10.906,
+      "metadata_cache_at_start": "empty; only accounts.json and the encrypted session were copied"
+    },
+    {
+      "arm": "first_directory_iterators",
+      "root_count": 30,
+      "root_iterator_seconds": 0.003,
+      "first_root_folder_count": 0,
+      "first_root_folder_iterator_seconds": 0.002,
+      "nested_folder_error": "ENOENT",
+      "second_root_folder_count": 0,
+      "second_root_folder_iterator_seconds": 0.002
+    },
+    {
+      "arm": "later_same_paths",
+      "root_count": 30,
+      "root_folder_counts": [42, 28],
+      "nested_folder_count": 52,
+      "warm_iterator_seconds_range": [0.001, 0.004],
+      "note": "These later attempts establish eventual completeness, not exact time-to-completeness for these three paths."
+    },
+    {
+      "arm": "poll_three_other_cold_root_folders_to_expected_count",
+      "first_counts": [0, 0, 0],
+      "expected_counts": [6, 10, 11],
+      "time_to_expected_count_seconds": [0.507, 2.013, 2.011],
+      "poll_interval_seconds": 0.5
+    }
+  ],
+  "interpretation": "The first open of an unvisited folder returned an immediate empty listing or ENOENT; the same paths later contained their expected entries. This reproduces the owner's symptom. The root-only on-demand feed had already stored a completed cursor, and Store's unknown-directory fallback treats a completed feed as a complete tree. The first cached read therefore falsely reports empty, while the activity refresh fetches the folder asynchronously. Fix and retest before calling on-demand navigation reliable."
+}

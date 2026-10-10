@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "status": "completed_local_controls_with_preserved_failed_attempts",
+  "record_class": "retrospective local synthetic control evidence; not a pre-registered real-provider acceptance window",
+  "active_measurement": false,
+  "source_head": "56a2496a284434e94be9cce70f290a95c9f45d83",
+  "runtime_source_count": 568,
+  "question": "Does the source-linked disabled-read-only caller initialize its fresh local journal and strictly refuse retained/non-owner states, and can its actual Rust six-phase codecs pass the pinned receiver?",
+  "actual_results": [
+    {
+      "stage": "initial_offline_metadata_setup",
+      "outcome": "failed before Rust tests; retained",
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/local-controls-current56-v1/terminal-result.json",
+        "size": 717,
+        "sha256": "59f206341404bfa960d58f888637024520104101b681d61e2db0a40d93761077"
+      }
+    },
+    {
+      "stage": "intended_missing_journal_RED1_then_same_GREEN1",
+      "outcome": "101 at intended assertion, then0/onePASS",
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/local-controls-current56-v2/terminal-result.json",
+        "size": 2903,
+        "sha256": "b78e9cee43cf771a724370e318e680274d0444e1948517743a2402c64e2a20b8"
+      }
+    },
+    {
+      "stage": "original_module4",
+      "outcome": "101: two positive controls passed, two SQLite-sidecar fixture comparisons failed; retained FAIL",
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/local-controls-current56-v2/terminal-result.json",
+        "size": 2903,
+        "sha256": "b78e9cee43cf771a724370e318e680274d0444e1948517743a2402c64e2a20b8"
+      }
+    },
+    {
+      "stage": "independent_shared_codec",
+      "outcome": "actualRust1/protocol17/actualRustreceiver2 allPASS",
+      "audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/actual-codec-current56-v1/audit-independent-shared-Rust-codec-v1.json",
+        "size": 6243,
+        "sha256": "f2afe1fb998aef89fa655f1d03f472852b4244745c1381d47a271c5010a4a0d5"
+      }
+    },
+    {
+      "stage": "corrected_negative_fixture",
+      "outcome": "each of two negatives separately0/onePASS; no corrected full4 run claimed",
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/remaining-negative-current56-v1/terminal-result.json",
+        "size": 1422,
+        "sha256": "12b26a907de4d7d6baa0e847c250e6c9575caf1129c6b3885d8a9d4892ee1289"
+      }
+    }
+  ],
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/remaining-negative-current56-v1/audit-independent-combined-local-controls-v1.json",
+    "size": 6419,
+    "sha256": "3aa1089eeb8452233893f3be802ee013200f9d890490e1ba9827d93d1ec9bb7e"
+  },
+  "conclusion": "Individual local initialization and refusal endpoints pass. Prior full4 failed2 remains unchanged; corrected negatives passed in two separate one-test commands, not a repeated full4. Actual shared Rust codec1/protocol17/receiver2 passed separately.",
+  "fixture_correction": {
+    "before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/fresh_journal_tests_v1.rs.proposed",
+      "size": 8167,
+      "sha256": "03fd7fad353f1b6ba898a94a6c7e9268c7be8484691f3964b904bbc8f7b5fb66"
+    },
+    "after": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-gate488-real-lifecycle-preparation-private-v1/saved-session-root-executor-private-v1/fresh_journal_tests_v2.rs.proposed",
+      "size": 9359,
+      "sha256": "4c3dfa9431462a240dd0a3064eebee3f9ab066aa90de1fe401e24fa729127993"
+    },
+    "scope": "Keep actual query_only readhandle before baseline; omit only named uploads.db-wal/shm mtime/ctime. All bytes/SHA/size/dev/inode/mode/uid/nlink/file membership and all other file stamps stay strict; exact foreign owner remains verified."
+  },
+  "scope_limits": [
+    "There is no V2 full4 PASS: two prior positive PASS arms and two corrected separately executed negative PASS arms establish these individual endpoints.",
+    "Rust codecs are synthetic phase serialization; provider/keyring/vault/completed_live_phases remain0.",
+    "No installed daemon, real saved credentials, expired renewal, mount/write opt-in with queued changes, or gate488 closure is claimed."
+  ],
+  "provider_calls": 0,
+  "vault_calls": 0,
+  "completed_live_phases": 0,
+  "installed_actions": false,
+  "gate488_closed": false
+}

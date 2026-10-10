@@ -42,6 +42,9 @@ pub struct RemoteChange {
 /// One save made locally, from the upload journal.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocalChange {
+    /// Exact saved generation for non-mutating recovery export.
+    #[serde(default)]
+    pub operation: Option<uuid::Uuid>,
     /// The journal's own order; larger is later.
     pub sequence: u64,
     /// The file's name, when the journal or the index knows it; the item id

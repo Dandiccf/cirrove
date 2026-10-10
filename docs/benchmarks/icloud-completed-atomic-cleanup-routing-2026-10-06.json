@@ -1,0 +1,195 @@
+{
+  "SQLITE_TMPDIR_filesystem": "ext4",
+  "TMPDIR_filesystem": "ext4",
+  "arms": [
+    "unchanged production two positive RED endpoints",
+    "corrected production exact same positive tests GREEN",
+    "all4 tests with36 hostile arms"
+  ],
+  "baseline_evidence": [
+    {
+      "actual_tests_executed": 1,
+      "desired_endpoint": "Conflict at folder_plan_for_operation after genuine API setup and preservation assertions",
+      "phase": "root-atomic-cleanup-routing-baseline-red-1-v3",
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 8.876749260001816,
+        "exit_code": 101,
+        "installed_actions": false,
+        "log_sha256": "e2090d9b140d34166b273594a28b6332f404b0589243f53637dbdd13ddea8045",
+        "sources_unchanged": true
+      },
+      "test_source_sha256": "1002d044bfb90eed022591cf72c8ac697782422d97e80a4c54dbcc9a4a048e25"
+    },
+    {
+      "actual_tests_executed": 1,
+      "desired_endpoint": "Conflict at folder_plan_for_operation after genuine API setup and preservation assertions",
+      "phase": "root-atomic-cleanup-routing-baseline-red-2-v3",
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 0.25578347797272727,
+        "exit_code": 101,
+        "installed_actions": false,
+        "log_sha256": "e593259c198de6ea42168360b56b1f0fccdc72383d43aa3c6fa9ec597ba8dfd6",
+        "sources_unchanged": true
+      },
+      "test_source_sha256": "1002d044bfb90eed022591cf72c8ac697782422d97e80a4c54dbcc9a4a048e25"
+    }
+  ],
+  "cloud_mutated": false,
+  "endpoint": "operation-bound folder_plan_for_operation supplies exact unindexed temporary source using its already completed atomic receipts; independent remote digest/revision verification remains mandatory",
+  "full_icloud_gate_closed": false,
+  "inspection_corrections": [
+    {
+      "actual_tests_executed": 1,
+      "correction_required": "match initial genuine Create reader bytes to the declared node size",
+      "desired_red_endpoint_reached": false,
+      "failure_boundary": "fixture create_working returned Corrupt at line822: old_final.size>0 paired with empty input reader",
+      "phase": "root-atomic-cleanup-routing-baseline-red-1-v1",
+      "production_changed": false,
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 13.783656879968476,
+        "exit_code": 101,
+        "installed_actions": false,
+        "log_sha256": "dc518f5462fffd07fbebfe42710b045e2fca7af1dfe8ba5694433ddf16ccac7e",
+        "sources_unchanged": true
+      },
+      "second_baseline_registered_but_executed": false
+    },
+    {
+      "actual_tests_executed": 1,
+      "correction_required": "create genuine empty local file with node.size0/empty reader; then write ORIGINAL and seal actual Create",
+      "desired_red_endpoint_reached": false,
+      "failure_boundary": "matching nonempty reader still violates new=true requiring node.size0, so create_working returns Intent at setup",
+      "phase": "root-atomic-cleanup-routing-baseline-red-1-v2",
+      "production_changed": false,
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 9.099549226055387,
+        "exit_code": 101,
+        "installed_actions": false,
+        "log_sha256": "9fbbefbf016d9347ea167f0ba2018527c3fdfab79ae95e8914b1f08c6379449c",
+        "sources_unchanged": true
+      }
+    }
+  ],
+  "installed_actions": false,
+  "observed_cloud_run": "8e60a94e-a23a-42c3-9cd6-9625c9fd2103",
+  "one_compile_runtime_lane": true,
+  "outcome": {
+    "cloud_result_verified_by_synthetic_tests": false,
+    "controls_tests_passed": 4,
+    "formatted_source_pins": {
+      "crates/cirrove-service/src/icloud_writes/folders/receipt_sources.rs": "1002d044bfb90eed022591cf72c8ac697782422d97e80a4c54dbcc9a4a048e25",
+      "crates/cirrove-service/src/journal/generations.rs": "7ed74494244021600e557d330ef439d6c481dacfe4a999ab0fc341d8c2ab5212",
+      "crates/cirrove-service/src/journal/identity_handoff.rs": "f6e81efa6a6924477a9af0390015afaeb5ef8327175cb3093c71ef15719fa03e"
+    },
+    "full_icloud_gate_closed": false,
+    "full_project_check": {
+      "command": [
+        "/home/dandiccf/Work/cirrove/scripts/check.sh"
+      ],
+      "desktop_display_scenarios_covered": false,
+      "original_runner_and_command_absent": true,
+      "phase": "root-atomic-cleanup-routing-fullcheck-v1",
+      "real_provider_acceptance_covered": false,
+      "registration_sha256": "2dff93aee4bf7c2df89c237c5dd8ca16bc0734b7931d7728b59c3c2c8a1a0abc",
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 647.9971813170123,
+        "exit_code": 0,
+        "installed_actions": false,
+        "log_sha256": "14933b26d68438d8e1bd089fb1a6569506401669c431688bc3c0ecc9930e3970",
+        "sources_unchanged": true
+      },
+      "result_sha256": "2814a0e2bc312cf9a9f38b3c4be83e8f4dee83faa7592e88a09f9982a14bd131",
+      "source_count": 477,
+      "workspace_kernel_script_ledger_docs_completed": true
+    },
+    "hostile_journal_arms": 30,
+    "hostile_metadata_arms": 6,
+    "independent_actual_audit_sha256": "cf5035fa12b2938f35224a82f47448c5cf7575355e330c9730268d499115ba55",
+    "installed_actions": false,
+    "phase_evidence": [
+      {
+        "actual_tests_executed": 1,
+        "phase": "root-atomic-cleanup-routing-green-1-v1",
+        "registration_sha256": "e0301716d5858171e66d3438368cdf0db106c7ed859557a757614c4bb8bda889",
+        "result": {
+          "artifacts": [
+            {
+              "fresh": false,
+              "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+              "sha256": "f984d6399d156671c209d540f8e1f897189f9b8a446f57a2ccc6d085eefac829",
+              "size": 616795176,
+              "target": "cirrove_service",
+              "test": true
+            }
+          ],
+          "cloud_mutated": false,
+          "duration_seconds": 38.51605222496437,
+          "exit_code": 0,
+          "installed_actions": false,
+          "log_sha256": "763f8bfd6c40b9ab1f3f5296330748acab27c7d326de3bc06bc32d0fbbd11d03",
+          "sources_unchanged": true
+        }
+      },
+      {
+        "actual_tests_executed": 1,
+        "phase": "root-atomic-cleanup-routing-green-2-v1",
+        "registration_sha256": "fd9cd0702c06d72a7281fdc4327ebb981c127f9a7c8ee6e17b61b4d1ffb4be57",
+        "result": {
+          "artifacts": [
+            {
+              "fresh": true,
+              "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+              "sha256": "f984d6399d156671c209d540f8e1f897189f9b8a446f57a2ccc6d085eefac829",
+              "size": 616795176,
+              "target": "cirrove_service",
+              "test": true
+            }
+          ],
+          "cloud_mutated": false,
+          "duration_seconds": 0.24988592695444822,
+          "exit_code": 0,
+          "installed_actions": false,
+          "log_sha256": "d22b1f6796d144d5894a2464b78e0f359c945e225088f1ab91d5213fe567f69f",
+          "sources_unchanged": true
+        }
+      },
+      {
+        "actual_tests_executed": 4,
+        "phase": "root-atomic-cleanup-routing-controls-v1",
+        "registration_sha256": "f5ec0822f1ca8302d41ff01ff1b543f5aeefe3404432ae590d70afefb5ff1399",
+        "result": {
+          "artifacts": [
+            {
+              "fresh": true,
+              "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+              "sha256": "f984d6399d156671c209d540f8e1f897189f9b8a446f57a2ccc6d085eefac829",
+              "size": 616795176,
+              "target": "cirrove_service",
+              "test": true
+            }
+          ],
+          "cloud_mutated": false,
+          "duration_seconds": 3.382936327951029,
+          "exit_code": 0,
+          "installed_actions": false,
+          "log_sha256": "43e19c773a240029179889cdc6841404dab99ca0b7c96523ddf317eba79b75dc",
+          "sources_unchanged": true
+        }
+      }
+    ],
+    "production_static_audit_sha256": "5892e7d7be62e4ef5a1ec5284ff5102744e503c890edbf17e864e71319116ca7",
+    "same_byteexact_positive_tests_passed": 2
+  },
+  "prediction": "Each of the two desired completed atomic cleanup plans fails with Conflict on unchanged production317 despite exact uploaded receipts, genuinely missing metadata leaf and preserved fixture rows/bytes. The same two tests then pass after a narrow completed-replacement receipt authority correction; 30 journal and6 metadata hostile arms remain refused.",
+  "question": "Can operation-bound iCloud folder planning use an exact completed ordinary atomic source/target receipt for its resolved cleanup when only the temp leaf is not indexed?",
+  "registered_at": "2026-10-06T00:15:39.813000+00:00",
+  "source_baseline": "3179522bd1a0323bd6937222ae989f0e03fcc957",
+  "status": "same-two-red-to-two-green-and-four-controls-tests-pass",
+  "tests_sha256_unformatted": "5c18a6bd6e2b97e4f54259cdf9f0bc5b6ee8860c5e925013f68805d3cfac88a4",
+  "version": 1
+}

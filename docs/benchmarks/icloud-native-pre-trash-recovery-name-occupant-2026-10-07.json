@@ -1,0 +1,347 @@
+{
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "active_measurement": false,
+  "arms": [
+    {
+      "competitor_label": "iCloudNativeFinalValidation",
+      "competitor_name": "recovery-by-cirrove-EXACT_DURABLE_REPLACEMENT_UUID.numbers",
+      "competitor_root": "/var/tmp/cirrove-native-final-00ac2f93-3895-498b-a1aa-e68d4c4d2bd3",
+      "dispatches": 1,
+      "document": "Cirrove-Numbers-Parent-1b849dd5-70bd-4ad5-80ea-52873905e61a.numbers",
+      "name": "one_owned_pre_trash_name_occupant",
+      "subject_folder": "Cirrove-Native-1b849dd5-70bd-4ad5-80ea-52873905e61a",
+      "subject_label": "iCloudNativeFinalValidation",
+      "subject_root": "/var/tmp/cirrove-native-final-1b849dd5-70bd-4ad5-80ea-52873905e61a"
+    }
+  ],
+  "authority": "Each context has fresh state/mount/settings and same-account opaque sealed input from a fully closed donor, no prior journal/cache/attempt copied. Subject parent exact create receipt+namespace owner and replacement operation bind all selections; competitor is an actual normal public CLI flat import into that exact parent with its genuine completed receipt, not a name-only peer.",
+  "automatic_retry": false,
+  "collection": "drive",
+  "competitor_run": "00ac2f93-3895-498b-a1aa-e68d4c4d2bd3",
+  "current_source": {
+    "checkout_head": "51da135318e2340da4fd2704311c5c6dd35ffee5",
+    "fresh_role_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/roles-after-full11-v1/ready-binding-v1.json",
+      "size": 81762,
+      "sha256": "efe675c25c2152f9689e92080c19a2c708f8d139ed4225886d973a119442d1a9"
+    },
+    "full11_elapsed_seconds": 550.8320743839722,
+    "full11_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full11-result-v1.json",
+      "sha256": "03f45213a9e76bb702c985bb53f9d8ccfae5a47671632da3f7a581001077af85",
+      "size": 605
+    },
+    "full11_rust_groups": 87,
+    "notes": "Completed sequential normal/probe builds from committed563source; exact role HEADs/features and Cargo fresh metadata are recorded in the pinned binding. No cloud test outcome yet.",
+    "runtime_source_count": 563
+  },
+  "date": "2026-10-07",
+  "full_integration_accepted": false,
+  "gate486_closed": false,
+  "installed_actions": false,
+  "intended_public_path": "docs/benchmarks/icloud-native-pre-trash-recovery-name-occupant-2026-10-07.json",
+  "limits": [
+    "This is controlled competitor presence BEFORE the fresh final inner preflight. It does not prove safety against a competitor inserted AFTER that preflight or server-side atomic compare-and-move.",
+    "A single future real arm supports this exact scoped refusal/preservation endpoint, not general reliability/statistical claims.",
+    "No real outcome has executed yet; local synthetic results alone close no live or installed criterion.",
+    "No Pages/Keynote matrix, generic native Linux editing, natural stale-ETag, long-session expiry, capacity/quota or abandoned-stage cleanup acceptance claim.",
+    "No Apple browser open required for this content-preservation arm and no GUI fidelity claim. Original uncertain/failed cloud arms remain closed and are never replayed.",
+    "Earlier controllerV5/prepV4 composition had a stale lifecycle basename; corrected V6/V5 exact literals are not yet actual locally checked. Original drafts preserved unexecuted; no provider retry.",
+    "Pre-release Capture is metadata-only, not a remote three-content baseline. Full A/B/B remote semantic evidence comes from stopped post-Conflict Preservation, with captured exact ETag fences and fixed source references."
+  ],
+  "local_controls": {
+    "controller": {
+      "all_original_children_reaped_and_absent": true,
+      "artifact": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-controller-controls-actual-v3/controls-result-v1.json",
+        "sha256": "14ecbd6f6815549db84b57c772e59d875d40c1c44c2a5ff82ffad0e413a97527",
+        "size": 1925
+      },
+      "corrected_count": 9,
+      "provider_calls": 0,
+      "scope": "AST-selected actual controller functions, no real provider; old incomplete-marker and late-dispatch controls each one desiredFAIL; corrected controllerV5 full9PASS; fixtures preserve earlier setup error separately. V6 differs only in reviewed lifecycle basename, not control bodies; actual integration check still pending."
+    },
+    "lifecycle": {
+      "all_original_children_reaped_and_absent": true,
+      "artifact": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-lifecycle-ownership-controls-actual-v1/controls-result-v1.json",
+        "sha256": "c08288bb96f06f5277ea03a3e44413902157975c858fd15c89cde751461bc30e",
+        "size": 1366
+      },
+      "corrected_count": 2,
+      "provider_calls": 0,
+      "scope": "Actual local Python sleepers and original Popen, pidfd acquisition refusal in both spawn/unmount; V1 one desiredFAIL, lifecycleV2 full2PASS including actual natural exit/no signals. Not a real daemon/provider result."
+    },
+    "observer": {
+      "artifact": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-observer-deadline-controls-actual-v1/controls-result-v1.json",
+        "sha256": "359e6ae0c29ac98b503b9860f9bc2ae9ddbf4d3a78ce16919432d121b6efe6ec",
+        "size": 12557
+      },
+      "corrected_count": 7,
+      "real_provider_calls": 0,
+      "scope": "Production observer deadline fence omitted only: one desiredFAIL then same1PASS, two publication controls and full current7PASS. No live provider."
+    },
+    "pause_tls": {
+      "artifact": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v4/controls-result-v1.json",
+        "sha256": "ae03eff645c85df2db2af1f75d139de733640c5b3b1431506c889b06c1e4b8ef",
+        "size": 4688
+      },
+      "corrected_count": 7,
+      "real_provider_calls": 0,
+      "scope": "Actual TransferWorker plus synthetic TLS/encrypted checkpoint; FIFO-release missing guard one desiredFAIL then same1PASS/full7PASS. Older five observer controls in this artifact are historical, not the current seven."
+    },
+    "recovery_name_preservation_tls": {
+      "artifact": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/controls-result-v1.json",
+        "sha256": "64c2a6b048312b59f33a5522166287e391d54f3d1ef8d83506431166bd93ecc7",
+        "size": 2950
+      },
+      "corrected_count": 1,
+      "real_provider_calls": 0,
+      "scope": "Existing synthetic TLS collision fixture; removal of recovery-name exclusion guard produces one desiredFAIL, restored same1PASS. No real provider."
+    }
+  },
+  "ordered_endpoints": [
+    "Fresh exact parent creation then normal public CLI flat-A import; stopped typed metadata/fullV2 sourceA binds original actualNode.",
+    "Same normal public replacement using real B reaches durable pre-Trash MoveOld pause; marker exact run/operation/attempt/checkpoint digest/original/stage/parent; inner_commit_called=false.",
+    "Distinct fresh context imports real B once at exact reserved recovery filename; public job, uploaded operation, exact queue complete, full receipt revision/CV and plain-import authority.",
+    "Read-only triple Capture before release validates exact account/collection/item IDs, ETags, names and PACKAGE metadata for original/stage/occupant with metadata/source before-after fences. Capture does NOT download A/B/B or independently verify their full content. Original A preflight was full; source B raw/V2 provenance was independently verified locally.",
+    "One protected exact release; same replacement becomes Conflict with no current/backup/package_completion receipt and no replay.",
+    "Stop/reap both original daemons and every retained child, exact mount/socket closure, then independent Preservation observer downloads all three packages and requires captured IDs/ETags/locations unchanged plus full canonical A/B/B equal exact registered source references. Full remote A/B/B verification occurs only in this post-Conflict phase."
+  ],
+  "original_window": {
+    "started_unix_seconds": 1791325918,
+    "deadline_unix_seconds": 1791326518,
+    "started_monotonic": 350545.549899092,
+    "deadline_monotonic": 351145.12307642965,
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+  },
+  "outcome": {
+    "version": 1,
+    "run": "1b849dd5-70bd-4ad5-80ea-52873905e61a",
+    "competitor_run": "00ac2f93-3895-498b-a1aa-e68d4c4d2bd3",
+    "success": false,
+    "elapsed_seconds": 128.61533707898343,
+    "commands": [
+      {
+        "phase": "finalize",
+        "exit_code": 0,
+        "elapsed_seconds": 1.3697735520545393,
+        "failure_class": null,
+        "signals": [],
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/root-live-finalize-v1.log",
+          "size": 388,
+          "sha256": "de693f69aa4d6dbe4756aa43a1f0cfc745829f92c2222b4141ed6a33ad0e9c35"
+        }
+      },
+      {
+        "phase": "controller",
+        "exit_code": 1,
+        "elapsed_seconds": 127.22068212402519,
+        "failure_class": null,
+        "signals": [],
+        "original_handle_reaped": true,
+        "process_absent": true,
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/root-live-controller-v1.log",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    "window": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/original-window-root-v1.json",
+      "size": 218,
+      "sha256": "f62b73d2c70006e75029e580ff0a4949981bf46bc2fda58977b177a871b10b69"
+    },
+    "controller_dispatched": true,
+    "closure_verified": true,
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/competitor-controller-result.json",
+      "size": 1257,
+      "sha256": "bbe3b6c6197a756b85467a28794ed86392ab6b75d86d7ea17d42f2857b3a6cb2"
+    },
+    "sources_unchanged": true,
+    "source_count": 563,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "full_gate486_closed": false
+  },
+  "prediction": "Once the exact owned competitor import is complete and the pre-release capture binds three IDs/ETags/typed metadata, releasing the already paused same replacement operation should produce Conflict, no final handoff receipt, no original-to-Trash move and no stage install. Independent stopped Preservation readback should verify exact original A, stage B and occupant B against the full canonical A/B/B identities, while retaining the captured metadata tuples.",
+  "provider": "icloud",
+  "question": "Does normal flat Numbers replacement refuse a genuine different item occupying the exact reserved recovery name before the final fresh inner handoff preflight, preserving the exact original A, replacement stage B and occupant B identities and full canonical content?",
+  "ready": true,
+  "remaining_open_criteria": [
+    486,
+    487,
+    488,
+    489,
+    490
+  ],
+  "required_terminal_evidence": [
+    "Actual public job IDs and operation UUIDs, typed stopped journal snapshot with exact SQL/body/queue ownership",
+    "Original Popen/pidfd receipts and process absence for all phases; unknown birth stays unknown; no PID-pattern cleanup",
+    "Exact captured mount/socket removal after original owner reap",
+    "All563 source pins and role binaries unchanged; installed packaged19/unit/PID1243 birth2318 and no home shadow unchanged",
+    "Both immutable raw A/B sources and their fullV2 references preserved; post-Conflict independent full remote A/B/B identity verification. No raw provider body/token/URL export."
+  ],
+  "run": "1b849dd5-70bd-4ad5-80ea-52873905e61a",
+  "scripts": {
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/controller_pre_trash_competitor_v6.py",
+      "sha256": "d41d0154ca865480dc139e577f65ecfe376309b5f0582139f7ab4999f012373d",
+      "size": 22031
+    },
+    "lifecycle": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/lifecycle_source_v2.py",
+      "sha256": "46fc4bc9f88ef3efd660b2a464d0c69f514e3d7e46a68cd1995eaecc231a12a2",
+      "size": 67472
+    },
+    "preparer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/prepare_triplet_assets_v5.py",
+      "sha256": "f46c899673952f51cf3d6e79f5a36e8bbeee0078b00754a982ba8c5dc7b53e5b",
+      "size": 21851
+    }
+  },
+  "sources": {
+    "A": {
+      "actual_proof": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/source-a-executed-v2-proof-frozen-v1.json",
+        "sha256": "0527a5a1a1681309957c0a94c58e87cfae43a54e807fe532c87d8ad88acc143e",
+        "size": 2612
+      },
+      "layout": "flat_numbers",
+      "root": null,
+      "semantic": {
+        "entries": 46,
+        "expanded_bytes": 133153,
+        "files": 42,
+        "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+        "version": 2
+      },
+      "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+      "size": 138945
+    },
+    "B": {
+      "layout": "flat_numbers",
+      "provenance": "Genuine separate browser edited donor, read-only Numbers export; cached 17/3/20 verified independently. Full export formula semantics not implied.",
+      "root": null,
+      "semantic": {
+        "entries": 46,
+        "expanded_bytes": 133252,
+        "files": 42,
+        "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+        "version": 2
+      },
+      "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+      "size": 139044
+    }
+  },
+  "status": "closed_failed",
+  "stop_conditions": [
+    "Any uncertain folder/import/replacement outcome stops without requeue, restart worker, repeat mkdir/import/replace or old-operation replay.",
+    "Missing/partial/foreign marker only bounded JSON observation within original live owner/deadline; malformed authority refuses.",
+    "Competitor not durably complete, original/stage/occupant revision drift, peer mismatch or exhausted pause: no release, no resubmission.",
+    "Failure of current563 binding/full11/source/installed or original closure evidence leaves arm failed or unresolved; no installed change."
+  ],
+  "version": 1,
+  "window": {
+    "TMPDIR": "Root must verify ext4 disk TMP nf-SUBJECT8/nf-COMPETITOR8, never tmpfs.",
+    "cleanup_reserve_seconds": 45,
+    "clock": "One Root original paired wall/monotonic/boot deadline shared by both contexts; pause until conservatively anchored immediately before sole replacement dispatch, capped by original active deadline. No reset/extension.",
+    "pre_trash_pause_seconds": 120,
+    "remaining_phase_dispatch": "Competitor Runner.spawn temporarily caps ACTIVE_END to the min(original, pause-until), including immediate pre-Popen clock; restores original active end in finally for cleanup.",
+    "seconds": 600
+  },
+  "installed_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/pre-trash-triplet-installed-before-v1.json",
+    "size": 4244,
+    "sha256": "04c2d6a90151b839fe9b0135c402728f656d182a191edd0b8b18cc0a020447f3"
+  },
+  "planned_window_file": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/original-window-root-v1.json",
+  "measurement_window_started": true,
+  "observed_endpoint": {
+    "owned_folder_confirmed": true,
+    "public_flat_A_import_completed": true,
+    "independent_full_V2_A_verified": true,
+    "competitor_normal_start_and_parent_list_completed": true,
+    "replacement_attempted": false,
+    "competitor_import_attempted": false,
+    "release_published": false,
+    "Conflict_verified": false,
+    "triple_preservation_verified": false
+  },
+  "diagnosis": {
+    "first_guard": "The actual metadata databases were0644 inside private0700 directories; the strict private-file predicate refused before SQLite selection. This follows from the retained mode values and exact guard call order.",
+    "latent_path_error": "parent_cached then selected the empty common manager state/metadata.db instead of the populated state/accounts/ACCOUNT/metadata.db.",
+    "corrected_private_controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/controller_pre_trash_competitor_v7.py",
+      "size": 21928,
+      "sha256": "aed644623c40764283e0843fb091da14dc9cdf33d029cc5a0d5e07f30caf45a3"
+    },
+    "future_permission_policy": "Root will set umask077 before a distinct fresh daemon invocation; no existing evidence or installed file permissions are changed.",
+    "old_arm_replayed": false,
+    "cloud_outcome_uncertain": false
+  },
+  "independent_audits": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/audit-regression-review-terminal-partial-v1.json",
+      "size": 17915,
+      "sha256": "5ca894a3bb04cdf8787cc2278e9d9eef4aa980ff6de267013430ae7813260a72",
+      "result": "PASS",
+      "checks": 66
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/audit-gate-agent-closed-provider-proofs-v2.json",
+      "size": 8832,
+      "sha256": "58e5fd6557f38ce9de3d53939fa78b4c3fb4d3b30e91a1e6f954169f02705420",
+      "result": "PASS"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/audit-gate-agent-closed-provider-proofs-v3.json",
+      "size": 15352,
+      "sha256": "1c0c268863666d5e26d238515dd6b83d6236ca823418464a4392e20f0abbeaae",
+      "result": "PASS",
+      "scope": "Corrects first permission refusal vs latent path error; verifies actual byteexact600-copy RED/GREEN controls."
+    }
+  ],
+  "local_path_control": {
+    "initial_driver_parse_failure": "run_closed_parent_cache_controls_v1.py had a quoting SyntaxError; no child/arm started. FrozenV1 retained.",
+    "initial_unadjusted_control": {
+      "red": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/closed-parent-cache-controls-v1/red-result.json",
+        "size": 495,
+        "sha256": "92762ce8a40b9c6afad49b89434400903326b011801992ce452b47777d949e53"
+      },
+      "green": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/closed-parent-cache-controls-v1/green-result.json",
+        "size": 500,
+        "sha256": "8dc83659093e229b4f1a4aeaadaafa94ff93007d50dc66139ebed0a47f13e228"
+      },
+      "status": "closed_failed",
+      "cause": "Both old and corrected code refused actual0644 metadata before SQL; this did not isolate database selection."
+    },
+    "corrected_fixture": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/closed-parent-cache-fixture-v2.json",
+      "size": 1366,
+      "sha256": "af136aaffa805db8769b20ae9e95655fa95d7cde46d34f14281f25e5d202a560"
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/closed-parent-cache-controls-v2/result.json",
+      "size": 1266,
+      "sha256": "68fdf0639f3bdfca0d1fba78e1ead79b34ff1b3a23725f6daeace16d6c57c877"
+    },
+    "scope": "Exact byte copies of both closed actual databases made0600 in a private fresh fixture, same actual scoped parent, exact selected parent_cached source functions. V6 one desiredFAIL; V7 onePASS; both original child handles reaped/absent, sources and DB contents unchanged. No cloud requests or production daemon change."
+  },
+  "retained_original_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/original-public-preregistration-reconstructed-v1.json",
+    "size": 14178,
+    "sha256": "b1176461aa140480a4d9e3d866e82a036ea3c70462ef341c2de8e512a6dfc58c",
+    "note": "Exact reconstruction after closure; SHA matches actual pre-run pin. Not retroactively described as a pre-run frozen copy."
+  }
+}

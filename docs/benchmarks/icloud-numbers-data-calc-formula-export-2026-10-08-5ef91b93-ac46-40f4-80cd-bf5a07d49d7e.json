@@ -1,0 +1,85 @@
+{
+  "Root_outer_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/offline-calc-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e-preparation-private-v1/root_outer_once_v1.py",
+    "sha256": "57cb167a59024946d5c9a0372d9d0b59eadd3a98218ad5cb5c5b8c9f40fe95ea",
+    "size": 3630
+  },
+  "TMP_filesystem_expected": "ext4",
+  "active": false,
+  "active_measurement": false,
+  "all_original_owners_closed": true,
+  "arms": [
+    {
+      "cell_edit_calls_authorized": 0,
+      "expected_native_formula": "SUM(A2:B2)",
+      "expected_native_values": [
+        7,
+        3,
+        10
+      ],
+      "explicit_recalculation_calls_authorized": 0,
+      "exports_authorized": 1,
+      "name": "current-genuine-DATA-B-one-Calc-XLSX-conversion"
+    }
+  ],
+  "binary_sha256": "944674077cf8ad10553716c4dcc8228045278ae6f75ccf7e40e6a71f5b4992b1",
+  "cleanup_seconds": 30,
+  "command": null,
+  "command_prefix": [
+    "/usr/bin/python3.14",
+    "-B",
+    "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/offline-calc-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e-preparation-private-v1/root_outer_once_v1.py"
+  ],
+  "elapsed_seconds": 0.957488777989056,
+  "endpoint": "One import/export/reopen workflow; separately require actual C2 FORMULA =SUM(A2:B2) and values 7/3/10 before export and after reopen, all XLSX CRC verified and independently C2 OOXML f=SUM(A2:B2).",
+  "exact_command_record": "original outer attempt receipt binds approved input SHA before supervisor launch",
+  "expected_duration_seconds": 90,
+  "finding": "Native SUM is already imported as VALUE10 before XLSX export; export/reopen retains that constant. Source remains unchanged. No precise external defect or Cirrove corruption inference.",
+  "formula_endpoint_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/offline-calc-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e-preparation-private-v1/audit-independent-calc-formula-terminal-v1.json",
+    "sha256": "483fb8ab0787e6dfa85554ad4d983ecce0a32ae4ec198d1a779272a0e9112d04",
+    "size": 9692
+  },
+  "formula_endpoint_audit_checks": 18,
+  "formula_fidelity_passed": false,
+  "gate487_closed": false,
+  "general_formula_layout_media_fidelity_proved": false,
+  "historical0516_failure_preserved": true,
+  "independent_audit_pending": false,
+  "inputs_path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/offline-calc-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e-preparation-private-v1/root-authorities-v1/inputs-approved-v1.json",
+  "native_numbers_save_proved": false,
+  "owner_preservation_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/offline-calc-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e-preparation-private-v1/root-execution-v1/audit-independent-owner-preservation-terminal-v1.json",
+    "sha256": "96e4a922dea70d48cb5cc2160fb7cd5106dd15d59bac2dac72242872c248a8ba",
+    "size": 5843
+  },
+  "owner_preservation_audit_checks": 27,
+  "prediction": "Historical0516 imported C2 as VALUE before export. The current223e specimen may reproduce that import boundary; record it without correcting cells. Cached-value-only output fails formula fidelity.",
+  "private_TMPDIR": "/home/dandiccf/Storage/cgD-5ef91b93/tmp",
+  "provider_calls_authorized": 0,
+  "question": "Does Calc preserve the native C2 SUM formula of the current genuine immutable Numbers DATA B during one read-only import, one XLSX export and read-only reopen?",
+  "ready": true,
+  "root_result": {
+    "path": "/home/dandiccf/Storage/cgD-5ef91b93/root-result.json",
+    "sha256": "6dd79ae2b9f8dbfaf74f37b74e5f3a1de5a4093e25feff103a8568b4c9b97452",
+    "size": 4333
+  },
+  "run": "5ef91b93-ac46-40f4-80cd-bf5a07d49d7e",
+  "source": {
+    "path": "/var/tmp/cirrove-numbers-data-0803e72b-bba6-4f25-acb1-2b407b1befc4/source-b.numbers",
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "source_runtime_installed_preserved": true,
+  "source_writes_authorized": 0,
+  "started": "2026-10-08T12:59:21.502484+00:00",
+  "status": "closed_workflow_pass_formula_fidelity_fail",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-formula-export-evidence-review-20261008-private-v1/offline-calc-5ef91b93-ac46-40f4-80cd-bf5a07d49d7e-preparation-private-v1/root-execution-v1/terminal.json",
+    "sha256": "55af0b93a14829b3e0cab84034e5c772d46532ff8b6291785dc56d948277f484",
+    "size": 582
+  },
+  "version": 1,
+  "work_seconds": 60,
+  "workflow_completed": true
+}

@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "registered_unix": 1791339386.3259995,
+  "question": "Do explicit FlatPages production representations, unchanged native source capture, deterministic wire and durable checkpoint/publication contracts work with existing wrapped/Numbers behavior preserved?",
+  "prediction": "Two core/7provider/5serviceLib/1CLI/1integration authored controls and9feature observer controls execute; narrow omitted guards cause intended assertion failures, identical restoration passes; full scripts/check.sh passes. Synthetic/local results do not close live/installed/full487 acceptance.",
+  "scope": "Root sole build lane in isolated composed39-file checkout exact882; three production and four observer counterfactuals separately registered before execution. No cloud/browser/installed actions.",
+  "checkout": "/home/dandiccf/Storage/.cirrove-worktrees/direct-flat-pages-observer-20261007",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-direct-flat-pages-observer-20261007",
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/dfp7",
+  "TMPDIR_filesystem": "ext4",
+  "active_measurement": false,
+  "status": "closed-success-24-arms-full-check-independently-audited",
+  "current_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/core-v2-registration.json",
+    "size": 1906,
+    "sha256": "162d16f85630bd08706a8ee7247149045f54ee62d9092fb01ebc900d60aaf914"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/run_core_once_v2.py",
+    "size": 2380,
+    "sha256": "4ee69fb0a65ee9230d5e63add2be48d014b67911661bc62c9ef783fe0ab66365"
+  },
+  "full_iCloud_gate_closures": 0,
+  "retained_initial_failure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/core-terminal.json",
+    "size": 557,
+    "sha256": "ed7ddeb05e54b86524529ce9102cd87aea746de930f79a4a8754e419b9e89ffb"
+  },
+  "initial_failure_correction": "Initial actual Cargo command used PATH rustc proxy that chose stable; no tests executed. Bind actual pinned rustc and toolchain without changing host defaults.",
+  "initial_cargo_original_process_group_empty": true,
+  "core_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/core-v2-terminal.json",
+    "size": 574,
+    "sha256": "bfa196cbab767a0ff6ec59adf63a944747b2aee7d4e8cab2ec50bd0885b5e288"
+  },
+  "core_original_group": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/core-v2-original-group-closed.json",
+    "size": 115,
+    "sha256": "c7df128b63cf419d6b2bcd1999cdf770dce1e69372861527b45614d0d6b3918a"
+  },
+  "independent_composed_source_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-observer-development-20261007-private-v1/audit-independent-composed-flat-pages-observer-v1.json",
+    "size": 10413,
+    "sha256": "2f6739bcac41a825c3cbbeeb7be29ce2afaa4c2ffeafc49e24c3e17bd46f632a"
+  },
+  "remaining_suite": {
+    "unified_session": 85142,
+    "driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-remaining-suite-preparation-20261007-private-v1/run_remaining_suite_v3.py",
+      "size": 15880,
+      "sha256": "4f6d97a9b834654dd14f1d9eaed5d131abac65017b664c6dd4fde1f2183cb1d6"
+    },
+    "input": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v1/inputs-v1.json",
+      "size": 89703,
+      "sha256": "fc41506422951165945e8bee006e39180edcd0b9fe0c295c388705e961749411"
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v1/suite-registration.json",
+      "size": 104319,
+      "sha256": "63b3e003429cf2cf7fd90309525c3e5c321ad69315b800559368aaa97afd50da"
+    },
+    "started_unix": 1791340154.770454,
+    "cancellation_review": "V3 exact owned process-group cleanup and source-restoration fence independently reviewed CLEAR.",
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v1/root-suite-terminal-result.json",
+      "size": 77598,
+      "sha256": "b3145ddffe9f9e7f4d522275657640c4bf7a512bdbaf0dfac79339b76e1f2e3d"
+    },
+    "unified_terminal_exit": 1
+  },
+  "provider_fixture_correction": {
+    "failure": "Actual provider7 executed; six passed, Pages typed handoff failed an inherited Numbers-only expected filename. Correct actual format-specific assertions for current name and original semantic root.",
+    "retained_before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/provider-fixture-before-correction.rs",
+      "size": 65152,
+      "sha256": "464f0d03e1b38c966cac2b4b74450e76b41a31773e85a8dc66994d80109de905"
+    },
+    "corrected_source": {
+      "path": "/home/dandiccf/Storage/.cirrove-worktrees/direct-flat-pages-observer-20261007/crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs",
+      "size": 65199,
+      "sha256": "39a4b68cd737557afac2e72599dec691991ea9b1a53a061de2bc865b92500ec5"
+    },
+    "production_behavior_changed": false,
+    "original_children_closed": true,
+    "followup": "Fresh local suite after explicit correction; previous failure retained. No provider retries."
+  },
+  "corrected_remaining_suite": {
+    "unified_session": 84249,
+    "input": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v2/inputs-v1.json",
+      "size": 89703,
+      "sha256": "ffa80de38a780e051cea9866279696a0ff069a8dd5de7d2fdeea610d47aaecc9"
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v2/suite-registration.json",
+      "size": 104319,
+      "sha256": "fd881f6a69a19103fae5945640e0e3b9dfd5520286b7e348883505cc6e0a2648"
+    },
+    "started_unix": 1791340236.3191004,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v2/root-suite-terminal-result.json",
+      "size": 386038,
+      "sha256": "b5cab4241abf11eed8d84fbe0f8bc5613d625d62bb18402a38294eac69deca8b"
+    },
+    "unified_terminal_exit": 1
+  },
+  "feature_macro_correction": {
+    "failure": "Provider7/serviceLib5/CLI1/integration1 passed. Feature observer compile failed because bail macro was not in scope; no feature tests executed. Qualify anyhow::bail without changing refusal behavior.",
+    "retained_before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/feature-registration-before-macro-correction.rs",
+      "size": 51477,
+      "sha256": "e8af0be3aa10b05f62658cdd01d1b3967b6682a46210de8b30730427f74d1713"
+    },
+    "corrected_source": {
+      "path": "/home/dandiccf/Storage/.cirrove-worktrees/direct-flat-pages-observer-20261007/crates/cirrove-service/src/validation/icloud_account/native_final_recovery/registration.rs",
+      "size": 51485,
+      "sha256": "95ba05963dafd0c59be4c59badd2432a19c66e18371131a682df7dd9ed93f3d9"
+    },
+    "original_children_closed": true
+  },
+  "feature_corrected_remaining_suite": {
+    "unified_session": 59065,
+    "input": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v3/inputs-v1.json",
+      "size": 89703,
+      "sha256": "95c8d14b961a73af75f620bc96c6cc8d632694727a2841974a3d19dbb4295a4e"
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v3/suite-registration.json",
+      "size": 104319,
+      "sha256": "4e018832d98983538558de2734333ab6e35709b20c5c638b494f46026621178a"
+    },
+    "started_unix": 1791340375.1604598,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v3/root-suite-terminal-result.json",
+      "size": 386037,
+      "sha256": "60bda089143a1079cf6bbda63b88cf45416b2bd7a946d78dfdbd4a8ae3c04e70"
+    },
+    "unified_terminal_exit": 1
+  },
+  "feature_test_compile_failure": "Two assert_eq! expressions require Debug on UploadRepresentation; preserve the intentionally absent Debug contract and compare with constant failure text. No feature tests executed.",
+  "feature_test_compile_correction": {
+    "fix": "Replace only two equality assertion macros with equality checks and constant messages; retain intentionally absent Debug, production behavior unchanged.",
+    "corrected_source": {
+      "path": "/home/dandiccf/Storage/.cirrove-worktrees/direct-flat-pages-observer-20261007/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement/pages_tests.rs",
+      "size": 27742,
+      "sha256": "481aa2e8304a523c8c7eb5b7750bf850a67043efad82b7a23266ba3f1d77a931"
+    },
+    "exact_patch": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-observer-development-20261007-private-v1/pages-tests-debug-free-assertions-v1.patch",
+      "size": 1678,
+      "sha256": "7ae5dda6c50eed5e998cf9a0f629d280363e3e043260fc88017132033c667a03"
+    }
+  },
+  "debug_free_corrected_remaining_suite": {
+    "unified_session": 2595,
+    "input": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/inputs-v1.json",
+      "size": 89703,
+      "sha256": "8a2dc4f92e814380bed25c454fa8db598d00e32a0387061f050c8b4de513e75f"
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/suite-registration.json",
+      "size": 104319,
+      "sha256": "af8e6b69a300a265c4f96f2611018cc9702d05feb4a7de364756f60c64a553d3"
+    },
+    "started_unix": 1791340495.722153,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/root-suite-terminal-result.json",
+      "size": 1853932,
+      "sha256": "11fb3064a76b6e8923bbf760072b8a4ec976e9add266e04d949a03af73b55776"
+    },
+    "unified_terminal_exit": 0
+  },
+  "completed_outcome": {
+    "new_tests": 25,
+    "seven_individual_intended_failure_and_restored_success_pairs": true,
+    "postformat_feature_observer_tests": 9,
+    "wrapped_pages_regression_tests": 8,
+    "keynote_regression_tests": 11,
+    "full_scripts_check_no_arguments": true,
+    "whole_check_elapsed_seconds": 862.5222473979811,
+    "full_check_sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "all_original_handles_and_groups_closed": true,
+    "runtime_source_count": 568,
+    "runtime_source_map_after": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/source-pins-postformat.json",
+      "size": 72732,
+      "sha256": "4714da7fe8f5d5bc935797543c743d159c9ee189575c13d77835b8b5f34d64bb"
+    },
+    "full_check_log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/whole-check.log",
+      "size": 332080,
+      "sha256": "4d15600cfc0ac9967aa7e90d115642414e2e1e96bc20490844a658e80ff9e42a"
+    },
+    "provider_actions": false,
+    "installed_actions": false,
+    "live_direct_raw_pages_credit": false,
+    "full_gate_credit": false
+  },
+  "toolchain_log_correction": "Repeated stable-update diagnostics during later commands are Cargo cached quote build-script output from the initial failed core V1 run. That initial invocation did update stable; later commands bind actual rustc1.98.1 and do not establish another update.",
+  "independent_terminal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/audit-independent-terminal-v1.json",
+    "size": 7571,
+    "sha256": "98611829e892745db2685572a45979657f4fcfcab6e0c56324a0db8f3a1c98a1"
+  }
+}

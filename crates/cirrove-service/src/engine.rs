@@ -1,6 +1,10 @@
 //! Per-account metadata service. Change feeds and foreground directory requests
 //! share a provider client but never hold SQLite locks across network awaits.
+mod cached_status;
 mod changes;
+mod native_import;
+mod native_trash;
+mod package_sources;
 
 /// An item's mount-relative path, by walking parents up to the drive root.
 ///
@@ -58,7 +62,7 @@ mod persistence;
 #[cfg(test)]
 mod pinning;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
-use anyhow::Result;
+use anyhow::{Context, Result};
 pub use changes::ChangeNotifications;
 use cirrove_core::notifications::{ChangeHint, ChangeHintSender, NotificationState, WatchEnd};
 use cirrove_core::{CancellationToken, Node, ProviderError, ReadProvider, Scope};
@@ -228,8 +232,11 @@ struct KeptOffline {
     stopped: bool,
 }
 pub struct Engine {
+    icloud_write_staging_budget: Option<cirrove_icloud::ICloudWriteStagingBudget>,
     pub account: Account,
     pub db: PathBuf,
+    ordinary_publication_journal: PathBuf,
+    ordinary_publication_started: AtomicBool,
     pub provider: Arc<dyn ReadProvider>,
     pub cache: ContentCache,
     pub cancel: CancellationToken,
@@ -238,6 +245,7 @@ pub struct Engine {
     health: RwLock<HashMap<String, FeedHealth>>,
     directories: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     package_rechecks: StdMutex<HashSet<String>>,
+    package_source_failures: StdMutex<HashMap<String, [u8; 32]>>,
     tasks: TaskTracker,
     directory_publications: Arc<tokio::sync::Semaphore>,
     discovery: Notify,
@@ -275,9 +283,18 @@ pub struct Engine {
     /// saturating. It is never used for queries; it only keeps the WAL index
     /// alive, and it holds no transaction, so checkpointing stays normal.
     _keeper: StdMutex<Store>,
-    _owner: std::fs::File,
+    _owner: Arc<std::fs::File>,
+    pub(crate) recovery_journal: Arc<Mutex<Weak<StdMutex<crate::journal::RecoveryJournal>>>>,
+    pub(crate) recovery_journal_gate: Arc<StdMutex<()>>,
+    #[cfg(test)]
+    pub(crate) recovery_test_hooks: Arc<crate::recovery::RecoveryTestHooks>,
 }
 impl Engine {
+    pub(crate) fn icloud_write_staging_budget(
+        &self,
+    ) -> Option<cirrove_icloud::ICloudWriteStagingBudget> {
+        self.icloud_write_staging_budget.clone()
+    }
     pub async fn new(
         account: Account,
         provider: Arc<dyn ReadProvider>,
@@ -285,8 +302,19 @@ impl Engine {
     ) -> Result<Arc<Self>> {
         let directory = state.join("accounts").join(&account.id);
         private_dir(&directory)?;
-        let owner = crate::accounts::account_lock(&directory)?;
+        let owner = Arc::new(crate::accounts::account_lock(&directory)?);
+        Self::new_with_owner(account, provider, state, owner).await
+    }
+
+    pub(crate) async fn new_with_owner(
+        account: Account,
+        provider: Arc<dyn ReadProvider>,
+        state: PathBuf,
+        owner: Arc<std::fs::File>,
+    ) -> Result<Arc<Self>> {
+        let directory = state.join("accounts").join(&account.id);
         let db = directory.join("metadata.db");
+        let ordinary_publication_journal = directory.join("journal");
         let path = db.clone();
         let keeper = tokio::task::spawn_blocking(move || Store::open(path)).await??;
         let blocks = directory.join("blocks.db");
@@ -311,8 +339,15 @@ impl Engine {
         })
         .await??;
         Ok(Arc::new(Self {
+            icloud_write_staging_budget: matches!(
+                account.registration,
+                cirrove_auth::AppRegistration::ICloud
+            )
+            .then(cirrove_icloud::ICloudWriteStagingBudget::default),
             account,
             db,
+            ordinary_publication_journal,
+            ordinary_publication_started: AtomicBool::new(false),
             provider,
             cache,
             cancel: CancellationToken::new(),
@@ -321,6 +356,7 @@ impl Engine {
             health: RwLock::new(HashMap::new()),
             directories: StdMutex::new(HashMap::new()),
             package_rechecks: StdMutex::new(HashSet::new()),
+            package_source_failures: StdMutex::new(HashMap::new()),
             tasks: TaskTracker::new(),
             directory_publications: Arc::new(tokio::sync::Semaphore::new(2)),
             discovery: Notify::new(),
@@ -333,7 +369,100 @@ impl Engine {
             kept_generation: AtomicU64::new(0),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
+            recovery_journal: Arc::new(Mutex::new(Weak::new())),
+            recovery_journal_gate: Arc::new(StdMutex::new(())),
+            #[cfg(test)]
+            recovery_test_hooks: Arc::new(crate::recovery::RecoveryTestHooks::default()),
         }))
+    }
+    /// Read one indexed display name through the already-owned metadata connection.
+    /// Recovery must not invoke the normal node lookup, which can fetch remotely.
+    pub(crate) fn cached_recovery_name(&self, scope: &Scope, item: &str) -> Result<Option<String>> {
+        let store = self
+            ._keeper
+            .lock()
+            .map_err(|_| anyhow::anyhow!("local metadata unavailable"))?;
+        Ok(store
+            .node(scope, item)?
+            .map(|node| node.name)
+            .filter(|name| !name.is_empty()))
+    }
+    pub(crate) fn start_working_export(
+        &self,
+        control: crate::recovery::RecoveryControl,
+        source: crate::journal::WorkingExportSource,
+        destination: PathBuf,
+        permit: tokio::sync::OwnedSemaphorePermit,
+    ) -> Result<crate::jobs::Job> {
+        let handle = self.jobs.start(
+            crate::jobs::JobKind::ExportLocal,
+            destination.to_string_lossy().into_owned(),
+            1,
+            source.source().size,
+            &self.cancel,
+        );
+        let initial = self
+            .jobs
+            .find(handle.id())
+            .context("export job registration failed")?;
+        self.tasks.spawn(async move {
+            let staged = tokio::task::spawn_blocking(move || {
+                let result = source.prepare_copy(&destination, &handle.cancel,
+                    |bytes| handle.advance(0, bytes));
+                (handle, result, permit, control)
+            }).await;
+            let Ok((handle, prepared, permit, control)) = staged else { return };
+            let verified = match prepared {
+                Ok(prepared) if !handle.cancel.is_cancelled() => control.verify_working_export(prepared).await.ok(),
+                _ => None,
+            };
+            // Retain the active account and journal owner through publication.
+            let _ = tokio::task::spawn_blocking(move || {
+                let _control = control;
+                let _permit = permit;
+                let result = verified.and_then(|copy| copy.publish(&handle.cancel).ok());
+                match result {
+                    Some(receipt) => handle.exported_working(receipt),
+                    None if handle.stopping() => handle.failed(crate::jobs::JobState::Stopped,
+                        Some("export stopped; the working bytes are retained".into())),
+                    None => handle.failed(crate::jobs::JobState::Failed,
+                        Some("working export not confirmed; the version may have changed. Inspect the destination before retrying; local changes are retained".into())),
+                }
+            }).await;
+        });
+        Ok(initial)
+    }
+    pub(crate) fn start_local_export(
+        &self,
+        control: crate::recovery::RecoveryControl,
+        source: crate::journal::LocalExportSource,
+        destination: PathBuf,
+        permit: tokio::sync::OwnedSemaphorePermit,
+    ) -> Result<crate::jobs::Job> {
+        let handle = self.jobs.start(
+            crate::jobs::JobKind::ExportLocal,
+            destination.to_string_lossy().into_owned(),
+            1,
+            source.size,
+            &self.cancel,
+        );
+        let initial = self
+            .jobs
+            .find(handle.id())
+            .context("export job registration failed")?;
+        self.tasks.spawn(async move {
+            let _ = tokio::task::spawn_blocking(move || {
+                let _control = control;
+                let _permit = permit;
+                let result = source.copy_to(&destination, &handle.cancel, |bytes| handle.advance(0, bytes));
+                match result {
+                    Ok(receipt) => handle.exported(receipt),
+                    Err(_) if handle.stopping() => handle.failed(crate::jobs::JobState::Stopped, Some("export stopped; the saved generation is retained".into())),
+                    Err(_) => handle.failed(crate::jobs::JobState::Failed, Some("export not confirmed; inspect the destination before retrying. The saved generation is retained".into())),
+                }
+            }).await;
+        });
+        Ok(initial)
     }
     /// What is kept offline, as a number that changes when it does.
     pub fn kept_generation(&self) -> u64 {
@@ -880,6 +1009,14 @@ impl Engine {
         self: &Arc<Self>,
         resolved: Vec<PathResolution>,
     ) -> Result<Vec<crate::PathState>> {
+        self.path_states_resolved_mode(resolved, false).await
+    }
+
+    pub(crate) async fn path_states_resolved_mode(
+        self: &Arc<Self>,
+        resolved: Vec<PathResolution>,
+        cached: bool,
+    ) -> Result<Vec<crate::PathState>> {
         let db = self.db.clone();
         let pins = tokio::task::spawn_blocking(move || Store::open(db)?.pins()).await??;
         let cache = self.cache_path();
@@ -897,7 +1034,7 @@ impl Engine {
                 }
             };
             let folder = node.kind == cirrove_core::NodeKind::Folder;
-            let pinned = self.pin_covering(&scope, &node, &pins).await;
+            let pinned = self.pin_covering(&scope, &node, &pins, cached).await;
             let resident = if folder {
                 0
             } else {
@@ -908,6 +1045,9 @@ impl Engine {
                 item: node.id.clone(),
                 kind: if folder { "folder" } else { "file" }.into(),
                 pinned,
+                can_pin: !node.package
+                    && node.target.is_none()
+                    && (folder || node.content_revision().is_some()),
                 size: node.size,
                 resident,
                 refusal: None,
@@ -919,10 +1059,11 @@ impl Engine {
     /// folder above it, nothing otherwise. Walks up through the index only when
     /// a recursive pin exists to be found.
     async fn pin_covering(
-        &self,
+        self: &Arc<Self>,
         scope: &Scope,
         node: &Node,
         pins: &[cirrove_store::pins::Pin],
+        cached: bool,
     ) -> Option<String> {
         let key = serde_json::to_string(scope).unwrap_or_default();
         if pins.iter().any(|p| p.scope == key && p.item == node.id) {
@@ -943,7 +1084,7 @@ impl Engine {
             if recursive.contains(&id.as_str()) {
                 return Some("inherited".into());
             }
-            parent = self.node(scope, &id).await.ok()?.parent_id;
+            parent = self.status_node(scope, &id, cached).await.ok()?.parent_id;
         }
         None
     }
@@ -1201,11 +1342,34 @@ impl Engine {
         }
         Ok((scope, node))
     }
+    /// Start local receipt publication for an effective read-only connection.
+    /// The manager may select this mode without changing the recorded grant.
+    pub(crate) fn start_ordinary_metadata_readonly(self: &Arc<Self>) {
+        if !self
+            .ordinary_publication_started
+            .swap(true, Ordering::SeqCst)
+        {
+            let engine = self.clone();
+            self.tasks.spawn(async move {
+                engine.repair_ordinary_metadata_readonly().await;
+            });
+        }
+    }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
+        self.start_with_publication(true).await
+    }
+    /// Recovery-only startup must not acknowledge retained journal publications.
+    pub(crate) async fn start_recovery_only(self: &Arc<Self>) -> Result<()> {
+        self.start_with_publication(false).await
+    }
+    async fn start_with_publication(self: &Arc<Self>, repair_publication: bool) -> Result<()> {
         // Before anything can evict, so a restart never spends the window
         // between mounting and the first pin change treating pinned blocks as
         // ordinary ones.
         self.refresh_reservations().await?;
+        if repair_publication && self.account.access == cirrove_auth::AccessMode::ReadOnly {
+            self.start_ordinary_metadata_readonly();
+        }
         if !self.discovery_started.swap(true, Ordering::SeqCst) {
             let engine = self.clone();
             self.tasks.spawn(async move {
@@ -1660,14 +1824,23 @@ impl Engine {
         if self.cancel.is_cancelled() {
             return Err(ProviderError::Cancelled);
         }
+        self.recheck_observed_package_source(scope, parent).await?;
         let db = self.db.clone();
         let s = scope.clone();
         let p = parent.to_owned();
         let n = name.to_owned();
-        let cached = tokio::task::spawn_blocking(move || Store::open(db)?.child(&s, &p, &n))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
+        let require_snapshot = self.provider.unknown_directories_require_fetch();
+        let cached = tokio::task::spawn_blocking(move || {
+            let store = Store::open(db)?;
+            if require_snapshot {
+                store.child_from_snapshot(&s, &p, &n)
+            } else {
+                store.child(&s, &p, &n)
+            }
+        })
+        .await
+        .map_err(|_| ProviderError::Unavailable)?
+        .map_err(|_| ProviderError::Unavailable)?;
         if let Some(node) = cached {
             if node.is_some() || !self.provider.refresh_cached_packages_on_first_open() {
                 self.activity.touch(scope, parent);
@@ -1682,10 +1855,17 @@ impl Engine {
             let s = scope.clone();
             let p = parent.to_owned();
             let n = name.to_owned();
-            let updated = tokio::task::spawn_blocking(move || Store::open(db)?.child(&s, &p, &n))
-                .await
-                .map_err(|_| ProviderError::Unavailable)?
-                .map_err(|_| ProviderError::Unavailable)?;
+            let updated = tokio::task::spawn_blocking(move || {
+                let store = Store::open(db)?;
+                if require_snapshot {
+                    store.child_from_snapshot(&s, &p, &n)
+                } else {
+                    store.child(&s, &p, &n)
+                }
+            })
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
             if let Some(node) = updated {
                 self.activity.touch(scope, parent);
                 return node.ok_or(ProviderError::NotFound);
@@ -1730,6 +1910,7 @@ impl Engine {
         if scope.account != self.account.id || scope.provider != self.provider.provider_id() {
             return Err(ProviderError::Protocol("provider/account mismatch"));
         }
+        self.recheck_observed_package_source(scope, parent).await?;
         self.recheck_cached_package(scope, parent).await?;
         let (cached, consume) = self.consume_cached(scope, parent, consume).await?;
         if let Some(value) = cached {
@@ -1840,17 +2021,21 @@ impl Engine {
         let db = self.db.clone();
         let scope = scope.clone();
         let parent = parent.to_owned();
+        let require_snapshot = self.provider.unknown_directories_require_fetch();
         tokio::task::spawn_blocking(move || {
             let store = Store::open(db).map_err(|_| ProviderError::Unavailable)?;
-            let result = store
-                .with_children(&scope, &parent, &mut consume)
-                .map_err(|_| ProviderError::Unavailable)?;
+            let result = if require_snapshot {
+                store.with_snapshot_children(&scope, &parent, &mut consume)
+            } else {
+                store.with_children(&scope, &parent, &mut consume)
+            }
+            .map_err(|_| ProviderError::Unavailable)?;
             Ok((result, consume))
         })
         .await
         .map_err(|_| ProviderError::Unavailable)?
     }
-    async fn fetch_directory(
+    pub(crate) async fn fetch_directory(
         self: &Arc<Self>,
         scope: &Scope,
         parent: &str,
@@ -1872,8 +2057,45 @@ impl Engine {
         .map_err(|_| ProviderError::Unavailable)?;
         let deadline =
             std::time::Instant::now() + self.provider.directory_fetch_timeout(parent_node.as_ref());
-        tokio::select! {biased; _=cancel.cancelled()=>Err(ProviderError::Cancelled),
-            result=tokio::time::timeout_at(deadline.into(),self.fetch_directory_inner(scope,parent,parent_node,cancel.clone(),deadline))=>result.map_err(|_|ProviderError::Unavailable)?,
+        let fetch = async {
+            let result = self
+                .fetch_directory_inner(scope, parent, parent_node.clone(), cancel.clone(), deadline)
+                .await;
+            if !matches!(result, Err(ProviderError::VersionChanged)) {
+                return result;
+            }
+            let Some(previous) = parent_node.as_ref().filter(|node| {
+                node.id == parent
+                    && node.package
+                    && node.kind == cirrove_core::NodeKind::Folder
+                    && node.target.is_none()
+                    && self.provider.retry_package_source_on_version_change(node)
+            }) else {
+                return result;
+            };
+            // A generated listing is bound to its source revision. Refresh only
+            // this selected parent after the adapter rejects stale metadata;
+            // old opened artifacts remain bound to their own content revision.
+            let current = self.refresh_node(scope, parent).await?;
+            if current.id != previous.id
+                || current.parent_id != previous.parent_id
+                || current.name != previous.name
+                || current.kind != previous.kind
+                || !current.package
+                || current.target.is_some()
+            {
+                return Err(ProviderError::VersionChanged);
+            }
+            // Exactly one retry, inside the original timeout and cancellation
+            // scope. The first failed stage has already dropped without publish.
+            self.fetch_directory_inner(scope, parent, Some(current), cancel.clone(), deadline)
+                .await
+        };
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => Err(ProviderError::Cancelled),
+            result = tokio::time::timeout_at(deadline.into(), fetch) =>
+                result.map_err(|_| ProviderError::Unavailable)?,
         }
     }
     async fn fetch_directory_inner(
@@ -1894,14 +2116,22 @@ impl Engine {
             let s = scope.clone();
             let p = parent.to_owned();
             let token = cancel.clone();
+            let source = parent_node
+                .as_ref()
+                .filter(|node| self.provider.retry_package_source_on_version_change(node))
+                .cloned();
             // The permit travels with blocking work: timing out its async waiter
             // cannot admit another builder before the old one has actually ended.
             let mut staged = self
                 .tasks
                 .spawn_blocking(move || {
-                    Store::open(db)?
-                        .directory_publication(&s, &p, token, deadline)
-                        .map(|stage| (stage, permit))
+                    let stage = Store::open(db)?.directory_publication(&s, &p, token, deadline)?;
+                    let stage = if let Some(source) = source {
+                        stage.bind_source(source)?
+                    } else {
+                        stage
+                    };
+                    Ok::<_, cirrove_store::StoreError>((stage, permit))
                 })
                 .await
                 .map_err(|_| ProviderError::Unavailable)?
@@ -1918,7 +2148,17 @@ impl Engine {
                         .await?
                 };
                 for node in &page.nodes {
-                    if let Some(bytes) = self.provider.staged_content(scope, node, &cancel).await? {
+                    if let Some(session) = self
+                        .provider
+                        .staged_content_session(scope, node, &cancel)
+                        .await?
+                    {
+                        self.cache
+                            .stage_session(scope, node, session.as_ref(), &cancel)
+                            .await?;
+                    } else if let Some(bytes) =
+                        self.provider.staged_content(scope, node, &cancel).await?
+                    {
                         self.cache.stage(scope, node, &bytes, &cancel).await?;
                     }
                 }
@@ -1954,7 +2194,11 @@ impl Engine {
                         engine.changed.metadata();
                     }
                     let mut targets = Vec::new();
-                    if result != (DirectoryPublicationResult::Superseded { known: false }) {
+                    if !matches!(
+                        result,
+                        DirectoryPublicationResult::SourceChanged
+                            | DirectoryPublicationResult::Superseded { known: false }
+                    ) {
                         Store::open(db)?
                             .with_children(&s, &p, |rows| {
                                 for node in rows {
@@ -1986,6 +2230,9 @@ impl Engine {
                 .await
                 .map_err(|_| ProviderError::Unavailable)?
                 .map_err(|_| ProviderError::Unavailable)?;
+            if result == DirectoryPublicationResult::SourceChanged {
+                return Err(ProviderError::VersionChanged);
+            }
             if matches!(
                 result,
                 DirectoryPublicationResult::Superseded { known: false }
@@ -2121,5 +2368,357 @@ mod tests {
         );
         // But a real failure after indexing still speaks.
         assert_eq!(feed_notice("indexing", "offline"), FeedNotice::Failed);
+    }
+}
+
+mod native_abandon;
+mod native_replace;
+
+impl Engine {
+    /// A receipt establishes the exact ID, not permission to overwrite a later
+    /// metadata view with history. Refresh mismatches through the normal ticketed
+    /// provider path, after releasing every journal/SQLite owner.
+    async fn reconcile_ordinary_current(
+        &self,
+        proof: &crate::journal::OrdinaryHandoffMetadata,
+    ) -> Result<(), ProviderError> {
+        if proof.native || proof.scope != self.scope(&proof.scope.collection) {
+            return Err(ProviderError::Unavailable);
+        }
+        let db = self.db.clone();
+        let scope = proof.scope.clone();
+        let item = proof.current.id.clone();
+        let current = tokio::task::spawn_blocking(move || Store::open(db)?.node(&scope, &item))
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        if current.as_ref() == Some(&proof.current) {
+            return Ok(());
+        }
+        tokio::select! {biased;
+            _=self.cancel.cancelled()=>Err(ProviderError::Cancelled),
+            result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&proof.scope,&proof.current.id))=>{
+                match result {
+                    Ok(Ok(_))|Ok(Err(ProviderError::NotFound))=>Ok(()),
+                    Ok(Err(error))=>Err(error),Err(_)=>Err(ProviderError::Unavailable),
+                }
+            }
+        }
+    }
+    /// Call only with an independently validated receipt; no journal/activity
+    /// lock or SQLite transaction survives this optional exact-ID read.
+    pub(crate) async fn publish_ordinary_metadata(
+        &self,
+        proof: &crate::journal::OrdinaryHandoffMetadata,
+    ) -> Result<bool, ProviderError> {
+        if proof.scope != self.scope(&proof.scope.collection) {
+            return Err(ProviderError::Unavailable);
+        }
+        if !proof.native {
+            self.reconcile_ordinary_current(proof).await?;
+        }
+        let apply = || {
+            let db = self.db.clone();
+            let proof = proof.clone();
+            tokio::task::spawn_blocking(move || {
+                let mut store = Store::open(db)?;
+                if proof.native {
+                    store.publish_native_handoff(
+                        &proof.scope,
+                        &proof.original,
+                        &proof.current,
+                        &proof.backup,
+                    )
+                } else {
+                    store.publish_ordinary_handoff_backup(
+                        &proof.scope,
+                        &proof.original,
+                        &proof.current,
+                        &proof.backup,
+                    )
+                }
+            })
+        };
+        let complete = apply()
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        if complete {
+            self.changed.notify_waiters();
+            return Ok(true);
+        }
+        if proof.native {
+            // The native CAS refuses an unknown current view; only a fresh
+            // exact-ID observation may populate it. A negative reply is retained
+            // as absence, never replaced by the historical receipt.
+            tokio::select! {biased;
+                _=self.cancel.cancelled()=>return Err(ProviderError::Cancelled),
+                result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&proof.scope,&proof.current.id))=>{
+                    match result {Ok(Ok(_))|Ok(Err(ProviderError::NotFound))=>(),
+                        Ok(Err(error))=>return Err(error),Err(_)=>return Err(ProviderError::Unavailable)}
+                }
+            }
+            let complete = apply()
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
+            if complete {
+                self.changed.notify_waiters();
+                return Ok(true);
+            }
+        }
+        tokio::select! {biased;
+            _=self.cancel.cancelled()=>return Err(ProviderError::Cancelled),
+            result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&proof.scope,&proof.original.id))=>{
+                match result {Ok(Ok(_))|Ok(Err(ProviderError::NotFound))=>(),
+                    Ok(Err(error))=>return Err(error),Err(_)=>return Err(ProviderError::Unavailable)}
+            }
+        }
+        let complete = apply()
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        if complete {
+            self.changed.notify_waiters();
+        }
+        Ok(complete)
+    }
+    /// One due job under the existing exclusive owner, released before Store or
+    /// provider work and independently reacquired for immutable status CAS.
+    #[cfg(test)]
+    pub(crate) async fn repair_ordinary_metadata_once_at(&self, root: PathBuf) -> Result<bool> {
+        self.repair_metadata_once_with_scan(
+            root,
+            &mut crate::journal::NativeMetadataScan::default(),
+        )
+        .await
+    }
+    async fn repair_metadata_once_with_scan(
+        &self,
+        root: PathBuf,
+        scan: &mut crate::journal::NativeMetadataScan,
+    ) -> Result<bool> {
+        let account = self.account.id.clone();
+        let read_root = root.clone();
+        let previous = *scan;
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
+        let (next, result) = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            if !read_root.try_exists()? {
+                return Ok((previous, Ok(None)));
+            }
+            let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
+            Ok(journal.due_with_scan(now(), previous))
+        })
+        .await??;
+        *scan = next;
+        let proof = result?;
+        let Some(proof) = proof else { return Ok(false) };
+        let result = self.publish_ordinary_metadata(&proof).await;
+        let completed = result.as_ref().is_ok_and(|value| *value);
+        let account = self.account.id.clone();
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
+        tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
+            journal.finish(&proof, completed, now())
+        })
+        .await??;
+        result.map_err(anyhow::Error::from)?;
+        Ok(true)
+    }
+    /// One already-completed ordinary job per pass. Only the local scan cursor
+    /// changes; historical done flags and transfer/working rows remain untouched.
+    pub(crate) async fn repair_completed_ordinary_metadata_once_at(
+        &self,
+        root: PathBuf,
+        scan: &mut crate::journal::CompletedOrdinaryMetadataScan,
+    ) -> Result<bool> {
+        let account = self.account.id.clone();
+        let read_root = root.clone();
+        let previous = *scan;
+        let gate = self.recovery_journal_gate.clone();
+        let (next, selected) = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            if !read_root.try_exists()? {
+                return Ok((previous, Ok(None)));
+            }
+            let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            Ok(journal.completed_ordinary_with_scan(previous))
+        })
+        .await??;
+        *scan = next;
+        let Some(proof) = selected? else {
+            return Ok(next != previous);
+        };
+        if let Err(error) = self.reconcile_ordinary_current(&proof).await {
+            scan.retry(previous);
+            return Err(error.into());
+        }
+        let gate = self.recovery_journal_gate.clone();
+        let account = self.account.id.clone();
+        let checked = tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            journal.validate_completed_ordinary(&proof)
+        })
+        .await?;
+        checked?;
+        Ok(true)
+    }
+    async fn repair_ordinary_metadata_readonly(self: Arc<Self>) {
+        let mut failed = 0u32;
+        let mut scan = crate::journal::NativeMetadataScan::default();
+        let mut completed_scan = crate::journal::CompletedOrdinaryMetadataScan::default();
+        let mut history_failures = 0u32;
+        let mut history_retry = tokio::time::Instant::now();
+        loop {
+            if self.cancel.is_cancelled() {
+                return;
+            }
+            let handoff = self
+                .repair_metadata_once_with_scan(
+                    self.ordinary_publication_journal.clone(),
+                    &mut scan,
+                )
+                .await;
+            let history = if tokio::time::Instant::now() >= history_retry {
+                let result = self
+                    .repair_completed_ordinary_metadata_once_at(
+                        self.ordinary_publication_journal.clone(),
+                        &mut completed_scan,
+                    )
+                    .await;
+                if result.is_err() {
+                    history_failures = history_failures.saturating_add(1).min(6);
+                    history_retry = tokio::time::Instant::now()
+                        + Duration::from_secs((1u64 << history_failures).min(60));
+                } else {
+                    history_failures = 0;
+                }
+                result
+            } else {
+                Ok(false)
+            };
+            // One job of each kind per pass: a due stream of handoffs cannot
+            // starve confirmed standalone removals, or vice versa.
+            let trash = self
+                .repair_native_trash_metadata_once_at(self.ordinary_publication_journal.clone())
+                .await;
+            let mut worked = false;
+            let mut error = None;
+            for result in [handoff, history, trash] {
+                match result {
+                    Ok(value) => worked |= value,
+                    Err(value) => error = Some(value),
+                }
+            }
+            let result = if worked {
+                Ok(true)
+            } else if let Some(error) = error {
+                Err(error)
+            } else {
+                Ok(false)
+            };
+            let delay = match result {
+                Ok(true) => {
+                    failed = 0;
+                    Duration::from_millis(100)
+                }
+                Ok(false) => {
+                    failed = 0;
+                    Duration::from_secs(1)
+                }
+                Err(_) => {
+                    failed = failed.saturating_add(1).min(6);
+                    Duration::from_secs((1u64 << failed).min(60))
+                }
+            };
+            tokio::select! {biased;_=self.cancel.cancelled()=>return,_=tokio::time::sleep(delay)=>()}
+        }
+    }
+
+    pub(crate) async fn repair_native_trash_metadata_once_at(&self, root: PathBuf) -> Result<bool> {
+        let account = self.account.id.clone();
+        let read_root = root.clone();
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
+        let record = tokio::task::spawn_blocking(move || -> crate::journal::Result<_> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            if !read_root.try_exists()? {
+                return Ok(None);
+            }
+            let journal = crate::journal::MetadataPublicationJournal::open(&read_root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
+            journal.due_native_trash(now())
+        })
+        .await??;
+        let Some(record) = record else {
+            return Ok(false);
+        };
+        let scoped = record.request.scope == self.scope(&self.account.drive.id);
+        let item = &record
+            .request
+            .intent
+            .before()
+            .context("native Trash original unavailable")?
+            .id;
+        // The exclusive journal owner above has been dropped. Only the read
+        // provider and its ordered Store observation run during this await.
+        let status = if scoped {
+            let observed = tokio::select! {biased;
+                _=self.cancel.cancelled()=>return Ok(false),
+                result=tokio::time::timeout(Duration::from_secs(30),self.refresh_node(&record.request.scope,item))=>result,
+            };
+            match observed {
+                Ok(Err(ProviderError::NotFound)) => {
+                    crate::journal::PackagePublicationStatus::Absent
+                }
+                Ok(Ok(node)) => crate::journal::PackagePublicationStatus::Present(node),
+                _ => crate::journal::PackagePublicationStatus::Pending,
+            }
+        } else {
+            crate::journal::PackagePublicationStatus::Pending
+        };
+        let account = self.account.id.clone();
+        let gate = self.recovery_journal_gate.clone();
+        #[cfg(test)]
+        let hooks = self.recovery_test_hooks.clone();
+        tokio::task::spawn_blocking(move || -> crate::journal::Result<()> {
+            let _gate = gate.lock().unwrap_or_else(|e| e.into_inner());
+            let journal = crate::journal::MetadataPublicationJournal::open(&root, &account)?;
+            #[cfg(test)]
+            Self::pause_metadata_owner(&hooks);
+            journal.finish_native_trash(&record, status, now())
+        })
+        .await??;
+        anyhow::ensure!(
+            scoped,
+            "native Trash metadata scope changed; local job deferred"
+        );
+        self.changed.notify_waiters();
+        Ok(true)
+    }
+    #[cfg(test)]
+    fn pause_metadata_owner(hooks: &crate::recovery::RecoveryTestHooks) {
+        if let Some(probe) = hooks
+            .metadata_owner
+            .lock()
+            .expect("metadata owner test hook is not poisoned")
+            .take()
+        {
+            let _ = probe.entered.send(());
+            let _ = probe.release.recv_timeout(Duration::from_secs(5));
+        }
     }
 }

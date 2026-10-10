@@ -1,0 +1,126 @@
+{
+  "state": "closed_literal_installed_lifecycle_488",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "assessed_unix": 1791568709.5957472,
+  "criterion": "Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.",
+  "criterion_source": "docs/product-milestones.md:488",
+  "gate488_closed": true,
+  "gate490_closed": false,
+  "full_icloud_closed_criteria": [
+    485,
+    486,
+    487,
+    488,
+    489
+  ],
+  "full_icloud_open_criteria": [
+    490
+  ],
+  "full_icloud_acceptance_complete": false,
+  "regular_host_delivery": "HOLD",
+  "evidence": {
+    "initial_installed_signin_and_strata": {
+      "path": "docs/benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json",
+      "size": 170927,
+      "sha256": "b2317e8fcc673e0a2b1c5379483bea04497a480bcb58bf954a54ed6024740b5b"
+    },
+    "current_offline_package_upgrade": {
+      "path": "docs/benchmarks/icloud-offline-installed-upgrade-2026-10-09-63bf1f2c-e404-47a9-a318-1ffafbf77b81.json",
+      "size": 15982,
+      "sha256": "3b276ec6fc2f2fd12dee7b5cc8f596caa59ba3eeded5e29beba99107112d463f"
+    },
+    "timed_out_predecessor": {
+      "path": "docs/benchmarks/icloud-installed-return-readonly-2026-10-09-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c.json",
+      "size": 4328,
+      "sha256": "5e92db38ade525434201478702b4ba731295e913dd352ddab4b3540c94ee3bf0"
+    },
+    "genuine_readonly_downgrade_and_active_recovery": {
+      "path": "docs/benchmarks/icloud-installed-return-readonly-2026-10-09-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f.json",
+      "size": 8452,
+      "sha256": "c204fe77ef6e2285f9bceefd983c82b15970fa38741b63004a61a8ccf38099af"
+    },
+    "fresh_installed_write_and_refusal": {
+      "path": "docs/benchmarks/icloud-installed-fresh-write-2026-10-09-024d3a0b-8499-4aaf-b898-de058883460a.json",
+      "size": 8289,
+      "sha256": "b9c173c02e238f08ba5f625f360dcc51fefb4c7cb29c547a1482c9c1969b3e92"
+    }
+  },
+  "coverage": {
+    "installed_read_only_connection": "432 initial genuine defaultRO native login/mount/EROFS/exact read; later installed packages upgraded with identity/settings preserved;62cd current package normal daemon ReadyRO/EROFS supports the current source.",
+    "explicit_write_opt_in": "432 actual genuine same-account reauth toRW retained as successful auth despite later independent saveConflict;024d genuine explicit new public writable connection on current packages, new ReadyRW normal daemon and initially empty journal.",
+    "same_account_reauthentication_and_downgrade": "62cd genuine public reauth exit0 validates same account/credential/all identity settings, disabled preference preserved, RW-toRO committed; public enable then normal recovery_only=false mount with EROFS.",
+    "retained_sealed_and_dirty_recovery": "63bf offline package preservation prerequisite plus62cd active44-byte exact operation and52-byte unlinked generation4 exports, independent bytes/hash and unchanged three retained row bodies.",
+    "preserving_existing_accounts": "024d separate local account/credential; oldRO account remains Ready; all three old retained JSON body SHA values identical before/after sole new save and unsupported deletion refusal; original host untouched per existing owner boundaries.",
+    "successful_normal_installed_write": "024d adjacent fresh mkdir/exclusive file write+fsync once; sole upload c3aac3ba-8d8b-4de5-bef1-2b698246515c Uploaded4224 SHAee714cbbb75114495644113e12634f13df17ab3f48f04d69eaafe7756bfc86c0; folder mutation Applied reported by Root. Independent oldRO scope selects same remote identity, resident0 then one mounted exact read4224 and resident4224; no claim of arbitrary editor coverage.",
+    "unsupported_permanent_deletion": "024d actual public delete-permanently against newRW own relative file exit1 with expected static unsupported refusal; no fallback ordinary delete; file/SHA/Uploaded row unchanged, one upload and one mutation only."
+  },
+  "new_run_audit_checks": {
+    "readonly_endpoint": 28,
+    "readonly_closure": 22,
+    "fresh_write_endpoint": 31,
+    "fresh_write_closure": 24
+  },
+  "independent_private_audits": {
+    "readonly_endpoint": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/audit-independent-active-readonly-recovery-endpoint-v1.json",
+      "size": 6206,
+      "sha256": "e8f7c7774bb65e63d1dabf2913873be448957adffa41bec64570c1934f3226bf"
+    },
+    "readonly_closure": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/audit-independent-active-readonly-recovery-endpoint-v2.json",
+      "size": 10014,
+      "sha256": "00fae6858c3729cd050b6aa47673bf9997195098c788c64a05d0e5cb392e7cda"
+    },
+    "fresh_write_endpoint": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-fresh-write-024d3a0b-8499-4aaf-b898-de058883460a/audit-independent-fresh-write-endpoints-v1.json",
+      "size": 6552,
+      "sha256": "828c783bd52d52897515e5c8dca83c430ebe4afb028e74d72b98172d236f7e27"
+    },
+    "fresh_write_closure": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-fresh-write-024d3a0b-8499-4aaf-b898-de058883460a/audit-independent-fresh-write-endpoints-v2.json",
+      "size": 10660,
+      "sha256": "79473a03d769a3be843f8dba9f1a873406760844114c62d4e25c997ec7f3bc94"
+    },
+    "literal_coverage": {
+      "path": "/home/dandiccf/Storage/cirrove-installed-fresh-write-024d3a0b-8499-4aaf-b898-de058883460a/assessment-independent-literal-488-coverage-v1.json",
+      "size": 8112,
+      "sha256": "0710402f0c7356b3ec23fe03caf3956348bc61e808d548a4a391cef059a8e226"
+    }
+  },
+  "final_closure_join": {
+    "readonly_owner_native_handle": 95249,
+    "readonly_owner_exit": 0,
+    "fresh_write_owner_native_handle": 85623,
+    "fresh_write_owner_exit": 0,
+    "children_per_new_arm": 8,
+    "all_original_children_reaped_and_absent": true,
+    "readonly_immutable_backing_images_preserved": 4,
+    "fresh_write_immutable_backing_images_preserved": 5,
+    "strict_fuser_exit_both_arms": 1,
+    "original_host_pid": 2935730,
+    "original_host_birth_ticks": "53728130",
+    "original_host_executable": "/usr/bin/cirroved",
+    "original_host_daemon_unchanged": true
+  },
+  "asserted_by": "The preregistered installed normal-feature observers require actual native reauth exit0 and same account/credential/settings, public enable plus mounted EROFS, daemon export-save and export-working --active with exact44/52 hashes, unchanged three retained row bodies; fresh native writable connection with empty journal, adjacent one mkdir/exclusive write/fsync, one Uploaded4224-byte save, same remote item on separate RO account with resident0 before sole exact-content read and4224 afterward, unsupported permanent-delete refusal while RW, unchanged file/upload record and old rows; final disable and original owned process/backing closure. Source/receipt and finalclosure audits independently join these endpoints. Synthetic coupling tests remain supporting only.",
+  "historical_outcomes": [
+    "7dd7 authentication timed out124 and remains failed; no active recovery ran there.",
+    "62cd first observer failed on WorkingRecovery.id versus public file field after successful EROFS, before exports; separate corrected observer completed once, no cloudmutation retry.",
+    "432 initial50-byte Conflict remains retained unchanged; fresh024d save does not relabel or retry it."
+  ],
+  "limits": [
+    "One bounded installed4224-byte ordinary-file save, not arbitrary editors/files or repeatability.",
+    "44-byte sealed operation and52-byte unlinked generation4 are exact retained samples, not all possible recovery cases.",
+    "No natural Apple expiry, actualHTTP count or provider-wide reliability claim.",
+    "The rejected Numbers in-flight conflict task remains stopped; no replay or alternate route authorized by this assessment.",
+    "No regular-host install, restart, merge or release performed."
+  ],
+  "remaining_490": [
+    "Genuine expired/rejected-session recovery with same-account native reauthentication and retained-byte safety; deliberate scoped rejection is distinct from natural Apple expiry.",
+    "Registered genuine after-final-preflight in-flight replacement/namespace uncertainty remains separate. Prior rejected Numbers action is STOPPED and must not be retried or rerouted.",
+    "Complete the declared bounded storage/staging/recovery evidence and tested size/format limits without turning existing narrow limits into a global quota promise.",
+    "Existing slow-link/cut/fair recovery, abandoned-Stage recovery, cookie/session health/writeback and fixed-pending controls remain scoped evidence;024d normal save supplies no new expiry/race/reliability closure."
+  ]
+}

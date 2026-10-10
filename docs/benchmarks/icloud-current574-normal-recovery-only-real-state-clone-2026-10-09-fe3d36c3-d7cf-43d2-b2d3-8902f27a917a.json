@@ -1,0 +1,235 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/evidence",
+  "TMPDIR": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/evidence",
+  "active": false,
+  "active_measurement": false,
+  "actual_limits": [
+    "No active recovery/export IPC or after SQL snapshot was reached; no all33 before/after logical endpoint is claimed.",
+    "Google updating_or_offline differs from historical sign_in_required under denied OAuth transport; this does not diagnose revocation, expiry, or a unique provider cause.",
+    "Past kernel RO checks are source-owned assertions preceding each persisted status, not independently saved raw kernel mount snapshots. Current own mounts/socket absence was physically verified.",
+    "CLI child PIDs are not persisted individually; their retained original receipts are joined, while candidate and wrapper PID/group absence was independently observed.",
+    "The relay blocks candidate TokenBroker refresh replies; no global keyring immutability is inferred for the concurrently running old package."
+  ],
+  "actual_observations": {
+    "HOLD_lifted": false,
+    "account_state_summary": {
+      "all_three_mounted_recovery_only": true,
+      "google_accounts": "updating_or_offline",
+      "historical_auth_class_equality": false,
+      "historical_google_state": "sign_in_required",
+      "onedrive": "ready"
+    },
+    "active_export_count_proved": 0,
+    "active_recovery_exports_attempted": false,
+    "after_detached_SQL_reached": false,
+    "all33_before_after_logical_parity_proved": false,
+    "automatic_retry": false,
+    "before_detached_schema21": true,
+    "before_table_count_per_account": 33,
+    "candidate_OAuth_transport": {
+      "TLS_decrypted": false,
+      "allowed_Google_metadata_CONNECT": 0,
+      "allowed_Graph_CONNECT": 3,
+      "denied_CONNECT": 24,
+      "denied_TLS_forwarded": 0,
+      "denied_upstream_connections": 0,
+      "opaque_relay_closed": true
+    },
+    "candidate_daemon_exit_code": 0,
+    "candidate_daemon_signals": [
+      "TERM"
+    ],
+    "candidate_wrapper_and_groups_closed": true,
+    "capture_backup_and_writer_source_physical_preserved": true,
+    "failed_stage": "preserved-three-auth-classes-kernel-ro",
+    "gate488_closed": false,
+    "global_keyring_immutability_claimed": false,
+    "installed19_and_current_old_package_preserved": true,
+    "installed_actions": false,
+    "last_reduced_status": {
+      "path": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/evidence/status-reduced-270.json",
+      "sha256": "9c4e2af17070bb230cf7f2c375847d2514b969ba084729a75e60a08922623818",
+      "size": 1269
+    },
+    "normal_features": [],
+    "one_candidate_daemon_start": true,
+    "own_mounts_socket_closed": true,
+    "persistent_copied_journal_files_byte_stat9_equal": true,
+    "readiness_status_observations": 270,
+    "runtime_protected_payload_auth_settings_preserved": true,
+    "settings_change_only_registered_mount_paths": true,
+    "source_count": 574,
+    "status_only_CLI_originals": 270,
+    "whole_endpoint_success": false
+  },
+  "actual_writer_audit_required": true,
+  "allow_exact_CONNECT_hosts": [
+    "graph.microsoft.com:443",
+    "www.googleapis.com:443"
+  ],
+  "arms": [
+    "one_owned_fresh21_8_clone_normal_recovery_only"
+  ],
+  "candidate_credential_guard": "Daemon-only HTTPS_PROXY/HTTP_PROXY/ALL_PROXY loopback; NO_PROXY/no_proxy empty. ExactmetadataCONNECTallowlist; all other hosts/ports denied403 before DNS/connect/TLS. No separate DesktopVault; candidate global credential reads allowed, candidate TokenBroker rotation path prevented.",
+  "cleanup_reserve": 45,
+  "clone_state": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/state",
+  "command": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/run_normal574_recovery_only_clone_once_v4.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/root-recovery-only-inputs-ready-v1.json",
+    "--sha256",
+    "exact input SHA in private root command manifest"
+  ],
+  "corrections": [
+    {
+      "historical_preregistration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/root-recovery-only-public-preregistered-v1.json",
+        "sha256": "bf793c3805f6b23c38057695ae678cb03002bb8a231e52f063a7d1973db827b0",
+        "size": 8388
+      },
+      "independent_audit": {
+        "path": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/evidence/audit-independent-recovery-only-failed-terminal-v1.json",
+        "sha256": "e9f6821d4edd50329ad8de0d22ce4112d1942cb0ab9d7bec2745c883ec5cb589",
+        "size": 155346
+      },
+      "meaning": "Auditor corrected nonexistent original-window-v1 filename to actual question-v1 original_window before tree hashing. This did not rerun daemon/provider/SQL or change original failed outcome.",
+      "previous_auditor_failure": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/actual-failed-recovery-audit-private-v1/auditor-window-receipt-path-failure-v1.json",
+        "sha256": "af0047494a3ce4520b55469f37e059bbf643be8aaf4965acebd7b0faf1141c85",
+        "size": 1238
+      },
+      "public_before_consolidation": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/public-closed-failure-before-independent-consolidation-v1.json",
+        "sha256": "eab9ab9c5938360aaae20d356d940adf8ed25008b24f376476f43ccfee181be0",
+        "size": 8936
+      },
+      "scope": "Actual failed case consolidation only",
+      "whole_failure_retained": true
+    }
+  ],
+  "deny_OAuth_before_upstream": true,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/run_normal574_recovery_only_clone_once_v4.py",
+    "sha256": "b5fc86c897dff1501a1069a8dd1904a9fa0faac5d34837542f9e3a0cdc2ada5b",
+    "size": 37763
+  },
+  "endpoint": "actual_normal574_recovery_only_clone_active_exports",
+  "fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/audit-independent-complete-fullcheck-committed-sync-v2.json",
+    "sha256": "5d6408b1267a2333afaa7eeb3c7096dc403b06f48664334fad92213635f03a6a",
+    "size": 82626
+  },
+  "gate488_closed": false,
+  "global_keyring_immutability_claimed": false,
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/evidence/audit-independent-recovery-only-failed-terminal-v1.json",
+    "sha256": "e9f6821d4edd50329ad8de0d22ce4112d1942cb0ab9d7bec2745c883ec5cb589",
+    "size": 155346
+  },
+  "installation_performed": false,
+  "installed_service_actions": false,
+  "isolated_mount_paths": {
+    "4cc9ebc3-2de7-467c-a464-fb0769444681": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/mounts/4cc9ebc3-2de7-467c-a464-fb0769444681",
+    "9c95aa03-0c57-4ce8-9ad7-ae151ea44a1c": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/mounts/9c95aa03-0c57-4ce8-9ad7-ae151ea44a1c",
+    "d7e42a98-dc9f-4175-b3d2-c9f404a9c448": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/mounts/d7e42a98-dc9f-4175-b3d2-c9f404a9c448"
+  },
+  "journal_guard": "all33 full schema and typed cells exact; persistent DB and nonempty WAL physical bytes/stat9 exact; bounded exact-path transient SHM and zero-byte WAL exceptions recorded",
+  "local_guard_controls": {
+    "path": "/home/dandiccf/Storage/ct/credential-guard-controls-604a3988-075d-4b94-ae17-b43ad2a2167a/terminal-v1.json",
+    "sha256": "fe55021b8f4fe14c3b0e82e3e6b4fd556fc1c7bc6d5e2fa3a03b64cff9770954",
+    "size": 2531
+  },
+  "namespace": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a",
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "5ba6d4f13c1503a94bd6f2e179ea5a1778e512c7e46fbe99c1527797fcdc6a1b",
+    "size": 79418
+  },
+  "normal_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/audit-independent-normal574-build-terminal-v1.json",
+    "sha256": "e44736841f5b61d9228ea306a1c0046b8df3a89deaaba3d84d3f40665fcba8f8",
+    "size": 7349
+  },
+  "normal_features": [],
+  "original_process_owner": "Root retained original Popen/pidfd, no retries, TERM-only before original immutable wall/monotonic/boot deadline; unresolved owner retained passively",
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 534735.847853763,
+    "monotonic_start": 533835.847853763,
+    "seconds": 900,
+    "wall_end": 1791510108.7247746,
+    "wall_start": 1791509208.7247746
+  },
+  "prediction": "The normal recovery-only endpoint should expose every actual writer-preserved generation and keep persistent journal state unchanged. Provider reads, cache refresh, and transient SQLite sidecar lifecycle may occur. SignInRequired classes are preserved; no unrelated authentication repair is requested. OAuth refresh is denied before upstream transport; missing/expired credentials or401 may make the exact auth-state endpoint refuse. No predicate relaxation, token peek or automatic retry.",
+  "provider_mutations_authorized": false,
+  "provider_reads_permitted": true,
+  "proxy_fixed_limits": {
+    "client_encrypted_bytes": 33554432,
+    "concurrent_pairs": 64,
+    "requests": 512,
+    "server_encrypted_bytes": 67108864
+  },
+  "question": "Does the unchanged current normal daemon recovery-only endpoint preserve every actual schema21 journal row and export all11 retained bytes through active IPC while effective RO/auth/account identities are preserved?",
+  "readiness_seconds": 180,
+  "ready": true,
+  "registered_at": "2026-10-09T01:26:36.020998+00:00",
+  "relay": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/opaque_metadata_connect_guard_v1.py",
+    "sha256": "d70a05c05b25102f99603d7a899a45fe68c231ad7e82f47e5268e69143b2b478",
+    "size": 7048
+  },
+  "relay_pacing": false,
+  "required_active_exports": 11,
+  "required_filesystem": "ext4",
+  "roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirrove",
+      "sha256": "537d26bc081375745376674967c63ceeac9c3ab72ca4f769f3df56256c024b16",
+      "size": 476354464
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirroved",
+      "sha256": "dac71584fb9b5cc3dd3d6a67e362cfa1ef4e0f3f2a3de30a10e2032c67a5e1d6",
+      "size": 478050672
+    }
+  },
+  "run": "fe3d36c3-d7cf-43d2-b2d3-8902f27a917a",
+  "seconds": 900,
+  "settings_change": "only copied per-account mount_path remapped to registered private mount directories",
+  "socket": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/control.sock",
+  "source_count": 574,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/recovery-only-daemon-next-preparation-private-v1/audit-independent-normal574-recovery-only-CONNECT-source-v4.json",
+    "sha256": "49ab9818f94deb180c8d78503f0d7dbc0ec025e30d86e49a91fc7ec808e30ecd",
+    "size": 6416
+  },
+  "state": "closed_normal574_recovery_only_clone_failed",
+  "status": "closed_normal574_recovery_only_clone_failed",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/roclone-fe3d36c3-d7cf-43d2-b2d3-8902f27a917a/evidence/failed-terminal-v1.json",
+    "sha256": "eab3c486bb42f648991ad09602b57cf9a6be3559d73fbb203b441d13c5fb9532",
+    "size": 256
+  },
+  "upload_mutation_workers_enabled": false,
+  "version": 1,
+  "work_seconds": 855,
+  "writer_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6/audit-independent-writable-clone-terminal-v2.json",
+    "sha256": "441c57827465c518f0a68827ee34b328d5265dd79c0b089500496b19f4755e34",
+    "size": 19760
+  },
+  "writer_result": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/result.json",
+    "sha256": "0877fe9b349fb3affc0c3b230db998d44fea9a16c56b966c230ff797ef915da0",
+    "size": 5819
+  },
+  "writer_terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/writable-a977a9ee-c5e5-4e27-bb44-56ec8966ffb6/terminal-v1.json",
+    "sha256": "1e769c1b327e809078f742654187f931114b09adeca88922a6fed075ff480e0d",
+    "size": 2245
+  }
+}

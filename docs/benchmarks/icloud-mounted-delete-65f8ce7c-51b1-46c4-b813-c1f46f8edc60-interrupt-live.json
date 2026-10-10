@@ -1,0 +1,11 @@
+{
+  "run": "65f8ce7c-51b1-46c4-b813-c1f46f8edc60",
+  "arm": "interrupt",
+  "binary_sha256": "cc64b9b2c176905cb882e2dff82b49fba4225fb670397753ba29810042c79122",
+  "filesystem": "btrfs",
+  "exit_code": 86,
+  "elapsed_seconds": 76.641,
+  "isolated_mount_detached": true,
+  "boundary_marker_present": true,
+  "boundary_matches": true
+}

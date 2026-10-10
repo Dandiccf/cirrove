@@ -21,9 +21,12 @@ pub struct DirectoryPublication {
     input_bytes: usize,
     pages: usize,
     complete: bool,
+    source: Option<Node>,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum DirectoryPublicationResult {
+    /// The selected generated-directory source changed while pages were staged.
+    SourceChanged,
     Published {
         changed: bool,
     },
@@ -76,6 +79,7 @@ impl Store {
             input_bytes: 0,
             pages: 0,
             complete: false,
+            source: None,
         })
     }
 }
@@ -87,6 +91,22 @@ fn check(cancel: &CancellationToken, deadline: Instant) -> Result<()> {
     }
 }
 impl DirectoryPublication {
+    /// Bind a generated directory to the exact source used by its converter.
+    /// This is an explicit provider capability, never inferred from an extension.
+    pub fn bind_source(mut self, source: Node) -> Result<Self> {
+        let Target::Directory(parent) = &self.ticket.target else {
+            return Err(StoreError::OutOfOrder);
+        };
+        if !crate::directory_sources::valid(&source) || source.id != *parent {
+            return Err(StoreError::InvalidDirectorySnapshot);
+        }
+        if serde_json::to_string(&source)?.len() > MAX_NODE_BYTES {
+            return Err(StoreError::DirectoryLimit);
+        }
+        self.source = Some(source);
+        Ok(self)
+    }
+
     /// Consumes the builder on failure; a partial or malformed page cannot later
     /// be published. Duplicate identities and repeated cursors fail closed.
     pub fn page(mut self, page: DirectoryPage) -> Result<Self> {
@@ -155,7 +175,13 @@ impl DirectoryPublication {
             .store
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        let result = publish(&tx, &self.ticket, &self.cancel, self.deadline)?;
+        let result = publish(
+            &tx,
+            &self.ticket,
+            self.source.as_ref(),
+            &self.cancel,
+            self.deadline,
+        )?;
         check(&self.cancel, self.deadline)?;
         tx.commit()?;
         Ok(result)
@@ -164,6 +190,7 @@ impl DirectoryPublication {
 fn publish(
     tx: &Transaction<'_>,
     ticket: &ObservationTicket,
+    source: Option<&Node>,
     cancel: &CancellationToken,
     deadline: Instant,
 ) -> Result<DirectoryPublicationResult> {
@@ -172,6 +199,15 @@ fn publish(
     };
     let scope = &ticket.scope;
     let key = Store::key(scope)?;
+    if let Some(source) = source {
+        let current = Store::node_on(tx, scope, parent)?;
+        if !current
+            .as_ref()
+            .is_some_and(|current| crate::directory_sources::same(source, current))
+        {
+            return Ok(DirectoryPublicationResult::SourceChanged);
+        }
+    }
     let newer: bool = tx.query_row(
         "SELECT EXISTS(SELECT 1 FROM incoming i JOIN metadata_versions v
         ON v.scope=?1 AND v.kind=1 AND v.identity=i.id WHERE v.revision>?2)",
@@ -179,7 +215,7 @@ fn publish(
         |r| r.get(0),
     )?;
     if !current(tx, ticket, &[])? || newer {
-        let known = directories::read_on(tx, scope, parent, |_| ())?.is_some();
+        let known = directories::read_on(tx, scope, parent, |_| (), false)?.is_some();
         return Ok(DirectoryPublicationResult::Superseded { known });
     }
     // Canonicalize each visible Node independently. String comparison below is
@@ -265,6 +301,18 @@ fn publish(
         params![key, parent],
     )?;
     tx.execute("INSERT INTO directory_entries(scope,parent,id,name,body) SELECT ?1,?2,id,name,body FROM incoming",params![key,parent])?;
+    if let Some(source) = source {
+        tx.execute(
+            "INSERT INTO directory_sources(scope,parent,source) VALUES(?1,?2,?3)
+            ON CONFLICT(scope,parent) DO UPDATE SET source=excluded.source,legacy_source=NULL",
+            params![key, parent, serde_json::to_string(source)?],
+        )?;
+    } else {
+        tx.execute(
+            "DELETE FROM directory_sources WHERE scope=?1 AND parent=?2",
+            params![key, parent],
+        )?;
+    }
     Ok(DirectoryPublicationResult::Published { changed })
 }
 
@@ -463,7 +511,7 @@ mod tests {
                 .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
                 .unwrap();
             assert_eq!(
-                publish(&tx, &stage.ticket, &stage.cancel, stage.deadline).unwrap(),
+                publish(&tx, &stage.ticket, None, &stage.cancel, stage.deadline).unwrap(),
                 DirectoryPublicationResult::Published { changed: pass != 1 }
             );
             let publication_bytes = tx

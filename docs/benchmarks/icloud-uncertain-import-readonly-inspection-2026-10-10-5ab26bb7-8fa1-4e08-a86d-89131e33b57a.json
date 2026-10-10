@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "run": "5ab26bb7-8fa1-4e08-a86d-89131e33b57a",
+  "question": "Does one verification-only inspection of the retained RegistrationArmed initial A import establish exact remote package completion without replay?",
+  "prediction": "If the original registration completed, PackageComplete must match exact A semantic; otherwise retain a typed uncertain/refusal classification and original journal.",
+  "endpoint": "One UploadProvider::inspect_upload_for_operation on exact stopped A checkpoint; no allocation/upload/registration/save/returned-step execution or journal acknowledgement. Seven inputs preserved; typed safe identity receipt only if semantically complete.",
+  "original_operation": "5bbe02ab-cae7-4e0d-82c1-3eebde8d736f",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-private-import-inspect-helper-20261010-v2/frozen/inspect-import-once-v2"
+  ],
+  "binary_sha256": "70b519184fdcf55162937ecfc1e2331191a4d02b532c0334a3cc6426fdd76e2e",
+  "source_sha256": "2a2fba0becd12a0ef58abe87c41263ab029f758bdf164c0d62b19b1dcc87f42c",
+  "TMPDIR": "/home/dandiccf/Storage/ct/inspect-import-once-20261010",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/inspect-import-once-20261010",
+  "temporary_filesystem": "ext4",
+  "maximum_seconds": 150,
+  "cleanup_reserve_seconds": 20,
+  "started_unix": 1791624146.673114,
+  "deadline_unix": 1791624296.673114,
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "full_criterion490_closed": false,
+  "original_conflict_arm_remains_failed": true,
+  "actual_result": {
+    "exit_code": 0,
+    "pid": 755320,
+    "birth": "64877390",
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "signals": [],
+    "stdout_sha256": "6e5ec53f8e8ef7e8ea933ad4c353de827a5a83682e068ee076b3cef17759f2bd",
+    "result": {
+      "classification": "PackageComplete",
+      "journal_acknowledged": false,
+      "logical_inspection_calls": 1,
+      "original_inputs_preserved": true,
+      "provider_mutations": 0,
+      "raw_error_retained": false,
+      "returned_steps_executed": 0,
+      "safe_typed_error": null,
+      "semantic_equals_source_A": true,
+      "typed_identity_receipt_sha256": "4f2d56790caefbf594b53ea7adc44b1f65f08e54e28bfdad74f89f93398138c6",
+      "typed_identity_receipt_written": true
+    },
+    "closed_unix": 1791624152.2748268,
+    "elapsed_seconds": 5.601712703704834
+  },
+  "predecessor_local_refusal_no_provider_call": "c1ed4919-075c-4b36-962b-b84569f6d00c",
+  "private_evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-private-import-inspect-helper-20261010-v2/execution-5ab26bb7-8fa1-4e08-a86d-89131e33b57a",
+  "independent_audit": {
+    "path": ".local-state/icloud-private-import-inspect-helper-20261010-v2/execution-5ab26bb7-8fa1-4e08-a86d-89131e33b57a/independent-audit-v2.json",
+    "sha256": "60b109841ffb53094cce68b0e4efabb510f0849da8a5aecde67642d9373af75c",
+    "passed": true,
+    "previous_audit_digest_assumption_corrected_in_same_evidence": true
+  }
+}

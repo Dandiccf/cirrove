@@ -1,0 +1,65 @@
+{
+  "active": false,
+  "actual_results": {
+    "green": {
+      "failed": 0,
+      "passed": 11,
+      "reported_seconds": 0.07,
+      "terminal": {
+        "path": "/home/dandiccf/Storage/cirrove-cookie-expiry-20261009/.local-state/cookie-expiry-private-v1/actual-red-green-v1/green-test-terminal-v1.json",
+        "sha256": "49be3e114a003c184503889be2c35b0b7d1ceda2cb6a1774de1647dd5099d59e",
+        "size": 1814
+      },
+      "tests": 11
+    },
+    "red": {
+      "expected_assertion_failure": true,
+      "failed": 1,
+      "passed": 0,
+      "reported_seconds": 0.06,
+      "terminal": {
+        "path": "/home/dandiccf/Storage/cirrove-cookie-expiry-20261009/.local-state/cookie-expiry-private-v1/actual-red-green-v1/red-test-terminal-v2.json",
+        "sha256": "88990472132c5ff3d05310553f19e1fef3d671c6794f68bfb2b2489972ed207f",
+        "size": 1106
+      },
+      "tests": 1
+    }
+  },
+  "arms": [
+    "aa02 original production plus one identical public API expiry fixture",
+    "fixed production plus eleven normal-feature cookie controls"
+  ],
+  "cargo_target_dir": "/home/dandiccf/Storage/cirrove-cookie-expiry-20261009/target",
+  "cleanup_seconds": 45,
+  "credential_or_provider_access": false,
+  "endpoint": "one actual old-code assertion failure, then eleven actual new-code passes",
+  "expected_build_seconds": 300,
+  "focused_clippy_success": true,
+  "focused_format_success": true,
+  "fullcheck": null,
+  "gate490_closed": false,
+  "integrated_fullcheck": {
+    "passed": true,
+    "public": "docs/benchmarks/icloud-cookie-expiration-integrated-check-short-tmp-2026-10-09.json",
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-cookie-expiry-integration-20261009-private-v1/fullcheck-successor-terminal-v1.json",
+      "sha256": "0a0ad8f85eac0cf88ef303b006b45bf5b80d43d2a06e77924afa22f848d14bdd",
+      "size": 1380
+    }
+  },
+  "legacy_limit": "Read-only loads of unchanged old ciphertext cannot recover its original expiry and can re-anchor; only explicit resaving persists the honestly labelled first-restoration anchor.",
+  "natural_server_expiry_proven": false,
+  "original_command_seconds": 1800,
+  "prediction": "old serde ignores expiry metadata and Jar renews60s; fixed original absolute expiry remains elapsed",
+  "private_evidence": "/home/dandiccf/Storage/cirrove-cookie-expiry-20261009/.local-state/cookie-expiry-private-v1/actual-red-green-v1",
+  "question": "Does sealed-session restoration restart an elapsed finite cookie Max-Age?",
+  "receipt_precision": "Whole-second original receipt timestamps may expire cookies up to one second early.",
+  "scope": "Synthetic local persistence only; no Apple requests, credentials, native sign-in or natural server-expiry acceptance.",
+  "sqlite_tmpdir": "/home/dandiccf/Storage/cirrove-cookie-expiry-20261009/.local-state/cookie-expiry-private-v1/tmp",
+  "success": true,
+  "temporary_filesystem": "ext4 /dev/nvme1n1p1 verified",
+  "timing_correction": "Private red-test-terminal-v1 typed an unobserved0.01s; v2 uses actual retained test footer0.06s and makes no processduration claim. The original failure/logs are unchanged.",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-cookie-expiry-20261009/.local-state/cookie-expiry-private-v1/tmp",
+  "version": 1,
+  "worktree": "/home/dandiccf/Storage/cirrove-cookie-expiry-20261009"
+}

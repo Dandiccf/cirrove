@@ -1,0 +1,87 @@
+{
+  "Manager_constructed": false,
+  "Root_HEAD": "aa02b8d1cf6b2644e7500908016548b49f71a833",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/saved-session-validation-6ba422f0-7646-4214-a3b9-224a97089496/tmp",
+  "TMPDIR": "/home/dandiccf/Storage/ct/saved-session-validation-6ba422f0-7646-4214-a3b9-224a97089496/tmp",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "actual_classification": "saved_session_valid",
+  "actual_returned_root_count": 257,
+  "actual_terminal": {
+    "path": "/home/dandiccf/Storage/ct/saved-session-validation-6ba422f0-7646-4214-a3b9-224a97089496/evidence/terminal-v1.json",
+    "sha256": "e68d145ca211442b14a8d1ac5a9e84c794a66dd7d6db6cb3e5dadb50f230a658",
+    "size": 2618
+  },
+  "auth_changes": false,
+  "build_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-authentic-saved-session-validation-preparation-20261009-private-v1/artifact-adoption-0bc7752a-1279-404a-b82d-006880c99b3f/adopted-terminal-v1.json",
+    "sha256": "7fe9ceed7d748c523130c794cf0bf184da0ed98709aef281f5f4e649a2995d18",
+    "size": 76836
+  },
+  "capsule_members": 5,
+  "capsule_state_members_preserved": 5,
+  "cleanup_reserve_seconds": 45,
+  "cloud_mutations": 0,
+  "command_template": [
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-authentic-saved-session-validation-preparation-20261009-private-v1/artifact-adoption-0bc7752a-1279-404a-b82d-006880c99b3f/validation-helper",
+    "FRESH_ORIGINAL_CLOCKED_REGISTRATION",
+    "REGISTRATION_SHA256"
+  ],
+  "compiler_features": [],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-authentic-saved-session-validation-preparation-20261009-private-v1/root_observe_authentic_saved_session_once_v4.py",
+    "sha256": "c796f745500768e70d4d00c918f514f231869608dd774e52608b863d273f05a9",
+    "size": 19296
+  },
+  "duration_seconds": 600,
+  "endpoint": "One logical list_root only; fixed safe classification/count; original state/settings/cipher preserved; original helper Popen/pidfd/group/pipe closure.",
+  "gate490_closed": false,
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-authentic-saved-session-validation-preparation-20261009-private-v1/artifact-adoption-0bc7752a-1279-404a-b82d-006880c99b3f/validation-helper",
+    "sha256": "42063c5718e49b8171bfa607afb1958737c72698e833173027d775934a5aa95c",
+    "size": 383214808
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/ct/saved-session-validation-6ba422f0-7646-4214-a3b9-224a97089496/evidence/audit-independent-authentic-session-terminal-v1.json",
+    "sha256": "f0c481a8c3774cbf436dc738a885e34b42ef4a75b1357f2f734b693fd5e048ff",
+    "size": 6459
+  },
+  "installed19_preserved": true,
+  "limits": [
+    "One unmodified authentic retained session remains valid on one logical list_root; this is not an expired-session fixture or renewal/recovery proof.",
+    "Safe count only, no DriveEntry rows or raw provider output retained. Actual transport HTTP request count is not instrumented.",
+    "No journal/Manager/provider mutation, settings rewrite, credential save or sealed/dirty byte replay.",
+    "Root original tool41634 closed0 separately reported; this audit physically joins/rechecks retained helper identity and original group absence.",
+    "Terminal file timestamp plus registered source acceptance fence establishes completion inside original work budget; no unrecorded exact runtime duration is invented.",
+    "No installed lifecycle/full488\u2013490 closure or HOLD change."
+  ],
+  "natural_expiry_proved": false,
+  "original_members": 22,
+  "original_state_SQL": false,
+  "original_state_members_preserved": 22,
+  "prediction": "The old grant may remain valid. Local loading refusal, remote Authentication rejection and unknown failure are reported separately. Natural expiry cannot be inferred from age or rejection.",
+  "python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "question": "Does one unmodified authentic retained b848 grant still validate on one root read, or produce typed Authentication rejection?",
+  "reauthentication_performed": false,
+  "run": "6ba422f0-7646-4214-a3b9-224a97089496",
+  "source_count": 574,
+  "source_review_correction": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-authentic-saved-session-validation-preparation-20261009-private-v1/source-review-private-helper-freezer-correction-v1.json",
+    "sha256": "437166a883e81759f447ad61617906fb262cf52e07da1edec7fd772929720972",
+    "size": 4226
+  },
+  "status": "closed_authentic_saved_session_valid",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/saved-session-validation-6ba422f0-7646-4214-a3b9-224a97089496/evidence/terminal-v1.json",
+    "sha256": "e68d145ca211442b14a8d1ac5a9e84c794a66dd7d6db6cb3e5dadb50f230a658",
+    "size": 2618
+  },
+  "version": 1,
+  "worktree_HEAD": "a3bc650a7c5b2c4d68696d44245e82e03759e9e4"
+}

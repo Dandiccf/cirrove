@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "date": "2026-10-07",
+  "status": "closed_synthetic_controls",
+  "scope": "Synthetic feature-only ordinary DOCX read-only observer validation. No cloud, application or installed acceptance.",
+  "question": "Do Writer metadata, DATA readback and original Trash observers bind the exact owned DOCX arm and reject specific authority/deadline corruptions without changing Calc behavior?",
+  "prediction": "Writer9, Calc10 and XLSX2 pass. Each omitted guard produces its registered single-test assertion failure; restoring exact source bytes makes that same test pass.",
+  "source_base": "97bee0e6634ec1bbd540d405e8bd2560e42f11e7",
+  "source_proposal_sha256": "f96597ca7fd052abe3956c7a108ce5b341c477c702093948934d8b301ebe86db",
+  "source_patch_sha256": "8c229718ca33329da785434bd29d816a799fc4c4835b5228042af29e7f532b3f",
+  "arms": [
+    {
+      "name": "writer9",
+      "expected_tests": 9,
+      "expected_exit": 0
+    },
+    {
+      "name": "calc10",
+      "expected_tests": 10,
+      "expected_exit": 0
+    },
+    {
+      "name": "xlsx2",
+      "expected_tests": 2,
+      "expected_exit": 0
+    },
+    {
+      "name": "metadata-writer-label",
+      "test_filter": "owned_writer_metadata_refuses_foreign_account_and_calc_label",
+      "red_expected_tests": 1,
+      "red_expected_exit": 101,
+      "red_assertion": "Writer settings arm 0",
+      "green_expected_tests": 1,
+      "green_expected_exit": 0
+    },
+    {
+      "name": "fixture-writer-root",
+      "test_filter": "owned_writer_fixture_refuses_cross_arm_package_semantic_and_account",
+      "red_expected_tests": 1,
+      "red_expected_exit": 101,
+      "red_assertion": "Writer fixture arm 0",
+      "green_expected_tests": 1,
+      "green_expected_exit": 0
+    },
+    {
+      "name": "trash-exact-backup",
+      "test_filter": "owned_writer_trash_refuses_rebound_fixture_and_completed_receipt_drift",
+      "red_expected_tests": 1,
+      "red_expected_exit": 101,
+      "red_assertion": "Writer target arm 3",
+      "green_expected_tests": 1,
+      "green_expected_exit": 0
+    },
+    {
+      "name": "writer-final-sync-deadline",
+      "test_filter": "owned_writer_metadata_refuses_final_synchronous_verification_overrun",
+      "red_expected_tests": 1,
+      "red_expected_exit": 101,
+      "red_assertion": "Writer final synchronous overrun accepted",
+      "green_expected_tests": 1,
+      "green_expected_exit": 0
+    }
+  ],
+  "endpoint": "Actual executed test counts and intended assertion failures, exact source restoration and original child/group closure. A compiler failure or zero tests does not count.",
+  "measurement": false,
+  "provider_actions": false,
+  "installed_actions": false,
+  "private_tmp_filesystem": "ext4",
+  "runtime_source_count": 568,
+  "limits": [
+    "These controls do not verify actual DOCX format fidelity or iCloud behavior.",
+    "They do not close full-integration criteria 487\u2013490 or release the installed HOLD."
+  ],
+  "outcome": {
+    "passing_initial_tests": {
+      "Writer": 9,
+      "Calc": 10,
+      "XLSX": 2
+    },
+    "omission_pairs": 4,
+    "each_red": "Exactly1 test, exit101, registered assertion; no compile error",
+    "each_restored_green": "Same exact filter,1 passed, exit0",
+    "all_runtime_sources_restored": true,
+    "runtime_source_count": 568,
+    "all_original_children_reaped_and_groups_empty": true,
+    "terminal_sha256": "1a024192df8cc3b4903588c16cb130f75a4d1f313ea0dc41a629eab08878ea02",
+    "provider_actions": false,
+    "installed_actions": false,
+    "independent_terminal_audit": {
+      "status": "passed",
+      "sha256": "3615834bfefa23ee531f94dbd1b9bec580f60a6dea801fa76939c2322d8f6fdd",
+      "size": 10468
+    }
+  },
+  "full_project_check": {
+    "command": "scripts/check.sh",
+    "status": "passed",
+    "exit": 0,
+    "sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "Rust_result_groups": 87,
+    "all_new_Writer9_executed": true,
+    "seconds": 667.0745437900187,
+    "stdout_sha256": "01c783fa44fdfc49329f7eccdb0dde6f7ebd84870c914ba95a53dea5a67dbcbc",
+    "stderr_sha256": "2219d421c6c9f5826a7ec5d4f0c056a217932dcc08c7f883b4bb0d2df817239f",
+    "source_count": 568,
+    "source_map_unchanged_during_check": true,
+    "original_children_closed": true,
+    "desktop_window_tests": "Not covered by this command; not rerun for this feature-only observer change."
+  }
+}

@@ -405,3 +405,47 @@ fn google_accounts_have_their_own_identity_and_offer_write_consent() {
         );
     }
 }
+
+#[test]
+fn uncertain_upload_activity_describes_inspection_instead_of_transfer_progress() {
+    for state in ["verifyrequired", "verify_required", "verifying"] {
+        let reply: cirrove_service::RecentReply = serde_json::from_value(serde_json::json!({
+            "local":[{"sequence":1,"name":"Owned.txt","state":state,"size":100,"transferred":100}]
+        }))
+        .unwrap();
+        let rows = cirrove_desktop::model::ActivityEntry::from_reply("Fixture", &reply);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].what, "saved here · checking cloud confirmation");
+        assert!(!rows[0].warning);
+    }
+}
+
+#[test]
+fn recovery_exports_are_not_presented_as_offline_pinning_jobs() {
+    let mut sample = cirrove_desktop::demo::snapshot().unwrap();
+    sample.status.as_mut().unwrap().accounts[0].jobs[0].kind =
+        cirrove_service::jobs::JobKind::ExportLocal;
+    let view = cirrove_desktop::model::Overview::from_snapshot(sample);
+    assert!(view.accounts[0].running.is_empty());
+}
+
+#[test]
+fn icloud_write_controls_preserve_explicit_account_mode() {
+    for access in [
+        cirrove_auth::AccessMode::ReadOnly,
+        cirrove_auth::AccessMode::ReadWrite,
+    ] {
+        let mut snapshot = demo::snapshot().unwrap();
+        let account = &mut snapshot.settings.as_mut().unwrap().accounts[0];
+        account.registration = cirrove_auth::AppRegistration::ICloud;
+        account.access = access;
+        snapshot.status.as_mut().unwrap().accounts[0].provider = "icloud".into();
+        let view = Overview::from_snapshot(snapshot);
+        let card = &view.accounts[0];
+        assert!(
+            card.supports_writes,
+            "the explicit mode-change action is available"
+        );
+        assert_eq!(card.writable, access == cirrove_auth::AccessMode::ReadWrite);
+    }
+}

@@ -1,0 +1,49 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/npa7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/npa7v1",
+  "active": false,
+  "active_measurement": false,
+  "endpoint": "Actual one assertion RED, same GREEN, all10 named tests, frozen CargoJSON-selected feature probe, all original handles closed",
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "prediction": "Only the raw-count omission fails the selected genuine-promotion assertion; exact validated subtraction passes same positive and all10 including9negative arms. Probe build uses only isolated proposed validation source; no provider/installed actions.",
+  "provider_actions": false,
+  "question": "Does exact detached lineage validation admit the actual atomic original without accepting foreign, dirty or changed bytes?",
+  "real_case_replayed": false,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-build-reader-controls-v1/registration-v1.json",
+    "sha256": "2ee04799227ec3b8dab7e67626e9fb771daea2f2e4c7ee20b6a0b299ba855598",
+    "size": 228805
+  },
+  "status": "closed_controls_success",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-build-reader-controls-v1/terminal-v1.json",
+    "size": 86228,
+    "sha256": "affd2b4697f7f91d261f3cc8e5eee20b6d73e6102ecf8cd55196e9e417eec792"
+  },
+  "owner_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-build-reader-controls-v1/owned-command-closure-v1.json",
+    "size": 2335,
+    "sha256": "38915e4be7877073854b91662405f1891c22fa1057796cf4df6238fd111d6f0c"
+  },
+  "independent_actual_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-build-reader-controls-v1/audit-independent-reader-build-controls-v1.json",
+    "size": 18079,
+    "sha256": "379d7dc8cf92ccd22f3058ff38876ba39aa2684e08badaefe2d41c73a6df6385"
+  },
+  "independent_actual_passed_checks": 36,
+  "actual_root_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/native-fuse-detached-validation-private-v1/root-build-reader-controls-v1/root-actual-build-terminal-v1.json",
+    "size": 834,
+    "sha256": "ef92f11f50f9b752daa5efd2fe6d5b2277cdae67d54a88ad544e6e15c4783f78"
+  },
+  "actual_RED": 1,
+  "same_GREEN": 1,
+  "all_GREEN": 10,
+  "source_only_negative_arms": 9,
+  "original_failed_atomic_case_remains_failed": true,
+  "Root_runtime_modified": false
+}

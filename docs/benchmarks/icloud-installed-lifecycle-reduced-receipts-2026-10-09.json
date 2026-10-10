@@ -1,0 +1,865 @@
+{
+  "kind": "public_reduced_installed_lifecycle_receipts",
+  "assessment": "docs/benchmarks/icloud-installed-lifecycle-acceptance-2026-10-09.json",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "arms": {
+    "readonly_downgrade_and_active_recovery": {
+      "preauth-reduced-status.json": {
+        "sha256": "cb26f8388a4e1bac43c948589be964368f3bdd53a1252107c3d4881e42b023e6",
+        "bytes": 265,
+        "observed": {
+          "same_identity_settings_sha256": "dc1dfddc909b4a7ea23c794dd8748b13f04734230bdf4d1e11beae40da415ff6",
+          "enabled": false,
+          "access": "read_write",
+          "restore_markers_count": 0,
+          "unmounted": true,
+          "predecessor_timeout_did_not_complete_access_change": true
+        }
+      },
+      "postauth-reduced-status.json": {
+        "sha256": "5b24d9289dbbecd29ac9e997a5890c4b973ef519cf9d3d1e4191a4c6ee69cc3d",
+        "bytes": 330,
+        "observed": {
+          "identity_settings_sha256": "dc1dfddc909b4a7ea23c794dd8748b13f04734230bdf4d1e11beae40da415ff6",
+          "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+          "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+          "enabled": false,
+          "access": "read_only",
+          "restore_markers_count": 0,
+          "observed_unix": 1791567673.4574099
+        }
+      },
+      "auth-terminal-exit.json": {
+        "sha256": "8b661b75c3a8a88459ccaf67b32b52e7f79f083b29f937a7b35041ca05165b57",
+        "bytes": 105,
+        "observed": {
+          "exit_code": 0,
+          "streams_retained": false,
+          "success_requires_independent_account_status": true
+        }
+      },
+      "enable-and-retention-observation.jsonl": {
+        "sha256": "a83acef13fae95e773d60d6b2f1f2c6508e18f41576a21c2f6d77bfdafbaf330",
+        "bytes": 1315,
+        "observed": [
+          {
+            "phase": "before_enable_retained_records",
+            "records": {
+              "sealed": {
+                "id": "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb",
+                "body_sha256": "bf57a4070706099e176d25ed75faf72de6e5967ae7181dc036707a4ca9efe05a",
+                "state": "verify_required",
+                "size": 44,
+                "sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+                "actual_size": 44,
+                "actual_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472"
+              },
+              "working": {
+                "id": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+                "body_sha256": "703b6bca7fed4a51e3df0e620d1d537a9083e1ef2213b734ee0a5918789879cc",
+                "generation": 4,
+                "dirty": true,
+                "unlinked": true,
+                "actual_size": 52,
+                "actual_sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff"
+              },
+              "historical_conflict": {
+                "id": "0c9b1285-8b1c-44b6-967b-c2c6aac689de",
+                "body_sha256": "1e4cc2b529efd2667a7991fd80032ddfcb9037edfe951fdd9f492225248bd609",
+                "state": "conflict",
+                "size": 50,
+                "sha256": "4ce1b04fb9ea223f3319d983ab5032e77690464658371fcf5f0a9014922938a6"
+              }
+            }
+          },
+          {
+            "phase": "public_enable",
+            "exit_code": 0,
+            "output_not_retained": true
+          },
+          {
+            "phase": "mounted_normal_daemon",
+            "version": "0.2.0-dev",
+            "account": {
+              "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+              "provider": "icloud",
+              "enabled": true,
+              "mounted": true,
+              "state": "updating_or_offline",
+              "local_recovery": true,
+              "recovery_only": false
+            }
+          }
+        ]
+      },
+      "active-readonly-recovery-observation.jsonl": {
+        "sha256": "9bf3ca511471f3ee0117065916177edb1e91fb2c0364d41064fb20096c7e27e6",
+        "bytes": 95,
+        "observed": [
+          {
+            "phase": "mounted_create_refusal",
+            "errno": 30,
+            "expected_errno": 30,
+            "probe_created": false
+          }
+        ]
+      },
+      "active-readonly-recovery-exit.json": {
+        "sha256": "5cc319f54b05a38799195a491c303aa686eab7caccfdbbf1e8b8c07405cb7392",
+        "bytes": 17,
+        "observed": {
+          "exit_code": 1
+        }
+      },
+      "active-readonly-recovery-observation-v2.jsonl": {
+        "sha256": "8c94a589617dc8e39816633e0ed38f2672c1ee4b6ad8b13b46bbf9347355af1f",
+        "bytes": 2452,
+        "observed": [
+          {
+            "phase": "active_working_listing",
+            "selected_fields": {
+              "file": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+              "generation": 4,
+              "size": 52,
+              "recorded_size": 52,
+              "unlinked": true
+            }
+          },
+          {
+            "phase": "active_export",
+            "selected": "sealed",
+            "exit_code": 0,
+            "destination": "/home/tester/cirrove-recovery-62cd9ece/sealed-after-reauth.txt",
+            "command": [
+              "/usr/bin/cirrove",
+              "export-save",
+              "--label",
+              "ICloud-Owned",
+              "--operation",
+              "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb"
+            ],
+            "actual_size": 44,
+            "actual_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472"
+          },
+          {
+            "phase": "active_export",
+            "selected": "working",
+            "exit_code": 0,
+            "destination": "/home/tester/cirrove-recovery-62cd9ece/dirty-after-reauth.txt",
+            "command": [
+              "/usr/bin/cirrove",
+              "export-working",
+              "--active",
+              "--label",
+              "ICloud-Owned",
+              "--file",
+              "876349a9-939f-49a8-b4e1-1860202aa7b2",
+              "--generation",
+              "4"
+            ],
+            "actual_size": 52,
+            "actual_sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff"
+          },
+          {
+            "phase": "working_receipt",
+            "selected_generation_confirmed": true,
+            "sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff"
+          },
+          {
+            "phase": "post_export_preservation",
+            "retained_records_equal": true,
+            "records": {
+              "sealed": {
+                "id": "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb",
+                "body_sha256": "bf57a4070706099e176d25ed75faf72de6e5967ae7181dc036707a4ca9efe05a",
+                "state": "verify_required",
+                "size": 44,
+                "sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+                "actual_size": 44,
+                "actual_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472"
+              },
+              "working": {
+                "id": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+                "body_sha256": "703b6bca7fed4a51e3df0e620d1d537a9083e1ef2213b734ee0a5918789879cc",
+                "generation": 4,
+                "dirty": true,
+                "unlinked": true,
+                "actual_size": 52,
+                "actual_sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff"
+              },
+              "historical_conflict": {
+                "id": "0c9b1285-8b1c-44b6-967b-c2c6aac689de",
+                "body_sha256": "1e4cc2b529efd2667a7991fd80032ddfcb9037edfe951fdd9f492225248bd609",
+                "state": "conflict",
+                "size": 50,
+                "sha256": "4ce1b04fb9ea223f3319d983ab5032e77690464658371fcf5f0a9014922938a6"
+              }
+            }
+          },
+          {
+            "phase": "final_account",
+            "identity_settings_sha256": "dc1dfddc909b4a7ea23c794dd8748b13f04734230bdf4d1e11beae40da415ff6",
+            "access": "read_only",
+            "account": {
+              "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+              "provider": "icloud",
+              "enabled": true,
+              "mounted": true,
+              "state": "ready",
+              "local_recovery": true,
+              "recovery_only": false
+            }
+          }
+        ]
+      },
+      "active-readonly-recovery-exit-v2.json": {
+        "sha256": "e89df0eae5ec7db81135aed16463968955c578bcc4f2ec43172eff351f080c17",
+        "bytes": 17,
+        "observed": {
+          "exit_code": 0
+        }
+      },
+      "root-final-closure-and-preservation.json": {
+        "sha256": "bbe79d0c37099e9219992be1d00c5dd987e35b1eda3abdd238ba7268e91d55cb",
+        "bytes": 3982,
+        "observed": {
+          "closed_unix": 1791567954.6955807,
+          "native_owner_handle": 95249,
+          "native_owner_exit": 0,
+          "children": [
+            {
+              "name": "Foot-auth-owner",
+              "pid": 4164284,
+              "birth": "59224471",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "QEMU-owner",
+              "pid": 4163428,
+              "birth": "59220786",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-poweroff-owner",
+              "pid": 4171237,
+              "birth": "59254648",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-ready-0-owner",
+              "pid": 4163429,
+              "birth": "59220786",
+              "exit_code": 255,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-ready-1-owner",
+              "pid": 4163524,
+              "birth": "59220987",
+              "exit_code": 255,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-ready-2-owner",
+              "pid": 4163645,
+              "birth": "59221689",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-stage-owner",
+              "pid": 4163648,
+              "birth": "59221705",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-unlock-owner",
+              "pid": 4163650,
+              "birth": "59221722",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            }
+          ],
+          "backing_pins_preserved": [
+            {
+              "path": "/home/dandiccf/Storage/cirrove-installed-return-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c/guest-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c.qcow2",
+              "sha256": "11678c46ab8301da2067e0cfbd9d1b199c968a5374afc70d81c64c29e1bfded0",
+              "size": 39649280,
+              "stat9": [
+                66305,
+                73531397,
+                33152,
+                1000,
+                1000,
+                1,
+                39649280,
+                1791564305795016043,
+                1791564305795016043
+              ]
+            },
+            {
+              "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/guest-63bf1f2c-e404-47a9-a318-1ffafbf77b81.qcow2",
+              "sha256": "81d8f53d2f501f1eb4e54d5fa49ec93517ac80b8e40fee4e778f275f49c1f43c",
+              "size": 85196800,
+              "stat9": [
+                66305,
+                19267607,
+                33152,
+                1000,
+                1000,
+                1,
+                85196800,
+                1791547504113129992,
+                1791547504113129992
+              ]
+            },
+            {
+              "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/guest-ae484a4d-4a97-4eca-b470-6c270eec8220.qcow2",
+              "sha256": "58c7fa1b752f80e0e6a54de12bd05f26a593b30b8f9cd2b7d8cc0a2247d62551",
+              "size": 85262336,
+              "stat9": [
+                66305,
+                8912918,
+                33152,
+                1000,
+                1000,
+                1,
+                85262336,
+                1791539230485007029,
+                1791539230485007029
+              ]
+            },
+            {
+              "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2",
+              "sha256": "d6ec9e817b100515f03349e9ae2dfbd307f894aeb0da583bcc979c31b895e227",
+              "size": 7191658496,
+              "stat9": [
+                66305,
+                69468170,
+                33152,
+                1000,
+                1000,
+                1,
+                7191658496,
+                1791525577178827114,
+                1791525577178827114
+              ]
+            }
+          ],
+          "strict_fuser": {
+            "exit_code": 1,
+            "stdout_empty": true,
+            "stderr_empty": true
+          },
+          "result_guest": {
+            "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/guest-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f.qcow2",
+            "sha256": "c6be4401682c8be7a77410d17909eac6288d7bacb7d04e7326ba82f16dfaa864",
+            "size": 40697856,
+            "stat9": [
+              66305,
+              33423362,
+              33152,
+              1000,
+              1000,
+              1,
+              40697856,
+              1791567919949580400,
+              1791567919949580400
+            ]
+          }
+        }
+      }
+    },
+    "fresh_writable_connection_save_and_refusal": {
+      "preauth-original-account.json": {
+        "sha256": "2f1461c65df2b77da60f8745a33a72296c0f068cf477906d12caeb59f3caa418",
+        "bytes": 170,
+        "observed": {
+          "single_original_account": true,
+          "identity_settings_sha256": "dc1dfddc909b4a7ea23c794dd8748b13f04734230bdf4d1e11beae40da415ff6",
+          "enabled": true,
+          "access": "read_only"
+        }
+      },
+      "postauth-two-accounts.jsonl": {
+        "sha256": "22a2fe5ff6ab36c3fe7a4cd38202e0ad492bf42e9fca96c888cd6e400b4b8152",
+        "bytes": 1048,
+        "observed": [
+          {
+            "phase": "postauth_two_accounts",
+            "same_apple_identity_drive_root": true,
+            "separate_account_and_credential": true,
+            "accounts": [
+              {
+                "id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+                "credential_id": "dfa6c6a2-3778-4554-83f8-c7480d01f952",
+                "label": "ICloud-Owned",
+                "access": "read_only",
+                "enabled": true
+              },
+              {
+                "id": "e65c2710-70e0-4a30-923f-986d53112847",
+                "credential_id": "f672c5c1-807a-4e6c-b811-6c010c3295d1",
+                "label": "ICloud-Write-024d3a0b",
+                "access": "read_write",
+                "enabled": true
+              }
+            ]
+          },
+          {
+            "phase": "account_status",
+            "account": {
+              "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+              "provider": "icloud",
+              "enabled": true,
+              "mounted": true,
+              "state": "ready",
+              "local_recovery": true,
+              "recovery_only": false,
+              "read_path": null
+            }
+          },
+          {
+            "phase": "account_status",
+            "account": {
+              "account_id": "e65c2710-70e0-4a30-923f-986d53112847",
+              "provider": "icloud",
+              "enabled": true,
+              "mounted": true,
+              "state": "ready",
+              "local_recovery": true,
+              "recovery_only": false,
+              "read_path": null
+            }
+          },
+          {
+            "phase": "fresh_journal_counts",
+            "counts": {
+              "uploads": 0,
+              "working_files": 0,
+              "mutations": 0
+            }
+          }
+        ]
+      },
+      "auth-terminal-exit.json": {
+        "sha256": "8b661b75c3a8a88459ccaf67b32b52e7f79f083b29f937a7b35041ca05165b57",
+        "bytes": 105,
+        "observed": {
+          "exit_code": 0,
+          "streams_retained": false,
+          "success_requires_independent_account_status": true
+        }
+      },
+      "single-owned-save-observation.jsonl": {
+        "sha256": "ec02af712f8e58d7b6e585b9fda2333d71853cbf55c60adbef2cf4f3a332cb28",
+        "bytes": 1605,
+        "observed": [
+          {
+            "phase": "original_retained_baseline",
+            "row_body_sha256": {
+              "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb": "bf57a4070706099e176d25ed75faf72de6e5967ae7181dc036707a4ca9efe05a",
+              "876349a9-939f-49a8-b4e1-1860202aa7b2": "703b6bca7fed4a51e3df0e620d1d537a9083e1ef2213b734ee0a5918789879cc",
+              "0c9b1285-8b1c-44b6-967b-c2c6aac689de": "1e4cc2b529efd2667a7991fd80032ddfcb9037edfe951fdd9f492225248bd609"
+            }
+          },
+          {
+            "phase": "before_only_mutations",
+            "folder": "/home/tester/Cloud/Cirrove-iCloud-Write-024d3a0b/Cirrove-Installed-Write-024d3a0b",
+            "file": "/home/tester/Cloud/Cirrove-iCloud-Write-024d3a0b/Cirrove-Installed-Write-024d3a0b/owned-save.txt",
+            "size": 4224,
+            "sha256": "ee714cbbb75114495644113e12634f13df17ab3f48f04d69eaafe7756bfc86c0",
+            "automatic_retry": false
+          },
+          {
+            "phase": "mkdir_and_single_save_returned",
+            "save_count": 1,
+            "fsync_returned": true
+          },
+          {
+            "phase": "uploaded",
+            "operation": "c3aac3ba-8d8b-4de5-bef1-2b698246515c",
+            "state": "uploaded",
+            "size": 4224,
+            "sha256": "ee714cbbb75114495644113e12634f13df17ab3f48f04d69eaafe7756bfc86c0",
+            "remote_identity_sha256": "90631f861fc08ff44b53993f3d2ecea550650d9fb794621f5323c6ea3ba78e41",
+            "remote_parent_sha256": "fb2410ba25724a51f4238eca7033e217dfee13196577e608bbe03aa231dbe788"
+          },
+          {
+            "phase": "original_retained_post_save",
+            "row_body_sha256": {
+              "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb": "bf57a4070706099e176d25ed75faf72de6e5967ae7181dc036707a4ca9efe05a",
+              "876349a9-939f-49a8-b4e1-1860202aa7b2": "703b6bca7fed4a51e3df0e620d1d537a9083e1ef2213b734ee0a5918789879cc",
+              "0c9b1285-8b1c-44b6-967b-c2c6aac689de": "1e4cc2b529efd2667a7991fd80032ddfcb9037edfe951fdd9f492225248bd609"
+            },
+            "unchanged": true
+          }
+        ]
+      },
+      "single-owned-save-exit.json": {
+        "sha256": "e89df0eae5ec7db81135aed16463968955c578bcc4f2ec43172eff351f080c17",
+        "bytes": 17,
+        "observed": {
+          "exit_code": 0
+        }
+      },
+      "cold-read-and-permanent-refusal-observation.jsonl": {
+        "sha256": "2d5d6c164ed891224f296d02a9c863b9bd906d67c2a60d8399ded571a5575377",
+        "bytes": 2112,
+        "observed": [
+          {
+            "phase": "old_ro_metadata_observation",
+            "observation": 1,
+            "state": {
+              "path": "Cirrove-Installed-Write-024d3a0b/owned-save.txt",
+              "kind": "file",
+              "size": 4224,
+              "resident": 0,
+              "pinned": null,
+              "refusal": null,
+              "remote_identity_sha256": "90631f861fc08ff44b53993f3d2ecea550650d9fb794621f5323c6ea3ba78e41"
+            }
+          },
+          {
+            "phase": "old_ro_cold_before_read",
+            "state": {
+              "path": "Cirrove-Installed-Write-024d3a0b/owned-save.txt",
+              "kind": "file",
+              "size": 4224,
+              "resident": 0,
+              "pinned": null,
+              "refusal": null,
+              "remote_identity_sha256": "90631f861fc08ff44b53993f3d2ecea550650d9fb794621f5323c6ea3ba78e41"
+            },
+            "separate_account_cache": true
+          },
+          {
+            "phase": "single_independent_old_ro_read",
+            "size": 4224,
+            "sha256": "ee714cbbb75114495644113e12634f13df17ab3f48f04d69eaafe7756bfc86c0",
+            "remote_identity_sha256": "90631f861fc08ff44b53993f3d2ecea550650d9fb794621f5323c6ea3ba78e41",
+            "payload_read_count": 1
+          },
+          {
+            "phase": "old_ro_resident_after_read",
+            "state": {
+              "path": "Cirrove-Installed-Write-024d3a0b/owned-save.txt",
+              "kind": "file",
+              "size": 4224,
+              "resident": 4224,
+              "pinned": null,
+              "refusal": null,
+              "remote_identity_sha256": "90631f861fc08ff44b53993f3d2ecea550650d9fb794621f5323c6ea3ba78e41"
+            }
+          },
+          {
+            "phase": "permanent_delete_refusal",
+            "command": [
+              "/usr/bin/cirrove",
+              "delete-permanently",
+              "--label",
+              "ICloud-Write-024d3a0b",
+              "--yes",
+              "Cirrove-Installed-Write-024d3a0b/owned-save.txt"
+            ],
+            "exit_code": 1,
+            "expected_static_refusal": true,
+            "fallback_ordinary_delete_requested": false
+          },
+          {
+            "phase": "post_refusal_file_and_upload_preserved",
+            "size": 4224,
+            "sha256": "ee714cbbb75114495644113e12634f13df17ab3f48f04d69eaafe7756bfc86c0",
+            "upload_body_sha256": "35deb1c3fb110e933c2ec20dbb1785b95485051c36e258d02d536275bced01d7",
+            "counts": {
+              "uploads": 1,
+              "mutations": 1
+            }
+          },
+          {
+            "phase": "old_retained_rows_final",
+            "unchanged": true,
+            "row_body_sha256": {
+              "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb": "bf57a4070706099e176d25ed75faf72de6e5967ae7181dc036707a4ca9efe05a",
+              "876349a9-939f-49a8-b4e1-1860202aa7b2": "703b6bca7fed4a51e3df0e620d1d537a9083e1ef2213b734ee0a5918789879cc",
+              "0c9b1285-8b1c-44b6-967b-c2c6aac689de": "1e4cc2b529efd2667a7991fd80032ddfcb9037edfe951fdd9f492225248bd609"
+            }
+          }
+        ]
+      },
+      "cold-read-and-permanent-refusal-exit.json": {
+        "sha256": "e89df0eae5ec7db81135aed16463968955c578bcc4f2ec43172eff351f080c17",
+        "bytes": 17,
+        "observed": {
+          "exit_code": 0
+        }
+      },
+      "disable-fresh-connection-observation.jsonl": {
+        "sha256": "68710acc31b13f959752bd1de375ae9981fe80fea2b2d564ed3bc81cbfec6f72",
+        "bytes": 717,
+        "observed": [
+          {
+            "phase": "public_disable_fresh_test_connection",
+            "exit_code": 0
+          },
+          {
+            "phase": "final_account_status",
+            "account": {
+              "account_id": "d36b725d-5d95-40e4-8abd-49465d76f242",
+              "label": "ICloud-Owned",
+              "enabled": true,
+              "mounted": true,
+              "state": "ready",
+              "local_recovery": true,
+              "recovery_only": false
+            }
+          },
+          {
+            "phase": "final_account_status",
+            "account": {
+              "account_id": "e65c2710-70e0-4a30-923f-986d53112847",
+              "label": "ICloud-Write-024d3a0b",
+              "enabled": false,
+              "mounted": false,
+              "state": "disabled",
+              "local_recovery": false,
+              "recovery_only": false
+            }
+          },
+          {
+            "phase": "final_permissions",
+            "original_access": "read_only",
+            "fresh_access": "read_write",
+            "fresh_disabled": true,
+            "owned_cloud_folder_retained": "Cirrove-Installed-Write-024d3a0b"
+          }
+        ]
+      },
+      "disable-fresh-connection-exit.json": {
+        "sha256": "e89df0eae5ec7db81135aed16463968955c578bcc4f2ec43172eff351f080c17",
+        "bytes": 17,
+        "observed": {
+          "exit_code": 0
+        }
+      },
+      "root-final-closure-and-preservation.json": {
+        "sha256": "eb514b2adbf531c01e77737fe1698d110aa58380de11a4dc4ace0c0e25d7df72",
+        "bytes": 4570,
+        "observed": {
+          "closed_unix": 1791568502.1335645,
+          "native_owner_handle": 85623,
+          "native_owner_exit": 0,
+          "children": [
+            {
+              "name": "Foot-auth-owner",
+              "pid": 4175184,
+              "birth": "59274122",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "QEMU-owner",
+              "pid": 4174428,
+              "birth": "59270602",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-poweroff-owner",
+              "pid": 4182323,
+              "birth": "59306684",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-ready-0-owner",
+              "pid": 4174429,
+              "birth": "59270602",
+              "exit_code": 255,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-ready-1-owner",
+              "pid": 4174538,
+              "birth": "59270803",
+              "exit_code": 255,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-ready-2-owner",
+              "pid": 4174633,
+              "birth": "59271505",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-stage-owner",
+              "pid": 4174635,
+              "birth": "59271522",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            },
+            {
+              "name": "SSH-unlock-owner",
+              "pid": 4174638,
+              "birth": "59271538",
+              "exit_code": 0,
+              "signals": [],
+              "reaped": true,
+              "absent": true
+            }
+          ],
+          "backing_pins_preserved": [
+            {
+              "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/guest-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f.qcow2",
+              "sha256": "c6be4401682c8be7a77410d17909eac6288d7bacb7d04e7326ba82f16dfaa864",
+              "size": 40697856,
+              "stat9": [
+                66305,
+                33423362,
+                33152,
+                1000,
+                1000,
+                1,
+                40697856,
+                1791567919949580400,
+                1791567919949580400
+              ]
+            },
+            {
+              "path": "/home/dandiccf/Storage/cirrove-installed-return-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c/guest-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c.qcow2",
+              "sha256": "11678c46ab8301da2067e0cfbd9d1b199c968a5374afc70d81c64c29e1bfded0",
+              "size": 39649280,
+              "stat9": [
+                66305,
+                73531397,
+                33152,
+                1000,
+                1000,
+                1,
+                39649280,
+                1791564305795016043,
+                1791564305795016043
+              ]
+            },
+            {
+              "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/guest-63bf1f2c-e404-47a9-a318-1ffafbf77b81.qcow2",
+              "sha256": "81d8f53d2f501f1eb4e54d5fa49ec93517ac80b8e40fee4e778f275f49c1f43c",
+              "size": 85196800,
+              "stat9": [
+                66305,
+                19267607,
+                33152,
+                1000,
+                1000,
+                1,
+                85196800,
+                1791547504113129992,
+                1791547504113129992
+              ]
+            },
+            {
+              "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/guest-ae484a4d-4a97-4eca-b470-6c270eec8220.qcow2",
+              "sha256": "58c7fa1b752f80e0e6a54de12bd05f26a593b30b8f9cd2b7d8cc0a2247d62551",
+              "size": 85262336,
+              "stat9": [
+                66305,
+                8912918,
+                33152,
+                1000,
+                1000,
+                1,
+                85262336,
+                1791539230485007029,
+                1791539230485007029
+              ]
+            },
+            {
+              "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2",
+              "sha256": "d6ec9e817b100515f03349e9ae2dfbd307f894aeb0da583bcc979c31b895e227",
+              "size": 7191658496,
+              "stat9": [
+                66305,
+                69468170,
+                33152,
+                1000,
+                1000,
+                1,
+                7191658496,
+                1791525577178827114,
+                1791525577178827114
+              ]
+            }
+          ],
+          "strict_fuser": {
+            "exit_code": 1,
+            "stdout_empty": true,
+            "stderr_empty": true
+          },
+          "result_guest": {
+            "path": "/home/dandiccf/Storage/cirrove-installed-fresh-write-024d3a0b-8499-4aaf-b898-de058883460a/guest-024d3a0b-8499-4aaf-b898-de058883460a.qcow2",
+            "sha256": "992b2e0fea8d6c90cdb2b565fdbe90dafe09195c2b9e0e7017f5dfd9a82eafc3",
+            "size": 60620800,
+            "stat9": [
+              66305,
+              97255426,
+              33152,
+              1000,
+              1000,
+              1,
+              60620800,
+              1791568440305199764,
+              1791568440305199764
+            ]
+          },
+          "original_host_daemon": {
+            "pid": 2935730,
+            "same_original_birth": true,
+            "executable": "/usr/bin/cirroved"
+          }
+        }
+      }
+    }
+  },
+  "limits": [
+    "Reduced application/control/record-hash observations only; no password,2FA,Apple identifier,session material,raw provider body or filecontent.",
+    "Whole490/provider reliability not established; no regular-host delivery.",
+    "Supplement freezes the actual observations underlying the existing closed assessments; it is not a new measurement."
+  ]
+}

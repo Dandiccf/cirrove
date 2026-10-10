@@ -1,0 +1,16 @@
+{
+  "run": "31c96dbf-c74f-4e5b-80e8-64f01cf55109",
+  "arm": "recover",
+  "binary_sha256": "c260a8f58818fbd32805b53e1bf890b05444c3ea71cbf0471f8838e143fad239",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 65.418,
+  "isolated_mount_detached": true,
+  "passed": true,
+  "old_and_new_digests": true,
+  "pending_bytes_retained": true,
+  "process_interruption": true,
+  "read_after_remount": true,
+  "same_operation_completed": true,
+  "trash_or_stage_replays": 0
+}

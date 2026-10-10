@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "run": "d34f610e-e05d-4e1c-8341-098c6dd935f2",
+  "status": "closed_atomic_success_independently_audited",
+  "active": false,
+  "active_measurement": false,
+  "preregistered_case": {
+    "path": "docs/benchmarks/icloud-pages-package-atomic-d34f610e-e05d-4e1c-8341-098c6dd935f2-2026-10-08.json",
+    "size": 2738,
+    "sha256": "b5d2655ebf20e0044608a1783decec4f9f3f48c343ee1f650c94da59ee54afc9"
+  },
+  "independent_terminal_audit": {
+    "passed": 34,
+    "total": 34,
+    "size": 18698,
+    "sha256": "43f6bcc5573e66143fc6f212560d14ad33c55e5311f5f5b1eba1996340a9c067"
+  },
+  "actual_result": {
+    "format": "pages",
+    "representation": "package",
+    "rename_attempts": 1,
+    "clean_fsync_extra_operations": 0,
+    "full_semantic_version": 2,
+    "new_current": {
+      "item": "FILE::com.apple.CloudDocs::92599F7C-EEDF-428F-B6EF-531CF4927669",
+      "etag": "i2w9::i2w8",
+      "size": 59889,
+      "sha256": "bf102025a790d7c151e8c3e4b5500d7275dd63bff2de6374ee5ae4eae48fd4e8",
+      "semantic": {
+        "entries": 15,
+        "expanded_bytes": 100205,
+        "files": 12,
+        "sha256": "a30087186f914633fe5d511b44b0ea398f717fae3922a683da5ec8414d07e3ba",
+        "version": 2
+      }
+    },
+    "original_trash": {
+      "etag": "i2w5::i2vu",
+      "item": "FILE::com.apple.CloudDocs::3A6AAC64-CB7D-49CA-B10B-93685087CB8B",
+      "semantic": {
+        "entries": 15,
+        "expanded_bytes": 99260,
+        "files": 12,
+        "sha256": "d34d523a821e0b55d3a834a37033d5be37e26a57a61acb8f2ed55db15f4db9a3",
+        "version": 2
+      },
+      "sha256": "a4ddcfdab09f7d1971b4bb3d960a93578e32e6343d1e8e5cfe0bc00052e64ff0",
+      "size": 58969
+    },
+    "held_original_semantic": {
+      "entries": 15,
+      "expanded_bytes": 99260,
+      "files": 12,
+      "sha256": "d34d523a821e0b55d3a834a37033d5be37e26a57a61acb8f2ed55db15f4db9a3",
+      "version": 2
+    },
+    "all_original_owners_closed": true,
+    "mount_absent": true,
+    "socket_absent": true,
+    "source_count": 572,
+    "installed_artifacts_unchanged": true
+  },
+  "original_seconds": 1200,
+  "cleanup_reserve_seconds": 120,
+  "limits": {
+    "read_only_followup_complete": false,
+    "apple_followup_complete": false,
+    "native_linux_editor_save": false,
+    "general_fidelity_verified": false,
+    "full_487_closed": false,
+    "installed_delivery": "HOLD"
+  },
+  "local_predecessor_correction": "The immutable preregistration described d34f before dispatch. This fresh case subsequently completed one sole atomic replacement. The separate 9b5 preparations stopped before any provider window and remain unchanged; no predecessor cloud mutation was replayed."
+}

@@ -1,0 +1,190 @@
+{
+  "HOLD_lifted": false,
+  "Python_pin": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "active": false,
+  "active_measurement": false,
+  "approved_stop_mask_backup": true,
+  "arms": [
+    "original untouched by preparer except read/flock",
+    "independent complete backup",
+    "independent clone",
+    "independent observation copy: only tree opened with SQLite"
+  ],
+  "backup_complete": true,
+  "candidate_commit": "aa02b8d1cf6b2644e7500908016548b49f71a833",
+  "ci_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-ci-aa02b8d1-20261009-private-v1/audit-independent-completed-ci-terminal-v1.json",
+    "sha256": "8d43039f41f81222e44c5b4aa1fc255ecdbe56cb3a3cca4f7a3225b6c1ab1dfa",
+    "size": 5136
+  },
+  "ci_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-ci-aa02b8d1-20261009-private-v1/completed-terminal-v1.json",
+    "sha256": "8d695730c27c25bf53fc7c85e8e3cc43025c9dae1d7e7d5e1027a9cc2ee21d0c",
+    "size": 100134
+  },
+  "cleanup_reserve": 45,
+  "clone_complete": true,
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/prepare_stopped_state_once_v9.py",
+    "--inputs",
+    "ROOT_FILLED_INPUTS",
+    "--sha256",
+    "ROOT_FILLED_INPUT_SHA"
+  ],
+  "committed_sync_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/root-committed-runtime-sync-v1.json",
+    "sha256": "33aa47e5e6524778eddb55d8153ebfa98b335a67704f89061bcd406ee3a3dd23",
+    "size": 76447
+  },
+  "current_helper_builds": {
+    "readonly": {
+      "actual_checks": 31,
+      "audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/compatibility-helper-build-preparation-v1/build-execution-33df28e5-7a7d-430c-a2a2-5deec85f8b97/audit-independent-build-terminal-v1.json",
+        "sha256": "737225d0addbb60334cffbd38c0023f4c65db962301bdadf22ef6c2058e77199",
+        "size": 16208
+      },
+      "terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/compatibility-helper-build-preparation-v1/build-execution-33df28e5-7a7d-430c-a2a2-5deec85f8b97/terminal-v1.json",
+        "sha256": "d6f84af279225eabcc238fc45f50ca8570186b961225357999b96da202e39943",
+        "size": 87717
+      }
+    },
+    "writer": {
+      "actual_checks": 33,
+      "audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/audit-independent-current574-writable-build-terminal-v1.json",
+        "sha256": "c12745dd31ad1f575e10cbc3d7522f2fe4016e36f708a18131f73a5c17a2804e",
+        "size": 16326
+      },
+      "terminal": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/terminal-v1.json",
+        "sha256": "af101ecea6a63be8831cd68fd44d1d29e309b94b706df9ab5be691360dc407ab",
+        "size": 88119
+      }
+    }
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/prepare_stopped_state_once_v9.py",
+    "sha256": "4559e8260cf1bf2762894abce0c8822bcd10bf3d7594c520914a351fba580766",
+    "size": 49485
+  },
+  "endpoint": "stopped_complete_independent_backup_clone_and_detached_settled_admission",
+  "expected_account_ids": [
+    "4cc9ebc3-2de7-467c-a464-fb0769444681",
+    "9c95aa03-0c57-4ce8-9ad7-ae151ea44a1c",
+    "d7e42a98-dc9f-4175-b3d2-c9f404a9c448"
+  ],
+  "expected_daemon_birth": "50773221",
+  "expected_daemon_pid": "2298014",
+  "expected_settings": {
+    "path": "/home/dandiccf/.local/state/cirrove/accounts.json",
+    "sha256": "957fc016ab46ea10171f3e88fe03367116e973e41d6e091db8a1f258a8dc564f",
+    "size": 3089
+  },
+  "fullcheck": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/terminal-v1.json",
+    "sha256": "2492d8f24adcaf0eecef061069f66e1f903979764b3a3ec11b63a27f89ae3736",
+    "size": 3605
+  },
+  "fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/audit-independent-complete-fullcheck-committed-sync-v2.json",
+    "sha256": "5d6408b1267a2333afaa7eeb3c7096dc403b06f48664334fad92213635f03a6a",
+    "size": 82626
+  },
+  "fullcheck_source_map": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/runtime-source-map-final-v1.json",
+    "sha256": "138c44762ec7e6e68519b3c0360b3c11ceb0bbabfde700b4d9d84e0bd7ce1ba8",
+    "size": 75069
+  },
+  "gate488_closed": false,
+  "installation_ready": false,
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/root-installed-baseline-after-live87-v1.json",
+    "sha256": "315206637e91d728ffc45f31aa23640228aa680278fd597ba4ff5adffcba7e92",
+    "size": 9648
+  },
+  "maintenance_risk_review": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/root-maintenance-risk-review-v1.json",
+    "sha256": "af11a7b901641bd6b5d4ca0c785e3e659b5aa5ccea457a08988fded76ce0ff45",
+    "size": 1587
+  },
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "5ba6d4f13c1503a94bd6f2e179ea5a1778e512c7e46fbe99c1527797fcdc6a1b",
+    "size": 79418
+  },
+  "normal_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/audit-independent-normal574-build-terminal-v1.json",
+    "sha256": "e44736841f5b61d9228ea306a1c0046b8df3a89deaaba3d84d3f40665fcba8f8",
+    "size": 7349
+  },
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 530848.179368646,
+    "monotonic_start": 529948.179368646,
+    "seconds": 900,
+    "wall_end": 1791506221.0562901,
+    "wall_start": 1791505321.0562901
+  },
+  "owned_mask_retained": true,
+  "prediction": "Stop and copies may succeed; current unknown pending queues or schema may cause detached classification refusal. No allReady, successful migration or installed acceptance is predicted. Mask and copies remain for explicit audited restoration if refused.",
+  "preexecution_correction": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/root-early-restoration-PID-type-correction-v1.json",
+    "sha256": "910a4ce22715114739967b6a2813f0fade742a9720f798d8ff7f76de07d9a88e",
+    "size": 1003
+  },
+  "prestop_package_route": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/root-fresh-passive-prestop-route-v2.json",
+    "sha256": "bc9433a38f79ff792a496d0f62f31e370f6ca308b97338e62c2aa2f1ed563c2f",
+    "size": 12879
+  },
+  "question": "Can the unchanged old packaged service be stopped cleanly after exact read-only authority and leases, and its whole current state preserved in three complete independent trees before detached-only classification?",
+  "registered_absent_operation_accounts": [
+    "d7e42a98-dc9f-4175-b3d2-c9f404a9c448"
+  ],
+  "restoration_contingency": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/root-paired-restoration-contingency-v1.json",
+    "sha256": "413cb469cdbcad72e93df6cbdf848880be06650da2c9ff5858c8095b0999dee1",
+    "size": 5276
+  },
+  "run": "8a6af95d-ac8d-458a-8b70-3f8f66c3493f",
+  "seconds": 900,
+  "source_count": 574,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/audit-independent-aa02-paired-backup-source-v1.json",
+    "sha256": "145771fa0f4be816d480a68da9525db44ef1c1c4dc68502cd034db7f997221ab",
+    "size": 9094
+  },
+  "status": "closed_settled_refusal_backup_preserved",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/prior-preparation-closure-v1.json",
+    "sha256": "5e43db09208ce87f55e4f1937330b353305434cd116caa75fb0db845b08dd262",
+    "size": 3215836
+  },
+  "version": 1,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/audit-independent-preparation-terminal-v1.json",
+    "size": 27171,
+    "sha256": "a322b0e7448c5918efee40d2b35e9d9e5c57278b58a61ee97665a91c904acd67"
+  },
+  "independent_checks": 25,
+  "preconsolidation_closed_public": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/root-backup-public-before-audit-consolidation-v1.json",
+    "size": 9627,
+    "sha256": "0905509b227ede2f160bedd8cbd295da1aa6e900bed17bbf35961ddc8bfae552"
+  },
+  "full_iCloud_acceptance_closed": false,
+  "installed_HOLD_released": false,
+  "whole_preparation_success": false,
+  "detached_settled": false,
+  "coherent_capture_verified": true,
+  "scope_limit": "Full original/backup/clone byte-stat preservation verified; strict existing-queue admission refused. No candidate or installed upgrade proof."
+}

@@ -97,7 +97,9 @@ impl Operation {
                 MutationIntent::Relocate { before, .. } => Some(before.kind.clone()),
                 // A removal leaves no node behind, so it contributes no kind to
                 // the generation, folders included.
-                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => None,
+                MutationIntent::RemoveFile { .. }
+                | MutationIntent::RemoveFolder { .. }
+                | MutationIntent::TrashNativeDocument { .. } => None,
             },
         }
     }
@@ -138,7 +140,8 @@ impl UploadJournal {
     }
     pub(super) fn upload_intent_after(&self, predecessor: Uuid) -> Result<(Scope, UploadIntent)> {
         match self.operation(predecessor)? {
-            Operation::Upload(r) => Ok((r.scope, r.intent)),
+            Operation::Upload(r) if r.representation.is_file_bytes() => Ok((r.scope, r.intent)),
+            Operation::Upload(_) => Err(JournalError::Intent),
             Operation::Mutation(r) => match r.request.intent {
                 MutationIntent::Relocate { before, .. } if before.kind == NodeKind::File => Ok((
                     r.request.scope,
@@ -192,6 +195,9 @@ impl UploadJournal {
         request: &MutationRequest,
     ) -> Result<()> {
         let previous = self.operation(predecessor)?;
+        if matches!(&previous, Operation::Upload(row) if !row.representation.is_file_bytes()) {
+            return Err(JournalError::Intent);
+        }
         if previous.scope() != &request.scope || request.scope.account != self.account {
             return Err(JournalError::Account);
         }
@@ -256,6 +262,411 @@ impl UploadJournal {
             .query_row(&format!("SELECT EXISTS({ready})"), [], |r| r.get(0))?;
         Ok(destinations && !waiting)
     }
+    /// The exact completed source already used to resolve this upload intent.
+    /// A provider may need it before a metadata refresh indexes a new remote ID.
+    pub(crate) fn confirmed_upload_base(&self, id: Uuid) -> Result<Option<Node>> {
+        let record = self.get(id)?;
+        let Some(base) = record.base.as_ref() else {
+            return Ok(None);
+        };
+        if !base.resolved {
+            return Err(JournalError::Stale);
+        }
+        if package_replacement::original(&record.representation).is_some() {
+            return working::native::successors::confirmed_base(self, &record).map(Some);
+        }
+        let node = self
+            .base_node(base, &record.scope, record.sequence)?
+            .ok_or(JournalError::Stale)?;
+        if node.kind != NodeKind::File
+            || node.package
+            || node.target.is_some()
+            || !matches!(&record.intent, UploadIntent::Replace { item, expected_etag }
+                if item == &node.id && Some(expected_etag) == node.etag.as_ref())
+        {
+            return Err(JournalError::Stale);
+        }
+        Ok(Some(node))
+    }
+
+    /// An unlinked ordinary stream's acknowledged generation can authorize its
+    /// exact successor removal even before an evictable metadata index sees it.
+    /// This supplies identity authority only; the provider still verifies the
+    /// indexed parent chain and the current remote revision independently.
+    pub(crate) fn confirmed_remove_base(
+        &self,
+        id: Uuid,
+        request: &MutationRequest,
+    ) -> Result<Option<Node>> {
+        let (sequence, state, body): (i64, String, String) = self
+            .db
+            .query_row(
+                "SELECT sequence,state,body FROM mutations WHERE id=?1",
+                [id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?
+            .ok_or(JournalError::Missing)?;
+        let remove: MutationRecord = serde_json::from_str(&body)?;
+        if remove.id != id
+            || sequence <= 0
+            || sequence as u64 != remove.sequence
+            || remove.request != *request
+            || request.scope.account != self.account
+            || request.validate().is_err()
+        {
+            return Err(JournalError::Stale);
+        }
+        let MutationIntent::RemoveFile { before } = &request.intent else {
+            return Ok(None);
+        };
+        let Some(base) = &remove.base else {
+            return Ok(None);
+        };
+        let phase_matches = match remove.state {
+            MutationState::Pending => state == "pending" && remove.attempt.is_none(),
+            MutationState::Applying => state == "applying" && remove.attempt.is_some(),
+            _ => false,
+        };
+        if !phase_matches
+            || !base.resolved
+            || !remove.local_ready
+            || remove.prepared_item.is_some()
+            || remove.receipt.is_some()
+            || remove.verified_content.is_some()
+            || before.kind != NodeKind::File
+            || before.package
+            || before.target.is_some()
+            || before.content_revision().is_none()
+        {
+            return Err(JournalError::Stale);
+        }
+        let (upload_sequence, upload_state, body): (i64, String, String) = self
+            .db
+            .query_row(
+                "SELECT sequence,state,body FROM uploads WHERE id=?1",
+                [base.predecessor.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?
+            .ok_or(JournalError::Stale)?;
+        let upload: UploadRecord = serde_json::from_str(&body)?;
+        if upload.id != base.predecessor
+            || upload_sequence <= 0
+            || upload_sequence as u64 != upload.sequence
+            || upload.sequence >= remove.sequence
+            || upload_state != "uploaded"
+            || upload.state != UploadState::Uploaded
+            || upload.scope != request.scope
+            || !upload.representation.is_file_bytes()
+            || upload.intent.validate().is_err()
+            || upload.base.as_ref().is_some_and(|base| !base.resolved)
+            || upload.package_completion.is_some()
+            || upload.attempt.is_some()
+            || upload.remote.as_ref() != Some(before)
+            || upload.size != before.size
+            || upload.transferred_bytes != upload.size
+            || (upload.identity_handoff.is_none()
+                && !match &upload.intent {
+                    UploadIntent::Create { parent, name } => {
+                        before.parent_id.as_ref() == Some(parent) && &before.name == name
+                    }
+                    UploadIntent::Replace { item, .. } => &before.id == item,
+                })
+            || (upload.identity_handoff.is_some()
+                && upload
+                    .ordinary_handoff_receipt()
+                    .is_none_or(|(current, _)| current != before))
+        {
+            return Err(JournalError::Stale);
+        }
+        if let Some(confirmed) = self.confirmed_atomic_cleanup_base(&remove, &upload, before)? {
+            return Ok(Some(confirmed));
+        }
+        let owner = self
+            .namespace_for_operation(id)?
+            .ok_or(JournalError::Stale)?;
+        let working_id = upload.working_file.ok_or(JournalError::Stale)?;
+        if owner.scope != request.scope
+            || !owner.unlinked
+            || owner.follows_remote
+            || !owner.remote_owned
+            || owner.native_archive.is_some()
+            || owner.latest != Some(id)
+            || owner.remote.as_ref() != Some(before)
+            || owner.remote_sequence != upload.sequence
+            || owner.working_file != Some(working_id)
+            || remove.working_file != Some(working_id)
+            || owner.node.kind != NodeKind::File
+            || owner.node.package
+            || owner.node.target.is_some()
+        {
+            return Err(JournalError::Stale);
+        }
+        let working = self.working_file(working_id)?;
+        if working.id != working_id
+            || working.native
+            || working.scope != request.scope
+            || !working.unlinked
+            || working.latest != Some(id)
+            || working.node != owner.node
+        {
+            return Err(JournalError::Stale);
+        }
+        // Mutable bytes may have changed after unlink. Only the sealed upload's
+        // receipt, not today's dirty size or generation, authorizes this removal.
+        let bound: bool = self.db.query_row(
+            "SELECT
+             EXISTS(SELECT 1 FROM write_successors WHERE predecessor=?1 AND successor=?2)
+             AND (SELECT count(*) FROM namespace_operations
+                  WHERE operation IN (?1,?2) AND object=?3)=2
+             AND EXISTS(SELECT 1 FROM namespace_objects WHERE id=?3)
+             AND EXISTS(SELECT 1 FROM write_queue WHERE id=?1 AND sequence=?4 AND complete=1)
+             AND EXISTS(SELECT 1 FROM write_queue WHERE id=?2 AND sequence=?5 AND complete=0)
+             AND NOT EXISTS(SELECT 1 FROM file_replacements
+                  WHERE id IN (?1,?2) OR cleanup IN (?1,?2) OR source=?3 OR victim=?3)
+             AND NOT EXISTS(SELECT 1 FROM native_working_operations
+                  WHERE operation IN (?1,?2) OR owner=?3 OR working=?6)
+             AND NOT EXISTS(SELECT 1 FROM native_working_heads
+                  WHERE working=?6 OR json_extract(body,'$.owner')=?3)
+             AND NOT EXISTS(SELECT 1 FROM native_working_bindings WHERE working=?6)
+             AND NOT EXISTS(SELECT 1 FROM native_temporary_streams WHERE working=?6 OR owner=?3)
+             AND NOT EXISTS(SELECT 1 FROM native_detached_streams WHERE working=?6 OR owner=?3)",
+            params![
+                upload.id.to_string(),
+                id.to_string(),
+                owner.id.to_string(),
+                upload_sequence,
+                sequence,
+                working_id.to_string(),
+            ],
+            |row| row.get(0),
+        )?;
+        if !bound {
+            return Err(JournalError::Stale);
+        }
+        Ok(Some(before.clone()))
+    }
+
+    /// A completed atomic takeover separately owns its old temporary source.
+    /// That cleanup has no working stream: its exact historical source receipt
+    /// and completed target are the authority, even after the visible owner retires.
+    fn confirmed_atomic_cleanup_base(
+        &self,
+        remove: &MutationRecord,
+        source: &UploadRecord,
+        before: &Node,
+    ) -> Result<Option<Node>> {
+        let row: Option<(String, String, String, String, String)> = self
+            .db
+            .query_row(
+                "SELECT id,source,victim,cleanup,body FROM file_replacements WHERE cleanup=?1",
+                [remove.id.to_string()],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+        let Some((id, source_id, victim_id, cleanup_id, body)) = row else {
+            return Ok(None);
+        };
+        let replacement: ReplacementRecord = serde_json::from_str(&body)?;
+        let roles = [
+            replacement.source,
+            replacement.victim,
+            replacement.cleanup_object,
+        ];
+        if id != replacement.id.to_string()
+            || source_id != replacement.source.to_string()
+            || victim_id != replacement.victim.to_string()
+            || cleanup_id != replacement.cleanup.to_string()
+            || replacement.cleanup != remove.id
+            || replacement.id == source.id
+            || replacement.id == remove.id
+            || source.id == remove.id
+            || roles.iter().collect::<std::collections::HashSet<_>>().len() != roles.len()
+            || !replacement.local_ready
+            || !replacement.remote_applied
+            || replacement.rescued_as.is_some()
+            || remove.working_file.is_some()
+        {
+            return Err(JournalError::Stale);
+        }
+        let (sequence, state, body): (i64, String, String) = self
+            .db
+            .query_row(
+                "SELECT sequence,state,body FROM uploads WHERE id=?1",
+                [replacement.id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?
+            .ok_or(JournalError::Stale)?;
+        let target: UploadRecord = serde_json::from_str(&body)?;
+        let Some((current, backup)) = target.ordinary_handoff_receipt() else {
+            return Err(JournalError::Stale);
+        };
+        let owner = self.namespace_object(replacement.source)?;
+        let victim = self.namespace_object(replacement.victim)?;
+        let cleanup = self.namespace_object(replacement.cleanup_object)?;
+        let original = victim.remote.as_ref().ok_or(JournalError::Stale)?;
+        let UploadIntent::Replace {
+            item,
+            expected_etag,
+        } = &target.intent
+        else {
+            return Err(JournalError::Stale);
+        };
+        let mut expected_cleanup = before.clone();
+        expected_cleanup.id = format!("local-{}", replacement.cleanup_object);
+        if target.id != replacement.id
+            || sequence <= 0
+            || sequence as u64 != target.sequence
+            || state != "uploaded"
+            || target.state != UploadState::Uploaded
+            || target.sequence <= source.sequence
+            || target.sequence >= remove.sequence
+            || target.scope != remove.request.scope
+            || !target.representation.is_file_bytes()
+            || target.intent.validate().is_err()
+            || target.sha256.len() != 64
+            || !target
+                .sha256
+                .bytes()
+                .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+            || target.attempt.is_some()
+            || target.package_completion.is_some()
+            || target.base.as_ref().is_some_and(|base| !base.resolved)
+            || target.transferred_bytes != target.size
+            || target.size != source.size
+            || target.sha256 != source.sha256
+            || target.working_file != source.working_file
+            || current.id == before.id
+            || backup.id == before.id
+            || item != &original.id
+            || Some(expected_etag) != original.etag.as_ref()
+            || backup.id != original.id
+            || backup.size != original.size
+            || original.kind != NodeKind::File
+            || original.package
+            || original.target.is_some()
+            || current.name != victim.node.name
+            || !identity_handoff::confirmed_parent_route(
+                &self.db,
+                &target.scope,
+                victim.node.parent_id.as_deref(),
+                current.parent_id.as_deref(),
+            )?
+            || source.identity_handoff.as_ref().is_some_and(|r| {
+                r.atomic_source
+                    .is_some_and(|target| target != replacement.id)
+            })
+            || target
+                .identity_handoff
+                .as_ref()
+                .is_none_or(|r| r.atomic_source.is_some())
+            || owner.id != replacement.source
+            || victim.id != replacement.victim
+            || cleanup.id != replacement.cleanup_object
+            || owner.scope != target.scope
+            || victim.scope != target.scope
+            || cleanup.scope != target.scope
+            || owner.node.kind != NodeKind::File
+            || owner.node.package
+            || owner.node.target.is_some()
+            || victim.node.kind != NodeKind::File
+            || victim.node.package
+            || victim.node.target.is_some()
+            || owner.native_archive.is_some()
+            || victim.native_archive.is_some()
+            || cleanup.native_archive.is_some()
+            || !victim.unlinked
+            || victim.remote_owned
+            || !cleanup.unlinked
+            || !cleanup.remote_owned
+            || cleanup.follows_remote
+            || cleanup.revision != 1
+            || cleanup.working_file.is_some()
+            || cleanup.latest != Some(remove.id)
+            || cleanup.remote.as_ref() != Some(before)
+            || cleanup.remote_sequence != source.sequence
+            || cleanup.node != expected_cleanup
+            || cleanup.names != owner.names
+        {
+            return Err(JournalError::Stale);
+        }
+        // Preserve the source-before route independently of the destination.
+        // A cross-directory takeover changes the visible owner, not this receipt.
+        let source_original = self.confirmed_upload_base(source.id)?;
+        if let Some(original) = &source_original {
+            if original.kind != NodeKind::File
+                || original.package
+                || original.target.is_some()
+                || original.name != before.name
+                || original.parent_id != before.parent_id
+            {
+                return Err(JournalError::Stale);
+            }
+        } else if !matches!(&source.intent, UploadIntent::Create { parent, name }
+            if before.parent_id.as_ref() == Some(parent) && &before.name == name)
+        {
+            return Err(JournalError::Stale);
+        }
+        let scope = serde_json::to_string(&target.scope)?;
+        let remote_identity = serde_json::to_string(&(&target.scope, &before.id))?;
+        let bound: bool = self.db.query_row(
+            "SELECT
+             EXISTS(SELECT 1 FROM write_queue WHERE id=?1 AND sequence=?4 AND complete=1)
+             AND EXISTS(SELECT 1 FROM write_queue WHERE id=?2 AND sequence=?5 AND complete=1)
+             AND EXISTS(SELECT 1 FROM write_queue WHERE id=?3 AND sequence=?6 AND complete=0)
+             AND EXISTS(SELECT 1 FROM write_successors WHERE predecessor=?1 AND successor=?3)
+             AND EXISTS(SELECT 1 FROM write_prerequisites WHERE operation=?2 AND predecessor=?1)
+             AND EXISTS(SELECT 1 FROM write_prerequisites WHERE operation=?3 AND predecessor=?2)
+             AND EXISTS(SELECT 1 FROM namespace_operations WHERE operation=?1 AND object=?7)
+             AND EXISTS(SELECT 1 FROM namespace_operations WHERE operation=?2 AND object=?7)
+             AND EXISTS(SELECT 1 FROM namespace_operations WHERE operation=?3 AND object=?9)
+             AND (SELECT count(*) FROM namespace_objects
+                  WHERE id IN (?7,?8,?9) AND scope=?10
+                    AND id=json_extract(body,'$.id')
+                    AND working IS json_extract(body,'$.working_file'))=3
+             AND EXISTS(SELECT 1 FROM namespace_remote WHERE identity=?11 AND object=?9)
+             AND NOT EXISTS(SELECT 1 FROM native_working_operations
+                  WHERE operation IN (?1,?2,?3) OR owner IN (?7,?8,?9) OR working IN (?12,?13))
+             AND NOT EXISTS(SELECT 1 FROM native_working_heads
+                  WHERE working IN (?12,?13) OR json_extract(body,'$.owner') IN (?7,?8,?9))
+             AND NOT EXISTS(SELECT 1 FROM native_working_bindings WHERE working IN (?12,?13))
+             AND NOT EXISTS(SELECT 1 FROM native_temporary_streams
+                  WHERE working IN (?12,?13) OR owner IN (?7,?8,?9))
+             AND NOT EXISTS(SELECT 1 FROM native_detached_streams
+                  WHERE working IN (?12,?13) OR owner IN (?7,?8,?9))",
+            params![
+                source.id.to_string(),
+                target.id.to_string(),
+                remove.id.to_string(),
+                source.sequence as i64,
+                target.sequence as i64,
+                remove.sequence as i64,
+                owner.id.to_string(),
+                victim.id.to_string(),
+                cleanup.id.to_string(),
+                scope,
+                remote_identity,
+                source.working_file.map(|id| id.to_string()),
+                target.working_file.map(|id| id.to_string())
+            ],
+            |row| row.get(0),
+        )?;
+        if !bound {
+            return Err(JournalError::Stale);
+        }
+        Ok(Some(before.clone()))
+    }
+
     fn base_node(&self, base: &WriteBase, scope: &Scope, sequence: u64) -> Result<Option<Node>> {
         let previous = self.operation(base.predecessor)?;
         if previous.scope() != scope || previous.sequence() >= sequence {
@@ -265,6 +676,9 @@ impl UploadJournal {
     }
     fn resolve_upload(&mut self, id: Uuid) -> Result<()> {
         let mut record = self.get(id)?;
+        if package_replacement::original(&record.representation).is_some() {
+            return working::native::successors::resolve(self, record);
+        }
         let base = record.base.as_ref().ok_or(JournalError::Corrupt)?;
         let intent = self
             .base_node(base, &record.scope, record.sequence)?

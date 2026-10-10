@@ -1,0 +1,124 @@
+{
+  "SQLITE_TMPDIR_filesystem_required": "ext4",
+  "TMPDIR_filesystem_required": "ext4",
+  "active": false,
+  "active_measurement": false,
+  "actual_receipts": {
+    "child.json": {
+      "path": "/home/dandiccf/Storage/cirrove-retained-b-offline-4993558b-6b25-49bc-9390-8054aabcb374/child.json",
+      "sha256": "c578c328f96e31b4f6015a3617ce8288834887ba46e39e0c508fe2acd80540cb",
+      "size": 624
+    },
+    "dispatch.json": {
+      "path": "/home/dandiccf/Storage/cirrove-retained-b-offline-4993558b-6b25-49bc-9390-8054aabcb374/dispatch.json",
+      "sha256": "137041be4b29ae0728a214b4edaec8f0ad00a0c25a83feaf3b122b97fb69ea2d",
+      "size": 3541
+    },
+    "frozen_inputs": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/retained-b-offline-export-v1/inputs-ready-v1.json",
+      "sha256": "e59d00044af43d45f3ffaa159cb567db2c7771eb7bb53617170f71480ab7d966",
+      "size": 4564
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/retained-b-offline-export-v1/independent-actual-audit-v1.json",
+      "sha256": "ee64ded45bc28e4a26d876d5da3ef5b3f4c4187e5c83a7097b192047abda58e8",
+      "size": 9701
+    },
+    "original_preregistration_preserved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/retained-b-offline-export-v1/preregistration-before-result.json",
+      "sha256": "97fa7782bbce7eeda1fa5eb7a538cfce52a418498fd6caced696cef36321ac89",
+      "size": 2456
+    },
+    "result.json": {
+      "path": "/home/dandiccf/Storage/cirrove-retained-b-offline-4993558b-6b25-49bc-9390-8054aabcb374/result.json",
+      "sha256": "318d55448dd606f4926f668bad59624c7339f8c97b0f1cb5b4826c74450b0764",
+      "size": 9412
+    },
+    "window.json": {
+      "path": "/home/dandiccf/Storage/cirrove-retained-b-offline-4993558b-6b25-49bc-9390-8054aabcb374/window.json",
+      "sha256": "a93903bff5625b036971b5796be83a6f46f14e2aaf7591867c12a1130f64aded",
+      "size": 539
+    }
+  },
+  "arms": [
+    {
+      "automatic_retry": false,
+      "count": 1,
+      "name": "one local offline export",
+      "provider_calls": 0,
+      "provider_mutations": 0
+    }
+  ],
+  "cleanup_reserve_seconds": 20,
+  "cli": {
+    "path": "/var/tmp/cirrove-native-final-30828cf7-f274-442f-b7fa-f974dedef257/bin/cirrove",
+    "sha256": "5c899a332bfaf27ed946f3e4b278bc72004e6fe9156ce8eb8c30f6ddff72ed3d",
+    "size": 476809680
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/retained-b-offline-export-v1/owner.py",
+    "sha256": "aba05e8cd3709db08349c3b3553c3ffe048aae4e0381f19df30fe20efc64f6e2",
+    "size": 10785
+  },
+  "endpoint": {
+    "credentials_copied": false,
+    "export_sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+    "export_size": 139044,
+    "only_copied_account_enabled_flag_changed": true,
+    "original_journal_and_settings_full_sha_stat9_preserved": true,
+    "original_popen_reaped_and_process_group_empty": true
+  },
+  "full_gate490_closed": false,
+  "maximum_cli_wait_seconds": 60,
+  "maximum_seconds": 120,
+  "measurement_open": false,
+  "original_A_reimported": false,
+  "original_failed_conflict_arm_remains_failed": true,
+  "original_folder_recreated": false,
+  "outer_termination_grace_seconds": 15,
+  "prediction": "The retained139044-byte B exports with its registered SHA256; only the copied account enabled flag is changed, and no saved grant is needed.",
+  "private_execution": "/home/dandiccf/Storage/cirrove-retained-b-offline-4993558b-6b25-49bc-9390-8054aabcb374",
+  "private_preparation": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-continuation-20261010-private-v1/retained-b-offline-export-v1",
+  "provider_mutation_retried": false,
+  "question": "Can the exact retained Numbers B from the stopped failed final-install race be exported using the frozen public CLI offline from a copied disabled journal, while the original journal and settings remain byte- and stat-identical?",
+  "ready": true,
+  "registered_unix": 1791625731.8731492,
+  "result": {
+    "SQLITE_TMPDIR_filesystem": "ext4",
+    "TMPDIR_filesystem": "ext4",
+    "automatic_repeat": false,
+    "child_group_and_direct_descendants_absent": true,
+    "child_process_absent": true,
+    "credentials_copied": false,
+    "elapsed_registered_owner_window_seconds": 0.042804161086678505,
+    "export_sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+    "export_size": 139044,
+    "full_gate490_closed": false,
+    "only_copied_account_enabled_flag_changed": true,
+    "original_popen_reaped": true,
+    "pidfd_held_during_child_lifetime": true,
+    "provider_calls": 0,
+    "provider_mutations": 0,
+    "public_cli_exit_code": 0,
+    "remote_three_identity_endpoint_proved": false,
+    "signals": [],
+    "single_execution": true,
+    "source_full_sha_stat9_unchanged": true,
+    "source_journal_and_settings_file_count": 6,
+    "success": true,
+    "verdict": "PASS for local retained-B public offline export only"
+  },
+  "reviewed": true,
+  "run": "4993558b-6b25-49bc-9390-8054aabcb374",
+  "scope": "PASS establishes exact retained B recovery through the frozen public offline CLI from a copied disabled journal, with original journal/settings SHA256 and stat9 unchanged. The original three-identity conflict frontier remains failed; capture/release/preservation were not reached, and criterion490 remains open.",
+  "state": "completed",
+  "tested_limits": {
+    "format": "the retained flat Numbers replacement archive from the failed final-install race",
+    "memory_peak_or_global_storage_quota_proved": false,
+    "natural_session_expiry_tested_by_this_arm": false,
+    "remote_provider_behavior_tested_by_this_arm": false,
+    "runs": 1,
+    "size_bytes": 139044
+  },
+  "version": 1
+}

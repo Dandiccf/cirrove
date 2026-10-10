@@ -1,0 +1,32 @@
+{
+  "run": "e42e5a79-d55a-4714-ab01-e4d9d7a21ff1",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-mounted-empty-replace",
+    "e42e5a79-d55a-4714-ab01-e4d9d7a21ff1"
+  ],
+  "binary_sha256": "0da5230e6050b5aa2e09f0e3d2b2c206c7dc4f9937ac9a7ac6940b4a2740120a",
+  "revision": "fd46c384d02192a2d26aa7e4b405ab4e86024cb5",
+  "dirty": true,
+  "start_utc": "2026-09-30T00:57:30.095015+00:00",
+  "expected_duration_seconds": 1800,
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "private_manifest": ".local-state/icloud-direct-trash-mounted-e42e5a79-d55a-4714-ab01-e4d9d7a21ff1/manifest.json",
+  "installed_service_changed": false,
+  "ordinary_account_writes_enabled": false,
+  "pid": 1611790,
+  "exit_code": 0,
+  "elapsed_seconds": 508.03,
+  "finished_utc": "2026-09-30T01:05:58.125660+00:00",
+  "functional_endpoints": {
+    "both_predecessors_in_trash": true,
+    "independent_digests": true,
+    "mounted_refill_empty": true,
+    "mounted_truncate_to_zero": true,
+    "remounted_read": true,
+    "run": "e42e5a79-d55a-4714-ab01-e4d9d7a21ff1"
+  },
+  "exact_mount_observed_during_run": true,
+  "unmounted_after_completion": true
+}

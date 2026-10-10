@@ -1,0 +1,253 @@
+{
+  "version": 1,
+  "question": "Can the unchanged developer-to-package switch reach a service stop/removal despite a declared active restart embargo or retained state, and does a conservative package-target preflight refuse before every mutation?",
+  "registered_before_execution": true,
+  "scope": "Synthetic filesystem namespace only, actual script bytes copied unchanged, HOME string and passwd home unchanged; no real service/package/provider actions. No package schema compatibility attestation or universal concurrent lease.",
+  "source_head": "7500d2bd223f6a5baa8a687f3a4e5a749e039bc5",
+  "original_source_sha256": {
+    "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d",
+    "scripts/install-preflight.py": "bcbab91f30ddeef7ee634b4f90f88c119cc1c5db498d2f6c6860457cf04fd94e"
+  },
+  "fixture_source_sha256": "0a30cd3a611c1d2212a10ad9027b263a0c9ce8114e726fed37a346221c3d2a85",
+  "arms": [
+    {
+      "name": "original_active_embargo",
+      "selected_tests": 1,
+      "prediction": "Unchanged script reaches stub systemctl disable --now then stub rm, exit97; no-mutation assertion fails."
+    },
+    {
+      "name": "original_held_retained",
+      "selected_tests": 1,
+      "prediction": "Unchanged script reaches same stop/remove despite retained marker; no-mutation assertion fails."
+    },
+    {
+      "name": "corrected_same_two_arms",
+      "selected_tests": 2,
+      "prediction": "Actual script invokes preflight and exits1 without any mutation marker; retained bytes/inodes unchanged."
+    },
+    {
+      "name": "portable_contract_controls",
+      "prediction": "Execute routing/inventory/provenance and recheck controls without bwrap or HOME reassignment; expected counts preregistered before that execution."
+    }
+  ],
+  "endpoint": "Actual switch script mutation inventory must remain empty on refusal; first old endpoint is systemctl --user disable --now cirroved.service, then rm swallowed-systemctl continuation.",
+  "environment": {
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/package-switch-preflight-20261004",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/package-switch-preflight-20261004",
+    "filesystem": "ext4",
+    "private_manifests": ".local-state/package-switch-preflight-20261004",
+    "namespace": "bwrap --unshare-all; readonly host root; actual HOME hidden by fixture backing; /run /dev /proc isolated; all /usr/bin mutations stubbed"
+  },
+  "bounds": {
+    "per_namespace_command_seconds": 20,
+    "group_seconds": 120
+  },
+  "results": {
+    "original_namespace_two_arms": {
+      "manifest": ".local-state/package-switch-preflight-20261004/original-namespace-baseline-v3.json",
+      "manifest_sha256": "1a62b1e5d30cfe918df39c0e3f764311befef951b3bab9ffbc51a78176f0e5f3",
+      "log_sha256": "ad45c9d638152ad8526b4e67412b3b0441ed32e8c827df92f5a2c34440ee0c75",
+      "source_before_after_equal": true,
+      "executed": 2,
+      "failed": 2,
+      "passed": 0,
+      "classification": "meaningful intended assertion failure",
+      "scope": "namespace actual stop/remove stubs"
+    },
+    "permission_false_empty_red": {
+      "manifest": ".local-state/package-switch-preflight-20261004/permission-proposed-guard-red.json",
+      "manifest_sha256": "00e62e33753060fe443cbc9b74148d635fdb8e8c0514c8ef4a42d0b761968070",
+      "log_sha256": "35ee989cb17b576bd5b7561b0c86762a9fad4858dcbb45c1d35536beaa0a5dc7",
+      "source_before_after_equal": true,
+      "executed": 1,
+      "failed": 1,
+      "passed": 0,
+      "classification": "meaningful intended assertion failure",
+      "scope": "actual local mode000 inspection guard"
+    },
+    "embargo_false_empty_red": {
+      "manifest": ".local-state/package-switch-preflight-20261004/embargo-permission-proposed-red.json",
+      "manifest_sha256": "490c7869219530bcbe1b65089cf5c79924bb1c7e5e408f8cb353fdaf205d5401",
+      "log_sha256": "d7bef38d92fc419aaf84187f94bea4c33e86c37139beed4a656a4b5bf69ce2da",
+      "source_before_after_equal": true,
+      "executed": 1,
+      "failed": 1,
+      "passed": 0,
+      "classification": "meaningful intended assertion failure",
+      "scope": "actual local mode000 inspection guard"
+    },
+    "corrected_portable": {
+      "executed": 14,
+      "passed": 14,
+      "failed": 0,
+      "test_reported_seconds": 0.039,
+      "manifest": ".local-state/package-switch-preflight-20261004/corrected-portable-controls.json",
+      "manifest_sha256": "dba45137b28c94975edfa7174f897ec004887b9a4c010766e8eca89bcd515fe4",
+      "log": ".local-state/package-switch-preflight-20261004/corrected-portable-controls.log",
+      "log_sha256": "a8fd90262eadf078eb98761df470a540029be90687b30b97d7d569c84a2b7dbe",
+      "source_before_after_equal": true
+    },
+    "corrected_namespace": {
+      "executed": 3,
+      "passed": 3,
+      "failed": 0,
+      "test_reported_seconds": 0.817,
+      "manifest": ".local-state/package-switch-preflight-20261004/corrected-namespace-controls.json",
+      "manifest_sha256": "894c382c4d75a52ca583e62ffa5c76892b1899e426c75f3be7a2c62ea46deb94",
+      "log": ".local-state/package-switch-preflight-20261004/corrected-namespace-controls.log",
+      "log_sha256": "2a5d5564e06889c379134c11c95494ec48cd867070891cd4e5a1524c21f546f3",
+      "source_before_after_equal": true,
+      "fixtures": [
+        {
+          "path": "/home/dandiccf/Storage/cirrove-tmp/package-switch-preflight-20261004/package-switch-09hacnpt",
+          "manifest_sha256": "bc0a0818337a82b9835a026644bcb8865bd7485582ac30d82aa161962aa8eb52",
+          "exit_code": 1,
+          "mutations": []
+        },
+        {
+          "path": "/home/dandiccf/Storage/cirrove-tmp/package-switch-preflight-20261004/package-switch-npc_nv6p",
+          "manifest_sha256": "97c2ecf0b3aa18efd4d761acd8cbb4452735f75a8270618f7844beb28e127bbd",
+          "exit_code": 97,
+          "mutations": [
+            {
+              "command": "systemctl",
+              "argv": [
+                "--user",
+                "disable",
+                "--now",
+                "cirroved.service"
+              ]
+            },
+            {
+              "command": "rm",
+              "argv": [
+                "-f",
+                "/home/dandiccf/.config/systemd/user/cirroved.service"
+              ]
+            }
+          ]
+        },
+        {
+          "path": "/home/dandiccf/Storage/cirrove-tmp/package-switch-preflight-20261004/package-switch-i3vfplkf",
+          "manifest_sha256": "2fbfec49210e47b3c9cc7a0dafd68c3c93f09cf9cfb033159af728351316b84d",
+          "exit_code": 1,
+          "mutations": []
+        }
+      ]
+    },
+    "existing_developer": {
+      "executed": 39,
+      "passed": 39,
+      "failed": 0,
+      "test_reported_seconds": 9.362,
+      "manifest": ".local-state/package-switch-preflight-20261004/existing-developer-controls.json",
+      "manifest_sha256": "919e5fdbe58a23514d6f80cef03f087c92a0c6d7d1e1459c4228f61cc2b78933",
+      "log": ".local-state/package-switch-preflight-20261004/existing-developer-controls.log",
+      "log_sha256": "63e3fb24c87b2796521bd33db77b1f65b39b4eb03f00120e75518621ee72de5c",
+      "source_before_after_equal": true
+    },
+    "existing_install_scripts": {
+      "executed": 7,
+      "passed": 7,
+      "failed": 0,
+      "test_reported_seconds": 0.026,
+      "manifest": ".local-state/package-switch-preflight-20261004/existing-install-script-controls.json",
+      "manifest_sha256": "275206218d11ab1374738f0d56d9d1ed2a9dc95307842a244d081e90cab381f0",
+      "log": ".local-state/package-switch-preflight-20261004/existing-install-script-controls.log",
+      "log_sha256": "f0c49bcec652148e13513aad2d8b74d67e3f9cfa263fa5af3a7ac1aa0c163bc0",
+      "source_before_after_equal": true
+    }
+  },
+  "before_execution_review_correction": "Added exact-owned child kill/reap on namespace timeout; timeout/setup failure cannot count as boundary red. Explicit copied switch/helper/template/policy pins in each fixture manifest. Corrected arms additionally require exact intended refusal reason after empty mutation assertion; unrelated exit1 is not accepted as green.",
+  "corrections": [
+    {
+      "arm": "original-namespace-baseline",
+      "classification": "fixture setup error, not behavior red",
+      "error": "bwrap cannot create absent /fixture under read-only host root",
+      "executed_unittest_cases": 2,
+      "actual_switch_script_executed": false,
+      "mutations": 0,
+      "log_sha256": "4fecab5da8ce3937ccc7031311af91a79edc920b68df483b5ee9a60656e7a975",
+      "repair": "Bind fixture at existing /var/tmp; HOME/path and original script unchanged."
+    },
+    {
+      "arm": "original-namespace-baseline-v2",
+      "classification": "fixture pre-exec sentinel error, not behavior red",
+      "error": "Mount repair accidentally rewrote sentinel path in shell precheck; original script never reached.",
+      "executed_unittest_cases": 2,
+      "actual_switch_script_executed": false,
+      "mutations": 0,
+      "log_sha256": "0f4cd0ad6f454be29d997bc216432a4b1a435561177e6230b565f7fa5e185e38",
+      "repair": "Correct sentinel basename only; original script still unchanged."
+    }
+  ],
+  "permission_counterfactual_preregistration": {
+    "question": "Does the first proposed guard incorrectly classify an existing current-user mode000 state with accounts.json as empty under Python3.14?",
+    "endpoint": "PackageSwitchPermission.test_unreadable_retained_state_is_not_reported_empty",
+    "arms": [
+      {
+        "name": "proposed_guard_before_strict_inspection",
+        "selected_tests": 1,
+        "prediction": "retained_state returnsFalse instead of typed Refusal; exact assertRaises endpoint fails; marker preserved."
+      },
+      {
+        "name": "strict_inspection_corrected",
+        "selected_tests": 1,
+        "prediction": "Same fixture raises static state-inspection refusal, passes; marker bytes/inode/mode unchanged."
+      }
+    ],
+    "original_proposed_guard_sha256": "f563d178b5a857562b54a13c7ee10f8338595fffb118ff963e726c5ba6227088",
+    "preserved_source": ".local-state/package-switch-preflight-20261004/install-preflight-before-strict-inspection.v1.py",
+    "test_sha256": "73fca54e682712167c4740d390da41913f4ba7d7cdc6750251a914b060401486",
+    "scope": "Real local mode000 fixture only, no service/package/provider inspection. New-proposal correction, separate from original script stop/remove red."
+  },
+  "embargo_permission_preregistration": {
+    "question": "Can unreadable declared benchmark directory be silently skipped by glob enumeration?",
+    "endpoint": "PackageSwitchPermission.test_unreadable_embargo_directory_is_not_reported_empty",
+    "selected_tests_per_arm": 1,
+    "before_prediction": "Current helper glob silently skips mode000 directory, so intended typed-refusal assertion fails.",
+    "after_prediction": "Strict directory status and error-propagating enumeration refuse inspection; identical arm passes.",
+    "original_proposed_guard_sha256": "f563d178b5a857562b54a13c7ee10f8338595fffb118ff963e726c5ba6227088",
+    "test_sha256": "2fa2df60bfe772da11e820c1af3150fb620e5c771e82daf8576053aa1bf9c44f",
+    "scope": "Owned local synthetic active declaration only; no host window edits or process actions."
+  },
+  "corrected_control_preregistration": {
+    "guard_source_sha256": "0d86b7643c598fcee9933547cee34f5d52afdf2bbfa283bb8651602011ee6744",
+    "switch_source_sha256": "03676c00468fdae5e05284cb11a93f3e35d2c7d1e12e87fb1b91b0cc6d6c0a8f",
+    "test_source_sha256": "d0174c1fafd909e888ee063b29ed593ca3e57b0437d086a365c0d0d4e6bac786",
+    "namespace_selected": 3,
+    "namespace_arms": [
+      "same active embargo refusal exact reason",
+      "same retained state refusal exact reason",
+      "fresh supported state actual first inert switch endpoint"
+    ],
+    "portable_selected": 14,
+    "portable_scope": "2 real local mode000 fixture controls; 12 production guard tests with explicitly virtual filesystem/typed service observations and real passwd HOME, plus actual local file identity checks. Live process identity is mocked, not real-host proof.",
+    "predictions": "All intended refusal/allowance endpoints pass; old developer suite39 passes unchanged except stricter unknown-inspection refusal.",
+    "retained_policy": "Any retained state refuses even released source because target schema provenance is unknown."
+  },
+  "python_version": "Python 3.14.7",
+  "final_source_sha256": {
+    "scripts/install-preflight.py": "0d86b7643c598fcee9933547cee34f5d52afdf2bbfa283bb8651602011ee6744",
+    "scripts/switch-to-package.sh": "03676c00468fdae5e05284cb11a93f3e35d2c7d1e12e87fb1b91b0cc6d6c0a8f",
+    "scripts/test-package-switch-preflight.py": "d0174c1fafd909e888ee063b29ed593ca3e57b0437d086a365c0d0d4e6bac786",
+    "scripts/check.sh": "2163a31145e39faf8d6ba5b5c370033a7373e4e0a35bca6bcda15ae7bc6da621",
+    ".github/workflows/ci.yml": "477cae389353fb497c246c017a26de977060b3ecf944dd9c7d8caac7b134e33e",
+    "docs/development.md": "ca10c73f4d2d3a1090be58f1c6e6e88e6d13bc47d44c99d94e548910b1340499"
+  },
+  "remaining_limits": "The complete scripts/check.sh passed on unchanged final source; new remote CI remains pending. This proves bounded refusal and permitted first-stub entry with synthetic routes, not an installed package transition, package-manager provenance, target schema compatibility, arbitrary unit routing, a concurrent measurement lease, or iCloud release readiness. All six release gates remain open.",
+  "no_cloud_credentials_sqlite_install_or_real_service_mutations": true,
+  "result_assembly_correction": "Initial annex reader matched only JSON lines without a leading unittest progress dot; corrected parser consumed all three already-completed fixture observations. No fixture/test rerun.",
+  "full_local_check": {
+    "command": [
+      "scripts/check.sh"
+    ],
+    "exit_code": 0,
+    "finished_at": "2026-10-04T10:51:34.921076+00:00",
+    "manifest_sha256": "2bbcd9813a29e570d2552268bf46b974aaa3b85e95f803ae735b4aeeb61b1c58",
+    "log_sha256": "de2dfdf396da54fed05b77a0f4faea78f8f6e80fe064db4028386f1f351eb498",
+    "source_before_after_equal": true,
+    "scope": "Formatting, clippy/probes, workspace, kernel fixtures, scripts, ledger and docs; local display scenarios not repeated. No provider or installed-state acceptance.",
+    "root_verification": ".local-state/icloud-readonly-consolidation-20261004/root-fullcheck-v2-verification.json"
+  }
+}

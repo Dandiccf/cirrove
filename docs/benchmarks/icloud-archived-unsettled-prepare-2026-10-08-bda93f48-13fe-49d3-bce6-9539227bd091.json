@@ -1,0 +1,135 @@
+{
+  "HOLD_lifted": false,
+  "Root_current_HEAD": "f1e13755dbc56239c5db576fa036bee8bff7803c",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfclone-bda93f48-13fe-49d3-bce6-9539227bd091/evidence/archive-prepare",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfclone-bda93f48-13fe-49d3-bce6-9539227bd091/evidence/archive-prepare",
+  "active": false,
+  "active_measurement": false,
+  "actual_copy_counts": {
+    "bytes": 5985486884,
+    "members": 5271,
+    "regular_files": 5254
+  },
+  "actual_dispatch_manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/root-approved-archive-authorities-v1/dispatch-prepare-v1.json",
+    "sha256": "595389b0800f12a82098bf23b3436b475dbcc75480f6d7711b1723f87eeb7394",
+    "size": 2337
+  },
+  "actual_endpoint": {
+    "SQL_opened": false,
+    "complete_independent_backup_and_clone": true,
+    "content_inventory_sha256": "82a0a765b5c73567162f3e9600bccd7755989ed04b4148087023217076c8ed71"
+  },
+  "actual_input": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/root-approved-archive-authorities-v1/inputs-approved-v1.json",
+    "sha256": "acddb302a63de78c931030e4a60e2150cae498b1cd9f707f51d8296e6d378111",
+    "size": 6197
+  },
+  "actual_preparation_result": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-bda93f48-13fe-49d3-bce6-9539227bd091/evidence/archive-preparation-result-v1.json",
+    "sha256": "37675bcf7b26a7e022ae1df4e6cb02fedde8ce1a5d15c317ddbfdbae2e5d2781",
+    "size": 1306
+  },
+  "actual_private_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/root-approved-archive-authorities-v1/private-preregistration-prepare-v1.json",
+    "sha256": "460821622d4326255c95bccede919461f7e530b18eef310c79caf77021cce980",
+    "size": 3855
+  },
+  "arms": [
+    "complete separate disposable archive copies"
+  ],
+  "build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/build-execution-82c4aab8-41d5-4417-8389-069b94c6eb80/audit-independent-build-terminal-v1.json",
+    "sha256": "9c8ecbc71dfed48179ec3885f9c9f42906bcf3e12e945bbe0a8847fca80f9104",
+    "size": 12371
+  },
+  "cleanup_reserve": 45,
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/run_archived_unsettled_once_v2.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/root-approved-archive-authorities-v1/inputs-approved-v1.json",
+    "--sha256",
+    "ROOT_EXACT_INPUT_SHA",
+    "--phase",
+    "prepare"
+  ],
+  "dispatch_manifest": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/root-approved-archive-authorities-v1/dispatch-prepare-v1.json",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/run_archived_unsettled_once_v2.py",
+    "sha256": "7701463f4d955631e6dd246bd53cc533150ebf146f32e3e0b562aadd77ea7cb3",
+    "size": 16100
+  },
+  "endpoint": "complete archive copying only; no SQL",
+  "exact_command_binding": "Exact input digest and argv are recorded in the separate immutable dispatch manifest before each process starts; that avoids a circular digest through preregistration pins.",
+  "gate488_closed": false,
+  "helper_binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/build-execution-82c4aab8-41d5-4417-8389-069b94c6eb80/frozen-helper",
+    "sha256": "3dc020c9ef4e692d5f4b1c9d2108568c6ef1af3df17c2d82a8a05e970ade171e",
+    "size": 361473832
+  },
+  "historical_W_HEAD": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "historical_preparation_closure": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/prior-preparation-closure-v1.json",
+    "sha256": "29cdea42d8c29ce5039a9b32a078864764a077ad26b87044de64a36f134e6d52",
+    "size": 3215703
+  },
+  "historical_preservation_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-a11c19a2-0701-43f1-a12d-3200d2636b96/evidence/audit-independent-complete-backup-refusal-terminal-v1.json",
+    "sha256": "3e75bb03d5463379af56306f1c74ce2bdc7b8f4b80f8ab7ebceee9add4040a1b",
+    "size": 22036
+  },
+  "historical_whole_preparation_success": false,
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-bda93f48-13fe-49d3-bce6-9539227bd091/evidence/audit-independent-archived-compatibility-terminal-v1.json",
+    "sha256": "ba2f4f8f21a4beb5a61f1cf707fba6deae0652dfc2117c192f6d9f2079e10aa5",
+    "size": 10767
+  },
+  "independent_passed": 32,
+  "independent_total": 32,
+  "installed19_and_old_PID_birth_preserved": true,
+  "installed_admission": false,
+  "limits": [
+    "Single separately registered local archive arm; no spread or general reliability claim.",
+    "Actuala11 originalwholeFAIL remainsfailed; new completecopy authority is independently distinct.",
+    "No original/archivedbackup SQL, Manager, credentials, provider, replay, service transition or installedcandidate action.",
+    "Privatearchive14/7\u219214/8 compatibility does not establish settledadmission, currentinstalledstate compatibility or close488\u2013490/HOLD."
+  ],
+  "namespace": "/home/dandiccf/Storage/ct/pfclone-bda93f48-13fe-49d3-bce6-9539227bd091",
+  "original_state_opened": false,
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 512962.241658895,
+    "monotonic_start": 511162.241658895,
+    "seconds": 1800,
+    "wall_end": 1791488335.1185803,
+    "wall_start": 1791486535.1185803
+  },
+  "phase": "prepare",
+  "prediction": "Complete copied state matches actual historical a11 backup and retains all cache/working/sealed/unknown members.",
+  "provider_calls": 0,
+  "python_binary": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "question": "Can an immutable, coherent archived but unsettled14/7 snapshot support local recovery-only metadata7\u21928 while all journal14 cells, queue flags and recoverable bytes remain exact?",
+  "run": "bda93f48-13fe-49d3-bce6-9539227bd091",
+  "seconds": 1800,
+  "service_actions": 0,
+  "settled_admission": false,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/archived-unsettled-compatibility-private-v1/audit-independent-archived-unsettled-source-v3.json",
+    "sha256": "5f72a19ac290cfd7934576043ea6cdc189cdbbaa63cce358f9db450050c5ea09",
+    "size": 10493
+  },
+  "status": "closed_pass_bounded_archived_prepare",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-bda93f48-13fe-49d3-bce6-9539227bd091/evidence/archive-preparation-result-v1.json",
+    "sha256": "37675bcf7b26a7e022ae1df4e6cb02fedde8ce1a5d15c317ddbfdbae2e5d2781",
+    "size": 1306
+  },
+  "version": 1
+}

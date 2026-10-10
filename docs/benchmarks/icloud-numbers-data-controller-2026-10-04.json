@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "run": "101a5a37-643d-4944-99cc-34d41536483c",
+  "registered_before_execution": true,
+  "executed": true,
+  "question": "Does the finite ordinary DATA controller enforce DATA/raw-A proof before B, real journal topology and retained uncertainty, exact byte/descriptor/one-attempt/deadline/owned-stop boundaries without cloud actions?",
+  "sources": {
+    "controller.py": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller.py",
+      "size": 53592,
+      "sha256": "d96da5da7f0006008810ad08e0a3b9ab6ecd8a03054561bc193df32961a9ee48"
+    },
+    "data_writer.py": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/data_writer.py",
+      "size": 7343,
+      "sha256": "adb2b0ecf250f2f22738a1abbe38c4a60372d10f40183b2d78471001e3fc0067"
+    },
+    "test_controller_offline.py": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/test_controller_offline.py",
+      "size": 14562,
+      "sha256": "7359bc4e216ff5ad71309474959fd18c881828a2bd826b15fb40abfe451bf1c3"
+    }
+  },
+  "commands": {
+    "canonical": [
+      "/usr/bin/python3.14",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/test_controller_offline.py",
+      "-v"
+    ],
+    "omission_exact": [
+      "/usr/bin/python3.14",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/test_controller_offline.py",
+      "Controls.test_package_preflight_blocks_b_before_capture_attempt_or_open",
+      "-v"
+    ],
+    "restored": [
+      "/usr/bin/python3.14",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/test_controller_offline.py",
+      "-v"
+    ]
+  },
+  "canonical_exact_test_count": 16,
+  "test_names": [
+    "test_actual_serde_defaults_and_active_retired_topology",
+    "test_same_folder_pending_applying_then_applied",
+    "test_upload_pending_states_never_completed",
+    "test_failed_uncertain_uploads_refuse",
+    "test_scope_extra_queue_and_package_associations_refuse",
+    "test_dirty_wrong_working_and_retired_parent_refuse",
+    "test_predecessor_and_backup_binding_refuse",
+    "test_package_preflight_blocks_b_before_capture_attempt_or_open",
+    "test_prior_raw_identity_and_artifact_set_are_required",
+    "test_descriptor_mismatch_precedes_truncation",
+    "test_clean_fsync_rejects_any_new_durable_operation",
+    "test_duplicate_writer_attempt_cannot_reopen",
+    "test_expired_authorization_refuses_dispatch_but_permits_stop",
+    "test_missing_auth_precedes_writer_operational_io",
+    "test_unknown_owner_never_claims_abort_complete",
+    "test_blocked_writer_does_not_prevent_exact_daemon_abort"
+  ],
+  "prediction": {
+    "canonical": {
+      "passed": 16,
+      "failed": 0,
+      "errors": 0
+    },
+    "control": {
+      "passed": 0,
+      "failed": 1,
+      "errors": 0,
+      "endpoint": "sentinel.assert_not_called: actual writer would reach mocked local_capture for B despite PACKAGE preflight"
+    },
+    "restored": {
+      "passed": 16,
+      "failed": 0,
+      "errors": 0
+    }
+  },
+  "counterfactual": {
+    "only_change": "remove ONLY and current['representation']=='data' from controller.created_proof",
+    "remaining_guards_preserved": true,
+    "no_actual_source_or_mount_IO": true,
+    "temporary_source_restore_required_byte_exact": true
+  },
+  "fixture_scope": "synthetic Python values and mocked operational IO only; no subprocess, daemon, SQLite open, provider, mount, source bytes, installed state or authorization write",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/nd-101a5a37",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/nd-101a5a37",
+  "measurement_limits": [
+    "these pure controls do not prove actual DATA provider routing or journal serialization end to end",
+    "no historical production bug red claimed",
+    "no live/installed gate closed"
+  ],
+  "private_preregistration": {
+    "path": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/offline-controls-preregistration.json",
+    "sha256": "bf2db950a9382f3ddb70511c9a16ada7017875e9feaf3f8ad3e716649287a7a2"
+  },
+  "public_registered_at": "2026-10-04T18:02:38.080099+00:00",
+  "status": "canonical16 / expected omission1 failure / byte-restored16 verified; runtime and live run not started",
+  "full_icloud_gates_closed": false,
+  "results": {
+    "handoff": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller-offline-final-handoff.v1.json",
+    "handoff_sha256": "e1630f0c2ec43c8428ed89424c3d081eafa8195393d96bc3303daaabbedfd1df",
+    "arms": [
+      {
+        "arm": "controller-canonical16.v1",
+        "daemon_started": false,
+        "duration_seconds": 0.1146712540066801,
+        "exit_code": 0,
+        "failure_summary": null,
+        "log_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller-canonical16.v1.log",
+        "log_sha256": "16e77bb6aff51701824343a2a6f4134c6b74f99ae29054dccb6ea56b2bf27055",
+        "manifest_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller-canonical16.v1.manifest.json",
+        "manifest_sha256": "1a15498351a1d6159d7a05e8a99de5c31e66838acfe7a9c9360e41e572679cc2",
+        "provider_access": false,
+        "run": "101a5a37-643d-4944-99cc-34d41536483c",
+        "source_after_sha256": {
+          "controller.py": "d96da5da7f0006008810ad08e0a3b9ab6ecd8a03054561bc193df32961a9ee48",
+          "data_writer.py": "adb2b0ecf250f2f22738a1abbe38c4a60372d10f40183b2d78471001e3fc0067",
+          "test_controller_offline.py": "7359bc4e216ff5ad71309474959fd18c881828a2bd826b15fb40abfe451bf1c3"
+        },
+        "source_before_sha256": {
+          "controller.py": "d96da5da7f0006008810ad08e0a3b9ab6ecd8a03054561bc193df32961a9ee48",
+          "data_writer.py": "adb2b0ecf250f2f22738a1abbe38c4a60372d10f40183b2d78471001e3fc0067",
+          "test_controller_offline.py": "7359bc4e216ff5ad71309474959fd18c881828a2bd826b15fb40abfe451bf1c3"
+        },
+        "test_count": 16,
+        "version": 1
+      },
+      {
+        "arm": "controller-data-guard-omission1.v1",
+        "daemon_started": false,
+        "duration_seconds": 0.11446965401410125,
+        "exit_code": 1,
+        "failure_summary": "failures=1",
+        "log_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller-data-guard-omission1.v1.log",
+        "log_sha256": "74c844d518249afe8725e3a2d71eee2104345eda8a34f3eb0075d3ce15d8e0a3",
+        "manifest_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller-data-guard-omission1.v1.manifest.json",
+        "manifest_sha256": "bacd0e208676612d1f00dee51812ca6539cb17711f8a4e821288a3322881da72",
+        "provider_access": false,
+        "run": "101a5a37-643d-4944-99cc-34d41536483c",
+        "source_after_sha256": {
+          "controller.py": "b642561ab841332ab10a4b1349e7bb2afc93714c4997acd9f039a191a0fbab8e",
+          "data_writer.py": "adb2b0ecf250f2f22738a1abbe38c4a60372d10f40183b2d78471001e3fc0067",
+          "test_controller_offline.py": "7359bc4e216ff5ad71309474959fd18c881828a2bd826b15fb40abfe451bf1c3"
+        },
+        "source_before_sha256": {
+          "controller.py": "b642561ab841332ab10a4b1349e7bb2afc93714c4997acd9f039a191a0fbab8e",
+          "data_writer.py": "adb2b0ecf250f2f22738a1abbe38c4a60372d10f40183b2d78471001e3fc0067",
+          "test_controller_offline.py": "7359bc4e216ff5ad71309474959fd18c881828a2bd826b15fb40abfe451bf1c3"
+        },
+        "test_count": 1,
+        "version": 1
+      },
+      {
+        "arm": "controller-restored16.v1",
+        "daemon_started": false,
+        "duration_seconds": 0.11477339299744926,
+        "exit_code": 0,
+        "failure_summary": null,
+        "log_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller-restored16.v1.log",
+        "log_sha256": "16e77bb6aff51701824343a2a6f4134c6b74f99ae29054dccb6ea56b2bf27055",
+        "manifest_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/controller-restored16.v1.manifest.json",
+        "manifest_sha256": "474a1f134f2ec89524951c2bd22c35f12c5da16e52835f1a3f98126c792f7ac5",
+        "provider_access": false,
+        "run": "101a5a37-643d-4944-99cc-34d41536483c",
+        "source_after_sha256": {
+          "controller.py": "d96da5da7f0006008810ad08e0a3b9ab6ecd8a03054561bc193df32961a9ee48",
+          "data_writer.py": "adb2b0ecf250f2f22738a1abbe38c4a60372d10f40183b2d78471001e3fc0067",
+          "test_controller_offline.py": "7359bc4e216ff5ad71309474959fd18c881828a2bd826b15fb40abfe451bf1c3"
+        },
+        "source_before_sha256": {
+          "controller.py": "d96da5da7f0006008810ad08e0a3b9ab6ecd8a03054561bc193df32961a9ee48",
+          "data_writer.py": "adb2b0ecf250f2f22738a1abbe38c4a60372d10f40183b2d78471001e3fc0067",
+          "test_controller_offline.py": "7359bc4e216ff5ad71309474959fd18c881828a2bd826b15fb40abfe451bf1c3"
+        },
+        "test_count": 16,
+        "version": 1
+      }
+    ],
+    "byte_exact_restoration": true,
+    "cloud_mutated": false,
+    "daemon_started": false,
+    "peer_review": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/data-peer-static-review.v1.json",
+    "peer_review_sha256": "b51cb41638336820cc1b95742588aff93f5028c22ac711b264cf630ce78af966",
+    "root_audit_correction": "Initial evidence parser expected mock method name local_capture in log; actual unittest reports sentinel/assert_not_called and unnamed mock. Corrected parser verifies exact source line and called-once endpoint. No source or test rerun."
+  },
+  "full_contributor_check": {
+    "status": "PASS whole scripts/check.sh invocation",
+    "command": [
+      "scripts/check.sh"
+    ],
+    "registration": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2-registration.json",
+    "result": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2-result.json",
+    "log": ".local-state/icloud-numbers-data-101a5a37-643d-4944-99cc-34d41536483c/full-check-v2.log",
+    "log_sha256": "0b16e848c085e01a5c71916786c9c8089f107df05cdd09c77ee96812958d7b7d",
+    "log_size": 252446,
+    "tool_completion": {
+      "session": 97871,
+      "chunk": "18d015",
+      "exit_code": 0
+    },
+    "source_file_count": 452,
+    "all_final_source_digests_match": true,
+    "new_service_tests_executed": 10,
+    "new_library_tests_executed": 4,
+    "all6_full_icloud_gates_done": false,
+    "desktop_display_scenarios_rerun": false,
+    "first_invocation_lint_correction": {
+      "at": "2026-10-04T18:16:53.415140+00:00",
+      "original_exit_code": 101,
+      "original_log_sha256": "3d27ff54c63cf54edcc03be75adeb92353f300e30087986749ab9586b4786911",
+      "original_terminal_chunk": "1ce527",
+      "classification": "Full contributor command stopped at new feature Clippy lints before workspace tests; not behavioral proof.",
+      "changes": [
+        "Remove unnecessary PathBuf allocation in exact source path comparison following Clippy; root early review had wrongly presumed direct String comparison unsupported.",
+        "Allow the concrete bounded SQL frontier tuple complexity at its field, matching existing accessor convention."
+      ],
+      "whole_command_rerun_required": true,
+      "cloud_mutated": false
+    },
+    "no_cloud_mutation": true,
+    "no_installed_acceptance": true
+  }
+}

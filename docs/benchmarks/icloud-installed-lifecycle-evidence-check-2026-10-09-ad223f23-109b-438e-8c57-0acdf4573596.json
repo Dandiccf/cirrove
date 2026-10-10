@@ -1,0 +1,149 @@
+{
+  "run": "ad223f23-109b-438e-8c57-0acdf4573596",
+  "state": "successful_closed_fullcheck",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "source_head": "e0e7c06fc06c2debd4b2debb566fe730de8aa11d",
+  "question": "Does the mandatory complete project check pass after recording real installed lifecycle488 closure, while runtime source and originalhost remain unchanged?",
+  "arms": [
+    "one complete frozen combined check"
+  ],
+  "prediction": "Runtime source unchanged since previous complete green check; installed488 evidence/README/ledger/doc updates should pass.",
+  "endpoint": "Complete scripts/check.sh without --fast, originalexit0/closure and input/toolpins unchanged.",
+  "command": [
+    "scripts/check.sh"
+  ],
+  "maximum_duration_seconds": 1800,
+  "expected_duration_seconds": 900,
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/ilcheck-ad223f23",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ilcheck-ad223f23",
+  "filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "input_count": 597,
+  "input_digest_sha256": "ed1b0ffe77b120310580b03183b87e62abad7d721ea6796a6b31c34334bcba80",
+  "tool_pins": {
+    "cargo": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14"
+    },
+    "rustc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+      "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+    },
+    "rustdoc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustdoc",
+      "sha256": "3ff7fed6d1064d8d75d24ae8beff9fe1d68031d3d819966481d22c3c9002b709"
+    },
+    "cargo-clippy": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo-clippy",
+      "sha256": "56478e37c2bc0a09b7442cb975bad0f00cd16a9c80463daca022756a12ef1b93"
+    },
+    "clippy-driver": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/clippy-driver",
+      "sha256": "ac4a71be2cb2df0f3947419e757a76dabb6110ce4196e1b0bde43296f702287b"
+    },
+    "rustfmt": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustfmt",
+      "sha256": "99e625e0640b50d773a0f54b93a7e66a0e89afd5351a4de9a17abe7087c11ac4"
+    },
+    "timeout": {
+      "path": "/usr/bin/timeout",
+      "sha256": "c7ad4153c8fa4cfe78794062789182e39d48f85cc114ba9dc4fa54296ad2a407"
+    },
+    "bash": {
+      "path": "/usr/bin/bash",
+      "sha256": "575e03ac834b739349a4484de481abcd06a6f7193cefc795260a32a1943f20a5"
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    }
+  },
+  "manifest_sha256": "0c144a6d3962942ad3e3f41d38db51d09b5837a2209c42fc6c4c9fc4048c7005",
+  "launcher_sha256": "3b243520c39b45a9aa2d3b3e586071a4a2c009f4dadc66f351eeee8f477114dc",
+  "real_provider_calls": 0,
+  "original_host_changes": false,
+  "performance_claim": false,
+  "regular_host_delivery": "HOLD",
+  "original_pid": 4190045,
+  "started_unix": 1791568816.5352561,
+  "result": {
+    "success": true,
+    "native_session": 49325,
+    "native_exit_code": 0,
+    "original_pid": 4190045,
+    "original_process_absent": true,
+    "original_group_members": [],
+    "signals_sent": [],
+    "input_count": 597,
+    "changed_inputs": [],
+    "tools_unchanged": true,
+    "minimum_expected_new_cases_counts": {
+      "accounts::tests::owned_poll_account_lease_outlives_stopped_engine_until_provider_drop": 1,
+      "accounts::tests::owned_poll_failed_engine_construction_releases_last_account_lease": 1,
+      "manager::tests::owned_poll_selection_limits_writeback_to_normal_configured_icloud": 1,
+      "provider::session_writeback_tests::owned_poll_binding_refuses_foreign_snapshot_key_or_missing_directory": 2,
+      "provider::session_writeback_tests::owned_poll_blocked_commit_acknowledges_only_captured_revision_and_cancel_keeps_pending": 2,
+      "provider::session_writeback_tests::owned_poll_coalescing_keeps_exact_source_domain_path_and_security_classes": 2,
+      "provider::session_writeback_tests::owned_poll_concurrent_cookie_replay_matches_live_jar_and_revision": 2,
+      "provider::session_writeback_tests::owned_poll_cookie_record_limit_refuses_without_durable_changes": 2,
+      "provider::session_writeback_tests::owned_poll_cookie_survives_restart_with_original_expiry": 2,
+      "provider::session_writeback_tests::owned_poll_legacy_snapshot_never_migrates_or_creates_a_sealed_file": 2,
+      "provider::session_writeback_tests::owned_poll_postpublication_failure_reconciles_only_own_attempt": 2,
+      "provider::session_writeback_tests::owned_poll_repeated_cookie_rotation_remains_bounded_and_survives_restart": 2,
+      "provider::session_writeback_tests::owned_poll_retains_owner_until_last_provider_reference": 2,
+      "provider::session_writeback_tests::owned_poll_tombstone_survives_and_preserves_other_path": 2,
+      "provider::session_writeback_tests::owned_poll_without_response_cookie_and_public_constructor_do_not_write": 2,
+      "sealed_session::pending_tests::occupied_pending_slot_preserves_key_blob_and_remnant": 2,
+      "sealed_session::pending_ownership_tests::concurrent_pending_writer_cannot_remove_owner_slot": 2,
+      "sealed_session::pending_ownership_tests::published_writer_error_keeps_next_writer_pending_slot": 2,
+      "sealed_session::pending_ownership_tests::unpublished_owned_failure_removes_only_own_pending_slot": 2,
+      "sealed_session::pending_ownership_tests::legacy_random_remnants_are_preserved": 2
+    },
+    "unreadable_unrelated_proc_stat_count": 0,
+    "group_census_limit": "Unreadable processes owned by other UIDs are recorded; unreadable own process refuses.",
+    "sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "rust_result_groups": 87,
+    "expected_test_counts": {
+      "accounts::tests::owned_poll_account_lease_outlives_stopped_engine_until_provider_drop": 1,
+      "accounts::tests::owned_poll_failed_engine_construction_releases_last_account_lease": 1,
+      "manager::tests::owned_poll_selection_limits_writeback_to_normal_configured_icloud": 1,
+      "provider::session_writeback_tests::owned_poll_binding_refuses_foreign_snapshot_key_or_missing_directory": 2,
+      "provider::session_writeback_tests::owned_poll_blocked_commit_acknowledges_only_captured_revision_and_cancel_keeps_pending": 2,
+      "provider::session_writeback_tests::owned_poll_coalescing_keeps_exact_source_domain_path_and_security_classes": 2,
+      "provider::session_writeback_tests::owned_poll_concurrent_cookie_replay_matches_live_jar_and_revision": 2,
+      "provider::session_writeback_tests::owned_poll_cookie_record_limit_refuses_without_durable_changes": 2,
+      "provider::session_writeback_tests::owned_poll_cookie_survives_restart_with_original_expiry": 2,
+      "provider::session_writeback_tests::owned_poll_legacy_snapshot_never_migrates_or_creates_a_sealed_file": 2,
+      "provider::session_writeback_tests::owned_poll_postpublication_failure_reconciles_only_own_attempt": 2,
+      "provider::session_writeback_tests::owned_poll_repeated_cookie_rotation_remains_bounded_and_survives_restart": 2,
+      "provider::session_writeback_tests::owned_poll_retains_owner_until_last_provider_reference": 2,
+      "provider::session_writeback_tests::owned_poll_tombstone_survives_and_preserves_other_path": 2,
+      "provider::session_writeback_tests::owned_poll_without_response_cookie_and_public_constructor_do_not_write": 2,
+      "sealed_session::pending_tests::occupied_pending_slot_preserves_key_blob_and_remnant": 2,
+      "sealed_session::pending_ownership_tests::concurrent_pending_writer_cannot_remove_owner_slot": 2,
+      "sealed_session::pending_ownership_tests::published_writer_error_keeps_next_writer_pending_slot": 2,
+      "sealed_session::pending_ownership_tests::unpublished_owned_failure_removes_only_own_pending_slot": 2,
+      "sealed_session::pending_ownership_tests::legacy_random_remnants_are_preserved": 2
+    },
+    "log": {
+      "size": 322784,
+      "sha256": "0eb28ba19f33433cf622d8feb438684c51eeb1ac9212a27b8eb3020d0b221b39"
+    },
+    "provider_actions": false,
+    "host_delivery": "HOLD",
+    "performance_claim": false
+  }
+}

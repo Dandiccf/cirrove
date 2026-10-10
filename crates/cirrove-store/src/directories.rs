@@ -68,6 +68,7 @@ fn read_source(
     db: &Connection,
     key: &str,
     parent: &str,
+    require_snapshot: bool,
 ) -> Result<Option<(&'static str, Option<i64>)>> {
     let revision = db
         .query_row(
@@ -79,6 +80,9 @@ fn read_source(
     let sql = if revision.is_some() {
         SNAPSHOT_CHILDREN
     } else {
+        if require_snapshot {
+            return Ok(None);
+        }
         let complete = db
             .query_row(
                 "SELECT cursor IS NOT NULL FROM feeds WHERE scope=?1",
@@ -119,9 +123,10 @@ pub(super) fn child_on(
     scope: &Scope,
     parent: &str,
     name: &str,
+    require_snapshot: bool,
 ) -> Result<Option<Option<Node>>> {
     let key = Store::key(scope)?;
-    let Some((sql, revision)) = read_source(db, &key, parent)? else {
+    let Some((sql, revision)) = read_source(db, &key, parent, require_snapshot)? else {
         return Ok(None);
     };
     // Keep exactly the same overlay/absence ordering as READDIR. SQLite pushes
@@ -160,9 +165,10 @@ pub(super) fn read_on<T>(
     scope: &Scope,
     parent: &str,
     consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+    require_snapshot: bool,
 ) -> Result<Option<T>> {
     let key = Store::key(scope)?;
-    let Some((sql, revision)) = read_source(db, &key, parent)? else {
+    let Some((sql, revision)) = read_source(db, &key, parent, require_snapshot)? else {
         return Ok(None);
     };
     let mut statement = db.prepare(sql)?;
@@ -200,12 +206,18 @@ pub(super) fn visit_on(
     parent: &str,
     mut visit: impl FnMut(Node) -> Result<()>,
 ) -> Result<bool> {
-    Ok(read_on(db, scope, parent, |rows| {
-        for node in rows {
-            visit(node?)?;
-        }
-        Ok::<_, StoreError>(())
-    })?
+    Ok(read_on(
+        db,
+        scope,
+        parent,
+        |rows| {
+            for node in rows {
+                visit(node?)?;
+            }
+            Ok::<_, StoreError>(())
+        },
+        false,
+    )?
     .transpose()?
     .is_some())
 }
@@ -228,6 +240,10 @@ pub(super) fn write_snapshot(
         "DELETE FROM directory_entries WHERE scope=?1 AND parent=?2",
         params![key, parent],
     )?;
+    tx.execute(
+        "DELETE FROM directory_sources WHERE scope=?1 AND parent=?2",
+        params![key, parent],
+    )?;
     let mut insert = tx.prepare(
         "INSERT INTO directory_entries(scope,parent,id,name,body) VALUES(?1,?2,?3,?4,?5)",
     )?;
@@ -241,4 +257,32 @@ pub(super) fn write_snapshot(
         ])?;
     }
     Ok(())
+}
+
+/// Canonical known-directory membership for one provider identity. All UNION
+/// arms retain READDIR's observation/absence precedence; primary keys bound work
+/// to this ID rather than decoding/scanning the directory.
+pub(super) fn child_id_on(
+    db: &Connection,
+    scope: &Scope,
+    parent: &str,
+    id: &str,
+) -> Result<Option<Option<Node>>> {
+    let key = Store::key(scope)?;
+    let Some((sql, revision)) = read_source(db, &key, parent, false)? else {
+        return Ok(None);
+    };
+    let query = sql
+        .replace("e.parent=?2", "e.parent=?2 AND e.id=?4")
+        .replace("n.scope=?1", "n.scope=?1 AND n.id=?4")
+        .replace("o.scope=?1", "o.scope=?1 AND o.id=?4")
+        .replace("ORDER BY name,id", "LIMIT 1");
+    let body: Option<String> = db
+        .query_row(&query, params![key, parent, revision, id], |r| r.get(0))
+        .optional()?;
+    let node: Option<Node> = body.map(|body| serde_json::from_str(&body)).transpose()?;
+    if node.as_ref().is_some_and(|node| node.id != id) {
+        return Err(StoreError::OutOfOrder);
+    }
+    Ok(Some(node))
 }

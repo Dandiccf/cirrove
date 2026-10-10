@@ -1,0 +1,49 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfch7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfch7v1",
+  "active": false,
+  "active_measurement": false,
+  "endpoint": "One actual assertion RED101, five GREEN tests, actual normal CargoJSON-selected ELF and all original command owners closed",
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "maximum_seconds_per_child": 1200,
+  "normal_source_count": 571,
+  "prediction": "Exact identical REAL control fails in the one-function counterfactual and all five controls pass finalV3; no real backup, provider, credentials or installed state is opened",
+  "private_copy_unmodified": true,
+  "provider_actions": false,
+  "question": "Does the actual normal-source recovery-only clone helper build and refuse REAL distinctions lost by historical JSON float encoding?",
+  "real_retained_clone_run": false,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v1/registration-v1.json",
+    "sha256": "28927444aabe4d5b2649cc5616cc466996557545d4d670b1c91adcfee4da7a92",
+    "size": 337974
+  },
+  "root_head": "b498af7d3b363b4e0bb255fad336a029aed3d7fb",
+  "status": "closed_local_controls_success",
+  "vault_actions": false,
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v1/terminal-v1.json",
+    "size": 9214,
+    "sha256": "290c41cec24bd964254e8dbff4a2170475d1031a9341ac2013ca050918d26720"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v1/owned-command-closure-v1.json",
+    "size": 3095,
+    "sha256": "c453da465f68d028ab41d4b6ea13472ee58c91b30f6c427b5a0a55b3f60b4ffa"
+  },
+  "actual_scope": "Local V3 REAL sensitivity/5 unit controls and normal build only; no real retained clone execution.",
+  "independent_terminal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v1/audit-independent-terminal-v1.json",
+    "size": 7179,
+    "sha256": "92b259c629f42efaece6b559bb82cdb52a8530953a59d3dd99b459253d35e206"
+  },
+  "independent_passed": 11,
+  "independent_total": 11,
+  "known_limits": [
+    "V1 driver exceptional source restoration lacked closure fence; the observed normal path restored only after actual original RED closure. Future guarded driver replaces it.",
+    "V3 direct journal readers may create or change SQLite SHM; detached V6 replaces this strategy before any real clone execution."
+  ],
+  "superseded_before_real_clone": true
+}

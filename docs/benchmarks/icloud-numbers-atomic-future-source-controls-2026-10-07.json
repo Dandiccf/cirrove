@@ -1,0 +1,67 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/nfsc7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/nfsc7v1",
+  "active_measurement": false,
+  "arms": [
+    {
+      "expected_exit": 1,
+      "expected_tests": 1,
+      "phase": "snapshot-old-RED"
+    },
+    {
+      "expected_exit": 0,
+      "expected_tests": 1,
+      "phase": "snapshot-same-GREEN"
+    },
+    {
+      "expected_exit": 0,
+      "expected_tests": 7,
+      "phase": "snapshot-all-GREEN"
+    },
+    {
+      "expected_exit": 1,
+      "expected_tests": 1,
+      "phase": "ro-old-RED"
+    },
+    {
+      "expected_exit": 0,
+      "expected_tests": 1,
+      "phase": "ro-same-GREEN"
+    },
+    {
+      "expected_exit": 0,
+      "expected_tests": 8,
+      "phase": "ro-all-GREEN"
+    }
+  ],
+  "assessment": {
+    "actual_command_arms": 6,
+    "all_RO_admission_controls": 8,
+    "all_snapshot_controls": 7,
+    "desired_assertion_failures": 2,
+    "not_live_acceptance": true,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-future-source-controls-v1/terminal-v1.json",
+      "sha256": "4ebc629ef1c6c640f08a1b378ca7068a839f38e70bea886573466bd6c7b70d90",
+      "size": 11210
+    }
+  },
+  "date": "2026-10-07",
+  "endpoint": "All six expected outcomes and assertion/count checks, source pins unchanged and all original owned handles/groups closed.",
+  "filesystem": "ext4",
+  "full_487_closed": false,
+  "independent_audit": {
+    "passed": 38,
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-33711731-75c5-4d9e-bc26-aa385cab9748-private-v1/root-future-source-controls-v1/audit-independent-future-controls-v1.json",
+    "sha256": "6a49f8f5e00f8c768c71599ba5c4a959b930d709ee06c3f363874949a592b590",
+    "size": 9570,
+    "total": 38
+  },
+  "installed_actions": false,
+  "prediction": "Old exact snapshot and old exact group-closure predicates each fail the intended positive assertion; corrected same positives and all7+8 controls pass.",
+  "provider_calls": false,
+  "question": "Do future atomic snapshot and normalRO closed-subject admission accept exact retained A/B lineage while refusing foreign or incomplete authority?",
+  "status": "closed_source_controls_success",
+  "version": 1,
+  "writer_replays": 0
+}

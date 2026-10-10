@@ -1,6 +1,8 @@
 //! Metadata intents share ordering and ownership with upload snapshots.
 use super::*;
-use cirrove_core::mutation::{MutationIntent, MutationReceipt, MutationRequest};
+use cirrove_core::mutation::{
+    MutationIntent, MutationReceipt, MutationRequest, VerifiedMutationContent,
+};
 use rusqlite::Transaction;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -11,6 +13,8 @@ pub enum MutationState {
     VerifyRequired,
     Verifying,
     Applied,
+    /// Locally superseded before any provider attempt; not a remote receipt.
+    Resolved,
     Conflict,
     Failed,
     NeedsReview,
@@ -23,6 +27,8 @@ pub struct MutationRecord {
     pub state: MutationState,
     pub attempt: Option<Uuid>,
     pub receipt: Option<MutationReceipt>,
+    #[serde(default)]
+    pub verified_content: Option<VerifiedMutationContent>,
     pub retry_at: u64,
     pub failed_attempts: u32,
     /// Source fields are bound to this preceding operation's confirmed receipt
@@ -204,6 +210,18 @@ impl UploadJournal {
         if request.scope.account != self.account {
             return Err(JournalError::Account);
         }
+        // Native Trash is a standalone exact-container action. Internal callers
+        // must not bypass its preconditions or attach ordinary file lineage.
+        if matches!(request.intent, MutationIntent::TrashNativeDocument { .. }) {
+            request.validate().map_err(|_| JournalError::Intent)?;
+            if order.base.is_some()
+                || !order.prerequisites.is_empty()
+                || working.is_some()
+                || object.is_some()
+            {
+                return Err(JournalError::Intent);
+            }
+        }
         barriers::validate(&self.db, &request.scope, &order.prerequisites)?;
         let mut record = MutationRecord {
             id: Uuid::new_v4(),
@@ -212,6 +230,7 @@ impl UploadJournal {
             state: MutationState::Pending,
             attempt: None,
             receipt: None,
+            verified_content: None,
             retry_at: 0,
             failed_attempts: 0,
             base: order.base,
@@ -418,16 +437,49 @@ impl UploadJournal {
         attempt: Uuid,
         receipt: MutationReceipt,
     ) -> Result<MutationState> {
+        self.acknowledge_mutation_evidence(id, attempt, receipt, None)
+    }
+    /// Only an adapter's revision-bound full-content evidence may bypass the
+    /// missing content-version guard during recovery. Never use for a lookup alone.
+    pub fn acknowledge_verified_mutation(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        receipt: MutationReceipt,
+        proof: VerifiedMutationContent,
+    ) -> Result<MutationState> {
+        self.acknowledge_mutation_evidence(id, attempt, receipt, Some(proof))
+    }
+    fn acknowledge_mutation_evidence(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        receipt: MutationReceipt,
+        proof: Option<VerifiedMutationContent>,
+    ) -> Result<MutationState> {
         let mut record = self.mutation_attempt(id, attempt)?;
+        if proof.as_ref().is_some_and(|p| {
+            record.state != MutationState::Verifying || !p.valid_for(&record.request, &receipt)
+        }) {
+            return Err(JournalError::Corrupt);
+        }
         if !record.request.accepts(&receipt) {
             return Err(JournalError::Corrupt);
         }
         if let Some(prepared) = &record.prepared_item
-            && !matches!(&receipt, MutationReceipt::Upsert(node) if &node.id == prepared)
+            && !match &receipt {
+                MutationReceipt::Upsert(node) => &node.id == prepared,
+                MutationReceipt::Removed { item } => item == prepared,
+            }
         {
             return Err(JournalError::Corrupt);
         }
-        record.state = reconciled_state(&record, &receipt);
+        record.state = if proof.is_some() {
+            MutationState::Applied
+        } else {
+            reconciled_state(&record, &receipt)
+        };
+        record.verified_content = proof;
         record.receipt = Some(receipt);
         record.attempt = None;
         self.save_mutation(&record)?;
@@ -626,5 +678,126 @@ fn reconciled_state(record: &MutationRecord, receipt: &MutationReceipt) -> Mutat
         (Some(old), Some(new)) if old == new => MutationState::Applied,
         (Some(_), Some(_)) => MutationState::Conflict,
         _ => MutationState::NeedsReview,
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod native_admission_tests {
+    use super::*;
+
+    #[test]
+    fn native_trash_internal_admission_refuses_invalid_shape_and_attachments_without_db_changes() {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::set_permissions(temp.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+        let mut journal = UploadJournal::open(temp.path(), "owned", 1024 * 1024).unwrap();
+        let scope = Scope {
+            account: "owned".into(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let node = Node {
+            id: "native".into(),
+            parent_id: Some("root".into()),
+            name: "Original.pages".into(),
+            kind: NodeKind::Folder,
+            package: true,
+            size: 0,
+            modified_unix: 0,
+            etag: Some("E1".into()),
+            content_version: None,
+            target: None,
+        };
+        let predecessor = journal
+            .enqueue(
+                scope.clone(),
+                UploadIntent::Create {
+                    parent: "root".into(),
+                    name: "retained.txt".into(),
+                },
+                b"retained".as_slice(),
+            )
+            .unwrap();
+        let object = journal
+            .observe_namespace_file(scope.clone(), node.clone())
+            .unwrap();
+        let working = journal
+            .create_working(
+                scope.clone(),
+                Node {
+                    id: "working".into(),
+                    name: "working.txt".into(),
+                    kind: NodeKind::File,
+                    package: false,
+                    ..node.clone()
+                },
+                false,
+                b"".as_slice(),
+            )
+            .unwrap();
+        let total_changes = |journal: &UploadJournal| -> i64 {
+            journal
+                .db
+                .query_row("SELECT total_changes()", [], |r| r.get(0))
+                .unwrap()
+        };
+        let baseline = total_changes(&journal);
+        let objects = serde_json::to_vec(&journal.namespace_objects().unwrap()).unwrap();
+        let files = serde_json::to_vec(&journal.working_files().unwrap()).unwrap();
+        for arm in 0..8 {
+            let mut request = MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::TrashNativeDocument {
+                    before: node.clone(),
+                },
+            };
+            if let MutationIntent::TrashNativeDocument { before } = &mut request.intent {
+                match arm {
+                    4 => before.package = false,
+                    5 => before.etag = None,
+                    6 => before.parent_id = None,
+                    7 => before.kind = NodeKind::File,
+                    _ => (),
+                }
+            }
+            let result = match arm {
+                0 => journal.enqueue_bound_mutation(
+                    request,
+                    Some(WriteBase {
+                        predecessor: predecessor.id,
+                        resolved: false,
+                    }),
+                    None,
+                ),
+                1 => journal.enqueue_bound_mutation(request, None, Some(working.clone())),
+                2 => journal.enqueue_namespace_mutation(request, None, object.clone()),
+                3 => journal.enqueue_mutation_transaction(
+                    request,
+                    WriteOrder {
+                        base: None,
+                        prerequisites: vec![predecessor.id],
+                    },
+                    None,
+                    None,
+                ),
+                _ => journal.enqueue_bound_mutation(request, None, None),
+            };
+            assert!(matches!(result, Err(JournalError::Intent)), "arm {arm}");
+            // Includes writes later rolled back: refusal happens before any SQL mutation.
+            assert_eq!(total_changes(&journal), baseline, "arm {arm}");
+            assert!(journal.list_mutations(0, 100).unwrap().is_empty());
+            assert_eq!(
+                serde_json::to_vec(&journal.namespace_objects().unwrap()).unwrap(),
+                objects
+            );
+            assert_eq!(
+                serde_json::to_vec(&journal.working_files().unwrap()).unwrap(),
+                files
+            );
+        }
+        assert_eq!(
+            journal.get(predecessor.id).unwrap().state,
+            UploadState::Pending
+        );
     }
 }

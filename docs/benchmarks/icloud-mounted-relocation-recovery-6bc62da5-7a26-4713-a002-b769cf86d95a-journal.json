@@ -1,0 +1,15 @@
+{
+  "run": "6bc62da5-7a26-4713-a002-b769cf86d95a",
+  "read_only_sqlite_audit": true,
+  "integrity_check": "ok",
+  "confirmed_uploads": 3,
+  "confirmed_mutations": 7,
+  "combined_relocations": 2,
+  "interrupted_operation_receipt_preserved": true,
+  "verified_content_bound_and_persisted": true,
+  "file_identity_preserved": true,
+  "folder_and_child_identity_preserved": true,
+  "eight_distinct_active_fixture_owners": true,
+  "no_deletion_intents": true,
+  "no_unfinished_queue_reservations": true
+}

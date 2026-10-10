@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "status": "bounded_live_import_and_apple_numbers_open_passed",
+  "run": "158d8df0-fe5d-458f-ad05-b82a1fee9978",
+  "question": "Does the corrected separate wire envelope allow one fresh normal public CLI import of the unchanged actual Apple flat Numbers export, strict original-warm and independent provider V2 readback, and exact new-document Apple Numbers open?",
+  "prediction": "The destination-name wire wrapper should preserve all Index/Metadata/Tables paths and previews. Actual returned representation/readback and Numbers opening, not the inferred model, determine acceptance. Stop on uncertainty without resubmission.",
+  "arms": [
+    "Unchanged original source offline scanner control",
+    "One fresh normal CLI import using distinct bound wire receipt",
+    "Stopped independent read-only metadata/content verification",
+    "Exact verified new item opened in Apple Numbers only after import verification"
+  ],
+  "source": {
+    "size": 138945,
+    "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "source_layout": "flat_numbers",
+    "source_root": null,
+    "semantic_v2": {
+      "version": 2,
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133153,
+      "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c"
+    }
+  },
+  "expected_cells": [
+    11,
+    3,
+    14
+  ],
+  "expected_formula": "SUM(A2:B2)",
+  "folder_mutations_max": 1,
+  "public_import_dispatches_max": 1,
+  "automatic_retry": false,
+  "runtime_build_head": "10b304dfbf2188f9ef5f36c7822a33ef1c5892e6",
+  "source_count": 546,
+  "source_map_sha256": "99b28aa7e05c2f93fbf58dbf1cb4e6d64fccbe69acf0813bbb45131f3a98c41b",
+  "roles": {
+    "cirrove": {
+      "size": 471244656,
+      "sha256": "b56541a82545eeb33c7b08c61d39984a6f5faa7465a8d7e8a1d1017fdbf60d7f",
+      "features": []
+    },
+    "cirroved": {
+      "size": 472691224,
+      "sha256": "b5e310c626a3db8b13ee7128248e5f68166b47c8c695429f6bc7ce76b4ab30b8",
+      "features": []
+    },
+    "editor-cli": {
+      "size": 509381872,
+      "sha256": "a7d1ee44875051617711fa172a63239140b604fe584fcef60e45d056f5674f6a",
+      "features": [
+        "icloud-write-probe"
+      ]
+    },
+    "generic-observer": {
+      "size": 505713120,
+      "sha256": "d959a2c9c6089687f316b13fd298a469e75348c10a540c27ef2b58faab537408",
+      "features": [
+        "icloud-write-probe"
+      ]
+    }
+  },
+  "duration_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "temporary_filesystem": "ext4",
+  "installed_delivery": "HOLD unchanged packaged14/7 versus candidate21/8",
+  "closed_failed_arm_not_replayed": "bec9b0c2-23c1-4014-8863-6ba9909d9d71",
+  "wire_correction_evidence": "icloud-flat-numbers-wire-envelope-2026-10-06.json",
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "replacement_recovery_and_full_integration_not_proven_by_import": true,
+  "endpoints": [
+    "Unchanged source raw receipt and strict V2",
+    "Original public CLI handle exit0; exact succeeded job and uploaded journal21 operation",
+    "Typed PACKAGE completion receipt and completed metadata publication",
+    "Same original warm mount canonical content, independently scanned strict V2",
+    "After original writer shutdown: exact parent/item/revision read-only provider V2 verification",
+    "Actual Apple Numbers title, A2/B2/C2=11/3/14 and SUM formula for exact new identity",
+    "Original handles reaped, mount/socket/buses absent, installed19 and source/binary/input pins unchanged"
+  ],
+  "results": {
+    "controller_exit_code": 0,
+    "elapsed_seconds": 106.85584726103116,
+    "public_cli_exit_code": 0,
+    "public_job_state": "succeeded",
+    "exact_operation": "1dddceab-e1ea-47ba-82cb-9ba2eb7ca80d",
+    "uploaded_journal21_operation_and_completed_publication_verified": true,
+    "warm_original_mount_semantic_v2_equals_source": true,
+    "stopped_independent_provider_semantic_v2_equals_source": true,
+    "all_42_files_and_three_previews_preserved": true,
+    "source_unchanged": true,
+    "receipt_bound_drive_row_identity_verified": true,
+    "actual_apple_numbers_open": true,
+    "visible_cells": [
+      11,
+      3,
+      14
+    ],
+    "visible_formula": "SUM(A2:B2)",
+    "original_controller_and_five_children_exit0_reaped": true,
+    "mount_socket_and_buses_absent": true,
+    "closure_audit": {
+      "version": 1,
+      "recorded_at": 1791276409.2211654,
+      "installed19_unchanged": true,
+      "installed_daemon_identity_unchanged": true,
+      "installed_unit_unchanged": true,
+      "home_daemon_shadow_exists": false,
+      "runtime_sources_unchanged": true,
+      "runtime_source_count": 546,
+      "four_roles_unchanged": true,
+      "immutable_input_and_controller_pins_unchanged": true,
+      "source_unchanged": true,
+      "active_session_ciphertext_may_have_refreshed": true,
+      "all_five_original_children_exit0_reaped_proc_absent": true,
+      "original_controller_exit0_reaped_proc_absent": true,
+      "mount_socket_buses_absent": true,
+      "journal_read_only_unchanged": true,
+      "journal_sha256": "71d3f0ec57791e589c1eab57289dcc2b7240600ae7e8207ec2374702ed05ecf5",
+      "exact_uploaded_operation": "1dddceab-e1ea-47ba-82cb-9ba2eb7ca80d",
+      "completed_publication_verified": true,
+      "gui_observation_v2_elapsed_seconds": 9.702757596969604,
+      "gui_observation_v2_within_registered_window": true,
+      "gui_observation_v2_screenshot_sha256": "d02ee09c7e3d60647c138324fa4f91b2677234f76b2315c0d7854acec425b0cc",
+      "first_gui_arm_formula_timestamp_not_attested": true,
+      "cloud_calls": 0,
+      "installed_actions": false
+    },
+    "outer_terminal_closure": {
+      "version": 1,
+      "recorded_at": 1791276473.1625228,
+      "original_outer_pid": 1800497,
+      "outer_proc_absent": true,
+      "tool_session": 85022,
+      "original_tool_session_terminal_exit0_observed": true,
+      "no_signal_or_retry": true
+    }
+  },
+  "gui_observation": {
+    "first_arm_duration_seconds": 180,
+    "first_formula_observation_individual_timestamp_not_retained": true,
+    "first_screenshot_file_mtime_after_deadline_seconds": 14.64734673500061,
+    "first_arm_not_extended": true,
+    "separate_read_only_observation_registered_before_run": true,
+    "separate_duration_seconds": 120,
+    "actual_elapsed_seconds": 9.702757596969604,
+    "same_already_open_receipt_bound_document": true,
+    "edits_exports_reload_or_provider_replay": false,
+    "screenshot_sha256": "d02ee09c7e3d60647c138324fa4f91b2677234f76b2315c0d7854acec425b0cc",
+    "screenshot_provenance": "New screenshot API observation of unchanged page returned identical bytes to the earlier capture; timestamped title and formula AX witness establish the separate observation, not screenshot-byte novelty."
+  },
+  "corrections": [
+    {
+      "stage": "private asset preparation before provider dispatch",
+      "finding": "Initial private authoring/substitution error and a bounded-copy ceiling smaller than the installed ELF.",
+      "resolution": "Corrected final v3 preparer used bounded64MiB ELF copies and256KiB ciphertext copies; actual execution exited0. No failed cloud dispatch or replay."
+    },
+    {
+      "stage": "metadata parser controlled offline regression",
+      "finding": "Merged stdout/stderr is not a JSON document even when the child exits0.",
+      "resolution": "Same registered harness: merged baseline JSONDecodeError; separate streams parsed typed JSON; valid JSON from exit7 refused. All three original children reaped; no cloud calls."
+    },
+    {
+      "stage": "GUI observation timing",
+      "finding": "Original180s GUI arm did not retain an individual timestamp for formula completion; later screenshot file timestamp cannot prove that deadline.",
+      "resolution": "Preserved that arm; a separately registered120s read-only observation of the already-open document completed in9.703s with timestamped AX formula and screenshot. No edits/export/reload/import replay."
+    }
+  ],
+  "evidence_pins": {
+    "root-cloud-registration.json": "6d7590608faafe5dbdcbfee62c3b2988b7611397c76854c1562e4e8b4ab40c77",
+    "root-outer-result.json": "a5f543b3b416664adb10d7a6fa6e16e6989326cf781e70fe93e919806bf3734c",
+    "result.json": "0db537db98c74011cea88f9b04b439c1e2c57a1e65ca4a353b368d755ffed585",
+    "public-job-completion.json": "98607c7da759aa202d66ebfc6d4b3f281a317a424de9d98cea2cabc32b077b61",
+    "warm-canonical-semantic-proof.json": "1649c702dbd9ef55ada6a65362eff5e022e6dbaf59f5eacc7f440434c0f813ad",
+    "independent-proof-summary.json": "12e3ecbc0bffd53af69a37dbc5ed91287760d9da74c94e35370bac70248564d2",
+    "gui-open-preregistration.json": "987385d67201e1247573228997373a7336a467a98f2067ae099ee07e0ba2e847",
+    "gui-observation-registration-v2.json": "861214192e9629449565bbc6801476d647e3febc528dc516acf17ff052b199d3",
+    "gui-observation-v2.json": "cf5320638ef8fcdab017208016af45e74f3bc661bf3e29602f06c2cc7088e334",
+    "gui-observation-v2.jpg": "d02ee09c7e3d60647c138324fa4f91b2677234f76b2315c0d7854acec425b0cc",
+    "terminal-closure-audit-v1.json": "2a34eeeb3a2cb375c853afc44d6dd681b67d9f250385c82c291215115d92d1fa",
+    "stream-control-registration.json": "a613b241774ad93aa798c4ce3c886cdcfc3dc742f156c96916724de38345383f",
+    "stream-control-result.json": "847640ca006173e830b3bba4ad034596dc56eb670cb018265b73857c4a8549d2",
+    "offline-source-control-result.json": "ebe53f8cf454ae3614ef4aa1bbaea6ae4b12ee05b4fb8ca2536a4f862a23ca4a",
+    "outer-terminal-closure-v1.json": "0b23454d5daf360aa46e4dc47bfc6d8920cdbd8c709265566d5338ffd29a6089"
+  },
+  "claim_limits": [
+    "One owned actual flat Numbers fixture and one normal public import.",
+    "No edited B replacement, TrashA comparison, final-confirmation-loss/restart of flat checkpointv2, or recoverable removal exercised in this arm.",
+    "No broader editor/provider reliability or new release criterion closes.",
+    "Installed packaged14/7 daemon unchanged; candidate21/8 delivery stays HOLD.",
+    "Historical failed bec9 arm remains failed; this is a separately registered fresh run."
+  ],
+  "publication_check": {
+    "status": "passed",
+    "command": "bash scripts/check.sh",
+    "fast": false,
+    "exit_code": 0,
+    "elapsed_seconds": 526.2336838080082,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 546,
+    "log_sha256": "fd7abea20d1a3c831d8523934fca7d5da3625fd60aea0ed7bb2a6b7bac94547d",
+    "display_scenarios_not_repeated": true
+  }
+}

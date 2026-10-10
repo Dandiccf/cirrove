@@ -1,0 +1,106 @@
+{
+  "Cargo_target": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/attached-preflight-fullcheck-v1",
+  "TMPDIR_topology": {
+    "filesystems": [
+      {
+        "fstype": "ext4",
+        "source": "/dev/nvme1n1p1",
+        "target": "/home/dandiccf/Storage"
+      }
+    ]
+  },
+  "active": false,
+  "active_measurement": false,
+  "argv": [
+    "/usr/bin/bash",
+    "scripts/check.sh"
+  ],
+  "binary": {
+    "path": "/usr/bin/bash",
+    "sha256": "575e03ac834b739349a4484de481abcd06a6f7193cefc795260a32a1943f20a5",
+    "size": 1195144
+  },
+  "child_pid": 2323591,
+  "corrections": [
+    {
+      "detail": "The original complete scripts/check.sh closed EXIT0 after885.730764407s: all10sections,87Rustgroups,all46required historical names, kernel mounts, portable24 and ledger60/44 with3fulliCloudrowsopen. Independent25-check receipt joined; no repeated check or installed/provider gate claim.",
+      "previous_status": "closed_whole_project_check",
+      "scope": "actual_completed_fullcheck_consolidation"
+    }
+  ],
+  "cwd": "/home/dandiccf/Work/cirrove",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/run_root_fullcheck_once_v1.py",
+    "sha256": "70891119af27d30579e641ac9cc31a67e6f14b477ea441035f8824b66eab698d",
+    "size": 6705
+  },
+  "exact_checked_scripts": {
+    "install-preflight.py": {
+      "path": "/home/dandiccf/Work/cirrove/scripts/install-preflight.py",
+      "sha256": "f6422caec853f25d9bd47323d2e5e683b9983216fffa48729c1bbe057ad1076d",
+      "size": 28690
+    },
+    "test-package-switch-preflight.py": {
+      "path": "/home/dandiccf/Work/cirrove/scripts/test-package-switch-preflight.py",
+      "sha256": "b4a843be7693a7d78c4edec757b9fb319ff45c24fe098c23f33c64579f6ab64f",
+      "size": 34181
+    }
+  },
+  "expected_duration_seconds": 1800,
+  "fullcheck_pending": false,
+  "fullcheck_result": {
+    "all_original_handles_closed": true,
+    "elapsed_seconds": 885.7307644070243,
+    "exit_code": 0,
+    "fullcheck_not_fast": true,
+    "kernel_mounts_executed": true,
+    "required_names_passed": 46,
+    "rust_success_groups": 87,
+    "sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "signals": [],
+    "success": true,
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-fullcheck-execution-v1/terminal-v1.json",
+      "sha256": "c6d6b8786072df0fc095751ed6017af16e90982cef5efc6a4b48cadf27952329",
+      "size": 1693
+    }
+  },
+  "gate488_closed": false,
+  "gate489_closed": false,
+  "gate490_closed": false,
+  "historical_source_boundary": "This current Root check contains the two authorized installer script changes. Earlier compiled573 role/source maps retain their original provenance; no current candidate installation or newly built normal roles are claimed.",
+  "independent_actual_fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-fullcheck-execution-v1/audit-independent-fullcheck-terminal-v1.json",
+    "sha256": "068af5e2f9b6c23aff26db643560408ef29c08963083f3c2d1be5d2b0cbf767f",
+    "size": 10165
+  },
+  "installed_actions": 0,
+  "installed_delivery": false,
+  "monotonic_start": 509034.689643358,
+  "prediction": "All ten sections pass, including kernel mounts and the portable installer suite; no installed iCloud gate is closed by this synthetic check.",
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/attached-preflight-fullcheck-v1",
+  "question": "Does the complete project check pass after the red-before-green attached-unit-root correction?",
+  "real_provider_tests": false,
+  "status": "closed_whole_project_check_independently_audited",
+  "success": true,
+  "target_owner_worktree": "/home/dandiccf/Work/cirrove",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/install-preflight-attached-unitpath-regression-20261008-private-v1/root-fullcheck-execution-v1/terminal-v1.json",
+    "sha256": "c6d6b8786072df0fc095751ed6017af16e90982cef5efc6a4b48cadf27952329",
+    "size": 1693
+  },
+  "version": 1,
+  "wall_start": 1791484407.567387
+}

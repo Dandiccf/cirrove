@@ -264,9 +264,17 @@ fn version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema()
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        14
+        21
     );
-    db.execute_batch("PRAGMA user_version=15;").unwrap();
+    let future_schema = u32::try_from(
+        cirrove_service::storage_format_attestation()["journal_schema"]
+            .as_u64()
+            .unwrap(),
+    )
+    .unwrap()
+        + 1;
+    db.pragma_update(None, "user_version", future_schema)
+        .unwrap();
     drop(db);
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 1024),
@@ -276,7 +284,7 @@ fn version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema()
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        15
+        i64::from(future_schema)
     );
 }
 

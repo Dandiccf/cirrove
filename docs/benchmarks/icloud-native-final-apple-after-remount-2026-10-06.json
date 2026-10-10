@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "run": "a6431dd4-1a45-4539-92fb-bcb0804ff679",
+  "status": "closed_success_exact_B_values_formula_retained_after_reload",
+  "question": "After strict normal read-only B remount has closed, does the exact fresh replacement B open in Apple Numbers, show A2=17 B2=3 C2=20 and SUM(A2:B2), and retain these after one reload without edits or repair?",
+  "prediction": "The same edited values and formula remain visible on the exact fresh owned document after reload.",
+  "arms": [
+    "One owned Apple Numbers open and one reload after completed a785 read-only proof; no automatic replay"
+  ],
+  "endpoint": [
+    "Exact new owned document identity route and displayed name verified",
+    "17/3/20 and SUM(A2:B2) observed, retained after one reload",
+    "No cell edits or repair acceptance; own test tabs closed before original deadline"
+  ],
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "started_unix": 1791297718.5400143,
+  "deadline_unix": 1791298318.5400143,
+  "started_monotonic": 322345.663093638,
+  "deadline_monotonic": 322945.663093638,
+  "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+  "cell_edits_allowed": 0,
+  "reloads_allowed": 1,
+  "automatic_retry": false,
+  "installed_actions": false,
+  "document": "Cirrove-Numbers-Parent-a6431dd4-1a45-4539-92fb-bcb0804ff679.numbers",
+  "exact_item": "FILE::com.apple.CloudDocs::A17A25DE-125E-4967-AC11-B55AC23182D7",
+  "identity_navigation": "one observed docws route pattern with exact receipt UUID, followed by visible page verification; if unverified, use Numbers UI once or stop",
+  "strict_normal_ro_proof": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/ro-remount-proof.json",
+    "size": 4710,
+    "sha256": "7a36d00db649927e87ed88546bf70d31fb0574533a39470b3dbde8c8f5a2526a"
+  },
+  "strict_normal_ro_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/independent-terminal-audit-v1.json",
+    "size": 10740,
+    "sha256": "3ebd247fd21dd751c0a820ecaf678ad858043137a72e5117adedfefbeba0b05a"
+  },
+  "native_postflight": {
+    "path": "/var/tmp/cirrove-native-final-a6431dd4-1a45-4539-92fb-bcb0804ff679/native-final-postflight-verified.json",
+    "size": 3796,
+    "sha256": "e2b6fa9a18f417c8e21b840b51acc20d5dc028b3670c1de267d30d40b6588bbd"
+  },
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "limits": [
+    "Application opening can change provider serialization; no post-Apple byte or semantic identity assertion without a separate registered arm.",
+    "No native Linux editor-save or broad format acceptance claim."
+  ],
+  "actual_result": {
+    "version": 1,
+    "run": "a6431dd4-1a45-4539-92fb-bcb0804ff679",
+    "success": true,
+    "elapsed_seconds": 170.7350218296051,
+    "closed_unix": 1791297889.275036,
+    "closed_monotonic": 322516.398115578,
+    "original_window": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/browser-b-after-remount-registration-v1.json",
+      "size": 2787,
+      "sha256": "2a05cbf793da5e558d582311cc660592164fdd5444b600e5f64f3b38581737f8"
+    },
+    "witness": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/browser-b-ro-witness-v1.json",
+      "size": 636,
+      "sha256": "724929e1913cbd1a0ed9794037dce9ddf84e730d8a5c1b98d3181d006bd728fd"
+    },
+    "screenshots": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/numbers-b-ro-before-reload-v1.png",
+        "size": 102767,
+        "sha256": "56516f4102e68d11f50ac685a0ed9be5a79ef2756aaa3a6e7c004472408c67cd"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/numbers-b-ro-after-reload-v1.png",
+        "size": 102767,
+        "sha256": "56516f4102e68d11f50ac685a0ed9be5a79ef2756aaa3a6e7c004472408c67cd"
+      }
+    ],
+    "cell_edits": 0,
+    "reloads": 1,
+    "repair_dialog_observed": false,
+    "exact_item_identity_route_verified": true,
+    "values": [
+      17,
+      3,
+      20
+    ],
+    "formula_observed": "SUM(A2:B2)",
+    "test_tabs_closed": 1,
+    "remaining_owned_tabs": 0,
+    "closure_before_original_deadline": true,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "post_Apple_archive_identity_asserted": false,
+    "full_integration_accepted": false,
+    "remaining_release_gates": 5
+  },
+  "result_pin": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/browser-b-ro-result-v1.json",
+    "size": 1976,
+    "sha256": "63d63c82b2239153c507ac8ca76f15a8586f778681bfaad3f7f06d23f4575645"
+  },
+  "fresh_installed_snapshot_after": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/installed-after-apple-v1.json",
+    "size": 4080,
+    "sha256": "3899af6cb8c282c3fb36b36fc16715201cb0b442894b402b2acba2de7a9c4bf1",
+    "packaged_files": 19,
+    "unchanged": true,
+    "unit_and_daemon_identity_unchanged": true
+  },
+  "local_snapshot_wrapper_initial_refusal": {
+    "exit_code": 1,
+    "reason": "Missing local phase argument, before snapshot reads; corrected caller performed the snapshot.",
+    "installed_actions": false,
+    "provider_calls": 0
+  }
+}

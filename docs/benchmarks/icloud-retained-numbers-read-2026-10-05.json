@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "scoped-live-read-and-remount-passed-closure-audited",
+  "question": "Can a fresh read-only observation capture the retained Numbers document after the confirmed browser save, with exact account/collection/item identity and revision fences, then verify its content through separate read paths?",
+  "prediction": "The current item should have a revision different from the imported original. A direct PACKAGE read and an independent reader should agree on semantic version 2; a fresh normal read-only mount should expose the same content tree. Any identity, revision, representation or local admission mismatch must refuse and preserve partial evidence.",
+  "subject_run": "85afb1fd-d236-41a9-b9bf-fc620512fc3b",
+  "source_base": "b5866b77a1f498a186a7f64712fa19ee64576152",
+  "arms": [
+    {
+      "name": "feature-build-and-admission",
+      "endpoint": "Compile the feature-only retained-read CLI. Exercise its actual admission with isolated synthetic settings/context and incorrect routes or expired deadlines, preserving inputs and refusing before provider dispatch."
+    },
+    {
+      "name": "existing-https-read-fences",
+      "endpoint": "Run the five owned_fixture_https tests. Happy DATA and PACKAGE use seven requests each; representation flip uses five, item revision race six, post-transfer parent change seven, and six pre-transfer parent faults one request each. These exercise the existing library reader, not the new CLI/keyring end to end."
+    },
+    {
+      "name": "new-read-only-current-reference",
+      "endpoint": "Use a fresh observation UUID, private on-disk root and same-account opaque session copy. Record one durable attempt before network access; capture unchanged raw current PACKAGE bytes, typed metadata and semantic v2. Stop on ambiguity; do not resume the closed browser controller."
+    },
+    {
+      "name": "independent-read-and-normal-remount",
+      "endpoint": "Compare an independent revision-fenced read and a guarded fresh normal read-only FUSE capture with the current reference. Record exact process ownership, finite deadline, mount closure and installed baseline preservation."
+    },
+    {
+      "name": "private-supervisor-decision-controls",
+      "endpoint": "Before any live observation, run the exact active 0500 read-only mount admission control against unchanged private runner V2: predict one desired assertion failure, zero API/setup errors. Run the same control and all eleven controls against reviewed V3: predict acceptance and eleven passing mocked controls. Also cover wrong mount identity, unknown owner, expired window, startup socket, distinct closure outputs, child retention after output publication failure and unchanged-A refusal. These are decisions tested through actual runner functions with mocked primitives, not real process/mount/cloud evidence.",
+      "runner_v2_sha256": "31ce1f9befb3fae31a9155028ed086beeef85a3e9e5156282863e1ad7cbdfc97",
+      "runner_v3_sha256": "cb223a0d081335d98bfb1a834692a6be3c9592f282a9d5de4b930d001b562a1f",
+      "controls_sha256": "d8ee0dcd6240f18d85d96cdb35cdbfd251d14455b2d6e75dc35f246203c5d25d"
+    }
+  ],
+  "execution_policy": {
+    "root_execution_lanes": 1,
+    "cargo_target_directory": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "temporary_filesystem_required": "disk-backed; not tmpfs",
+    "live_observation_maximum_seconds": 1800,
+    "provider_mutations": 0,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "full_check_before_commit": "scripts/check.sh"
+  },
+  "limits": [
+    "Current-provider readback is not a browser export and cannot independently decode the displayed cell values.",
+    "The previous browser export remains unresolved. The confirmed browser values 11/3/14 are separate UI evidence.",
+    "Matching read paths establish scoped content-tree consistency, not general iWork editor fidelity or complete iCloud acceptance.",
+    "All six full iCloud acceptance gates remain open. Installed Canary state remains on hold.",
+    "The direct, generic and normal FUSE reads share Cirrove implementation. They are independent acquisitions and paths, not independent provider implementations or independent cell decoding."
+  ],
+  "actual_outcome": {
+    "scope": "Local controls and a new bounded real-account read-only observation. Browser native export and independent cell decoding remain unproved.",
+    "phases": {
+      "root-retained-numbers-feature-build-v1": {
+        "exit_code": 101,
+        "duration_seconds": 5.963770728005329,
+        "sources_unchanged": true,
+        "log_sha256": "c4492303af44288496f358647465c952031489b17c0ccaddeaf1da60139473f1",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-feature-build-v2": {
+        "exit_code": 0,
+        "duration_seconds": 18.854862966982182,
+        "sources_unchanged": true,
+        "log_sha256": "b2cda4e5ad4aed00d0d634d23376b324b1aebbddae1a659da4c5bb692a934b49",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 501642880,
+            "sha256": "f12bfacdb0efa3992842fad141759562683270936955131d6150e1e303e3da69",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-generic-build-v1": {
+        "exit_code": 0,
+        "duration_seconds": 2.1123920629906934,
+        "sources_unchanged": true,
+        "log_sha256": "777ab23b34f1000805b65d0c1ee59c6205dd63e388d80b82467fea41796bc356",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirrove-icloud-mounted-write-probe",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+            "size": 498183184,
+            "sha256": "24d911fae41c6c763e595656cb0dbde54ca5ab9f0cd070a4e484b3402536c052",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-normal-build-v1": {
+        "exit_code": 0,
+        "duration_seconds": 7.693236924998928,
+        "sources_unchanged": true,
+        "log_sha256": "e7cf0bcfbfb3095175c0a236f4b5a2626dd061d7a3c028a644859882ea881f35",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirroved",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+            "size": 466043400,
+            "sha256": "8f059b3c76cce55677cc57880eca4b645ad95bbde245af481cb75588191e9641",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 465405688,
+            "sha256": "bd149bb604d704ef9e933897a2c1eca74d944d9b4a5d076283bb25cc4138a6ba",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-https-fences-v1": {
+        "exit_code": 0,
+        "duration_seconds": 17.218103459017584,
+        "sources_unchanged": true,
+        "log_sha256": "f2534481615444c7d1ca4e4347836bce6528f4b054b53f68231e3e24df800cbe",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-https-fences-v2": {
+        "exit_code": 0,
+        "duration_seconds": 0.4097917329927441,
+        "sources_unchanged": true,
+        "log_sha256": "1ef80563edc7ad87b4514d81e80011ff12a3f6b04a0cdb671422d4c14e5de075",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-admission-tests-v1": {
+        "exit_code": 0,
+        "duration_seconds": 31.412100643006852,
+        "sources_unchanged": true,
+        "log_sha256": "ea4cd673d193af6ead8e5222a24b4236ad68865da39095d6988dea47acce729e",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-full-check-v1": {
+        "exit_code": 0,
+        "duration_seconds": 612.4720305320225,
+        "sources_unchanged": true,
+        "log_sha256": "93ad89e9c1421a1ef861d4e096a9bf4bce6f04198061555a49c1b618afec43cb",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-runner-original-red-v1": {
+        "exit_code": 1,
+        "duration_seconds": 0.06956832998548634,
+        "sources_unchanged": true,
+        "log_sha256": "b8d8fadeb6d307b38fac7abad388d047b7bdf9b4366c5756f07361e682daf956",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-runner-eleven-controls-green-v1": {
+        "exit_code": 0,
+        "duration_seconds": 0.13292035198537633,
+        "sources_unchanged": true,
+        "log_sha256": "40fadb21d4f3e9be621d132e0a9f75bfbd0f3452895a6a28b4927f43a6ec67fa",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-feature-final-build-v1": {
+        "exit_code": 0,
+        "duration_seconds": 6.119568424997851,
+        "sources_unchanged": true,
+        "log_sha256": "089fa0a73d45bcb0b816f568fa6d5ff0a84c0f6a7bef77d2aa7d0bf50d850fca",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 501642880,
+            "sha256": "f12bfacdb0efa3992842fad141759562683270936955131d6150e1e303e3da69",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-generic-final-build-v1": {
+        "exit_code": 0,
+        "duration_seconds": 1.5369770060060546,
+        "sources_unchanged": true,
+        "log_sha256": "28afcd28917d9ea939a55b5bb05f6fab695af94cc704f5e195724f167e083eb7",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirrove-icloud-mounted-write-probe",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+            "size": 498183184,
+            "sha256": "24d911fae41c6c763e595656cb0dbde54ca5ab9f0cd070a4e484b3402536c052",
+            "fresh": false,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-normal-final-build-v1": {
+        "exit_code": 0,
+        "duration_seconds": 0.16120992400101386,
+        "sources_unchanged": true,
+        "log_sha256": "6443510b42b814a6ed14dd6462c8eb0002bd4f42f9350ea56874c00868f5b918",
+        "cloud_mutated": false,
+        "installed_actions": false,
+        "artifacts": [
+          {
+            "target": "cirroved",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+            "size": 466043400,
+            "sha256": "8f059b3c76cce55677cc57880eca4b645ad95bbde245af481cb75588191e9641",
+            "fresh": true,
+            "test": false
+          },
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 465405688,
+            "sha256": "bd149bb604d704ef9e933897a2c1eca74d944d9b4a5d076283bb25cc4138a6ba",
+            "fresh": true,
+            "test": false
+          }
+        ]
+      },
+      "root-retained-numbers-live-read-v1": {
+        "exit_code": 0,
+        "duration_seconds": 65.62313456198899,
+        "sources_unchanged": true,
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      "root-retained-numbers-final-evidence-full-check-v1": {
+        "exit_code": 0,
+        "duration_seconds": 535.731325531,
+        "sources_unchanged": true,
+        "log_sha256": "e21a7c813f1144ebff0fd9ca20bffc61e1391f3dc0a97d87ce16831a7463aed5",
+        "cloud_mutated": false,
+        "installed_actions": false
+      }
+    },
+    "admission_tests": {
+      "executed_tests": 2,
+      "route_arms": 6,
+      "expired_window_arms": 1,
+      "all_passed": true,
+      "attempt_and_session_boundary_not_crossed": true,
+      "fixture_bytes_and_modes_preserved": true
+    },
+    "https_tests": {
+      "executed_tests": 5,
+      "all_passed": true,
+      "new_facade_keyring_cli_end_to_end_claimed": false
+    },
+    "corrections": [
+      "The initial feature build failed because the Context struct shadowed the imported anyhow Context trait; an explicit trait import fixed compilation. This was an authoring failure, not a provider failure.",
+      "The initial HTTPS filter omitted the write-probe feature and executed zero tests. It is not test evidence; the corrected command executed five passing tests.",
+      "The initial admission run passed with three redundant-import warnings. Those imports were removed before the complete check, which passed with unchanged source inputs.",
+      "Private unexecuted runner drafts had startup/active-mount, repeated exclusive output and child-tracking errors. These were detected before live dispatch and corrected in a separately reviewed draft; the revised runner subsequently passed eleven controls and the separate live observation.",
+      "The independent closure audit initially tried to JSON-parse the start-ro diagnostic output because its filename ended in .json. Inspection stopped before publishing an audit; the diagnostic file was subsequently treated as opaque hash-only evidence. No runner, provider or fixture operation was replayed."
+    ],
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "browser_native_export_obtained": false,
+    "full_icloud_gates_closed": false,
+    "runner_controls": {
+      "original_v2_test_count": 1,
+      "original_v2_desired_assertion_failures": 1,
+      "original_v2_api_or_setup_errors": 0,
+      "v3_test_count": 11,
+      "v3_passed": 11,
+      "scope": "Actual private runner decisions with mocked filesystem/process primitives; no real lifecycle proof from these controls."
+    },
+    "live_observation": {
+      "run": "ddffa041-7b1b-4173-9f8d-8cb93b1f1010",
+      "subject_run": "85afb1fd-d236-41a9-b9bf-fc620512fc3b",
+      "source_head": "cbbd51217a258f03a3f4134439705e1ea783b2d2",
+      "maximum_seconds": 1800,
+      "actual_outer_duration_seconds": 65.62313456198899,
+      "account_scope_preserved": true,
+      "collection": "drive",
+      "reference_origin": "current-provider-read",
+      "direct_provider_reference_passed": true,
+      "independent_generic_read_passed": true,
+      "distinct_normal_readonly_mount_capture_passed": true,
+      "offline_capture_scan_passed": true,
+      "current_semantic_v2": {
+        "entries": 10,
+        "expanded_bytes": 138899,
+        "files": 7,
+        "sha256": "7ff32522e4eadd67b22c69a0a761c1fe709358259294837ef37b2f51650cb043",
+        "version": 2
+      },
+      "original_semantic_v2": {
+        "version": 2,
+        "sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+        "entries": 46,
+        "files": 42,
+        "expanded_bytes": 133151
+      },
+      "current_content_tree_differs_from_original_a": true,
+      "direct_raw_archive": {
+        "size": 64903,
+        "sha256": "2b948470d8fa2e65a64f15a0e7be65c28dbd81ac10b89f7b785501eda3804b75"
+      },
+      "mounted_raw_archive": {
+        "size": 64903,
+        "sha256": "c5eff7e545353591ba3808cd9cd13c1732c46772eb0c16e9b6a47f6e60611074",
+        "root": "Cirrove-Numbers-Editor-85afb1fd-d236-41a9-b9bf-fc620512fc3b.numbers"
+      },
+      "direct_and_mount_raw_hashes_equal": false,
+      "semantic_comparison_required": true,
+      "browser_native_export_obtained": false,
+      "independently_decoded_cells": false,
+      "cloud_mutated": false,
+      "automatic_retry": false,
+      "installed_actions": false,
+      "all_owned_children_reaped_by_runner": true,
+      "mount_absent_at_root_terminal": true,
+      "socket_absent_at_root_terminal": true,
+      "independent_closure_audit": {
+        "sha256": "fc5f31584c2f465be5eabc962b26caf4574b9959523190cc9ff328c857d1a2e3",
+        "all_seven_unique_recorded_owners_absent": true,
+        "all_five_phase_children_exit_zero": true,
+        "mount_and_socket_absent": true,
+        "registered_inputs_and_sealed_session_unchanged": true,
+        "installed_service_and_nineteen_packaged_files_unchanged": true,
+        "no_home_shadow": true,
+        "original_closed_browser_arm_not_resumed": true
+      },
+      "evidence": {
+        "runtime_registration": {
+          "size": 4837,
+          "sha256": "0a8e9de70fd220868db8958c7334193cbc8016d8f5aed974fe56a79e4a0f8bff"
+        },
+        "current_read": {
+          "size": 2315,
+          "sha256": "ae85890cb011eaa8e2d0e23b1c1b84cd23904e3986960454dee205ff7fbf1fdb"
+        },
+        "generic_read": {
+          "size": 719,
+          "sha256": "55a92c73e7dac31780da36532ea6910641873c45f55c157628cff3eda65d48de"
+        },
+        "mounted_capture": {
+          "size": 1756,
+          "sha256": "32b9db0530806f7de5eb4e88e3d09dfbf84f089ad6206fead0346105a2124673"
+        },
+        "offline_scan": {
+          "size": 849,
+          "sha256": "e8f0561df2a1427bbf644a1c40fc55f48e9f5d2ac0747833abd0d4e2560b968d"
+        },
+        "mount_closure": {
+          "size": 145,
+          "sha256": "8d4528f3730f2e3bc957343e03f8beb662b75572eab84dda7e591482ceaad272"
+        },
+        "final_closure": {
+          "size": 145,
+          "sha256": "8d4528f3730f2e3bc957343e03f8beb662b75572eab84dda7e591482ceaad272"
+        },
+        "result": {
+          "size": 553,
+          "sha256": "2c687e375147c52ef03365f88370e93019103bc7ad1109cbbfe6920ad1cd1ca3"
+        },
+        "independent_closure_audit": {
+          "size": 44712,
+          "sha256": "fc5f31584c2f465be5eabc962b26caf4574b9959523190cc9ff328c857d1a2e3"
+        }
+      }
+    }
+  }
+}

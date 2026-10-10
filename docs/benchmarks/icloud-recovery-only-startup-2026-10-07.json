@@ -1,0 +1,36 @@
+{
+  "active_measurement": false,
+  "assessment": {
+    "CLI_executed": 1,
+    "all_runtime_sources_restored": true,
+    "manager_executed": 1,
+    "omission_RED_GREEN_pairs": 2,
+    "regression_executed": [
+      16,
+      5,
+      3
+    ],
+    "terminal_sha256": "f9623612a69e1fa0dad97c6727c94843973802f09a015f49e54feaeb159282f4"
+  },
+  "complete_check": {
+    "benchmark": "icloud-impress-recovery-complete-check-2026-10-07.json",
+    "completion_field_appended_after_check": true,
+    "runtime_sources_final_count": 569,
+    "sections": 10,
+    "terminal_sha256": "ace43758930d342406cde33e9790f3dbcca0e24dc038122fc6e8801ec9599194"
+  },
+  "date": "2026-10-07",
+  "endpoint": "9 sequential arms, original owner closure and full569 source map restored; synthetic DELETE-mode journal fixture with actual completed handoff and due publication. Full check required separately.",
+  "full_488_closed": false,
+  "installed_actions": false,
+  "limits": [
+    "Synthetic fixture, not real credentials/provider or installed delivery.",
+    "Fixture DELETE journaling establishes exact all-file parity; production WAL coordination and migration acceptance remain open.",
+    "Mode still permits metadata provider reads/index/cache work; saved grants remain unchanged and normal restart without the flag can start writers."
+  ],
+  "prediction": "Actual Manager1 and CLI1 pass; existing recovery16/status5/reauth3 pass; two omitted guards each fail their exact registered assertion and restored1 passes.",
+  "provider_actions": false,
+  "question": "Can an explicit run-wide recovery-only daemon preserve a saved writable account and its exact sealed/dirty recovery bytes without writers, journal migration or pending ordinary metadata publication repair, including remount retries and account re-enabling?",
+  "status": "focused_controls_and_complete_check_passed",
+  "version": 1
+}

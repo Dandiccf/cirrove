@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_uncertain_folder_creation_before_import_or_trash",
+  "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+  "question": "Can one owned genuine flat Numbers document undergo one standalone public recoverable native Trash, actual process loss after its genuine Removed receipt before worker acknowledgement, same-operation inspection-only recovery, independent complete Trash-content verification, and historical observation plus current path absence on a fresh normal read-only mount?",
+  "prediction": "A fresh public import publishes its exact PACKAGE identity. The one Trash request returns Removed; the guarded helper exits86 before acknowledgement. Recovery inspects that same operation once without mutation replay, independently verifies complete original content in Trash, then the public read-only list/watch and fresh mount agree with retained completion and current absence.",
+  "arms": [
+    "ONE fresh isolated real-account arm, finite original600 seconds including45-second cleanup reserve; no automatic retry"
+  ],
+  "endpoint": [
+    "original public import completion and raw journal/receipt binding",
+    "fresh typed parent/document metadata and complete semantic V2 preflight",
+    "one actual public Trash admission-job/operation bound to loss marker and raw journal",
+    "original guarded child exit86 after genuine receipt, encrypted MayHaveSent checkpoint and incomplete raw queue",
+    "same UUID inspection-only recovery, exactly one reconciliation and zero recovery mutations/preparations/uploads",
+    "independent complete semantic V2 original content in recoverable Trash and original-ID absence before/after",
+    "normal read-only daemon public historical list/watch plus selected mounted path absence",
+    "all original handles reaped/absent; exact owned mount/socket absent; source/executable and installed baselines unchanged"
+  ],
+  "authorization": "Standing explicit user authorization for owned iCloud writes/tests and latest repeat permission. Fresh nonce; closed529 is never reused. Only newly created owned test document reaches Trash.",
+  "root": "/var/tmp/cirrove-native-trash-175a90ac-a82d-40d4-9214-518101308d1b",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/nt-175a90ac",
+  "owned_folder": "Cirrove-Native-Trash-175a90ac-a82d-40d4-9214-518101308d1b",
+  "owned_document": "Cirrove-Numbers-Trash-175a90ac-a82d-40d4-9214-518101308d1b.numbers",
+  "mutation_limit": {
+    "new_owned_folder_creates": 1,
+    "public_flat_imports": 1,
+    "public_native_trash_submissions": 1,
+    "recovery_mutation_replays": 0,
+    "permanent_deletion": 0
+  },
+  "maximum_seconds": 600,
+  "closure_grace_seconds": 45,
+  "cleanup_reserve_inside_original_window": true,
+  "single_original_clock": true,
+  "automatic_retry": false,
+  "on_unclear_result": "Stop; preserve evidence and owned data; no automatic repeat, clock renewal or implicit requeue.",
+  "active_measurement": false,
+  "live_window_started": true,
+  "real_account_dispatched": true,
+  "installed_actions": false,
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "source": {
+    "path": "/var/tmp/cirrove-numbers-browser-editor-556f8420-3a42-4be4-a3a9-9edbb4122d22/genuine-edited-b-export.numbers",
+    "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+    "size": 139044
+  },
+  "source_semantic": {
+    "entries": 46,
+    "expanded_bytes": 133252,
+    "files": 42,
+    "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+    "version": 2
+  },
+  "source_proof": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/genuine-b-normalized-witness-v1.json",
+    "sha256": "5010f5ca48acb5b57710d7087a75b3bbe763478b31107ce7eaad92e4ab6d0070",
+    "size": 3789
+  },
+  "roles_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles1/ready-binding-v1.json",
+    "size": 77792,
+    "sha256": "05f5fe4e57c2b23ff90b27deeedd985e74e5a304ae795033e26d64d8aaa3f5cf"
+  },
+  "complete_check": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full4-result-v1.json",
+    "size": 346,
+    "sha256": "725ea1a6e12298920c2755da886052954d68c1b5524bc690ffe1c61a64dce560"
+  },
+  "compiled_build_head": "670cb883ace7f0eb50c4554d141b97282a091e33",
+  "current_runtime_source_count": 561,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/controller_native_trash_v8.py",
+    "size": 41382,
+    "sha256": "b6ef8de91ceea534c860168d69decb94ea104897d0f14ce66b878b2a0700edf5"
+  },
+  "preparer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/prepare_assets_v3.py",
+    "size": 15889,
+    "sha256": "0471473a661109aa8a534713572f2d1c2766a9dd32ebf5a1775d72d8cbe50d97"
+  },
+  "outer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root_outer_v3.py",
+    "size": 13316,
+    "sha256": "cb99d4c667444867c64cfaa8b066a6b56adecae6060e294beac4a385233b49d2"
+  },
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/installed-fresh-before-v1.json",
+    "size": 4080,
+    "sha256": "201452819e8338f5363b8a4e514f0154195894edc42d476114db5397b1f521bf"
+  },
+  "prerequisites": [
+    "Full complete check passed and all561 current runtime/source pins and allthree compiled-role hashes match",
+    "Actual V8 desired predecessor early-import RED, successor same control and all5 GREEN; V7 diagnostics3 GREEN; selected V8 readiness over actual closed f6 RO SQL true with unchanged DB/WAL/SHM; local startup/lifecycle controls retain earlier results.",
+    "Independent V6 lifecycle and exact freshnonce transform reviews clear",
+    "Fresh opaque same-AAD Cirrove session only; no old journal/cache/attempt copied",
+    "Offline prepare/assemble and check-local succeed before the one original clock",
+    "Separate docs/benchmarks window artifact records active measurement before live launch"
+  ],
+  "limits": [
+    "One bounded owned functional arm is not sustained provider reliability or full-iCloud acceptance",
+    "Local source-selected Python controls are not actual daemon/mount shutdown proof",
+    "Historical list/watch reports retained completion, not refreshed present cloud state after external restore",
+    "Complete semantic V2 equality does not assert identical raw Trash ZIP bytes",
+    "No Apple application/browser interaction or new editor save in this arm",
+    "No install/restart/schema migration; packaged journal14/metadata7 versus candidate21/8 remains HOLD"
+  ],
+  "predecessor_failure": "Closed f6: one own folder confirmed, uploads0/Trash0; exact guardcause unretained. V8 repairs a source-proven Applied-vs-settled parent readiness gap, not a proven f6 cause. No old operation reused.",
+  "fullcheck_latest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full5-result-v1.json",
+    "size": 346,
+    "sha256": "0c3e344194a1b8a4937462aac331f672f73c9242f592b54fa272fb49e868ff8c"
+  },
+  "documentation_head": "6cee221412172f4134fea212bc99f587220e4106",
+  "readiness_fence": "Applied own creation/completequeue plus exact namespace operation-owner/receipt/full Node binding, follows_remote=true/latest=None before one public import; snapshot closed before awaits; same original600/45.",
+  "diagnostics": "At most2 safe jobguard snapshots with fixedenum/booleans/fixedissueclass/canonicalUUID; no rawissue/name/status/providerbodies.",
+  "success": false,
+  "elapsed_seconds": 28.401790537987836,
+  "cloud_folder_outcome": "uncertain",
+  "import_started": false,
+  "native_trash_started": false,
+  "terminal_audit": {
+    "run": "175a90ac-a82d-40d4-9214-518101308d1b",
+    "recorded_at": 1791308333.9010656,
+    "success": false,
+    "outer_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/root-outer-result.json",
+      "size": 3736,
+      "sha256": "84736470319adb29161c3c48330fa0900359403f7be62acdf6d60c3bfa1a41de"
+    },
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/controller-result.json",
+      "size": 1078,
+      "sha256": "745b543e2bb8513f537870be09f5a63e6928bd90c9a52702c0381c83d88b8bc8"
+    },
+    "raw_frontier": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-175a90ac-a82d-40d4-9214-518101308d1b-private-v1/raw-folder-frontier-v1.json",
+      "size": 978,
+      "sha256": "e86ef5d184639dcc110efcf6936d6b3abe5ef6f59032cd8a2ae180c1d05df249"
+    },
+    "original_pids_absent": [
+      2622103,
+      2622108,
+      2622128,
+      2622134
+    ],
+    "original_handles_reaped": true,
+    "mount_socket_absent": true,
+    "source_count": 561,
+    "current_sources_and_compiled_fresh_role_hashes_match": true,
+    "installed19_unit_pid_birth_unchanged": true,
+    "operation": "875969b5-b87d-4bbb-8049-7f240e53de76",
+    "state": "verify_required",
+    "attempt_present": false,
+    "receipt_recorded": false,
+    "queue_complete": false,
+    "raw_uploads": 0,
+    "raw_mutations": 1,
+    "local_mkdir_acknowledged": true,
+    "cloud_folder_outcome": "uncertain",
+    "confirmed_cloud_folder_receipt": false,
+    "import_started": false,
+    "native_trash_started": false,
+    "failure_stage": "folder-creation-state-guard",
+    "cause": "unproved; VerifyRequired alone does not prove HTTP error or cloud presence/absence",
+    "provider_reads_counted": false,
+    "requeue_or_retry": false,
+    "closed_arm_replayed": false,
+    "installed_actions": false,
+    "full_integration_accepted": false
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pdro-e751e06a",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pdro-e751e06a",
+  "active": false,
+  "active_measurement": false,
+  "assessment": {
+    "Apple_reopen_verified": false,
+    "automatic_retries": 0,
+    "donor_and_stopped_writer_state_inventories_unchanged": true,
+    "elapsed_seconds": 12.224487792002037,
+    "exact_full_scoped_Node": true,
+    "full487_closed": false,
+    "installed_artifacts_unchanged": 19,
+    "installed_unit_and_daemon_birth_unchanged": true,
+    "new_account_journal_absent": true,
+    "normal_READ_ONLY_mount": true,
+    "original_explicit_outer_owner_closed": 1,
+    "original_inner_owners_closed": 3,
+    "original_unified_launcher_exit": 0,
+    "original_unified_launcher_handle": 16053,
+    "permitted_omission": "Only the redundant content_version == same ETag alias; every other normalized Node field matches.",
+    "provider_mutations": false,
+    "raw_B_sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
+    "raw_B_size": 101769,
+    "recorded_content_version": null,
+    "separate_launcher_PID_snapshot": "Not captured because launch already completed; no reconstructed owner claimed.",
+    "sources_and_frozen_roles_unchanged": true
+  },
+  "automatic_retries": 0,
+  "cleanup_reserve_seconds": 45,
+  "current": {
+    "etag": "i22m::i22l",
+    "item": "FILE::com.apple.CloudDocs::2B50C8EB-CB06-4AF2-BB00-B579F5E11BE3",
+    "name": "Cirrove-Pages-Data-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a.pages",
+    "parent": "FOLDER::com.apple.CloudDocs::3C39D8D5-06D6-40E3-B71A-3CA44D723184",
+    "semantic": null,
+    "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
+    "size": 101769
+  },
+  "expected_duration_seconds": 600,
+  "full487_closed": false,
+  "helpers": {
+    "historical_lifecycle": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-real-cloud-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a-preparation-private-v1/controller_pages_data_v2.py",
+      "sha256": "eff91dee134dca41d1e4456df81178a6a697bd526f91607fd826bbe84217d75a",
+      "size": 37932
+    },
+    "launcher": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-readonly-remount-e751e06a-51e0-48be-b964-f510b3e78f1b-private-v1/launch_pages_data_ro_once_v1.py",
+      "sha256": "c523b9a1fec67e1c7d839d0f76280fd29682b5c18d73682f9db805c6cf268147",
+      "size": 7799
+    },
+    "supervisor": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-readonly-remount-e751e06a-51e0-48be-b964-f510b3e78f1b-private-v1/supervise_pages_data_ro_v2.py",
+      "sha256": "621d5da3ac19ef473b955deb70db378a6d8600aabc06ff3827568aefd2091333",
+      "size": 21406
+    }
+  },
+  "historical_build_provenance": "Frozen normal ELFs were built in W39 at19f604d plus formatter-final570 pending sources matching7230383. This arm checks current Root570; later uncompiled W39 Keynote edits do not alter that provenance.",
+  "independent_audit": {
+    "passed": 37,
+    "sha256": "4e1b48c20c948554e62cd1fa0909168c5eaffff40c3e76279e669dfa5fde88d0",
+    "total": 37
+  },
+  "installed_actions": false,
+  "normal_compiler_features": [],
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-readonly-remount-e751e06a-51e0-48be-b964-f510b3e78f1b-private-v1/observe-outer-owner.json",
+    "sha256": "bb18b140a387ce50fb3a1b0f6679d26ff3241a38c4198ebc07bc8438f027bccb",
+    "size": 945
+  },
+  "original_owners": "Root retains launcher original; launcher retains supervisor Popen/pidfd; supervisor retains normal daemon/CLI/raw-capture child handles and exact RO mount/socket; all must close before success.",
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-readonly-remount-e751e06a-51e0-48be-b964-f510b3e78f1b-private-v1/original-window.json",
+    "sha256": "448ccce1a5bb275c4d882d06f74457eb4bc2fccc85b3d6504c0211780b752132",
+    "size": 314
+  },
+  "pre_execution_correction": "V1 actual local prepare returned the expected Refusal before root/TMP creation. V2 corrected the proof-body-versus-pin comparison; actual prepare and check-local both exited0 with original owners closed, before any clock/provider call.",
+  "prediction": "Normal RO startup and a bounded cached path lookup retain the exact saved current B ID, parent, revision and DATA file shape; one descriptor-bound raw read matches B byte for byte. Any changed identity, PACKAGE/directory projection, timeout or uncertainty refuses without mutation or replay.",
+  "provider_http_count": "uninstrumented",
+  "question": "Does one fresh normal read-only iCloud mount expose the exact completed Pages DATA B identity and all101769 genuine raw bytes after the writer has stopped?",
+  "raw_B_capture_verified": true,
+  "read_only_mount_verified": true,
+  "release_hold_unchanged": true,
+  "run": "e751e06a-51e0-48be-b964-f510b3e78f1b",
+  "runtime_source_count": 570,
+  "scope": "Fresh derived own settings/sealed session only from closed805f; no old journal/cache. No cloud mutation, package import/replacement/removal, new Trash read, recovery worker, native Linux editor save, archive semantics or Apple reopening in this arm. Historical e5ed current DATA and Trash proofs remain separately bound.",
+  "source_checkout_head": "7230383fa745d315a7495d8540ad69f318cfbd31",
+  "status": "closed_success",
+  "subject_run": "e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a",
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-readonly-remount-e751e06a-51e0-48be-b964-f510b3e78f1b-private-v1/root-terminal-result.json",
+    "sha256": "091d495f1c95a86051b962fe1eb2ba875598513be2505b5ba499e8685a94dfa4",
+    "size": 346
+  },
+  "version": 1
+}

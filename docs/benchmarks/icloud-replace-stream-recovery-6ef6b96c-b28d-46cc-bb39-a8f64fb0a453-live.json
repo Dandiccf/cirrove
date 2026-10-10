@@ -1,0 +1,46 @@
+{
+  "run": "6ef6b96c-b28d-46cc-bb39-a8f64fb0a453",
+  "commands": [
+    [
+      "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+      "--account-replace-stream-interrupt",
+      "6ef6b96c-b28d-46cc-bb39-a8f64fb0a453"
+    ],
+    [
+      "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+      "--account-replace-stream-recover",
+      "6ef6b96c-b28d-46cc-bb39-a8f64fb0a453"
+    ]
+  ],
+  "binary_sha256": "015e474240f7534b25bb054726bc12a98caf35ae74e6b3d59c8541d2c1d8bcb2",
+  "revision": "d2013e0be9fdc28c71fe30b2fe5ca620d76078b0",
+  "dirty": true,
+  "started_at": "2026-10-01T01:57:25.322142+00:00",
+  "expected_duration_seconds": 2400,
+  "TMPDIR": "/var/tmp/cirrove-replace-stream-recovery-h0889alm",
+  "SQLITE_TMPDIR": "/var/tmp/cirrove-replace-stream-recovery-h0889alm",
+  "filesystem": "btrfs",
+  "status": "finished",
+  "supervisor_pid": 4151770,
+  "installed_service_changed": false,
+  "mounted": false,
+  "arms": [
+    {
+      "command": [
+        "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+        "--account-replace-stream-interrupt",
+        "6ef6b96c-b28d-46cc-bb39-a8f64fb0a453"
+      ],
+      "started_at": "2026-10-01T01:57:25.322399+00:00",
+      "deadline_seconds": 1200,
+      "pid": 4151795,
+      "process_group": 4151795,
+      "status": "finished",
+      "exit_code": 1,
+      "finished_at": "2026-10-01T01:58:41.340058+00:00"
+    }
+  ],
+  "passed": false,
+  "elapsed_seconds": 76.018,
+  "finished_at": "2026-10-01T01:58:41.340340+00:00"
+}

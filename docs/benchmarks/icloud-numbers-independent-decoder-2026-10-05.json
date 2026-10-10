@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "partial-cached-cell-values-decoded-formula-unavailable",
+  "run": "61fcc80a-5634-4ab6-85e2-6299ba543a5a",
+  "question": "Can the installed independent libetonyek Numbers importer decode the retained current-provider B into exact A2/B2/C2 values and its SUM formula? Does the provider document-name wrapper affect support?",
+  "prediction": "The wrapped provider layout may be unsupported by libetonyek; a separately derived flat layout retaining every member byte should decode values 11, 3 and 14 and a SUM formula. Both layouts should have the same production semantic-v2 identity. Refusal or absent formula will remain a partial result.",
+  "arms": [
+    "One production offline scan and one numbers2raw invocation on an unchanged copy of the captured wrapped provider B.",
+    "One production offline scan and one numbers2raw invocation on a separate flat diagnostic copy. Remove only the exact outer document-name wrapper, preserve every member path/type/byte and keep nested Index.zip opaque."
+  ],
+  "endpoint": "Actual decoder output must establish exact sheet/table/row/column positions, values 11/3/14 and the decoded SUM expression; cached values alone cannot prove formula identity. Preserve private callback output and publish only extracted own-test fields.",
+  "source": {
+    "observation_run": "ddffa041-7b1b-4173-9f8d-8cb93b1f1010",
+    "raw_size": 64903,
+    "raw_sha256": "2b948470d8fa2e65a64f15a0e7be65c28dbd81ac10b89f7b785501eda3804b75",
+    "semantic_v2_sha256": "7ff32522e4eadd67b22c69a0a761c1fe709358259294837ef37b2f51650cb043"
+  },
+  "decoder": {
+    "path": "/usr/bin/numbers2raw",
+    "package": "libetonyek 0.1.13",
+    "sha256": "fc4279c3c35401057acb2cc25fc99677abe6a2edb6cf00e6c2acdb1c5ca2fbd7"
+  },
+  "execution_policy": {
+    "one_root_lane": true,
+    "private_tmp_filesystem": "ext4",
+    "per_child_timeout_seconds": 30,
+    "provider_calls": 0,
+    "provider_mutations": 0,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "old_controller_resumed": false,
+    "per_output_stream_limit_bytes": 2097152,
+    "per_child_combined_output_limit_bytes": 4194304
+  },
+  "limits": [
+    "The derived flat archive is a diagnostic artifact, not provider raw bytes or a browser export.",
+    "Independent decoding is not visible Linux editor opening/saving, application export fidelity or full native-format acceptance.",
+    "No full iCloud gate is closed by this experiment alone."
+  ],
+  "actual_outcome": {
+    "root_phase": {
+      "exit_code": 0,
+      "duration_seconds": 0.49463778000790626,
+      "sources_unchanged": true,
+      "log_sha256": "9645855ded865e7500ffe093f0c890caec85d37b7283fc6bddbb0e427ea80409",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "phases": {
+      "scan-a": {
+        "exit_code": 0,
+        "duration_seconds": 0.033497255004476756,
+        "stdout_size": 833,
+        "stdout_sha256": "54710df7dc35338d103264af713b521c33d9e7a2e84d8739fdd1f67d02981647",
+        "stderr_size": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reaped": true
+      },
+      "scan-b": {
+        "exit_code": 0,
+        "duration_seconds": 0.033311093982774764,
+        "stdout_size": 768,
+        "stdout_sha256": "497e120b2c05fe7978820453d6873071cd20fdaf5c2c70b4f7314555930b26c8",
+        "stderr_size": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reaped": true
+      },
+      "decode-a": {
+        "exit_code": 0,
+        "duration_seconds": 0.009012343012727797,
+        "stdout_size": 19696,
+        "stdout_sha256": "9864dae02d54b670698ed0cdd646ac64861a77e062c1a40cec6958ae2db41a3e",
+        "stderr_size": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reaped": true
+      },
+      "decode-b": {
+        "exit_code": 0,
+        "duration_seconds": 0.009132779989158735,
+        "stdout_size": 19696,
+        "stdout_sha256": "9864dae02d54b670698ed0cdd646ac64861a77e062c1a40cec6958ae2db41a3e",
+        "stderr_size": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reaped": true
+      }
+    },
+    "independent_importer": "libetonyek via numbers2raw",
+    "sheet_count": 1,
+    "sheet": "Sheet 1_Table 1",
+    "cells": [
+      {
+        "address": "A2",
+        "row_zero_based": 1,
+        "column_zero_based": 0,
+        "value": 11,
+        "value_type": "double"
+      },
+      {
+        "address": "B2",
+        "row_zero_based": 1,
+        "column_zero_based": 1,
+        "value": 3,
+        "value_type": "double"
+      },
+      {
+        "address": "C2",
+        "row_zero_based": 1,
+        "column_zero_based": 2,
+        "value": 14,
+        "value_type": "double"
+      }
+    ],
+    "both_layouts_decoded_successfully": true,
+    "both_callback_outputs_identical": true,
+    "callback_output_size": 19696,
+    "callback_output_sha256": "9864dae02d54b670698ed0cdd646ac64861a77e062c1a40cec6958ae2db41a3e",
+    "formula_property_occurrences": 0,
+    "sum_token_occurrences": 0,
+    "independent_cell_values_verified": true,
+    "independent_formula_verified": false,
+    "full_registered_endpoint_passed": false,
+    "original_source_preserved": true,
+    "derived_member_mapping_verified": true,
+    "both_production_semantic_scans_equal_expected": true,
+    "children": [
+      {
+        "phase": "scan-a",
+        "recorded_identity_absent": true
+      },
+      {
+        "phase": "scan-b",
+        "recorded_identity_absent": true
+      },
+      {
+        "phase": "decode-a",
+        "recorded_identity_absent": true
+      },
+      {
+        "phase": "decode-b",
+        "recorded_identity_absent": true
+      }
+    ],
+    "provider_calls": 0,
+    "provider_mutations": 0,
+    "installed_actions": false,
+    "automatic_retry": false,
+    "browser_export_verified": false,
+    "visible_linux_editor_verified": false,
+    "full_icloud_gates_closed": false,
+    "interpretation": "The unchanged wrapped archive is readable by this installed importer. Its callback output contains the expected cached numeric values but exposes no formula property or SUM token for this document. Browser formula evidence remains separate; no independent formula or local save fidelity is inferred.",
+    "pre_dispatch_correction": "The output bound was clarified as 2 MiB per stdout/stderr stream, 4 MiB combined per child; the script did not change.",
+    "all_six_unique_recorded_process_identities_absent": true,
+    "root_terminal_owner_audit_sha256": "52d661ba2900dd16f9f6fc63131afa474048fd20502493e695ea87ba1e75a009",
+    "independent_extraction_audit": {
+      "sha256": "5a6a87932b8ad6f2109cd3827bd99270dce12cc5e4f9050297068d6677de5032",
+      "one_balanced_same_sheet": true,
+      "exact_coordinates_and_numeric_values_verified": true,
+      "formula_not_inferred": true,
+      "inspection_correction": "The initial read-only callback inspection matched closeSheetRow as closeSheet by prefix. It was corrected to exact closeSheet callbacks before the final balanced-scope assertions. No decoder or provider operation was replayed."
+    }
+  }
+}

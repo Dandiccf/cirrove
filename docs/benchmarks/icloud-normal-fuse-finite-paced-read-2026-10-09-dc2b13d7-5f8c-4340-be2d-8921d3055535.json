@@ -1,0 +1,270 @@
+{
+  "Root_HEAD": "934dd682f4127a742b432e0d99abcfb6b3a697b3",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "actual_summary": {
+    "all_original_handles_closed": true,
+    "cached_current_before_tuple": true,
+    "content_digest_validated": false,
+    "daemon_signal": "owned TERM after failed read",
+    "delivered_kernel_bytes": 0,
+    "diagnostic_stderr": {
+      "bytes_drained": 62,
+      "consumer_closed": true,
+      "discarded_lines": 0,
+      "failure_class": null,
+      "matched_overflow_lines": 0,
+      "oversize_lines": 0,
+      "raw_bytes_retained": false,
+      "rejections": [
+        {
+          "from_original_seconds": 154.221822064952,
+          "reason": "response stream interrupted"
+        }
+      ],
+      "timing_lines_retained": false
+    },
+    "final_remote_revision_fences_proved": false,
+    "full_488_489_490_closed": false,
+    "independent_audit": {
+      "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-dc2b13d7-5f8c-4340-be2d-8921d3055535/evidence/audit-independent-normal574-static-rejection-terminal-v1.json",
+      "sha256": "aa7c37578b2b9c9c7ac982ab6950b50eda3eecdac8a5b2a80a7f650f62019842",
+      "size": 8230
+    },
+    "independent_verification_passed": 32,
+    "independent_verification_total": 32,
+    "initial_resident_bytes": 0,
+    "installed_HOLD": true,
+    "installed_actions": false,
+    "journal_comparison": {
+      "allowed_publication_transition": true,
+      "complete_schema_and_all_tables_checked": true,
+      "publication_failure_count_after": 3,
+      "publication_failure_count_before": 1,
+      "publication_failure_increment": 2,
+      "publication_retry_counter_changed": true,
+      "semantic_journal_preserved": true,
+      "table_count": 33
+    },
+    "kernel_errno": 5,
+    "limits": [
+      "Audit success verifies the failure and preservation; whole registered read remains failed.",
+      "Content TLS counters are encrypted transport bytes, not delivered fixture bytes. No successful SHA223e content validation.",
+      "This static reason does not distinguish timeout from another transport interruption. No retroactive cause for prior40db/7f.",
+      "Complete journal comparison uses existing detached-snapshot canonical typed digests; no reviewer SQL opened on any tree.",
+      "Existing old installed service remains unchanged; full488-490 OPEN/HOLD."
+    ],
+    "normal_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-read-deadline-normal-roles-preparation-20261009-private-v1/normal574-roles-build-v1/normal-roles-binding-v1.json",
+      "sha256": "e1e412eac3bb0d9f32d6de3639f67ee57855015a085e3a18ef5d4db9d3c73ac2",
+      "size": 79176
+    },
+    "preservation": {
+      "Root_sources": 574,
+      "installed_members": 19,
+      "old_daemon_birth": "50773221",
+      "old_daemon_pid": 2298014,
+      "original_members": 30,
+      "protected_clone_members": 6,
+      "worktree_sources": 574
+    },
+    "provider_mutations": false,
+    "relay": {
+      "TLS_decrypted": false,
+      "client_tls_bytes_forwarded": 74571,
+      "connect_requests": 9,
+      "content_connections": 1,
+      "content_server_tls_bytes_forwarded": 23271,
+      "drive_connections": 8,
+      "failure_class": null,
+      "forwarding_span_seconds": 153.93685471604113,
+      "global_network_changed": false,
+      "maximum_send_quantum": 512,
+      "owned_sockets_closed": true,
+      "paced_send_calls": 1933,
+      "pacing_delay_seconds": 119.534423828125,
+      "proxy_thread_closed": true,
+      "rate_bytes_per_second": 8192,
+      "raw_bytes_retained": false,
+      "registered_rate_envelope_verified": true,
+      "server_tls_bytes_forwarded": 979226,
+      "upstream_connections": 9
+    },
+    "reviewer_SQL": false,
+    "reviewer_provider_repeat": false,
+    "static_reason_scope": "The normal-build read_exact_range_response emitted response stream interrupted from its Response::chunk error path after range-response header checks. Original error type is discarded; this does not establish reqwest timeout.",
+    "status": "closed_normal574_static_rejection_read_failure",
+    "stdio_consumer_EOF_pipe_thread_closed": true,
+    "success": false,
+    "terminal": {
+      "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-dc2b13d7-5f8c-4340-be2d-8921d3055535/evidence/terminal-v1.json",
+      "sha256": "7a467474befd5aab5a702fcb3e7e09d1786cb12d20f98daf005d617785fba297",
+      "size": 4333
+    },
+    "whole_run_success": false
+  },
+  "actual_terminal": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-dc2b13d7-5f8c-4340-be2d-8921d3055535/evidence/terminal-v1.json",
+    "sha256": "7a467474befd5aab5a702fcb3e7e09d1786cb12d20f98daf005d617785fba297",
+    "size": 4333
+  },
+  "arms": [
+    "one normal[] daemon, saved RO grant on complete untouched copied state, exact all33-table singleton acknowledgment guard, cold0, one O_RDONLY kernel open/read"
+  ],
+  "automatic_retries": 0,
+  "cache_policy": "complete cloned state retained; resident0 required; no cache or journal deletion",
+  "candidate_installed": false,
+  "cleanup_reserve_seconds": 15,
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": []
+  },
+  "daemon_command": [
+    "/home/dandiccf/Work/cirrove/.local-state/ordinary-read-deadline-normal-roles-preparation-20261009-private-v1/normal574-roles-build-v1/frozen/cirroved",
+    "--state-dir",
+    "/home/dandiccf/Storage/ct/normal-fuse-paced-dc2b13d7-5f8c-4340-be2d-8921d3055535/state",
+    "--socket",
+    "/home/dandiccf/Storage/ct/normal-fuse-paced-dc2b13d7-5f8c-4340-be2d-8921d3055535/control.sock"
+  ],
+  "daemon_environment_addition": {
+    "CIRROVE_ICLOUD_PROBE_DIAGNOSTICS": "1"
+  },
+  "diagnostic_only": true,
+  "diagnostic_reasons_allowlist": [
+    "complete response has mismatched Content-Range",
+    "partial response lacks Content-Range",
+    "partial response has mismatched Content-Range",
+    "unexpected HTTP status or full response for partial range",
+    "response stream interrupted",
+    "response exceeds requested length",
+    "response shorter than requested"
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-static-rejection-diagnostic-dc2b13d7-5f8c-4340-be2d-8921d3055535-private-v1/run_normal_ro_static_rejection_once_v2.py",
+    "sha256": "39a64f03af595c49a42eab1d0137e4b04a6e3aa76b3b1ffe309edbe96e94e0cd",
+    "size": 33764
+  },
+  "duration_seconds": 300,
+  "endpoint": "ready owned RO mount, cold0 before file open, exact138943-byte/SHA223e capture, stable cached owned tuple, actual content TLS pacing, all original processes/groups/mount/socket/relay closed, original30 state and installed19+PID preserved; exact all33-table journal parity except registered sole publication done0-to1/retry_after-to0",
+  "full_490_closed": false,
+  "fullcheck_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/fullcheck-20261009-private-v2/audit-independent-complete-fullcheck-v2.json",
+    "sha256": "bf40623a7cd65b09e0cc58b316140c7ce6f5813b2c9bf8716416ed8dd59f0ab5",
+    "size": 18372
+  },
+  "installed_HOLD": true,
+  "installed_actions": false,
+  "journal_guard": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-300s-successor-7f959f9c-0d90-4317-8011-3c46029558ca-private-v1/journal_semantic_guard_bounded_retries_v2.py",
+    "sha256": "8082b3625dcc8cddef79622d52d84ca148cdc97e27c3a5b37fb0f3b5282ad978",
+    "size": 9182
+  },
+  "journal_policy": "Complete schema/PRAGMAs/all33 tables/all typed cells and persistent payload exact; sole registered b13b publication row may be untouched OR acknowledged done1/retry_after0 with SAME operation/body and integer failures monotonically1..6, matching production min(failures+1,6). Record actual counter delta; no arbitrary pending retry timestamp or other-row changes.",
+  "limits": [
+    "one run, no repeatability claim",
+    "cached parent/item observations are not independent remote postflight",
+    "normal OrdinarySession streamed-window path and range fallback validate requested item ETag/size before/after fetched bytes; streamed response has an existing30-second product deadline",
+    "aggregate encrypted TLS pacing includes normal daemon metadata discovery; no decryption or raw transport/error logging",
+    "clone metadata/cache/blocks may change; journal complete semantic guard with only exact singleton acknowledgment plus source-capped monotonic failure-counter transition and known sidecar lifetimes; original30 remains exact",
+    "no editor/native save/expiry/auth recovery/delivery/installed lifecycle or full488-490 credit",
+    "unknown owner closure stays passively held and public remains active; no synthetic closure",
+    "cleanup sends TERM then original pidfd-bound KILL only inside remaining original reserve; no process-pattern/group signal; truly unclosed resources stay passive",
+    "Diagnostic arm only: enables an existing normal-build static rejection emitter; no product edits/features/deadline change. Not a repeatability or normal acceptance endpoint.",
+    "Only seven exact compile-time rejection reasons are retained, max32 records. Every other line including timing/URLs/provider errors is discarded and counted without decode/hash/storage. Buffers512B and read chunks4096B; consumer drained toEOF and passively owned through closure.",
+    "A failure before response processing may emit no reason. Static response stream interrupted is not itself a typed timeout; no underlying error/body retained."
+  ],
+  "maximum_send_quantum": 512,
+  "new_auth": false,
+  "new_feature_build_required": false,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-read-deadline-normal-roles-preparation-20261009-private-v1/normal574-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "e1e412eac3bb0d9f32d6de3639f67ee57855015a085e3a18ef5d4db9d3c73ac2",
+    "size": 79176
+  },
+  "normal_features": {
+    "cirrove": [],
+    "cirroved": []
+  },
+  "normal_roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-read-deadline-normal-roles-preparation-20261009-private-v1/normal574-roles-build-v1/frozen/cirrove",
+      "sha256": "b7308e476c677d64de1a9165df637a99a01df1cb9b64f5ad6b52f547374a5d65",
+      "size": 476354704
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-read-deadline-normal-roles-preparation-20261009-private-v1/normal574-roles-build-v1/frozen/cirroved",
+      "sha256": "96fcc4ba8b6ce9bf5756a8f56fbe46fffcddb7b4b066a174270eb3ccc020d6f4",
+      "size": 478050904
+    }
+  },
+  "normal_startup_policy": "Actual ordinary normal RO startup; prepare_write returns None for saved AccessMode::ReadOnly, hence no WriteContext/write workers/FUSE working overlay; exact known metadata publication acknowledgment permitted and independently compared",
+  "observe_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-static-rejection-diagnostic-dc2b13d7-5f8c-4340-be2d-8921d3055535-private-v1/run_normal_ro_static_rejection_once_v2.py",
+    "observe",
+    "--inputs",
+    "ROOT_APPROVED_OBSERVE_INPUT",
+    "--sha256",
+    "SHA256"
+  ],
+  "original_SQL": false,
+  "prediction": "Prior40db with normal574 finite270s outer deadline returned EIO5/no bytes in approximately31.58s. This distinct once diagnostic keeps all product deadlines, tuple, rate,300s285+15 and binaries unchanged, enabling only existing static normal-build rejection output. A response stream interruption is plausible but unproved; any seven-literal reason, no reason, or successful exact bytes is retained honestly. No causal timeout is inferred from empty diagnostics or aggregate timing.",
+  "private_prepare_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-static-rejection-diagnostic-dc2b13d7-5f8c-4340-be2d-8921d3055535-private-v1/run_normal_ro_static_rejection_once_v2.py",
+    "prepare",
+    "--inputs",
+    "ROOT_APPROVED_PREPARE_INPUT",
+    "--sha256",
+    "SHA256"
+  ],
+  "provider_mutations": false,
+  "question": "Which existing compile-time static ordinary range rejection reason, if any, appears during one exact initially uncached DATA read on a distinct read-only clone under fixed8192B/s TLS pacing?",
+  "rate_bytes_per_second": 8192,
+  "read_only": true,
+  "reader": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/kernel_read_once_v3.py",
+    "sha256": "808f6a5358555758f8e3e25ee9de8257c0a367ba91d5445678cf26a017c4eb4b",
+    "size": 4170
+  },
+  "recovery_only": false,
+  "relay": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/opaque_finite_pace_v3.py",
+    "sha256": "98ecdcf08c9afed0555b10ede57276081c9c7b2004749d67daac0a3dd43bac6a",
+    "size": 6889
+  },
+  "root": "/home/dandiccf/Storage/ct/normal-fuse-paced-dc2b13d7-5f8c-4340-be2d-8921d3055535",
+  "run": "dc2b13d7-5f8c-4340-be2d-8921d3055535",
+  "scope_correction": "Actual verification success concerns failed-run evidence and preservation. Whole registered normal-FUSE paced read remains failed. Encrypted TLS counters are not delivered fixture bytes; static interruption alone is not a timeout diagnosis. Prior arms remain unchanged.",
+  "source_count": 574,
+  "source_map_relation": "Root and deadline worktree574 source maps exactly equal; Git commit IDs intentionally distinct.",
+  "state": "closed_normal_fuse_static_rejection_diagnostic_failure",
+  "status": "closed_normal_fuse_static_rejection_diagnostic_failure",
+  "subject_run": "5c522758-bf2d-4203-941d-0a79567b7aca",
+  "system_roles": {
+    "fusermount": {
+      "path": "/usr/bin/fusermount3",
+      "sha256": "a5d1d1e9eac4012cf1567c34a256d28913afa75d0f1f48c628d2ec162067865a",
+      "size": 39016
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+      "size": 14424
+    }
+  },
+  "tmpdir": "/home/dandiccf/Storage/ct/normal-fuse-paced-dc2b13d7-5f8c-4340-be2d-8921d3055535/tmp",
+  "tuple": {
+    "etag": "i32b::i32a",
+    "item": "FILE::com.apple.CloudDocs::D304DC65-6716-4DEB-B786-ECA04C76ED0D",
+    "parent": "FOLDER::com.apple.CloudDocs::6F755250-4EE2-4220-9AEE-27BB1668DC57",
+    "parent_etag": "i328",
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "version": 1,
+  "window_reason": "Reuse registered300s285+15 workload budget; do not change prior7f clock or pacing. Isolate corrected adapter total deadline by using newly built normal574 binaries only.",
+  "work_seconds": 285,
+  "worktree_HEAD": "af4f62ef65e53ec7b107347a8805cc0806409f43"
+}

@@ -1,0 +1,47 @@
+{
+  "status": "complete_one_delayed_restart_passed",
+  "date": "2026-09-26",
+  "question": "Does a short Cirrove-owned Secret Service key plus an authenticated encrypted iCloud session in private account state survive the keyring-file transition and a delayed isolated-service restart that previously failed for the large direct keyring value?",
+  "arms": [
+    "fresh foreground iCloud re-sign-in on the isolated account",
+    "key length, sealed-file size and permissions immediately after sign-in",
+    "metadata-only key and file checks through at least 30 minutes while the isolated service runs",
+    "clean isolated-service restart, then mount status, root listing and one owned test-file read"
+  ],
+  "endpoint": "The short key remains nonempty, the sealed file remains private and authenticated, and the isolated service reaches ready after restart without another sign-in. Record only lengths, file mode, timestamps, counts and outcome; never secret values, account identifiers, raw provider bodies, URLs or file contents.",
+  "prediction": "The short key will outlast 30 minutes and a keyring-file write, so the new service will restore the sealed session after restart. This is a directional prediction, not proof of Apple-session longevity or a known keyring root cause.",
+  "scope": "Only the isolated iCloud validation state and its read-only mount; the regular Cirrove service and other cloud mounts are excluded.",
+  "environment": {
+    "binary_sha256": "20a26eeab98e2d8d5235a81c01ca82c99442e5e416238e95d7bf148b099dd125",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 45,
+    "private_manifest": ".local-state/icloud-sealed-validation/manifest.json"
+  },
+  "results": [
+    {
+      "arm": "fresh_sign_in",
+      "observed_at_utc": "2026-09-26T17:31:57Z",
+      "key_bytes": 58,
+      "sealed_file_bytes": 11679,
+      "sealed_file_mode": "0600"
+    },
+    {
+      "arm": "delayed_metadata_check",
+      "last_sample_at_utc": "2026-09-26T18:01:29Z",
+      "key_bytes": 58,
+      "keyring_file_mtime_values_seen": 2,
+      "note": "The post-sign-in monitor ran from 17:50 to 18:04 UTC and sampled at 20-second intervals, writing only changed records or five-minute heartbeats. Earlier key length was checked after sign-in but not continuously sampled; the record therefore establishes retained values at observations, not an uninterrupted trace."
+    },
+    {
+      "arm": "clean_isolated_service_restart",
+      "started_at_utc": "2026-09-26T18:09:26Z",
+      "elapsed_since_sign_in_minutes": 37.5,
+      "service_state": "ready",
+      "feed_state": "ready",
+      "mounted_root_entries": 30,
+      "owned_test_file_read_bytes": 42
+    }
+  ],
+  "interpretation": "The short-key plus sealed-file path survived one delayed restart where the preceding direct large-keyring sessions had failed. This is one account and one run. It does not establish the cause of the original keyring loss, repeatability, expiry renewal or broad iCloud reliability."
+}

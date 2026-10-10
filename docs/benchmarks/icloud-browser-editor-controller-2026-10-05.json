@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-05T01:54:49.526241+00:00",
+  "status": "all23 exact-source-bound offline controls passed; live runtime and provider acceptance pending",
+  "question": "Do the actual existing private controller endpoints reject supported helper roles, malformed pending evidence and the account Store path/mode before the corrected controller passes all23 offline controls?",
+  "inputs": {
+    "baseline_v1": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/controller-draft-v1.py",
+      "sha256": "5d21720e5b4fd9bcfbd7a00e4c1e80f61c5d0e5a7d2e45daad70323880925152"
+    },
+    "baseline_v2": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/controller-draft-v2.py",
+      "sha256": "d417eb267efec3d0694d608b2bd8d5b807c7cf8a2644731792922fed7a039e79"
+    },
+    "baseline_v3": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/controller-draft-v3.py",
+      "sha256": "b6fa30b33549ef808fcc57f1ce80b35ec7b824a300e69244f117c3f62d866bd4"
+    },
+    "corrected_v5": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/controller-draft-v5.py",
+      "sha256": "5cb52b041c7c9efa5f80f1b0d7f38355fccd84f81267d4fe008c8cc17247f252"
+    },
+    "controls_v6": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/operative-proposal-v2/test_controller_offline-v6.py",
+      "sha256": "ce034a032cbdf1ecaad4fad1e612905a8dc5c4c538fe0d9fd9108f73471737dc"
+    },
+    "peer_review_v6": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/operative-proposal-v2/audit-admission-root-static-review-v6.json",
+      "sha256": "a07ec85853b03094e53569af6f4a3323cbb669ec3e423f86ad7412f0644ac56d"
+    },
+    "root_wrapper": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-browser-controls-v1.py",
+      "sha256": "09d4c8b84ab9a1d76a35c69f6bd8c26b1b22fd9d4ad1264e7bab03c4c043d603"
+    }
+  },
+  "arms": [
+    {
+      "source": "baseline_v1",
+      "count": 1,
+      "selectors": [
+        "Controls.test_actual_frozen_dual_cli_roles_are_accepted"
+      ],
+      "prediction": "Existing required_assets throws actual Refusal after test asserts actual provided frozen role/path; not a missing API/syntax error."
+    },
+    {
+      "source": "baseline_v2",
+      "count": 2,
+      "selectors": [
+        "Controls.test_pending_publication_refuses_missing_foreign_extra_malformed_evidence",
+        "Controls.test_acknowledged_folder_interim_waits_only_exact_confirm_shape"
+      ],
+      "prediction": "Both existing admitted_a endpoints fail assertRaises-not-raised on malformed waiting evidence."
+    },
+    {
+      "source": "baseline_v3",
+      "count": 2,
+      "selectors": [
+        "Controls.test_mounted_source_node_reads_account_store_not_global_control_store",
+        "Controls.test_mounted_source_node_accepts_actual_0644_under_private_account_ancestors"
+      ],
+      "prediction": "Both existing mounted_source_node endpoints fail desired-result assertions after synthetic SQLite source bytes/modes are unchanged."
+    },
+    {
+      "source": "corrected_v5",
+      "count": 23,
+      "selectors": [
+        "Controls"
+      ],
+      "prediction": "All23 pass. Nine unsafe Store arms refuse including FIFO/hardlink; no historical failure is claimed for the new fd flags."
+    }
+  ],
+  "runtime": {
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "filesystem": "ext4",
+    "owner": "root",
+    "expected_duration_seconds": 900,
+    "fixtures": "fresh retained mkdtemp directories, no recursive cleanup"
+  },
+  "limits": [
+    "Private controller pure/mock tests and synthetic SQLite schemas only, not an actual current Store format or live daemon/remount test.",
+    "Actual imported controller/source SHA, exact test counts and preserved originals are checked by wrapper and root execution manifests.",
+    "No daemon, mount, socket, provider, browser, credential read, runtime registration, cloud mutation or installed action.",
+    "Controller remains unready for dispatch until all actual controls, immutable binaries/runtime binding and fresh live preregistration are complete.",
+    "All full-iCloud release criteria remain open."
+  ],
+  "full_icloud_gate_status": {
+    "485": {
+      "passed": false,
+      "evidence": null
+    },
+    "486": {
+      "passed": false,
+      "evidence": null
+    },
+    "487": {
+      "passed": false,
+      "evidence": null
+    },
+    "488": {
+      "passed": false,
+      "evidence": null
+    },
+    "489": {
+      "passed": false,
+      "evidence": null
+    },
+    "490": {
+      "passed": false,
+      "evidence": null
+    }
+  },
+  "initial_actual_execution": {
+    "root-controller-v1-baseline-one-v1": {
+      "result_sha256": "46e83caa3b71f371aff8c4781e625d2448b6fabb0717cc329168d1f66f4b4404",
+      "exit_code": 1,
+      "duration_seconds": 0.07503604399971664,
+      "sources_unchanged": true,
+      "log_sha256": "21a7a54b40320f90858fbbe4b84476cd7b7dd21532c9ff20ede63ac5634be0a4",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-controller-v2-baseline-two-v1": {
+      "result_sha256": "3ab8524a5b29926c80d88b441298212a1a843472b86d716d775c65967402dd8f",
+      "exit_code": 1,
+      "duration_seconds": 0.07577899901662022,
+      "sources_unchanged": true,
+      "log_sha256": "9cbaaf9cf7d3a143e17e3172ed222e86c322ac65267247ec1789f082e3a15073",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-controller-v3-baseline-two-v1": {
+      "result_sha256": "1cdea088081fa3c249da3ca33a1a2e5189f5f0ba958c2e705975dffcd7d90323",
+      "exit_code": 1,
+      "duration_seconds": 0.10418563400162384,
+      "sources_unchanged": true,
+      "log_sha256": "cf0461e22d6c4489d0e2502df4d5d6746cd563c3580dced8273f45f334f52b70",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-controller-v5-corrected-23-v1": {
+      "result_sha256": "52203a42141c32eee739f48cee6046adf7b34fcfc3385d8800a959ae7cd5875d",
+      "exit_code": 1,
+      "duration_seconds": 0.20237657899269834,
+      "sources_unchanged": true,
+      "log_sha256": "04d5e94704397d338d677b017c13f550777121064318b317f84e820a0b1fbe51",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  },
+  "initial_actual_counts": {
+    "v1_role": {
+      "selected": 1,
+      "actual_refusal_errors": 1
+    },
+    "v2_waiting": {
+      "selected": 2,
+      "meaningful_folder_failures": 1,
+      "unexpected_publication_name_errors": 1
+    },
+    "v3_store": {
+      "selected": 2,
+      "desired_assertion_failures": 2
+    },
+    "v5_corrected": {
+      "selected": 23,
+      "passed": 20,
+      "unexpected_name_errors": 3
+    }
+  },
+  "unexpected_initial_result": {
+    "cause": "Undefined value_sha at admitted_a blocks successful folder frontier and import/publication test before its negative guard checks.",
+    "interpretation": "V2 publication error does not prove malformed-waiting sensitivity; folder/V3 Store endpoint failures remain meaningful. No cloud dispatch or runtime was attempted.",
+    "next_prediction": "Narrow canonical hash helper repairs three errors; separately derived V2 adding only that helper should fail same exact publication guard test, preserving original V2 bytes and disclosures."
+  },
+  "helper_correction_preregistration": {
+    "status": "registered-before-execution",
+    "corrected_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/controller-draft-v6.py",
+      "sha256": "43d653de2872ae45790351825bd02d1060a8a776097f18267daec7c58b078b0d"
+    },
+    "derived_v2_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-20261005/controller-derived-v2-value-sha-baseline.py",
+      "sha256": "5197a06ed4dbb4961e7c38dba9f6bd6627e2a8ba8b953feb54305c6e6f9b42da"
+    },
+    "change": "Only native870 canonical value_sha helper; V6 header version; old V2 waiting guard retained in derived control. Original files/results preserved.",
+    "derived_control": {
+      "selected": 1,
+      "selector": "Controls.test_pending_publication_refuses_missing_foreign_extra_malformed_evidence",
+      "prediction": "Actual positive done0 publication frontier works, malformed evidence is treated as waiting by old guard; assertRaises-not-raised exact1 FAIL, zero NameError."
+    },
+    "corrected_control": {
+      "selected": 23,
+      "selectors": [
+        "Controls"
+      ],
+      "prediction": "All23 PASS, including3 formerly blocked actual successful frontier/import/pending-publication endpoints."
+    }
+  },
+  "final_actual_execution": {
+    "root-controller-derived-v2-publication-one-v1": {
+      "result_sha256": "28d549c2f2e0cd16addc8a5fb56d5d83494a2af2500422e485f117745a31ba21",
+      "exit_code": 1,
+      "duration_seconds": 0.07620886201038957,
+      "sources_unchanged": true,
+      "log_sha256": "f7c2337ae9e1e1b0d274e5d548c55f0cb5d181bf90384654d76044200d797ccc",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "root-controller-v6-corrected-23-v1": {
+      "result_sha256": "f29f9f92965b698c6334092cd9c2979f98e6ea81740f67b45ab99d60381d0e20",
+      "exit_code": 0,
+      "duration_seconds": 0.2138362700061407,
+      "sources_unchanged": true,
+      "log_sha256": "d767b0c8f8b5b8799a7154efa6805c4a2d56da4428fb7f9ee9d7b2598cdcd5b5",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  },
+  "final_actual_counts": {
+    "derived_v2_publication": {
+      "selected": 1,
+      "meaningful_failures": 1,
+      "errors": 0
+    },
+    "corrected_v6": {
+      "selected": 23,
+      "passed": 23,
+      "failures": 0,
+      "errors": 0
+    }
+  },
+  "pipeline_context": {
+    "code_commit": "7ac6a9ceb69331bae4a009a4c53538ef1eaf2287",
+    "complete_check_result_sha256": "0741528f6aaa89eb60fea88688251c7068805ff7b5c722a88d926dd01fc90aab",
+    "pipeline_ran_before_controller_docs": "Only this benchmark documentation is added after the passing complete pipeline; no canonical executable source changed. Private controller source is separately exact-bound by actual controls.",
+    "full_check_duration_seconds": 570.4878871890251,
+    "runtime_created": false,
+    "cloud_dispatched": false,
+    "installed_actions": false
+  }
+}

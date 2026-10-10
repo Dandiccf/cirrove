@@ -1,0 +1,100 @@
+{
+  "phase": "full12",
+  "command": [
+    "bash",
+    "scripts/check.sh"
+  ],
+  "expected_seconds": 1800,
+  "started_unix": 1791326964.867783,
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "filesystem": {
+    "filesystems": [
+      {
+        "target": "/home/dandiccf/Storage",
+        "source": "/dev/nvme1n1p1",
+        "fstype": "ext4"
+      }
+    ]
+  },
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "source_count": 563,
+  "checkout_head": "51da135318e2340da4fd2704311c5c6dd35ffee5",
+  "purpose": "Full required precommit check after the actual fresh competing-name trial and its documentation; runtime sources unchanged since full11.",
+  "real_provider_calls": false,
+  "synthetic_TLS_mutation": true,
+  "installed_actions": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/run_full12_v1.py",
+    "size": 4807,
+    "sha256": "8c2e098ced0e3e2e24a8ed2cb2bbd4589bdf12491b95d136b63e15123e211e03"
+  },
+  "system_roles": {
+    "bash": {
+      "path": "/usr/bin/bash",
+      "size": 1195144,
+      "sha256": "575e03ac834b739349a4484de481abcd06a6f7193cefc795260a32a1943f20a5"
+    },
+    "python": {
+      "path": "/home/dandiccf/.local/share/mise/installs/python/3.14.8/bin/python3.14",
+      "size": 17688,
+      "sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806"
+    },
+    "cargo": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/cargo",
+      "size": 40680304,
+      "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14"
+    },
+    "rustc": {
+      "path": "/home/dandiccf/.rustup/toolchains/1.98.1-x86_64-unknown-linux-gnu/bin/rustc",
+      "size": 645952,
+      "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+    }
+  },
+  "version": 1,
+  "date": "2026-10-07",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "prediction": "Formatting, clippy, complete workspace and feature suites, kernel mounts, script tests, ledger and docs pass with 563 pinned inputs.",
+  "limits": [
+    "No display scenario or live-provider acceptance is implied.",
+    "No full integration gate closes and installed schema transition remains on HOLD."
+  ],
+  "full_integration_accepted": false,
+  "outcome": {
+    "exit_code": 0,
+    "elapsed_seconds": 539.5600762219983,
+    "source_count": 563,
+    "sources_unchanged": true,
+    "changed_sources": [],
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full12-v1.log",
+      "size": 287418,
+      "sha256": "2e1118f8cc4e54830d51033e536a9dbec76937c640bc1bc074903866c977ffaa"
+    },
+    "rust_test_result_groups": 87,
+    "all_checks_passed_marker": true,
+    "NOT_RUN_marker_present": false,
+    "real_provider_calls": false,
+    "installed_actions": false
+  },
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full12-registration-v1.json",
+    "size": 74896,
+    "sha256": "4dd658f99d9b7e0b9a12fb131cda93eb03194c3bdebc93aa77cb80b92bf72e0d"
+  },
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full12-result-v1.json",
+    "size": 605,
+    "sha256": "673f797ddf45d4087e8a008019e31c6ae26d02fc3e5ccc3ec6b992685437a1a6"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/audit-regression-review-full12-terminal-v2.json",
+    "size": 6715,
+    "sha256": "3fe79b3215991d5dafe40c5c4adcbf8f2bb9710dc7f924c2a6f3acc1e745a047",
+    "result": "PASS",
+    "checks": 19
+  }
+}

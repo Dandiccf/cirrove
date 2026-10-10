@@ -1,0 +1,159 @@
+{
+  "actual_outcome": {
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once"
+    ],
+    "closure": {
+      "all_seven_original_children_reaped": true,
+      "all_twenty_one_compositor_utility_children_reaped": true,
+      "control_socket_absent": true,
+      "errors": [],
+      "mount_absent": true,
+      "original_controller_reaped": true,
+      "private_bus_sockets_absent": true
+    },
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-11f553c6-8f7c-4b35-9a9c-051406a5fe4a-private-v1/result.json",
+      "sha256": "40baec5648a14d8932ceedf7c71fd8e49442490ed9dfeb17a55f9ee7e36c061f",
+      "size": 6116
+    },
+    "diagnosis": "The actual owned chooser exists, but its unique compositor address and PID did not both match the active-window observation. The worker refused before recording or sending Ctrl+l; the operands were not retained, so focus-transition timing and external focus changes remain unproved.",
+    "health_proof": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-11f553c6-8f7c-4b35-9a9c-051406a5fe4a-private-v1/health.json",
+      "sha256": "20e2ef46a89b29630f62a6204952def0c035a76e2972cbae6aab0d6529071112",
+      "size": 158
+    },
+    "limits": "This proves real-account Desktop chooser admission and the corrected health bridge, not public import completion. No document was uploaded. The arm is closed and will not be replayed. All six full-iCloud release rows remain open.",
+    "manifest": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-root-11f-v1/manifest.json",
+      "sha256": "d6bc01d12ad7830d543236c79ab1ec9bd47923e5a5309824df2733c5562c6077",
+      "size": 2370
+    },
+    "original_tool_session": 90207,
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-root-11f-v1/public-preregistration-byteexact-before-outcome.json",
+      "sha256": "0f05ba33f82a3ebf9da7ec2faf46a795a80c6ef388096ff95c9c6914093686e5",
+      "size": 3422
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-root-11f-v1/registration.json",
+      "sha256": "fb48b39627dba0dc73f8f12186abb9b0a652a768652a2ae8c391a71c4dd59027",
+      "size": 73203
+    },
+    "root_post_result_exception": {
+      "class": "RuntimeError",
+      "scope": "Full stat_result equality refused while hashing the already-written terminal result. Initial/final operand values were not retained, so the specific metadata change is unproved. This did not initiate a cloud retry or change the retained original-handle results.",
+      "source": "Root launch.py pin line33"
+    },
+    "root_tool_exit_code": 1,
+    "root_written_result": {
+      "automatic_retry": false,
+      "duration_seconds": 43.35121923801489,
+      "errors": [],
+      "exit_code": 1,
+      "full_integration_accepted": false,
+      "installed_actions": false,
+      "original_controller_reaped": true,
+      "run": "11f553c6-8f7c-4b35-9a9c-051406a5fe4a",
+      "signals": [],
+      "success": false
+    },
+    "scope": {
+      "actual_private_health_passed": true,
+      "apple_pages_open": false,
+      "chooser_opened": true,
+      "confirmation_opened": false,
+      "control_l_sent": false,
+      "desktop_launched": true,
+      "import_submitted": false,
+      "independent_document_read": false,
+      "local_path_set": false,
+      "one_owned_folder_applied": true,
+      "original_folder_warmed": true
+    },
+    "ui_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-desktop-import-11f553c6-8f7c-4b35-9a9c-051406a5fe4a-private-v1/ui/result.json",
+      "sha256": "07471c48eb37d2c98163d567510f6bce4203083d607ad6dba94618412e2ad84a",
+      "size": 997
+    },
+    "worker_failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "ui_worker_v2.py",
+          "function": "main",
+          "line": 1013
+        },
+        {
+          "file": "ui_worker_v2.py",
+          "function": "run",
+          "line": 755
+        },
+        {
+          "file": "ui_worker_v2.py",
+          "function": "show_chooser_location_once",
+          "line": 719
+        },
+        {
+          "file": "ui_worker_v2.py",
+          "function": "require",
+          "line": 29
+        }
+      ]
+    }
+  },
+  "arms": [
+    {
+      "folder_creation_limit": 1,
+      "name": "fresh-owned-public-desktop-pages-import",
+      "public_import_submission_limit": 1,
+      "source_archive_bytes": 55715,
+      "source_archive_sha256": "96e2dcc2446452229377a55052c107e02b52ee098e48b6bb4cdc826f0289bc6e",
+      "source_semantic": {
+        "entries": 10,
+        "expanded_bytes": 98835,
+        "files": 7,
+        "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
+        "version": 2
+      }
+    }
+  ],
+  "authorization": "Standing user authorization for iCloud writes and tests; this arm remains limited to one fresh owned folder and one public Desktop import.",
+  "automatic_retry": false,
+  "checkout_head_before_preregistration": "6621eaed5275ac048597777b7042376ecbb9786e",
+  "cleanup_reserve_seconds": 45,
+  "cloud_allowed": true,
+  "endpoint": "Actual public UI admission and successful job bound to the exact journal operation; canonical archive captured on the original warm mount; stopped journal receipt authority and independent iCloud version-2 semantic read; complete closure of original child handles, mount and private sockets.",
+  "installed_actions": false,
+  "limits": [
+    "No reopening or replaying earlier writer state, journals or uncertain mutations; reuse only the pinned owned source archive bytes and same-account sealed session ciphertext.",
+    "No CLI submission substituted for the Desktop import. Independent observer calls are read-only.",
+    "Apple Pages open of the exact newly allocated document remains separate evidence unless actually observed.",
+    "A single owned import does not establish broader Pages editing, Numbers/Keynote fidelity, installed transitions or general provider reliability.",
+    "All six full-iCloud release acceptance areas remain open until their complete scopes are verified."
+  ],
+  "original_window_seconds": 600,
+  "prediction": "The already validated local chooser route will reach the real confirmation; exact title-labelled field selection will submit one import. The normal daemon will publish a typed successful receipt, and the original mounted archive and independent provider read will match the registered version-2 content tree. Any uncertain result stops the arm without repeating a cloud mutation.",
+  "prerequisite": {
+    "actual_health_passed": true,
+    "local_health": {
+      "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-desktop-health-prefix-2026-10-06.json",
+      "sha256": "c73f21fe35d18583f1515327316986778b9fcbe2b612b9f5bcab822eb86a7a78",
+      "size": 4079
+    },
+    "original_c334_cloud_arm_closed_not_replayed": true
+  },
+  "question": "Can the validated exact Pages Desktop health bridge enable a fresh actual public Pages import, original warm-mount publication and independent semantic readback?",
+  "run": "11f553c6-8f7c-4b35-9a9c-051406a5fe4a",
+  "runtime_build_head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "runtime_source_count": 480,
+  "source_binding_requirement": "All registered runtime sources and checked code/script/policy inputs must match the frozen build and completed full check. Documentation-only checkout differences are recorded separately from the actual build head.",
+  "status": "actual-live-health-and-desktop-chooser-pass-owned-focus-refused-before-submit",
+  "temporary_filesystem_requirement": "TMPDIR and SQLITE_TMPDIR on ext4, recorded and checked before launch; no tmpfs staging.",
+  "version": 1
+}

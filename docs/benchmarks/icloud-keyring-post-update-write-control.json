@@ -1,0 +1,49 @@
+{
+  "status": "complete_updated_value_survived_later_writes",
+  "date": "2026-09-26",
+  "question": "Does a separate desktop keyring file write erase an existing Cirrove item just updated with a distinct 11,645-byte synthetic value?",
+  "arms": [
+    "create first unique synthetic item A and verify",
+    "update that existing item to different synthetic B and verify",
+    "create a second unique synthetic trigger item and confirm keyring file modification time advances",
+    "check B immediately and after at least 90 seconds, then remove exactly the two synthetic items"
+  ],
+  "endpoint": "Record only exact equality, file modification times and item presence. Never print values or inspect real credentials. One pass or failure cannot establish a failure rate.",
+  "prediction": "If another collection write causes updated item secrets to become empty, B will fail after the trigger write. If B survives, that sequence alone is insufficient to explain the real iCloud failure.",
+  "environment": {
+    "updated_item_key": "icloud-retention-test-20260926-postwrite-a",
+    "trigger_item_key": "icloud-retention-test-20260926-postwrite-trigger",
+    "value_a_pattern": "icloud_size_entropy",
+    "value_b_pattern": "icloud_size_entropy_v2",
+    "test_binary_sha256": "bdc199b1b29fa056e2ad9215d0f3fbf5948683dd5cd015e47b77d06be47df939",
+    "test_binary": ".target-icloud-feasibility/debug/deps/desktop_vault-deeb3cdbbaac397e",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 3,
+    "restriction": "No compilation during the control window; no daemon restart; clear only the two synthetic keys after the delayed check."
+  },
+  "results": [
+    {
+      "arm": "create_a_and_update_to_b",
+      "observed_at_utc_minute": "2026-09-26T06:52Z",
+      "exact_value_b_match": true,
+      "keyring_file_mtime_before_trigger_at_utc": "2026-09-26T06:52:51Z"
+    },
+    {
+      "arm": "create_synthetic_trigger_item",
+      "keyring_file_mtime_after_trigger_at_utc": "2026-09-26T06:52:58Z",
+      "exact_value_b_match": true
+    },
+    {
+      "arm": "delayed_check_after_trigger",
+      "observed_at_utc": "2026-09-26T06:55:01Z",
+      "exact_value_b_match": true,
+      "keyring_file_mtime_at_utc": "2026-09-26T06:53:31Z"
+    },
+    {
+      "arm": "remove_exactly_two_synthetic_items",
+      "both_items_absent_after_cleanup": true
+    }
+  ],
+  "interpretation": "A distinct 11,645-byte update to an existing synthetic DesktopVault item survived both a subsequent write caused by a second synthetic item and another keyring file modification before the delayed check. The real iCloud session item twice became empty after reauthentication. A generic existing-item update or another file write is insufficient to reproduce that failure in this one control run; the cause remains open."
+}

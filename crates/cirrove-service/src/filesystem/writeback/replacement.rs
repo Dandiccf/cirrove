@@ -11,9 +11,17 @@ impl Writeback {
         victim: Node,
     ) -> Result<Node> {
         let _victim_lease = self.lease(&scope, &victim.id, &inner.cancel).await?;
+        let source_admission = self
+            .admit_write(&inner.engine, &scope, &source, &inner.cancel)
+            .await?;
+        let victim_admission = self
+            .admit_write(&inner.engine, &scope, &victim, &inner.cancel)
+            .await?;
         let writer = self.clone();
         let moved = tokio::task::spawn_blocking(move || {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
+            source_admission.recheck(&j).map_err(error)?;
+            victim_admission.recheck(&j).map_err(error)?;
             let mut src =
                 Self::materialize(&mut j, scope.clone(), source.clone()).map_err(error)?;
             let mut dst = Self::materialize(&mut j, scope, victim.clone()).map_err(error)?;

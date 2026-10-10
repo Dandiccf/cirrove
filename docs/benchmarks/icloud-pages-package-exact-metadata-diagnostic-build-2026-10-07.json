@@ -1,0 +1,57 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ppmd7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/ppmd7v1",
+  "active": false,
+  "active_measurement": false,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-package-isolated-build-controls-v1.py",
+    "sha256": "b5e78aa95acb0a0c0b33f6afe0f67c9b8191e3ddc5484684ee63a4fe127f30e1",
+    "size": 11028
+  },
+  "endpoint": "Module4/helper2 and frozen actual CargoJSON-selected ELF; original owners closed",
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "maximum_seconds_per_child": 1200,
+  "prediction": "All six pass before any real session read; no production files change",
+  "private_modified_source_count": 572,
+  "private_source_copy": true,
+  "provider_actions": false,
+  "question": "Does isolated exact-ID Pages PACKAGE counterpart metadata diagnostic compile and pass six projection/authentication controls?",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-package-isolated-build-controls-v1/registration-v1.json",
+    "sha256": "d4bfa27842d798bc56580620d9d535bb73dd93f69b78304fb4ce5966c122a835",
+    "size": 332454
+  },
+  "root_head": "b498af7d3b363b4e0bb255fad336a029aed3d7fb",
+  "root_source_count": 571,
+  "status": "closed_success",
+  "vault_actions": false,
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-package-isolated-build-controls-v1/terminal-v1.json",
+    "size": 7845,
+    "sha256": "31bd4f1e0481694440c18765c89e9d399fdaafb048595e13d4ad1f37301d6c16"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-package-isolated-build-controls-v1/owned-command-closure-v1.json",
+    "size": 2939,
+    "sha256": "90ffa4456cf4d58611d4dafefa5e976220eb1b178acd600ee2a4e92d02aa7051"
+  },
+  "controls_executed": 6,
+  "Root_actual_build_acceptance": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-package-isolated-build-controls-v1/root-build-acceptance-v1.json",
+    "size": 825,
+    "sha256": "63d46332c17d6b7105564fe7db93b6a67707d2973e4786d4873fdd6fc0b3031a"
+  },
+  "independent_terminal_audit_pending": false,
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 15,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-package-metadata-comparator-20261007-private-v1/root-package-isolated-build-controls-v1/audit-independent-terminal-v1.json",
+      "size": 3567,
+      "sha256": "958f2b3f5bf970b4a6f12e82b47e0f26510f41aa1add5042abf0359dd5b333cb"
+    }
+  },
+  "independent_audit_completed_after_dispatch": true
+}

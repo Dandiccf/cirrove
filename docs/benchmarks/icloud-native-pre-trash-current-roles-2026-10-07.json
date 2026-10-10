@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "command": [
+    "/home/dandiccf/.local/share/mise/installs/python/3.14.8/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/collect_current_roles_v3.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/inputs-root-v3.json",
+    "--sha256",
+    "c5523796ef2258958233fd7e03e759702b989c577d83164d262227a945e2ac34"
+  ],
+  "expected_seconds": 2050,
+  "started_unix": 1791325611.2267559,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/run_root_collector_v1.py",
+    "size": 3688,
+    "sha256": "b3454a92bacdcc1c5efb7f4d2cbda84adf7cccd130cc00f3e93892ac39874fd3"
+  },
+  "inputs": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/inputs-root-v3.json",
+    "size": 3044,
+    "sha256": "c5523796ef2258958233fd7e03e759702b989c577d83164d262227a945e2ac34"
+  },
+  "python": {
+    "path": "/home/dandiccf/.local/share/mise/installs/python/3.14.8/bin/python3.14",
+    "sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+    "size": 17688
+  },
+  "checkout_head": "51da135318e2340da4fd2704311c5c6dd35ffee5",
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "real_provider_calls": false,
+  "installed_actions": false,
+  "date": "2026-10-07",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "question": "Can normal and feature-only roles be frozen from the committed563-source full11 checked checkout?",
+  "prediction": "Two sequential Cargo JSON commands succeed; exact default/probe features and current source hashes stay bound; normal copies freeze before the feature build.",
+  "limits": [
+    "Cargo verified fresh cache artifacts are recorded as such, not claimed newly executed rustc.",
+    "No candidate execution, cloud dispatch, installed transition or release acceptance."
+  ],
+  "outcome": {
+    "exit_code": 0,
+    "elapsed_seconds": 32.29180951800663,
+    "failure_class": null,
+    "signals": [],
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/root-collector-v1.log",
+      "size": 1284,
+      "sha256": "efee62ad910a1033e187cc90a891f0e827156450eeb193f70216f3af8eb6078e"
+    },
+    "cloud_dispatched": false,
+    "installed_actions": false
+  },
+  "compiled_roles": {
+    "checkout_head": "51da135318e2340da4fd2704311c5c6dd35ffee5",
+    "role_build_heads": {
+      "cirrove": "51da135318e2340da4fd2704311c5c6dd35ffee5",
+      "cirroved": "51da135318e2340da4fd2704311c5c6dd35ffee5",
+      "native-trash-probe": "51da135318e2340da4fd2704311c5c6dd35ffee5"
+    },
+    "roles": {
+      "cirrove": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/roles-after-full11-v1/cirrove",
+        "sha256": "939dc62732f4b8da3337014760fcb3382bce8aa279b65489a8f365a9e47cea9e",
+        "size": 474129616
+      },
+      "cirroved": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/roles-after-full11-v1/cirroved",
+        "sha256": "b802c89e5fb2083c5de114d36566ea078e67aa8cf2dd71ac9a3b3f841e58e73b",
+        "size": 475720944
+      },
+      "native-trash-probe": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/roles-after-full11-v1/native-trash-probe",
+        "sha256": "8926026aba035ff4ee69e9be2064bd817e6e3e02fdd0a8a549256565aa4f2251",
+        "size": 514040192
+      }
+    },
+    "compiler_features": {
+      "cirrove": [],
+      "cirroved": [],
+      "native-trash-probe": [
+        "icloud-write-probe"
+      ]
+    },
+    "compiler_artifacts_fresh": {
+      "normal": {
+        "cirrove": true,
+        "cirroved": false
+      },
+      "probe": {
+        "cirrove-icloud-mounted-write-probe": false
+      }
+    },
+    "source_count": 563,
+    "checked_pin_count": 563,
+    "all_sources_unchanged": true,
+    "normal_copies_frozen_before_feature_build": true
+  },
+  "binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/roles-after-full11-v1/ready-binding-v1.json",
+    "size": 81762,
+    "sha256": "efe675c25c2152f9689e92080c19a2c708f8d139ed4225886d973a119442d1a9"
+  },
+  "full_integration_accepted": false,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/current-build-collector-private-v1/audit-gate-agent-collector-actual-terminal-v1.json",
+    "size": 16437,
+    "sha256": "e3a857ce1a47cdd3514f223670227e167782b788f36261e0ee6e6f37a9e04681",
+    "result": "PASS",
+    "owned_handle_receipt_count": 9
+  }
+}

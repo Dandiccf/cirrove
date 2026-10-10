@@ -1,0 +1,54 @@
+{
+  "status": "complete_early_retention_failure_without_restart",
+  "date": "2026-09-26",
+  "question": "Does the third GUI reauthentication keep its real iCloud keyring value through at least 35 minutes and then restore online mounted reads after an isolated service restart?",
+  "arms": [
+    "record the already completed third sign-in and independent keyring read at 2.5 minutes",
+    "monitor exact item length and keyring file time every 20 seconds for 35 minutes without restarting or compiling",
+    "after the monitor ends, cleanly restart only the isolated service and check state, root listing and mounted read"
+  ],
+  "endpoint": "Record item presence, secret byte length, service/feed state, root count and mounted byte count without printing secrets, file contents, tokens, URLs or raw provider responses. One surviving run shows possibility, not a reliability rate.",
+  "prediction": "This reauthentication may remain nonempty past the 75-second loss seen in the previous run; if it survives the full window, an isolated restart may restore online access. A later failure would show the same beta blocker remains intermittent.",
+  "environment": {
+    "state": "private isolated icloud-gui-connect-validation state",
+    "service_socket": "/run/user/1000/cirrove-icloud-gui-validation.sock",
+    "mount": "/home/dandiccf/Cloud/Cirrove-iCloudGuiValidation",
+    "service_pid_at_registration": 3573781,
+    "monitor_script_sha256": "9a23723e8c15d8cb8b70e216fe9dc9cf705b969d792532df06ce223f6da05334",
+    "monitor_command": "/usr/bin/python3 .local-state/icloud-gui-connect-validation/watch_keyring.py .local-state/icloud-gui-connect-validation/state .local-state/icloud-gui-connect-validation/keyring-watch-third-signin.jsonl",
+    "private_output": ".local-state/icloud-gui-connect-validation/keyring-watch-third-signin.jsonl",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 35,
+    "restriction": "Do not compile or restart the isolated or regular daemon during the monitor window; after it ends, restart only the isolated daemon."
+  },
+  "session_saved_at_utc": "2026-09-26T07:02:56Z",
+  "monitor_started_at_utc": "2026-09-26T07:06:04Z",
+  "delayed_restart_not_before_utc": "2026-09-26T07:41:04Z",
+  "results": [
+    {
+      "arm": "independent_lookup_at_two_and_half_minutes",
+      "observed_at_utc": "2026-09-26T07:05:23Z",
+      "item_count": 1,
+      "secret_bytes": 11649,
+      "item_locked": false,
+      "service_state": "ready",
+      "feed_state": "ready"
+    },
+    {
+      "arm": "monitor_first_empty_sample",
+      "last_nonempty_at_utc": "2026-09-26T07:10:44Z",
+      "first_empty_at_utc": "2026-09-26T07:11:04Z",
+      "seconds_after_sign_in": 488,
+      "previous_secret_bytes": 11649,
+      "new_secret_bytes": 0,
+      "item_count": 1,
+      "item_modified_at_utc": "2026-09-26T07:02:56Z",
+      "keyring_file_mtime_at_utc": "2026-09-26T07:10:52Z",
+      "service_state": "ready",
+      "feed_state": "ready"
+    }
+  ],
+  "unperformed_registered_arm": "The delayed isolated-service restart was not run. The monitored credential already failed the retention endpoint at 8.1 minutes, and an earlier registered 30-minute restart of the same account had confirmed sign_in_required after this condition. The isolated service was left running so the in-memory read-only session remained available; no claim of a passing restart is made.",
+  "interpretation": "This is a second real reauthentication whose value became empty while the item remained present and unlocked. It lasted 8.1 minutes rather than 75 seconds, showing that the delay varies across these observed runs. In both runs a write to the desktop keyring file occurred between the last nonempty and first empty sample, but that timing does not establish which component or operation caused the loss. Synthetic controls did not reproduce it. Durable iCloud session retention remains a beta blocker."
+}

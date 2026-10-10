@@ -12,6 +12,14 @@ pub struct ReplacementRecord {
     pub cleanup_object: Uuid,
     pub local_ready: bool,
     pub remote_applied: bool,
+    /// A refused replacement was rescued as this independent create.
+    #[serde(default)]
+    pub rescued_as: Option<Uuid>,
+    /// This takeover captured an unacknowledged empty Create as its source's
+    /// content ancestor. The unowned cleanup reservation therefore has no
+    /// remote receipt yet; only that exact later Create receipt can authorize it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_unconfirmed_create: Option<Uuid>,
 }
 pub(super) struct ReplacementCommit {
     pub(super) source: NamespaceObject,
@@ -57,10 +65,14 @@ fn load(db: &Connection, id: Uuid) -> Result<ReplacementRecord> {
         .optional()?;
     Ok(serde_json::from_str(&body.ok_or(JournalError::Missing)?)?)
 }
-fn save(db: &Connection, record: &ReplacementRecord) -> Result<()> {
+pub(super) fn save(db: &Connection, record: &ReplacementRecord) -> Result<()> {
     if db.execute(
-        "UPDATE file_replacements SET body=?2 WHERE id=?1",
-        params![record.id.to_string(), serde_json::to_string(record)?],
+        "UPDATE file_replacements SET body=?2,cleanup=?3 WHERE id=?1",
+        params![
+            record.id.to_string(),
+            serde_json::to_string(record)?,
+            record.cleanup.to_string()
+        ],
     )? != 1
     {
         return Err(JournalError::Missing);
@@ -299,6 +311,137 @@ pub(super) fn receipt_name(db: &Connection, operation: Uuid) -> Result<Option<St
     }
 }
 
+/// Record the actual capture frontier, not a guess made after the Create ack.
+/// Only the ordinary empty-Create -> sealed source generation topology gains
+/// this authority; old replacement bodies retain None and are not promoted.
+fn unconfirmed_source_create(db: &Connection, source: &NamespaceObject) -> Result<Option<Uuid>> {
+    let (Some(source_id), Some(working_id)) = (source.latest, source.working_file) else {
+        return Ok(None);
+    };
+    if source.remote.is_some()
+        || source.remote_sequence != 0
+        || source.native_archive.is_some()
+        || source.unlinked
+        || source.follows_remote
+        || !source.remote_owned
+        || source.node.kind != NodeKind::File
+        || source.node.package
+        || source.node.target.is_some()
+    {
+        return Ok(None);
+    }
+    let row: Option<(i64, String, String)> = db
+        .query_row(
+            "SELECT sequence,state,body FROM uploads WHERE id=?1",
+            [source_id.to_string()],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((sequence, state, body)) = row else {
+        return Ok(None);
+    };
+    let upload: UploadRecord = serde_json::from_str(&body)?;
+    let Some(base) = upload.base.as_ref() else {
+        return Ok(None);
+    };
+    if upload.id != source_id
+        || sequence <= 0
+        || sequence as u64 != upload.sequence
+        || state != "pending"
+        || upload.state != UploadState::Pending
+        || upload.scope != source.scope
+        || !upload.representation.is_file_bytes()
+        || upload.working_file != Some(working_id)
+        || base.resolved
+        || upload.attempt.is_some()
+        || upload.remote.is_some()
+        || upload.identity_handoff.is_some()
+        || upload.package_completion.is_some()
+        || upload.session_key.is_some()
+        || upload.transferred_bytes != 0
+        || upload.size != source.node.size
+    {
+        return Ok(None);
+    }
+    let row: Option<(i64, String, String)> = db
+        .query_row(
+            "SELECT sequence,state,body FROM uploads WHERE id=?1",
+            [base.predecessor.to_string()],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((create_sequence, state, body)) = row else {
+        return Ok(None);
+    };
+    let create: UploadRecord = serde_json::from_str(&body)?;
+    let phase = match create.state {
+        UploadState::Pending => state == "pending" && create.attempt.is_none(),
+        UploadState::Uploading => state == "uploading" && create.attempt.is_some(),
+        UploadState::VerifyRequired => state == "verify_required" && create.attempt.is_none(),
+        UploadState::Verifying => state == "verifying" && create.attempt.is_some(),
+        _ => false,
+    };
+    if create.id != base.predecessor
+        || create_sequence <= 0
+        || create_sequence as u64 != create.sequence
+        || create.sequence >= upload.sequence
+        || !phase
+        || create.scope != source.scope
+        || !create.representation.is_file_bytes()
+        || create.working_file != Some(working_id)
+        || create.base.is_some()
+        || create.remote.is_some()
+        || create.identity_handoff.is_some()
+        || create.package_completion.is_some()
+        || create.size != 0
+        || create.transferred_bytes != 0
+        || create.intent != upload.intent
+        || create.intent.validate().is_err()
+        || !matches!(&create.intent, UploadIntent::Create { name, .. } if name == &source.node.name)
+    {
+        return Ok(None);
+    }
+    let body: String = db.query_row(
+        "SELECT body FROM working_files WHERE id=?1",
+        [working_id.to_string()],
+        |row| row.get(0),
+    )?;
+    let working: WorkingFile = serde_json::from_str(&body)?;
+    if working.id != working_id
+        || working.native
+        || working.unlinked
+        || working.dirty
+        || working.scope != source.scope
+        || working.latest != Some(source_id)
+        || working.node != source.node
+    {
+        return Ok(None);
+    }
+    let bound: bool = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM write_successors WHERE predecessor=?1 AND successor=?2)
+         AND (SELECT count(*) FROM namespace_operations WHERE operation IN (?1,?2) AND object=?3)=2
+         AND EXISTS(SELECT 1 FROM write_queue WHERE id=?1 AND sequence=?4 AND complete=0)
+         AND EXISTS(SELECT 1 FROM write_queue WHERE id=?2 AND sequence=?5 AND complete=0)
+         AND NOT EXISTS(SELECT 1 FROM file_replacements WHERE id IN (?1,?2) OR cleanup IN (?1,?2)
+             OR source=?3 OR victim=?3)
+         AND NOT EXISTS(SELECT 1 FROM native_working_operations WHERE operation IN (?1,?2)
+             OR owner=?3 OR working=?6)
+         AND NOT EXISTS(SELECT 1 FROM native_working_heads WHERE working=?6
+             OR json_extract(body,'$.owner')=?3)
+         AND NOT EXISTS(SELECT 1 FROM native_working_bindings WHERE working=?6)",
+        params![
+            create.id.to_string(),
+            upload.id.to_string(),
+            source.id.to_string(),
+            create_sequence,
+            sequence,
+            working_id.to_string()
+        ],
+        |row| row.get(0),
+    )?;
+    Ok(bound.then_some(create.id))
+}
+
 pub(super) fn commit(
     tx: &Transaction<'_>,
     plan: &ReplacementCommit,
@@ -323,6 +466,7 @@ pub(super) fn commit(
         state: MutationState::Pending,
         attempt: None,
         receipt: None,
+        verified_content: None,
         retry_at: 0,
         failed_attempts: 0,
         base: plan.cleanup_base.clone(),
@@ -359,6 +503,8 @@ pub(super) fn commit(
         cleanup_object: Uuid::new_v4(),
         local_ready: !plan.preserve_readers,
         remote_applied: false,
+        rescued_as: None,
+        source_unconfirmed_create: unconfirmed_source_create(tx, &plan.source)?,
     };
     let mut source_working = plan.source_working.clone();
     let mut victim_working = plan.victim_working.clone();
@@ -408,11 +554,66 @@ pub(super) fn commit(
 
 /// Acknowledgement and all three binding changes share the upload transaction.
 /// Historical victim metadata remains available to its retained local stream.
+/// Resolve the *victim* of a durable editor replacement. The operation's source
+/// still owns the temporary upload ID until both provider identities are committed.
+pub(super) fn handoff_victim(
+    db: &Connection,
+    upload: &UploadRecord,
+    source: &NamespaceObject,
+) -> Result<Option<NamespaceObject>> {
+    let record = match load(db, upload.id) {
+        Ok(record) => record,
+        Err(JournalError::Missing) => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let victim = namespace::by_id(db, record.victim)?;
+    let old = victim.remote.as_ref().ok_or(JournalError::Stale)?;
+    if record.source != source.id
+        || !record.local_ready
+        || record.remote_applied
+        || victim.scope != upload.scope
+        || source.scope != upload.scope
+        || !victim.unlinked
+        || !victim.remote_owned
+        || old.kind != NodeKind::File
+        || old.package
+        || old.target.is_some()
+        || source.remote.as_ref().is_none_or(|node| node.id == old.id)
+        || !matches!(&upload.intent, UploadIntent::Replace { item, expected_etag }
+            if item == &old.id && Some(expected_etag) == old.etag.as_ref())
+    {
+        return Err(JournalError::Stale);
+    }
+    Ok(Some(victim))
+}
+
+pub(super) fn confirm_handoff(
+    tx: &Transaction<'_>,
+    upload: &UploadRecord,
+    remote: &Node,
+    old_item: &str,
+) -> Result<()> {
+    if !confirm_with_victim(tx, upload.id, upload.sequence, remote, old_item)? {
+        return Err(JournalError::Corrupt);
+    }
+    Ok(())
+}
+
 pub(super) fn confirm(
     tx: &Transaction<'_>,
     operation: Uuid,
     sequence: u64,
     remote: &Node,
+) -> Result<bool> {
+    confirm_with_victim(tx, operation, sequence, remote, &remote.id)
+}
+
+fn confirm_with_victim(
+    tx: &Transaction<'_>,
+    operation: Uuid,
+    sequence: u64,
+    remote: &Node,
+    victim_item: &str,
 ) -> Result<bool> {
     let mut record = match load(tx, operation) {
         Ok(r) => r,
@@ -432,7 +633,7 @@ pub(super) fn confirm(
     if !source.remote_owned
         || !victim.remote_owned
         || !victim.unlinked
-        || victim.remote.as_ref().is_none_or(|n| n.id != remote.id)
+        || victim.remote.as_ref().is_none_or(|n| n.id != victim_item)
         || old_source.id == remote.id
         || source.scope != victim.scope
         || source.remote_sequence >= sequence

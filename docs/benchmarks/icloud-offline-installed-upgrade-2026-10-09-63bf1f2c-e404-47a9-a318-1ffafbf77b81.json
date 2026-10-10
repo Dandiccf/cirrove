@@ -1,0 +1,332 @@
+{
+  "version": 1,
+  "run": "63bf1f2c-e404-47a9-a318-1ffafbf77b81",
+  "registered_unix": 1791547265.1802573,
+  "active": false,
+  "active_measurement": false,
+  "state": "successful_closed_offline_package_recovery_prerequisite",
+  "question": "Can an isolated netless ISO upgrade a fresh overlay of retained ae484 to exact attested current runtime packages while public44B sealed and52B generation4 exports, disabled settings and persistent state survive, and both backing images remain byte/stat exact?",
+  "arms": [
+    "One new offline COW upgrade; no targetinit, credential/auth or cloudworker startup"
+  ],
+  "endpoint": "Actual before/after public recovery exports and exact generations/hashes; allthree packageversions; settings/persistent state equality with only enumerated SQLiteSHM mtime/ctime allowance; clean mounts footer; originalchild/native closure; fullSHA/stat9 equality for selectedae and immutableaa02.",
+  "prediction": "Current runtime code adds cookie/pending publication changes but disabled offline recovery should preserve retained44/52 bytes and state; strictfuser will admit only no-owner stdout/stderr results. Any mismatch refuses; no automaticretry.",
+  "candidate_commit": "a3fa14e05f4076f0f99cbbaa71ff9b7cbc82dee2",
+  "candidate_branch_head": "1b734741c7b92d828a7d86fa94b294956b9a265e",
+  "actual_package_version": "0.2.0dev.r1017.ga3fa14e-1",
+  "package_authority": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/sources/owner-package-authority-v1.json",
+    "size": 8408,
+    "sha256": "b692d5b68b68bf7e185c4e9a103e99d4f2c39ddc6fba0bc16d0ea801a0e73662"
+  },
+  "exact_tree": "4bbe75859c93cd9f4cb655b0e650011d4bd492b6",
+  "owner": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/sources/own_offline_overlay_serial_once_v7.py",
+    "size": 17267,
+    "sha256": "9b687ccc31d0b8a0e48f7bd25bc4fa664a3702e6c3e3b6bd9ec60e71599cae4a"
+  },
+  "proposal": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/sources/proposal-selected-v1.json",
+    "size": 3369,
+    "sha256": "fd75885fad296f4723c7f8355b73d4102d1303ab746e73db7a52df43529a57aa"
+  },
+  "whole_CI_status_at_preparation": "in_progress;6of7successful, linuxpending",
+  "CI_run": 37924307093,
+  "CI_observation": ".local-state/icloud-1b73474-current-ci-20261009/ci-observation-v7.json",
+  "parallel_schedule_scope": "Reviewed reversible local evidence run alongside remote CI. Exact full localcheck and attested Arch job passed; pending wholeCI remains separate candidate acceptance prerequisite.",
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/sources/own_offline_overlay_serial_once_v7.py",
+    "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/host-inputs-selected.json",
+    "EXACT_INPUT_SHA_RECORDED_AT_DISPATCH"
+  ],
+  "private_TMPDIR": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence",
+  "filesystem": "ext4",
+  "expected_seconds": 900,
+  "cleanup_reserve_seconds": 45,
+  "base_image": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/guest-ae484a4d-4a97-4eca-b470-6c270eec8220.qcow2",
+    "sha256": "58c7fa1b752f80e0e6a54de12bd05f26a593b30b8f9cd2b7d8cc0a2247d62551",
+    "size": 85262336,
+    "stat9": [
+      66305,
+      8912918,
+      33152,
+      1000,
+      1000,
+      1,
+      85262336,
+      1791539230485007029,
+      1791539230485007029
+    ]
+  },
+  "backing_base": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2",
+    "sha256": "d6ec9e817b100515f03349e9ae2dfbd307f894aeb0da583bcc979c31b895e227",
+    "size": 7191658496,
+    "stat9": [
+      66305,
+      69468170,
+      33152,
+      1000,
+      1000,
+      1,
+      7191658496,
+      1791525577178827114,
+      1791525577178827114
+    ]
+  },
+  "guard_control_export": ".local-state/icloud-offline-fuser-guard-03e8eb3b-7a32-444c-be2b-de980cbeaa21-preparation-private-v1/export-v1.json",
+  "guard_export_sha256": "bee484bc4b2def753f00f2a936ae771c50ab919a8fea3b80a654f90399abb201",
+  "host_preflight": {
+    "run": "63bf1f2c-e404-47a9-a318-1ffafbf77b81",
+    "source_head": "1b734741c7b92d828a7d86fa94b294956b9a265e",
+    "whole_local_check_passed": true,
+    "runtime_inputs_unchanged": true,
+    "only_prior_check_pin_change": [
+      "docs/benchmarks/icloud-offline-installed-upgrade-2026-10-09-ae484a4d-4a97-4eca-b470-6c270eec8220.json"
+    ],
+    "other_compilers_or_guests": [],
+    "active_measurement_windows": [],
+    "filesystem": "ext4",
+    "checked_unix": 1791547265.180028,
+    "original_host_delivery": "HOLD",
+    "no_provider_or_auth_actions": true
+  },
+  "python_binary": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+  },
+  "automatic_retry": false,
+  "auth_required": false,
+  "provider_actions": false,
+  "original_host_install": false,
+  "gates_closed_by_this_arm": [],
+  "criterion_488": false,
+  "criterion_490": false,
+  "normal_guest_boot_tested": false,
+  "scope": "Offline package/recovery prerequisite only; not enabled/ready provider, active daemon exports, genuine downgrade or installed lifecycle/reliability acceptance.",
+  "window": {
+    "started_unix": 1791547481.2818696,
+    "deadline_unix": 1791548381.2818696,
+    "started_boottime": 572108.40494848,
+    "deadline_boottime": 573008.40494848,
+    "cleanup_reserve_seconds": 45,
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+  },
+  "final_source_review": "CLEAR; independent Gate material/adapter review 2026-10-09",
+  "native_closure": {
+    "native_session_id": 20016,
+    "exit_code": 0,
+    "original_pid": 3895179,
+    "original_birth": "57211513",
+    "original_process_absent": true,
+    "closure_observed_unix": 1791547531.7735767,
+    "original_window": {
+      "started_unix": 1791547481.2818696,
+      "deadline_unix": 1791548381.2818696,
+      "started_boottime": 572108.40494848,
+      "deadline_boottime": 573008.40494848,
+      "cleanup_reserve_seconds": 45,
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+    },
+    "within_original_window": true,
+    "automatic_retry": false
+  },
+  "result": {
+    "actual_result": {
+      "access": "read_write",
+      "account": "d36b725d-5d95-40e4-8abd-49465d76f242",
+      "auth_executed": false,
+      "enabled": false,
+      "evidence": "/home/tester/installed-acceptance/offline-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81",
+      "exports": {
+        "dirty_sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff",
+        "dirty_size": 52,
+        "file": "876349a9-939f-49a8-b4e1-1860202aa7b2",
+        "generation": 4,
+        "operation": "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb",
+        "sealed_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472",
+        "sealed_size": 44,
+        "state": "verify_required",
+        "unlinked": true
+      },
+      "network_device": false,
+      "new_versions": [
+        "cirrove 0.2.0dev.r1017.ga3fa14e-1",
+        "cirrove-desktop 0.2.0dev.r1017.ga3fa14e-1",
+        "cirrove-dolphin 0.2.0dev.r1017.ga3fa14e-1"
+      ],
+      "old_versions": [
+        "cirrove 0.2.0dev.r1015.g2705756-1",
+        "cirrove-desktop 0.2.0dev.r1015.g2705756-1",
+        "cirrove-dolphin 0.2.0dev.r1015.g2705756-1"
+      ],
+      "persistent_state_equal": true,
+      "restore_markers_absent": true,
+      "run": "63bf1f2c-e404-47a9-a318-1ffafbf77b81",
+      "settings_sha256": "c84d99f38050f2bd8373b86a04ab706ee478cfe2195acfdd651d2996aca0bdc1",
+      "sqlite_shm_after": {
+        "accounts/d36b725d-5d95-40e4-8abd-49465d76f242/journal/uploads.db-shm": [
+          1442398,
+          33152,
+          1000,
+          1000,
+          1,
+          32768,
+          1791547503158261392,
+          1791547503158261392,
+          "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+        ]
+      },
+      "sqlite_shm_before": {
+        "accounts/d36b725d-5d95-40e4-8abd-49465d76f242/journal/uploads.db-shm": [
+          1442398,
+          33152,
+          1000,
+          1000,
+          1,
+          32768,
+          1791539229712797859,
+          1791539229712797859,
+          "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb"
+        ]
+      },
+      "success": true,
+      "target_daemon_started": false
+    },
+    "backing_base_unchanged": true,
+    "base_unchanged": true,
+    "future_user_return_disk": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/guest-63bf1f2c-e404-47a9-a318-1ffafbf77b81.qcow2",
+    "no_cloud_acceptance_credit": true,
+    "normal_guest_boot_tested": false,
+    "success": true
+  },
+  "retained_evidence": {
+    "actual-readiness.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/actual-readiness.json",
+      "size": 163,
+      "sha256": "d33eeefd24959b442e51ab09ca16d63d4da1019e1f1b79027fa1f320ff5e2ff0"
+    },
+    "backing-base-after.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/backing-base-after.json",
+      "size": 375,
+      "sha256": "b55186e431fba6b42424a283ac65c0ad3df02e147783fe9e35f85d232017c0b7"
+    },
+    "backing-base-before.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/backing-base-before.json",
+      "size": 375,
+      "sha256": "b55186e431fba6b42424a283ac65c0ad3df02e147783fe9e35f85d232017c0b7"
+    },
+    "base-after.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/base-after.json",
+      "size": 402,
+      "sha256": "f4538c2474c7f45a96b9c98ac5de58789d11bb651f4d89f2c7d6d096dd00b317"
+    },
+    "base-before.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/base-before.json",
+      "size": 402,
+      "sha256": "f4538c2474c7f45a96b9c98ac5de58789d11bb651f4d89f2c7d6d096dd00b317"
+    },
+    "base-use-check-closed.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/base-use-check-closed.json",
+      "size": 849,
+      "sha256": "1771b40aa07a89f5a8040d00f55c74480d962b667e02bc3f78c6c901f1922fca"
+    },
+    "base-use-check-original-owner.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/base-use-check-original-owner.json",
+      "size": 451,
+      "sha256": "311efce1a1a82403c053dbc2318bfafc861bd0708f8a476c85969f4afa77659b"
+    },
+    "disk-tmp-check-closed.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/disk-tmp-check-closed.json",
+      "size": 737,
+      "sha256": "da3d08f67137705dcbeb400c87d4ff345744eb4801c3821dd364c144a72c5719"
+    },
+    "disk-tmp-check-original-owner.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/disk-tmp-check-original-owner.json",
+      "size": 340,
+      "sha256": "dc2feda3afd27b2ee232d9913e4ec4cf3529f300f51ac197d0636b096e0ab0cd"
+    },
+    "overlay-after.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/overlay-after.json",
+      "size": 403,
+      "sha256": "49be5e9f313cc69f4669f678ecd484753b06bc9fdc9438186150c886cbde6f11"
+    },
+    "overlay-create-closed.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/overlay-create-closed.json",
+      "size": 957,
+      "sha256": "5346aaa593eaa4c1af590c8fdd45fbaddcd8824ae652812ed2af0417a173dd1b"
+    },
+    "overlay-create-original-owner.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/overlay-create-original-owner.json",
+      "size": 557,
+      "sha256": "e4f8f92e51124a5c313f020e57f20a546a12eecf0421902a3bc442f2385078c0"
+    },
+    "overlay-created.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/overlay-created.json",
+      "size": 370,
+      "sha256": "d612bfa3034addc862ec95ea6dd3ec1f3aeba195ef605287e9b2561e072f9ba3"
+    },
+    "qemu-closed.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/qemu-closed.json",
+      "size": 1597,
+      "sha256": "b7472d32cb4526a62425ab10e6698e5d8724f334150365a278f345635260fa77"
+    },
+    "qemu-original-owner.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/qemu-original-owner.json",
+      "size": 1413,
+      "sha256": "73218259fe4e057388f4c8303e3a3751ebf854f520241599a7c25fc8b1e4e878"
+    },
+    "qemu-stderr.log": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/qemu-stderr.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "serial.log": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/serial.log",
+      "size": 22525,
+      "sha256": "c62f38476ccf754c84fb9e17b5682588cfd4c55a533dec4192a13b53e331f049"
+    },
+    "successful-result.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/successful-result.json",
+      "size": 2370,
+      "sha256": "93dc4aafd3e7dc101635730e1ab50d7471fd66ad29f87373876be698911972d2"
+    },
+    "terminal.json": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/terminal.json",
+      "size": 115,
+      "sha256": "cac621050adc76ff4ee695f44f5fa20536112dde8e5c1cf03240d30096484ee5"
+    }
+  },
+  "original_registration": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/sources/registration-before-dispatch.json",
+    "size": 5943,
+    "sha256": "a4a03ede7d2aabcfe11fb241901eade2941d303b027bf5dbdd5c7e9d78c31262"
+  },
+  "actual_input": {
+    "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/host-inputs-selected.json",
+    "size": 5873,
+    "sha256": "f02f6d8aaa4a4e37af40c9a9263dea281e0134ee5203e62216df303589adb728"
+  },
+  "root_endpoint_review": "PASS exactexports/packages/SHM allowance/bothbeforeafterpins/childclosure",
+  "no_cloud_acceptance_credit": true,
+  "independent_reviews": {
+    "closure": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81-independent-closure-audit-private-v1/audit-independent-closed-offline-terminal-v1.json",
+      "size": 9282,
+      "sha256": "23c7c90e3f8eeb23ee3e7e72ca271a715b9d051f5de0c73065c8e72f51914f0a"
+    },
+    "endpoint": {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/evidence/audit-independent-offline-guest-endpoint-63bf-v1.json",
+      "size": 3158,
+      "sha256": "6c08f2ad69baa8efb97ae236f32cd5ef82cf6217aae46bb3a9314135527cf26c"
+    }
+  },
+  "independent_review_counts": {
+    "closure": 33,
+    "endpoint": 18
+  },
+  "reviewed_unix": 1791547673.6707804
+}

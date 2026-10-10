@@ -1,0 +1,28 @@
+{
+  "run": "f94a6398-882d-40be-9281-a89fd8635ea6",
+  "binary_sha256": "6af2fd232a8c6e8f5064328845a0d62ef081561ca6c4de85a5585665f8f34826",
+  "revision": "2138827aa8c0d0ad6cee196813f530775d546371",
+  "dirty": true,
+  "expected_duration_seconds": 900,
+  "start_utc": "2026-09-30T02:58:04.834327+00:00",
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "read_only": true,
+  "installed_service_changed": false,
+  "pid": 1850497,
+  "exit_code": 0,
+  "elapsed_seconds": 9.649,
+  "finished_utc": "2026-09-30T02:58:14.483132+00:00",
+  "report": {
+    "artifact_size": 21759419,
+    "cache_provider_reads": 0,
+    "mounted": true,
+    "offline_remount_full_read": true,
+    "private_disk_digest_verified": true,
+    "read_only": true,
+    "run": "f94a6398-882d-40be-9281-a89fd8635ea6",
+    "shared_cache_reopened_full_digest_verified": true,
+    "source_listing_size": 21957877,
+    "source_revision_checked_before_after": true
+  }
+}

@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "subject582_closed_partial_import_A_verified_loss_start_refused_local_TMP_contract_readonly_c278_not_dispatched",
+  "subject_run": "582e1376-a056-457f-89d8-8b0d1f309f62",
+  "readonly_run": "c278a5c4-e4ad-4a27-9940-d8b78f4caa0b",
+  "question": "Does a new owned genuine edited flat Numbers replacement recover its exact operation after final local acknowledgement loss, then retain full reference B through a strict fresh read-only remount before any Apple application is opened?",
+  "prediction": "Receipt-bound native metadata publication will expose sole current B and original A in Trash. Without intervening application opening, fresh remount should fetch the same exact B revision and full semantic content; any newer revision or altered tree will still refuse.",
+  "arms": [
+    "One fresh owned import/replacement/process-loss/recovery/postflight subject arm",
+    "One separate fresh derived-state read-only remount arm after subject closure, before any Apple opening"
+  ],
+  "phase_windows": {
+    "subject": {
+      "maximum_seconds": 600,
+      "cleanup_reserve_seconds": 45
+    },
+    "readonly": {
+      "maximum_seconds": 600,
+      "cleanup_reserve_seconds": 45
+    }
+  },
+  "window_policy": "Each phase owns its original clock, starts only after registration and preparation, and never extends or reuses a prior arm deadline. Both phases are stopped and audited separately.",
+  "endpoint": [
+    "Genuine final receipt loss followed by exact same-operation inspection recovery, no mutation replay",
+    "Independent strict full semantic V2 proof of reference B and protected original A in Trash",
+    "Fresh read-only startup selects exact current B alone at original name and exact original A backup in Trash",
+    "Normal read-only mounted capture and offline scanner match full reference B with exact revision fences",
+    "Recorded original handles reaped and own mount/socket absent; original source state, completed transfer rows and installed baseline preserved"
+  ],
+  "sources": {
+    "original_a": {
+      "raw_size": 138945,
+      "raw_sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+      "semantic_v2": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133153
+    },
+    "genuine_edited_b": {
+      "raw_size": 139044,
+      "raw_sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+      "semantic_v2": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133252
+    }
+  },
+  "provider_mutation_scope": "Only newly created uniquely named owned subject folder/document; one import and one replacement. No mutation of historical subjects, user documents or other clients. Read-only phase issues no provider writes.",
+  "automatic_retry": false,
+  "uncertain_outcome_policy": "Stop without resubmitting an uncertain mutation or repeating a failed/unclear provider arm. Diagnosis uses retained closed evidence.",
+  "application_order": "No browser or native editor opening of the subject between postflight and read-only proof. Any later Apple fidelity check is separately registered.",
+  "reference_policy": "No replacement of the preregistered current revision or content reference with a newer observed version.",
+  "prior_evidence": "icloud-native-package-readonly-backfill-2026-10-06.json",
+  "causal_limit": "This controls phase order; prior revision drift has no proven actor and is not attributed to the user or Apple application.",
+  "code_head": "5340ffb574391f0f476a372ce51ebfe7c1f721ce",
+  "runtime_sources": 549,
+  "runtime_ready": false,
+  "installed_actions": false,
+  "installed_delivery": "HOLD packaged14/7 versus candidate21/8",
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "actual_subject582": {
+    "root_driver": {
+      "run": "582e1376-a056-457f-89d8-8b0d1f309f62",
+      "exit_code": 1,
+      "elapsed_seconds": 119.98892308399081,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "pid": 2294016,
+      "window": {
+        "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+        "deadline_monotonic": 321370.12307691574,
+        "deadline_unix_seconds": 1791296743,
+        "started_monotonic": 320770.558712542,
+        "started_unix_seconds": 1791296143
+      },
+      "issues": [],
+      "signals": [],
+      "automatic_retry": false,
+      "logs": [
+        {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-582e1376-a056-457f-89d8-8b0d1f309f62/root-driver.stdout.log",
+          "size": 1928,
+          "sha256": "adc87912c41a0df7c64b21d23b5f170613de65918d3412ad1534f49208a1141f"
+        },
+        {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-582e1376-a056-457f-89d8-8b0d1f309f62/root-driver.stderr.log",
+          "size": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    "controller": {
+      "automatic_retry": false,
+      "children": [
+        {
+          "original_handle_reaped": true,
+          "phase": "start-a",
+          "pid": 2294066,
+          "proc_absent": true,
+          "returncode": 0
+        },
+        {
+          "original_handle_reaped": true,
+          "phase": "import-a",
+          "pid": 2294924,
+          "proc_absent": true,
+          "returncode": 0
+        },
+        {
+          "original_handle_reaped": true,
+          "phase": "metadata-a",
+          "pid": 2295266,
+          "proc_absent": true,
+          "returncode": 0
+        },
+        {
+          "original_handle_reaped": true,
+          "phase": "start-loss",
+          "pid": 2296199,
+          "proc_absent": true,
+          "returncode": 1
+        }
+      ],
+      "errors": [],
+      "failure": {
+        "class": "Refusal",
+        "positions": [
+          {
+            "file": "controller_native_flat_v4.py",
+            "function": "main",
+            "line": 998
+          },
+          {
+            "file": "controller_native_flat_v4.py",
+            "function": "execute",
+            "line": 945
+          },
+          {
+            "file": "controller_native_flat_v4.py",
+            "function": "ready",
+            "line": 889
+          },
+          {
+            "file": "controller_native_flat_v4.py",
+            "function": "require",
+            "line": 30
+          }
+        ]
+      },
+      "full_integration_accepted": false,
+      "independent_trash_raw_verified": false,
+      "installed_actions": false,
+      "mount_absent": true,
+      "run": "582e1376-a056-457f-89d8-8b0d1f309f62",
+      "same_operation_inspection_only": false,
+      "socket_absent": true,
+      "sources_unchanged": true,
+      "success": false,
+      "version": 1
+    },
+    "original_subject_phase_window_closed": true,
+    "new_owned_folder_created": true,
+    "original_import_completed": true,
+    "independent_original_A_readback_verified": true,
+    "B_replacement_dispatched": false,
+    "recovery_dispatched": false,
+    "postflight_dispatched": false,
+    "readonly_c278_dispatched": false,
+    "installed_after_sha256": "e3e469b4cbba6f483eaf719ca278a8abf19a437ec7fab4aca72cece15d8371b8"
+  },
+  "local_preflight_controls": {
+    "prepare_exit_code": 0,
+    "assemble_exit_code": 0,
+    "initial_controller_check_exit_code": 1,
+    "initial_controller_check_cause": "Root local runner supplied its generic ext4 TMP instead of the controller private TMP; refused before cloud.",
+    "corrected_controller_check": {
+      "exit_code": 0,
+      "elapsed_seconds": 1.0699553090380505,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "issues": [],
+      "sources_unchanged": true,
+      "source_count": 549,
+      "script_unchanged": true,
+      "provider_calls": 0,
+      "stdout_sha256": "11c4308569ac6f44b8ac8f65cc8b419c02a1f067371d17ad14da8f218ddd0d16",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "registration_sha256": "2ce45e2fc49726f7c516184e5fb668d48bf1b4d3f67b2b37693d63d4557ea8bf",
+      "proof": {
+        "local_checks_passed": true,
+        "clock_started": false,
+        "cloud_dispatched": false,
+        "genuine_b_bound": true
+      }
+    },
+    "readonly_guard_controls": {
+      "exit_code": 0,
+      "elapsed_seconds": 0.3808071970124729,
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "source_unchanged": true,
+      "test_unchanged": true,
+      "log_sha256": "087b89fc45b1b8488fc0e2068d1bf21c9505c04d30cea786bb5315d63366e306",
+      "provider_calls": 0
+    },
+    "readonly_guard_count": 15
+  },
+  "deterministic_local_admission_finding": {
+    "audit_sha256": "fa6608e5b0b15cb8091435e0dc12c38256d4a132acce743db880293865961848",
+    "source": "crates/cirrove-service/src/validation/icloud_account/native_final_recovery/registration.rs",
+    "source_sha256": "b6c7ebbbeec90ff506a71ee944e378356ec7530c212008aac38b739581871848",
+    "actual_TMP": "/home/dandiccf/Storage/cirrove-tmp/nf-582e1376-a056-457f-89d8-8b0d1f309f62",
+    "required_TMP": "/home/dandiccf/Storage/cirrove-tmp/nf-582e1376",
+    "finding": "Private script adaptation changed proven RUN[:8] TMP to fullUUID. The Rust feature-only registration loader retains exact first8 contract and refuses before attempt marker/journal/preflight/provider start-loss APIs.",
+    "failure_line_limit": "The inner first failure was sanitized; mismatch is deterministically unsatisfied, without asserting all prior loader checks passed.",
+    "review_correction": "Prior normalized-script consistency review missed the production TMP requirement. Restore the proven path contract and check it offline before another provider arm; no production guard relaxation."
+  },
+  "next": "Retain this partial subject unchanged. A successor requires a new owned subject, restored exact TMP contract and offline contract validation before any provider dispatch.",
+  "independent_terminal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-582e1376-a056-457f-89d8-8b0d1f309f62/independent-terminal-audit-v1.json",
+    "size": 22630,
+    "sha256": "8a13ad26a21882e7fcb7df61ee724a7c6753f6463b2fd3b05b1868cf1769a502"
+  },
+  "separate_corrected_successor": "icloud-native-final-remount-before-apple-corrected-2026-10-06.json"
+}

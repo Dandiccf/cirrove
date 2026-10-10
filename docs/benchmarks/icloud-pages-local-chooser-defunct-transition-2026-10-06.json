@@ -1,0 +1,97 @@
+{
+  "actual_outcome": {
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "focus-own-chooser-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once",
+      "set-confirmation-document-folder",
+      "set-confirmation-destination-folder",
+      "set-confirmation-new-document-name",
+      "public-import-confirmation-cancel-once"
+    ],
+    "closure_errors": [],
+    "cloud_called": false,
+    "confirmation-field-readbacks": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-89cd181c-5014-4241-9ceb-55fafae9014c/chooser/confirmation-field-readbacks.json",
+      "sha256": "e80754668ac6d2ae648cf876cf3fdb8aec5f10b6c1e2274afc535d5f4c205bf5",
+      "size": 583
+    },
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-89cd181c-5014-4241-9ceb-55fafae9014c/result.json",
+      "sha256": "cde2b472628a69b5ebc1afb402a440d2086d6966b6d99a6793bfcb96c0002a7b",
+      "size": 4190
+    },
+    "desktop_reaped_and_absent": true,
+    "failure": null,
+    "gate485_complete": false,
+    "import_rpc_count": 0,
+    "inputs_unchanged": true,
+    "limits": "One actual local successful route, following retained failed controls. No cloud submission, independent cloud read, native editor acceptance or general reliability credit.",
+    "local_chooser_confirmation_cancel": true,
+    "location-before-open": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-89cd181c-5014-4241-9ceb-55fafae9014c/chooser/location-before-open.json",
+      "sha256": "59c8abeeceff66b27076f03e906c68d90edeb154047309ad442dd725ae575bf8",
+      "size": 166
+    },
+    "original_tool_session": 54289,
+    "outer_original_children_reaped": true,
+    "owned-chooser-focus-once": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-89cd181c-5014-4241-9ceb-55fafae9014c/chooser/owned-chooser-focus-once.json",
+      "sha256": "7ba833e11dae110d1a519d55c6e42ae9a68720615c12e7ddf21dfc1da3a4edb1",
+      "size": 325
+    },
+    "post-open-observation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-89cd181c-5014-4241-9ceb-55fafae9014c/chooser/post-open-observation.json",
+      "sha256": "5d7d302afa97033027e5bbc0337d22617aa4be02d8654fb8476a40b85fd788ad",
+      "size": 286
+    },
+    "private_sockets_absent": true,
+    "root_result": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1437650,
+      "controller_proc_absent": true,
+      "duration_seconds": 4.6796329189674,
+      "errors": [],
+      "exit_code": 0,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": true,
+      "provider_verified": false,
+      "run": "89cd181c-5014-4241-9ceb-55fafae9014c",
+      "signals": []
+    },
+    "three_confirmation_field_readbacks_verified": true,
+    "ui_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-89cd181c-5014-4241-9ceb-55fafae9014c/chooser/result.json",
+      "sha256": "00b9a4f757ae26a9ea69ed0f95ceac789eecf1e8cc613d380c9288dd9e51db59",
+      "size": 4756
+    },
+    "utility_children_reaped": 27
+  },
+  "automatic_retry": false,
+  "baseline": "ActualV30 failed count guard with count-1, exactownPID, DEFUNCTtrue/SHOWINGfalse. No provider calls/imports. Closed arm not replayed.",
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "installed_actions": false,
+  "limits": "Only removed own descendants are skipped. Root/foreign/visible/countoverflow remain refused; original time and action limits unchanged.",
+  "open_action_limit": 1,
+  "owned_chooser_focus_limit": 1,
+  "prediction": "An owned descendant removed between state and child count will return -1 with DEFUNCT=true/SHOWING=false and will be skipped. All other count limits remain hard guards. Fresh confirmation observation will reach three field readbacks and Cancel.",
+  "question": "Can exact defunct owned-node revalidation observe chooser removal without weakening tree bounds or repeating actions?",
+  "run": "89cd181c-5014-4241-9ceb-55fafae9014c",
+  "scope": "local-public-pages-isolated-chooser-fields-cancel-only",
+  "status": "actual-local-pass",
+  "utility_limit": 43,
+  "version": 1,
+  "window_seconds": 180
+}

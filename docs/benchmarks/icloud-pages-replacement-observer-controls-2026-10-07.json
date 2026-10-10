@@ -1,0 +1,574 @@
+{
+  "version": 1,
+  "status": "closed_check_passed_after_tmpdir_correction",
+  "active_measurement": false,
+  "question": "Can the explicit Pages PACKAGE observer bind genuine completed journal receipts to exact current B and original A in Trash, while retaining the Keynote contract?",
+  "prediction": "Eight Pages controls and eleven existing Keynote controls pass. Restoring Keynote-only format admission fails the positive Pages control; omitting the SQL tuple guard fails the borrowed-receipt rejection. Full project check passes after byte-exact restoration.",
+  "arms": [
+    "actual Pages8 compilation/control run",
+    "Keynote-only admission counterfactual: exact1 expected failure",
+    "same positive exact1 restored pass",
+    "SQL tuple omission: exact1 expected rejection assertion failure",
+    "same borrowed-receipt exact1 restored pass",
+    "Pages8 and existingKeynote11 final",
+    "complete scripts/check.sh"
+  ],
+  "endpoint": "Actual expected test names/counts and desired failures, byte-exact final source, all original runner/process groups closed, full check success.",
+  "base_head": "8fca356754c841c2cc66c91c96f6972192c516e2",
+  "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1",
+  "temporary_directory": "/home/dandiccf/Storage/cirrove-tmp/pages-observer-checks-20261007-v1",
+  "filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "no_provider_or_installed_actions": true,
+  "limits": [
+    "Synthetic fixtures only; no live Pages replacement accepted",
+    "Keynote-only counterfactual proves new-format absence, not a previously shipped Pages bug",
+    "No DATA/flat Pages, general editor fidelity, installed acceptance or full487 closure"
+  ],
+  "full487_closed": false,
+  "full_iCloud_criteria": {
+    "closed": 1,
+    "open": 5
+  },
+  "installed_delivery": "HOLD",
+  "fixture_directory_filesystem": "btrfs",
+  "controller_review_correction": "Unexecuted driver v1 assumed /var/tmp ext4. Actual findmnt is btrfs; v2 asserts actual ext4 TMPDIR plus btrfs retained fixture directories, both disk-backed.",
+  "current_phase": "full-retry",
+  "current_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry-registration.json",
+    "size": 1168,
+    "sha256": "d4c20e3d4aa883be070df6bfcb998482205e5f3f7023ab1cf3d899fa859bfeea"
+  },
+  "current_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry-owner.json",
+    "size": 130,
+    "sha256": "c64fd4b89e9548a25c234689621a38925b4e244c56f696c1be87fab96be1d3de"
+  },
+  "outcome": {
+    "success": true,
+    "retained_initial_terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/root-check-terminal-result.json",
+      "size": 7477,
+      "sha256": "e5332064e1eeb6c0f7c481c5d9905526327d00d118fe68be36c11c48c4556502"
+    },
+    "retained_initial_full_failure": {
+      "phase": "full",
+      "exit_code": 1,
+      "elapsed_seconds": 618.2086820169934,
+      "error": null,
+      "signals": [],
+      "original_owner_reaped": true,
+      "process_absent": true,
+      "original_process_group_live": [],
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full.log",
+        "size": 279550,
+        "sha256": "a243594b871cb28ccb388b6c1473ada7a4ab749aaba0067eed0f063015041a8c"
+      },
+      "source_at_completion": {
+        "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+        "size": 24087,
+        "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+      },
+      "success": false
+    },
+    "validation_results": [
+      {
+        "phase": "initial-pages8",
+        "exit_code": 0,
+        "elapsed_seconds": 61.35944251099136,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/initial-pages8.log",
+          "size": 1953,
+          "sha256": "0f902c8c503a08e9eb49d3a459d13bbd932b70b5888575d45c4b16faa8027840"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "format-baseline-red",
+        "exit_code": 101,
+        "elapsed_seconds": 21.219196793041192,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/format-baseline-red.log",
+          "size": 1409,
+          "sha256": "06fcfa0923f1a1dcff28cde49cc31a0c9980bfa4d463ea23e733ef9c869ec3b9"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24175,
+          "sha256": "50727e2bf2d7c9db3061cf6ef4665437212815917fb9d5a007f402a3c84f6e2e"
+        },
+        "success": true,
+        "expected_test_count_verified": true,
+        "desired_failure_verified": true
+      },
+      {
+        "phase": "format-baseline-green",
+        "exit_code": 0,
+        "elapsed_seconds": 19.52719466201961,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/format-baseline-green.log",
+          "size": 619,
+          "sha256": "5e94a8e38b1544e9972a1be9f02dff31fda684355c3a10c33e4c95adf0c76aed"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "tuple-omission-red",
+        "exit_code": 101,
+        "elapsed_seconds": 20.87436074402649,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/tuple-omission-red.log",
+          "size": 1384,
+          "sha256": "88a1d457d3380ba2a7993ca4e592f033ce7621007d4becd7de3d50b5c8890997"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 23811,
+          "sha256": "87eb841e732e9e03f7e2ad4983ca6f65719ffc5ce71cccb32fb21099d17fb878"
+        },
+        "success": true,
+        "expected_test_count_verified": true,
+        "desired_failure_verified": true
+      },
+      {
+        "phase": "tuple-omission-green",
+        "exit_code": 0,
+        "elapsed_seconds": 20.928357844008133,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/tuple-omission-green.log",
+          "size": 620,
+          "sha256": "c051429012c7fec9247058546fd84e06ef66d232b8f9a05862c173645f72a247"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "final-pages8",
+        "exit_code": 0,
+        "elapsed_seconds": 0.4760758930351585,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/final-pages8.log",
+          "size": 1859,
+          "sha256": "c731ac8dcc43d3b29eb406e57292f03f90de9a0709a7744727c133838a395ca0"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "existing-keynote11",
+        "exit_code": 0,
+        "elapsed_seconds": 0.5258312519872561,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/existing-keynote11.log",
+          "size": 2403,
+          "sha256": "9a64e8fc7996dfd473689e252b257558c0d2e874b0fe2f0b1312224a228f8e19"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "full-retry",
+        "exit_code": 0,
+        "elapsed_seconds": 555.0403490840108,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry.log",
+          "size": 291769,
+          "sha256": "35d917ed2732adf22ef6d00fa9ed7f7370d7b27f4e3d76627819fd2525f1ef82"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true
+      }
+    ],
+    "retry_results": [
+      {
+        "phase": "full-retry",
+        "exit_code": 0,
+        "elapsed_seconds": 555.0403490840108,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry.log",
+          "size": 291769,
+          "sha256": "35d917ed2732adf22ef6d00fa9ed7f7370d7b27f4e3d76627819fd2525f1ef82"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true
+      }
+    ],
+    "source_count": 568,
+    "all_source_pins_unchanged": true,
+    "source_restored": true,
+    "all_original_handles_closed": true,
+    "original_handles_total": 9,
+    "no_provider_or_installed_actions": true
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/root-check-terminal-result.json",
+    "size": 7477,
+    "sha256": "e5332064e1eeb6c0f7c481c5d9905526327d00d118fe68be36c11c48c4556502"
+  },
+  "initial_check_outcome": {
+    "success": false,
+    "results": [
+      {
+        "phase": "initial-pages8",
+        "exit_code": 0,
+        "elapsed_seconds": 61.35944251099136,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/initial-pages8.log",
+          "size": 1953,
+          "sha256": "0f902c8c503a08e9eb49d3a459d13bbd932b70b5888575d45c4b16faa8027840"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "format-baseline-red",
+        "exit_code": 101,
+        "elapsed_seconds": 21.219196793041192,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/format-baseline-red.log",
+          "size": 1409,
+          "sha256": "06fcfa0923f1a1dcff28cde49cc31a0c9980bfa4d463ea23e733ef9c869ec3b9"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24175,
+          "sha256": "50727e2bf2d7c9db3061cf6ef4665437212815917fb9d5a007f402a3c84f6e2e"
+        },
+        "success": true,
+        "expected_test_count_verified": true,
+        "desired_failure_verified": true
+      },
+      {
+        "phase": "format-baseline-green",
+        "exit_code": 0,
+        "elapsed_seconds": 19.52719466201961,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/format-baseline-green.log",
+          "size": 619,
+          "sha256": "5e94a8e38b1544e9972a1be9f02dff31fda684355c3a10c33e4c95adf0c76aed"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "tuple-omission-red",
+        "exit_code": 101,
+        "elapsed_seconds": 20.87436074402649,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/tuple-omission-red.log",
+          "size": 1384,
+          "sha256": "88a1d457d3380ba2a7993ca4e592f033ce7621007d4becd7de3d50b5c8890997"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 23811,
+          "sha256": "87eb841e732e9e03f7e2ad4983ca6f65719ffc5ce71cccb32fb21099d17fb878"
+        },
+        "success": true,
+        "expected_test_count_verified": true,
+        "desired_failure_verified": true
+      },
+      {
+        "phase": "tuple-omission-green",
+        "exit_code": 0,
+        "elapsed_seconds": 20.928357844008133,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/tuple-omission-green.log",
+          "size": 620,
+          "sha256": "c051429012c7fec9247058546fd84e06ef66d232b8f9a05862c173645f72a247"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "final-pages8",
+        "exit_code": 0,
+        "elapsed_seconds": 0.4760758930351585,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/final-pages8.log",
+          "size": 1859,
+          "sha256": "c731ac8dcc43d3b29eb406e57292f03f90de9a0709a7744727c133838a395ca0"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "existing-keynote11",
+        "exit_code": 0,
+        "elapsed_seconds": 0.5258312519872561,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/existing-keynote11.log",
+          "size": 2403,
+          "sha256": "9a64e8fc7996dfd473689e252b257558c0d2e874b0fe2f0b1312224a228f8e19"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": true,
+        "expected_test_count_verified": true
+      },
+      {
+        "phase": "full",
+        "exit_code": 1,
+        "elapsed_seconds": 618.2086820169934,
+        "error": null,
+        "signals": [],
+        "original_owner_reaped": true,
+        "process_absent": true,
+        "original_process_group_live": [],
+        "log": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full.log",
+          "size": 279550,
+          "sha256": "a243594b871cb28ccb388b6c1473ada7a4ab749aaba0067eed0f063015041a8c"
+        },
+        "source_at_completion": {
+          "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/keynote/replacement.rs",
+          "size": 24087,
+          "sha256": "3dbc11c19fbca920522b5b134b904f48e5a5db7304b676d759749cbf49bd5197"
+        },
+        "success": false
+      }
+    ],
+    "source_restored": true,
+    "source_count": 568,
+    "all_source_pins_unchanged": true,
+    "all_original_handles_closed": true,
+    "no_provider_or_installed_actions": true
+  },
+  "temporary_directory_retry": "/home/dandiccf/Storage/ct/p7",
+  "retry_filesystem": "ext4",
+  "setup_failure_and_correction": {
+    "failure": "After all87Rustgroups passed, scripts/smoke.py daemon refused socket: path must be shorter than SUN_LEN. Initial TMPDIR produced an overlong synthetic Unix socket.",
+    "initial_full_exit": 1,
+    "initial_full_elapsed_seconds": 618.2086820169934,
+    "source_changed": false,
+    "correction": "Short ext4 TMPDIR/SQLITE_TMPDIR, complete scripts/check.sh repeated from beginning. Seven targeted proof arms retain their original receipts; no provider mutation replay.",
+    "retry_driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/retry_full_check_v1.py",
+      "size": 6931,
+      "sha256": "3ec1d77c9585cf933227f64276be76f65a50e4099d0a15ce34beb09142017f6c"
+    },
+    "prediction": "Same unchanged568source fullcheck passes with a socket path well below Linux sun_path bound.",
+    "expected_socket_path_maximum_length": 68
+  },
+  "retry_terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/root-full-retry-terminal-result.json",
+    "size": 9503,
+    "sha256": "10b3220e3d13aaebdff08f348413e9c4e62b9ea1a476932ac42d0afffd527f65"
+  },
+  "completed_validation": {
+    "mandatory_check_command": [
+      "/usr/bin/bash",
+      "/home/dandiccf/Work/cirrove/scripts/check.sh"
+    ],
+    "mandatory_check_exit": 0,
+    "elapsed_seconds": 555.0403490840108,
+    "rust_test_groups": 87,
+    "rust_groups_all_passed": true,
+    "scripts_ledger_docs_passed": true,
+    "kernel_mount_scenarios_ran": true,
+    "display_scenarios_repeated": false,
+    "source_count": 568,
+    "all_source_pins_unchanged": true,
+    "original_handles_total": 9,
+    "initial_full_check_retained_as_failure": true,
+    "no_provider_or_installed_actions": true
+  },
+  "source_evidence": {
+    "source-pins-before.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/source-pins-before.json",
+      "size": 72732,
+      "sha256": "6488116ce753e43a278d6e88f1d32ceb985a81c1f58c12e6c3a781a95bd3d201"
+    },
+    "source-pins-after.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/source-pins-after.json",
+      "size": 72732,
+      "sha256": "6488116ce753e43a278d6e88f1d32ceb985a81c1f58c12e6c3a781a95bd3d201"
+    },
+    "source-pins-after-retry.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/source-pins-after-retry.json",
+      "size": 72732,
+      "sha256": "6488116ce753e43a278d6e88f1d32ceb985a81c1f58c12e6c3a781a95bd3d201"
+    },
+    "run_checks_v2.py": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/run_checks_v2.py",
+      "size": 7730,
+      "sha256": "f6ad978643fa6b64e9c33871649664b72c54ad5217c1c899183b36455ba250ea"
+    },
+    "retry_full_check_v1.py": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/retry_full_check_v1.py",
+      "size": 6931,
+      "sha256": "3ec1d77c9585cf933227f64276be76f65a50e4099d0a15ce34beb09142017f6c"
+    },
+    "root-check-terminal-result.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/root-check-terminal-result.json",
+      "size": 7477,
+      "sha256": "e5332064e1eeb6c0f7c481c5d9905526327d00d118fe68be36c11c48c4556502"
+    },
+    "root-full-retry-terminal-result.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/root-full-retry-terminal-result.json",
+      "size": 9503,
+      "sha256": "10b3220e3d13aaebdff08f348413e9c4e62b9ea1a476932ac42d0afffd527f65"
+    }
+  },
+  "preceding_committed_source_CI": {
+    "run": 37552968784,
+    "head": "8fca356754c841c2cc66c91c96f6972192c516e2",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs_passed": 7,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37552968784",
+    "private_observation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/ci8fca-completed-private-v1.json",
+      "size": 24503,
+      "sha256": "47baab7867b9186f6cf07ee8e9cfed8df38bd1328908385b00754802ee679c36"
+    },
+    "scope": "Exact committed owner-readiness/Keynote snapshot; subsequent Pages observer working-tree changes excluded.",
+    "Pages_observer_included": false
+  },
+  "independent_final_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/audit-regression-review-nine-owner-full-retry-terminal-v1.json",
+    "size": 26278,
+    "sha256": "ffd52117568aca45b75fe85fe7def9a78836e50d217ea069804291f8ddb597db",
+    "passed": 46,
+    "total": 46
+  }
+}

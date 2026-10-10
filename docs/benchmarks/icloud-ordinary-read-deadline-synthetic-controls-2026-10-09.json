@@ -1,0 +1,233 @@
+{
+  "GREEN": {
+    "exit": 0,
+    "manifest": {
+      "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/ordinary-deadline-green-v1/manifest-v1.json",
+      "sha256": "24d9c5a791e1b015b73195f61eb9367a6b215f7b206811a2f1a7ba37c585d03e",
+      "size": 1825
+    },
+    "positive_exact_bytes_and_all_four_stages": true,
+    "terminal": {
+      "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/ordinary-deadline-green-v1/terminal-v1.json",
+      "sha256": "3e6e0b747835b6f6c4dcfbcf682dc6fabfe117b1f19e3451692cb82c460e00c4",
+      "size": 773
+    },
+    "test_names": [
+      "provider::ordinary::tests::adapter_binds_scope_revision_and_shared_budget_without_fetching_content",
+      "provider::ordinary::tests::cancellation_interrupts_a_waiting_shared_read_permit",
+      "provider::ordinary::tests::uploaded_receipt_with_content_revision_equal_to_etag_opens_a_session",
+      "provider::ordinary::deadline_tests::multistage_ordinary_read_cancellation_interrupts_metadata",
+      "provider::ordinary::deadline_tests::multistage_ordinary_read_rejects_changed_final_revision",
+      "provider::ordinary::tests::changed_initial_revision_fails_even_at_eof_without_content_lookup",
+      "provider::ordinary::tests::streamed_varied_bytes_and_partial_final_block_require_final_revision",
+      "provider::ordinary::tests::rejects_wrong_ranges_short_long_encoded_and_failed_sink",
+      "provider::ordinary::deadline_tests::ordinary_read_deadline_includes_bounded_metadata_lookup_body_and_final_revision"
+    ],
+    "test_seconds": 34.08,
+    "tests_failed": 0,
+    "tests_passed": 9
+  },
+  "RED": {
+    "completed_stages": 2,
+    "desired_assertion_marker": "bounded multistage ordinary read discarded",
+    "exit": 101,
+    "manifest": {
+      "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/ordinary-deadline-red-v1/manifest-v1.json",
+      "sha256": "edc2abba492f9f38a66ad9dcc98c573f52e2a0580ac874488b2cfec544d05928",
+      "size": 1763
+    },
+    "started_stages": 3,
+    "terminal": {
+      "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/ordinary-deadline-red-v1/terminal-v1.json",
+      "sha256": "283c0d85938ba5fcce0c3d945c44a4bec54a8f40cd4f9cddef134cff6261c572",
+      "size": 772
+    },
+    "test_seconds": 30.04,
+    "tests_failed": 1,
+    "tests_passed": 0,
+    "typed_result": "Unavailable"
+  },
+  "Root_commit": "934dd682f4127a742b432e0d99abcfb6b3a697b3",
+  "SQLITE_TMPDIR_GREEN": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/tmp",
+  "SQLITE_TMPDIR_RED": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/tmp",
+  "TMPDIR_GREEN": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/tmp",
+  "TMPDIR_RED": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/tmp",
+  "active_measurement": false,
+  "arms": [
+    "unchanged_normal_adapter_outer_30_seconds",
+    "ordinary_adapter_outer_270_seconds"
+  ],
+  "artifact_kind": "retrospective synthetic deadline evidence draft",
+  "cargo_resolved_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+  "commands": {
+    "GREEN": [
+      "/home/dandiccf/.cargo/bin/cargo",
+      "test",
+      "-p",
+      "cirrove-icloud",
+      "--lib",
+      "provider::ordinary::",
+      "--locked",
+      "--offline",
+      "--",
+      "--nocapture"
+    ],
+    "RED": [
+      "/home/dandiccf/.cargo/bin/cargo",
+      "test",
+      "-p",
+      "cirrove-icloud",
+      "--lib",
+      "provider::ordinary::deadline_tests::ordinary_read_deadline_includes_bounded_metadata_lookup_body_and_final_revision",
+      "--locked",
+      "--offline",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "complete_check": [
+      "scripts/check.sh"
+    ]
+  },
+  "committed_source_parity": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-read-deadline-normal-roles-preparation-20261009-private-v1/root-committed-runtime-sync-v1.json",
+    "sha256": "a81237e2a85d2a0b87464f6cd6347f9a3331f342d0db1465f42d4cbc373d30c9",
+    "size": 75501
+  },
+  "date": "2026-10-09",
+  "endpoints": [
+    "Same local-TLS positive must execute its intended assertion without compiler/setup failure.",
+    "Exact bytes require all four stages and final revision; wrong final revision and active cancellation refuse.",
+    "Nine focused ordinary controls pass, then entire scripts/check.sh passes separately."
+  ],
+  "exclusive_target": "/home/dandiccf/Storage/.cirrove-builds/ordinary-read-deadline-20261008/target",
+  "full_integration_accepted": false,
+  "fullcheck": {
+    "Dolphin_ctest_passed": 2,
+    "all_original_handles_closed": true,
+    "audit_passed": 18,
+    "elapsed_seconds": 866.8477636169991,
+    "exit_code": 0,
+    "historical_first_failure_preserved": {
+      "actual_old_TMPDIR_bytes": 109,
+      "cause": "Actual SUN_LEN/InvalidInput socket setup failure with109-byte TMP prefix plus generated TempDir/socket paths. Old wholefailure preserved; no desktop source correction.",
+      "corrected_reached_sections": [
+        "format",
+        "clippy",
+        "iCloud preview binary",
+        "iCloud isolated write probe",
+        "iCloud editor metadata CLI",
+        "iCloud isolated mounted write probe",
+        "workspace tests"
+      ],
+      "elapsed_seconds": 203.53061083203647,
+      "exit": 101,
+      "failed_account_tests": [
+        "malformed_and_stalled_status_responses_are_distinct_and_do_not_echo_bodies",
+        "snapshot_reads_local_socket_and_settings_without_a_cloud_provider",
+        "unreadable_invalid_and_recovered_settings_keep_distinct_causes"
+      ],
+      "first_six_completed_before_workspace_failure": true,
+      "original_sections_field": [],
+      "stderr": {
+        "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/fullcheck-20261008-private-v1/stderr.log",
+        "sha256": "33b5d5050855e14879045478d11cd9c0cc28a5c98a5d0ef58d04da31caa9485e",
+        "size": 23232
+      },
+      "stdout": {
+        "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/fullcheck-20261008-private-v1/stdout.log",
+        "sha256": "7cd1e22c5e836980da06812d6eaf508754fabd3e5585e40e345a1953375c9220",
+        "size": 9387
+      },
+      "success": false,
+      "terminal": {
+        "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/fullcheck-20261008-private-v1/terminal-v1.json",
+        "sha256": "006a503c495ede6b4d67cae890e6c36703dcdd29057c442e7ad23f1c070513c7",
+        "size": 1924
+      }
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/fullcheck-20261009-private-v2/audit-independent-complete-fullcheck-v2.json",
+      "sha256": "bf40623a7cd65b09e0cc58b316140c7ce6f5813b2c9bf8716416ed8dd59f0ab5",
+      "size": 18372
+    },
+    "installed_actions": false,
+    "kernel_success_summary_count": 7,
+    "kernel_top_level_commands": 6,
+    "not_fast": true,
+    "provider_acceptance": false,
+    "runtime_source_map_final": {
+      "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/fullcheck-20261009-private-v2/runtime-source-map-final-v1.json",
+      "sha256": "940d9055be3c19f20e3ecb5a6a743a54b0738b6a7dd9caaf48ef98f0ed7c5bc3",
+      "size": 75177
+    },
+    "rust_success_groups": 87,
+    "sections": [
+      "format",
+      "clippy",
+      "iCloud preview binary",
+      "iCloud isolated write probe",
+      "iCloud editor metadata CLI",
+      "iCloud isolated mounted write probe",
+      "workspace tests",
+      "kernel mounts",
+      "scripts",
+      "docs"
+    ],
+    "source_count": 574,
+    "source_proof_limit": "Owned3before/after exact; final574 independently frozen against known573+newtest. No full574before snapshot is invented. CurrentRoot574 map independently hash-matches Wnew and pinned Root committed sync; receipt commits differ correctly.",
+    "success": true,
+    "terminal": {
+      "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/fullcheck-20261009-private-v2/terminal-v1.json",
+      "sha256": "a0a9628b9e66e633d30574273249e607f02c5d6c36dbcdf204e066a9e15f5967",
+      "size": 2193
+    }
+  },
+  "gate488_closed": false,
+  "gate489_closed": false,
+  "gate490_closed": false,
+  "independent_control_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-ordinary-read-deadline-20261008/.local-state/ordinary-deadline-green-v1/audit-independent-ordinary-deadline-red-green-v1.json",
+    "sha256": "4dc6d0fd815de207059482e3fa628d42d14393c378d150c38b80d32d474875f9",
+    "size": 10457
+  },
+  "independent_control_checks": 20,
+  "installed_actions": false,
+  "limits": [
+    "One run per arm; no within-arm spread measured, no performance claim from different total Cargo/test durations.",
+    "Actual adapter/read_range and mirrored enclosing timeout only; no full ContentCache/Engine/FUSE or long streamed-window endpoint.",
+    "Historical e97/7f whole failures retain their unproved typed originating timeout cause; this control does not relabel them as success.",
+    "270-second outer budget is finite. Individual HTTP limits30/90, package360, other-provider30, final-revision fences and cancellation stay unchanged.",
+    "Fullcheck synthetic kernel fixtures passed; current new normal build, real paced read, CI and installed delivery are separate pending endpoints.",
+    "No general real-provider reliability or full488/489/490 closure."
+  ],
+  "prediction_before_GREEN": "Exact positive returns all bytes after final revision; new changed-revision/cancel negatives and six unchanged ordinary controls pass.",
+  "prediction_before_RED": "Current adapter30s outer deadline returns Unavailable after30s, before the8s body stage completes; expected-success assertion RED.",
+  "production_delta": "Only iCloud ordinary adapter content_read_timeout30→270 plus explanatory comment. 2x90 metadata+2x30 lookup/body+30 session/permit allowance; service clamps to360.",
+  "provider_calls": false,
+  "question": "Does the actual normal iCloud ordinary session reach its final revision fence when four individually bounded HTTP stages total34s?",
+  "registration_notice": "Question, prediction, commands, tool hash, source pins and private ext4 temporary directories were frozen in private manifests before each arm. This public consolidation is retrospective; it is not claimed as a pre-run public benchmark registration.",
+  "source_count": 574,
+  "source_provenance_limit": "Old provider bytes reconstructed after RED from tracked6c6 and independently equal unchanged Root and normal809 source. Not claimed as contemporaneous provider snapshot. RED retained fixture and ordinary module are contemporaneously manifest-pinned.",
+  "stage_seconds": [
+    16,
+    8,
+    8,
+    2
+  ],
+  "status": "closed_synthetic_RED_then_GREEN_fullcheck_passed",
+  "temporary_filesystem": "ext4",
+  "unchanged_contracts": [
+    "individualHTTP30/metadata90",
+    "package adapter360",
+    "otherprovider default30",
+    "scope/item/parent/ETag/size validation",
+    "before/after revision checks",
+    "cancellation",
+    "features/dependencies",
+    "Root/frozen90 source",
+    "installed service/artifacts"
+  ],
+  "version": 1,
+  "worktree_commit": "af4f62ef65e53ec7b107347a8805cc0806409f43"
+}

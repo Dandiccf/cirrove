@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "registered_at": "2026-10-04T16:57:18.589351+00:00",
+  "run": "de9eb662-5df7-489e-b6c5-978abeb8f4c8",
+  "question": "Does Apple Keynote open the uniquely titled new owned Cirrove import and show the registered slide text?",
+  "prediction": "One Basic White slide renders Cirrove Keynote b5e2688e-f234-4935-a32f-6aa220e3bb79 and Owned import acceptance A.",
+  "scope": "Read-only UI open/observation of uniquely titled import; no text/format/sharing/deletion/duplicate/export actions. Any inability to identify or open stops, without document mutation retry.",
+  "expected_title": "Cirrove-Keynote-Import-de9eb662-5df7-489e-b6c5-978abeb8f4c8",
+  "expected_slide_title": "Cirrove Keynote b5e2688e-f234-4935-a32f-6aa220e3bb79",
+  "expected_slide_subtitle": "Owned import acceptance A",
+  "typed_cloud_document": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "collection": "drive",
+    "item": "FILE::com.apple.CloudDocs::A0A4D5BF-B5A0-41F9-8F3C-37BFB97C7182",
+    "parent": "FOLDER::com.apple.CloudDocs::971A4B86-1409-4E70-B479-64FE7319BD62",
+    "etag": "i1ap::i1ao"
+  },
+  "cloud_content_verified_before_ui": true,
+  "endpoint": [
+    "Identify the exact unique imported title and open once",
+    "Observe registered slide title/subtitle and one slide",
+    "Record actual available UI observations without inventing screenshot filesystem artifact or claiming opaque UI-ID mapping",
+    "No installed actions or full release gates closed"
+  ],
+  "maximum_seconds": 600,
+  "full_icloud_gates_closed": false,
+  "status": "unique-owned-import-opened-expected-slide-title-and-subtitle-visually-observed",
+  "results": {
+    "recorded_at": "2026-10-04T17:02:12.245880+00:00",
+    "exact_unique_import_title_observed": true,
+    "expected_slide_title_observed": true,
+    "expected_slide_subtitle_observed": true,
+    "slides_observed": 1,
+    "unfilled_author_and_date_placeholder_observed": true,
+    "document_edits_submitted": false,
+    "opaque_app_identifier": "0efpDh6wasGxWgBywvd1yf4Lw",
+    "opaque_ui_id_to_CloudDocs_item_mapping_verified": false,
+    "conversation_screenshot_observed": true,
+    "filesystem_screenshot_artifact_recorded": false,
+    "created_test_tabs_closed": true,
+    "independent_provider_content_proof_sha256": "cb83668a6437e0d162833bbd07d445715cb88b430c3285deb0fd8c1a8704a586",
+    "full_icloud_gates_closed": false
+  }
+}

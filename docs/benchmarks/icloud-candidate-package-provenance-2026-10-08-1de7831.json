@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "observed_utc": "2026-10-08T14:58:49.265703+00:00",
+  "status": "PASS_PACKAGE_PROVENANCE_AND_CI",
+  "active": false,
+  "active_measurement": false,
+  "candidate_commit": "1de78313df829dcea8e82c4d2b51dc38ae15506c",
+  "source_count": 573,
+  "ci_run": 37791280430,
+  "ci_url": "https://github.com/Dandiccf/cirrove/actions/runs/37791280430",
+  "ci_completed": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/candidate1de-arch-provenance-37791280430-private-v1/exact-ci-completed-v1.json",
+    "size": 24503,
+    "sha256": "419cf7f148d23c617b8999f0e37c3c75d6a69d96a1bb0dce757858a92b9d2fc3"
+  },
+  "ci_jobs_passed": 7,
+  "package_membership_provenance": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/candidate1de-arch-provenance-37791280430-private-v1/package-membership-provenance-v1.json",
+    "size": 23517,
+    "sha256": "29fab99949b096134dfdaf6d3223d0d97dcedef10699e497da54d3a21a2940cf"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/candidate1de-arch-provenance-37791280430-private-v1/audit-independent-package-provenance-v1.json",
+    "size": 4370,
+    "sha256": "a43bd4e9a65fcaac8c38e2fed86823d25d0b38899ad664b462f05a8f0b51bbaf"
+  },
+  "independent_checks_passed": 16,
+  "archives": {
+    "cirrove": {
+      "path": "/home/dandiccf/Storage/cirrove-candidate1de-arch-37791280430-v1/cirrove-0.2.0dev.r1002.g1de7831-1-x86_64.pkg.tar.zst",
+      "size": 20452932,
+      "sha256": "74830e65e23329e4671d3ac246766300a70525b6b81e100a2ecf119d4b5a388e"
+    },
+    "cirrove-desktop": {
+      "path": "/home/dandiccf/Storage/cirrove-candidate1de-arch-37791280430-v1/cirrove-desktop-0.2.0dev.r1002.g1de7831-1-x86_64.pkg.tar.zst",
+      "size": 8273232,
+      "sha256": "6855a6ce1b49dd9215d34d2b947bdeef23b20906fe68b2aa617f867a2a784228"
+    },
+    "cirrove-dolphin": {
+      "path": "/home/dandiccf/Storage/cirrove-candidate1de-arch-37791280430-v1/cirrove-dolphin-0.2.0dev.r1002.g1de7831-1-x86_64.pkg.tar.zst",
+      "size": 89714,
+      "sha256": "de93c01ec84f714d1b04dc1843e42140df984fe2c8889f6195eb16d47183ee27"
+    }
+  },
+  "regular_installed_members": 22,
+  "normal_programs": [
+    "usr/bin/cirrove",
+    "usr/bin/cirroved",
+    "usr/bin/cirrove-desktop",
+    "usr/bin/cirrove-tray"
+  ],
+  "packaged_unit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/candidate1de-arch-provenance-37791280430-private-v1/extracted/cirroved.service",
+    "size": 1349,
+    "sha256": "612758749bb3471d210576839ffab6263f6261c42d5b51f61076ba259271911f"
+  },
+  "compiled_storage_formats": {
+    "journal_schema": 21,
+    "metadata_schema": 8,
+    "product": "cirroved",
+    "version": 1
+  },
+  "storage_format_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/candidate1de-arch-provenance-37791280430-private-v1/storage-format-result-v1.json",
+    "size": 365,
+    "sha256": "586bc83f4eef42c6e618dca8f27ada20e912cbd0efac5a72fc8ccc447b963e26"
+  },
+  "normal_features": [],
+  "normal_features_authority": "Signed exact source-bound workflow and PKGBUILD: cargo build --frozen --release --workspace; feature-gated probe binaries excluded. Not a local CargoJSON observation.",
+  "installed_actions": false,
+  "provider_calls": false,
+  "coherent_real_state_backup": false,
+  "real_state_compatibility": false,
+  "gate488_closed": false,
+  "installed_HOLD_released": false,
+  "limits": [
+    "Exact package bytes, archive membership and verified GitHub provenance are proved, not an installed daemon.",
+    "Source-bound workflow builds normal workspace without optional probes; no local CargoJSON feature-resolution claim.",
+    "Pure storage-format query opens no state; journal21/metadata8 cannot authorize opening real journal14.",
+    "Coherent whole-state distinct-device backup, actual retained14/8 clone and all-account recovery-only run remain prerequisites."
+  ]
+}

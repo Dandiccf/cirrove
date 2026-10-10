@@ -31,11 +31,26 @@ flowchart LR
     FUSE --> Engine[Per-account service]
     Engine --> Store[SQLite metadata and stable inodes]
     Engine --> Cache[Version-keyed disk blocks]
-    Engine --> Provider[OneDrive / Google Drive]
+    Engine --> Provider[OneDrive / Google Drive / iCloud Drive]
     Provider --> Auth
     Settings --> Manager[Mount and worker manager]
     Manager --> Engine
 ```
+
+## Allocated space in the mounted view
+
+Mounted inodes preserve their logical file size (`st_size`) but report zero
+allocated blocks (`st_blocks`). They project data stored elsewhere; they do not
+own a second allocation. The private state directory accounts for downloaded
+blocks (pinned and ordinary cache), metadata, pending edits and recovery payloads.
+Counting those bytes again at the mount would duplicate local usage, potentially
+once per alias. Pinning changes retention, not this allocation contract.
+
+Thus `du` and file-manager allocated-space totals exclude remote content while
+logical-size totals still include it. `du --apparent-size` intentionally measures
+logical sizes. Zero allocated space on a mounted file does **not** mean the file
+is online-only; use Cirrove availability/pin status for that. Attribute reporting
+requires no content download, per-file cache scan or extra database query.
 
 ## Identity and linked libraries
 
@@ -81,6 +96,57 @@ item change. The foreground recheck has a 10-second cap; a transient unavailable
 or throttled response leaves the previous cached children readable. Other
 provider packages keep their existing policy.
 
+Generated artifacts may also provide an already validated, version-bound
+`ReadSession` through `staged_content_session`, avoiding a whole-artifact memory
+copy. Before directory publication, the service checks its exact scoped identity
+and stages bounded 4 MiB ranges into the same checksummed block cache. Two
+concurrent stagers limit transfer concurrency; provider reads happen outside
+cache locks and SQLite transactions. The existing in-memory hook remains the
+fallback. Partial or cancelled staging does not publish the new directory page;
+completed cache blocks retain ordinary eviction/recovery semantics. Providers
+must still support later reads after eviction. The iCloud on-demand adapter now
+looks up representations for Pages/Numbers/Keynote candidates and projects only
+Apple-confirmed packages as read-only containers. Opening one lazily stages an
+archive with actual length and a digest-bound revision. Empty ZIP directory DOS
+timestamps are normalized because Apple changes them between otherwise identical
+exports; regular-file data/timestamps stay unchanged. A fresh adapter can refetch
+that exact representation after cache eviction, with a 360-second content deadline.
+Ordinary content requests have a bounded 300-second transfer budget within a
+360-second complete-read cap; metadata and download lookups retain their separate
+deadlines, and cancellation and final revision checks still apply. The normal adapter passed one complete
+Pages read, offline FUSE remount and fresh refetch. Unknown bundle types, ZIP64,
+aggregate private staging quota and native editing remain open. See the
+[normal package adapter validation](benchmarks/icloud-native-package-adapter-2026-09-30.md)
+for format/resource limits, failed hypotheses and live evidence.
+
+Native iCloud WRITE staging has a separate four-file lifetime budget per account
+`Engine`, retained by its `WriteContext`. Fresh and restored import/replacement
+adapters, native removal adapters, replacement-admission Original verification
+and their native handoff sessions share it. Explicit restore adapters share their
+source pool and can accept the runtime budget. Each upload copy or
+Original/Current/Trash verification archive is limited to 64 MiB, so their combined
+logical payload capacity is at most 256 MiB within that runtime. Anonymous files,
+detached blocking operations and HTTP body readers retain the reservation until
+the last file owner closes. Pressure refuses immediately; package allocation
+holds a reservation before its first mutation. The journal spool, local source
+archive capture, read-artifact cache, filesystem overhead and kernel page cache
+remain separate. Independent Engines, standalone sessions and processes have
+separate budgets; this is not an aggregate account or host disk quota. See the
+[native write staging ownership evidence](benchmarks/icloud-native-write-staging-budget-2026-10-03.json).
+
+Generated package snapshots can also retain the exact source metadata that
+produced them. For providers opting into source-change retry, cached listing and
+child lookup compare that binding with locally observed source changes. A changed
+source triggers one coalesced refresh; publication checks the source again in
+its transaction. Unavailable or throttled refresh retains the previous complete
+snapshot for offline reads; disappearance or incompatible reclassification does
+not turn it into current content. This detects observed changes, not unobserved
+remote edits. Unchanged explicit content revisions avoid regeneration on ETag-only
+updates. Metadata schema8 retains legacy package classification separately from
+trusted source bindings; classification alone cannot change another provider's
+delta invalidation policy. See the
+[source-binding regressions](benchmarks/icloud-generated-source-binding-2026-10-01.md).
+
 Discovery follows indexed ancestry and starts one delta worker per linked drive.
 Reachable roots are persisted; obsolete subscriptions are removed only when the
 remaining reachable scopes have complete indexes. Discovery stops at duplicate roots
@@ -121,6 +187,11 @@ The store stages paginated changes and advances the continuation in one transact
 Visible nodes and the completed cursor change together only on the terminal page.
 A replacement baseline is built alongside the last visible index. Interrupted work
 resumes; an expired cursor does not immediately empty a usable directory tree.
+Providers without a change feed can declare full-snapshot rounds. Each new round
+starts a replacement baseline, while a failed or interrupted round resumes its
+staged pages instead of discarding them. A completed snapshot cursor is never
+passed back as an incremental cursor. This shared contract is groundwork for the
+experimental iCloud adapter; it does not establish complete iCloud enumeration.
 
 Cold foreground listings are atomically recorded separately from the delta index.
 Metadata schema 4 introduced a persistent logical revision before each network
@@ -269,6 +340,21 @@ worker and filesystem lifetime. Reauthentication first disables that account and
 waits for its lease. It verifies the same identity before replacing credentials.
 Other accounts keep running. A killed login command can leave that account disabled;
 `enable` is the explicit recovery action.
+
+Native iCloud session snapshots keep cookie lifetime metadata inside the sealed
+snapshot. New response cookies record receipt time and absolute expiration;
+restoration replaces finite positive `Max-Age` with absolute `Expires` and replays
+elapsed entries as deletion tombstones in their original order. Receipt times
+use whole seconds, allowing at most one second of early expiry. Legacy snapshots
+have no original receipt time: a separately labelled first-restoration anchor
+becomes durable only after a new snapshot is saved. Normal configured iCloud
+accounts now persist changed cookies after a successful scheduled root poll,
+under the shared account-ownership lease. An explicitly owned SDK constructor
+uses the same writer; unowned constructors, injected providers and recovery-only
+startup remain memory-only. The writer verifies its original key and snapshot
+binding and does not recreate removed state. Loading unchanged legacy ciphertext can still re-anchor its relative lifetime; no file
+timestamp is treated as authoritative. Local cookie expiry is distinct from
+Apple's server-side grant expiry and does not prove expired-session recovery.
 
 ## Transport, responsiveness and content consistency
 
@@ -647,6 +733,56 @@ recovery and sustained real-provider application editing remain acceptance gates
 
 ## Experimental writable-session ownership
 
+The account manager opens Engine and takes its account owner lock before
+constructing a write provider. `WriteFactory` receives an account-local
+`WriteContext` containing the private state root, metadata index path, shared
+upload journal and checkpoint vault. The mounted filesystem and both transfer
+workers use that same journal; providers must not open a competing journal.
+Factory code resolves metadata in scoped snapshots and releases SQLite before
+network I/O. iCloud's selected upload vault seals per-operation checkpoints on
+disk; other providers retain the existing desktop keyring backend. Selecting
+storage does not grant write consent: settings and the iCloud factory require an
+explicit read-write account. The adapter remains experimental, with application
+and installed-state acceptance separate from account-wide routing.
+
+Sealed iCloud session and upload-checkpoint publication each use one exclusive
+private pending slot per vault directory. Creation failure preserves that slot
+and the previous sealed file and key; only its creating writer may clean up an
+unpublished slot. Ownership ends immediately after rename, before directory
+fsync. A process interruption can therefore leave one pending file that blocks
+further publication until manual recovery. Reads continue to use the final
+sealed file. Historical UUID temporary files are preserved: this bounds new
+unpublished files per vault, not total account disk use or existing remnants.
+See [safe handling of occupied slots](icloud-write-integration.md#occupied-sealed-publication-slots).
+
+The journal's pending-byte budget is the account's configured `cache_bytes`,
+read when this context is opened. It is separate from the evictable read cache's
+budget: dirty data, sealed generations and recovery payloads cannot be evicted to
+make room for downloads. Combined disk use can therefore exceed `cache_bytes`.
+A smaller budget on reopen blocks additional growth but preserves already
+accepted payloads and lets the journal reopen for upload/recovery. Increasing the
+configuration takes effect when the connection remounts. The manager regression
+covers reservations above its former fixed 64 MiB limit and payload retention
+across budget reduction and later increase.
+
+An ejected writable mount drains its workers and drops the published write
+control before rebuilding this context, so old references do not keep its journal
+lock alive. A provider-construction failure leaves the mount unavailable and
+retryable; it does not silently mount the account read-only and hide local edits.
+Successful remount publishes the new write control for service operations.
+
+Read-only connections inspect retained outcomes through the existing local
+recovery reader, without constructing upload workers or migrating the journal.
+Status counts use the journal's complete failure and uncertainty predicates;
+recent failure lists are bounded independently. An unavailable reader withdraws
+local-recovery availability and preserves the matching account's last known
+counts. Completed replacement activity uses the historical confirmed document
+name, preserving the operation UUID, original item and recorded collection.
+Ordinary two-identity handoffs validate their retained backup binding; native
+package replacements retain their stricter receipt validation. Later namespace
+changes do not rewrite this historical label. These paths perform no provider
+lookups, retries or journal writes.
+
 `WritableSession` owns a test engine, its FUSE session, two upload workers, one
 conditional namespace worker and one local-copy maintenance worker. Successful
 sealing, relocation and confirmed receipts
@@ -696,6 +832,17 @@ the operation queue or authorizes a later upload against that newer ETag. Matchi
 content revision/size or an unchanged metadata version allows the chain to continue.
 Observed receipts remain available for review without being treated as confirmed
 save bases. Providers must distinguish conditional responses from later observations.
+
+Providers without a stable content-version token can return an explicit
+`AppliedWithVerifiedContent` result. It attests equality of both full revisions,
+with the source digest captured before dispatch under its original ETag. The
+journal binds this evidence to account/provider/collection/item, source and result
+ETags, byte size and SHA-256, and persists it with the confirmed receipt. A current
+hash alone, a matching filename or an unbound Boolean is insufficient. Ordinary
+namespace-only observations keep the existing lineage guard. iCloud's router uses
+its captured digest after verified file rename/move inspection or a durably
+completed, content-checked three-step relocation; it does not synthesize a provider
+content-version token or change cache identities.
 
 These APIs establish journal ordering and working-file transactions. The sparse
 namespace model below connects relocation, replacement and folder changes to FUSE.
@@ -840,6 +987,90 @@ application compatibility and real-provider mounted unlink acceptance remain ope
 
 ## Journal replacement of two local files
 
+The journal also has a separate identity-handoff
+receipt for providers that stage a replacement under a **new** remote item ID.
+Before any provider handoff request, it reserves a hidden recovery object for
+the old ID. An independently verified two-ID receipt then commits the new
+binding, old recovery binding and upload completion in one SQLite transaction.
+The local file identity and retained edit bytes survive; a false or incomplete
+receipt leaves the operation pending. Reservation survives a process restart,
+and a successor uses the newly confirmed remote ID. The shared transfer worker
+now reserves this object before any provider request and accepts a verified
+two-ID receipt on either the normal or reconciliation path. A synthetic worker
+run covers process death before reservation and a later lost success receipt
+without a replay. A feature-gated iCloud owned-fixture adapter has since
+completed one conditional Trash-backed handoff through this worker, and
+separate live trials reconciled lost Trash and rename responses without a
+mutation replay. An injected same-ID edit between the worker's prepared
+observation and conditional Trash request was refused at the saved ETag and
+remained a local conflict. These early isolated results did not establish an
+account-wide writer. Later experimental normal-build iCloud connections support
+explicit write opt-in; read-only remains the default. The
+[iCloud write integration boundary](icloud-write-integration.md) distinguishes
+their implementation from the bounded live evidence and remaining application,
+in-flight uncertainty, recovery and installed acceptance requirements. None of
+these fixture results establishes general provider reliability or release readiness.
+
+An ordinary sealed upload can finish a staged identity handoff after unlink
+only when its exact pending Remove successor still belongs to the same scope,
+namespace owner and working stream. Reservation and transactional confirmation
+both check the unresolved dependency, queue phase and old provider ID/ETag.
+Confirmation keeps the owner unlinked, binds the original to hidden recovery,
+and lets the Remove resolve from the newly confirmed ID/revision. Writes and
+truncation through a held descriptor remain local recovery data; newer working
+bytes, dirty state and generation survive completion and journal reopening.
+Synthetic regression and hostile-lineage checks cover this sequence. They do
+not establish real-provider application acceptance or general successor support.
+
+An ordinary sealed source save may also precede a pending atomic path takeover.
+The handoff guard checks that exact source, destination victim, working stream,
+sealed bytes, prerequisite and reserved cleanup at reservation and confirmation.
+If takeover captured an empty temporary file before its Create acknowledgement,
+the replacement transaction records the exact unconfirmed creation UUID in an
+optional JSON field. Its later completed receipt can authorize the otherwise
+empty cleanup reservation only with the full same-owner/working/scope/queue
+lineage and zero-Create identity. Older bodies without that capture marker do
+not gain this exception. The destination receipt still fills the cleanup with
+the current temporary identity; path names alone authorize nothing. This adds
+no schema migration and does not relax native or detached-stream rules.
+Synthetic failure-before-fix, hostile authority and existing-route parity
+checks support the correction; complete real-editor acceptance remains open.
+
+Source planning for that resolved ordinary Remove checks indexed metadata first.
+If the item is not indexed yet, only its exact completed FileBytes predecessor,
+direct dependency and current unlinked owner/working-stream binding can supply
+the full source node. One metadata snapshot permits this leaf only when its
+scoped ID is absent from both presence tables and the explicit absence table;
+all non-root parents must still be indexed, ordinary folders rooted in the account.
+Present changed metadata, explicit absence and broken ancestry remain conflicts.
+Independent remote digest/revision verification still precedes the Trash request.
+Retry counters and newer local descriptor bytes do not change the sealed receipt.
+See the [controlled source regression](benchmarks/icloud-receipt-remove-source-2026-10-05.json).
+
+A completed ordinary atomic replacement owns its temporary cleanup separately
+from the visible final file. Its unlinked cleanup reservation therefore has no
+working stream. For an unindexed temporary leaf, the journal can supply only
+that exact full source receipt after the source and target uploads are complete,
+the target's typed staged receipt matches its original victim, and the cleanup
+UUID, owner, queue entries, direct source edge and target barrier all agree.
+The captured source route is checked separately from the destination route.
+A retired visible source does not need a live working stream or latest upload;
+its historical operation mapping and the separately owned current cleanup
+receipt provide the binding. Native shapes and incomplete replacements remain
+excluded. The metadata chain still wins when present, explicit absence still
+refuses, and independent remote digest/revision verification is unchanged.
+The [controlled cleanup regression](benchmarks/icloud-completed-atomic-cleanup-routing-2026-10-06.json)
+covers two failure-before-fix endpoints and 36 hostile arms; it does not prove
+real-provider cleanup acceptance.
+
+The normal-build iCloud file-create adapter's `begin_upload` only returns a
+prepared checkpoint; it sends no Apple request. The shared worker may return
+such a create to Pending after a missing checkpoint only if SQLite never
+recorded one. A checkpoint once recorded but later absent from the keyring is
+an uncertain remote outcome and remains in verification. The provider opts
+into this narrowly defined pre-checkpoint behavior; other providers retain
+their existing reconciliation path.
+
 Journal schema 10 adds completion prerequisites independently of the single
 content/ETag predecessor. Both upload and mutation selection, including explicit
 upload verification, wait for every prerequisite. Edges must reference older
@@ -896,6 +1127,24 @@ shortcuts and collisions differing only by case remain explicitly unsupported by
 this replacement path. Retained history, restored IDs, recovery UI, ordinary editor
 and office save patterns, and broader real-provider replacement/cleanup acceptance
 remain open. Write-enabled accounts use this path in ordinary mounts.
+
+## Rescue of refused editor replacements
+
+Keep-both moves the current local stream to an independent Create without
+rebinding open descriptors. An atomic editor replacement has two provider
+identities: the source temporary file and the refused victim. Rescue releases
+the detached victim's ownership and restores its cloud path through a fresh
+remote-following alias, while the source stream keeps the rescued local bytes.
+
+The existing source cleanup is accepted for rescue only when it is Pending,
+never attempted, fully bound to the confirmed source identity and revision, and
+has no dependents. It becomes Resolved without a provider receipt. A new cleanup
+is appended after the rescue Create and depends on its completion; immutable
+queue sequences are not rewritten. Ownership transfer, cleanup supersession,
+replacement linkage and upload resolution commit together. The old victim's
+working bytes and superseded immutable payloads remain retained. Uncertain
+cleanup, unrelated dependents and additional unsettled takeovers are refused.
+Completed replacement history does not block rescue of a later ordinary save.
 
 ## Deferred source capture for replacement
 
@@ -1109,3 +1358,205 @@ sequence and therefore cannot provide atomic POSIX `rmdir`.
 - [Google change tracking](https://developers.google.com/workspace/drive/api/guides/manage-changes)
 - [Apple CloudKit](https://developer.apple.com/documentation/cloudkit)
 - [Rclone iCloud compatibility notes](https://rclone.org/iclouddrive/)
+
+## Native archive temporary streams and backup-first saves
+
+Experimental native PACKAGE archive editing retains a local temporary stream's
+identity and bytes across rename/unlink. Held descriptors may continue local
+writes after unlink; those bytes remain available to read-only recovery and never
+become an ordinary cloud upload. Known unlinked temporaries no longer prevent
+clean canonical working-copy retirement; linked or missing-owner records do.
+
+Journal schema 19 adds explicit backup-gap and retained-backup records. A local
+canonical-to-backup rename leaves provider identity and immutable content proofs
+on the original owner. The canonical pathname becomes absent until exact local
+rollback or validated temporary promotion. Promotion transfers canonical authority
+and queues the typed replacement atomically; the old stream remains a visible
+local backup. Backup reads, late writes, fsync and unlink stay local. A filename
+alone cannot acquire either canonical or backup authority. Occupied destinations,
+stale selections and unsupported cross-owner changes are refused.
+
+Native tables and schema 19 commit in one migration transaction. Read-only
+recovery accepts supported older journals without migrating them. Older binaries
+must refuse schema 19; editing the header is not a downgrade mechanism. These
+changes have synthetic journal and actual FUSE coverage; installed transitions
+and real Pages/Numbers/Keynote application acceptance remain separate release gates.
+
+## Ordinary replacement metadata publication
+
+Journal schema 20 adds a durable local metadata job for each confirmed ordinary
+identity handoff. The reservation captures the full original node before provider
+work; the same transaction that records the typed current/backup receipt enqueues
+its publication job. Later saves, rename, unlink and working-copy retirement do
+not discard that historical job. Older receipts without a captured original are
+not backfilled with guessed metadata.
+
+Writable maintenance processes one due job at a time. Read-only Engine startup
+also repairs pending jobs through a narrow handle to an existing schema-20 or
+schema-21 journal.
+The Manager starts the same latched task when its effective connection is read-only,
+even if the recorded grant allows writes but no write factory is supplied. Initial
+launch and remount use this mode check; actual writable connections use maintenance.
+That handle validates private ownership, account and schema, and changes only local
+metadata publication jobs and their completion or retry status. It does not migrate, claim transfers,
+reconcile mutations, access the credential vault or issue provider writes. Journal
+ownership and SQLite transactions end before metadata publication or a bounded
+exact-ID provider read; completion reacquires ownership and validates the immutable
+job and uploaded receipt again.
+
+The metadata store changes only the exact scoped original identity when its full
+visible node still matches the captured original. It publishes the validated
+backup location, preserving newer positive/negative observations and completed
+feed cursors. Exact-ID directory membership uses the normal listing visibility
+rules without scanning the whole directory. In-flight older observations are
+invalidated with the item and affected parents. These mechanisms are under
+validation; the installed schema transition remains held under the
+[deployment policy](development.md#flat-numbers-source-journal-schema21-held-prerelease-policy).
+
+Confirmed native replacements use the same local job table with an explicit native
+qualifier and a separately validated package receipt. The full original, current
+and Trash backup identities must match the uploaded operation, captured reservation,
+scoped namespace owner and completed queue. Native publication commits matching
+current and backup metadata together, preserves newer or absent observations and
+requires unlocked exact-ID reads when either identity is unknown.
+
+Existing schema-21 native receipts with captured originals can also acquire these
+jobs, including replacements whose earlier package callback was already marked
+complete. A volatile startup cursor scans at most 16 indexed package rows per pass
+up to a fixed high-water mark, then stops inspecting history. Read-only startup
+retains that cursor across its short-lived journal handles. Fresh acknowledgments
+enqueue their jobs transactionally; a direct package callback can admit its exact
+historical operation separately. Schema-20 handling and ordinary legacy receipts
+without a captured original keep their existing limits. Local regression evidence
+is recorded in the [native metadata publication trial](benchmarks/icloud-native-package-backup-publication-2026-10-06.json);
+A fresh live read-only startup also repaired completed native history; its mount
+capture refused a newer provider revision. A separately registered fresh replacement
+then passed recovery and independent current/Trash proofs. Its
+[normal read-only remount](benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json)
+returned the exact complete B content tree before Apple opening, with the original
+state and transfer rows preserved. This is bounded live evidence for the metadata
+handoff and semantic remount; installed acceptance remains separate.
+
+Already Applied standalone native Trash receipts use their own metadata queue.
+Effective read-only startup now processes one due handoff and one due native
+removal per pass. The existing schema20/21 metadata-only handle cannot claim
+mutations, open credentials or migrate the journal. It validates the mapped
+operation UUID, sequence, state, completed queue, account and exact typed removal
+receipt before returning a job. Corrupt heads receive only a bounded cooldown;
+their transfer records and receipts remain untouched. Missing publication tables
+are explicitly skipped, and older metadata-writer schemas remain refused.
+
+The four metadata due/finish closures use the existing per-Engine recovery gate
+through local journal open, use and complete drop, so a historical read-only
+observer waits for an in-process metadata owner to close. The gate covers no
+Store or provider await; an external journal owner still causes a refusal.
+
+The exclusive journal owner is released before an exact-ID read. Only Engine's
+ordered `NotFound` can finish removal publication; active or restored observations
+remain visible and pending. Provider and collection must match the configured
+drive; a mismatch is deferred before returning an error. Finishing reacquires the
+owner and compares the complete immutable mutation again. A historical native
+Trash observer can also use a read-only recovery lease, without admission or
+mutation workers. Completion records past receipt and metadata evidence, not
+present cloud absence. The [local validation record](benchmarks/icloud-native-trash-readonly-publication-2026-10-06.json)
+separates these controls from live removal-recovery and installed acceptance.
+
+## Explicit flat Numbers source archives
+
+The experimental import and exact-revision replacement paths distinguish the
+caller's local archive layout from the provider's DATA/PACKAGE representation.
+The default wrapped layout retains its exact required source root and legacy
+wire shape. Explicit `flat_numbers` has no source root and requires a Numbers
+destination or an already proven selected Numbers PACKAGE. It never converts
+an existing DATA item into a PACKAGE based on its filename.
+
+Admission seals the unchanged raw source in an anonymous read-only snapshot and
+recomputes its bounded semantic V2 identity. The source snapshot, raw receipt
+and request remain unchanged. For explicit flat Numbers only, payload-aware
+begin derives a separate bounded deterministic transport ZIP under the exact
+destination-name wrapper. Strict wrapped semantic V2 must equal the original
+flat source before returning an allocation checkpoint. That checkpoint records
+the transport size, digest and root; allocation uses the transport size. Stream
+rederives it from the sealed source and compares the complete receipt before HTTP.
+No network await occurs while the worker holds its journal lock.
+
+Fresh flat package checkpoints use version 2 with a required transport receipt;
+wrapped version 1 serialization is unchanged. Legacy flat version 1 checkpoints
+remain readable for recovery inspection but cannot allocate, stream or register
+the old raw transport. Structural receipt errors refuse before HTTP; a valid
+shape with an altered size or digest is detected during stream rederivation.
+Retained inspection never re-prepares or allocates. Independently downloaded
+current and Trash archives still require the actual provider-name wrapper and
+strict equality to the original source.
+
+A feature-only read observer can bind a previously imported owned Numbers test
+document to a separate fresh observation run. Explicit flat preflight/postflight
+arms require a present null source root and scan the unchanged local archives
+with semantic V2; downloaded current and Trash archives still require their exact
+provider-name wrapper. The postflight binds distinct original/current identities,
+original Trash revision and both source contents. Existing wrapped/Pages arms
+retain their original scope. This observer does not independently establish the
+writer's journal receipt, perform mutations or claim application acceptance.
+Its public failures retain only fixed observer-stage labels and discard underlying
+errors and contexts; exact identity, revision and content guards remain mandatory.
+
+The NativeFinal metadata producer also accepts a required-present null source
+root within its original owned run and document namespace. Any non-null root
+must still be exactly `Source.numbers`; a missing field is refused. Postflight
+requires matching A/B layouts. This producer uses the existing root field rather
+than the recovery harness's separate `source_layout` field. It generates the
+generic full-metadata fixture from actual provider entries and independently
+checks current content, original Trash content and final metadata fences. Local
+admission tests do not establish an actual Apple preflight or postflight result.
+
+The feature-only retained Numbers reader defaults to `changed_only`: the current
+item must have a different revision from the retained reference. Explicit
+`current_snapshot` permits either the same or a different observed revision while
+retaining exact account, collection, parent and item bindings. A supplied expected
+current revision remains mandatory in either mode. The reader acquires the current
+parent envelope and fences the complete PACKAGE transfer against that current
+metadata. Its output is a current provider reference, not an edited source or a
+browser export. Missing mode preserves legacy behavior; null or unknown modes
+are refused.
+
+The feature-only native final-confirmation recovery harness accepts explicit flat
+Numbers sources alongside wrapped sources. Flat registration requires a present
+null root and `flat_numbers` layout for both source proofs; wrapped registration
+keeps its original string root and serialized shape. Both paths bind the original,
+current and Trash identities and their semantic V2 proofs. Recovery delegates
+inspection of the same operation and vetoes mutation entrypoints. This harness
+does not widen the installed daemon's write scope or establish Apple fault
+acceptance by itself.
+
+Journal schema 21 persists distinct `flat_numbers_archive` and
+`flat_numbers_replacement_archive` kinds, with versioned query indexes and
+publication triggers. Existing wrapped records retain their serialized fields.
+Older writers must refuse schema 21 rather than discard unknown semantics.
+Read-only recovery accepts the supported range without migrating, and narrow
+ordinary metadata repair accepts existing schemas 20 and 21 only. The installed
+transition remains held. Synthetic admission and transport checks do not prove
+Apple Numbers reopening, export fidelity or complete iCloud support.
+
+
+## Feature-only standalone native Trash process-loss validation
+
+The isolated write probe can wrap the real native Trash mutation provider with
+a scope-bound receipt-loss guard. It checks the original account/collection/item,
+prepared identity and raw journal authority before and after provider I/O,
+releasing the journal mutex before every network await. After one genuine Removed
+receipt it fsyncs an exclusive private marker and exits before the worker's local
+acknowledgement. A separate recovery mode binds the same operation and permits
+only reconciliation. An Uncommitted inspection becomes Indeterminate rather
+than returning the operation to the mutation queue. Other mutation and upload
+entrypoints refuse.
+
+The finite registration retains the original 600-second deadline across loss and
+recovery, requires an immutable explicit flat Numbers source and a fresh owned
+public import, and privately verifies the real encrypted MayHaveSent checkpoint.
+Its independent read-only preflight uses an explicit new-arm validator rather
+than weakening older fixture contracts. Post-recovery content inspection checks
+current absence and the exact original's full semantic V2 content in Trash.
+Historical public read-only observation and a fresh mount are separate live
+endpoints. The guard is unavailable in normal builds and does not grant an
+installed account write capability. Synthetic actual-child coverage is recorded
+in the [local trial](benchmarks/icloud-native-trash-receipt-loss-guard-2026-10-06.json).

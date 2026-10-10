@@ -1,0 +1,118 @@
+{
+  "version": 2,
+  "status": "closed_refused",
+  "active_measurement": false,
+  "run": "a88d9efe-82f7-4eb9-88f9-6c5c068b9ceb",
+  "question": "Can installed Writer import the immutable genuine Pages B and perform one supported DOCX export, close and reopen while preserving the actual93-byte single-paragraph text?",
+  "prediction": "Workflow completes and exact text is preserved in imported/reopened UNO observations and independently parsed DOCX paragraphs. Fidelity mismatch is a false endpoint, never a precondition to export or a reason to repair text.",
+  "arms": [
+    {
+      "label": "genuine raw Pages B to one DOCX export/reopen",
+      "maximum_seconds": 100,
+      "work_seconds": 60,
+      "cleanup_seconds": 30,
+      "source": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages",
+        "size": 101769,
+        "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc"
+      },
+      "source_readback": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/text-b-reloaded-readback.txt",
+        "size": 93,
+        "sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+      },
+      "expected_text": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+      "import_filter": "Apple Pages",
+      "export_filter": "MS Word 2007 XML",
+      "document_service": "com.sun.star.text.TextDocument",
+      "application_maximum_seconds": 90,
+      "outer_closure_seconds": 10
+    }
+  ],
+  "endpoints": [
+    "Actual imported text/paragraphs captured without editing",
+    "Exactly one DOCX storeToURL then source close and DOCX reopen read-only",
+    "Independent bounded full CRC scan and word/document.xml paragraph extraction",
+    "Workflow versus text fidelity separately reported",
+    "Original launcher/oosplash and sandbox handles reaped; namespace empty; source and executable pins unchanged; no overrun"
+  ],
+  "limits": [
+    "Headless real application, not GUI",
+    "Pages filter is import-only; no native Pages save/export",
+    "Text/paragraph fidelity only; no font/layout/image/general format fidelity",
+    "Private bwrap user/pid/net isolation; no provider/installed actions; source read-only",
+    "One run, no automatic relaunch or content correction",
+    "Gate487 stays open; prior successful mutations not repeated",
+    "100s outer includes the90s application/sandbox budget plus10s final original-handle closure; no deadline renewal."
+  ],
+  "execution": {
+    "root": "/home/dandiccf/Storage/pgB-a88d9efe",
+    "TMPDIR_backing": "/home/dandiccf/Storage/pgB-a88d9efe/tmp",
+    "fs_required": "ext4",
+    "clock": null,
+    "registration": null,
+    "original_Root_owner": null,
+    "result": null,
+    "outer_maximum_seconds": 100
+  },
+  "prior_stopped_arm": {
+    "run": "d583897e-6817-4b54-ab2c-1c211304fb9c",
+    "scope": "failed cleanup UnboundLocalError; underlying work outcome unknown; preserved closed arm, never retried",
+    "pure_controls": "Actual oldV2 intended shadowFAIL; V3 fixture mismatch NameError retained; correctedV4 sameGREEN1/full4PASS. Pure controls are not an app workflow/fidelity proof."
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-genuine-b-a88d9efe-82f7-4eb9-88f9-6c5c068b9ceb-private-v1/root-outer-registration-v1.json",
+    "size": 2955,
+    "sha256": "76f09883fecf3131d89af98033200158068f9f92f94a3272ef32e1c703ca8d61",
+    "protected_stat": [
+      57,
+      75140332,
+      33024,
+      1000,
+      1,
+      1791348644011314699,
+      1791348644011314699
+    ]
+  },
+  "outcome": {
+    "root_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-genuine-b-a88d9efe-82f7-4eb9-88f9-6c5c068b9ceb-private-v1/root-outer-result-v1.json",
+      "size": 1135,
+      "sha256": "ba9f6fba6fec33798752f6def0d767cb0fa1236a53f1d9cf1ef6a59ab88e3a52",
+      "protected_stat": [
+        57,
+        75140335,
+        33024,
+        1000,
+        1,
+        1791348644565654724,
+        1791348644565654724
+      ]
+    },
+    "workflow_completed": false,
+    "fidelity_passed": false,
+    "all_owned_processes_closed": true,
+    "gate487_closed": false
+  },
+  "independent_outcome_assessment": {
+    "audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-writer-genuine-b-a88d9efe-82f7-4eb9-88f9-6c5c068b9ceb-private-v1/audit-independent-closed-writer-source-load-v1.json",
+      "size": 4029,
+      "sha256": "0f4a8f58d3bc91d0eae262a8165d87146eb9657ed51c84dff9fa95f1b3bebb50"
+    },
+    "success": false,
+    "failure_stage": "source_load",
+    "error_class": "Refusal",
+    "export_calls": 0,
+    "imported_text_observed": false,
+    "DOCX_export_reopen_unreached": true,
+    "fidelity_classification": "unmeasured",
+    "all_original_supervisor_sandbox_Office_handles_closed": true,
+    "individual_transient_bootstrap_handles_claimed": false,
+    "source_unchanged": true,
+    "signals": [],
+    "scope_limit": "The source_load helper requires a non-null loaded document, Writer TextDocument service, read-only state and active original deadline. Fixed Refusal does not identify which of those guards failed. It does not prove a general Pages filter incompatibility or text mismatch.",
+    "no_retry": true,
+    "gate487_closed": false
+  }
+}

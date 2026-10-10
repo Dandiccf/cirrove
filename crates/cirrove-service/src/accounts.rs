@@ -5,9 +5,13 @@ use cirrove_auth::{
     AccessMode, AppRegistration, CredentialVault, DesktopVault, Identity, PendingLogin,
     TokenBroker, save_credentials,
 };
-use cirrove_core::{CancellationToken, CollectionInfo as DriveInfo, ReadProvider};
+use cirrove_core::{CancellationToken, CollectionInfo as DriveInfo, ReadProvider, Scope};
 use cirrove_googledrive::GoogleDrive;
+use cirrove_icloud::{
+    ICloudDrive, ICloudReadSession, ROOT_ID, SealedSessionVault, probe_session_key,
+};
 use cirrove_onedrive::{OneDrive, StaticToken};
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{File, OpenOptions},
@@ -125,6 +129,16 @@ impl Settings {
             {
                 bail!("invalid selected Google Drive");
             }
+            if matches!(account.registration, AppRegistration::ICloud)
+                && (account.drive.id != "drive"
+                    || account.drive.drive_type != "icloud_drive"
+                    || account.root_id != "FOLDER::com.apple.CloudDocs::root"
+                    || account.identity.username.is_empty()
+                    || !account.identity.tenant_id.is_empty()
+                    || !account.identity.graph_user_id.is_empty())
+            {
+                bail!("invalid iCloud Drive");
+            }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
                 || uuid::Uuid::parse_str(&account.credential_id).is_err()
@@ -183,7 +197,36 @@ pub fn valid_label(label: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
-pub fn config_lock(state: &Path) -> Result<File> {
+/// Exclusive settings critical section, independent of unrelated inherited FDs.
+/// The guard cannot clone its descriptor or transfer unlock ownership to a child.
+pub struct ConfigLock {
+    file: File,
+    pid: u32,
+}
+impl Drop for ConfigLock {
+    fn drop(&mut self) {
+        // flock belongs to the open file description: close alone can leave an
+        // unrelated fork-before-exec child holding it. Only the acquiring
+        // process may end this critical section; a forked guard must not unlock
+        // the parent's still-live owner. An unlock error stays conservative.
+        if self.pid == std::process::id() {
+            let _ = fs2::FileExt::unlock(&self.file);
+        }
+    }
+}
+#[cfg(test)]
+impl std::os::fd::AsFd for ConfigLock {
+    fn as_fd(&self) -> std::os::fd::BorrowedFd<'_> {
+        std::os::fd::AsFd::as_fd(&self.file)
+    }
+}
+#[cfg(test)]
+impl std::os::fd::AsRawFd for ConfigLock {
+    fn as_raw_fd(&self) -> std::os::fd::RawFd {
+        std::os::fd::AsRawFd::as_raw_fd(&self.file)
+    }
+}
+pub fn config_lock(state: &Path) -> Result<ConfigLock> {
     private_dir(state)?;
     let file = OpenOptions::new()
         .read(true)
@@ -194,7 +237,10 @@ pub fn config_lock(state: &Path) -> Result<File> {
         .open(state.join("settings.lock"))?;
     fs2::FileExt::try_lock_exclusive(&file)
         .context("another Cirrove settings operation is running")?;
-    Ok(file)
+    Ok(ConfigLock {
+        file,
+        pid: std::process::id(),
+    })
 }
 pub fn daemon_lock(state: &Path) -> Result<File> {
     private_dir(state)?;
@@ -339,18 +385,25 @@ pub(crate) fn interrupted_desired_state(state: &Path, id: &str) -> Option<bool> 
 
 fn write_restore_marker(state: &Path, id: &str, enabled: bool) -> Result<()> {
     let path = restore_marker(state, id);
-    let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(&path)?;
-    file.write_all(&serde_json::to_vec(
-        &serde_json::json!({ "enabled": enabled }),
-    )?)?;
-    file.sync_all()?;
-    File::open(state)?.sync_all()?;
-    Ok(())
+    let temp = state.join(format!(".restore-{}.tmp", uuid::Uuid::new_v4()));
+    let result = (|| {
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .mode(0o600)
+            .open(&temp)?;
+        file.write_all(&serde_json::to_vec(
+            &serde_json::json!({ "enabled": enabled }),
+        )?)?;
+        file.sync_all()?;
+        std::fs::rename(&temp, &path)?;
+        File::open(state)?.sync_all()?;
+        Ok(())
+    })();
+    if temp.exists() {
+        let _ = std::fs::remove_file(temp);
+    }
+    result
 }
 
 /// Undo a sign-in that never put an account back, when none is running.
@@ -361,20 +414,33 @@ fn write_restore_marker(state: &Path, id: &str, enabled: bool) -> Result<()> {
 /// lock, so it can never fight a sign-in still waiting on a browser -- that lock
 /// is held for exactly as long as the disable is meant to last.
 pub fn heal_interrupted_sign_ins(state: &Path) -> Result<bool> {
+    heal_interrupted_accounts(state, Settings::load(state)?.accounts)
+}
+
+fn heal_interrupted_accounts(state: &Path, accounts: Vec<Account>) -> Result<bool> {
     let mut healed = false;
-    for account in Settings::load(state)?.accounts {
-        let Some(enabled) = interrupted_desired_state(state, &account.id) else {
+    for account in accounts {
+        // This is only a cheap hint. A new marker can wait for the next pass;
+        // any present marker is reread after ownership below.
+        if !restore_marker(state, &account.id).exists() {
             continue;
-        };
+        }
         let Ok(_operation) = account_operation(state, &account.id) else {
             continue; // a sign-in is in progress; its own guard owns the restore
         };
-        if account.enabled != enabled {
-            let _lock = config_lock(state)?;
-            let mut settings = Settings::load(state)?;
-            if let Some(stored) = settings.accounts.iter_mut().find(|a| a.id == account.id) {
-                stored.enabled = enabled;
-            }
+        let _lock = config_lock(state)?;
+        // The outer inventory is only an identity list. A preference or sign-in
+        // may have finished since it was read; neither its marker nor enabled
+        // value is authoritative until both locks are held.
+        let Some(enabled) = interrupted_desired_state(state, &account.id) else {
+            continue;
+        };
+        let mut settings = Settings::load(state)?;
+        let Some(stored) = settings.accounts.iter_mut().find(|a| a.id == account.id) else {
+            continue;
+        };
+        if stored.enabled != enabled {
+            stored.enabled = enabled;
             settings.save(state)?;
             healed = true;
             tracing::warn!(
@@ -402,34 +468,50 @@ struct DesiredState {
     state: PathBuf,
     id: String,
     enabled: bool,
+    // The original mode used by rollback if a failed durable commit renamed
+    // settings before its final directory sync failed.
     access: Option<AccessMode>,
+    completed: bool,
 }
 impl DesiredState {
-    /// Adopt the requested permission mode, then restore. Consumes the guard so
-    /// the `Drop` path cannot also run.
-    fn settle(mut self, requested: AccessMode) {
-        self.access = Some(requested);
-        drop(self);
+    /// Report durable completion explicitly. Drop is rollback, never success.
+    fn complete(self, requested: Option<AccessMode>) -> Result<()> {
+        self.complete_with(requested, Settings::save)
+    }
+    fn complete_with(
+        mut self,
+        requested: Option<AccessMode>,
+        persist: impl FnOnce(&Settings, &Path) -> Result<()>,
+    ) -> Result<()> {
+        self.restore_with(requested, persist)?;
+        self.completed = true;
+        Ok(())
+    }
+    fn restore_with(
+        &self,
+        access: Option<AccessMode>,
+        persist: impl FnOnce(&Settings, &Path) -> Result<()>,
+    ) -> Result<()> {
+        let _lock = config_lock(&self.state)?;
+        let mut settings = Settings::load(&self.state)?;
+        let account = settings
+            .accounts
+            .iter_mut()
+            .find(|a| a.id == self.id)
+            .context("account removed during sign-in")?;
+        settle(account, self.enabled, access);
+        persist(&settings, &self.state)?;
+        // Only after settings are durable; otherwise restart still needs this wish.
+        let _ = std::fs::remove_file(restore_marker(&self.state, &self.id));
+        Ok(())
     }
 }
 impl Drop for DesiredState {
     fn drop(&mut self) {
-        let restore = || -> Result<()> {
-            let _lock = config_lock(&self.state)?;
-            let mut settings = Settings::load(&self.state)?;
-            let account = settings
-                .accounts
-                .iter_mut()
-                .find(|a| a.id == self.id)
-                .context("account removed during sign-in")?;
-            settle(account, self.enabled, self.access);
-            settings.save(&self.state)?;
-            // Only after the settings write lands. A marker removed first would
-            // lose the intent if the write failed.
-            let _ = std::fs::remove_file(restore_marker(&self.state, &self.id));
-            Ok(())
-        };
-        if let Err(error) = restore() {
+        if self.completed {
+            return;
+        }
+        if let Err(error) = self.restore_with(self.access, Settings::save) {
             tracing::error!(
                 %error,
                 account = %self.id,
@@ -507,7 +589,8 @@ pub async fn reauthenticate(
         state: state.clone(),
         id: original.id.clone(),
         enabled: was_enabled,
-        access: None,
+        access: Some(original.access),
+        completed: false,
     };
     if was_enabled {
         println!(
@@ -560,25 +643,221 @@ pub async fn reauthenticate(
                     bail!("Google root identity changed");
                 }
             }
+            AppRegistration::ICloud => bail!("iCloud uses native sign-in"),
         }
         save_credentials(&DesktopVault, &original.credential_id, &credentials).await?;
         Ok(())
     }
     .await;
     if result.is_ok() {
-        desired.settle(requested);
+        desired.complete(Some(requested))?;
         println!("{label} is signed in again; permission is now {requested:?}.");
     } else {
         drop(desired);
     }
     result
 }
+
+/// Native reauthentication intent captured before password/2FA entry.
+/// The exact original settings are revalidated under the account operation lock
+/// after same-account session validation. Dropping this pending intent changes
+/// neither settings nor the mounted account.
+pub struct PendingICloudReauthentication {
+    state: PathBuf,
+    original: Account,
+    requested: Option<AccessMode>,
+}
+
+pub fn begin_reauthenticate_icloud(
+    state: PathBuf,
+    label: String,
+    requested: Option<AccessMode>,
+) -> Result<PendingICloudReauthentication> {
+    let original = Settings::load(&state)?
+        .accounts
+        .into_iter()
+        .find(|account| account.label == label)
+        .context("unknown account label")?;
+    if !matches!(original.registration, AppRegistration::ICloud) {
+        bail!("this operation requires an iCloud connection");
+    }
+    Ok(PendingICloudReauthentication {
+        state,
+        original,
+        requested,
+    })
+}
+
+impl PendingICloudReauthentication {
+    pub fn account_id(&self) -> &str {
+        &self.original.id
+    }
+
+    pub fn apple_id(&self) -> &str {
+        &self.original.identity.username
+    }
+
+    /// Apple grants a native session; this is Cirrove's local access policy,
+    /// not a narrower Apple OAuth permission.
+    pub fn access(&self) -> AccessMode {
+        self.requested.unwrap_or(self.original.access)
+    }
+
+    pub async fn finish(self, mut session: ICloudReadSession) -> Result<()> {
+        DesktopVault::reachable().await?;
+        session
+            .list_root()
+            .await
+            .context("iCloud Drive root is unavailable")?;
+        let snapshot = session.session_snapshot()?;
+        self.validate_snapshot(&snapshot)?;
+        let Self {
+            state,
+            original,
+            requested,
+        } = self;
+
+        let (_operation, desired) = suspend_validated_icloud_account(&state, &original)?;
+        let result = async {
+            let directory = state.join("accounts").join(&original.id);
+            let _owner = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+                loop {
+                    if let Ok(owner) = account_lock(&directory) {
+                        break owner;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+            })
+            .await
+            .context("account did not stop; close files in this mount and try again")?;
+            SealedSessionVault::new(&state, &original.id)?
+                .save(&original.credential_id, snapshot)
+                .await
+        }
+        .await;
+        complete_icloud_session_save(desired, requested, result)
+    }
+
+    fn validate_snapshot(&self, snapshot: &SecretString) -> Result<()> {
+        ICloudReadSession::from_session_snapshot(snapshot, &self.original.identity.username)
+            .context("a different Apple account signed in")?;
+        Ok(())
+    }
+}
+
+fn complete_icloud_session_save(
+    desired: DesiredState,
+    requested: Option<AccessMode>,
+    saved: Result<()>,
+) -> Result<()> {
+    match saved {
+        Ok(()) => desired.complete(requested),
+        Err(error) => {
+            drop(desired);
+            Err(error)
+        }
+    }
+}
+
+/// Compatibility wrapper for callers that already hold an authenticated session.
+/// Ordinary reauthentication preserves mode. New interactive callers should
+/// capture `begin_reauthenticate_icloud` before collecting password and 2FA.
+pub async fn reauthenticate_icloud_with_session(
+    state: PathBuf,
+    label: String,
+    session: ICloudReadSession,
+) -> Result<()> {
+    begin_reauthenticate_icloud(state, label, None)?
+        .finish(session)
+        .await
+}
+/// The Apple session was checked against `original` before this local operation.
+/// Refuse a changed account before saving credentials or changing desired state.
+fn suspend_validated_icloud_account(
+    state: &Path,
+    original: &Account,
+) -> Result<(File, DesiredState)> {
+    let operation = account_operation(state, &original.id)?;
+    let lock = config_lock(state)?;
+    let mut settings = Settings::load(state)?;
+    let account = settings
+        .accounts
+        .iter_mut()
+        .find(|account| account.id == original.id)
+        .context("account removed during iCloud sign-in")?;
+    if !matches!(account.registration, AppRegistration::ICloud)
+        || serde_json::to_value(&*account)? != serde_json::to_value(original)?
+    {
+        bail!("account changed during iCloud sign-in; try again");
+    }
+    let enabled = interrupted_desired_state(state, &original.id).unwrap_or(account.enabled);
+    write_restore_marker(state, &original.id, enabled)?;
+    let desired = DesiredState {
+        state: state.into(),
+        id: original.id.clone(),
+        enabled,
+        access: Some(original.access),
+        completed: false,
+    };
+    account.enabled = false;
+    let disabled = settings.save(state);
+    // Drop rollback must never try to acquire the lock still held here.
+    drop(lock);
+    disabled?;
+    Ok((operation, desired))
+}
+
 pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
+    provider_with_state(account, &crate::state_dir()?)
+}
+
+pub fn provider_with_state(account: &Account, state: &Path) -> Result<Arc<dyn ReadProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
+        AppRegistration::ICloud => {
+            let scope = Scope {
+                account: account.id.clone(),
+                provider: "icloud".into(),
+                collection: account.drive.id.clone(),
+            };
+            Ok(Arc::new(
+                ICloudDrive::on_demand_from_sealed_session(
+                    scope,
+                    account.identity.username.clone(),
+                    account.credential_id.clone(),
+                    state,
+                )?
+                .with_package_artifacts(state, account.cache_bytes)?,
+            ))
+        }
     }
 }
+pub(crate) fn provider_with_owned_state(
+    account: &Account,
+    state: &Path,
+    owner: Arc<File>,
+) -> Result<Arc<dyn ReadProvider>> {
+    if !matches!(account.registration, AppRegistration::ICloud) {
+        bail!("owned session writeback requires an iCloud account");
+    }
+    let scope = Scope {
+        account: account.id.clone(),
+        provider: "icloud".into(),
+        collection: account.drive.id.clone(),
+    };
+    Ok(Arc::new(
+        ICloudDrive::on_demand_from_owned_sealed_session(
+            scope,
+            account.identity.username.clone(),
+            account.credential_id.clone(),
+            state,
+            owner,
+        )?
+        .with_package_artifacts(state, account.cache_bytes)?,
+    ))
+}
+
 pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
     if !matches!(account.registration, AppRegistration::Google { .. }) {
         bail!("this operation requires a Google Drive connection");
@@ -602,7 +881,22 @@ pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::Writ
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
+        AppRegistration::ICloud => bail!("iCloud writes require the account journal context"),
     }
+}
+/// The iCloud router needs the journal and metadata owned by this mount.
+/// Ordinary iCloud writes use this context-bound factory; the context-free
+/// factory must never construct a writer without its journal and metadata.
+pub fn write_provider_with_context(
+    account: &Account,
+    context: &crate::manager::WriteContext,
+) -> Result<Arc<dyn crate::writable::WriteProvider>> {
+    if matches!(account.registration, AppRegistration::ICloud) {
+        return Ok(Arc::new(crate::icloud_writes::ICloudWriteProvider::new(
+            account, context,
+        )?));
+    }
+    write_provider(account)
 }
 /// Microsoft-only validation and write workers must refuse other accounts before
 /// loading credentials or making a request.
@@ -877,6 +1171,176 @@ impl PendingConnection {
         Ok(account)
     }
 }
+/// Persist an already authenticated native Apple session as a read-only drive.
+/// The caller collects the password and trusted-device code locally; neither
+/// is passed here. Apple requests and keyring awaits finish before the shared
+/// settings lock is acquired.
+pub async fn connect_icloud_with_session(
+    state: PathBuf,
+    label: String,
+    mount_path: PathBuf,
+    apple_id: String,
+    session: ICloudReadSession,
+) -> Result<Account> {
+    connect_icloud_with_session_and_access(
+        state,
+        label,
+        mount_path,
+        apple_id,
+        session,
+        AccessMode::ReadOnly,
+    )
+    .await
+}
+
+/// Explicit native connection policy. Defaults remain in the compatibility
+/// wrapper; password/2FA callers carry their selected mode to this final step.
+/// Writes require explicit selection; the compatibility wrapper stays read-only.
+pub async fn connect_icloud_with_session_and_access(
+    state: PathBuf,
+    label: String,
+    mount_path: PathBuf,
+    apple_id: String,
+    mut session: ICloudReadSession,
+    access: AccessMode,
+) -> Result<Account> {
+    if !valid_label(&label) {
+        bail!("use a label of 1–48 letters, digits, hyphens or underscores");
+    }
+    let apple_id = apple_id.trim().to_lowercase();
+    let subject = probe_session_key(&apple_id)?;
+    crate::manager::validate_mount_directory(&mount_path)?;
+    let mount_path = std::fs::canonicalize(mount_path)?;
+    {
+        let _lock = config_lock(&state)?;
+        let settings = Settings::load(&state)?;
+        if settings
+            .accounts
+            .iter()
+            .any(|account| account.label == label || account.mount_path == mount_path)
+        {
+            bail!("this label or mount path is already configured");
+        }
+    }
+    DesktopVault::reachable().await?;
+    session
+        .list_root()
+        .await
+        .context("iCloud Drive root is unavailable")?;
+    let snapshot = session.session_snapshot()?;
+    ICloudReadSession::from_session_snapshot(&snapshot, &apple_id)
+        .context("signed-in Apple account does not match the selected identifier")?;
+    let account = Account {
+        id: uuid::Uuid::new_v4().to_string(),
+        label,
+        registration: AppRegistration::ICloud,
+        identity: Identity {
+            tenant_id: String::new(),
+            subject,
+            username: apple_id,
+            graph_user_id: String::new(),
+            display_name: "iCloud Drive".into(),
+        },
+        credential_id: uuid::Uuid::new_v4().to_string(),
+        access,
+        drive: DriveInfo {
+            id: "drive".into(),
+            name: "iCloud Drive".into(),
+            drive_type: "icloud_drive".into(),
+            web_url: "https://www.icloud.com/iclouddrive".into(),
+        },
+        root_id: ROOT_ID.into(),
+        mount_path,
+        enabled: true,
+        poll_seconds: 60,
+        cache_bytes: 5 * 1024 * 1024 * 1024,
+    };
+    let sealed = SealedSessionVault::new(&state, &account.id)?;
+    save_icloud_connection_owned(state, account.clone(), snapshot, Arc::new(sealed)).await?;
+    Ok(account)
+}
+
+// Persistence owns its inputs independently of the interactive waiter. Dropping
+// that waiter before credential save finishes cancels publication, but does not
+// interrupt credential readback or cleanup. Once the synchronous settings commit
+// starts, it completes and preserves uncertain-publication retention semantics.
+async fn save_icloud_connection_owned(
+    state: PathBuf,
+    account: Account,
+    snapshot: SecretString,
+    vault: Arc<dyn CredentialVault>,
+) -> Result<()> {
+    let (send, receive) = tokio::sync::oneshot::channel();
+    tokio::spawn(async move {
+        let result = save_icloud_connection_with(
+            &state,
+            &account,
+            snapshot,
+            vault.as_ref(),
+            |settings, location| {
+                if send.is_closed() {
+                    bail!("iCloud connection cancelled before settings publication");
+                }
+                settings.save(location)
+            },
+        )
+        .await;
+        let _ = send.send(result);
+    });
+    receive
+        .await
+        .context("iCloud connection persistence task did not finish")?
+}
+
+async fn save_icloud_connection_with(
+    state: &Path,
+    account: &Account,
+    snapshot: SecretString,
+    vault: &dyn CredentialVault,
+    persist: impl FnOnce(&Settings, &Path) -> Result<()>,
+) -> Result<()> {
+    // Validate the candidate identity before any
+    // credential write. The final locked check still detects concurrent edits.
+    Settings {
+        version: 2,
+        accounts: vec![account.clone()],
+    }
+    .validate()?;
+    let credential_saved = vault.save(&account.credential_id, snapshot).await;
+    let mut safe_to_remove = false;
+    let saved = (|| -> Result<()> {
+        let _lock = config_lock(state)?;
+        let mut settings = Settings::load(state)?;
+        let references_session = |existing: &Account| {
+            existing.id == account.id || existing.credential_id == account.credential_id
+        };
+        safe_to_remove = !settings.accounts.iter().any(references_session);
+        credential_saved?;
+        if settings.accounts.iter().any(|existing| {
+            existing.label == account.label || existing.mount_path == account.mount_path
+        }) {
+            bail!("account settings changed during sign-in; try another label or path");
+        }
+        settings.accounts.push(account.clone());
+        let result = persist(&settings, state);
+        if result.is_err() {
+            // An error after atomic rename can leave the enabled account
+            // published. Keep its session; an uncertain readback is not proof
+            // that removing credentials is safe. Check under the same lock.
+            safe_to_remove = Settings::load(state)
+                .map(|published| !published.accounts.iter().any(references_session))
+                .unwrap_or(false);
+        }
+        result
+    })();
+    if let Err(error) = saved {
+        if safe_to_remove {
+            let _ = vault.remove(&account.credential_id).await;
+        }
+        return Err(error);
+    }
+    Ok(())
+}
 /// Check the label and mount path, sign in through the browser, and list the
 /// drives. The account is not saved until `PendingConnection::finish`.
 pub async fn begin_connect(
@@ -1007,6 +1471,7 @@ async fn begin_connect_with_secret(
             let drives = google.collections(&CancellationToken::new()).await?;
             (ConnectionProvider::Google(google), drives)
         }
+        AppRegistration::ICloud => bail!("iCloud uses native sign-in"),
     };
     Ok(PendingConnection {
         state,
@@ -1134,6 +1599,15 @@ fn update_enabled(
     select: impl Fn(&Account) -> bool,
     enabled: bool,
 ) -> std::result::Result<(), PreferenceRefusal> {
+    update_enabled_with(state, select, enabled, Settings::save)
+}
+
+fn update_enabled_with(
+    state: &Path,
+    select: impl Fn(&Account) -> bool,
+    enabled: bool,
+    persist: impl FnOnce(&Settings, &Path) -> Result<()>,
+) -> std::result::Result<(), PreferenceRefusal> {
     let _lock = config_lock(state).map_err(|_| PreferenceRefusal::Busy)?;
     let mut settings = Settings::load(state).map_err(|_| PreferenceRefusal::Unreadable)?;
     let account = settings
@@ -1143,10 +1617,20 @@ fn update_enabled(
         .ok_or(PreferenceRefusal::NotConfigured)?;
     // Held per account, so this is "this drive is busy" and not "Cirrove is".
     let _operation = account_operation(state, &account.id).map_err(|_| PreferenceRefusal::Busy)?;
+    let marker = restore_marker(state, &account.id);
+    if marker.exists() {
+        // Supersede an interrupted sign-in's old wish before changing settings.
+        // A later persistence error can still leave this explicit intent for
+        // healing (including an error after marker rename); it is not rollback.
+        write_restore_marker(state, &account.id, enabled)
+            .map_err(|_| PreferenceRefusal::Unwritable)?;
+    }
     account.enabled = enabled;
-    settings
-        .save(state)
-        .map_err(|_| PreferenceRefusal::Unwritable)
+    persist(&settings, state).map_err(|_| PreferenceRefusal::Unwritable)?;
+    // Failure to remove is harmless: any retained marker now holds the latest
+    // explicit wish, and future preference changes supersede it again.
+    let _ = std::fs::remove_file(marker);
+    Ok(())
 }
 /// Remove an account, refusing while it still holds work nobody has sent.
 ///
@@ -1429,6 +1913,134 @@ fn drive_choice(read: usize, line: &str, listing: &str) -> Result<usize> {
         .with_context(|| format!("{answer:?} is not a drive number"))
 }
 
+/// An offline account held against mount, settings changes and journal workers.
+/// No credentials, provider, migration or recovery worker is constructed.
+pub struct OfflineRecovery {
+    account_id: String,
+    journal: crate::journal::RecoveryJournal,
+    state: PathBuf,
+    mounts: Vec<PathBuf>,
+    _operation: File,
+    _owner: File,
+}
+impl OfflineRecovery {
+    pub fn open(state: &Path, label: &str) -> Result<Self> {
+        let resolved = state.canonicalize()?;
+        let state = resolved.as_path();
+        let _settings = config_lock(state)?;
+        let settings = Settings::load(state)?;
+        let account = settings
+            .accounts
+            .iter()
+            .find(|a| a.label == label)
+            .context("no account carries that label")?;
+        let operation = account_operation(state, &account.id)?;
+        if account.enabled {
+            bail!(
+                "disable this account before offline recovery; use export-save for an active drive"
+            );
+        }
+        let directory = state.join("accounts").join(&account.id);
+        if !directory.is_dir() {
+            bail!("this account has no retained local data");
+        }
+        let owner = account_lock(&directory)?;
+        let journal =
+            crate::journal::RecoveryJournal::open(&directory.join("journal"), &account.id)
+                .context("could not open the retained journal for read-only recovery")?;
+        Ok(Self {
+            account_id: account.id.clone(),
+            journal,
+            state: state.canonicalize()?,
+            mounts: settings
+                .accounts
+                .iter()
+                .map(|a| a.mount_path.clone())
+                .collect(),
+            _operation: operation,
+            _owner: owner,
+        })
+    }
+    pub fn account_id(&self) -> &str {
+        &self.account_id
+    }
+    pub fn list(&self, after: u64, limit: u32) -> Result<Vec<crate::recent::LocalChange>> {
+        self.journal
+            .list(after, limit)?
+            .into_iter()
+            .map(|record| {
+                let name = match &record.intent {
+                    crate::journal::UploadIntent::Create { name, .. } => name.clone(),
+                    crate::journal::UploadIntent::Replace { item, .. } => record
+                        .remote
+                        .as_ref()
+                        .map(|node| node.name.clone())
+                        .unwrap_or_else(|| item.clone()),
+                };
+                let state = serde_json::to_value(record.state)?
+                    .as_str()
+                    .context("invalid save state")?
+                    .to_owned();
+                Ok(crate::recent::LocalChange {
+                    operation: Some(record.id),
+                    sequence: record.sequence,
+                    name,
+                    state,
+                    size: record.size,
+                    item: None,
+                    saved_at: (record.saved_at > 0).then_some(record.saved_at),
+                    transferred: record.transferred_bytes,
+                })
+            })
+            .collect()
+    }
+    fn check_export_destination(&self, destination: &Path) -> Result<()> {
+        if !destination.is_absolute()
+            || destination.starts_with(&self.state)
+            || self
+                .mounts
+                .iter()
+                .any(|mount| destination.starts_with(mount))
+        {
+            bail!("choose a destination outside Cirrove mounts and local state");
+        }
+        Ok(())
+    }
+    pub fn working_list(
+        &self,
+        after: Option<uuid::Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        Ok(self.journal.working_list(after, limit)?)
+    }
+    pub fn export_working(
+        &self,
+        id: uuid::Uuid,
+        generation: u64,
+        destination: &Path,
+        cancel: &CancellationToken,
+        progress: impl FnMut(u64),
+    ) -> Result<crate::journal::WorkingExportReceipt> {
+        self.check_export_destination(destination)?;
+        Ok(self
+            .journal
+            .export_working(id, generation, destination, cancel, progress)?)
+    }
+    pub fn export(
+        &self,
+        id: uuid::Uuid,
+        destination: &Path,
+        cancel: &CancellationToken,
+        progress: impl FnMut(u64),
+    ) -> Result<crate::journal::LocalExportReceipt> {
+        self.check_export_destination(destination)?;
+        Ok(self
+            .journal
+            .local_export_source(id)?
+            .copy_to(destination, cancel, progress)?)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
@@ -1695,6 +2307,7 @@ mod tests {
             id,
             enabled: true,
             access: None,
+            completed: false,
         });
 
         let after = Settings::load(&state).expect("load");
@@ -1707,6 +2320,1012 @@ mod tests {
             AccessMode::ReadOnly,
             "and it must not have adopted a permission nobody granted"
         );
+    }
+
+    #[test]
+    fn completion_reports_failed_persistence_and_rolls_back_the_original_mode() {
+        for wrote_before_failure in [false, true] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut original = fixture_account(AccessMode::ReadOnly);
+            original.enabled = false;
+            Settings {
+                version: 2,
+                accounts: vec![original.clone()],
+            }
+            .save(&state)
+            .expect("seed disabled");
+            super::write_restore_marker(&state, &original.id, true).expect("marker");
+            let desired = super::DesiredState {
+                state: state.clone(),
+                id: original.id.clone(),
+                enabled: true,
+                access: Some(original.access),
+                completed: false,
+            };
+            let result =
+                desired.complete_with(Some(AccessMode::ReadWrite), |candidate, location| {
+                    assert_eq!(candidate.accounts[0].access, AccessMode::ReadWrite);
+                    assert!(candidate.accounts[0].enabled);
+                    if wrote_before_failure {
+                        // Model an error after atomic rename, e.g. directory fsync.
+                        candidate.save(location)?;
+                    }
+                    anyhow::bail!("injected settings persistence failure")
+                });
+            assert!(
+                result.is_err(),
+                "a failed settings commit cannot report a successful sign-in"
+            );
+            let restored = Settings::load(&state).expect("load");
+            assert_eq!(restored.accounts[0].access, AccessMode::ReadOnly);
+            assert!(restored.accounts[0].enabled);
+            assert!(
+                !super::restore_marker(&state, &original.id).exists(),
+                "successful rollback clears its marker"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_completion_preserves_access_without_a_second_settings_write() {
+        use std::os::unix::fs::MetadataExt;
+        for mode in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            for enabled in [false, true] {
+                let temp = tempfile::tempdir().expect("fixture");
+                let state = temp.path().join("state");
+                crate::private_dir(&state).expect("state");
+                let mut original = fixture_account(mode);
+                original.enabled = false;
+                Settings {
+                    version: 2,
+                    accounts: vec![original.clone()],
+                }
+                .save(&state)
+                .expect("seed");
+                super::write_restore_marker(&state, &original.id, enabled).expect("marker");
+                let saved_file = std::cell::RefCell::new(None::<File>);
+                super::DesiredState {
+                    state: state.clone(),
+                    id: original.id.clone(),
+                    enabled,
+                    access: Some(mode),
+                    completed: false,
+                }
+                .complete_with(None, |candidate, location| {
+                    assert_eq!(candidate.accounts[0].access, mode);
+                    candidate.save(location)?;
+                    // Hold the committed inode so a second settings rename cannot reuse it.
+                    *saved_file.borrow_mut() = Some(File::open(location.join("accounts.json"))?);
+                    Ok(())
+                })
+                .expect("completion");
+                let held = saved_file
+                    .borrow()
+                    .as_ref()
+                    .expect("committed file")
+                    .metadata()
+                    .expect("metadata");
+                let current =
+                    std::fs::metadata(state.join("accounts.json")).expect("current metadata");
+                assert_eq!(
+                    (held.dev(), held.ino()),
+                    (current.dev(), current.ino()),
+                    "Drop wrote settings after successful completion"
+                );
+                let restored = Settings::load(&state).expect("load");
+                assert_eq!(restored.accounts[0].access, mode);
+                assert_eq!(restored.accounts[0].enabled, enabled);
+                assert!(!super::restore_marker(&state, &original.id).exists());
+            }
+        }
+    }
+
+    #[test]
+    fn pending_icloud_access_captures_before_login_and_cancellation_keeps_settings() {
+        for requested in [
+            None,
+            Some(AccessMode::ReadOnly),
+            Some(AccessMode::ReadWrite),
+        ] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let original = icloud_reauth_fixture();
+            Settings {
+                version: 2,
+                accounts: vec![original.clone()],
+            }
+            .save(&state)
+            .expect("seed");
+            let before = std::fs::read(state.join("accounts.json")).expect("bytes");
+            let pending = super::begin_reauthenticate_icloud(
+                state.clone(),
+                original.label.clone(),
+                requested,
+            )
+            .expect("pending");
+            assert_eq!(pending.access(), requested.unwrap_or(AccessMode::ReadOnly));
+            assert_eq!(pending.apple_id(), original.identity.username);
+            assert_eq!(pending.account_id(), original.id);
+            drop(pending);
+            assert_eq!(
+                std::fs::read(state.join("accounts.json")).expect("bytes"),
+                before
+            );
+            assert!(!super::restore_marker(&state, &original.id).exists());
+        }
+    }
+
+    #[test]
+    fn pending_icloud_access_refuses_settings_changed_while_password_is_entered() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state");
+        let original = icloud_reauth_fixture();
+        let mut settings = Settings {
+            version: 2,
+            accounts: vec![original.clone()],
+        };
+        settings.save(&state).expect("seed");
+        let pending = super::begin_reauthenticate_icloud(
+            state.clone(),
+            original.label.clone(),
+            Some(AccessMode::ReadWrite),
+        )
+        .expect("pending");
+        settings.accounts[0].cache_bytes += 4096;
+        settings.save(&state).expect("changed during sign-in");
+        let before = std::fs::read(state.join("accounts.json")).expect("bytes");
+        assert!(
+            super::suspend_validated_icloud_account(&pending.state, &pending.original).is_err()
+        );
+        assert_eq!(
+            std::fs::read(state.join("accounts.json")).expect("bytes"),
+            before
+        );
+        assert!(!super::restore_marker(&state, &original.id).exists());
+    }
+
+    #[test]
+    fn pending_icloud_access_rejects_foreign_session_identity_without_settings_changes() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state");
+        let original = icloud_reauth_fixture();
+        Settings {
+            version: 2,
+            accounts: vec![original.clone()],
+        }
+        .save(&state)
+        .expect("seed");
+        let pending = super::begin_reauthenticate_icloud(
+            state.clone(),
+            original.label.clone(),
+            Some(AccessMode::ReadWrite),
+        )
+        .expect("pending");
+        let snapshot = |apple_id: &str| {
+            let key = probe_session_key(apple_id).expect("synthetic account hash");
+            SecretString::from(serde_json::json!({
+                "version": 1, "account_hash": key.strip_prefix("icloud-probe-").expect("hash"),
+                "headers": { "scnt":"", "session_id":"", "session_token":"synthetic-not-a-credential", "trust_token":"", "account_country":"", "auth_attributes":"" },
+                "drive_endpoint":"https://synthetic.icloud.com/", "docs_endpoint":"https://synthetic.icloud.com/", "cookies":[]
+            }).to_string())
+        };
+        assert!(
+            pending
+                .validate_snapshot(&snapshot(&original.identity.username))
+                .is_ok()
+        );
+        assert!(
+            pending
+                .validate_snapshot(&snapshot("foreign@example.invalid"))
+                .is_err()
+        );
+        assert!(Settings::load(&state).expect("settings").accounts[0].enabled);
+        assert!(!super::restore_marker(&state, &original.id).exists());
+    }
+
+    #[test]
+    fn pending_icloud_requested_mode_reaches_durable_completion_preserves_explicit_policy() {
+        for initial_access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            for enabled in [false, true] {
+                for requested in [
+                    None,
+                    Some(AccessMode::ReadOnly),
+                    Some(AccessMode::ReadWrite),
+                ] {
+                    for session_saved in [false, true] {
+                        let temp = tempfile::tempdir().expect("fixture");
+                        let state = temp.path().join("state");
+                        crate::private_dir(&state).expect("state");
+                        let mut original = icloud_reauth_fixture();
+                        original.enabled = enabled;
+                        original.access = initial_access;
+                        Settings {
+                            version: 2,
+                            accounts: vec![original.clone()],
+                        }
+                        .save(&state)
+                        .expect("seed");
+                        // Retained journal bytes must not be touched by mode or session persistence.
+                        let journal = state.join("accounts").join(&original.id).join("journal");
+                        std::fs::create_dir_all(&journal).expect("fixture retained directory");
+                        std::fs::write(journal.join("retained-fixture"), b"retained bytes")
+                            .expect("fixture bytes");
+                        let pending = super::begin_reauthenticate_icloud(
+                            state.clone(),
+                            original.label.clone(),
+                            requested,
+                        )
+                        .expect("pending");
+                        let (_operation, desired) = super::suspend_validated_icloud_account(
+                            &pending.state,
+                            &pending.original,
+                        )
+                        .expect("suspend");
+                        let saved = if session_saved {
+                            Ok(())
+                        } else {
+                            Err(anyhow::anyhow!("synthetic session save failure"))
+                        };
+                        let result =
+                            super::complete_icloud_session_save(desired, pending.requested, saved);
+                        assert_eq!(result.is_ok(), session_saved);
+                        let mut expected = original.clone();
+                        if session_saved {
+                            expected.access = requested.unwrap_or(initial_access);
+                        }
+                        let after = Settings::load(&state).expect("settings");
+                        assert_eq!(
+                            serde_json::to_value(&after.accounts[0]).expect("account"),
+                            serde_json::to_value(&expected).expect("expected policy")
+                        );
+                        assert_eq!(
+                            std::fs::read(journal.join("retained-fixture"))
+                                .expect("retained bytes"),
+                            b"retained bytes"
+                        );
+                        assert!(!super::restore_marker(&state, &original.id).exists());
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn pending_icloud_policy_commit_failure_restores_original_mode_and_enabled_state() {
+        for initial_access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            for enabled in [false, true] {
+                for published_before_error in [false, true] {
+                    let temp = tempfile::tempdir().expect("fixture");
+                    let state = temp.path().join("state");
+                    crate::private_dir(&state).expect("state");
+                    let mut original = icloud_reauth_fixture();
+                    original.access = initial_access;
+                    original.enabled = enabled;
+                    Settings {
+                        version: 2,
+                        accounts: vec![original.clone()],
+                    }
+                    .save(&state)
+                    .expect("seed");
+                    let requested = match initial_access {
+                        AccessMode::ReadOnly => AccessMode::ReadWrite,
+                        AccessMode::ReadWrite => AccessMode::ReadOnly,
+                    };
+                    let pending = super::begin_reauthenticate_icloud(
+                        state.clone(),
+                        original.label.clone(),
+                        Some(requested),
+                    )
+                    .expect("pending");
+                    let (_operation, desired) =
+                        super::suspend_validated_icloud_account(&pending.state, &pending.original)
+                            .expect("suspend");
+                    let result = desired.complete_with(Some(requested), |candidate, location| {
+                        if published_before_error {
+                            candidate.save(location)?;
+                        }
+                        anyhow::bail!("synthetic policy commit failure");
+                    });
+                    assert!(result.is_err());
+                    let after = Settings::load(&state).expect("rollback");
+                    assert_eq!(
+                        serde_json::to_value(&after.accounts[0]).expect("after"),
+                        serde_json::to_value(&original).expect("original")
+                    );
+                    assert!(!super::restore_marker(&state, &original.id).exists());
+                }
+            }
+        }
+    }
+
+    #[derive(Default)]
+    struct ConnectionVault {
+        saves: std::sync::atomic::AtomicUsize,
+        removes: std::sync::atomic::AtomicUsize,
+    }
+    #[async_trait::async_trait]
+    impl CredentialVault for ConnectionVault {
+        async fn load(&self, _: &str) -> Result<Option<SecretString>> {
+            panic!("connection persistence does not read credentials")
+        }
+        async fn save(&self, _: &str, _: SecretString) -> Result<()> {
+            self.saves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+        async fn remove(&self, _: &str) -> Result<()> {
+            self.removes
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_invalid_identity_refuses_before_any_credential_write() {
+        use std::sync::atomic::Ordering;
+        for access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let mut account = icloud_reauth_fixture();
+            account.access = access;
+            account.root_id = "foreign-root".into();
+            let vault = ConnectionVault::default();
+            assert!(
+                super::save_icloud_connection_with(
+                    &state,
+                    &account,
+                    SecretString::from("synthetic-session"),
+                    &vault,
+                    |_, _| panic!("identity must be rejected before settings persistence")
+                )
+                .await
+                .is_err()
+            );
+            assert_eq!(vault.saves.load(Ordering::SeqCst), 0);
+            assert_eq!(vault.removes.load(Ordering::SeqCst), 0);
+            assert!(!state.exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_failed_commit_keeps_session_if_settings_were_published() {
+        use std::sync::atomic::Ordering;
+        for published_before_error in [false, true] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let account = icloud_reauth_fixture();
+            let vault = ConnectionVault::default();
+            assert!(
+                super::save_icloud_connection_with(
+                    &state,
+                    &account,
+                    SecretString::from("synthetic-session"),
+                    &vault,
+                    |candidate, location| {
+                        if published_before_error {
+                            candidate.save(location)?;
+                        }
+                        anyhow::bail!("synthetic error at settings commit")
+                    }
+                )
+                .await
+                .is_err()
+            );
+            assert_eq!(vault.saves.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                vault.removes.load(Ordering::SeqCst),
+                usize::from(!published_before_error)
+            );
+            let settings = Settings::load(&state).expect("published settings");
+            assert_eq!(settings.accounts.len(), usize::from(published_before_error));
+            if published_before_error {
+                assert_eq!(settings.accounts[0].credential_id, account.credential_id);
+                assert!(settings.accounts[0].enabled);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_owned_save_reports_published_account() {
+        use std::sync::atomic::Ordering;
+        for access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut account = icloud_reauth_fixture();
+            account.access = access;
+            let vault = Arc::new(ConnectionVault::default());
+            super::save_icloud_connection_owned(
+                state.clone(),
+                account.clone(),
+                SecretString::from("synthetic-session"),
+                vault.clone(),
+            )
+            .await
+            .expect("durable connection");
+            let settings = Settings::load(&state).expect("settings");
+            assert_eq!(settings.accounts.len(), 1);
+            assert_eq!(settings.accounts[0].access, access);
+            assert_eq!(settings.accounts[0].credential_id, account.credential_id);
+            assert_eq!(vault.saves.load(Ordering::SeqCst), 1);
+            assert_eq!(vault.removes.load(Ordering::SeqCst), 0);
+        }
+    }
+
+    struct PausedConnectionVault {
+        stored: std::sync::atomic::AtomicBool,
+        started: tokio::sync::Notify,
+        resume: tokio::sync::Notify,
+        removed: tokio::sync::Notify,
+        fail_readback: bool,
+    }
+    #[async_trait::async_trait]
+    impl CredentialVault for PausedConnectionVault {
+        async fn load(&self, _: &str) -> Result<Option<SecretString>> {
+            unreachable!("not used by connection persistence")
+        }
+        async fn save(&self, _: &str, _: SecretString) -> Result<()> {
+            self.stored.store(true, std::sync::atomic::Ordering::SeqCst);
+            self.started.notify_one();
+            self.resume.notified().await;
+            if self.fail_readback {
+                anyhow::bail!("synthetic credential readback failure");
+            }
+            Ok(())
+        }
+        async fn remove(&self, _: &str) -> Result<()> {
+            self.stored
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+            self.removed.notify_one();
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn icloud_connection_cancelled_save_finishes_cleanup_without_publishing() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        for initial_access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            for fail_readback in [false, true] {
+                let temp = tempfile::tempdir().expect("fixture");
+                let state = temp.path().join("state");
+                crate::private_dir(&state).expect("state");
+                let vault = Arc::new(PausedConnectionVault {
+                    stored: AtomicBool::new(false),
+                    started: tokio::sync::Notify::new(),
+                    resume: tokio::sync::Notify::new(),
+                    removed: tokio::sync::Notify::new(),
+                    fail_readback,
+                });
+                let mut account = icloud_reauth_fixture();
+                account.access = initial_access;
+                let task = tokio::spawn(super::save_icloud_connection_owned(
+                    state.clone(),
+                    account,
+                    SecretString::from("synthetic-session"),
+                    vault.clone(),
+                ));
+                tokio::time::timeout(std::time::Duration::from_secs(2), vault.started.notified())
+                    .await
+                    .expect("credential save reached deterministic boundary");
+                assert!(vault.stored.load(Ordering::SeqCst));
+                task.abort();
+                assert!(task.await.expect_err("caller cancelled").is_cancelled());
+                vault.resume.notify_one();
+                tokio::time::timeout(std::time::Duration::from_secs(2), vault.removed.notified())
+                    .await
+                    .expect("owned persistence must finish cancelled cleanup");
+                assert!(!vault.stored.load(Ordering::SeqCst));
+                assert!(
+                    Settings::load(&state)
+                        .expect("settings")
+                        .accounts
+                        .is_empty()
+                );
+            }
+        }
+    }
+
+    fn icloud_reauth_fixture() -> Account {
+        let mut account = fixture_account(AccessMode::ReadOnly);
+        account.registration = AppRegistration::ICloud;
+        account.identity.tenant_id.clear();
+        account.identity.graph_user_id.clear();
+        account.drive.drive_type = "icloud_drive".into();
+        account.root_id = "FOLDER::com.apple.CloudDocs::root".into();
+        account.enabled = true;
+        account
+    }
+
+    #[test]
+    fn icloud_reauthentication_refuses_stale_account_before_disabling_or_marking() {
+        for change in [
+            "label",
+            "identity",
+            "credential",
+            "enabled",
+            "mount",
+            "removed",
+        ] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let original = icloud_reauth_fixture();
+            let mut settings = Settings {
+                version: 2,
+                accounts: vec![original.clone()],
+            };
+            match change {
+                "label" => settings.accounts[0].label = "renamed".into(),
+                "identity" => {
+                    settings.accounts[0].identity.username = "different@example.test".into()
+                }
+                "credential" => {
+                    settings.accounts[0].credential_id = uuid::Uuid::new_v4().to_string()
+                }
+                "enabled" => settings.accounts[0].enabled = false,
+                "mount" => settings.accounts[0].mount_path = temp.path().join("different-mount"),
+                _ => settings.accounts.clear(),
+            }
+            settings.save(&state).expect("changed settings");
+            let before = std::fs::read(state.join("accounts.json")).expect("settings bytes");
+            assert!(
+                super::suspend_validated_icloud_account(&state, &original).is_err(),
+                "{change}"
+            );
+            assert_eq!(
+                std::fs::read(state.join("accounts.json")).expect("settings bytes"),
+                before
+            );
+            assert!(!super::restore_marker(&state, &original.id).exists());
+        }
+    }
+
+    #[test]
+    fn config_guard_drop_releases_inherited_description_and_allows_icloud_restore() {
+        use std::{
+            io::Read,
+            os::fd::{AsFd, AsRawFd},
+            process::{Child, Command, Stdio},
+            sync::mpsc,
+            time::Duration,
+        };
+        // The real pre-exec interval has this same flock lifetime. A controlled
+        // CLOEXEC seam retains it after exec without unsafe code or global fork.
+        // This is mechanism coverage, not proof of CI's unique cause.
+        #[derive(Debug)]
+        struct Inheritor(Child);
+        impl Drop for Inheritor {
+            fn drop(&mut self) {
+                // Kill/reap only this exact synthetic child, never a pattern.
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        fn inherit(owner: &(impl AsFd + AsRawFd)) -> Inheritor {
+            let identity = rustix::fs::fstat(owner).expect("owner identity");
+            let flags = rustix::io::fcntl_getfd(owner).expect("owner flags");
+            rustix::io::fcntl_setfd(owner, flags & !rustix::io::FdFlags::CLOEXEC)
+                .expect("controlled descriptor inheritance");
+            let child = Command::new("python3")
+                .args([
+                    "-I", "-S", "-c",
+                    "import os,signal,sys; signal.alarm(10); held=os.fstat(int(sys.argv[1])); assert (held.st_dev,held.st_ino)==(int(sys.argv[2]),int(sys.argv[3])); sys.stdout.buffer.write(b'ready'); sys.stdout.buffer.flush(); sys.stdin.buffer.read(1)",
+                ])
+                .arg(owner.as_raw_fd().to_string())
+                .arg(identity.st_dev.to_string())
+                .arg(identity.st_ino.to_string())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map(Inheritor);
+            // Install child cleanup before this fallible flag restoration.
+            rustix::io::fcntl_setfd(owner, flags).expect("restore original descriptor flags");
+            let mut child = child.expect("controlled descriptor holder");
+            let mut stdout = child.0.stdout.take().expect("readiness pipe");
+            let (send, receive) = mpsc::channel();
+            let reader = std::thread::spawn(move || {
+                let mut ready = [0; 5];
+                let _ = send.send(stdout.read_exact(&mut ready).is_ok() && ready == *b"ready");
+            });
+            assert!(
+                receive
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("bounded readiness")
+            );
+            reader.join().expect("readiness reader");
+            child
+        }
+        for originally_enabled in [false, true] {
+            let temp = tempfile::Builder::new()
+                .prefix("cirrove-config-inheritance-")
+                .tempdir_in("/var/tmp")
+                .expect("private fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut original = icloud_reauth_fixture();
+            original.enabled = originally_enabled;
+            Settings {
+                version: 2,
+                accounts: vec![original.clone()],
+            }
+            .save(&state)
+            .expect("seed");
+            let held = super::config_lock(&state).expect("parent settings owner");
+            let mut child = inherit(&held);
+            assert!(
+                super::config_lock(&state).is_err(),
+                "live parent remains exclusive"
+            );
+            assert!(
+                super::config_lock(&state).is_err(),
+                "a failed contender must not unlock its owner"
+            );
+            drop(held);
+            assert!(child.0.try_wait().expect("holder status").is_none());
+            let next = super::config_lock(&state).expect(
+                "dropping logical owner must release flock while inherited descriptor stays alive",
+            );
+            assert!(
+                super::config_lock(&state).is_err(),
+                "successor owner remains exclusive"
+            );
+            drop(next);
+            let (_operation, desired) = super::suspend_validated_icloud_account(&state, &original)
+                .expect("validated suspend after inherited description release");
+            assert!(!Settings::load(&state).expect("suspended settings").accounts[0].enabled);
+            desired
+                .complete(None)
+                .expect("completed desired-state restore");
+            assert_eq!(
+                serde_json::to_value(
+                    Settings::load(&state).expect("restored settings").accounts[0].clone()
+                )
+                .expect("account"),
+                serde_json::to_value(&original).expect("original")
+            );
+            assert!(!super::restore_marker(&state, &original.id).exists());
+            assert!(child.0.try_wait().expect("holder still alive").is_none());
+        }
+    }
+
+    #[test]
+    fn icloud_reauthentication_keeps_validated_read_only_access_and_desired_state() {
+        for originally_enabled in [false, true] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut original = icloud_reauth_fixture();
+            original.enabled = originally_enabled;
+            Settings {
+                version: 2,
+                accounts: vec![original.clone()],
+            }
+            .save(&state)
+            .expect("seed");
+            let (_operation, desired) = super::suspend_validated_icloud_account(&state, &original)
+                .expect("validated account");
+            assert!(!Settings::load(&state).expect("load").accounts[0].enabled);
+            desired.complete(None).expect("restore");
+            let after = Settings::load(&state).expect("load");
+            assert_eq!(
+                serde_json::to_value(&after.accounts[0]).expect("account"),
+                serde_json::to_value(original).expect("original")
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_mount_preference_supersedes_interrupted_sign_in() {
+        for (old_wish, requested) in [(true, false), (false, true)] {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            crate::private_dir(&state).expect("state");
+            let mut account = fixture_account(AccessMode::ReadWrite);
+            account.enabled = false; // an interrupted sign-in's temporary disable
+            Settings {
+                version: 2,
+                accounts: vec![account.clone()],
+            }
+            .save(&state)
+            .expect("seed");
+            super::write_restore_marker(&state, &account.id, old_wish).expect("old wish");
+
+            super::set_enabled(&state, &account.label, requested).expect("explicit preference");
+            super::heal_interrupted_sign_ins(&state).expect("heal");
+            super::heal_interrupted_sign_ins(&state).expect("heal again");
+            account.enabled = requested;
+            assert_eq!(
+                serde_json::to_value(&Settings::load(&state).expect("load").accounts[0])
+                    .expect("actual account"),
+                serde_json::to_value(&account).expect("expected account"),
+                "an interrupted sign-in overrode the later explicit mount preference"
+            );
+            assert!(!super::restore_marker(&state, &account.id).exists());
+        }
+    }
+
+    mod interrupted_preference_tests {
+        use super::*;
+        use std::os::unix::fs::PermissionsExt;
+
+        fn seed(state: &Path, enabled: bool, marker: Option<bool>) -> Account {
+            crate::private_dir(state).expect("state");
+            let mut account = icloud_reauth_fixture();
+            account.enabled = enabled;
+            Settings {
+                version: 2,
+                accounts: vec![account.clone()],
+            }
+            .save(state)
+            .expect("seed");
+            if let Some(wish) = marker {
+                super::super::write_restore_marker(state, &account.id, wish).expect("marker");
+            }
+            account
+        }
+
+        // Parallel process tests can inherit an operation's CLOEXEC open
+        // description between fork and exec. Wait only for that bounded lock
+        // contention after the logical owner has returned; never retry writes.
+        fn wait_for_operation_release(state: &Path, id: &str) {
+            wait_for_operation_release_with(state, id, || {});
+        }
+        fn wait_for_operation_release_with(state: &Path, id: &str, mut contended: impl FnMut()) {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+            loop {
+                match super::super::account_operation(state, id) {
+                    Ok(lease) => {
+                        // Release inherited copies of this probe's description too.
+                        fs2::FileExt::unlock(&lease).expect("release test operation lease");
+                        drop(lease);
+                        assert!(
+                            std::time::Instant::now() <= deadline,
+                            "operation release exceeded its bound"
+                        );
+                        return;
+                    }
+                    Err(error) => {
+                        assert!(
+                            error
+                                .downcast_ref::<std::io::Error>()
+                                .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock),
+                            "unexpected operation release error: {error:#}"
+                        );
+                        assert!(
+                            std::time::Instant::now() < deadline,
+                            "operation owner was not released: {error:#}"
+                        );
+                        contended();
+                        std::thread::sleep(std::time::Duration::from_millis(1));
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn bounded_operation_release_wait_preserves_busy_until_owner_releases() {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, false, Some(true));
+            let before = std::fs::read(state.join("accounts.json")).expect("settings");
+            let marker =
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker");
+            let held =
+                super::super::account_operation(&state, &account.id).expect("controlled owner");
+            assert_eq!(
+                set_enabled_by_id(&state, &account.id, true),
+                Err(PreferenceRefusal::Busy)
+            );
+            assert_eq!(
+                std::fs::read(state.join("accounts.json")).expect("settings"),
+                before
+            );
+            assert_eq!(
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker"),
+                marker
+            );
+            let (send, receive) = std::sync::mpsc::channel::<()>();
+            let release = std::thread::spawn(move || {
+                receive
+                    .recv_timeout(std::time::Duration::from_secs(1))
+                    .expect("bounded release signal");
+                drop(held);
+            });
+            let mut send = Some(send);
+            // CONTROL_WAIT_BEGIN: omission must expose the old immediate-success assumption.
+            wait_for_operation_release_with(&state, &account.id, || {
+                if let Some(send) = send.take() {
+                    send.send(()).expect("release controlled owner");
+                }
+            });
+            // CONTROL_WAIT_END
+            set_enabled_by_id(&state, &account.id, true)
+                .expect("preference after controlled owner release");
+            assert!(send.is_none(), "the wait must observe actual contention");
+            release.join().expect("controlled release thread closed");
+            heal_interrupted_sign_ins(&state).expect("heal latest wish");
+            assert!(Settings::load(&state).expect("load").accounts[0].enabled);
+        }
+
+        #[test]
+        fn persistence_failure_retains_explicit_durable_intent() {
+            for requested in [false, true] {
+                for published_settings in [false, true] {
+                    let temp = tempfile::tempdir().expect("fixture");
+                    let state = temp.path().join("state");
+                    let mut account = seed(&state, !requested, Some(!requested));
+                    let result = super::super::update_enabled_with(
+                        &state,
+                        |a| a.id == account.id,
+                        requested,
+                        |candidate, directory| {
+                            if published_settings {
+                                candidate.save(directory)?;
+                            }
+                            bail!("injected settings persistence failure")
+                        },
+                    );
+                    assert_eq!(result, Err(PreferenceRefusal::Unwritable));
+                    assert_eq!(
+                        super::super::interrupted_desired_state(&state, &account.id),
+                        Some(requested),
+                        "a reported persistence error must not revive the old wish"
+                    );
+                    wait_for_operation_release(&state, &account.id);
+                    heal_interrupted_sign_ins(&state).expect("finish durable intent");
+                    account.enabled = requested;
+                    assert_eq!(
+                        serde_json::to_value(&Settings::load(&state).expect("load").accounts[0])
+                            .expect("actual"),
+                        serde_json::to_value(&account).expect("expected")
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn cleanup_failure_retains_only_latest_wish() {
+            for requested in [false, true] {
+                let temp = tempfile::tempdir().expect("fixture");
+                let state = temp.path().join("state");
+                let account = seed(&state, !requested, Some(!requested));
+                let result = super::super::update_enabled_with(
+                    &state,
+                    |a| a.id == account.id,
+                    requested,
+                    |candidate, directory| {
+                        candidate.save(directory)?;
+                        std::fs::set_permissions(
+                            directory,
+                            std::fs::Permissions::from_mode(0o500),
+                        )?;
+                        Ok(())
+                    },
+                );
+                std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o700))
+                    .expect("restore directory mode");
+                result.expect("settings durable despite failed marker unlink");
+                assert_eq!(
+                    super::super::interrupted_desired_state(&state, &account.id),
+                    Some(requested),
+                    "failed cleanup must leave the new complete marker"
+                );
+                wait_for_operation_release(&state, &account.id);
+                assert!(!heal_interrupted_sign_ins(&state).expect("same wish"));
+                wait_for_operation_release(&state, &account.id);
+                set_enabled_by_id(&state, &account.id, !requested).expect("later preference");
+                heal_interrupted_sign_ins(&state).expect("heal again");
+                assert_eq!(
+                    Settings::load(&state).expect("load").accounts[0].enabled,
+                    !requested
+                );
+            }
+        }
+
+        #[test]
+        fn live_sign_in_refuses_both_public_preference_routes() {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, false, Some(true));
+            let before = std::fs::read(state.join("accounts.json")).expect("settings");
+            let marker =
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker");
+            let _operation =
+                account_operation(&state, &account.id).expect("sign-in owns operation");
+            assert!(set_enabled(&state, &account.label, true).is_err());
+            assert_eq!(
+                set_enabled_by_id(&state, &account.id, true),
+                Err(PreferenceRefusal::Busy)
+            );
+            assert_eq!(
+                std::fs::read(state.join("accounts.json")).expect("settings"),
+                before
+            );
+            assert_eq!(
+                std::fs::read(super::super::restore_marker(&state, &account.id)).expect("marker"),
+                marker
+            );
+        }
+
+        #[test]
+        fn marker_failure_before_rename_preserves_previous_file() {
+            use std::os::unix::fs::MetadataExt;
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, false, Some(true));
+            let marker = super::super::restore_marker(&state, &account.id);
+            let held = File::open(&marker).expect("held original marker");
+            let bytes = std::fs::read(&marker).expect("marker");
+            std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o500))
+                .expect("deny new temporary marker");
+            let result = super::super::write_restore_marker(&state, &account.id, false);
+            std::fs::set_permissions(&state, std::fs::Permissions::from_mode(0o700))
+                .expect("restore directory mode");
+            assert!(result.is_err());
+            assert_eq!(std::fs::read(&marker).expect("marker preserved"), bytes);
+            assert_eq!(
+                std::fs::metadata(&marker).expect("metadata").ino(),
+                held.metadata().expect("held").ino()
+            );
+            assert_eq!(std::fs::read_dir(&state).expect("inventory").count(), 2);
+        }
+
+        #[test]
+        fn healer_uses_current_account_not_initial_inventory() {
+            let temp = tempfile::tempdir().expect("fixture");
+            let state = temp.path().join("state");
+            let account = seed(&state, true, None);
+            let initial_inventory = Settings::load(&state).expect("initial inventory").accounts;
+            // A sign-in starts and finishes abandoning its temporary disable
+            // after the healer's inventory, but before ownership is acquired.
+            let mut current = Settings::load(&state).expect("current");
+            current.accounts[0].enabled = false;
+            current.save(&state).expect("temporary disable");
+            super::super::write_restore_marker(&state, &account.id, true).expect("new marker");
+            assert!(
+                super::super::heal_interrupted_accounts(&state, initial_inventory)
+                    .expect("heal fresh state")
+            );
+            assert!(Settings::load(&state).expect("load").accounts[0].enabled);
+        }
+
+        #[test]
+        fn id_preference_preserves_other_accounts_and_no_marker_behavior() {
+            for marker in [None, Some(false), Some(true)] {
+                for requested in [false, true] {
+                    let temp = tempfile::tempdir().expect("fixture");
+                    let state = temp.path().join("state");
+                    let mut account = seed(&state, !requested, marker);
+                    let mut other = fixture_account(AccessMode::ReadWrite);
+                    other.id = "00000000-0000-4000-8000-000000000009".into();
+                    other.label = "other".into();
+                    other.mount_path = "/nonexistent/other-fixture".into();
+                    let mut settings = Settings::load(&state).expect("load");
+                    settings.accounts.push(other.clone());
+                    settings.save(&state).expect("other account");
+                    set_enabled_by_id(&state, &account.id, requested)
+                        .expect("explicit ID preference");
+                    heal_interrupted_sign_ins(&state).expect("heal");
+                    account.enabled = requested;
+                    let expected = Settings {
+                        version: 2,
+                        accounts: vec![account.clone(), other],
+                    };
+                    assert_eq!(
+                        serde_json::to_value(Settings::load(&state).expect("load"))
+                            .expect("actual"),
+                        serde_json::to_value(expected).expect("expected")
+                    );
+                    assert!(!super::super::restore_marker(&state, &account.id).exists());
+                }
+            }
+        }
     }
 
     /// A later sign-in must not inherit what an interrupted one left behind.
@@ -1871,6 +3490,137 @@ mod tests {
         assert!(write_provider(&settings.accounts[0]).is_ok());
     }
 
+    #[test]
+    fn icloud_settings_preserve_identity_checks_for_explicit_read_and_write_modes() {
+        for access in [AccessMode::ReadOnly, AccessMode::ReadWrite] {
+            let mut account = icloud_reauth_fixture();
+            account.access = access;
+            let settings = Settings {
+                version: 2,
+                accounts: vec![account.clone()],
+            };
+            settings.validate().expect("explicit local access policy");
+            assert!(
+                write_provider(&account).is_err(),
+                "context-free factory must still refuse"
+            );
+            for field in 0..6 {
+                let mut invalid = settings.clone();
+                let account = &mut invalid.accounts[0];
+                match field {
+                    0 => account.drive.id = "foreign-drive".into(),
+                    1 => account.drive.drive_type = "foreign-type".into(),
+                    2 => account.root_id = "foreign-root".into(),
+                    3 => account.identity.username.clear(),
+                    4 => account.identity.tenant_id = "foreign-tenant".into(),
+                    5 => account.identity.graph_user_id = "foreign-subject".into(),
+                    _ => unreachable!(),
+                }
+                assert!(
+                    invalid.validate().is_err(),
+                    "identity field {field} must remain checked"
+                );
+            }
+            let mut encoded = serde_json::to_value(&settings).expect("settings");
+            encoded["accounts"][0]
+                .as_object_mut()
+                .expect("account")
+                .remove("access");
+            let defaulted: Settings = serde_json::from_value(encoded).expect("older settings");
+            assert_eq!(defaulted.accounts[0].access, AccessMode::ReadOnly);
+            defaulted
+                .validate()
+                .expect("missing access retains safe default");
+        }
+    }
+
+    fn assert_account_owner_released(directory: &Path) {
+        // Parallel tests may fork while a CLOEXEC descriptor is still open.
+        // Its inherited open description can outlive the last logical owner
+        // until exec. Only lock contention gets this bounded release allowance.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        loop {
+            match account_lock(directory) {
+                Ok(reacquired) => {
+                    drop(reacquired);
+                    assert!(
+                        std::time::Instant::now() <= deadline,
+                        "account release exceeded its bound"
+                    );
+                    return;
+                }
+                Err(error) => {
+                    assert!(
+                        error
+                            .downcast_ref::<std::io::Error>()
+                            .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock),
+                        "unexpected account release error: {error:#}"
+                    );
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "last account owner was not released: {error:#}"
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn owned_poll_account_lease_outlives_stopped_engine_until_provider_drop() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let account = icloud_reauth_fixture();
+        let directory = temp.path().join("accounts").join(&account.id);
+        let owner = Arc::new(account_lock(&directory)?);
+        let lifetime = Arc::downgrade(&owner);
+        let provider = provider_with_owned_state(&account, temp.path(), owner.clone())?;
+        let engine = crate::engine::Engine::new_with_owner(
+            account,
+            provider.clone(),
+            temp.path().into(),
+            owner,
+        )
+        .await?;
+        engine.stop().await;
+        drop(engine);
+        assert!(
+            account_lock(&directory).is_err(),
+            "outliving owned provider must retain account lease"
+        );
+        drop(provider);
+        assert!(
+            lifetime.upgrade().is_none(),
+            "last owned provider drop must release every logical account owner"
+        );
+        assert_account_owner_released(&directory);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn owned_poll_failed_engine_construction_releases_last_account_lease() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let account = icloud_reauth_fixture();
+        let directory = temp.path().join("accounts").join(&account.id);
+        let owner = Arc::new(account_lock(&directory)?);
+        let lifetime = Arc::downgrade(&owner);
+        let provider = provider_with_owned_state(&account, temp.path(), owner.clone())?;
+        std::fs::write(
+            directory.join("metadata.db"),
+            b"synthetic invalid SQLite header",
+        )?;
+        assert!(
+            crate::engine::Engine::new_with_owner(account, provider, temp.path().into(), owner)
+                .await
+                .is_err()
+        );
+        assert!(
+            lifetime.upgrade().is_none(),
+            "failed Engine construction must release every logical account owner"
+        );
+        assert_account_owner_released(&directory);
+        Ok(())
+    }
+
     fn fixture_account(access: AccessMode) -> Account {
         Account {
             id: "00000000-0000-4000-8000-000000000007".into(),
@@ -1900,5 +3650,8 @@ mod tests {
             poll_seconds: 3600,
             cache_bytes: 8 * 1024 * 1024,
         }
+    }
+    mod reauth_manager_retained_coupling {
+        include!("accounts/reauth_manager_retained_coupling.rs");
     }
 }

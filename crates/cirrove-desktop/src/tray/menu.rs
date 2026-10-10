@@ -496,6 +496,7 @@ mod tests {
                 mounted: *mounted,
                 stuck_changes,
                 failed_uploads: 0,
+                unconfirmed_changes: 0,
                 kept_generation: 0,
             });
         }

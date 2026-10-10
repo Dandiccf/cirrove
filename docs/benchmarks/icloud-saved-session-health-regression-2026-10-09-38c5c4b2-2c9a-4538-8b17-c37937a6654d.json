@@ -1,0 +1,179 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "actual_results": {
+    "all_original_handles_closed": true,
+    "elapsed_seconds": 40.68654451193288,
+    "old_red": {
+      "compile_failure": false,
+      "exit_code": 101,
+      "intended_assertion_verified": true,
+      "stderr": {
+        "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/old-red-stderr.txt",
+        "sha256": "233497a45f7fe9a1e7405448e9fb997e0ddc086f6e4f146c362b2e75f1805f2d",
+        "size_bytes": 9152
+      },
+      "stdout": {
+        "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/old-red-stdout.txt",
+        "sha256": "891a45c04c5a316f40baf7cd927081a2568db1abe3a9c5a8d4151c4a034d97d1",
+        "size_bytes": 364
+      },
+      "tests_failed": 1
+    },
+    "original_exec_closure": {
+      "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/original-exec-closure-v1.json",
+      "sha256": "2d3f97987397d09a9b71a1cb8cc2aba7cd2f08bfd645b2eada67f30b537551cf",
+      "size_bytes": 3126
+    },
+    "restored_green": {
+      "exit_code": 0,
+      "stderr": {
+        "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/restored-green-stderr.txt",
+        "sha256": "8e661be3f7a644c7a3e1fd2c674ff560baab4ba5d0b6dcbcb4a27ff275294dd5",
+        "size_bytes": 341
+      },
+      "stdout": {
+        "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/restored-green-stdout.txt",
+        "sha256": "b32da63fd4d8a25c7849da2d0c679d5a44b553dc0953484b292e6d27627df695",
+        "size_bytes": 451
+      },
+      "tests_failed": 0,
+      "tests_passed": 3
+    },
+    "signals": [],
+    "terminal": {
+      "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/terminal-v1.json",
+      "sha256": "9cd95727e5988f76c1276c19205383753b4b2be1c70b1d338877a97a170a3ad2",
+      "size_bytes": 4897
+    }
+  },
+  "arms": [
+    {
+      "command": [
+        "/home/dandiccf/.cargo/bin/cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "cirrove-icloud",
+        "--lib",
+        "provider::session_health_tests::saved_session_rejection_after_initial_success_reaches_later_feed_poll",
+        "--",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "expected_assertion": "a previously valid saved session must not keep publishing local feed success",
+      "expected_exit": 101,
+      "expected_tests": 1,
+      "name": "old-red",
+      "source": {
+        "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/provider-red-with-new-tests.rs",
+        "sha256": "7455496f8d4511a573ec1d7c2a0145894c1541f31ced8724bd8b0f7e6fcefa02",
+        "size_bytes": 43421
+      }
+    },
+    {
+      "command": [
+        "/home/dandiccf/.cargo/bin/cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "cirrove-icloud",
+        "--lib",
+        "provider::session_health_tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "expected_exit": 0,
+      "expected_tests": 3,
+      "name": "restored-green",
+      "source": {
+        "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/provider-green.rs",
+        "sha256": "d5a5ab64a8f3db40490ffdaba0e8cccfc4805741fd09692a4f2d766f11bff2f9",
+        "size_bytes": 43458
+      }
+    }
+  ],
+  "base_head": "bfeda1ba4705a94d90e7fc88200358e5ef67b11b",
+  "cleanup_reserve_seconds": 45,
+  "cost": "One complete nonrecursive root listing per saved-session scheduled poll (default30s); existing90s listing timeout/cancellation/4-request semaphore and8MiB JSON cap, no new polling loop.",
+  "dispatch": {
+    "command": [
+      "/home/dandiccf/.local/share/mise/installs/python/latest/bin/python3",
+      "-u",
+      "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/run_registered_once_v2.py"
+    ],
+    "correction": "Worktree baseline stays bfeda; Root moved by authorized disjoint integration commit before dispatch. Retain actual Root HEAD before/after independently; no rebase/source change.",
+    "manifest_sha256": "3056c0b58c79cc354cb87ce20d89f294659ae55ef703a8f0ae9e9b946e1c0b49",
+    "runner": {
+      "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/run_registered_once_v2.py",
+      "sha256": "a49485ba4f3f990e3cd07d07ca8008040008f57266b658aae3471fcbc5d9f6c5",
+      "size_bytes": 6360
+    },
+    "state": "registered_unstarted"
+  },
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/session-health-20261009/target",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/tmp",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/tmp"
+  },
+  "expected_seconds": 600,
+  "limits": "Synthetic loopback proves scheduled rejection propagation; not natural Apple expiry, installed behavior, or a fullcheck. Root original and services unchanged; no credentials, SQL, journal edits or provider requests.",
+  "maximum_seconds": 1800,
+  "patch": {
+    "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/session-health-minimal-fix-v1.patch",
+    "sha256": "bfb972e17502d4472a2ed73ec8ea71ace559c319811a99b25827ef9d3250430e",
+    "size_bytes": 9224
+  },
+  "prediction": "Old once-only validation returns a local success after foreground Authentication, failing the new exact assertion. Revalidating through the existing readonly scheduled poll returns Authentication; 503 stays Unavailable and a later successful poll retains the same cursor. Non-keyring foreground projection remains local.",
+  "question": "Does a saved iCloud session rejected after initial mount validation reach sign-in-required through normal scheduled polling?",
+  "registration": {
+    "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/manifest-v1.json",
+    "sha256": "3056c0b58c79cc354cb87ce20d89f294659ae55ef703a8f0ae9e9b946e1c0b49",
+    "size_bytes": 4735
+  },
+  "run": "38c5c4b2-2c9a-4538-8b17-c37937a6654d",
+  "scope": "Synthetic loopback HTTP only; no Apple requests, credentials, SQL, services, installation, natural-expiry or live-gate credit. RED/GREEN source transitions occur only after prior original Cargo handles/groups close.",
+  "state": "closed_synthetic_red_green",
+  "success": true,
+  "test_source": {
+    "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/crates/cirrove-icloud/src/provider/session_health_tests.rs",
+    "sha256": "97273309976d8a25b957df793926cc43ff7f2634e4b335f5bc94c91153f0654a",
+    "size_bytes": 5825
+  },
+  "tmp_filesystem": "ext4 /home/dandiccf/Storage",
+  "tools": {
+    "cargo_rustup": {
+      "path": "/home/dandiccf/.cargo/bin/rustup",
+      "sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+      "size_bytes": 21113232
+    },
+    "python": {
+      "path": "/home/dandiccf/.local/share/mise/installs/python/3.14.8/bin/python3.14",
+      "sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806",
+      "size_bytes": 17688
+    }
+  },
+  "worktree": "/home/dandiccf/Storage/cirrove-session-health-20261009",
+  "independent_actual_audit": {
+    "checks_passed": 20,
+    "path": "/home/dandiccf/Storage/cirrove-session-health-20261009/.local-state/session-health-regression-private-v1/audit-independent-red-green-terminal-v1.json",
+    "size": 4200,
+    "sha256": "d65910339f855e0f49b9e44ab3dc13c50d56a4c630a9f6f26d3dc95226404805",
+    "no_rerun": true
+  },
+  "whole_Root_integration_check": {
+    "artifact": "b25000a5-a0c8-42a7-8170-cb102bb7ed15",
+    "path": "docs/benchmarks/icloud-session-health-integration-check-2026-10-09-b25000a5-a0c8-42a7-8170-cb102bb7ed15.json",
+    "state": "closed_pass",
+    "original_exec_session": 47494,
+    "runtime_source_count": 579,
+    "rust_result_groups": 87,
+    "elapsed_seconds": 798.5281167030334,
+    "no_live_gate_closed": true
+  }
+}

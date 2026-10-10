@@ -1,0 +1,43 @@
+{
+  "run": "b6cc58c4-19de-487e-ba72-0069d74ccfdf",
+  "binary_sha256": "bff4b45cfe1b9e97e6a30f37181e73ad76148ab222c16b37ba30b605098b0ddc",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 3.224,
+  "phases_seconds": {
+    "root folder metadata": [
+      0.742,
+      0.596,
+      0.601
+    ],
+    "partial folder metadata": [
+      0.379,
+      0.402,
+      0.385
+    ]
+  },
+  "pairs": [
+    {
+      "full_seconds": 0.742409655,
+      "pair": 0,
+      "partial_complete": false,
+      "partial_seconds": 0.379214251,
+      "same_identity_inventory": false
+    },
+    {
+      "full_seconds": 0.596234304,
+      "pair": 1,
+      "partial_complete": false,
+      "partial_seconds": 0.40239506,
+      "same_identity_inventory": false
+    },
+    {
+      "full_seconds": 0.600949609,
+      "pair": 2,
+      "partial_complete": false,
+      "partial_seconds": 0.38530393,
+      "same_identity_inventory": false
+    }
+  ],
+  "passed": true
+}

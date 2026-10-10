@@ -1,0 +1,55 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "actual_new_original_process": {
+    "argv": [
+      "/usr/bin/cirroved",
+      "--state-dir",
+      "/home/dandiccf/.local/state/cirrove",
+      "--socket",
+      "/run/user/1000/cirrove/control.sock"
+    ],
+    "exe": "/usr/bin/cirroved",
+    "exe_device": 31,
+    "exe_inode": 1826480,
+    "pid": 2246324,
+    "started": 50518324,
+    "state": "/home/dandiccf/.local/state/cirrove"
+  },
+  "cleanup_reserve": 45,
+  "expected_backup_complete": false,
+  "gate488_closed": false,
+  "independent_actual_terminal_audit": {
+    "path": "/home/dandiccf/Storage/ct/earlyrestore-b03-v1/audit-independent-early-restoration-terminal-v1.json",
+    "sha256": "f6fcdedba6ab8a0114307c572d9651109b5cb8b08eec2e3dac55236d1314943d",
+    "size": 10916
+  },
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 505482.872755824,
+    "monotonic_start": 505182.872755824,
+    "seconds": 300,
+    "wall_end": 1791480855.7496767,
+    "wall_start": 1791480555.7496767
+  },
+  "question": {
+    "path": "/home/dandiccf/Storage/ct/earlyrestore-b03-v1/question-v1.json",
+    "sha256": "839a78401af2e48aa09b72d5ddbb9e1476d186a020e3ce3eda442b89c1c5e8c4",
+    "size": 1233
+  },
+  "scope": "Verified old packaged early restoration only. Failed b03 remains failed; no backup, storage migration or gate488 credit.",
+  "seconds": 300,
+  "source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/installed-stop-mask-backup-clone-preparation-private-v1/restore_early_unmodified_original_once_v3.py",
+    "sha256": "d9b4988a9e7609c2037e94f1a4b3e6cff6581044407bb6d378c03cf88991585e",
+    "size": 10328
+  },
+  "status": "closed_early_original_restored",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/earlyrestore-b03-v1/terminal-v1.json",
+    "sha256": "6c4874276d8a1c6ffaa29b04001cace730f660bbb9b0fe834060fa5d66e3725d",
+    "size": 1229
+  }
+}

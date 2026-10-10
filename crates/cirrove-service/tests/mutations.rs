@@ -9,7 +9,7 @@ use std::{
     process::{Command, Stdio},
     sync::{
         Arc, Mutex, Weak,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -65,11 +65,11 @@ fn receipt(request: &MutationRequest) -> MutationReceipt {
             node.name = name.clone();
             MutationReceipt::Upsert(node)
         }
-        MutationIntent::RemoveFile { before } | MutationIntent::RemoveFolder { before } => {
-            MutationReceipt::Removed {
-                item: before.id.clone(),
-            }
-        }
+        MutationIntent::RemoveFile { before }
+        | MutationIntent::RemoveFolder { before }
+        | MutationIntent::TrashNativeDocument { before } => MutationReceipt::Removed {
+            item: before.id.clone(),
+        },
     }
 }
 fn journal(root: &std::path::Path) -> UploadJournal {
@@ -85,6 +85,37 @@ fn journal(root: &std::path::Path) -> UploadJournal {
             result => return result.unwrap(),
         }
     }
+}
+#[test]
+fn prepared_file_removal_accepts_only_its_exact_removed_identity() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut journal = journal(&tmp.path().join("journal"));
+    let request = MutationRequest {
+        scope: scope(),
+        intent: MutationIntent::RemoveFile { before: before() },
+    };
+    let queued = journal.enqueue_mutation(request).unwrap();
+    let claimed = journal.claim_mutation().unwrap().unwrap();
+    let attempt = claimed.attempt.unwrap();
+    journal
+        .record_prepared_mutation(queued.id, attempt, "file".into())
+        .unwrap();
+    assert_eq!(
+        journal
+            .acknowledge_mutation(
+                queued.id,
+                attempt,
+                MutationReceipt::Removed {
+                    item: "file".into(),
+                },
+            )
+            .unwrap(),
+        MutationState::Applied
+    );
+    assert_eq!(
+        journal.mutation(queued.id).unwrap().state,
+        MutationState::Applied
+    );
 }
 #[test]
 fn uploads_and_namespace_changes_share_item_and_destination_ordering() {
@@ -221,9 +252,12 @@ fn requests_reject_wildcards_recursive_delete_shortcuts_and_foreign_accounts() {
 }
 struct Provider {
     mode: &'static str,
+    reject_session: AtomicBool,
+    reject_storage: AtomicBool,
     preparations: AtomicUsize,
     mutations: AtomicUsize,
     checks: AtomicUsize,
+    observed_operations: Mutex<Vec<String>>,
     journal: Weak<Mutex<UploadJournal>>,
     entered: tokio::sync::Notify,
 }
@@ -239,6 +273,68 @@ impl Provider {
 }
 #[async_trait]
 impl MutationProvider for Provider {
+    async fn prepare_mutation_for_operation(
+        &self,
+        operation: &str,
+        r: &MutationRequest,
+        c: &CancellationToken,
+    ) -> Result<Option<String>> {
+        self.unlocked();
+        if self.mode == "operation_lost" {
+            self.observed_operations
+                .lock()
+                .unwrap()
+                .push(operation.into());
+        }
+        self.prepare_mutation(r, c).await
+    }
+
+    async fn mutate_operation(
+        &self,
+        operation: &str,
+        r: &MutationRequest,
+        prepared_item: Option<&str>,
+        c: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        if self.mode == "operation_lost" {
+            self.unlocked();
+            assert!(prepared_item.is_none());
+            self.observed_operations
+                .lock()
+                .unwrap()
+                .push(operation.into());
+            self.mutations.fetch_add(1, Ordering::SeqCst);
+            return Err(MutationError::Uncertain);
+        }
+        self.mutate_prepared(r, prepared_item, c).await
+    }
+
+    async fn reconcile_operation(
+        &self,
+        operation: &str,
+        r: &MutationRequest,
+        prepared_item: Option<&str>,
+        c: &CancellationToken,
+    ) -> Result<MutationReconciliation> {
+        if self.reject_storage.load(Ordering::SeqCst) {
+            return Err(MutationError::InsufficientStorage);
+        }
+        if self.reject_session.load(Ordering::SeqCst) {
+            return Err(cirrove_core::ProviderError::Authentication.into());
+        }
+        if self.mode == "operation_lost" {
+            self.unlocked();
+            assert!(prepared_item.is_none());
+            self.observed_operations
+                .lock()
+                .unwrap()
+                .push(operation.into());
+            self.checks.fetch_add(1, Ordering::SeqCst);
+            return Ok(MutationReconciliation::Applied(receipt(r)));
+        }
+        self.reconcile_prepared_mutation(r, prepared_item, c).await
+    }
+
     async fn prepare_mutation(
         &self,
         _: &MutationRequest,
@@ -325,12 +421,49 @@ impl MutationProvider for Provider {
 fn provider(mode: &'static str, j: &Arc<Mutex<UploadJournal>>) -> Arc<Provider> {
     Arc::new(Provider {
         mode,
+        reject_session: AtomicBool::new(false),
+        reject_storage: AtomicBool::new(false),
         preparations: AtomicUsize::new(0),
         mutations: AtomicUsize::new(0),
         checks: AtomicUsize::new(0),
+        observed_operations: Mutex::new(Vec::new()),
         journal: Arc::downgrade(j),
         entered: tokio::sync::Notify::new(),
     })
+}
+
+#[tokio::test]
+async fn worker_passes_the_same_durable_operation_id_to_prepare_apply_and_reconcile() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("journal");
+    let j = Arc::new(Mutex::new(journal(&root)));
+    let record = j.lock().unwrap().enqueue_mutation(request()).unwrap();
+    let p = provider("operation_lost", &j);
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        MutationState::VerifyRequired
+    );
+    drop(worker);
+    drop(j);
+
+    let j = Arc::new(Mutex::new(journal(&root)));
+    j.lock().unwrap().request_mutation_retry(record.id).unwrap();
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        MutationState::Applied
+    );
+    assert_eq!(
+        *p.observed_operations.lock().unwrap(),
+        vec![
+            record.id.to_string(),
+            record.id.to_string(),
+            record.id.to_string()
+        ]
+    );
+    assert_eq!(p.mutations.load(Ordering::SeqCst), 1);
+    assert_eq!(p.checks.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]
@@ -515,6 +648,24 @@ fn namespace_crash_child() {
         std::thread::sleep(Duration::from_secs(1));
     }
 }
+fn ready_marker_uuid(path: &std::path::Path) -> Option<uuid::Uuid> {
+    std::fs::read_to_string(path).ok()?.parse().ok()
+}
+
+#[test]
+fn crash_readiness_requires_a_complete_uuid_not_an_existing_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let ready = temp.path().join("ready");
+    assert!(ready_marker_uuid(&ready).is_none());
+    std::fs::write(&ready, "").unwrap();
+    assert!(ready_marker_uuid(&ready).is_none());
+    std::fs::write(&ready, "00000000-").unwrap();
+    assert!(ready_marker_uuid(&ready).is_none());
+    let expected = uuid::Uuid::new_v4();
+    std::fs::write(&ready, expected.to_string()).unwrap();
+    assert_eq!(ready_marker_uuid(&ready), Some(expected));
+}
+
 #[test]
 fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
     for phase in ["applying", "applied", "resolved"] {
@@ -527,20 +678,21 @@ fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
             .spawn()
             .unwrap();
         let deadline = Instant::now() + Duration::from_secs(5);
-        while !tmp.path().join("ready").exists() {
+        let id = loop {
+            // Creation is visible before fs::write has published the UUID.
+            // Do not kill the child in that interval or parse an empty marker.
+            if let Some(id) = ready_marker_uuid(&tmp.path().join("ready")) {
+                break id;
+            }
             if Instant::now() >= deadline {
                 child.kill().unwrap();
                 child.wait().unwrap();
                 panic!("fixture did not become ready");
             }
             std::thread::sleep(Duration::from_millis(5));
-        }
+        };
         child.kill().unwrap();
         child.wait().unwrap();
-        let id = std::fs::read_to_string(tmp.path().join("ready"))
-            .unwrap()
-            .parse()
-            .unwrap();
         let j = journal(&tmp.path().join("journal"));
         let record = j.mutation(id).unwrap();
         assert_eq!(
@@ -726,4 +878,227 @@ fn a_failed_change_can_be_tried_again_and_a_conflicted_one_cannot() {
     let left = j.stuck_mutation_list(10).unwrap();
     assert_eq!(left.len(), 1);
     assert_eq!(left[0].id, conflicted.id);
+}
+
+#[test]
+fn verified_content_is_bound_to_both_revisions_and_survives_recovery() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("journal");
+    let mut j = journal(&root);
+    let mut r = request();
+    if let MutationIntent::Relocate { before, .. } = &mut r.intent {
+        before.content_version = None;
+    }
+    let queued = j.enqueue_mutation(r.clone()).unwrap();
+    let active = j.claim_mutation().unwrap().unwrap();
+    let result = receipt(&r);
+    let proof = VerifiedMutationContent::for_relocation(&r, &result, "a".repeat(64)).unwrap();
+    assert!(
+        j.acknowledge_verified_mutation(
+            queued.id,
+            active.attempt.unwrap(),
+            result.clone(),
+            proof.clone()
+        )
+        .is_err(),
+        "proof acknowledgement is a recovery-only path"
+    );
+    drop(j);
+    let mut j = journal(&root);
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(active.state, MutationState::Verifying);
+    for field in [
+        "account",
+        "provider",
+        "collection",
+        "item",
+        "source_etag",
+        "result_etag",
+        "size",
+        "digest",
+    ] {
+        let mut wrong = proof.clone();
+        match field {
+            "account" => wrong.scope.account = "foreign".into(),
+            "provider" => wrong.scope.provider = "foreign".into(),
+            "collection" => wrong.scope.collection = "foreign".into(),
+            "item" => wrong.item = "foreign".into(),
+            "source_etag" => wrong.source_etag = "changed".into(),
+            "result_etag" => wrong.result_etag = "changed".into(),
+            "size" => wrong.size += 1,
+            _ => wrong.sha256 = "invalid".into(),
+        }
+        assert!(
+            matches!(
+                j.acknowledge_verified_mutation(
+                    queued.id,
+                    active.attempt.unwrap(),
+                    result.clone(),
+                    wrong
+                ),
+                Err(JournalError::Corrupt)
+            ),
+            "{field}"
+        );
+        let still = j.mutation(queued.id).unwrap();
+        assert_eq!(still.state, MutationState::Verifying);
+        assert!(still.receipt.is_none() && still.verified_content.is_none());
+    }
+    assert!(
+        j.acknowledge_verified_mutation(
+            queued.id,
+            uuid::Uuid::new_v4(),
+            result.clone(),
+            proof.clone()
+        )
+        .is_err()
+    );
+    assert_eq!(
+        j.acknowledge_verified_mutation(
+            queued.id,
+            active.attempt.unwrap(),
+            result.clone(),
+            proof.clone()
+        )
+        .unwrap(),
+        MutationState::Applied
+    );
+    drop(j);
+    let mut j = journal(&root);
+    let saved = j.mutation(queued.id).unwrap();
+    assert!(saved.verified_content.as_ref() == Some(&proof));
+    assert!(saved.receipt.as_ref() == Some(&result));
+    let next = j.enqueue_after(queued.id, b"later".as_slice()).unwrap();
+    let claimed = j.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, next.id);
+    assert_eq!(
+        claimed.intent,
+        UploadIntent::Replace {
+            item: "file".into(),
+            expected_etag: "new".into()
+        }
+    );
+}
+
+#[test]
+fn namespace_observation_without_lineage_or_verified_content_still_requires_review() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("journal");
+    let mut j = journal(&root);
+    let mut r = request();
+    if let MutationIntent::Relocate { before, .. } = &mut r.intent {
+        before.content_version = None;
+    }
+    let queued = j.enqueue_mutation(r.clone()).unwrap();
+    j.claim_mutation().unwrap().unwrap();
+    drop(j);
+    let mut j = journal(&root);
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(
+        j.acknowledge_mutation(queued.id, active.attempt.unwrap(), receipt(&r))
+            .unwrap(),
+        MutationState::NeedsReview
+    );
+    assert!(j.mutation(queued.id).unwrap().verified_content.is_none());
+}
+
+#[test]
+fn verified_content_never_authorizes_packages_folders_or_different_size() {
+    let r = request();
+    let result = receipt(&r);
+    for change in ["size", "package", "folder"] {
+        let mut modified = result.clone();
+        if let MutationReceipt::Upsert(n) = &mut modified {
+            match change {
+                "size" => n.size += 1,
+                "package" => n.package = true,
+                _ => n.kind = NodeKind::Folder,
+            }
+        }
+        assert!(VerifiedMutationContent::for_relocation(&r, &modified, "a".repeat(64)).is_err());
+    }
+}
+
+#[tokio::test]
+async fn session_rejection_preserves_namespace_intent_and_prepared_identity_across_restart() {
+    namespace_refusal_preserves_intent(false).await;
+}
+
+#[tokio::test]
+async fn storage_refusal_preserves_namespace_intent_until_explicit_verified_retry() {
+    namespace_refusal_preserves_intent(true).await;
+}
+
+async fn namespace_refusal_preserves_intent(storage: bool) {
+    let mut folder = before();
+    folder.kind = NodeKind::Folder;
+    folder.size = 0;
+    for intent in [
+        request().intent,
+        MutationIntent::RemoveFile { before: before() },
+        MutationIntent::RemoveFolder { before: folder },
+        MutationIntent::CreateFolder {
+            parent: "destination".into(),
+            name: "new-folder".into(),
+        },
+    ] {
+        let create = matches!(intent, MutationIntent::CreateFolder { .. });
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("journal");
+        let j = Arc::new(Mutex::new(journal(&root)));
+        let record = j
+            .lock()
+            .unwrap()
+            .enqueue_mutation(MutationRequest {
+                scope: scope(),
+                intent: intent.clone(),
+            })
+            .unwrap();
+        let p = provider(if create { "prepared_lost" } else { "lost" }, &j);
+        let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            MutationState::VerifyRequired
+        );
+        let prepared = j.lock().unwrap().mutation(record.id).unwrap().prepared_item;
+        if create {
+            assert_eq!(prepared.as_deref(), Some("reserved-folder-id"));
+        }
+        j.lock().unwrap().request_mutation_retry(record.id).unwrap();
+        if storage {
+            p.reject_storage.store(true, Ordering::SeqCst);
+        } else {
+            p.reject_session.store(true, Ordering::SeqCst);
+        }
+        let result = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(result.state, MutationState::Failed);
+        let expected = if storage {
+            MutationError::InsufficientStorage.to_string()
+        } else {
+            cirrove_core::ProviderError::Authentication.to_string()
+        };
+        assert_eq!(result.issue.as_deref(), Some(expected.as_str()));
+        assert!(worker.run_once().await.unwrap().is_none());
+        drop(worker);
+        drop(j);
+        let j = Arc::new(Mutex::new(journal(&root)));
+        let retained = j.lock().unwrap().mutation(record.id).unwrap();
+        assert!(retained.request.intent == intent);
+        assert_eq!(retained.prepared_item, prepared);
+        p.reject_session.store(false, Ordering::SeqCst);
+        p.reject_storage.store(false, Ordering::SeqCst);
+        let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+        assert!(worker.run_once().await.unwrap().is_none());
+        j.lock().unwrap().request_mutation_retry(record.id).unwrap();
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            MutationState::Applied
+        );
+        assert_eq!(p.mutations.load(Ordering::SeqCst), 1);
+        assert_eq!(p.checks.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            j.lock().unwrap().mutation(record.id).unwrap().prepared_item,
+            prepared
+        );
+    }
 }

@@ -1,0 +1,42 @@
+{
+  "status": "complete_new_item_survived",
+  "date": "2026-09-26",
+  "question": "Does a 11,645-byte poorly compressible synthetic Cirrove DesktopVault value disappear when the desktop keyring file next persists, as the real iCloud snapshot did?",
+  "arms": [
+    "save unique synthetic 11,645-byte value and check from a separate process immediately",
+    "check from a separate process after at least 90 seconds and compare keyring file modification time",
+    "remove only the unique synthetic item"
+  ],
+  "endpoint": "Record exact equality, item count, value length and timestamps only. Never print the value or inspect real credentials. One pass or failure does not establish a rate or mechanism.",
+  "prediction": "If the loss depends on payload size or compressibility, this control may become empty after the next keyring persistence; if it survives, real-session content or a different write path remains possible.",
+  "environment": {
+    "test_key": "icloud-retention-test-20260926-entropy-a",
+    "pattern": "icloud_size_entropy",
+    "test_binary_sha256": "5c23a07f7640cb54e77c94c3004c17a8acec93f54613dd24e26e522feef97662",
+    "test_binary": ".target-icloud-feasibility/debug/deps/desktop_vault-deeb3cdbbaac397e",
+    "test_command": "CIRROVE_SYNTHETIC_KEYRING_TEST_KEY=icloud-retention-test-20260926-entropy-a CIRROVE_SYNTHETIC_KEYRING_PATTERN=icloud_size_entropy CIRROVE_KEYRING_RETENTION_PHASE=<save|check|clear> .target-icloud-feasibility/debug/deps/desktop_vault-deeb3cdbbaac397e --ignored --exact desktop_keyring_delayed_checkpoint_phase",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 3,
+    "restriction": "No compilation during the control window; no daemon restart; clear the exact synthetic key on completion."
+  },
+  "results": [
+    {
+      "arm": "new_item_immediate_check",
+      "observed_at_utc_minute": "2026-09-26T06:44Z",
+      "exact_value_match": true,
+      "keyring_file_mtime_at_utc": "2026-09-26T06:44:08Z"
+    },
+    {
+      "arm": "new_item_after_two_minutes",
+      "observed_at_utc_minute": "2026-09-26T06:46Z",
+      "exact_value_match": true,
+      "keyring_file_mtime_changed_since_save": false
+    },
+    {
+      "arm": "remove_only_synthetic_item",
+      "item_absent_after_cleanup": true
+    }
+  ],
+  "interpretation": "One newly created 11,645-byte, poorly compressible DesktopVault item survived independent process checks after two minutes. The desktop keyring file had been written at creation and did not change again before the delayed check. This does not test updating an existing item, which is the path used by the failed iCloud reauthentication."
+}

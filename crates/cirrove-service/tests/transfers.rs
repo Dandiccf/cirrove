@@ -3,8 +3,8 @@
 use async_trait::async_trait;
 use cirrove_auth::CredentialVault;
 use cirrove_core::upload::{
-    Reconciliation, Result as UploadResult, UploadError, UploadIntent, UploadProgress,
-    UploadProvider, UploadRequest, UploadStep,
+    Reconciliation, RecoveryLocation, Result as UploadResult, UploadError, UploadIntent,
+    UploadProgress, UploadProvider, UploadRequest, UploadStep,
 };
 use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, Scope};
 use cirrove_service::{
@@ -27,14 +27,21 @@ use tokio::sync::Notify;
 
 const DATA: &[u8] = b"abcdefghij";
 const SECRET: &str = "https://fixture.invalid/session?PRIVATE-CHECKPOINT";
+#[path = "transfers/atomic_staged_prerequisite.rs"]
+mod atomic_staged_prerequisite;
+#[path = "transfers/unlinked_staged_successor.rs"]
+mod unlinked_staged_successor;
 #[derive(Default)]
-struct LockProbe(Mutex<Weak<Mutex<UploadJournal>>>);
+struct LockProbe {
+    journal: Mutex<Weak<Mutex<UploadJournal>>>,
+    checkpoint_saves: Mutex<Vec<String>>,
+}
 impl LockProbe {
     fn attach(&self, journal: &Arc<Mutex<UploadJournal>>) {
-        *self.0.lock().unwrap() = Arc::downgrade(journal);
+        *self.journal.lock().unwrap() = Arc::downgrade(journal);
     }
     fn check(&self) {
-        if let Some(journal) = self.0.lock().unwrap().upgrade() {
+        if let Some(journal) = self.journal.lock().unwrap().upgrade() {
             assert!(
                 journal.try_lock().is_ok(),
                 "network or keyring call held the local journal lock"
@@ -61,6 +68,11 @@ impl CredentialVault for Vault {
         if self.fail_save.load(Ordering::SeqCst) {
             anyhow::bail!("PRIVATE-VAULT-ERROR");
         }
+        self.probe
+            .checkpoint_saves
+            .lock()
+            .unwrap()
+            .push(value.expose_secret().to_owned());
         self.values.lock().unwrap().insert(key.into(), value);
         if self.save_then_fail.swap(false, Ordering::SeqCst) {
             anyhow::bail!("PRIVATE-VAULT-ERROR");
@@ -85,9 +97,11 @@ struct Remote {
     reconciliations: usize,
     reconciliation_had_checkpoint: bool,
     committed: Option<Node>,
+    backup: Option<Node>,
 }
 struct Provider {
     state: Mutex<Remote>,
+    operation_begins: Mutex<Vec<String>>,
     probe: Arc<LockProbe>,
     fail_offset_once: AtomicU64,
     lose_success: AtomicBool,
@@ -96,17 +110,36 @@ struct Provider {
     fail_begin_once: AtomicBool,
     prepare_once: AtomicBool,
     fail_inspect_once: AtomicBool,
+    reject_inspection_session: AtomicBool,
+    storage_inspection_error: AtomicU64,
     uncertain_inspect_when_committed: AtomicBool,
     restart_prepare_once: AtomicBool,
     complete_on_inspect_once: AtomicBool,
     require_reconcile_checkpoint: AtomicBool,
+    mutation_free_begin: AtomicBool,
     pause_offset: AtomicU64,
     entered: Notify,
+    handoff: AtomicBool,
+    trash_handoff: AtomicBool,
+    handoff_name: Mutex<Option<String>>,
+    reserved_at_begin: AtomicBool,
+    staged_commits: AtomicBool,
+    staged_commit_steps: AtomicU64,
+    commits: AtomicU64,
+    inspection_timeout_ms: AtomicU64,
+    inspection_pending: AtomicBool,
+    reconciliation_uncertain: AtomicBool,
+    commit_timeout_ms: AtomicU64,
+    commit_delay_ms: AtomicU64,
+    stream: AtomicBool,
+    stream_staged: AtomicBool,
+    streams: AtomicU64,
 }
 impl Provider {
     fn new(probe: Arc<LockProbe>) -> Self {
         Self {
             state: Mutex::new(Remote::default()),
+            operation_begins: Mutex::new(Vec::new()),
             probe,
             fail_offset_once: AtomicU64::new(u64::MAX),
             lose_success: AtomicBool::new(false),
@@ -115,18 +148,39 @@ impl Provider {
             fail_begin_once: AtomicBool::new(false),
             prepare_once: AtomicBool::new(false),
             fail_inspect_once: AtomicBool::new(false),
+            reject_inspection_session: AtomicBool::new(false),
+            storage_inspection_error: AtomicU64::new(0),
             uncertain_inspect_when_committed: AtomicBool::new(false),
             restart_prepare_once: AtomicBool::new(false),
             complete_on_inspect_once: AtomicBool::new(false),
             require_reconcile_checkpoint: AtomicBool::new(false),
+            mutation_free_begin: AtomicBool::new(false),
             pause_offset: AtomicU64::new(u64::MAX),
             entered: Notify::new(),
+            handoff: AtomicBool::new(false),
+            trash_handoff: AtomicBool::new(false),
+            handoff_name: Mutex::new(None),
+            reserved_at_begin: AtomicBool::new(false),
+            staged_commits: AtomicBool::new(false),
+            staged_commit_steps: AtomicU64::new(2),
+            commits: AtomicU64::new(0),
+            inspection_timeout_ms: AtomicU64::new(125_000),
+            inspection_pending: AtomicBool::new(false),
+            reconciliation_uncertain: AtomicBool::new(false),
+            commit_timeout_ms: AtomicU64::new(125_000),
+            commit_delay_ms: AtomicU64::new(0),
+            stream: AtomicBool::new(false),
+            stream_staged: AtomicBool::new(false),
+            streams: AtomicU64::new(0),
         }
     }
     fn more(&self, request: &UploadRequest) -> UploadStep {
         let offset = self.state.lock().unwrap().data.len() as u64;
         if offset == request.size {
             return UploadStep::Commit(SecretString::from(SECRET));
+        }
+        if self.stream.load(Ordering::SeqCst) {
+            return UploadStep::Stream(SecretString::from(SECRET));
         }
         UploadStep::Continue(UploadProgress {
             checkpoint: SecretString::from(SECRET),
@@ -154,20 +208,103 @@ impl Provider {
             target: None,
         }
     }
+    fn handoff_nodes(&self, request: &UploadRequest) -> (Node, Node) {
+        let UploadIntent::Replace { item, .. } = &request.intent else {
+            panic!("handoff fixture requires a replacement");
+        };
+        let recovery_name = self.handoff_name.lock().unwrap().clone().unwrap();
+        let mut current = Self::node(request);
+        current.id = format!("staged-{item}");
+        let mut backup = Self::node(request);
+        backup.name = recovery_name;
+        if self.trash_handoff.load(Ordering::SeqCst) {
+            backup.parent_id = Some("trash-root".into());
+            backup.name = "Saved.txt".into();
+        }
+        backup.size = 3;
+        backup.etag = Some("renamed-old".into());
+        backup.content_version = Some("old-content".into());
+        (current, backup)
+    }
 }
 #[async_trait]
 impl UploadProvider for Provider {
+    fn inspection_timeout(&self, _: &UploadRequest) -> Duration {
+        Duration::from_millis(self.inspection_timeout_ms.load(Ordering::SeqCst))
+    }
+
+    fn commit_timeout(&self, _: &UploadRequest) -> Duration {
+        Duration::from_millis(self.commit_timeout_ms.load(Ordering::SeqCst))
+    }
+
+    async fn begin_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        cancel: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        self.operation_begins.lock().unwrap().push(operation.into());
+        self.begin_upload(request, cancel).await
+    }
+
+    fn begin_is_mutation_free_until_checkpoint(&self, _request: &UploadRequest) -> bool {
+        self.mutation_free_begin.load(Ordering::SeqCst)
+    }
+
+    fn staged_recovery_location(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+    ) -> Option<RecoveryLocation> {
+        let name = self.staged_recovery_name(operation, request)?;
+        if self.trash_handoff.load(Ordering::SeqCst) {
+            Some(RecoveryLocation::Trash {
+                local_name: name,
+                parent: "trash-root".into(),
+            })
+        } else {
+            Some(RecoveryLocation::Sibling { name })
+        }
+    }
+
+    fn staged_recovery_name(&self, operation: &str, request: &UploadRequest) -> Option<String> {
+        if !self.handoff.load(Ordering::SeqCst)
+            || !matches!(request.intent, UploadIntent::Replace { .. })
+        {
+            return None;
+        }
+        let name = format!("recovery-{operation}.txt");
+        *self.handoff_name.lock().unwrap() = Some(name.clone());
+        Some(name)
+    }
+
     async fn begin_upload(
         &self,
         request: &UploadRequest,
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        if self.handoff.load(Ordering::SeqCst) {
+            let journal = self.probe.journal.lock().unwrap().upgrade().unwrap();
+            let reserved = journal
+                .lock()
+                .unwrap()
+                .namespace_objects()
+                .unwrap()
+                .iter()
+                .any(|o| o.unlinked && !o.remote_owned && o.node.id.starts_with("local-recovery-"));
+            self.reserved_at_begin.store(reserved, Ordering::SeqCst);
+            assert!(
+                reserved,
+                "provider request preceded the local ID reservation"
+            );
+        }
         {
             let mut state = self.state.lock().unwrap();
             state.begins += 1;
             state.data.clear();
             state.committed = None;
+            state.backup = None;
         }
         if self.fail_begin_once.swap(false, Ordering::SeqCst) {
             return Err(ProviderError::Unavailable.into());
@@ -184,6 +321,17 @@ impl UploadProvider for Provider {
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        match self.storage_inspection_error.load(Ordering::SeqCst) {
+            1 => return Err(UploadError::Quota),
+            2 => return Err(UploadError::InsufficientStorage),
+            _ => {}
+        }
+        if self.reject_inspection_session.load(Ordering::SeqCst) {
+            return Err(ProviderError::Authentication.into());
+        }
+        if self.inspection_pending.load(Ordering::SeqCst) {
+            std::future::pending::<()>().await;
+        }
         {
             let mut state = self.state.lock().unwrap();
             state.inspections += 1;
@@ -244,6 +392,17 @@ impl UploadProvider for Provider {
             state.data.len() as u64 == request.size
         };
         if complete && !self.deferred.load(Ordering::SeqCst) {
+            if self.handoff.load(Ordering::SeqCst) {
+                let (current, backup) = self.handoff_nodes(request);
+                let mut state = self.state.lock().unwrap();
+                state.committed = Some(current.clone());
+                state.backup = Some(backup.clone());
+                drop(state);
+                if self.lose_success.swap(false, Ordering::SeqCst) {
+                    return Err(UploadError::Uncertain);
+                }
+                return Ok(UploadStep::HandoffComplete { current, backup });
+            }
             let node = Self::node(request);
             self.state.lock().unwrap().committed = Some(node.clone());
             if self.lose_success.swap(false, Ordering::SeqCst) {
@@ -254,15 +413,109 @@ impl UploadProvider for Provider {
             Ok(self.more(request))
         }
     }
-    async fn commit_upload(
+    async fn upload_stream(
         &self,
         request: &UploadRequest,
-        _: &SecretString,
+        checkpoint: &SecretString,
+        mut file: std::fs::File,
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        self.streams.fetch_add(1, Ordering::SeqCst);
+        assert_eq!(
+            self.probe
+                .checkpoint_saves
+                .lock()
+                .unwrap()
+                .last()
+                .map(String::as_str),
+            Some(checkpoint.expose_secret()),
+            "stream started before its checkpoint was saved"
+        );
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).unwrap();
+        assert_eq!(data.len() as u64, request.size);
+        let node = Self::node(request);
+        let mut state = self.state.lock().unwrap();
+        state.data = data;
+        if self.stream_staged.load(Ordering::SeqCst) {
+            return Ok(UploadStep::Commit(SecretString::from(SECRET)));
+        }
+        state.committed = Some(node.clone());
+        drop(state);
+        if self.lose_success.swap(false, Ordering::SeqCst) {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(UploadStep::Complete(node))
+    }
+    async fn commit_upload(
+        &self,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        _: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        self.probe.check();
+        let delay = self.commit_delay_ms.load(Ordering::SeqCst);
+        if delay == u64::MAX {
+            std::future::pending::<()>().await;
+        } else if delay > 0 {
+            tokio::time::sleep(Duration::from_millis(delay)).await;
+        }
+        if self.stream_staged.load(Ordering::SeqCst) {
+            assert_eq!(
+                self.probe
+                    .checkpoint_saves
+                    .lock()
+                    .unwrap()
+                    .last()
+                    .map(String::as_str),
+                Some(checkpoint.expose_secret()),
+                "registration started before its receipt checkpoint was saved"
+            );
+            let node = Self::node(request);
+            self.state.lock().unwrap().committed = Some(node.clone());
+            if self.lose_success.swap(false, Ordering::SeqCst) {
+                return Err(UploadError::Uncertain);
+            }
+            return Ok(UploadStep::Complete(node));
+        }
+        if self.staged_commits.load(Ordering::SeqCst) {
+            assert_eq!(
+                self.probe
+                    .checkpoint_saves
+                    .lock()
+                    .unwrap()
+                    .last()
+                    .map(String::as_str),
+                Some(checkpoint.expose_secret()),
+                "the next commit ran before its checkpoint reached the vault"
+            );
+            let stage = self.commits.fetch_add(1, Ordering::SeqCst);
+            let steps = self.staged_commit_steps.load(Ordering::SeqCst);
+            let expected = if stage == 0 {
+                SECRET.into()
+            } else {
+                format!("phase-{}", stage + 1)
+            };
+            if stage >= steps || checkpoint.expose_secret() != expected {
+                return Err(UploadError::CheckpointInvalid);
+            }
+            if stage + 1 < steps {
+                return Ok(UploadStep::Commit(SecretString::from(format!(
+                    "phase-{}",
+                    stage + 2
+                ))));
+            }
+        }
         if self.conflict_commit.load(Ordering::SeqCst) {
             return Err(UploadError::Conflict);
+        }
+        if self.handoff.load(Ordering::SeqCst) {
+            let (current, backup) = self.handoff_nodes(request);
+            let mut state = self.state.lock().unwrap();
+            state.committed = Some(current.clone());
+            state.backup = Some(backup.clone());
+            return Ok(UploadStep::HandoffComplete { current, backup });
         }
         let node = Self::node(request);
         self.state.lock().unwrap().committed = Some(node.clone());
@@ -277,6 +530,9 @@ impl UploadProvider for Provider {
         self.probe.check();
         let mut state = self.state.lock().unwrap();
         state.reconciliations += 1;
+        if self.reconciliation_uncertain.load(Ordering::SeqCst) {
+            return Err(UploadError::Uncertain);
+        }
         state.reconciliation_had_checkpoint =
             checkpoint.is_some_and(|value| value.expose_secret() == SECRET);
         if self.require_reconcile_checkpoint.load(Ordering::SeqCst)
@@ -285,12 +541,170 @@ impl UploadProvider for Provider {
             return Err(UploadError::CheckpointInvalid);
         }
         Ok(match &state.committed {
+            Some(current)
+                if state.backup.is_some()
+                    && hex::encode(Sha256::digest(&state.data)) == request.sha256 =>
+            {
+                Reconciliation::HandoffCommitted {
+                    current: current.clone(),
+                    backup: state.backup.clone().unwrap(),
+                }
+            }
             Some(node) if hex::encode(Sha256::digest(&state.data)) == request.sha256 => {
                 Reconciliation::Committed(node.clone())
             }
             Some(_) => Reconciliation::Conflict,
             None => Reconciliation::Uncommitted,
         })
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn duplicate_upload_requests_keep_their_distinct_operation_ids() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let first = enqueue(&journal, "Saved.txt");
+    let second = enqueue(&journal, "Saved.txt");
+    assert_ne!(first, second);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(
+        *provider.operation_begins.lock().unwrap(),
+        vec![first.to_string(), second.to_string()]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn provider_commit_deadline_preserves_checkpoint_and_payload_for_recovery() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let id = enqueue(&journal, "Saved.txt");
+    provider.deferred.store(true, Ordering::SeqCst);
+    provider.commit_timeout_ms.store(10, Ordering::SeqCst);
+    provider.commit_delay_ms.store(u64::MAX, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    let result = tokio::time::timeout(Duration::from_secs(2), worker.run_once())
+        .await
+        .expect("worker ignored the provider commit deadline")
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.state, UploadState::VerifyRequired);
+    assert!(
+        journal
+            .lock()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .session_key
+            .is_some()
+    );
+    assert!(provider.state.lock().unwrap().committed.is_none());
+    assert_local(&journal, id);
+    provider.commit_delay_ms.store(0, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert_local(&journal, id);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn provider_inspection_deadline_preserves_uncertain_upload_without_replay() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let id = enqueue(&journal, "Saved.txt");
+    provider.deferred.store(true, Ordering::SeqCst);
+    provider.commit_timeout_ms.store(10, Ordering::SeqCst);
+    provider.commit_delay_ms.store(u64::MAX, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    let checkpoint = journal.lock().unwrap().get(id).unwrap().session_key;
+    assert!(checkpoint.is_some());
+    provider.commit_delay_ms.store(0, Ordering::SeqCst);
+    provider.inspection_timeout_ms.store(10, Ordering::SeqCst);
+    provider.inspection_pending.store(true, Ordering::SeqCst);
+    provider
+        .reconciliation_uncertain
+        .store(true, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    let result = tokio::time::timeout(Duration::from_secs(2), worker.run_once())
+        .await
+        .expect("worker ignored the provider inspection deadline")
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.state, UploadState::VerifyRequired);
+    assert_eq!(
+        journal.lock().unwrap().get(id).unwrap().session_key,
+        checkpoint
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert!(provider.state.lock().unwrap().committed.is_none());
+    assert_local(&journal, id);
+    provider.inspection_pending.store(false, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert_local(&journal, id);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn staged_replacement_persists_a_checkpoint_before_each_commit() {
+    for steps in [2, 4] {
+        let temp = tempfile::tempdir().unwrap();
+        let (probe, provider, vault) = fixture();
+        let journal = journal(&temp.path().join("journal"), &probe);
+        let id = enqueue(&journal, "Saved.txt");
+        provider.deferred.store(true, Ordering::SeqCst);
+        provider.staged_commits.store(true, Ordering::SeqCst);
+        provider.staged_commit_steps.store(steps, Ordering::SeqCst);
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider.clone(),
+            vault.clone(),
+            CancellationToken::new(),
+        );
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            UploadState::Uploaded
+        );
+        assert_eq!(provider.commits.load(Ordering::SeqCst), steps);
+        assert_eq!(
+            journal.lock().unwrap().get(id).unwrap().state,
+            UploadState::Uploaded
+        );
     }
 }
 fn journal(root: &Path, probe: &LockProbe) -> Arc<Mutex<UploadJournal>> {
@@ -339,6 +753,115 @@ fn fixture() -> (Arc<LockProbe>, Arc<Provider>, Arc<Vault>) {
         ..Default::default()
     });
     (probe, p, v)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn staged_two_id_receipt_is_reserved_before_network_and_reconciled_after_loss() {
+    staged_two_id_receipt(false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn trash_backed_two_id_receipt_survives_lost_response() {
+    staged_two_id_receipt(true).await;
+}
+
+async fn staged_two_id_receipt(trash: bool) {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    provider.handoff.store(true, Ordering::SeqCst);
+    provider.trash_handoff.store(trash, Ordering::SeqCst);
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let first_journal = journal(&root, &probe);
+    let upload = {
+        let mut journal = first_journal.lock().unwrap();
+        let working = journal
+            .create_working(
+                Scope {
+                    account: "fixture".into(),
+                    provider: "fixture".into(),
+                    collection: "drive".into(),
+                },
+                Node {
+                    package: false,
+                    id: "old-item".into(),
+                    parent_id: Some("root".into()),
+                    name: "Saved.txt".into(),
+                    kind: NodeKind::File,
+                    size: 3,
+                    modified_unix: 0,
+                    etag: Some("old-tag".into()),
+                    content_version: Some("old-content".into()),
+                    target: None,
+                },
+                false,
+                b"old".as_slice(),
+            )
+            .unwrap();
+        journal.write_working(working.id, 0, DATA).unwrap();
+        journal.seal_working(working.id).unwrap().unwrap()
+    };
+    // Simulate process death after claiming the upload but before the worker
+    // could reserve either identity or contact the provider.
+    first_journal.lock().unwrap().claim_next().unwrap().unwrap();
+    drop(first_journal);
+    let journal = journal(&root, &probe);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Pending
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 0);
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert!(provider.reserved_at_begin.load(Ordering::SeqCst));
+    drop(worker);
+    drop(journal);
+    let journal = self::journal(&root, &probe);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    {
+        let mut journal = journal.lock().unwrap();
+        journal.request_retry(upload.id).unwrap();
+    }
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    let journal = journal.lock().unwrap();
+    let current = journal
+        .namespace_by_remote(&upload.scope, "staged-old-item")
+        .unwrap()
+        .unwrap();
+    let backup = journal
+        .namespace_by_remote(&upload.scope, "old-item")
+        .unwrap()
+        .unwrap();
+    assert_eq!(current.node.id, "old-item");
+    assert!(backup.unlinked);
+    assert!(backup.remote_owned);
+    if trash {
+        assert_eq!(
+            backup.remote.as_ref().unwrap().parent_id.as_deref(),
+            Some("trash-root")
+        );
+        assert_eq!(backup.remote.as_ref().unwrap().name, "Saved.txt");
+        assert_eq!(backup.node.name, format!("recovery-{}.txt", upload.id));
+    }
+    assert_eq!(journal.get(upload.id).unwrap().state, UploadState::Uploaded);
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 2);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -580,6 +1103,85 @@ async fn a_lost_success_response_is_reconciled_without_uploading_twice() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sealed_stream_saves_checkpoint_and_reconciles_lost_receipt_without_resending() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    provider.stream.store(true, Ordering::SeqCst);
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let first = journal(&root, &probe);
+    let id = enqueue(&first, "stream.bin");
+    let worker = TransferWorker::new(
+        first.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    drop(worker);
+    drop(first);
+    let restarted = journal(&root, &probe);
+    restarted.lock().unwrap().request_retry(id).unwrap();
+    let worker = TransferWorker::new(
+        restarted.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 1);
+    assert_local(&restarted, id);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn streamed_content_receipt_is_persisted_before_registration_and_reconciles() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    provider.stream.store(true, Ordering::SeqCst);
+    provider.stream_staged.store(true, Ordering::SeqCst);
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let first = journal(&root, &probe);
+    let id = enqueue(&first, "streamed-phase.bin");
+    let worker = TransferWorker::new(
+        first.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    drop(worker);
+    drop(first);
+    let restarted = journal(&root, &probe);
+    restarted.lock().unwrap().request_retry(id).unwrap();
+    let worker = TransferWorker::new(
+        restarted.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 1);
+    assert_local(&restarted, id);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_uncertain_committed_session_is_reconciled_without_uploading_twice() {
     let temp = tempfile::tempdir().unwrap();
     let (probe, provider, vault) = fixture();
@@ -646,6 +1248,87 @@ async fn no_bytes_are_uploaded_until_the_checkpoint_is_saved_and_lost_save_repli
         }
         assert_local(&j, id);
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mutation_free_preflight_restarts_only_when_no_checkpoint_was_ever_recorded() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("never-recorded"), &probe);
+    let id = enqueue(&journal, "New.txt");
+    provider.mutation_free_begin.store(true, Ordering::SeqCst);
+    provider
+        .require_reconcile_checkpoint
+        .store(true, Ordering::SeqCst);
+    provider.prepare_once.store(true, Ordering::SeqCst);
+    vault.fail_save.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert!(
+        journal
+            .lock()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .session_key
+            .is_none()
+    );
+    vault.fail_save.store(false, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Pending
+    );
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 0);
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+
+    let (probe, provider, vault) = fixture();
+    let journal = self::journal(&temp.path().join("checkpoint-lost"), &probe);
+    let id = enqueue(&journal, "Old.txt");
+    provider.mutation_free_begin.store(true, Ordering::SeqCst);
+    provider
+        .require_reconcile_checkpoint
+        .store(true, Ordering::SeqCst);
+    provider.prepare_once.store(true, Ordering::SeqCst);
+    provider.fail_inspect_once.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert!(
+        journal
+            .lock()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .session_key
+            .is_some()
+    );
+    vault.values.lock().unwrap().clear();
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 1);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -814,4 +1497,142 @@ async fn saving_again_during_a_transfer_preserves_both_generations_through_recov
     let j = j.lock().unwrap();
     assert_eq!(j.get(second.id).unwrap().state, UploadState::Uploaded);
     assert_eq!(j.read_working(working.id, 0, 100).unwrap(), b"newer-edit");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn rejected_session_keeps_uncertain_commit_and_local_bytes_until_verified_after_sign_in() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    let j = journal(&root, &probe);
+    let id = enqueue(&j, "Saved.txt");
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        j.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    let checkpoint = j.lock().unwrap().get(id).unwrap().session_key;
+    assert!(checkpoint.is_some());
+    j.lock().unwrap().request_retry(id).unwrap();
+    provider
+        .reject_inspection_session
+        .store(true, Ordering::SeqCst);
+    let result = worker.run_once().await.unwrap().unwrap();
+    assert_eq!(result.state, UploadState::Failed);
+    assert_eq!(
+        result.issue.as_deref(),
+        Some(ProviderError::Authentication.to_string().as_str())
+    );
+    assert_local(&j, id);
+    assert_eq!(j.lock().unwrap().get(id).unwrap().session_key, checkpoint);
+    assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_some());
+    assert!(
+        worker.run_once().await.unwrap().is_none(),
+        "rejected sessions must not spin"
+    );
+    drop(worker);
+    drop(j);
+    let j = journal(&root, &probe);
+    assert_local(&j, id);
+    j.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(j.lock().unwrap().get(id).unwrap().session_key, checkpoint);
+    provider
+        .reject_inspection_session
+        .store(false, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        j.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_local(&j, id);
+    assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_none());
+    let state = provider.state.lock().unwrap();
+    assert_eq!(state.begins, 1);
+    assert_eq!(state.offsets, [0, 4, 8]);
+    assert_eq!(state.reconciliations, 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn storage_refusal_keeps_checkpoint_and_exports_bytes_until_explicit_verified_retry() {
+    for (mode, error) in [
+        (1, UploadError::Quota),
+        (2, UploadError::InsufficientStorage),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("journal");
+        let (probe, provider, vault) = fixture();
+        let j = journal(&root, &probe);
+        let id = enqueue(&j, "Saved.txt");
+        provider.lose_success.store(true, Ordering::SeqCst);
+        let worker = TransferWorker::new(
+            j.clone(),
+            provider.clone(),
+            vault.clone(),
+            CancellationToken::new(),
+        );
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            UploadState::VerifyRequired
+        );
+        let checkpoint = j.lock().unwrap().get(id).unwrap().session_key;
+        assert!(checkpoint.is_some());
+        j.lock().unwrap().request_retry(id).unwrap();
+        provider
+            .storage_inspection_error
+            .store(mode, Ordering::SeqCst);
+        let result = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(result.state, UploadState::Failed);
+        assert_eq!(result.issue.as_deref(), Some(error.to_string().as_str()));
+        assert_eq!(j.lock().unwrap().get(id).unwrap().session_key, checkpoint);
+        assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_some());
+        assert!(worker.run_once().await.unwrap().is_none());
+        let source = j.lock().unwrap().local_export_source(id).unwrap();
+        let export = temp.path().join("recovered.txt");
+        let receipt = source
+            .copy_to(&export, &CancellationToken::new(), |_| {})
+            .unwrap();
+        assert_eq!(receipt.operation, id);
+        assert_eq!(std::fs::read(&export).unwrap(), DATA);
+        assert_eq!(
+            j.lock().unwrap().get(id).unwrap().state,
+            UploadState::Failed
+        );
+        drop(worker);
+        drop(j);
+        let j = journal(&root, &probe);
+        assert_local(&j, id);
+        let worker = TransferWorker::new(
+            j.clone(),
+            provider.clone(),
+            vault.clone(),
+            CancellationToken::new(),
+        );
+        provider.storage_inspection_error.store(0, Ordering::SeqCst);
+        assert!(
+            worker.run_once().await.unwrap().is_none(),
+            "storage becoming available is not user consent to retry"
+        );
+        j.lock().unwrap().request_retry(id).unwrap();
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            UploadState::Uploaded
+        );
+        assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_none());
+        assert_local(&j, id);
+        let state = provider.state.lock().unwrap();
+        assert_eq!(state.begins, 1);
+        assert_eq!(state.offsets, [0, 4, 8]);
+        assert_eq!(state.reconciliations, 1);
+    }
 }

@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "run": "861bc9e3-ae69-406f-bd7f-f81a7caafd3d",
+  "status": "historical_parent_revision_refused_no_current_content_acquired",
+  "head": "a834deb1d43f205f2706ea56f14f7ff59b78e14f",
+  "subject_run": "158d8df0-fe5d-458f-ad05-b82a1fee9978",
+  "question": "Does exact retained A still pass read fences, or does an explicitly witnessed revision mismatch explain the closed replacement preflight refusals? If that fixed mismatch is witnessed, what is the actual current full package content of that exact owned identity?",
+  "prediction": "Opening Apple Numbers may have advanced the revision. A witnessed fixed item-ETag mismatch would explain a strict-original preflight refusal; independently acquiring current content then distinguishes a revision-only change from a changed content tree. This is a hypothesis, not an attribution to browser/user interference.",
+  "arms": [
+    {
+      "name": "exact-retained-A-read-fence",
+      "command": "generic-observer --owned-fixture-verify NEW_FIXTURE DIGEST",
+      "window_seconds": 180,
+      "endpoint": "Complete retained original semanticV2 success OR a recognized fixed item revision/metadata refusal. Unknown failure stops all live diagnostic work."
+    },
+    {
+      "name": "conditional-current-reference",
+      "conditional_admission": "Only if first arm specifically witnesses pre-transfer item metadata: etag differs; actual original ETag remains untouched. New observation UUID and new root; no operation replay.",
+      "command": "editor-cli owned-icloud-retained-numbers-read --registration NEW_REGISTRATION --sha256 DIGEST",
+      "window_seconds": 300,
+      "endpoint": "Actual current typed metadata, revision-fenced raw PACKAGE and full wrappedsemanticV2. Compare to retainedA; any refusal stops with no retry."
+    }
+  ],
+  "cloud_mutations": 0,
+  "automatic_retry": false,
+  "old_failed_arms_closed": [
+    "367d0815-9b9f-413d-af23-f31bf4e715b6",
+    "648c1727-a868-412b-ac9a-16f2af8e71e9"
+  ],
+  "no_gui_duplicate_edit_or_export": true,
+  "temporary_filesystem": "ext4",
+  "installed_actions": false,
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "scope_limits": [
+    "Current-reference capture is not a genuine editedB, browser export, cell/formula fidelity or replacement acceptance.",
+    "No actual metadata values, tokens or raw provider bodies will be published; only fixed error classifications, equality predicates, digests and bounded measurement results.",
+    "Both read paths use Cirrove; they are distinct acquisitions, not independent provider implementations."
+  ],
+  "root_filesystem": "btrfs",
+  "local_preparation_correction": "Initial source-root ext4-only assertion refused on actual disk-backed btrfs before any provider access; corrected source-root requirement, with TMPDIR/SQLITE_TMPDIR still ext4.",
+  "actual_outcome": {
+    "arm": "exact-retained-A-read-fence",
+    "supervisor_exit_code": 1,
+    "helper_exit_code": 1,
+    "elapsed_seconds": 5.790714831033256,
+    "original_controller_classification": "unrecognized_refusal_stop",
+    "sanitized_audit": [
+      {
+        "phase": "pre-transfer parent metadata",
+        "differing_field": "etag"
+      }
+    ],
+    "result_sha256": "46076f67b415774b395cad1713afbdbe5fb2fe1169ba0d723d81ca7e02d11041",
+    "stderr_sha256": "66b9e3d7ca90e33b77db01d7a62744db568b17daef866e228fe744a6d79ff8c2",
+    "original_handle_reaped": true,
+    "helper_proc_absent": true,
+    "signals": [],
+    "runtime_sources_unchanged_during_run": true,
+    "active_ciphertext_unchanged": true,
+    "document_content_verified": false,
+    "conditional_current_reference_dispatched": false,
+    "cloud_mutations": 0,
+    "automatic_retry": false,
+    "interpretation": "Historical parent ETag differs from actual direct-folder envelope. This read stopped before item metadata/content. It does not identify the cause of earlier native preflight refusals or prove any document change."
+  },
+  "next_work": "Explicit read-only current_snapshot revision mode on existing retained observer; legacychanged-only default and exact identity/read fences retained. Separate flat-v2 sealed recovery acceptance controls.",
+  "current_snapshot_control": {
+    "registered_at": 1791282212.5676894,
+    "question": "Can the existing read-only retained observer explicitly acquire the current revision of an owned Numbers document, whether unchanged or advanced, while preserving the legacy changed-only default and full current identity/read fences?",
+    "prediction": "Original schema refuses the explicit modes before session/provider access. Added explicit current_snapshot admission should pass without weakening legacy changed_only, expected-current-etag, account/collection/item ownership or fenced download.",
+    "red_endpoint": "Two tests compile against the original consumer and fail desired admitted-mode assertions after input/byte/mode preservation.",
+    "green_endpoint": "Same two tests pass; actual extracted document-binding helper accepts same/new revisions only under declared policy, preserves expectedetag and refuses foreign identity/route/name/zone/docwsid/type/size/invalidrevision.",
+    "runtime_tls_scope": "Existing owned_fixture_https covers actual exact-metadata representation and transfer fences; new local schema/guard controls are not new end-to-end vault/provider proof.",
+    "cloud_calls": 0,
+    "temporary_filesystem": "ext4",
+    "one_execution_lane": true,
+    "full_check_required_before_commit": true,
+    "status": "local_controls_and_full_check_passed",
+    "red": {
+      "exit_code": 101,
+      "elapsed_seconds": 19.930962950980756,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "93dbecf24769790f5f47bf66843e0010f38ccea70e85cc2852e8073b050b2d51"
+    },
+    "red_tests": {
+      "actual_executed": 2,
+      "passed": 0,
+      "failed": 2,
+      "endpoint": "explicit-mode Registration admission after byte/mode/no-output preservation; production consumer unchanged"
+    },
+    "green": {
+      "exit_code": 0,
+      "elapsed_seconds": 0.1881400549900718,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "95d9cb9548fff4dee408655f72dbfa4f74a4cd820827eaf28bbde03163c65237",
+      "tests_executed": 9,
+      "passed": 9,
+      "failed": 0,
+      "both_desired_RED_regions_byte_unchanged": true,
+      "actual_shared_document_guard_exercised": true,
+      "foreign_account_route_and_expired_window_refused_before_attempt_or_session": true
+    },
+    "full_check": {
+      "exit_code": 0,
+      "elapsed_seconds": 619.947365414002,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 549,
+      "log_sha256": "696b780ccd8daa5c0f22dbad29a2b9e4f757963d87145c05d79ee2f7c4546d62",
+      "command": [
+        "bash",
+        "scripts/check.sh"
+      ],
+      "RUST_TEST_THREADS": 4,
+      "reader_tests_actually_passed_again": 9
+    }
+  }
+}

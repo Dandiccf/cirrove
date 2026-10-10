@@ -1,0 +1,120 @@
+{
+  "run": "7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c",
+  "state": "closed_authentication_timeout",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "question": "Can current attested installed packages genuinely reauthenticate the same disabled account read-only, then mountRO and export exact retained44/52 through active daemon recovery without damaging existing state?",
+  "arms": [
+    "one supervised installed same-account RO reauthentication and active recovery arm"
+  ],
+  "prediction": "Native RO reauth preservesdisabled preference and identity; later enable mountsRO, create returnsEROFS, and active exports preserve exact original44/52 bytes. Stop on ambiguousauth/outcome, no automaticretry.",
+  "source_head": "e0e7c06fc06c2debd4b2debb566fe730de8aa11d",
+  "actual_package_version": "0.2.0dev.r1017.ga3fa14e-1",
+  "expected_duration_seconds": 3600,
+  "cleanup_reserve_seconds": 45,
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Storage/cirrove-installed-return-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c/owner.py"
+  ],
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/ir-7dd7cc9e",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ir-7dd7cc9e",
+  "filesystem": "ext4",
+  "immutable_backing_pins": [
+    {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/guest-63bf1f2c-e404-47a9-a318-1ffafbf77b81.qcow2",
+      "sha256": "81d8f53d2f501f1eb4e54d5fa49ec93517ac80b8e40fee4e778f275f49c1f43c",
+      "size": 85196800,
+      "stat9": [
+        66305,
+        19267607,
+        33152,
+        1000,
+        1000,
+        1,
+        85196800,
+        1791547504113129992,
+        1791547504113129992
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/guest-ae484a4d-4a97-4eca-b470-6c270eec8220.qcow2",
+      "sha256": "58c7fa1b752f80e0e6a54de12bd05f26a593b30b8f9cd2b7d8cc0a2247d62551",
+      "size": 85262336,
+      "stat9": [
+        66305,
+        8912918,
+        33152,
+        1000,
+        1000,
+        1,
+        85262336,
+        1791539230485007029,
+        1791539230485007029
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2",
+      "sha256": "d6ec9e817b100515f03349e9ae2dfbd307f894aeb0da583bcc979c31b895e227",
+      "size": 7191658496,
+      "stat9": [
+        66305,
+        69468170,
+        33152,
+        1000,
+        1000,
+        1,
+        7191658496,
+        1791525577178827114,
+        1791525577178827114
+      ]
+    }
+  ],
+  "owner": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-return-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c/owner.py",
+    "sha256": "a368ca8cae3d69db6789fa4f123a5922915a6940f5b74705382439cc0f71c5d3"
+  },
+  "manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-return-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c/manifest.json",
+    "sha256": "aa521d59cf103c737626b9a60c397cc34783e33c7110301a87ee75caf308f8a6"
+  },
+  "auth_stream_capture": false,
+  "automatic_retry": false,
+  "original_host_changes": false,
+  "criteria_closed": [],
+  "registered_unix": 1791560538.5109687,
+  "tool_pins": {
+    "qemu": {
+      "path": "/usr/bin/qemu-system-x86_64",
+      "sha256": "019b1b48156d0eb84b3042bdab29120a5464b2d6707563858461d6880a491d54"
+    },
+    "qemu_img": {
+      "path": "/usr/bin/qemu-img",
+      "sha256": "451668d2855d188429cf06eeea9a96cde62cf0ef835491be57b4a5f07f1b1410"
+    },
+    "ssh": {
+      "path": "/usr/bin/ssh",
+      "sha256": "95848d6de3e8056a24ab03d3710c43deb39048a0e7ffbfc339b7c768e42573ad"
+    },
+    "foot": {
+      "path": "/usr/bin/foot",
+      "sha256": "81d2fafbea91915da055dbd1e6f368eb92d0409d18e1823420d33b525ca00a47"
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    }
+  },
+  "status": "closed_installed_bundle",
+  "started_unix": 1791560750.042788,
+  "deadline_unix": 1791564350.042788,
+  "closed_unix": 1791564305.9153757,
+  "outcomes_require_individual_records": true,
+  "outcome": {
+    "auth_terminal_exit": 124,
+    "authentication_success_proven": false,
+    "active_recovery_executed": false,
+    "all_original_handles_reaped": true,
+    "automatic_retry": false
+  }
+}

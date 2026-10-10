@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "registered_at": 1791282212.5680184,
+  "status": "local_controls_and_full_check_passed_live_fault_acceptance_open",
+  "head_before_change": "a834deb1d43f205f2706ea56f14f7ff59b78e14f",
+  "question": "Can the existing native final-receipt loss/recovery validation path consume a genuine sealed flatNumbers wire-v2 checkpoint and recover the exact same operation through inspection only after journal reopen?",
+  "prediction": "Backend flat wire-v2 staging already works, but the validation registration/Guard accepts wrapped sources only. A genuine staged flat checkpoint should fail desired flat source/recovery admission before correction; corrected path should retain rawA/B, encryptedcheckpoint/finalreceipt, reopen sameUUID and finish with zero replayed mutation callbacks.",
+  "arms": [
+    "Genuine actual local TLS backend flat checkpoint/finalreceipt creation, followed by desired recoveryadmission RED after retained-source/checkpoint/receipt preservation",
+    "Same genuine flat staging/loss state, dropped/reopened journal, exact sameoperation inspection-only recovery GREEN with typed old/current/Trash and publication fences",
+    "Explicit flat/null-root registration/frontier and negative authority controls, retaining wrapped legacy defaults",
+    "Complete scripts/check.sh with declaredfour-thread workspace concurrency after all correctioncontrols"
+  ],
+  "desired_test": "native_final_flat_v2_sealed_receipt_loss_reopens_and_inspects_without_mutation",
+  "sealed_source_bytes_must_remain_unchanged": true,
+  "genuine_flat_v2_checkpoint_required": true,
+  "mutation_callbacks_after_reopen_expected_zero": [
+    "prepare",
+    "allocation",
+    "body",
+    "registration",
+    "trash",
+    "rename"
+  ],
+  "temporary_filesystem": "ext4",
+  "one_execution_lane": true,
+  "cloud_calls": 0,
+  "installed_actions": false,
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "limits": [
+    "Synthetic local TLS controls support a subsequent bounded Apple loss/recovery arm; no full-iCloud gate closes from these controls.",
+    "If baseline fails schema admission beforeGuard, record that actual boundary; do not claim it exercised recovery before correction.",
+    "No old failedprovideroperation orfixture is replayed, no new dependency/framework, no installed transition.",
+    "The existing NativeFinal metadata acquisition arm still assumes a wrapped Source.numbers source. A real flat loss/recovery arm also needs explicit flat acquisition support; passing Guard/parser controls does not make that live arm ready."
+  ],
+  "red_result": {
+    "exit_code": 101,
+    "elapsed_seconds": 12.884295840980485,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 547,
+    "log_sha256": "635806554f1c64962d063dbbd7c81041f6a5db9d802e938c881bff9d4e078e37",
+    "tests_executed": 1,
+    "tests_passed": 0,
+    "tests_failed": 1,
+    "desired_failure": "Flat-v2 terminal inspection admission after durable journal reopen",
+    "test_region_sha256": "f95038156b912da579f6cce8d1a7de9769ec0e27650206644569b69686288fb9",
+    "before_failure_verified": [
+      "Actual synthetic TLS allocate/body/register/trash/rename once each",
+      "Actual final handoff receipt returned",
+      "Encrypted checkpoint persisted and unchanged across exclusive journal reopen",
+      "Raw source A and B unchanged",
+      "Same operation identity retained"
+    ],
+    "loss_scope": "Withheld local acknowledgement after backend returned final receipt; not provider reply loss or process death",
+    "metadata_publication_or_readonly_remount_exercised": false,
+    "cloud_calls": 0
+  },
+  "green_runtime": {
+    "exit_code": 0,
+    "elapsed_seconds": 60.2228738089907,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 549,
+    "log_sha256": "d9f9cc1f540d6a846fc6e7cbbdf6f98de05a7e5e80892b6039e8cc762fac22e4",
+    "tests_executed": 1,
+    "passed": 1,
+    "failed": 0,
+    "same_desired_runtime_body_sha256": "f95038156b912da579f6cce8d1a7de9769ec0e27650206644569b69686288fb9",
+    "same_operation_after_reopen": true,
+    "inspection_count": 1,
+    "additional_allocation_body_registration_trash_rename": 0,
+    "sealed_checkpoint_retired_only_after_exact_receipt_completion": true,
+    "source_A_B_unchanged": true,
+    "metadata_publication_or_readonly_remount_exercised": false
+  },
+  "filter_correction": {
+    "exit_code": 0,
+    "elapsed_seconds": 0.15233557799365371,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 549,
+    "log_sha256": "b212e87c9bbfaec7b420654dda02af75c273048800653873eb3fdc18fe84f819",
+    "actual_tests_executed": 0,
+    "not_evidence_of_passing_controls": true,
+    "reason": "Supplied filter omitted actual icloud_account namespace. Full check uses correct validation::icloud_account scope; actual controls must be counted there.",
+    "subsequently_executed_in_full_check": true
+  },
+  "full_check": {
+    "exit_code": 0,
+    "elapsed_seconds": 619.947365414002,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 549,
+    "log_sha256": "696b780ccd8daa5c0f22dbad29a2b9e4f757963d87145c05d79ee2f7c4546d62",
+    "command": [
+      "bash",
+      "scripts/check.sh"
+    ],
+    "RUST_TEST_THREADS": 4,
+    "desktop_display_scenarios_repeated": false,
+    "native_final_runtime_group_tests_passed": 7,
+    "new_parser_and_receipt_authority_tests_actually_passed": 2
+  }
+}

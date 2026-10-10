@@ -1,0 +1,62 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "cache_preserved_without_stripping": true,
+  "cleanup_reserve_seconds": 45,
+  "current": null,
+  "duration_seconds": 600,
+  "endpoint": "Exact fixed currentB fullNode and O_RDONLY stable descriptor raw527694/310903; original state exact and derived atomic3/2/5 frontier unchanged; only declared cloneSHM mtime/ctime may differ. All original owners/groups closed, mount/socket absent.",
+  "full487_closed": false,
+  "installed_actions": false,
+  "new_Trash_read": false,
+  "prediction": "Complete stopped state and warm cache remain preserved; the exact pinned B bytes appear under normal RO with zero mutations.",
+  "question": "Does a fresh recovery-only normal573 configured RO daemon remount exact completed Keynote DATA atomic B without journal replay?",
+  "ready": false,
+  "run": "a4f0ef41-022e-4a13-ab81-14dc54aa4dcf",
+  "status": "closed_success",
+  "subject_run": "01da7cef-1407-4830-9f76-08c498a11a76",
+  "uncached_provider_read_claimed": false,
+  "version": 1,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/original-window.json",
+    "size": 314,
+    "sha256": "3f3ad6b4a1e04a83c81f3733c142914474750d1061bf1e45a442877f2aa6b414"
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/observe-outer-registration.json",
+    "size": 1771,
+    "sha256": "b652a47bc0c6880c91b9234613cf1b5a195f7074330f28736a1a5e0ef193045e"
+  },
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/observe-outer-owner.json",
+    "size": 1025,
+    "sha256": "7a22458f04f6f32ab5376ef8b1b76b19358b43cf0163aeb492bf73a5d6617aaa"
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/root-terminal-result.json",
+    "size": 662,
+    "sha256": "2f6ac9f1baf5be08f807cd20a4e692c8cc44a1656b6cb2e5182fb0a13d24368c"
+  },
+  "completed_matrix_workflow": true,
+  "complete_iWork_workflows": 9,
+  "required_iWork_workflows": 12,
+  "full_487_closed": false,
+  "installed_HOLD_released": false,
+  "independent_chain": {
+    "writer_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-01da7cef-1407-4830-9f76-08c498a11a76/audit-independent-keynote-data-atomic-terminal-v1.json",
+      "size": 17632,
+      "sha256": "e4e73eaa423b21baf96cc63700dd45ad4539e021490fd13dee04bfe9f8a57e3f"
+    },
+    "normal_readonly_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-data-atomic-ro-a4f0ef41-022e-4a13-ab81-14dc54aa4dcf/audit-independent-readonly-terminal-v1.json",
+      "size": 6887,
+      "sha256": "353a274b1db621c4f026f9d8b203c7d5465cc17d5f6b6085c2aa7ed2d312c017"
+    },
+    "apple_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-atomic-exact-apple-01da-a55c81d2-bc01-4597-a708-7ca8f05f05ed-private-v1/audit-independent-apple-terminal-v1.json",
+      "size": 6375,
+      "sha256": "b46770c357a0e0263babeba74795d2a3584d186c4fc59610c6aa8e4b9a798247"
+    }
+  }
+}

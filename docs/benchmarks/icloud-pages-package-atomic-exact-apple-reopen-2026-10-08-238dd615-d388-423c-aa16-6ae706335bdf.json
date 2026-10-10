@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "run": "238dd615-d388-423c-aa16-6ae706335bdf",
+  "subject_run": "d34f610e-e05d-4e1c-8341-098c6dd935f2",
+  "source_only": false,
+  "ready": true,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-atomic-exact-apple-d34f-238dd615-d388-423c-aa16-6ae706335bdf-private-v1/original-window.json",
+    "size": 426,
+    "sha256": "037bc184f4ddfeb8d4d008c2fbf702f1f5d47b04ea282737f4fef19d111176c5"
+  },
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "question": "Does Apple Pages open the exact new PACKAGE B from the independently audited atomic writer and a fresh normal read-only remount, retaining the genuine 93-byte paragraph after one reload?",
+  "prediction": "Exactly one owned Pages editor opens with the genuine B paragraph; one intentional reload preserves it. A refusal stops without a second open or reload.",
+  "endpoint": {
+    "item": "FILE::com.apple.CloudDocs::92599F7C-EEDF-428F-B6EF-531CF4927669",
+    "parent": "FOLDER::com.apple.CloudDocs::9624CC9D-7424-4A08-B8A3-8A88143F6C1F",
+    "pre_Apple_etag": "i2w9::i2w8",
+    "document": "Cirrove-Pages-Parent-d34f610e-e05d-4e1c-8341-098c6dd935f2.pages",
+    "paragraph": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7Owned genuine editor replacement source B",
+    "paragraph_bytes": 93,
+    "paragraph_sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+  },
+  "writer_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-package-atomic-d34f610e-e05d-4e1c-8341-098c6dd935f2/audit-independent-pages-atomic-terminal-v1.json",
+    "size": 18698,
+    "sha256": "43f6bcc5573e66143fc6f212560d14ad33c55e5311f5f5b1eba1996340a9c067"
+  },
+  "stopped_projection_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-package-atomic-d34f610e-e05d-4e1c-8341-098c6dd935f2/stopped-typed-projection-v1/audit-independent-stopped-projection-v1.json",
+    "size": 6467,
+    "sha256": "51b3006c64efd3e7e89351947e82ff2ca4dfd78b58d92afd6b1311c82d07d356"
+  },
+  "source_registration": {
+    "path": "/var/tmp/cirrove-pages-fuse-d34f610e-e05d-4e1c-8341-098c6dd935f2/source-registration.json",
+    "size": 1567,
+    "sha256": "5f8fd28dc18ae127442b395f611b22a4500028131d6ccdd6ce8af55e5b01c834"
+  },
+  "prior_same_genuine_content_readback": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-apple-9fa-4e7c87d1-0bba-4983-8362-0a61f8269683-private-v1/registration.json",
+    "size": 3023,
+    "sha256": "7e556a4bc0f82de5715f45010e053acff1d9932c1f05b554e87870995350ce76"
+  },
+  "normal_RO": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-package-atomic-ro-9f7027c9-afa1-44bf-aefc-c3bb3bd62cac/root-terminal-result.json",
+    "size": 440,
+    "sha256": "65c310ba7e1497ce6c1fd460931dad0718dadb8f0b44a022c368c6f09cf4b1e0"
+  },
+  "normal_RO_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-package-atomic-ro-9f7027c9-afa1-44bf-aefc-c3bb3bd62cac/audit-independent-readonly-terminal-v1.json",
+    "size": 7873,
+    "sha256": "842e2d68e62807efc161b4790a7e4d62ec2444209cf28bf3d167f9a76d967897"
+  },
+  "intentional_edits_or_uploads": false,
+  "requirements_before_ready": [
+    "Fresh normal RO terminal and actual audit must confirm this exact current scoped identity, revision and semanticV2B.",
+    "Freeze actual registration and one paired-clock original window before creating owned browser tabs.",
+    "Drive DOM row FILE identity must equal endpoint before sole open; no derived editor URL or UUID decode.",
+    "Record exact text before/after sole reload; no typing or content edits; close both owned tabs and verify absence."
+  ],
+  "limits": "One paragraph and one same-subject reopen; no fonts/layout/media fidelity, post-editor raw/ETag preservation, native Linux editor save, repeatability or installed/full487 claim.",
+  "E": "/home/dandiccf/Work/cirrove/.local-state/pages-package-atomic-exact-apple-d34f-238dd615-d388-423c-aa16-6ae706335bdf-private-v1",
+  "status": "closed_exact_text_reopen_success",
+  "active_measurement": false,
+  "public": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-pages-package-atomic-exact-apple-reopen-2026-10-08-238dd615-d388-423c-aa16-6ae706335bdf.json",
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-atomic-exact-apple-d34f-238dd615-d388-423c-aa16-6ae706335bdf-private-v1/root-ui-terminal-v1.json",
+    "size": 7030,
+    "sha256": "55ccc33a0b36d33bd7c0e72a178fd7f4d2198a6015517f7adb647f809d3b1b04"
+  },
+  "elapsed_seconds": 461.7789258400444,
+  "exact_text_bytes": 93,
+  "open_attempts": 1,
+  "reload_attempts": 1,
+  "intentional_edits": 0,
+  "owned_tabs_closed": true,
+  "original_window_renewed": false,
+  "post_editor_revision_or_raw_verified": false,
+  "full_487_closed": false,
+  "independent_terminal_audit": {
+    "receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-package-atomic-exact-apple-d34f-238dd615-d388-423c-aa16-6ae706335bdf-private-v1/audit-independent-apple-terminal-v1.json",
+      "size": 6988,
+      "sha256": "dc8f3300acdac922d4bac5186741a5c36310523b5200e7ac6133bd33c1c35dba"
+    },
+    "success": true,
+    "passed": 25,
+    "total": 25,
+    "source_count_at_execution": 572,
+    "scope": "Same owned case and original terminal closure; full integration gate remains open."
+  }
+}

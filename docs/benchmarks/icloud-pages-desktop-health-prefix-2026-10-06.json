@@ -1,0 +1,79 @@
+{
+  "actual_outcome": {
+    "actual_registry_pid_verified": true,
+    "all_four_original_handles_reaped_and_currently_absent": true,
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-desktop-prefix-health-private-v1/local_health_parent_v2.py",
+      "sha256": "f6e317318851a31d254b54f234d4f6ce8a9654047b4dc1cb8f86d7ff07a2653f",
+      "size": 15900
+    },
+    "empty_private_desktop_verified": true,
+    "full_icloud_gate_credit": false,
+    "health_child": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-desktop-prefix-health-private-v1/health_pages_desktop_v1.py",
+      "sha256": "177c8b5bd184c5ae5502b46597b967fbf2e5e81c4adb9406ff938ec97e2acbfc",
+      "size": 6045
+    },
+    "health_proof": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-desktop-prefix-health-d65a1225-051e-46aa-adae-6a884ab031bb/health.json",
+      "sha256": "9fd39decbd9a52e3b8dd7095cbaeba96afa0e0be53b2e22600e49ef530e1c93a",
+      "size": 158
+    },
+    "inputs_unchanged": true,
+    "mount_absent": true,
+    "owned_bus_sockets_absent": true,
+    "parent_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-desktop-prefix-health-d65a1225-051e-46aa-adae-6a884ab031bb/result.json",
+      "sha256": "339af871d69a9de0c0613a3eb2cbb153b8a07ef3245afc66e9ac59d792effe4a",
+      "size": 2879
+    },
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-desktop-health-root-d65-v1/public-preregistration-frozen.json",
+      "sha256": "9e3ff804598b0b99d3610fe03882d9b34cc63da40605297ed01117b13388c76b",
+      "size": 1671
+    },
+    "provider_calls": 0,
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-desktop-health-root-d65-v1/registration.json",
+      "sha256": "f2dcda2587548a1ae727a4ae61e45ad474f6d631ee7f02479e6e6f3c40ec1cd9",
+      "size": 65988
+    },
+    "root_terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "duration_seconds": 0.21686175902141258,
+      "errors": [],
+      "exit_code": 0,
+      "original_parent_reaped": true,
+      "provider_calls": 0,
+      "run": "d65a1225-051e-46aa-adae-6a884ab031bb",
+      "signals": [],
+      "success": true
+    }
+  },
+  "arms": [
+    "fresh-local-pages-desktop-prefix-health"
+  ],
+  "automatic_retry": false,
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "Actual private-bus registry-owner verification and empty-desktop health proof, with original-handle closure and unchanged inputs.",
+  "installed_actions": false,
+  "limits": [
+    "No Desktop, cloud daemon, credential loading or provider access.",
+    "This corrects test infrastructure only; no public Pages import or full-iCloud gate credit.",
+    "The earlier c334 owned-folder arm stays closed and is not replayed."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "The actual Pages path passes the corrected pre-GI guard, and the health child verifies the original registry PID and an empty accessibility desktop. All four original child handles and the parent close with no retained sockets or mounts.",
+  "provider_calls_allowed": 0,
+  "question": "Does the corrected exact Pages Desktop bus-address guard allow the actual owned registry health handshake on a fresh private bus, without launching Desktop, a daemon or any provider session?",
+  "run": "d65a1225-051e-46aa-adae-6a884ab031bb",
+  "status": "actual-local-pages-desktop-prefix-health-pass",
+  "supporting_controls": {
+    "baseline": "The original actual main address guard fails the positive Pages-address assertion: one test, one failure, zero errors.",
+    "corrected": "The corrected actual main guard passes five controls, including refusal of the old chooser root, another run, another address and an environment mismatch.",
+    "scope": "Source-selected AST guard execution only, with no candidate import, GI or child process."
+  },
+  "version": 1
+}

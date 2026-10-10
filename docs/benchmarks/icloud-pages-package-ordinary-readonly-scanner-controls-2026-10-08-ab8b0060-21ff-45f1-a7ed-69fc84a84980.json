@@ -1,0 +1,36 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "compile_cleanup_seconds": 10,
+  "control_cleanup_seconds": 10,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-keynote-package-ordinary-preparation-20261008-private-v1/pages/conditional-followups-private-v1/scanner-build-preparation-private-v1/build_pages_ordinary_ro_scanner_once_v1.py",
+    "sha256": "7738cbb7c1b9ed15fea63b102df9772238a6920ae8e45eda105327bb0f167e37",
+    "size": 14615
+  },
+  "each_control_seconds": 30,
+  "endpoint": "One rustc link from exact normal CargoJSON rlibs, then genuine B, genuine A against B, wrong raw hash, wrong root, and CRC-valid changed member with valid raw hash. No provider or application calls.",
+  "installed_actions": false,
+  "maximum_compile_seconds": 120,
+  "prediction": "One rustc link0; genuine B0, A-as-B1, rawSHA1, root1, changedmember CRC-valid1; all six original handles close; source/rlib/inputs preserved.",
+  "provider_calls": false,
+  "question": "Does the current573 normal-CargoJSON-linked Pages scalar recognize actual own ordinary PACKAGE B fullV2 and refuse four hostile archive arms?",
+  "ready": false,
+  "run": "ab8b0060-21ff-45f1-a7ed-69fc84a84980",
+  "source_count": 573,
+  "status": "closed_pass",
+  "subject_run": "8bbbb835-e4ea-460c-b6f5-bbbfba5d79b9",
+  "version": 1,
+  "immutable_initial_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-keynote-package-ordinary-preparation-20261008-private-v1/pages/conditional-followups-private-v1/scanner-build-preparation-private-v1/root-execution-v1/public-preregistration-initial.json",
+    "size": 1329,
+    "sha256": "5f083b47fe49d226d88546e38e250a206a2c4af545ad13aaaa0b7620aacbbed5"
+  },
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "8090463dcad034d24ad2d0c5b0e776e0a709c756d2666a85447e2175f9867da1",
+    "size": 78969
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct/popr8bbbscanner",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/popr8bbbscanner"
+}

@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "run": "a78581b8-cdd2-4964-95a9-0d735186111d",
+  "subject_run": "a6431dd4-1a45-4539-92fb-bcb0804ff679",
+  "status": "closed_success_full_B_semantic_readonly_remount_before_any_Apple_open",
+  "question": "Does the corrected native catalog expose the exact recovered B and return its full semantic tree through a fresh normal read-only mount before any Apple application opening?",
+  "prediction": "Exact receipt-backed A in Trash and sole B at original name will remain fixed throughout normal capture and independent scanner; semantic matches retained B.",
+  "arms": [
+    "One fresh derived-state read-only mount/capture/scanner arm after closed successful subject; no automatic retry"
+  ],
+  "endpoint": [
+    "Exact current B alone in canonical original-name lookup, exact original A metadata at receipt-bound Trash backup",
+    "Normal read-only mounted capture and offline independent full V2 B equality",
+    "Original closed subject state/completed derived transfer rows preserved; all original handles reaped and mount/socket absent",
+    "Installed19/unit/daemon unchanged"
+  ],
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "browser_open_policy": "deferred_until_ro_terminal",
+  "provider_writes_allowed": false,
+  "automatic_retry": false,
+  "installed_actions": false,
+  "source_semantic": {
+    "entries": 46,
+    "expanded_bytes": 133252,
+    "files": 42,
+    "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+    "version": 2
+  },
+  "current_receipt_node_sha256": "bd6c7296e9c559b074a39a43679a073f99aafeae34044f52ff0469f6d11db6e9",
+  "current_full_node_and_revision_stay_strict": true,
+  "new_trash_provider_read": false,
+  "prior_independent_trash_proof": {
+    "path": "/var/tmp/cirrove-native-final-a6431dd4-1a45-4539-92fb-bcb0804ff679/native-final-postflight-verified.json",
+    "size": 3796,
+    "sha256": "e2b6fa9a18f417c8e21b840b51acc20d5dc028b3670c1de267d30d40b6588bbd"
+  },
+  "coordinate_policy": "Each before/after/final proof independently validates exact fixed receipt and sole canonical winner; local directory coordinates may advance and are recorded. FD stamps and remote revision remain strict.",
+  "guard_controls": {
+    "exit_code": 0,
+    "elapsed_seconds": 0.37067728699184954,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "source_unchanged": true,
+    "test_unchanged": true,
+    "log_sha256": "8034c093010947c73c79cb9a376ecf53b4353bacfac840f63d3fda73f2b19d18",
+    "provider_calls": 0
+  },
+  "guard_control_count": 15,
+  "native_subject_preregistration": "icloud-native-final-remount-before-apple-corrected-2026-10-06.json",
+  "full_integration_accepted": false,
+  "remaining_release_gates": 5,
+  "original_preregistration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/public-preregistration-original-v1.json",
+    "size": 2752,
+    "sha256": "dd9a71eb59e88b9a835e6e8eb1a4f97b36091e12b61657371cd7dc49babba4a1"
+  },
+  "actual_root_driver": {
+    "run": "a78581b8-cdd2-4964-95a9-0d735186111d",
+    "exit_code": 0,
+    "elapsed_seconds": 12.897016856004484,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "pid": 2315853,
+    "issues": [],
+    "signals": [],
+    "window": {
+      "started_unix_seconds": 1791297275.8208094,
+      "deadline_unix_seconds": 1791297875.8208094,
+      "started_monotonic": 321902.943888705,
+      "deadline_monotonic": 322502.943888705,
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+    },
+    "automatic_retry": false,
+    "provider_writes_allowed": false,
+    "logs": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/root-driver.stdout.log",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/root-driver.stderr.log",
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "actual_result": {
+    "automatic_retry": false,
+    "children": [
+      {
+        "exit_code": 0,
+        "original_handle_reaped": true,
+        "phase": "normal-ro-daemon",
+        "pid": 2315889,
+        "proc_absent": true
+      },
+      {
+        "exit_code": 0,
+        "original_handle_reaped": true,
+        "phase": "mounted-capture",
+        "pid": 2315983,
+        "proc_absent": true
+      },
+      {
+        "exit_code": 0,
+        "original_handle_reaped": true,
+        "phase": "offline-source-proof",
+        "pid": 2316063,
+        "proc_absent": true
+      }
+    ],
+    "closure": true,
+    "cloud_mutated": false,
+    "derived_transfer_rows_unchanged": true,
+    "errors": [],
+    "failure": null,
+    "full_integration_accepted": false,
+    "installed_actions": false,
+    "new_trash_provider_read": false,
+    "run": "a78581b8-cdd2-4964-95a9-0d735186111d",
+    "source_original_state_unchanged": true,
+    "subject_run": "a6431dd4-1a45-4539-92fb-bcb0804ff679",
+    "success": true
+  },
+  "actual_full_semantic": {
+    "entries": 46,
+    "expanded_bytes": 133252,
+    "files": 42,
+    "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+    "version": 2
+  },
+  "retained_remount_proof": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/ro-remount-proof.json",
+    "size": 4710,
+    "sha256": "7a36d00db649927e87ed88546bf70d31fb0574533a39470b3dbde8c8f5a2526a"
+  },
+  "retained_capture": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/capture-result.json",
+    "size": 4569,
+    "sha256": "6b1f025f7132dfc423e38f7d5aaa1f387bfeb66ee9812f3302fd8b6bb9b5247b"
+  },
+  "installed_after": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/installed-fresh-after-v1.json",
+    "size": 4080,
+    "sha256": "836531767640e3acd665b601e4fe15eecf8b03c85b63d0cc970679ae55b59c81"
+  },
+  "Root_Apple_open_before_this_endpoint": false,
+  "independent_terminal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/independent-terminal-audit-v1.json",
+    "size": 10740,
+    "sha256": "3ebd247fd21dd751c0a820ecaf678ad858043137a72e5117adedfefbeba0b05a",
+    "all_checks_true": true,
+    "checks": 16,
+    "live_success": true,
+    "execution": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-ro-remount-a78581b8-cdd2-4964-95a9-0d735186111d-private-v1/independent-audit-execution-result-v1.json",
+      "size": 400,
+      "sha256": "377a52fb1af8b3dde3e97291eec7e7c1b7fc886882b1820d2f3e06d3c8b444fb"
+    }
+  },
+  "runtime_ready_at_original_preregistration": false,
+  "runtime_completed": true,
+  "separate_Apple_check": "icloud-native-final-apple-after-remount-2026-10-06.json"
+}

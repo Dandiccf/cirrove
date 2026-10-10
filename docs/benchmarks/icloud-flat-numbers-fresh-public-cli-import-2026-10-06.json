@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "status": "live_import_conflict_stopped_read_only_content_mismatch_confirmed",
+  "run": "bec9b0c2-23c1-4014-8863-6ba9909d9d71",
+  "question": "Does one normal public CLI import of the unchanged actual flat Apple Numbers export produce a typed PACKAGE receipt/publication, same original warm canonical content, independent exact remote content, and an exact new document that opens in Apple Numbers?",
+  "prediction": "The explicit flat source contract accepts unchanged V2; iCloud may refuse/conform raw layout. Only actual returned native representation and independent wrapped readback can prove import; uncertainty stops without resubmission.",
+  "arms": [
+    {
+      "kind": "offline-original-source-control",
+      "provider_calls": 0,
+      "source": "unchanged original flat Numbers bytes",
+      "endpoint": "Current feature scanner recomputes V2 and reports offline scope; original child proof retained, including natural short exit if observed."
+    },
+    {
+      "kind": "fresh-public-normal-cli-import",
+      "folder_mutations_max": 1,
+      "public_import_dispatches_max": 1,
+      "wrapped_source_rewrite": false,
+      "automatic_retry": false
+    }
+  ],
+  "endpoints": [
+    "Exact original source bytes and V2, no invented wrapper.",
+    "Public CLI original handle exit0 and bound succeeded job/operation.",
+    "One uploaded flat_numbers_archive, semanticV2 completion, actual remote PACKAGE identity/revision and completed metadata publication.",
+    "Canonical capture from the same original warm mount, independently scanned under actual wrapped provider name and V2 equal to source.",
+    "After exact writer shutdown/unmount, independent ReadOnly metadata and provider content verification for the exact receipt ID/parent/revision.",
+    "Root opens exact newly allocated Numbers document; retain actual loaded visible content, no GUI success inferred from scanners.",
+    "Exact original handles reaped, mounts/private sockets/buses gone, immutable sources/roles/input/installed19 unchanged."
+  ],
+  "source": {
+    "size": 138945,
+    "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "source_layout": "flat_numbers",
+    "source_root": null,
+    "semantic_v2": {
+      "version": 2,
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133153,
+      "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c"
+    }
+  },
+  "source_admission_evidence": "icloud-flat-numbers-normal-source-2026-10-06.json",
+  "runtime_build_head": "2289f8bd7e28ff0ddf391ff17aef845a19b076e6",
+  "source_count": 538,
+  "source_map_sha256": "870929b1799347a372c3016e48ea693b832102fe292b59823ad6834aa146fa60",
+  "roles": {
+    "cirrove": {
+      "size": 470086808,
+      "sha256": "ed4e285596d09a1df380959237f9222a5fcc0999aee0fa74f3e9ac1325929547",
+      "features": []
+    },
+    "cirroved": {
+      "size": 470696480,
+      "sha256": "a9891df4dde88f1923b3a87f2f549670d67c86f5f2f744513a6a30b29fdbe2ba",
+      "features": []
+    },
+    "editor-cli": {
+      "size": 507957040,
+      "sha256": "2ded9cfdc1030bb75aa90edc8af3523b8ece24f5b3ce19de9f7b5a57ffd8f348",
+      "features": [
+        "icloud-write-probe"
+      ]
+    },
+    "generic-observer": {
+      "size": 503427840,
+      "sha256": "c09c86e1661089f6e417c3c573b0dcda9424f3d4ece9235e6957a53a8a448c48",
+      "features": [
+        "icloud-write-probe"
+      ]
+    }
+  },
+  "complete_check": {
+    "exit_code": 0,
+    "log_sha256": "2c57c8cc471fb62ff6c90075d0891e1dc783e4bc8a25aa409de84271f4735a22",
+    "sources_unchanged": true
+  },
+  "temporary_filesystem": "ext4",
+  "window": {
+    "seconds": 600,
+    "cleanup_reserve_seconds": 45,
+    "started": true,
+    "elapsed_seconds": 86.96816456801025,
+    "controller_exit_code": 1,
+    "closed": true
+  },
+  "journal_schema": 21,
+  "metadata_schema": 8,
+  "installed_delivery": "HOLD; installed packaged14/7 unchanged",
+  "authorization": "User explicitly authorized iCloud write tests; bounded new fixture only.",
+  "limits": [
+    "Original flat source was exported during an earlier owned trial; this fresh arm does not claim new browser export provenance.",
+    "Scanner phase b describes wrapped mount capture, not another save; metadata phase a uses original source, no changed revision fabricated.",
+    "This import-only arm cannot prove replacement/Trash recovery, editor saves, installed transitions, session reliability or full release.",
+    "No automatic resubmission on ambiguous outcome or proof refusal.",
+    "The failed import remains a stopped Conflict; no returned PACKAGE completion or successful public job is claimed.",
+    "The saved file has not been opened in Apple Numbers in this arm.",
+    "Read-only content diagnosis does not establish editor fidelity or authorize relaxing strict semantic V2."
+  ],
+  "offline_original_source_control": {
+    "actual_exit_code": 0,
+    "elapsed_seconds": 0.032100044016260654,
+    "birth_guard_passed": true,
+    "provider_calls": 0,
+    "log_sha256": "1216dcc71e03ca82c07ead546789294890c19ab654cf51a82aebc881cc2fe402"
+  },
+  "helper_lifecycle_control": {
+    "status": "passed",
+    "scope": "Private helper-method lifecycle control only; Controller constructor/window/admission bypassed with bounded local control clock. Not cloud or complete controller acceptance.",
+    "results": [
+      {
+        "version": "v2",
+        "desired_acceptance": false,
+        "actual_child_exit": 0,
+        "original_handle_reaped": true,
+        "proof_semantic": {
+          "entries": 46,
+          "expanded_bytes": 133153,
+          "files": 42,
+          "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+          "version": 2
+        },
+        "publication_delay_seconds": 0.05,
+        "error": {
+          "class": "RuntimeError",
+          "message": "private flat Numbers session refused"
+        },
+        "elapsed_seconds": 0.20055100898025557,
+        "controller_sha256": "37fd0edc7cb5b3b1bc527ce000f1c175c7974b3c6ea9359b42955b93a8a3ef40",
+        "provider_calls": 0
+      },
+      {
+        "version": "v3",
+        "desired_acceptance": true,
+        "actual_child_exit": 0,
+        "original_handle_reaped": true,
+        "proof_semantic": {
+          "entries": 46,
+          "expanded_bytes": 133153,
+          "files": 42,
+          "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+          "version": 2
+        },
+        "publication_delay_seconds": 0.05,
+        "error": null,
+        "elapsed_seconds": 0.19705418404191732,
+        "controller_sha256": "f96450747c0ed27a50b7e74b0a784d285a22e6cd1af3ed15975101e2ec5f32d2",
+        "provider_calls": 0
+      }
+    ],
+    "test_body_sha256": "55c230f62ebad9eb584b12a55457dfba07a85ed46eb5093687ccb1b34f5aaed1"
+  },
+  "controller_sha256": "f96450747c0ed27a50b7e74b0a784d285a22e6cd1af3ed15975101e2ec5f32d2",
+  "journal_contract_sha256": "794274654598d2767657161272b43f3aaaada5b04f1597ba5d932b0c5ffe1b41",
+  "live_result": {
+    "public_import_dispatches": 1,
+    "upload_operation_state": "conflict",
+    "transferred_bytes": 138945,
+    "failed_attempts": 1,
+    "remote_completion_receipt": false,
+    "metadata_publication_completed": false,
+    "public_job_success": false,
+    "warm_mount_canonical_capture": false,
+    "apple_numbers_open": false,
+    "automatic_retry": false,
+    "controller_failure_category": "Conflict state refused at completion-inventory contract",
+    "original_controller_reaped": true,
+    "original_public_cli_exit_code": -15,
+    "original_daemon_exit_code": 0,
+    "sources_unchanged": true
+  },
+  "poststop_metadata_diagnostic": {
+    "scope": "Current exact owned-folder unique-name observation; no completed upload receipt available",
+    "actual_program_exit_code": 0,
+    "elapsed_seconds": 2.118094850971829,
+    "metadata_acquired": true,
+    "representation_verified": false,
+    "content_verified": false,
+    "cloud_mutated": false,
+    "root_wrapper_exit_code": 1,
+    "root_wrapper_failure": "Combined stdout/stderr log was not a single JSON document; existing producer artifact retained; no repeated metadata request",
+    "log_sha256": "72a5a2736d0ebc706987009a539cfa961b9b10e3a6b75bb2cf949229c2f82dc1"
+  },
+  "poststop_content_diagnostic": {
+    "scope": "Separate preregistered current read-only observation after original window ended; not original-arm receipt-bound success",
+    "actual_exit_code": 1,
+    "elapsed_seconds": 10.38516654400155,
+    "failure_category": "fixture semantic content differs",
+    "metadata_and_package_representation_fences_passed": true,
+    "complete_download_retained": true,
+    "journal_unchanged": true,
+    "original_handle_reaped": true,
+    "cloud_mutated": false,
+    "automatic_retry": false,
+    "download": {
+      "sha256": "ff057f78fcd7c88044c6ec0910bfa7fd18966591bcbeeee8a09dd2bce6528d75",
+      "size": 57041,
+      "zip_entries": 41,
+      "files": 39,
+      "expanded": 74963,
+      "semantic_v2": {
+        "entries": 41,
+        "expanded_bytes": 74963,
+        "files": 39,
+        "sha256": "ab4e41423aa98e745b9676f57c474a735459d722d2c8a8efc2ddaebcc4a5508d",
+        "version": 2
+      }
+    },
+    "source": {
+      "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+      "size": 138945,
+      "zip_entries": 42,
+      "files": 42,
+      "expanded": 133153
+    },
+    "crc_verified": true,
+    "byte_identical_files_at_changed_paths": 39,
+    "observed_path_change": "Index/ and Metadata/ prefixes absent; nested Tables paths remain relative to stripped Index",
+    "missing_source_files": "three preview JPEG files",
+    "exact_content_tree_equal": false,
+    "historical_conflict_fence_known": false,
+    "interpretation": "Current observation proves a genuine tree mismatch, not directory-only ZIP spelling. It does not reconstruct the historical failing verification fence. Wrapped-envelope requirement of provider PACKAGE transport is a hypothesis pending controlled validation.",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "077359834464a3dc1c003a9a630e7261fb79e69dc73881d5c9e6e5d1e1f50690",
+    "private_zip_diagnostic_sha256": "2ebdf9a12bca6419764f72491de39266d698977abe5317866e8ab30f4cc2c1bf"
+  },
+  "closure": {
+    "installed_19_files_unchanged": true,
+    "installed_daemon_pid": 1243,
+    "installed_daemon_start_ticks": "2318",
+    "installed_daemon_unchanged": true,
+    "owned_mount_absent": true,
+    "owned_socket_absent": true,
+    "original_processes_absent": true,
+    "source_unchanged": true,
+    "installed_actions": false,
+    "recorded_at": 1791271027.550581
+  },
+  "corrections": [
+    {
+      "stage": "private read-only launcher before dispatch",
+      "issue": "First local launcher used non-existent write_policy settings key",
+      "resolution": "New version uses actual access=read_only; first version made zero provider calls"
+    }
+  ],
+  "next_controlled_question": {
+    "question": "Can a separately bound FlatNumbers transport envelope preserve the exact original V2 tree through the observed PACKAGE root interpretation?",
+    "scope": "Proposed implementation/control, not executed or a release promise",
+    "requirements": [
+      "Original flat source/root:null/raw receipt unchanged",
+      "Distinct wire archive size/hash bound before allocation and through checkpoint/recovery",
+      "Strict wrapped wire V2 equals original flat source V2 before dispatch",
+      "Observed stripping fixture must fail desired full-tree preservation without adapter",
+      "All original paths, previews, CRC, bounds and cancellation retained",
+      "Existing wrapped wire unchanged; strict remote content equality remains mandatory",
+      "Fresh bounded provider acceptance requires new owned fixture; stopped Conflict is not replayed"
+    ]
+  },
+  "offline_retained_archive_control": {
+    "exit_code": 0,
+    "source_and_download_semantic_equal": false,
+    "cloud_calls": 0,
+    "existing_public_scanner_apis": true,
+    "input_stamps_unchanged_excluding_atime": true,
+    "source_sha256": "b038df1389fbb7410da373cfd8d7a8577fd07c96db8f570e3f31b35466c9b48c",
+    "stdout_sha256": "14646d2b0b55e430ef8caf36a1d4f6107761cc83d0639b7e7f421f43c69ccdba",
+    "private_build_corrections": [
+      "First local build-plan attempted clippy-only rmeta graph as rlibs; no compiler invoked",
+      "First actual Rust helper compile refused cross-build serde trait identity; corrected only JSON serialization of primitive semantic members; parser and equality unchanged"
+    ]
+  },
+  "publication_check": {
+    "command": [
+      "bash",
+      "scripts/check.sh"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 530.8859709069948,
+    "original_handle_reaped": true,
+    "source_count": 538,
+    "sources_unchanged": true,
+    "log_sha256": "12f4db0112f5988e8b8989a548560211db9d1b82931630b8e396857c84a275cd"
+  },
+  "implementation_head_ci": {
+    "head": "2289f8bd7e28ff0ddf391ff17aef845a19b076e6",
+    "run": 37425658643,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37425658643",
+    "scope": "Implementation head before this documentation-only update"
+  },
+  "private_next_regression_proposal": {
+    "status": "authored_uncompiled_unexecuted",
+    "patch_sha256": "95e34e8167f0f89a2f80bd982f7475e3d24606c243707e23b6332604d0f7a976",
+    "desired_baseline_filter": "package_create_flat_numbers_posted_tree_preserves_index_metadata_tables_and_previews",
+    "expected_tests": 1,
+    "model_calibration_filter": "flat_numbers_import_model_calibration_preserves_only_genuine_wrapped_tree",
+    "provider_protocol_guarantee": false
+  }
+}

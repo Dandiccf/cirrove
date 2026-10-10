@@ -165,7 +165,7 @@ impl OneDrive {
         .await
     }
     fn check_upload(&self, request: &UploadRequest) -> Result<()> {
-        request.validate()?;
+        request.require_file_bytes()?;
         if request.scope.account != self.account || request.scope.provider != "onedrive" {
             return Err(UploadError::Invalid);
         }

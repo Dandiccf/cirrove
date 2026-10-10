@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "run": "cfd1eb10-87b5-422e-b163-76dde3030ff2",
+  "status": "closed_partial_startup_refusal",
+  "active_measurement": false,
+  "question": "Does one normal public CLI wrapped Keynote replacement publish genuine edited B and preserve original A in Trash with exact receipt identity and full semantic contents?",
+  "arms": [
+    "fresh isolated normal read-write daemon: owned parent, normal import A, stopped independent preflight A, normal replacement B once, stopped independent current B and Trash A proof"
+  ],
+  "prediction": "Normal public jobs succeed and independent full semantic V2 equals registered A before replacement, B as current afterwards and A at the exact original item ID in Trash. Stop on any unclear result without replay.",
+  "endpoint": "One terminal controller receipt with independent current/Trash proofs and all original children, isolated mounts/sockets closed. Strict read-only remount and receipt-ID Apple reopen are separately registered future arms.",
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 45,
+  "same_original_wall_and_monotonic_clock": true,
+  "automatic_retries": 0,
+  "cloud_authorization": "Standing explicit user authorization for own iCloud tests/writes.",
+  "source_head": "69ef4267e6cda7705199545e745c32fbfc7317ea",
+  "genuine_source_pair": "bb3eab7e-9f00-4289-a67e-6bf7fb37de8a",
+  "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-replacement-cfd1eb10-87b5-422e-b163-76dde3030ff2",
+  "temporary_directory": "/home/dandiccf/Storage/cirrove-tmp/keynote-replacement-cfd1eb10-87b5-422e-b163-76dde3030ff2",
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-replacement-controller-private-v1/controller_keynote_v2.py",
+    "size": 27636,
+    "sha256": "eb05dc2938d203f03a6b9fe330f1c58c6af9e9f5366c94607b38841ee9e33825"
+  },
+  "assembler": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-package-replacement-controller-private-v1/assemble_keynote_v2.py",
+    "size": 9052,
+    "sha256": "c5234c4db1b0d4d3ff3f563bf49a3bdbf0c696577518785581d013fb0b13f7ff"
+  },
+  "no_loss_pause_or_replay_hook": true,
+  "installed_actions": false,
+  "limits": [
+    "One PACKAGE representation trial only; no DATA/atomic/editor/remount/UI/full milestone487 coverage inferred.",
+    "No provider HTTP-count instrument, retained Trash ZIP equality, real reauthentication or installed acceptance claim."
+  ],
+  "full_iCloud_criteria": {
+    "closed": 1,
+    "open": 5
+  },
+  "installed_delivery": "HOLD",
+  "original_window": {
+    "version": 1,
+    "run": "cfd1eb10-87b5-422e-b163-76dde3030ff2",
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "started_unix": 1791330118.4417043,
+    "deadline_unix": 1791330718.4417043,
+    "started_monotonic": 354745.564782775,
+    "deadline_monotonic": 355345.564782775,
+    "cleanup_reserve_seconds": 45
+  },
+  "registered_definition_sha256": "76273c9a6f567a2ba5ba06a2bd24b40fb30c4b821343b3c5244aad973271b410",
+  "outcome": {
+    "success": false,
+    "stage": "start-a",
+    "class": "Refusal",
+    "outer_exit_code": 1,
+    "outer_elapsed_seconds": 3.1703554289997555,
+    "all_original_handles_reaped": true,
+    "cleanup_errors": [],
+    "mount_absent": true,
+    "socket_absent": true,
+    "phases_started": [
+      "start-a"
+    ],
+    "mutation_phase_dispatched": false,
+    "automatic_retries": 0,
+    "reason": "Exact startup guard cause not yet proven; preserved stopped evidence and no replay."
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-keynote-replacement-cfd1eb10-87b5-422e-b163-76dde3030ff2/audit-regression-review-startup-partial-v1.json",
+    "sha256": "5def5996373ee05f50d5e400d3a9136bc8c58ae3e92dba432c0ada65ad06d546",
+    "passed": 39,
+    "total": 39,
+    "zero_durable_mutation_rows": true,
+    "installed19_and_source566_unchanged": true,
+    "provider_http_count": "uninstrumented",
+    "actual_refusal_cause": "not retained; no unique attribution"
+  }
+}

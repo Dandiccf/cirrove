@@ -1,0 +1,63 @@
+{
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-direct-flat-pages-observer-20261007",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pd570v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pd570v1",
+  "active_measurement": false,
+  "all_recorded_owners_closed": true,
+  "assessment": {
+    "Numbers_executed": 12,
+    "Pages_executed": 12,
+    "all570_sources_restored": true,
+    "independent_audit": {
+      "passed": 17,
+      "sha256": "878360236edd6c39587205dd84fdf7379b131ec53d49dc25ce3c27a25fbfe8d5",
+      "total": 17
+    },
+    "omission_RED_GREEN_pairs_completed": 5,
+    "terminal_sha256": "f0e99ae9dc7a679838d65bdb0bfe9b1db4675ab7e29a7aac3e0cf1d3248f3a43",
+    "total_test_arms": 14
+  },
+  "cleanup_seconds_per_arm": 20,
+  "complete_check": {
+    "benchmark": "icloud-pages-data-complete-check-2026-10-07.json",
+    "completion_field_appended_after_check": true,
+    "new_named_tests": 12,
+    "runtime_source_count": 570,
+    "sections": 10
+  },
+  "date": "2026-10-07",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-data-proof-development-20261007-private-v1/run_focused_controls_v3.py",
+    "sha256": "3f608f43c396331a7c5a3ffcd29a5f090524a52349458f20f2be50808670df20",
+    "size": 18232
+  },
+  "endpoint": "14 sequential test arms plus owned filesystem check, full570 source restoration, original process/group closure.",
+  "expected_seconds": 1800,
+  "full_487_closed": false,
+  "inputs_sha256": "025008e349a2e1bd73551430a7c7311a95dc11b394b53bb61109961eee8b461e",
+  "installed_actions": false,
+  "maximum_seconds_per_arm": 900,
+  "no_historical569_baseline_execution_claim": true,
+  "original_sources": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-data-proof-development-20261007-private-v1/root-integrated-v1-registration-v1.json",
+    "sha256": "43f2ca4924ce0c846b10a8ca6273d6bf155f124d35e35f37385bbb11eab5140d",
+    "size": 150397
+  },
+  "prediction": "12 Pages and12 Numbers pass; five exact guard omissions fail their registered assertion and restored same tests pass; wrappedPages8 andKeynote11 pass.",
+  "provider_actions": false,
+  "question": "Do explicit native Pages DATA proof tools bind exact raw contents, account/item/revision and completed recovery history within the original clock, while preserving Numbers and native PACKAGE contracts?",
+  "registered_at": "2026-10-07T08:55:34.902259+00:00",
+  "retained_first_attempt": {
+    "completed_test_arms_retained": 3,
+    "reason": "Harness rejected standard expected Cargo test-failed trailer; actual completed negative retained, not repeated.",
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-pages-data-proof-development-20261007-private-v1/root-focused-v1-run-v1/terminal-v1.json",
+      "sha256": "e26917a5eaead3262aa90f0b8618b59cf7ada8300fcb7c9cb9170786479db7cd",
+      "size": 78146
+    }
+  },
+  "scope": "Synthetic fixtures only, no provider/session/cloud/app/installed actions; no liveDATA claim or criterion487 closure.",
+  "source_count": 570,
+  "status": "focused_controls_and_complete_check_passed",
+  "version": 1
+}

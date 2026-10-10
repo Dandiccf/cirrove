@@ -1,0 +1,43 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/numbers-fresh-successor-build",
+  "TMPDIR": "/home/dandiccf/Storage/ct/numbers-fresh-successor-build",
+  "active": false,
+  "arms": [
+    "normal CLI and daemon actual Cargo build with features=[]",
+    "feature probe actual Cargo build with features=[icloud-write-probe]"
+  ],
+  "automatic_retry": false,
+  "cleanup_seconds": 45,
+  "committed_head": "94d10490a03e3139a27a1da839302dc6e85d52b8",
+  "compiler_only": true,
+  "dispatch": null,
+  "endpoint": "Actual closed exit0 of both original owned Cargo children, exact compiler-artifact selection, normal copies frozen0500 before feature build, source582/tool/committedHEAD unchanged and protected19/PID unchanged. No provider execution.",
+  "expected_seconds": 1800,
+  "fixed_source_pins": {
+    "crates/cirrove-service/src/accounts.rs": "6263d141e4baef05aa377db1d4768eb7aaeb402bba8279d845a12a77cdb4b5c9",
+    "crates/cirrove-service/src/engine.rs": "009777a1bee6d7eaa80fef0d50a9188fc6b5bc17e5498b59e3aa3ed45f8ec449",
+    "crates/cirrove-service/src/filesystem/lifecycle/native_import.rs": "7ca3a911b6b24ce91ca9a75b356b0dd506cc27a1e6cc50aa1294e73d1a7c02bc",
+    "crates/cirrove-service/src/manager/native_import/tests.rs": "0030aa8163ea9b2a4f63341e79c37aef8f14950b0ea8909b7908b81277ead338"
+  },
+  "fullcheck_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-outcome-consolidation-68ada605-f918-44cb-813e-76cdd5169a1d/fullcheck-final.json",
+    "sha256": "01edc5a8ac484c9e8123759fcdc1de3bd5a6f383eb4916b73126b10a474af7f4",
+    "size": 1166
+  },
+  "owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-fresh-successor-20261010-private-v1/build-owner/build-once.py",
+    "sha256": "04f94ca65ecf8d456c6b3906ca32e21da5a8b67073b6f3f9b95f1855cf4e915e",
+    "size": 10881
+  },
+  "prediction": "Both cached builds succeed, yielding correctly separated roles suitable for local fresh-context preflight; no live iCloud reliability or row490 conclusion.",
+  "provider_calls": false,
+  "question": "Do two sequential offline locked builds from the successful checked committed source freeze normal CLI/daemon with no feature and the intended feature-only native probe, preserving source and protected host state?",
+  "result": null,
+  "run": "bff60883-058f-4f2e-9385-482e3d3b79de",
+  "source_count": 582,
+  "source_map_sha256": "8c76592d025e61b67a6d02d6e2964ff865bf51fbe29051ee3d6046bb57cf2e30",
+  "status": "planned_not_dispatched",
+  "target": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "temporary_filesystem": "ext4",
+  "version": 1
+}

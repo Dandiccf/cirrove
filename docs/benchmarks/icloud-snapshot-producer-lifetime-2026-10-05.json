@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "status": "corrected-targeted-producer-lifetime-and-full-check-passed",
+  "source_head": "039265af5056daed10e691d562e859a393445096",
+  "question": "Does completing the held producer immediately after the quiescence refusal prevent its independent deadline panic from being hidden while later contexts are tested?",
+  "prediction": "The first producer is alive for the actual refusal, then explicit release and successful original Child wait settle it before the two later independent fixtures. No collector behavior or cloud reliability changes.",
+  "original_evidence": {
+    "run": 37350647029,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37350647029/job/111900344227",
+    "head": "039265af5056daed10e691d562e859a393445096",
+    "ci_job_success": true,
+    "subordinate_child_deadline_panic_observed": true,
+    "panic_at_utc": "2026-10-05T18:07:33Z",
+    "log_sha256": "35220a2f838f5b315048d7d92f0a7213fabc1c1f94ba07a95d81bfae30ac0952",
+    "prior_run_same_finding": 37343069433,
+    "cause": "The held Fixture binding was shadowed but not dropped before two later fixtures. Its child deadline expired; OwnedChild Drop ignored an already terminal nonzero child. The containing test still passed."
+  },
+  "arms": [
+    {
+      "name": "corrected-actual-quiescence-context-test",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "cirrove-service",
+        "--features",
+        "icloud-write-probe",
+        "--test",
+        "owned_account_snapshot",
+        "owned_account_snapshot_quiescence_and_registered_context_refuse",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "endpoint": "Actual first producer alive before/after refusal, release once, original handle exit0 before later fixture creation; both later fixtures retain their existing explicit successful producer wait and refusal/source invariance checks."
+    },
+    {
+      "name": "full-project-check",
+      "command": [
+        "bash",
+        "scripts/check.sh"
+      ],
+      "endpoint": "Full formatting/clippy/workspace/script/ledger checks; no cloud or installed service action."
+    }
+  ],
+  "execution_policy": {
+    "root_lanes": 1,
+    "TMPDIR_filesystem": "ext4",
+    "cargo_target_directory": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "cloud_calls": 0,
+    "installed_actions": false,
+    "old_cloud_fixture_replay": false
+  },
+  "limits": [
+    "The original parent and CI job passed; only the subordinate child deadline failed. Do not describe this as a red CI job.",
+    "The historical actual child failure is retained as the counterfactual; no generic shared-filesystem or iCloud provider defect is inferred.",
+    "No DB/WAL cleanup, checkpoint, producer pattern kill or full-iCloud gate closure."
+  ],
+  "actual_outcome": {
+    "targeted": {
+      "exit_code": 0,
+      "duration_seconds": 13.904345449001994,
+      "sources_unchanged": true,
+      "log_sha256": "9300cdd1766e8c3bb60c8489746713a2b59492bab40b7e368ee83b936a845a9f",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "actual_parent_tests": 1,
+    "three_producers_required_exit_zero": true,
+    "child_deadline_panic_observed": false,
+    "source_tree_preservation_checks_retained": true,
+    "full_check": {
+      "exit_code": 0,
+      "duration_seconds": 534.3985681170016,
+      "sources_unchanged": true,
+      "log_sha256": "92d63475b1d88ac8395434bced428150f1032ca549709b748d847766f53deb61",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  }
+}

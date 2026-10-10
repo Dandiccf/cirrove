@@ -1,0 +1,43 @@
+{
+  "actual_outcome": {
+    "deliverable_tab_marked": true,
+    "editor_navigation_docws_uuid": "0A51421C-6456-4D1C-9844-E71F7E90E94F",
+    "identity_guard_checked_before_one_double_click": true,
+    "listing_data_id": "FILE::com.apple.CloudDocs::0A51421C-6456-4D1C-9844-E71F7E90E94F",
+    "loaded_editor_title": "Cirrove-Pages-Desktop-ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+    "loaded_editor_url": "https://www.icloud.com/pages/0eeBT0BrFETbYWKA6kmnZKtWQ#Cirrove-Pages-Desktop-ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+    "native_editing_fidelity_verified": false,
+    "native_editor_loaded": true,
+    "repair_or_conversion_error_observed": false,
+    "screenshot_captured_in_conversation": true,
+    "standalone_screenshot_artifact_retained": false,
+    "typing_saving_exporting": false,
+    "undo_and_redo_disabled": true,
+    "visible_body": "Cirrove native package validation 0c5c1be4-563d-4a1c-8a47-3958c0c88553"
+  },
+  "allowed_actions": [
+    "one identity-guarded row double click",
+    "read loaded editor title/body",
+    "capture screenshot and retain deliverable tab"
+  ],
+  "expected_body": "Cirrove native package validation 0c5c1be4-563d-4a1c-8a47-3958c0c88553",
+  "expected_item": "FILE::com.apple.CloudDocs::0A51421C-6456-4D1C-9844-E71F7E90E94F",
+  "expected_title": "Cirrove-Pages-Desktop-ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+  "independent_proof_sha256": "b92dfd85c28992d659df75d377170781819d68c844a633f2ff64d3f579a53246",
+  "limits": [
+    "This observes native opening and expected text, not editing, saving, arbitrary formatting or export fidelity.",
+    "No post-browser unchanged revision claim.",
+    "No standalone screenshot artifact is claimed unless actually retained."
+  ],
+  "prediction": "The unique listing row matching the independent provider item opens a loaded native Pages editor showing the source text without repair or conversion prompts.",
+  "question": "Does Apple Pages open the exact newly imported CLI document with the expected source text?",
+  "registered_listing_observation": {
+    "data_id": "FILE::com.apple.CloudDocs::0A51421C-6456-4D1C-9844-E71F7E90E94F",
+    "unique_row_count": 1
+  },
+  "run": "ab963a3b-1a34-4f25-99d6-7ee5b604626e",
+  "source_import_record": "icloud-pages-fresh-cli-import-2026-10-06.json",
+  "status": "actual-apple-pages-open-exact-cli-document-pass",
+  "typing_saving_exporting": false,
+  "version": 1
+}

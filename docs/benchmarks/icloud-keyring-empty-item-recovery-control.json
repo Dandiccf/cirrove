@@ -1,0 +1,52 @@
+{
+  "status": "complete_empty_item_recovery_survived",
+  "date": "2026-09-26",
+  "question": "Can Cirrove's DesktopVault durably replace a present but zero-byte Secret Service item with a new 11,645-byte value, matching the state before iCloud reauthentication?",
+  "arms": [
+    "create a unique synthetic empty-secret item and verify it is present with zero bytes",
+    "update exactly that item with a distinct 11,645-byte deterministic synthetic value and verify immediately",
+    "create a second synthetic trigger item, observe keyring file writes, and verify the first value after at least 90 seconds",
+    "remove only these two synthetic items"
+  ],
+  "endpoint": "Record item count, exact synthetic equality and keyring file modification times, without printing values or touching real credentials. One run identifies a direction, not a failure rate.",
+  "prediction": "If updating a previously empty item is the missing condition, the new value may become empty again after a file write; if it survives, that condition alone is insufficient to explain the real iCloud failure.",
+  "environment": {
+    "empty_then_updated_key": "icloud-retention-test-20260926-empty-recovery-a",
+    "trigger_key": "icloud-retention-test-20260926-empty-recovery-trigger",
+    "updated_value_pattern": "icloud_size_entropy_v2",
+    "test_binary_sha256": "f38d8982b0a2f297d60f91c262a72086abac970cda53288a7bdf5f3e81e8d405",
+    "test_binary": ".target-icloud-feasibility/debug/deps/desktop_vault-deeb3cdbbaac397e",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 3,
+    "restriction": "No compilation during the control window; no daemon restart; clear only the two synthetic items."
+  },
+  "results": [
+    {
+      "arm": "create_present_empty_item",
+      "exact_empty_value_match": true,
+      "item_present": true
+    },
+    {
+      "arm": "update_empty_item_to_synthetic_value",
+      "observed_at_utc_minute": "2026-09-26T06:57Z",
+      "exact_value_match_immediately": true,
+      "keyring_file_mtime_before_trigger_at_utc": "2026-09-26T06:57:06Z"
+    },
+    {
+      "arm": "create_synthetic_trigger_item",
+      "keyring_file_mtime_after_trigger_at_utc": "2026-09-26T06:57:24Z",
+      "updated_item_exact_value_match": true
+    },
+    {
+      "arm": "delayed_check_after_trigger",
+      "observed_at_utc": "2026-09-26T06:59:28Z",
+      "updated_item_exact_value_match": true
+    },
+    {
+      "arm": "remove_exactly_two_synthetic_items",
+      "both_items_absent_after_cleanup": true
+    }
+  ],
+  "interpretation": "A present zero-byte synthetic item accepted a new 11,645-byte value and retained it through a subsequent keyring-file write and a 90-second delayed read. This single control does not reproduce the real iCloud loss, even though it matches the empty-before-reauth condition. The real failure remains unexplained; no conclusion about failure frequency follows from this pass."
+}

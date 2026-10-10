@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "run": "c03ae97a-e779-4f58-8661-4da69b44aec6",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "state": "closed_local_admission_failure",
+  "question": "Does the installed exact candidate classify the preserved rejected session, then recover through one public same-account native RO login while retaining other-account edits?",
+  "arms": [
+    "Installed normal daemon: empty-targetRW enable/rejection/disable, otherCONTROLreadyRO",
+    "One person-native targetsameaccount read-only reauth preserving disabled preference",
+    "Installed normal daemon targetenableRO/Ready mountedrootread + OTHERcontrol active44/52exports; finaltargetdisabledRO"
+  ],
+  "endpoint": "Typed sign_in_required, then sameUUID/credential/Appleidentity with newsealedtarget grant, Ready normalRO mount and exactretainedbytes; owned processes and nine sourcebackings preserved.",
+  "prediction": "Target oldsession requires sign-in; same-account publicreauth restoresReady and retains4rows3payloadsGCabsence.",
+  "source_head": "f9de7f7e07207052c758a031600540d615b9b73a",
+  "compiled_package_sha": "028fa973019e9cc615c40ca7c1b411f0621d11f1",
+  "exact_tree_equal": "bad3ecbf154501d047f7069c2d79f7e1eb3b39ab",
+  "installed_version": "0.2.0dev.r1021.g028fa97-1",
+  "manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/manifest.json",
+    "size": 15371,
+    "sha256": "1fd3a709bd8f766d02d559a993f05083edc0800c31bc8f1c6c0f4380ef9fdba1"
+  },
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/owner.py"
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/owner.py",
+    "sha256": "8bd2a0ae3dfa1e418bde4195ddc449a88dea857f28e0407d8ff0857edc631d61"
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct/fs-c03ae97a",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/fs-c03ae97a",
+  "expected_seconds": 600,
+  "maximum_seconds": 1200,
+  "cleanup_reserve_seconds": 90,
+  "provider_file_mutations_planned": 0,
+  "scoped_logout_requests": 0,
+  "natural_expiry_proved": false,
+  "rejected_target_has_pending_recovery_bytes": false,
+  "whole490_closed": false,
+  "host_installation_or_restart": false,
+  "failure_policy": "Stop on ambiguous result without automatic mutation or auth repetition; retain current credentials/settings and surviving evidence.",
+  "manifest_pre_receipt_collection_sha256": "e60e5500198f5ff9c09a8bf06f6a6fab2adcd876a40ca4906b61af895fdfaea6",
+  "status": "closed_local_admission_failure",
+  "started_unix": 1791611788.0949538,
+  "deadline_unix": 1791612988.0949538,
+  "first_invocation_import_failure": {
+    "original_owner_closed": {
+      "all_original_handles_reaped": true,
+      "closure_failures": [],
+      "sequence_success": false,
+      "auth_streams_retained": false
+    },
+    "preauth_child": {
+      "pid": 569459,
+      "birth": "63648043",
+      "exit_code": 1,
+      "signals": [],
+      "original_handle_reaped": true,
+      "process_absent": true,
+      "remaining_group": [],
+      "retained_descendants_absent": true,
+      "descendants": []
+    },
+    "safe_collector_receipts": {},
+    "auth_attempted": false,
+    "cloud_phase_dispatched": false,
+    "failure": "runpy wrapper omitted source directory from module import path",
+    "correction": "insert E into sys.path before runpy",
+    "original_window": {
+      "started_unix": 1791611788.0949538,
+      "deadline_monotonic": 637615.2180322,
+      "deadline_unix": 1791612988.0949538,
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+    },
+    "deadline_reset": false
+  },
+  "runtime_v2_manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v2/manifest.json",
+    "sha256": "7b04a22112ed7b23dbda1fddacad4e9ddc7019edeedabdd7cfe78cfe9a81d668"
+  },
+  "original_deadline_inherited_without_extension": true,
+  "second_invocation_setup_failure": {
+    "driver_closed": {
+      "all_original_handles_reaped": true,
+      "closure_failures": [],
+      "sequence_success": false,
+      "auth_streams_retained": false
+    },
+    "failure": "Previous guest boot clock cannot survive a guest restart; refused before observer/native phase.",
+    "cloud_phase_dispatched": false,
+    "auth_attempted": false
+  },
+  "runtime_v3_manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v3/manifest.json",
+    "sha256": "4f9e6198a7ceec266ad4ca974438654855322aee1fa61d02c28d647ccd7457de"
+  },
+  "supplemental_same_guest_fixture_unlock": {
+    "owner": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v4-supplemental/owner.py",
+      "sha256": "c298a19e77dca5ea02cdcee0bd3e92a456abff36e57c3c1972d3813c471c18bf"
+    },
+    "registration_unix": 1791612502.0812368,
+    "new_VM": false,
+    "original_deadline_preserved": true,
+    "previous_unlock_no_Completed_signal": true,
+    "previous_cloud_phase_dispatched": false,
+    "previous_auth_attempted": false,
+    "original_vm_owner_retained": true
+  },
+  "success": false,
+  "cloud_phase_dispatched": false,
+  "daemon_start_dispatched": false,
+  "public_enable_dispatched": false,
+  "authentication_attempted": false,
+  "provider_requests_dispatched_by_observer": 0,
+  "provider_file_mutations": 0,
+  "public_session_recovery_completed": false,
+  "all_original_handles_closed": true,
+  "raw_output_retained": false,
+  "local_diagnostic_registration": "docs/benchmarks/icloud-installed-local-admission-diagnostic-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json",
+  "prior_public_checkpoint_before_final_receipts": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-final-session-installed-recovery-2026-10-10-c03ae97a-e779-4f58-8661-4da69b44aec6.json",
+    "size": 5204,
+    "sha256": "3bf05b07e112cfa3ac49b6699a361cac935d377b051f9b4b35f280020ad63ed1"
+  },
+  "earlier_closed_unix_checkpoint": 1791612546.4715517,
+  "closure_receipts_observed_unix": 1791613256.0481305,
+  "runtime_v3_closure": {
+    "driver-closed.json": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v3/driver-closed.json",
+      "size": 131,
+      "sha256": "e0c315a05350d5833ae41804f3fad0cd17fd604621fc77e7566c6eacebac908a"
+    },
+    "QEMU-closed.json": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v3/QEMU-closed.json",
+      "size": 223,
+      "sha256": "a65cf95a8e679f37733495951cc15299770ad8aca02e8c0890b31a46d1974577"
+    },
+    "SSH-unlock-closed.json": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v3/SSH-unlock-closed.json",
+      "size": 223,
+      "sha256": "a74f71be79e5e6241a6467d160839be9e051c039c3f5bcf070a720036d7f0fdb"
+    }
+  },
+  "runtime_v4_local_admission_failure": {
+    "failure": "Local snapshot AssertionError before daemon start, account enable, provider phase or native authentication; separate local diagnosis investigates the guard.",
+    "safe_receipts": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v4-supplemental/preauth-safe-output.jsonl",
+      "size": 3044,
+      "sha256": "4855e805c7b35c625bac65e9001d206b27159c09953c55cdeb4973f00accbd2d"
+    },
+    "preauth_child": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v4-supplemental/preauth-closed.json",
+      "size": 223,
+      "sha256": "ca2fb0199e72c2984f09cc49880274b856b2f63f1e9d989079d2d6886d948aef"
+    },
+    "driver": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v4-supplemental/driver-closed.json",
+      "size": 317,
+      "sha256": "59b55389f289616db4ce7cabc647fde4677fa35155cc5864a220316b3e477522"
+    },
+    "release": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v4-supplemental/original-owner-release.json",
+      "size": 131,
+      "sha256": "3db23f4f16edd6e43bcead629937990d817e3a5ea707c5698f29ecd0ed70a52a"
+    },
+    "actual_dispatch": {
+      "path": "/home/dandiccf/Storage/cirrove-final-session-c03ae97a-e779-4f58-8661-4da69b44aec6/runtime-v4-supplemental/actual-dispatch-selection-v1.json",
+      "size": 1439,
+      "sha256": "a0d2cdc34273f32e95c39ff6988c0dcf2e87e168ccbd1d0569642430076d4c60"
+    },
+    "command_tag_counts": {
+      "stop_cirrove-tray.service": 2,
+      "inactive_cirrove-tray.service": 2,
+      "stop_cirroved.service": 2,
+      "inactive_cirroved.service": 2,
+      "package_versions": 1
+    },
+    "commands_reaped_without_signals": true,
+    "cleanup_consumers_stopped": true,
+    "cleanup_snapshot_completed": false,
+    "credential_rollback": false,
+    "successful_post_snapshot_preservation_claimed": false
+  },
+  "limitations": [
+    "Local observer-admission failure; not a measured provider failure or successful installed session recovery.",
+    "Initial and cleanup admission snapshots both asserted; no separate successful post-snapshot preservation receipt claimed.",
+    "Preauth observer dispatched only service stop/inactive and package-version checks.",
+    "Fixture keyring unlock was local; no Apple sign-in or public reauthentication attempted.",
+    "Original deadline 1791612988.0949538 inherited without extension; separate local diagnosis does not extend that cloud window.",
+    "No local diagnostic result claimed by this record.",
+    "Five of six criteria closed, criterion 490 open; host installation/restart, merge and release HOLD."
+  ]
+}

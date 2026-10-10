@@ -1,0 +1,209 @@
+{
+  "arms": [
+    {
+      "endpoint": "same-directory and cross-directory actual journal APIs commit takeover before emptyCreate ack, then worker acknowledges Create and attempts sealed source staged handoff",
+      "expected": "two RED at source handoff before provider Replace begin; originals/seals unchanged",
+      "name": "baseline-delayed-create"
+    },
+    {
+      "expected": "same two tests GREEN; complete source+target+exact temporary cleanup and exclusive reopen",
+      "name": "corrected-exact-same-endpoint"
+    },
+    {
+      "expected": "fresh/saved/ack authority rejects missing or inconsistent creation marker/receipt/route/edge/scope/working/queue/shadow without partial row or byte changes",
+      "name": "durable-marker-and-lineage-controls"
+    }
+  ],
+  "execution_policy": {
+    "baseline_red_required_before_fix": true,
+    "cloud_mutations": false,
+    "installed_actions": false,
+    "one_compile_runtime_lane": true,
+    "retained_mutation_replayed": false,
+    "retained_writer_reopened": false,
+    "synthetic_only": true,
+    "tmpfs_forbidden": true
+  },
+  "follow_up_preregistered_optional_probe_parity": {
+    "arms": [
+      "original-abc-parity-green",
+      "marker-v1-nonoptional-parity-red",
+      "marker-v2-optional-parity-green"
+    ],
+    "cloud_mutations": false,
+    "endpoint": "single actual API test with two arms: unacknowledged nonempty Create\u2192queued Relocate\u2192atomic takeover, then same with actual later write/seal based on Relocate",
+    "installed_actions": false,
+    "prediction": "Original abc accepts both genuine API arms. Raw markerV1 nonoptional uploads lookups refuse Missing. MarkerV2 optional probes accept both and keep marker absent, without claiming delayedzeroCreate authority.",
+    "question": "Does the optional zero-Create marker preserve already accepted atomic takeover when the unconfirmed source latest or its newer sealed-upload predecessor is an ordinary Relocate mutation?",
+    "registered_at": "2026-10-05T23:32:44.762122+00:00",
+    "synthetic_only": true
+  },
+  "inspection_corrections": [
+    {
+      "private_v1_count": "Agent interim stated canonical8/V1total10; actual canonical9/V1total11, V3total14. No test dropped."
+    },
+    {
+      "optional_parity_abc_registration": "V1 registrar inherited earlier formatted-test SHA and false guard flag; actual477 source map and executed command were correct. Current outcome consumes actual map, and V2 registrar derives both metadata fields."
+    }
+  ],
+  "limits": [
+    "Synthetic success cannot prove second-save cloud confirmation, complete Calc workflow, native iWork editing, installed delivery or full-iCloud acceptance.",
+    "Unmodified older bodies with no capture marker cannot acquire the new missing-receipt exception.",
+    "All six full-iCloud acceptance criteria remain open."
+  ],
+  "observed_cloud_boundary": {
+    "cleanup_sequence": 14,
+    "cleanup_shadow_remote": "none",
+    "cleanup_shadow_remote_sequence": 0,
+    "exact_runtime_transfer_exception_retained": false,
+    "first_save_independently_verified": true,
+    "owner_confirmed_empty_create_sequence": 10,
+    "replacement_sequence": 13,
+    "run": "fe940038-50f9-4a8b-8fc0-39fb2f3529f6",
+    "source_derived_mismatch": "cleanup shadow cloned before receipt; current source receipt advanced after Create acknowledgement",
+    "source_sequence": 12,
+    "stopped_admission_audit_sha256": "57174eadce28c2b17b32902592798b523fabbc5e2b9d3932f0c7bc62d58a84aa"
+  },
+  "outcome": {
+    "baseline_failed_at_source_endpoint": 2,
+    "cloud_result_verified_by_synthetic_tests": false,
+    "delayed_create_baseline_tests_executed": 2,
+    "final_module_tests_executed": 14,
+    "final_module_tests_ignored": 0,
+    "final_module_tests_passed": 14,
+    "formatted_sources": {
+      "crates/cirrove-service/src/journal/identity_handoff.rs": "a9a5f9a8128db8ef90742472c3ce2d611db0c6c633b2898a7d1dfc75923a132f",
+      "crates/cirrove-service/src/journal/replacements.rs": "6026beb3f930550cab0f79aa899660e424b03a316f68a6d79ddf4f2f1f725221",
+      "crates/cirrove-service/tests/transfers/atomic_staged_prerequisite.rs": "8c920af53271a6741005408093637aad7ce8786afadc0e2c611822b534330e56"
+    },
+    "full_icloud_gate_closed": false,
+    "full_project_check": {
+      "command": "scripts/check.sh",
+      "desktop_display_scenarios_covered": false,
+      "fast": false,
+      "independent_installed_and_terminal_audit": {
+        "file": "audit-gate-agent-atomic-delayed-create-fullcheck-installed-v1.json",
+        "sha256": "2936be46e16fd3e7dcf046a736a252f76f54ffdede57ebcada455e5bdb7f9cdd"
+      },
+      "phase": "root-atomic-delayed-create-fullcheck-v1",
+      "real_icloud_acceptance_covered": false,
+      "registration_sha256": "ef37c08d1f6f2d10f6a97bbc9c841fee9ea9a6ff385fd86fe3ebca35fac3a367",
+      "result": {
+        "cloud_mutated": false,
+        "duration_seconds": 623.1020464269677,
+        "exit_code": 0,
+        "installed_actions": false,
+        "log_sha256": "f46a23c30cecda09cb7979d52eea2769298f864df71446186b41f77b1f093d93",
+        "sources_unchanged": true
+      },
+      "result_sha256": "b855e11a068654e7ba9cdb332cbe5a096cc5663fc16fb04872a15e03f1abe058",
+      "source_files_checked": 477
+    },
+    "installed_actions": false,
+    "local_test_independent_audit": {
+      "file": "audit-independent-atomic-delayed-create-actual-v1.json",
+      "sha256": "e31267a37bca7746eacf19d1edc00eaf875a54bfccc4c8942afd437190742b45"
+    },
+    "new_hostile_confirmation_arms": 15,
+    "new_hostile_saved_reuse_arms": 15,
+    "observed_at": "2026-10-05T23:38:03.422856+00:00",
+    "optional_probe_parity": {
+      "actual_error": "Storage at local replace_namespace_file",
+      "final_marker_v2_same_test_both_arms_passed": true,
+      "marker_v1_same_test_failed_at_first_arm": true,
+      "original_abc_one_test_two_arms_passed": true,
+      "second_arm_failure_independently_observed": false
+    },
+    "phase_evidence": [
+      {
+        "actual_test_source_sha256": "9df96535b7881549dde9ae8a93f2e7cf6f66456363afd1829983cf7a0991b0d3",
+        "log_sha256": "a80a709f705a424b8ecd697b7671413f006d4c8fe7120e07e537267ccf3917f6",
+        "phase": "root-atomic-delayed-create-baseline-red-v1",
+        "registration_sha256": "fc93cd5a64bef5f30a4393c6227328e0f1065bd440ba3b77eb004a852928fb2f",
+        "result": {
+          "cloud_mutated": false,
+          "duration_seconds": 1.2202752300072461,
+          "exit_code": 101,
+          "installed_actions": false,
+          "log_sha256": "a80a709f705a424b8ecd697b7671413f006d4c8fe7120e07e537267ccf3917f6",
+          "sources_unchanged": true
+        },
+        "result_sha256": "2cae6e2e487b1d1e634e4bb938da57afcf516b635f8a516fa2e9b9e1b899275b"
+      },
+      {
+        "actual_test_source_sha256": "9df96535b7881549dde9ae8a93f2e7cf6f66456363afd1829983cf7a0991b0d3",
+        "log_sha256": "f493ccb69202b2ef2f7144f1bffe8a975d092b109fdbcd7f8ea76c501d3ff364",
+        "phase": "root-atomic-delayed-create-green-v1",
+        "registration_sha256": "0107225fcb0094f44ad0f0b286ee6c69a3f19870e0c73dd12ae06eb2c183a7a4",
+        "result": {
+          "cloud_mutated": false,
+          "duration_seconds": 7.59863621200202,
+          "exit_code": 0,
+          "installed_actions": false,
+          "log_sha256": "f493ccb69202b2ef2f7144f1bffe8a975d092b109fdbcd7f8ea76c501d3ff364",
+          "sources_unchanged": true
+        },
+        "result_sha256": "11fbca936f265d522cf86617bf396223e1f364fac4583d682d21737cd5c4da8c"
+      },
+      {
+        "actual_test_source_sha256": "8c920af53271a6741005408093637aad7ce8786afadc0e2c611822b534330e56",
+        "log_sha256": "87fb9ca59c06b37b8ff9b3f35c84601a526de1c238e34bed142e80e0d6f39338",
+        "phase": "root-delayed-optional-parity-abc-v1",
+        "registration_sha256": "8a5bb5cf44e9f961c2b449b2d3b3ba0c446e891df8752e6f0a04f4309d0ecd2e",
+        "result": {
+          "cloud_mutated": false,
+          "duration_seconds": 6.361319963005371,
+          "exit_code": 0,
+          "installed_actions": false,
+          "log_sha256": "87fb9ca59c06b37b8ff9b3f35c84601a526de1c238e34bed142e80e0d6f39338",
+          "sources_unchanged": true
+        },
+        "result_sha256": "04d30527e6b53e53523a1ea2708303de793b61808e66940d4b4bac20bec4ad0d"
+      },
+      {
+        "actual_test_source_sha256": "8c920af53271a6741005408093637aad7ce8786afadc0e2c611822b534330e56",
+        "log_sha256": "75738d4a88bb87b0faf811d6f5ce8d16808b2c836ca9d1e32afd54fd1e1e3add",
+        "phase": "root-delayed-optional-parity-marker-v1-red-v1",
+        "registration_sha256": "4373f9f8029652af8e352edc47f75025e966480740f2ed0bf89eb40cb1d7760a",
+        "result": {
+          "cloud_mutated": false,
+          "duration_seconds": 6.45227737998357,
+          "exit_code": 101,
+          "installed_actions": false,
+          "log_sha256": "75738d4a88bb87b0faf811d6f5ce8d16808b2c836ca9d1e32afd54fd1e1e3add",
+          "sources_unchanged": true
+        },
+        "result_sha256": "ca5f4af590c0e1dcb167975940c6b7587700962e4e8bd08f32fc4000bf989ef2"
+      },
+      {
+        "actual_test_source_sha256": "8c920af53271a6741005408093637aad7ce8786afadc0e2c611822b534330e56",
+        "log_sha256": "f10d393273353c30fb074148476c62258f65058e6e56991ba9f4c6a9d1a489c5",
+        "phase": "root-atomic-delayed-create-controls-v1",
+        "registration_sha256": "daf54f24e9f531ce4b28e8d62784adb89d049dd5728e426d01fb99d2fe7ec275",
+        "result": {
+          "cloud_mutated": false,
+          "duration_seconds": 5.195901224971749,
+          "exit_code": 0,
+          "installed_actions": false,
+          "log_sha256": "f10d393273353c30fb074148476c62258f65058e6e56991ba9f4c6a9d1a489c5",
+          "sources_unchanged": true
+        },
+        "result_sha256": "b7e75b17b8709b3713aae9caaa2244bed7455fe39ba89a306fc6aa6131add7b7"
+      }
+    ],
+    "prior_hostile_arms": 47,
+    "same_byteexact_corrected_tests_passed": 2,
+    "total_hostile_arms": 77
+  },
+  "prediction": "Current abc code will refuse the delayed-Create topology after actual product APIs capture an empty cleanup shadow and a real synthetic worker then acknowledges Create. A durable marker captured inside the original replacement transaction should authorize only that exact acknowledged creation ancestor, with source/target/cleanup completion and unchanged sealed/newer bytes. Missing/wrong/foreign or rewritten capture authority must refuse.",
+  "proposal_pins": {
+    "production_v1_patch_sha256": "340173186b26bd6ea49b78df572a63ee17417b319859703c10592cb12b632016",
+    "regression_v1_sha256": "7171733c332e3990d56f48b65e1dd1977ac8a278cee9ae306f8b8eb8792903e3"
+  },
+  "question": "Can an ordinary editor source handoff and atomic replacement complete when local takeover occurs before its original empty temporary-file Create is acknowledged, without inferring authority from an absent cleanup receipt?",
+  "registered_at": "2026-10-05T23:23:39.452936+00:00",
+  "registered_date": "2026-10-06",
+  "source_baseline": "abc6d73b272981aaf98902b7cb69f5531d8985c4",
+  "status": "two-red-two-green-fourteen-module-tests-pass",
+  "version": 1
+}

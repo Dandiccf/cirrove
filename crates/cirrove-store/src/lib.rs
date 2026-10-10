@@ -2,6 +2,8 @@
 //! in one transaction, only after the last page. This is not an upload journal.
 mod blocks;
 mod directories;
+mod directory_sources;
+pub use directory_sources::DirectorySourceState;
 mod metadata_changes;
 pub mod pins;
 pub use metadata_changes::{MetadataChange, MetadataChangeKind, MetadataChanges, MetadataPosition};
@@ -14,7 +16,7 @@ pub use observations::{
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
@@ -317,7 +319,7 @@ pub type Result<T> = std::result::Result<T, StoreError>;
 /// Exposed so that a tool sharing a state directory with a running service can
 /// ask whether opening a store would migrate it, rather than finding out by
 /// having migrated it.
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 8;
 /// The schema version a database is currently at, without opening or migrating it.
 pub fn schema_version(path: impl AsRef<Path>) -> Result<u32> {
     let db = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -473,6 +475,7 @@ impl Store {
             }
             observations::migrate(&tx, version)?;
             directories::migrate(&tx, version)?;
+            directory_sources::migrate(&tx, version)?;
             metadata_changes::migrate(&tx, version)?;
             pins::migrate(&tx, version)?;
             // An unusable clock or malformed schema must roll back migration,
@@ -480,6 +483,7 @@ impl Store {
             observations::validate(&tx)?;
             metadata_changes::validate(&tx)?;
             directories::validate(&tx)?;
+            directory_sources::validate(&tx)?;
             pins::validate(&tx)?;
             if version < SCHEMA_VERSION {
                 tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
@@ -488,6 +492,7 @@ impl Store {
         }
         observations::validate(&db)?;
         directories::validate(&db)?;
+        directory_sources::validate(&db)?;
         metadata_changes::validate(&db)?;
         Ok(Self {
             db: Pooled::built(db, key),
@@ -546,6 +551,35 @@ impl Store {
         tx.commit()?;
         Ok(cursor.map(Cursor))
     }
+    /// Start a replacement baseline only when no round is pending. Retrying an
+    /// interrupted scan keeps its staged rows and continuation; a completed
+    /// scan's cursor is never passed as a delta cursor to a snapshot provider.
+    pub fn begin_snapshot(&mut self, scope: &Scope) -> Result<Option<Cursor>> {
+        let key = Self::key(scope)?;
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
+        let tx = self.db.transaction()?;
+        tx.execute("INSERT OR IGNORE INTO feeds(scope) VALUES(?1)", [&key])?;
+        let pending: bool =
+            tx.query_row("SELECT pending FROM feeds WHERE scope=?1", [&key], |r| {
+                r.get(0)
+            })?;
+        if !pending {
+            tx.execute("INSERT INTO rounds(scope,started) VALUES(?1,?2) ON CONFLICT(scope) DO UPDATE SET started=excluded.started",params![key,observations::advance(&tx)?])?;
+            tx.execute("DELETE FROM staged WHERE scope=?1", [&key])?;
+            tx.execute(
+                "UPDATE feeds SET pending=1,next_cursor=NULL,reset=1 WHERE scope=?1",
+                [&key],
+            )?;
+        }
+        let cursor = tx.query_row(
+            "SELECT next_cursor FROM feeds WHERE scope=?1",
+            [&key],
+            |r| r.get::<_, Option<String>>(0),
+        )?;
+        tx.commit()?;
+        Ok(cursor.map(Cursor))
+    }
     pub fn stage(
         &mut self,
         scope: &Scope,
@@ -591,12 +625,15 @@ impl Store {
             // A delta with no relevant changes must not discard a fresher
             // foreground directory snapshot. Invalidate only touched identities
             // and their old/new parents, before replacing the indexed rows.
+            // Only a successfully bound, provider-opted-in snapshot is retained.
+            // Migration's legacy classification is not an opt-in capability;
+            // retain ordinary invalidation for those snapshots across providers.
             if reset {
                 tx.execute("DELETE FROM observed_absent WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
                 tx.execute("DELETE FROM observed WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND NOT EXISTS(SELECT 1 FROM directory_sources b WHERE b.scope=directories.scope AND b.parent=directories.parent AND b.source IS NOT NULL) AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
             } else {
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND NOT EXISTS(SELECT 1 FROM directory_sources b WHERE b.scope=directories.scope AND b.parent=directories.parent AND b.source IS NOT NULL) AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
                     SELECT id FROM staged WHERE scope=?1
                     UNION SELECT json_extract(body,'$.parent_id') FROM staged WHERE scope=?1
                     UNION SELECT json_extract((SELECT body FROM nodes WHERE scope=?1 AND id=s.id),'$.parent_id') FROM staged s WHERE scope=?1
@@ -684,6 +721,84 @@ impl Store {
     pub fn node(&self, scope: &Scope, id: &str) -> Result<Option<Node>> {
         Self::node_on(&self.db, scope, id)
     }
+    /// Resolve an exact item and every indexed ancestor up to `root` in one
+    /// SQLite snapshot. The returned chain excludes the root and is ordered
+    /// from item toward root. Unknown, hidden, cyclic or disconnected chains
+    /// are never treated as an identity for a write.
+    pub fn node_chain_to_root(
+        &self,
+        scope: &Scope,
+        item: &str,
+        root: &str,
+    ) -> Result<Option<Vec<Node>>> {
+        self.node_chain_to_root_impl(scope, item, root, None)
+    }
+    /// Resolve indexed ancestry with a supplied leaf only when that exact
+    /// scoped item has no indexed presence or absence. The leaf is an ancestry
+    /// hint, not proof of a completed write or provider content. Callers must
+    /// independently bind its durable receipt and provider revision/content.
+    pub fn node_chain_to_root_with_unindexed_leaf(
+        &self,
+        scope: &Scope,
+        leaf: &Node,
+        root: &str,
+    ) -> Result<Option<Vec<Node>>> {
+        self.node_chain_to_root_impl(scope, &leaf.id, root, Some(leaf))
+    }
+    fn node_chain_to_root_impl(
+        &self,
+        scope: &Scope,
+        item: &str,
+        root: &str,
+        unindexed_leaf: Option<&Node>,
+    ) -> Result<Option<Vec<Node>>> {
+        if item.is_empty() || root.is_empty() || item == root {
+            return Ok(None);
+        }
+        let tx = self.db.unchecked_transaction()?;
+        let mut chain = Vec::new();
+        let mut seen = HashSet::new();
+        let mut id = item.to_string();
+        for depth in 0..128 {
+            if !seen.insert(id.clone()) {
+                return Ok(None);
+            }
+            let node = match Self::node_on(&tx, scope, &id)? {
+                Some(node) => node,
+                None if depth == 0 => {
+                    let Some(leaf) = unindexed_leaf else {
+                        return Ok(None);
+                    };
+                    let indexed: bool = tx.query_row(
+                        "SELECT EXISTS(
+                            SELECT 1 FROM nodes WHERE scope=?1 AND id=?2
+                            UNION ALL SELECT 1 FROM observed WHERE scope=?1 AND id=?2
+                            UNION ALL SELECT 1 FROM observed_absent WHERE scope=?1 AND id=?2)",
+                        params![Self::key(scope)?, id],
+                        |row| row.get(0),
+                    )?;
+                    if indexed {
+                        return Ok(None);
+                    }
+                    leaf.clone()
+                }
+                None => return Ok(None),
+            };
+            if node.id != id {
+                return Ok(None);
+            }
+            let Some(parent) = node.parent_id.clone() else {
+                return Ok(None);
+            };
+            chain.push(node);
+            if parent == root {
+                tx.commit()?;
+                return Ok(Some(chain));
+            }
+            id = parent;
+        }
+        Ok(None)
+    }
     fn node_on(db: &Connection, scope: &Scope, id: &str) -> Result<Option<Node>> {
         let key = Self::key(scope)?;
         let body = db
@@ -707,8 +822,27 @@ impl Store {
     /// other children. Outer None means unknown; Some(None) means known absent.
     /// The first name/identity-ordered match agrees with the listing API.
     pub fn child(&self, scope: &Scope, parent: &str, name: &str) -> Result<Option<Option<Node>>> {
+        self.child_with_mode(scope, parent, name, false)
+    }
+    /// For root-only feeds, only a published directory snapshot can establish
+    /// that a child is present or absent. A completed root cursor is insufficient.
+    pub fn child_from_snapshot(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+    ) -> Result<Option<Option<Node>>> {
+        self.child_with_mode(scope, parent, name, true)
+    }
+    fn child_with_mode(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+        require_snapshot: bool,
+    ) -> Result<Option<Option<Node>>> {
         let tx = self.db.unchecked_transaction()?;
-        let node = directories::child_on(&tx, scope, parent, name)?;
+        let node = directories::child_on(&tx, scope, parent, name, require_snapshot)?;
         tx.commit()?;
         Ok(node)
     }
@@ -723,8 +857,27 @@ impl Store {
         parent: &str,
         consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
     ) -> Result<Option<T>> {
+        self.with_children_mode(scope, parent, consume, false)
+    }
+    /// Stream only a published directory snapshot; an unvisited folder is
+    /// unknown even when the feed has completed its root-only cursor.
+    pub fn with_snapshot_children<T>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+    ) -> Result<Option<T>> {
+        self.with_children_mode(scope, parent, consume, true)
+    }
+    fn with_children_mode<T>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+        require_snapshot: bool,
+    ) -> Result<Option<T>> {
         let tx = self.db.unchecked_transaction()?;
-        let result = directories::read_on(&tx, scope, parent, consume)?;
+        let result = directories::read_on(&tx, scope, parent, consume, require_snapshot)?;
         tx.commit()?;
         Ok(result)
     }
@@ -937,6 +1090,232 @@ mod tests {
             },
         }
     }
+
+    #[test]
+    fn indexed_item_chain_is_scoped_and_rejects_missing_or_cyclic_ancestry() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let folder = Node {
+            id: "folder".into(),
+            parent_id: Some("root".into()),
+            name: "Folder".into(),
+            kind: NodeKind::Folder,
+            ..match node("folder") {
+                Change::Upsert(node) => node,
+                _ => unreachable!(),
+            }
+        };
+        let file = Node {
+            id: "file".into(),
+            parent_id: Some("folder".into()),
+            name: "File".into(),
+            ..match node("file") {
+                Change::Upsert(node) => node,
+                _ => unreachable!(),
+            }
+        };
+        db.observe_node(&s, &folder).unwrap();
+        db.observe_node(&s, &file).unwrap();
+        assert_eq!(
+            db.node_chain_to_root(&s, "file", "root")
+                .unwrap()
+                .unwrap()
+                .into_iter()
+                .map(|node| node.id)
+                .collect::<Vec<_>>(),
+            vec!["file", "folder"]
+        );
+        assert!(
+            db.node_chain_to_root(&scope("other"), "file", "root")
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            db.node_chain_to_root(&s, "file", "elsewhere")
+                .unwrap()
+                .is_none()
+        );
+        let cycle = Node {
+            parent_id: Some("file".into()),
+            ..folder
+        };
+        db.observe_node(&s, &cycle).unwrap();
+        assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
+    }
+    fn ancestry_node(id: &str, parent: &str) -> Node {
+        match node(id) {
+            Change::Upsert(mut node) => {
+                node.parent_id = Some(parent.into());
+                if id != "file" {
+                    node.kind = NodeKind::Folder;
+                }
+                node
+            }
+            _ => unreachable!(),
+        }
+    }
+    #[test]
+    fn unindexed_leaf_chain_uses_only_scoped_indexed_parent() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let parent = ancestry_node("folder", "root");
+        let leaf = ancestry_node("file", "folder");
+        db.observe_node(&s, &parent).unwrap();
+        let foreign_leaf = ancestry_node("file", "foreign-root");
+        db.observe_node(&scope("other"), &foreign_leaf).unwrap();
+        assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
+        assert_eq!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &leaf, "root")
+                .unwrap(),
+            Some(vec![leaf, parent])
+        );
+    }
+    #[test]
+    fn unindexed_leaf_chain_preserves_explicit_absence() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let leaf = ancestry_node("file", "folder");
+        db.observe_node(&s, &ancestry_node("folder", "root"))
+            .unwrap();
+        let ticket = db.node_observation(&s, &leaf.id).unwrap();
+        db.publish_absence(&ticket).unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &leaf, "root")
+                .unwrap()
+                .is_none()
+        );
+        assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
+    }
+    #[test]
+    fn unindexed_leaf_chain_keeps_actual_indexed_metadata() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let parent = ancestry_node("folder", "root");
+        let hint = ancestry_node("file", "folder");
+        let indexed = Node {
+            name: "Saved document".into(),
+            size: 17,
+            etag: Some("indexed-v2".into()),
+            ..hint.clone()
+        };
+        db.begin(&s, false).unwrap();
+        db.stage(
+            &s,
+            None,
+            &page(
+                vec![
+                    Change::Upsert(parent.clone()),
+                    Change::Upsert(indexed.clone()),
+                ],
+                true,
+                "complete",
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap(),
+            Some(vec![indexed, parent.clone()])
+        );
+        let observed = Node {
+            name: "Observed document".into(),
+            etag: Some("observed-v3".into()),
+            ..hint.clone()
+        };
+        db.observe_node(&s, &observed).unwrap();
+        let expected = Some(vec![observed, parent]);
+        assert_eq!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap(),
+            expected
+        );
+        assert_eq!(db.node_chain_to_root(&s, "file", "root").unwrap(), expected);
+    }
+    #[test]
+    fn unindexed_leaf_chain_never_replaces_invalid_indexed_ancestry() {
+        let s = scope("owner");
+        let hint = ancestry_node("file", "folder");
+        let invalid = [
+            "{}".to_string(),
+            serde_json::to_string(&Node {
+                id: "different-item".into(),
+                ..hint.clone()
+            })
+            .unwrap(),
+            serde_json::to_string(&Node {
+                parent_id: None,
+                ..hint.clone()
+            })
+            .unwrap(),
+            serde_json::to_string(&ancestry_node("file", "missing")).unwrap(),
+            serde_json::to_string(&ancestry_node("file", "file")).unwrap(),
+        ];
+        for (arm, body) in invalid.into_iter().enumerate() {
+            let mut db = Store::open(":memory:").unwrap();
+            db.observe_node(&s, &ancestry_node("folder", "root"))
+                .unwrap();
+            db.db
+                .execute(
+                    "INSERT INTO observed(scope,id,body,seen,source_revision) VALUES(?1,'file',?2,0,0)",
+                    params![Store::key(&s).unwrap(), body],
+                )
+                .unwrap();
+            let result = db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root");
+            if arm == 0 {
+                assert!(result.is_err());
+            } else {
+                assert!(result.unwrap().is_none());
+            }
+        }
+        let mut db = Store::open(":memory:").unwrap();
+        db.observe_node(&scope("other"), &ancestry_node("folder", "root"))
+            .unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap()
+                .is_none()
+        );
+        db.observe_node(&s, &ancestry_node("folder", "missing"))
+            .unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap()
+                .is_none()
+        );
+        db.observe_node(&s, &ancestry_node("folder", "file"))
+            .unwrap();
+        assert!(
+            db.node_chain_to_root_with_unindexed_leaf(&s, &hint, "root")
+                .unwrap()
+                .is_none()
+        );
+    }
+    #[test]
+    fn unindexed_leaf_chain_shares_indexed_depth_limit() {
+        for depth in [128, 129] {
+            let mut db = Store::open(":memory:").unwrap();
+            let s = scope("owner");
+            let leaf = ancestry_node("file", "ancestor-0");
+            for index in 0..depth - 1 {
+                let parent = if index == depth - 2 {
+                    "root".to_string()
+                } else {
+                    format!("ancestor-{}", index + 1)
+                };
+                db.observe_node(&s, &ancestry_node(&format!("ancestor-{index}"), &parent))
+                    .unwrap();
+            }
+            let hinted = db
+                .node_chain_to_root_with_unindexed_leaf(&s, &leaf, "root")
+                .unwrap();
+            assert_eq!(
+                hinted.as_ref().map(Vec::len),
+                (depth == 128).then_some(depth)
+            );
+            db.observe_node(&s, &leaf).unwrap();
+            assert_eq!(db.node_chain_to_root(&s, "file", "root").unwrap(), hinted);
+        }
+    }
     #[test]
     fn interrupted_pages_resume_without_exposing_partial_tree() {
         let dir = tempfile::tempdir().unwrap();
@@ -961,6 +1340,44 @@ mod tests {
         .unwrap();
         assert_eq!(db.nodes(&s).unwrap().len(), 2);
         assert_eq!(db.cursor(&s).unwrap(), Some(Cursor("delta1".into())));
+    }
+
+    #[test]
+    fn full_snapshot_retries_staged_pages_and_replaces_only_on_completion() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metadata.db");
+        let s = scope("snapshot");
+        {
+            let mut db = Store::open(&path).unwrap();
+            assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+            db.stage(&s, None, &page(vec![node("old")], true, "round-one"))
+                .unwrap();
+            assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+            db.stage(&s, None, &page(vec![node("new")], false, "resume"))
+                .unwrap();
+            assert_eq!(db.nodes(&s).unwrap()[0].id, "old");
+        }
+        let mut db = Store::open(path).unwrap();
+        let continuation = db.begin_snapshot(&s).unwrap();
+        assert_eq!(continuation, Some(Cursor("resume".into())));
+        assert_eq!(db.nodes(&s).unwrap()[0].id, "old");
+        db.stage(
+            &s,
+            continuation.as_ref(),
+            &page(vec![node("last")], true, "round-two"),
+        )
+        .unwrap();
+        assert_eq!(
+            db.nodes(&s)
+                .unwrap()
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["last", "new"]
+        );
+        assert_eq!(db.cursor(&s).unwrap(), Some(Cursor("round-two".into())));
+        assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+        assert_eq!(db.nodes(&s).unwrap().len(), 2);
     }
 
     #[test]
@@ -1567,7 +1984,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
-            7
+            SCHEMA_VERSION
         );
         assert_eq!(
             db.db
@@ -1579,5 +1996,449 @@ mod tests {
                 .unwrap(),
             1
         );
+    }
+
+    fn native_handoff_nodes() -> (Scope, Node, Node, Node) {
+        let scope = Scope {
+            account: "native-store-owner".into(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let original = Node {
+            id: "FILE::com.apple.CloudDocs::A-original".into(),
+            parent_id: Some("FOLDER::com.apple.CloudDocs::owned".into()),
+            name: "Owned.numbers".into(),
+            kind: NodeKind::Folder,
+            size: 17,
+            modified_unix: 1,
+            etag: Some("original-etag".into()),
+            content_version: None,
+            target: None,
+            package: true,
+        };
+        let current = Node {
+            id: "FILE::com.apple.CloudDocs::Z-current".into(),
+            size: 29,
+            modified_unix: 2,
+            etag: Some("current-etag".into()),
+            ..original.clone()
+        };
+        let backup = Node {
+            parent_id: Some("FOLDER::com.apple.CloudDocs::TRASH_ROOT".into()),
+            modified_unix: 2,
+            etag: Some("backup-etag".into()),
+            ..original.clone()
+        };
+        (scope, original, current, backup)
+    }
+
+    #[test]
+    fn native_handoff_atomic_visibility_preserves_cursor_and_stales_both_identity_tickets() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("metadata.db");
+        let mut db = Store::open(&path).unwrap();
+        let (scope, original, current, backup) = native_handoff_nodes();
+        let parent = original.parent_id.as_deref().unwrap();
+        // Another same-name identity must survive: this is not a name dedup.
+        let unrelated = Node {
+            id: "FILE::com.apple.CloudDocs::ZZ-unrelated".into(),
+            etag: Some("unrelated-etag".into()),
+            ..original.clone()
+        };
+        db.begin(&scope, false).unwrap();
+        db.stage(
+            &scope,
+            None,
+            &page(
+                vec![
+                    Change::Upsert(original.clone()),
+                    Change::Upsert(current.clone()),
+                    Change::Upsert(unrelated.clone()),
+                ],
+                true,
+                "completed-native-cursor",
+            ),
+        )
+        .unwrap();
+        db.observe_directory(
+            &scope,
+            parent,
+            &[original.clone(), current.clone(), unrelated.clone()],
+        )
+        .unwrap();
+        let indexed_before = db.nodes(&scope).unwrap();
+        let cursor_before = db.cursor(&scope).unwrap();
+        assert_eq!(
+            cursor_before,
+            Some(Cursor("completed-native-cursor".into()))
+        );
+        assert_eq!(
+            db.child(&scope, parent, &original.name).unwrap(),
+            Some(Some(original.clone()))
+        );
+        let old_ticket = db.node_observation(&scope, &original.id).unwrap();
+        let current_ticket = db.node_observation(&scope, &current.id).unwrap();
+        let parent_ticket = db.directory_observation(&scope, parent).unwrap();
+        let trash_ticket = db
+            .directory_observation(&scope, backup.parent_id.as_deref().unwrap())
+            .unwrap();
+        assert!(
+            db.publish_native_handoff(&scope, &original, &current, &backup)
+                .unwrap()
+        );
+        assert_eq!(db.node(&scope, &original.id).unwrap(), Some(backup.clone()));
+        assert_eq!(db.node(&scope, &current.id).unwrap(), Some(current.clone()));
+        assert_eq!(
+            db.node(&scope, &unrelated.id).unwrap(),
+            Some(unrelated.clone())
+        );
+        assert_eq!(
+            db.children(&scope, parent).unwrap(),
+            Some(vec![current.clone(), unrelated.clone()])
+        );
+        assert_eq!(
+            db.child(&scope, parent, &original.name).unwrap(),
+            Some(Some(current.clone()))
+        );
+        let key = Store::key(&scope).unwrap();
+        let revision = |id: &str| {
+            db.db
+                .query_row(
+                    "SELECT source_revision FROM observed WHERE scope=?1 AND id=?2",
+                    params![key, id],
+                    |r| r.get::<_, i64>(0),
+                )
+                .unwrap()
+        };
+        assert_eq!(revision(&original.id), revision(&current.id));
+        assert_eq!(
+            revision(&current.id),
+            observations::clock(&db.db).unwrap().1
+        );
+        assert_eq!(db.nodes(&scope).unwrap(), indexed_before);
+        assert_eq!(db.cursor(&scope).unwrap(), cursor_before);
+        assert!(
+            matches!(db.publish_node(&old_ticket, &original).unwrap(), ObservationResult::Superseded(Some(ref node)) if node == &backup)
+        );
+        assert!(
+            matches!(db.publish_node(&current_ticket, &current).unwrap(), ObservationResult::Superseded(Some(ref node)) if node == &current)
+        );
+        assert!(matches!(
+            db.publish_directory(
+                &parent_ticket,
+                &[original.clone(), current.clone(), unrelated.clone()]
+            )
+            .unwrap(),
+            ObservationResult::Superseded(_)
+        ));
+        assert!(matches!(
+            db.publish_directory(&trash_ticket, &[]).unwrap(),
+            ObservationResult::Superseded(_)
+        ));
+        let settled_clock = observations::clock(&db.db).unwrap();
+        drop(db);
+        let mut db = Store::open(&path).unwrap();
+        assert!(
+            db.publish_native_handoff(&scope, &original, &current, &backup)
+                .unwrap()
+        );
+        assert_eq!(observations::clock(&db.db).unwrap(), settled_clock);
+        assert_eq!(db.cursor(&scope).unwrap(), cursor_before);
+        assert_eq!(
+            db.child(&scope, parent, &original.name).unwrap(),
+            Some(Some(current))
+        );
+        assert_eq!(db.node(&scope, &original.id).unwrap(), Some(backup));
+    }
+
+    #[test]
+    fn native_handoff_unknown_identity_and_foreign_account_do_not_partially_publish() {
+        for missing_current in [true, false] {
+            let mut db = Store::open(":memory:").unwrap();
+            let (scope, original, current, backup) = native_handoff_nodes();
+            let known = if missing_current { &original } else { &current };
+            db.observe_node(&scope, known).unwrap();
+            if missing_current {
+                // This complete parent view existed before the new B identity.
+                // Absence from it is not a newer exact-ID negative observation.
+                db.observe_directory(
+                    &scope,
+                    original.parent_id.as_deref().unwrap(),
+                    std::slice::from_ref(&original),
+                )
+                .unwrap();
+            }
+            let clock = observations::clock(&db.db).unwrap();
+            assert!(
+                !db.publish_native_handoff(&scope, &original, &current, &backup)
+                    .unwrap()
+            );
+            assert_eq!(observations::clock(&db.db).unwrap(), clock);
+            assert_eq!(db.node(&scope, &known.id).unwrap(), Some(known.clone()));
+            assert_eq!(
+                db.node(
+                    &scope,
+                    if missing_current {
+                        &current.id
+                    } else {
+                        &original.id
+                    }
+                )
+                .unwrap(),
+                None
+            );
+            let foreign = Scope {
+                account: "another-account".into(),
+                ..scope.clone()
+            };
+            assert!(
+                !db.publish_native_handoff(&foreign, &original, &current, &backup)
+                    .unwrap()
+            );
+            assert_eq!(observations::clock(&db.db).unwrap(), clock);
+            assert!(db.node(&foreign, &original.id).unwrap().is_none());
+            assert!(db.node(&foreign, &current.id).unwrap().is_none());
+        }
+    }
+
+    #[test]
+    fn native_handoff_preserves_newer_original_and_current_observations() {
+        for newer_current in [false, true] {
+            let mut db = Store::open(":memory:").unwrap();
+            let (scope, original, current, backup) = native_handoff_nodes();
+            db.observe_directory(
+                &scope,
+                original.parent_id.as_deref().unwrap(),
+                &[original.clone(), current.clone()],
+            )
+            .unwrap();
+            let newer = Node {
+                parent_id: Some("FOLDER::com.apple.CloudDocs::external".into()),
+                name: "Externally moved.numbers".into(),
+                etag: Some("independent-newer-etag".into()),
+                ..if newer_current {
+                    current.clone()
+                } else {
+                    original.clone()
+                }
+            };
+            let expected_original = if newer_current {
+                backup.clone()
+            } else {
+                newer.clone()
+            };
+            db.observe_node(&scope, &newer).unwrap();
+            assert!(
+                db.publish_native_handoff(&scope, &original, &current, &backup)
+                    .unwrap()
+            );
+            assert_eq!(db.node(&scope, &newer.id).unwrap(), Some(newer));
+            assert_eq!(
+                db.node(&scope, &original.id).unwrap(),
+                Some(expected_original)
+            );
+            if !newer_current {
+                assert_eq!(db.node(&scope, &current.id).unwrap(), Some(current));
+            }
+        }
+    }
+
+    #[test]
+    fn native_handoff_preserves_negative_observations_without_resurrection() {
+        for absent_current in [false, true] {
+            let mut db = Store::open(":memory:").unwrap();
+            let (scope, original, current, backup) = native_handoff_nodes();
+            db.observe_directory(
+                &scope,
+                original.parent_id.as_deref().unwrap(),
+                &[original.clone(), current.clone()],
+            )
+            .unwrap();
+            let absent = if absent_current { &current } else { &original };
+            let ticket = db.node_observation(&scope, &absent.id).unwrap();
+            db.publish_absence(&ticket).unwrap();
+            assert!(
+                db.publish_native_handoff(&scope, &original, &current, &backup)
+                    .unwrap()
+            );
+            assert_eq!(db.node(&scope, &absent.id).unwrap(), None);
+            if absent_current {
+                assert_eq!(db.node(&scope, &original.id).unwrap(), Some(backup));
+            } else {
+                assert_eq!(db.node(&scope, &current.id).unwrap(), Some(current));
+            }
+        }
+    }
+
+    #[test]
+    fn native_handoff_preserves_complete_directory_exclusion_and_later_positive_view() {
+        let mut db = Store::open(":memory:").unwrap();
+        let (scope, original, current, backup) = native_handoff_nodes();
+        let parent = original.parent_id.as_deref().unwrap();
+        db.observe_directory(&scope, parent, &[original.clone(), current.clone()])
+            .unwrap();
+        db.observe_directory(&scope, parent, std::slice::from_ref(&current))
+            .unwrap();
+        let clock = observations::clock(&db.db).unwrap();
+        assert!(
+            db.publish_native_handoff(&scope, &original, &current, &backup)
+                .unwrap()
+        );
+        assert_eq!(observations::clock(&db.db).unwrap(), clock);
+        assert!(db.node(&scope, &original.id).unwrap().is_none());
+        assert_eq!(
+            db.children(&scope, parent).unwrap(),
+            Some(vec![current.clone()])
+        );
+        // A later real listing clears the older negative observation. Only
+        // then may the exact receipt move that re-observed original identity.
+        db.observe_directory(&scope, parent, &[original.clone(), current.clone()])
+            .unwrap();
+        assert!(
+            db.publish_native_handoff(&scope, &original, &current, &backup)
+                .unwrap()
+        );
+        assert_eq!(db.children(&scope, parent).unwrap(), Some(vec![current]));
+        assert_eq!(db.node(&scope, &original.id).unwrap(), Some(backup));
+    }
+
+    #[test]
+    fn native_handoff_rejects_invalid_scope_and_native_tuple_without_metadata_changes() {
+        for alteration in 0..13 {
+            let mut db = Store::open(":memory:").unwrap();
+            let (mut scope, mut original, mut current, mut backup) = native_handoff_nodes();
+            let real_scope = scope.clone();
+            let real_original = original.clone();
+            let real_current = current.clone();
+            db.observe_directory(
+                &real_scope,
+                original.parent_id.as_deref().unwrap(),
+                &[original.clone(), current.clone()],
+            )
+            .unwrap();
+            let clock = observations::clock(&db.db).unwrap();
+            match alteration {
+                0 => scope.provider = "foreign-provider".into(),
+                1 => scope.collection = "foreign-collection".into(),
+                2 => backup.parent_id = original.parent_id.clone(),
+                3 => current.id = original.id.clone(),
+                4 => backup.id = "FILE::com.apple.CloudDocs::foreign".into(),
+                5 => original.package = false,
+                6 => current.kind = NodeKind::File,
+                7 => backup.package = false,
+                8 => current.content_version = Some("unexpected-content-version".into()),
+                9 => current.name = "Foreign.numbers".into(),
+                10 => current.parent_id = Some("FOLDER::com.apple.CloudDocs::foreign".into()),
+                11 => backup.size += 1,
+                12 => backup.etag = Some("*".into()),
+                _ => unreachable!(),
+            }
+            assert!(
+                matches!(
+                    db.publish_native_handoff(&scope, &original, &current, &backup),
+                    Err(StoreError::OutOfOrder)
+                ),
+                "invalid native tuple {alteration}"
+            );
+            assert_eq!(observations::clock(&db.db).unwrap(), clock);
+            assert_eq!(
+                db.node(&real_scope, &real_original.id).unwrap(),
+                Some(real_original.clone())
+            );
+            assert_eq!(
+                db.node(&real_scope, &real_current.id).unwrap(),
+                Some(real_current.clone())
+            );
+            assert_eq!(
+                db.children(&real_scope, real_original.parent_id.as_deref().unwrap())
+                    .unwrap(),
+                Some(vec![real_original, real_current])
+            );
+        }
+    }
+
+    #[test]
+    fn native_handoff_does_not_change_ordinary_file_publication_semantics() {
+        let mut db = Store::open(":memory:").unwrap();
+        let (scope, original, current, backup) = native_handoff_nodes();
+        let ordinary = |node: Node| Node {
+            kind: NodeKind::File,
+            package: false,
+            ..node
+        };
+        let original = ordinary(original);
+        let current = ordinary(current);
+        let backup = ordinary(backup);
+        db.observe_directory(
+            &scope,
+            original.parent_id.as_deref().unwrap(),
+            &[original.clone(), current.clone()],
+        )
+        .unwrap();
+        let clock = observations::clock(&db.db).unwrap();
+        assert!(
+            db.publish_native_handoff(&scope, &original, &current, &backup)
+                .is_err()
+        );
+        assert_eq!(observations::clock(&db.db).unwrap(), clock);
+        assert!(
+            db.publish_ordinary_handoff_backup(&scope, &original, &current, &backup)
+                .unwrap()
+        );
+        assert_eq!(db.node(&scope, &original.id).unwrap(), Some(backup));
+        assert_eq!(db.node(&scope, &current.id).unwrap(), Some(current));
+    }
+
+    #[test]
+    fn native_handoff_unknown_original_in_complete_current_directory_requires_exact_observation() {
+        let mut db = Store::open(":memory:").unwrap();
+        let (scope, original, current, backup) = native_handoff_nodes();
+        let parent = original.parent_id.as_deref().unwrap();
+        // A completed current-directory view never observed the original ID.
+        // Its absence from that view is not an exact-ID negative observation.
+        db.observe_directory(&scope, parent, std::slice::from_ref(&current))
+            .unwrap();
+        assert_eq!(db.node(&scope, &original.id).unwrap(), None);
+        assert_eq!(db.node(&scope, &current.id).unwrap(), Some(current.clone()));
+        let key = Store::key(&scope).unwrap();
+        assert_eq!(
+            db.db
+                .query_row(
+                    "SELECT count(*) FROM observed_absent WHERE scope=?1 AND id=?2",
+                    params![key, original.id],
+                    |r| r.get::<_, i64>(0),
+                )
+                .unwrap(),
+            0
+        );
+        let clock = observations::clock(&db.db).unwrap();
+        let completed = db
+            .publish_native_handoff(&scope, &original, &current, &backup)
+            .unwrap();
+        // Preserve both the metadata and its frontier before the desired endpoint.
+        assert_eq!(observations::clock(&db.db).unwrap(), clock);
+        assert_eq!(db.node(&scope, &original.id).unwrap(), None);
+        assert_eq!(db.node(&scope, &current.id).unwrap(), Some(current.clone()));
+        assert_eq!(
+            db.children(&scope, parent).unwrap(),
+            Some(vec![current.clone()])
+        );
+        assert!(
+            !completed,
+            "a missing directory member cannot certify the unknown original's Trash publication"
+        );
+
+        // A subsequent exact-ID provider observation, outside the CAS, supplies
+        // the current Trash location. The same receipt then settles idempotently.
+        db.observe_node(&scope, &backup).unwrap();
+        let settled_clock = observations::clock(&db.db).unwrap();
+        assert!(
+            db.publish_native_handoff(&scope, &original, &current, &backup)
+                .unwrap()
+        );
+        assert_eq!(observations::clock(&db.db).unwrap(), settled_clock);
+        assert_eq!(db.node(&scope, &original.id).unwrap(), Some(backup));
+        assert_eq!(db.node(&scope, &current.id).unwrap(), Some(current.clone()));
+        assert_eq!(db.children(&scope, parent).unwrap(), Some(vec![current]));
     }
 }

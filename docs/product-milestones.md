@@ -469,3 +469,227 @@ bounded stale-revision check: `requiredRevisionId` rejected the second update
 with HTTP 400 and three exports retained the winning content. Cirrove has not
 implemented native writeback, and Sheets has no proven safe conflict path here.
 Completion of OneDrive 1.0 does not claim either adapter is finished.
+
+
+<!-- acceptance-release-scope: full-icloud -->
+## 7. Full iCloud release acceptance
+
+This additional scope records the user's next **full iCloud** release objective.
+It does not retroactively expand the historical OneDrive 1.0 milestones above.
+The ledger assigns these rows `release_scope: full-icloud`; unchecked rows block
+that scope even when the historical OneDrive summary reports zero open blockers.
+The ordinary-file opt-in is an intermediate milestone, not a reduced definition
+of full support. Synthetic coverage and isolated imports are supporting evidence,
+not permission to tick installed or native-editing requirements.
+
+- [x] Finish corrected public Pages import through CLI and desktop UI, verified completion and publication on the original public mount, independent semantic readback and Apple Pages open of the exact new owned document.
+- [x] Implement and validate existing native-document editing/replacement and recoverable removal, with exact old/new identity and revision binding, preserved original bytes, conflict refusal, durable restart and uncertain-outcome recovery without mutation replay.
+- [x] Complete owned Pages, Numbers and Keynote application acceptance across actual Data and Package representations, ordinary local saves and atomic replacement, reopen/remount and supported export fidelity; document unsupported format limits explicitly.
+- [x] Validate installed iCloud read-only connection, explicit write opt-in, same-account reauthentication and downgrade with retained sealed/dirty-byte recovery, preserving existing accounts and rejecting unsupported permanent deletion.
+- [x] Preserve the working Strata integration during iCloud deployment: paths-cached capability, conditional direct/inherited pin menus, branded kept/fetching badges and stable event refresh, with installed provider artifacts and default file-manager settings unchanged.
+- [x] Close remaining iCloud reliability boundaries with registered evidence for in-flight replacement/namespace uncertainty, retained failed fixtures, expired sessions and slow links, bounded storage/staging and recovery; define tested size/format limits and safe abandoned-staging handling.
+
+The Pages import row is closed by two fresh, separately complete owned arms:
+[Desktop378](benchmarks/icloud-pages-live-desktop-import-owned-focus-2026-10-06.json)
+and [CLIab963](benchmarks/icloud-pages-fresh-cli-import-2026-10-06.json). Each
+verified its own public completion, publication and capture on its original warm
+mount, independent semantic readback and Apple Pages open of the exact newly
+allocated document. The Desktop controller's proof-mode reporting failure is
+retained alongside its offline control and stopped audit; its original exit one
+is not rewritten. The CLI controller and observer both exited zero.
+
+Older ec7 and f2dec observations remain partial: ec7 missed its original
+post-success mount endpoint; f2dec lacks an Apple Pages open and records mounted
+access after restart. Those historical results are retained in the
+[import watch](benchmarks/icloud-native-import-watch-2026-10-01.md) and
+[public Trash arm](benchmarks/icloud-public-native-trash-2026-10-01.md). They were
+not combined to close this criterion. This closure does not establish native
+editing, arbitrary-format fidelity, installed delivery or provider reliability.
+
+Supporting evidence and remaining limits are in
+[the write integration boundary](icloud-write-integration.md),
+[public native import](benchmarks/icloud-public-native-import-2026-10-01.md),
+[ordinary opt-in](benchmarks/icloud-ordinary-write-opt-in-acceptance-2026-10-01.md),
+[application acceptance](benchmarks/icloud-real-applications-acceptance-2026-10-01.md),
+[read-only recovery](benchmarks/icloud-readonly-recovery-2026-10-01.md) and
+[controlled ENOSPC export](benchmarks/icloud-full-device-export-2026-10-01.md).
+Native Trash readability or a stale-ETag experiment alone cannot establish native
+replacement. Evidence from these scopes must not be reused as proof of arbitrary
+formats, live quota behavior or atomic cloud replacement.
+
+
+The native replacement/removal row (486) is now closed by separately registered
+real-account endpoints: genuine edited [Numbers](benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json),
+[Keynote](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
+and [Pages](benchmarks/icloud-pages-direct-flat-replacement-2026-10-07-ab8555d8.json)
+archive replacements, [standalone native Trash](benchmarks/icloud-native-trash-fresh-receipt-loss-2026-10-06.json),
+[exact selection refusal](benchmarks/icloud-native-replacement-mismatched-selection-fresh-2026-10-06.json)
+and [competing-name Conflict](benchmarks/icloud-native-pre-trash-recovery-name-occupant-fresh-2026-10-07.json).
+Independent full semantic V2 reads bind current B and original A in Trash;
+actual exit86/reopen recovery completes the same retained operation without
+repeating mutations. Original preservation concerns the complete file-content
+tree, not identical transport ZIP bytes; loss was local acknowledgement loss,
+not unobserved provider reply loss. Those replacement trials alone do not
+establish installed lifecycle or broader reliability. Installed delivery stays
+on HOLD.
+
+The [iWork application criterion (487)](benchmarks/icloud-iwork-application-acceptance-2026-10-08.json)
+is now closed by all twelve actual DATA/PACKAGE ordinary/atomic archive-copy
+workflows, their current/original-in-Trash reads, normal read-only remounts and
+exact Apple reopen/reload observations, plus the documented supported exports.
+Pages DOCX preserved one exact 93-byte paragraph; Keynote PPTX preserved one
+slide's title/subtitle. One Apple Numbers Excel download and a separately
+registered read-only Calc open preserved the mapped 7/3/10 values, source marker
+and single-cell SUM array formula. Independent Apple, raw mapping, Calc formula
+and owner/preservation audits passed 28, 9, 20 and 24 checks respectively.
+Native Linux iWork saving is unsupported by the tested import-only filters;
+direct native Numbers imports lose SUM and remain recorded as failures. Full
+layout/fonts/media, arbitrary formulas/documents and repeated reliability are
+untested. Export-copy saves do not write back to the native source. Historical
+failed/uncertain outcomes remain retained. This closes the literal documented
+application criterion; broader reliability and installed delivery HOLD remain open.
+
+The [installed lifecycle assessment (488)](benchmarks/icloud-installed-lifecycle-acceptance-2026-10-09.json)
+joins the initial public native sign-in and write opt-in, current attested package
+upgrade, genuine same-account read-only downgrade, active exact 44/52-byte
+recovery, and a fresh installed ordinary-file save with independent cold-cache
+readback and unsupported permanent-delete refusal. Existing account identities,
+retained records, immutable backing disks and the original host daemon were
+preserved; both new VM owners and all children closed cleanly. The fresh writable
+test connection was disabled at the end. This closes the literal installed
+lifecycle row with bounded real-account evidence. Installed delivery stays on HOLD.
+
+The [joined reliability assessment (490)](benchmarks/icloud-full-integration-acceptance-2026-10-10.json)
+closes the six declared clauses with bounded evidence: after-final-preflight
+capture, one competing import/release and same-operation Conflict; a separately
+registered read-only full semantic read of original A in Trash, retained B and
+canonical C; exact public recovery-only B export; installed scoped session
+rejection/reauthentication; paced and retained-copy reads; storage/staging
+controls and explicit format/abandonment limits. B keeps its exact scoped
+identity under the provider-assigned numeric collision name; it is not reported
+as a successful canonical installation. Original failed trials remain failed.
+All six full-iCloud criteria are now closed within these documented limits.
+Natural Apple TTL, arbitrary document fidelity, repeated/provider-wide reliability,
+global disk quota and automatic remote Stage cleanup remain unproved. Deployment
+and schema policy remain on HOLD; this acceptance does not install, merge or release.
+
+The following historical checkpoints retain their original open-row counts.
+
+At the earlier unchecked native editing/replacement checkpoint (486), the explicit public
+Pages replacement CLI/socket and retained list/watch interfaces are now present;
+see [the workflow contract](native-document-replacement.md).
+[Recorded synthetic evidence](benchmarks/icloud-native-package-replacement-2026-10-01.md)
+covers worker fault recovery, routing, publication observation and bounded retained
+discovery. The [owned live arm](benchmarks/icloud-native-replacement-live-2026-10-01.md)
+remains separate and incomplete. Two-ID archive replacement does not establish
+ordinary native editor saves, preserved sharing/history, Apple application
+fidelity or installed acceptance; the requirement therefore remains open.
+
+A [fresh genuine flat Numbers B trial](benchmarks/icloud-flat-numbers-native-final-2026-10-06.json)
+now adds actual process-loss recovery: the same operation completed by one
+inspection without replay, independent reads verified new B and original A in
+Trash, and Apple Numbers preserved the edited values and SUM formula after
+reload. This is supporting evidence for the native replacement row, which
+remains open for its broader editing, removal, conflict and release requirements.
+
+A [separate fresh replacement](benchmarks/icloud-native-final-remount-before-apple-corrected-2026-10-06.json)
+also passed genuine B process-loss recovery and independent current/Trash proof.
+Its [normal read-only remount](benchmarks/icloud-native-package-readonly-remount-before-apple-2026-10-06.json)
+subsequently returned the exact complete B semantic tree, including all 42 files
+and three previews, before any Apple opening. This supports the bounded replacement
+and remount behavior; it does not close the broader row or the five remaining
+full-iCloud release gates. Installed delivery remains held.
+
+The feature-only pre-Trash pause and independent three-identity observer now
+have [controlled local coverage](benchmarks/icloud-native-pre-trash-pause-controls-watchdog-2026-10-06.json):
+one intended failing FIFO arm, the restored passing arm, seven TLS pause
+controls and five observer controls. Their purpose is to make the next owned
+competing-recovery-name trial controlled and independently verifiable.
+They do not establish a live conflict, atomic cloud replacement or installed
+acceptance; all five open criteria above remain unchanged.
+
+
+The 2026-10-07 [fresh competing-name trial](benchmarks/icloud-native-pre-trash-recovery-name-occupant-fresh-2026-10-07.json)
+adds real evidence to criterion 486: one Numbers replacement refused an owned
+reserved-name occupant before final preflight, and stopped independent full
+V2 readback preserved original A, stage B and occupant B with the same IDs,
+revisions and locations. It does not close broader editing, atomic races,
+representation coverage, installed transitions or abandoned-stage cleanup.
+The full-iCloud count remains one criterion closed and five open.
+
+The [fresh Keynote source pair](benchmarks/icloud-keynote-edited-source-2026-10-07-bb3eab7e.json)
+now contains two native exports from the same owned Apple presentation, with
+genuine title and subtitle edits between A and B and independently checked
+complete archive contents. Its Cirrove replacement, current/Trash verification,
+normal read-only remount and exact-item Apple reopen with one reload have since
+passed in separately registered arms. The wider application matrix remains open.
+
+Two [local reauthentication tests](benchmarks/icloud-reauth-manager-retained-state-2026-10-07.json)
+now couple the actual Manager owner retirement and relaunch to unchanged sealed
+and dirty journal bytes. They use synthetic session-save outcomes and no writable
+provider, keyring or successful kernel mount. The installed lifecycle row remains
+open, and installed delivery remains held.
+
+The feature-only [Keynote replacement observer](benchmarks/icloud-keynote-replacement-observer-controls-2026-10-07.json)
+now verifies exact completed-journal authority and independently reads current B
+and original A in Trash. Eleven local controls passed, including four deadline
+checks that failed in a jointly weakened guard-set counterfactual. This provides
+the scoped proof tool used by the fresh live replacement below. The five release
+criteria remain open.
+
+The complete [mandatory project check](benchmarks/icloud-keynote-reauth-full-check-2026-10-07.json)
+passed on the unchanged final source, including all thirteen new local controls.
+Display scenarios and the real Keynote replacement remain separate checks.
+
+A [fresh genuine Keynote replacement](benchmarks/icloud-keynote-genuine-replacement-2026-10-07-3d901c2b.json)
+passed in 345.25 seconds: normal public import A and one replacement B, with
+stopped independent full semantic V2 for current B and exact original A in Trash.
+All eight inner and two outer managed processes closed. A separate
+[normal read-only remount](benchmarks/icloud-keynote-readonly-remount-2026-10-07-f9923c49.json)
+passed in 15.41 seconds, with the exact complete B semantic tree and unchanged
+source state, journal frontier, runtime source and installed artifacts.
+[Apple Keynote then opened the exact receipt-bound item](benchmarks/icloud-keynote-apple-reopen-2026-10-07-a0c382a4.json)
+and retained the one-slide B title and subtitle after one reload, with no edits.
+This bounded PACKAGE case supports rows 486 and 487. DATA, ordinary/atomic
+editor workflows, broader export fidelity and installed acceptance remain open;
+the full-iCloud count stays one closed and five open, with installed delivery on HOLD.
+
+The [reauthentication owner-readiness correction](benchmarks/icloud-reauth-owner-readiness-ci-2026-10-07.json)
+addresses a premature lock probe in the test module after the Linux CI job
+failed. The controlled old algorithm failed its intended assertion; the same
+corrected control and all three coupled tests passed. The complete
+`scripts/check.sh` then passed in 574.77 seconds with 87 Rust test groups, scripts,
+ledger and docs, preserving all 566 final-source hashes. Production sign-in
+policy is unchanged; the historical CI interleaving remains unidentified.
+Display, real session and installed acceptance remain separate.
+
+The explicit [Pages PACKAGE receipt observer](benchmarks/icloud-pages-replacement-observer-controls-2026-10-07.json)
+passed eight synthetic controls while retaining all eleven existing Keynote
+controls. Two narrow counterfactuals failed at their intended assertions and
+passed after restoration: missing Pages admission and a disabled SQL tuple guard.
+This prepares independent current-B/original-A verification for a fresh genuine
+Pages replacement. It supplies no new live, DATA, editor or installed acceptance;
+the full-iCloud count remains one closed and five open.
+
+The complete Pages-observer `scripts/check.sh` passed in 555.04 seconds with
+87 Rust test groups, kernel/FUSE scenarios, scripts, ledger and docs, preserving
+all 568 source hashes. An earlier complete command stopped at the smoke test
+because the chosen temporary path exceeded the Unix socket limit. Its failure
+and closed owners remain recorded; a shorter disk-backed temporary directory
+allowed the unchanged source to pass the complete command from the beginning.
+No new live Pages or installed acceptance follows from this local check.
+
+The installed Strata preservation row (489) is closed by the current
+[7dc061c package trial](benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json):
+a fresh, independently verified 8 MiB own iCloud Web file began with zero
+resident bytes. Four actual GUI actions exercised direct and inherited
+Keep/Stop menus, the branded Fetching and kept badges, availability dialogs and
+subscribed generation refresh. Normal FUSE readback matched the independent
+Web download byte for byte. All six installed provider artifacts survived the
+aa02-to-7dc upgrade and GUI trial; default Nautilus and normal Strata preferences
+were preserved, and all six GUI children and their private sockets closed.
+The GUI used an isolated copy of the installed registration with an explicit
+IPC socket; this is an installed Strata test, not native Wayland or every desktop
+coverage. Earlier warm passes and failures remain recorded. Installed lifecycle
+(488) and broader reliability (490) remain open; four of six full-iCloud criteria
+are closed, and original-host delivery remains on HOLD.

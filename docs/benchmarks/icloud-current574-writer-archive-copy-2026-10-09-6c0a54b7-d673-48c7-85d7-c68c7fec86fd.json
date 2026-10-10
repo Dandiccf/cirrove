@@ -1,0 +1,134 @@
+{
+  "HOLD_lifted": false,
+  "Python_pin": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence",
+  "SQL_opened": false,
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence",
+  "active": false,
+  "active_measurement": false,
+  "arms": [
+    {
+      "destinations": [
+        "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/backup",
+        "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/clone"
+      ],
+      "name": "two_full_archive_copies",
+      "source": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/backup"
+    }
+  ],
+  "candidate_commit": "aa02b8d1cf6b2644e7500908016548b49f71a833",
+  "cleanup_reserve": 45,
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-archive-copy-preparation-v1/collect_writer_archive_copy_once_v2.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-archive-copy-preparation-v1/root-copy-inputs-ready-v1.json",
+    "--sha256",
+    "exact_input_sha256_in_private_command_manifest"
+  ],
+  "consolidation_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-archive-copy-preparation-v1/root-copy-public-before-audit-consolidation-v1.json",
+    "sha256": "de58782b65dad58bafefc60a1719df626f7edcf4bc16b0bd115a86b1f51b9b77",
+    "size": 6782
+  },
+  "copy_original_closed_exit": 0,
+  "copy_original_exec_handle": 43622,
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-archive-copy-preparation-v1/collect_writer_archive_copy_once_v2.py",
+    "sha256": "8d7c2aba9d8425a1cd02e949f647c3477894029efca1400eeb9116d8671ea476",
+    "size": 15671
+  },
+  "endpoint": "two_complete_immutable_archive_copies_for_current574_writer",
+  "expected_duration_seconds": 360,
+  "gate488_closed": false,
+  "helper_launched": false,
+  "historical_detached_settled": false,
+  "historical_whole_preparation_success": false,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/audit-independent-complete-archive-copy-terminal-v1.json",
+    "sha256": "70af729ffcd718b4da0dda00ec6fdc046a3bcbc3ee953b6bbb1c8fd207bd6631",
+    "size": 6388
+  },
+  "independent_checks": 26,
+  "installation_performed": false,
+  "original_exec_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-archive-copy-preparation-v1/root-original-copy-exec-closure-v1.json",
+    "sha256": "027f3ee400cd698a07fad76d5e56ef35a7d1d54e5b96b0c393f2499575c8b64d",
+    "size": 689
+  },
+  "original_state_read": false,
+  "original_window": {
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "cleanup_reserve": 45,
+    "monotonic_end": 532691.791130228,
+    "monotonic_start": 531791.791130228,
+    "seconds": 900,
+    "wall_end": 1791508064.6680512,
+    "wall_start": 1791507164.6680512
+  },
+  "prediction": "Both fresh copies and Rust canonical Member digest match the immutable archive; source bytes and stat9 unchanged and old PID2796420/birth53026992 retained. Runtime initial14/7 verification and candidate migration are separate later authority; historical detached admission refusal remains false.",
+  "preparation_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/audit-independent-preparation-terminal-v1.json",
+    "sha256": "a322b0e7448c5918efee40d2b35e9d9e5c57278b58a61ee97665a91c904acd67",
+    "size": 27171
+  },
+  "preparation_closure": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/prior-preparation-closure-v1.json",
+    "sha256": "5e43db09208ce87f55e4f1937330b353305434cd116caa75fb0db845b08dd262",
+    "size": 3215836
+  },
+  "provider_requests": false,
+  "question": "Can two complete fresh writable-helper archive copies preserve the immutable coherent legacy backup byte-for-byte while the restored unchanged old package stays running?",
+  "registered_at": "2026-10-09T00:52:39.730551+00:00",
+  "required_temp_fstype": "ext4",
+  "restoration_audit": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/restore-original-f88f32b0-2201-4a96-ac08-ced73387ceba/audit-independent-complete-restoration-and-stable-status-v1.json",
+    "sha256": "be08bca1a60acf9dc527c982c08d775e25a00037c0ad19ff96c1122714d33c86",
+    "size": 19563
+  },
+  "restored_baseline": {
+    "path": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/evidence/restore-original-f88f32b0-2201-4a96-ac08-ced73387ceba/independent-status-8dd4dc8f-e32a-4259-9382-b47e20c5332a/fresh-restored-installed-baseline-v1.json",
+    "sha256": "cb96b5f8b301e753d4c6be5bc111d241bd2a25237d070c3d194d5470f79c88bc",
+    "size": 15030
+  },
+  "result_scope": "two complete archive copies only; no SQL or writable constructor ran in this arm",
+  "root": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd",
+  "run": "6c0a54b7-d673-48c7-85d7-c68c7fec86fd",
+  "seconds": 900,
+  "service_actions": false,
+  "source": "/home/dandiccf/Storage/ct/pfclone-8a6af95d-ac8d-458a-8b70-3f8f66c3493f/backup",
+  "source_count": 574,
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writer-archive-copy-preparation-v1/audit-independent-writer-archive-copy-source-v2.json",
+    "sha256": "88e6aad39e6144ee123607a5d24228c358d8270f99e47e1beea3b51c31c31fcc",
+    "size": 5689
+  },
+  "status": "closed_complete_archive_copy",
+  "success": true,
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/pfwritable-6c0a54b7-d673-48c7-85d7-c68c7fec86fd/evidence/terminal-v1.json",
+    "sha256": "a1f95c113fbec69a4e1c3c62e49db7547aaebb1a0fa0e50a7a25ebd6785c33db",
+    "size": 5479
+  },
+  "version": 1,
+  "worktree_commit": "a3bc650a7c5b2c4d68696d44245e82e03759e9e4",
+  "writer_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/audit-independent-current574-writable-build-terminal-v1.json",
+    "sha256": "c12745dd31ad1f575e10cbc3d7522f2fe4016e36f708a18131f73a5c17a2804e",
+    "size": 16326
+  },
+  "writer_build_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/terminal-v1.json",
+    "sha256": "af101ecea6a63be8831cd68fd44d1d29e309b94b706df9ab5be691360dc407ab",
+    "size": 88119
+  },
+  "writer_helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/current-installed-coherent-backup-migration-preparation-20261008-private-v1/current-aa02b8d1-authority-successor-private-v1/writable-helper-build-preparation-v1/build-execution-44a924e7-1f3b-4c26-86dd-8ec4964b7a1a/frozen/observer",
+    "sha256": "97bf0484798941c9ad6ec20ef9901131d717611b66f9043a65bbcbf599beedfc",
+    "size": 365518296
+  }
+}

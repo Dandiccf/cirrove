@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "status": "preregistered-before-local-assets-and-cloud",
+  "run": "85afb1fd-d236-41a9-b9bf-fc620512fc3b",
+  "root": "/var/tmp/cirrove-numbers-browser-editor-85afb1fd-d236-41a9-b9bf-fc620512fc3b",
+  "base": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-browser-editor-85afb1fd-d236-41a9-b9bf-fc620512fc3b",
+  "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/ne-85afb1fd",
+  "question": "Can one genuine Numbers browser save/export be bound to independently read currentB and a distinct remounted B without losing the owned A identity?",
+  "prediction": "A2=11, B2=3, C2=14 after browser save and reopening; a fresh exported B semantic matches independently read current and remounted archive; retained A stays unchanged. Any uncertainty aborts without replay.",
+  "arms": [
+    "one fresh folder and public PACKAGE import A",
+    "stop RW daemon and independently read A",
+    "own browser edit A2 only, explicit save, reopen exact same document and verify A2/B2/C2",
+    "fresh B export via Apple browser, no wrapping or byte rewriting",
+    "offline flat/wrapped source proof",
+    "independent actual currentB representation+semantic readback",
+    "distinct RO remount B capture and offline proof",
+    "finish and exact owned process/mount closure, installed audit"
+  ],
+  "maximum_seconds": 1800,
+  "no_replay": true,
+  "prior_trial_status": "49eb browser state unresolved; 4cc local invocation failed before phase; fd3 Root prematurely attempted folder before daemon ready, prereq refused before any folder/import phase; stopped/unmounted watcher and outer reaped0, no mutation. New independent arm, not replay.",
+  "user_notice": "Announce browser-edit phase before entering A2; change only A2, verify B2=3 and C2=14 before save and after reopening.",
+  "source_b": "MUST be a fresh export from this new document; never use prior B",
+  "capability_scope": "Owned browser editor + existing importer/read-only verifier; does not close all six gates or assert Linux native editor acceptance",
+  "standing_cloud_write_authorization": true,
+  "runtime_provider_readiness": false,
+  "source_asset_created": false,
+  "runtime_auth_or_attempts_created": false,
+  "source_head": "a297cdb2c50864701f175d5562e5b68d06abf36a",
+  "user_answer_unexpected_input": "Website open; no conscious edit; inadvertent input cannot be excluded; cause unknown",
+  "build_roles": "Four current-source Cargo validated cached ELFs; no forced rebuild; not provider acceptance",
+  "operator_invocation_contract": {
+    "python": "/usr/bin/python3.14",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-85afb1fd",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-85afb1fd",
+    "dispatch_only_after_external_watch_record": true,
+    "readiness_wait": "Only repeat read-only ready/status probes while exact owned daemon alive; no create-folder until successful ready. Any dependent guard failure aborts, no automatic mutation retry."
+  },
+  "actual_outcome": {
+    "status": "partial-browser-save-passed-export-file-unresolved-aborted",
+    "registered_source_head": "a297cdb2c50864701f175d5562e5b68d06abf36a",
+    "actual_local_controls": 38,
+    "actual_produced_ro_reader_passed": true,
+    "source_a_semantic_version": 2,
+    "source_a_semantic_sha256": "1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb",
+    "folder_create_count": 1,
+    "public_package_import_count": 1,
+    "independent_metadata_a_passed": true,
+    "independent_native_a_content_identity_passed": true,
+    "rw_stop_and_unmount_passed": true,
+    "ro_settings_install_passed": true,
+    "browser_initial_values": [
+      7,
+      3,
+      10
+    ],
+    "browser_saved_reopened_values": [
+      11,
+      3,
+      14
+    ],
+    "formula_preserved": "SUM(A2:B2)",
+    "browser_edit_count": 1,
+    "native_export_dispatch_count": 1,
+    "native_export_archive_obtained": false,
+    "export_failure_cause": "Unknown; no expected file, exportiframe error page. Downloadoverview policyblocked; no bypass or repeatedexport.",
+    "browser_witness_sha256": "95043cdfb50eb639a3cc9b6cf435be95dd3926280fa0a744d5f0f902917a1ed0",
+    "current_b_and_ro_remount_b_proved": false,
+    "all_six_full_integration_gates_closed": false,
+    "installed_delivery": "HOLD; installed daemon untouched",
+    "watcher_externally_reaped": true,
+    "watcher_exit": 0,
+    "outer_runner": {
+      "exit_code": 0,
+      "duration_seconds": 611.8990118249785,
+      "sources_unchanged": true,
+      "log_sha256": "04c9e44b51331cd046c1bfb30a831883fa26e7552ef0b7e148b2354ccb6f13e0",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "fully_completed_browser_arm": false
+  },
+  "actual_local_execution": {
+    "assets-v1": {
+      "exit_code": 0,
+      "duration_seconds": 2.037562594981864,
+      "sources_unchanged": true,
+      "log_sha256": "299bc622f7cc7e6c31608b9862500e3830ba92fa004ca759c6fddb76ae8291bf",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "source-a-proof-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.0171221409982536,
+      "sources_unchanged": true,
+      "log_sha256": "3282def1d13625173e8b0eb1da3674d22991c9aa1d8e8dbc15c56beaef879abc",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "lifecycle-twentythree-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.2338627919962164,
+      "sources_unchanged": true,
+      "log_sha256": "42b801e11554d5d3aa298382281cd816ded326f9295c2336f5748752c7469837",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "flat-launcher-six-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.09158737602410838,
+      "sources_unchanged": true,
+      "log_sha256": "6a1673c11d51f09ddaab0e54187ed60ea4a88037f5742bb8769a46b63d5ae764",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "roles-three-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.10222717700526118,
+      "sources_unchanged": true,
+      "log_sha256": "ec17ce8113bfb61a64db1668a44db64701433b4d1df6490a250963a8136ca3ac",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "supervisor-six-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.06257925200043246,
+      "sources_unchanged": true,
+      "log_sha256": "63e8bc15b98e10266c5120f0694b0014ff7010f4e1f95b41a34ab69a1546e603",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "actual-ro-read-bridge-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.05080269600148313,
+      "sources_unchanged": true,
+      "log_sha256": "47f33128a1d9d601d1697ec0b381a931f7a964f6b4d12c49bdb3c7f2f7da18b1",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "runtime-inputs-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.7113389690057375,
+      "sources_unchanged": true,
+      "log_sha256": "d06aecca7bf49592f6b6d586374ab8101dcae4fc1d20be37abe32bc943afd295",
+      "cloud_mutated": false,
+      "installed_actions": false
+    },
+    "check-local-v1": {
+      "exit_code": 0,
+      "duration_seconds": 0.8229565260116942,
+      "sources_unchanged": true,
+      "log_sha256": "b2d406408c31ed8dfc89f844e6327a8ea833e735e1f1d344ed0fc202f7da66e6",
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  },
+  "outer_runner_scope_correction": "Wrapper cloud_mutated:false describes wrapper scope only; real inner arm created one own folder/import and one browser cell change as separately recorded.",
+  "initial_startup_observation_correction": "First readiness observer looked for child_pid before _execute published it (KeyError); it dispatched no follow-on phase and did not change controller state. Subsequent read-only ready probe confirmed actual mount before folder dispatch.",
+  "preregistration_scope": "Top-level status and false readiness/asset/auth fields retain their historical pre-execution meaning. Current observed outcome is actual_outcome; no readiness assertion should be inferred from the preregistration snapshot.",
+  "current_status": "partial-browser-save-passed-export-file-unresolved-aborted",
+  "consolidation_full_check": {
+    "exit_code": 0,
+    "duration_seconds": 523.6658925439988,
+    "sources_unchanged": true,
+    "log_sha256": "286378117ebf053641ca947a8f57683fcc8504541f9d965c4d0ec839982032b7",
+    "cloud_mutated": false,
+    "installed_actions": false
+  },
+  "independent_closed_arm_audit": {
+    "sha256": "19a8ec8664b34b7be7480cba21940487e22bbdba092c1a67b4208377924cc810",
+    "all13_recorded_owners_absent": true,
+    "owned_mount_and_socket_absent": true,
+    "installed19_regular_files_and_daemon_unchanged": true
+  },
+  "current_source_ci": {
+    "head": "a297cdb2c50864701f175d5562e5b68d06abf36a",
+    "run_id": 37271745979,
+    "status": "completed",
+    "conclusion": "success",
+    "jobs_successful": 7,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37271745979",
+    "scope": "Committed a297 source before this documentation consolidation; does not claim installed delivery or CI success of a future documentation commit."
+  }
+}

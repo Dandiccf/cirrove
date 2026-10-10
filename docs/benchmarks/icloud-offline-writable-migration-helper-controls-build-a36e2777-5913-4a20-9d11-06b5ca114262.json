@@ -1,0 +1,104 @@
+{
+  "CARGO_BUILD_JOBS": 4,
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/cirrove-target-numbers-atomic-postflight-reader-20261007-v1",
+  "GREEN_executed": false,
+  "Python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "RED_credit": 0,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/writer-build-a36e2777-5913-4a20-9d11-06b5ca114262",
+  "TMPDIR": "/home/dandiccf/Storage/ct/writer-build-a36e2777-5913-4a20-9d11-06b5ca114262",
+  "active": false,
+  "active_measurement": false,
+  "actual_runtime_migration": false,
+  "archive_SQL_opened": false,
+  "arms": [
+    "queue-completion guard omission desired RED1",
+    "corrected exact full12 GREEN",
+    "normal-features distinct helper build"
+  ],
+  "authorization": "Root explicitly authorized this one offline synthetic controls/build; no archive SQL/copy/provider/service actions",
+  "binary_sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build_writable_helper_once_v3.py",
+    "--inputs",
+    "ROOT_APPROVED_BUILD_INPUTS400",
+    "--sha256",
+    "ROOT_EXACT_INPUT_SHA"
+  ],
+  "correction": "The selected negative control did not execute: rusqlite rejects reading u64 with FromSql (E0277). Exit101 was a compile error and earns zero RED credit. The next arm changes only the signed SQL decode plus checked conversion; this arm remains failed.",
+  "current_Root_HEAD": "f1e13755dbc56239c5db576fa036bee8bff7803c",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build_writable_helper_once_v3.py",
+    "sha256": "efea290841c12a37434e4840c01532e8a8c7f305c145c7956e0668b745fecf18",
+    "size": 14766
+  },
+  "duration_limits": {
+    "GREEN": 900,
+    "RED": 900,
+    "build": 900,
+    "cleanup_each": 10,
+    "metadata": 30
+  },
+  "endpoint": "specific runtime assertion RED101, corrected full12 GREEN, normal[] distinct frozen ELF and all original compiler groups closed",
+  "expected_commands": 4,
+  "expected_test_names": [
+    "migration_guard_tests::active_export_bytes_preserved",
+    "migration_guard_tests::nested_unknown_field_refused",
+    "migration_guard_tests::pending_queue_completion_change_refused",
+    "migration_guard_tests::preparation_uses_registered_source",
+    "migration_guard_tests::replacement_release_requires_materialized_preparing_source",
+    "migration_guard_tests::uncertain_upload_reset_preserves_authority",
+    "tests::changed_legacy_cell_or_missing_column_refuses_parity",
+    "tests::detached_wal_reader_preserves_actual_input_and_committed_rows",
+    "tests::enclosing_fuse_or_nested_mount_refuses",
+    "tests::non_utf8_member_is_refused_without_lossy_alias",
+    "tests::old_column_projection_preserves_duplicate_typed_rows_and_sequence",
+    "tests::real_cells_preserve_infinity_and_signed_zero_bits"
+  ],
+  "helper_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/offline_writable_migration_v2.rs",
+    "sha256": "2aaa8dc4d0bb8aee62261a89db64395df0f54ccc928267b496509f2c9163c8e0",
+    "size": 54197
+  },
+  "historical_W_HEAD": "90c5b83e8870cbf7d7779177eb6dbffd4c9b3864",
+  "installation_credit": false,
+  "installed_baseline": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/approved-authorities-v1/installed-baseline-v1.json",
+    "sha256": "c3a3af8a81aa7f175b72edebbf6e11967c8f535457de09f604ddba7c0eed4fb7",
+    "size": 9750
+  },
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/Cargo.toml.template",
+    "sha256": "a28537e27838a401a4274915ad7666dac5ae98fe409b494c289ad409406c6961",
+    "size": 955
+  },
+  "mutant_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/offline_writable_migration_v2-queue-guard-omission.rs",
+    "sha256": "616b5218ca7f112e0461deb81f6a436888efdb1ff4de4770b5b5abc066047115",
+    "size": 54207
+  },
+  "positive_name": "migration_guard_tests::pending_queue_completion_change_refused",
+  "prediction": "The exact omission must fail one runtime assertion; the corrected observer must pass all12 tests and build. Compiler failure is zero RED credit. No archive SQL/copy or installed compatibility outcome is implied.",
+  "provider_calls": 0,
+  "question": "Does the isolated offline writable-constructor observer reject one deliberate queue-completion guard omission, then pass all12 exact source controls and freeze a distinct normal-feature helper?",
+  "run": "a36e2777-5913-4a20-9d11-06b5ca114262",
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/audit-independent-offline-writable-source-v3.json",
+    "sha256": "2a728ff8ff1e5e0d9216577aa23c7403fda7b91ef0b827266df922c33851e835",
+    "size": 9915
+  },
+  "state": "closed_private_helper_compiler_failure",
+  "status": "closed_synthetic_build_refusal",
+  "success": false,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/installed-retained-writable-migration-preparation-20261008-private-v1/build-preparation-private-v1/build-execution-a36e2777-5913-4a20-9d11-06b5ca114262/root-closed-compiler-failure-v1.json",
+    "sha256": "c58d53804b27a1dd87e942f80e6f528e1836eab27d9f2d264b854f35ea896e88",
+    "size": 1561
+  },
+  "version": 1,
+  "whole_build_passed": false
+}

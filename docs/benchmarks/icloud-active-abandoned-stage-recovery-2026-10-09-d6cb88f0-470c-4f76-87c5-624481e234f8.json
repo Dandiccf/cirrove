@@ -1,0 +1,112 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/tmp",
+  "TMPDIR": "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/tmp",
+  "abandon_calls": 0,
+  "active_measurement": false,
+  "active_window": false,
+  "actual_SHM_delta": "mtime/ctime only; contents and stable fields unchanged",
+  "arms": [
+    "one fresh full source copy; one normal recovery-only startup; one receipt; one active export"
+  ],
+  "auth_started": false,
+  "background_provider_reads_allowed": true,
+  "cleanup_reserve_seconds": 45,
+  "commands": {
+    "daemon": [
+      "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirroved",
+      "--state-dir",
+      "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/state",
+      "--socket",
+      "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/control.sock",
+      "--recovery-only"
+    ],
+    "export": [
+      "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirrove",
+      "export-save",
+      "--label",
+      "iCloudPublicNativeValidation",
+      "--operation",
+      "82767008-4553-4f8b-99cc-8a521ad9c5ac",
+      "--destination",
+      "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/export/retained.pages",
+      "--socket",
+      "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/control.sock"
+    ],
+    "receipt": [
+      "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirrove",
+      "native-stage-abandonment",
+      "--label",
+      "iCloudPublicNativeValidation",
+      "--account-id",
+      "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+      "--operation",
+      "82767008-4553-4f8b-99cc-8a521ad9c5ac",
+      "--socket",
+      "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/control.sock"
+    ],
+    "status": [
+      "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirrove",
+      "status",
+      "--socket",
+      "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/control.sock"
+    ]
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-active-abandoned-stage-recovery-20261009-private-v1/run_active_abandoned_stage_once_v2.py",
+    "sha256": "421fc55782995e385c28bb25b796d43db5c06007e4d756a1b86c572c2f342bb3",
+    "size": 12591
+  },
+  "duration_seconds": 600,
+  "endpoint": {
+    "export_sha256": "83527e22cb8c56dd07a4d2a82acbc711711ff24d912df46f218eaab4ef62e776",
+    "export_size": 66268,
+    "journal": "all tables/typed cells; persistent DB/WAL/payload exact; transient WAL SHM index recorded separately",
+    "original": "FILE::com.apple.CloudDocs::8A909C8D-32D7-4E39-9202-DF1862E46C5A",
+    "stage": "FILE::com.apple.CloudDocs::086B85BF-007F-427E-88A6-78333B18DC8A"
+  },
+  "full490_closed": false,
+  "independent_actual_audit": {
+    "path": "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/evidence/audit-independent-active-stage-metadata-v1.json",
+    "sha256": "4731d27d280c8b9f4b8efc3e18b50b91513d012629a718d5be89ac37f2980b6f",
+    "size": 5650
+  },
+  "independent_actual_scope": "18/18: exact receipt/export; captured30-table schema18/persistent journal parity; physical owned PID/group/socket/mount closure. No original tree or installed ELF rehash by peer.",
+  "natural_expiry_proved": false,
+  "normal_roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirrove",
+      "sha256": "537d26bc081375745376674967c63ceeac9c3ab72ca4f769f3df56256c024b16",
+      "size": 476354464
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirroved",
+      "sha256": "dac71584fb9b5cc3dd3d6a67e362cfa1ef4e0f3f2a3de30a10e2032c67a5e1d6",
+      "size": 478050672
+    }
+  },
+  "observed_account_state": "updating_or_offline",
+  "original_Root_exec_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-active-abandoned-stage-recovery-20261009-private-v1/actual-d6cb88f0-470c-4f76-87c5-624481e234f8/root-original-exec-closure-v1.json",
+    "sha256": "7eb3d320248a50e3f0f78bbd1bc7105388d649a1796b389fb3bfef2002dbdd66",
+    "size": 450
+  },
+  "prediction": "The mounted read-only engine will expose the same historical IDs, export all66268 bytes exactly and preserve schema18 journal/checkpoint/payload; no cloud mutation/replay.",
+  "provider_file_mutations": 0,
+  "python": {
+    "path": "/usr/bin/python3.14",
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+    "size": 14424
+  },
+  "question": "Can a newly started normal recovery-only daemon expose the retained historical abandoned native Stage receipt and exact saved archive over its active socket, preserving all persistent journal state and original source/install?",
+  "retry_calls": 0,
+  "root": "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8",
+  "run": "d6cb88f0-470c-4f76-87c5-624481e234f8",
+  "source_state": "/var/tmp/cirrove-public-native-ec7f82e1/state",
+  "status": "closed_active_native_stage_recovery_pass",
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/native-stage-active-d6cb88f0-470c-4f76-87c5-624481e234f8/evidence/terminal-v1.json",
+    "sha256": "588c5680cf1c7c4c78e62c972c030230ac89ad9e4e209e36617ca39d846253de",
+    "size": 32227
+  },
+  "version": 1
+}

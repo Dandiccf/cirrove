@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "registered_at": 1791284737.1063936,
+  "status": "cached_cells_verified_formula_not_emitted",
+  "source_observation": "74e43e03-4a78-49ef-b5be-93997221a1ba",
+  "question": "What cached A2/B2/C2 values does the installed independent libetonyek importer decode from the unchanged currently fenced Numbers PACKAGE? Does it actually emit a formula?",
+  "prediction": "The content tree differs from retained A, but that does not prove cell changes. Existing importer may still decode cached 11/3/14 without exposing formula. Unexpected cells are observations, not an attribution to browser interference.",
+  "endpoint": "One actual numbers2raw invocation, exact balanced same-sheet row1/columns0,1,2 extraction, explicit formula only if emitted, unchanged source bytes/mode/identity/mtime and unchanged decoder",
+  "decoder": "/usr/bin/numbers2raw",
+  "decoder_sha256": "fc4279c3c35401057acb2cc25fc99677abe6a2edb6cf00e6c2acdb1c5ca2fbd7",
+  "source_sha256": "08a99b336d8b39f7d1c8254d6e498dd56ff8956e5aa6916db8adf374d7be03eb",
+  "source_size": 64852,
+  "wrapped_source_unchanged": true,
+  "no_archive_derivation": true,
+  "expected_duration_seconds": 30,
+  "per_stream_bound_bytes": 2097152,
+  "temporary_filesystem": "ext4",
+  "provider_calls": 0,
+  "cloud_mutations": 0,
+  "automatic_retry": false,
+  "installed_actions": false,
+  "full_icloud_criterion_closed": false,
+  "libetonyek": {
+    "path": "/usr/lib/libetonyek-0.1.so.1.0.13",
+    "sha256": "db313a4b4c50a3365a18ae8f538ba730ccce14c27f418aa5c9efc0c6c00cbdf7"
+  },
+  "actual_outcome": {
+    "exit_code": 0,
+    "elapsed_seconds": 0.010015616018790752,
+    "failure_class": null,
+    "signals": [],
+    "original_child_reaped": true,
+    "original_proc_absent": true,
+    "source_unchanged": true,
+    "decoder_unchanged": true,
+    "stdout_size": 19696,
+    "stdout_sha256": "9864dae02d54b670698ed0cdd646ac64861a77e062c1a40cec6958ae2db41a3e",
+    "stderr_size": 0,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "within_registered_window": true,
+    "library_unchanged": true,
+    "provider_calls": 0,
+    "automatic_retry": false,
+    "independent_extraction_sha256": "200d862cc0bfb508d21109146f834ffee220bae2d5768f75e3e1cfd24c6f1899",
+    "one_balanced_exact_sheet": true,
+    "sheet": "Sheet 1_Table 1",
+    "cells": [
+      {
+        "address": "A2",
+        "row_zero_based": 1,
+        "column_zero_based": 0,
+        "cached_value": 11,
+        "value_type": "double"
+      },
+      {
+        "address": "B2",
+        "row_zero_based": 1,
+        "column_zero_based": 1,
+        "cached_value": 3,
+        "value_type": "double"
+      },
+      {
+        "address": "C2",
+        "row_zero_based": 1,
+        "column_zero_based": 2,
+        "cached_value": 14,
+        "value_type": "double"
+      }
+    ],
+    "formula_property_occurrences": 0,
+    "sum_token_occurrences": 0,
+    "independent_cached_cells_verified": true,
+    "independent_formula_verified": false,
+    "complete_formula_endpoint_passed": false,
+    "callback_bytes_equal_previously_audited_trace": true,
+    "whole_package_equality_inferred": false,
+    "interpretation": "Actual current provider archive independently yields cached11/3/14. Importer emits no formula; this does not prove the formula is absent from the source or establish editor/export fidelity. Canonical content-tree changes must not be equated with these cell-value changes."
+  }
+}

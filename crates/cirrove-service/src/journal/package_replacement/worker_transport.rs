@@ -1,0 +1,758 @@
+#![allow(clippy::unwrap_used)]
+use super::*;
+use crate::{native_import::ValidatedPackageArchive, transfers::TransferWorker};
+use cirrove_auth::CredentialVault;
+use cirrove_core::{CancellationToken, upload::UploadRequest};
+use cirrove_icloud::{ICloudFileReplace, ROOT_ID, SealedUploadCheckpointVault};
+use secrecy::ExposeSecret;
+const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
+use base64::Engine as _;
+use cirrove_core::upload::PackageSemanticIdentity;
+use cirrove_icloud::{PackageDownload, package_archive_semantic_identity_versioned};
+use serde_json::json;
+use sha2::{Digest, Sha256};
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::{
+    io::Write,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+};
+use tokio_rustls::{
+    TlsAcceptor,
+    rustls::{
+        ServerConfig,
+        pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
+    },
+};
+const ORIGIN: &str = "https://fixture.icloud-content.com";
+const FOLDER: &str = "FOLDER::com.apple.CloudDocs::owned";
+const OLD: &str = "FILE::com.apple.CloudDocs::old";
+const NEW: &str = "FILE::com.apple.CloudDocs::new";
+fn archive(root: &str, old: bool, corrupt: bool) -> Vec<u8> {
+    crate::native_import::synthetic_package_archive(
+        &format!("{root}/Document"),
+        if corrupt {
+            b"divergent"
+        } else if old {
+            b"old owned content"
+        } else {
+            b"new owned content"
+        },
+    )
+}
+fn semantic(root: &str, old: bool, version: u32) -> PackageSemanticIdentity {
+    let bytes = archive(root, old, false);
+    let mut file = tempfile::tempfile().unwrap();
+    file.write_all(&bytes).unwrap();
+    package_archive_semantic_identity_versioned(
+        &file,
+        &PackageDownload {
+            size: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(&bytes)),
+        },
+        root,
+        version,
+        &CancellationToken::new(),
+    )
+    .unwrap()
+}
+struct Plan {
+    target_name: String,
+    staged_name: String,
+}
+#[derive(Clone)]
+struct Generation {
+    original: Node,
+    current: Node,
+    original_body: Vec<u8>,
+    current_body: Vec<u8>,
+    staged_etag: String,
+    trash_etag: String,
+}
+#[derive(Default)]
+struct State {
+    // Only the explicit-flat final-loss fixture populates this from the actual
+    // persisted preparation receipt. Wrapped fixtures retain raw equality.
+    flat_wire: Option<(u64, String, PackageSemanticIdentity)>,
+    generation: Option<Generation>,
+    registered: bool,
+    allocations: usize,
+    body_calls: usize,
+    registrations: usize,
+    trashed: bool,
+    installed: bool,
+    moved: bool,
+    deleted: bool,
+    changed: bool,
+    corrupt: bool,
+    collision: bool,
+    trash_calls: usize,
+    rename_calls: usize,
+    requests: usize,
+    package_507_after_trash_once: bool,
+    package_507_responses: usize,
+}
+struct Server {
+    state: Arc<Mutex<State>>,
+    task: tokio::task::JoinHandle<()>,
+    client: reqwest::Client,
+    paused: Arc<tokio::sync::Notify>,
+    release: Arc<tokio::sync::Notify>,
+}
+impl Drop for Server {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+fn entry(p: &Plan, s: &State, old: bool) -> serde_json::Value {
+    if let Some(generation) = &s.generation {
+        let node = if old {
+            &generation.original
+        } else {
+            &generation.current
+        };
+        let name = if old || s.installed {
+            &p.target_name
+        } else {
+            &p.staged_name
+        };
+        let etag = if old && s.changed {
+            "changed"
+        } else if old && s.trashed {
+            &generation.trash_etag
+        } else if old {
+            node.etag.as_deref().unwrap()
+        } else if s.installed {
+            generation.current.etag.as_deref().unwrap()
+        } else {
+            &generation.staged_etag
+        };
+        return json!({"drivewsid":node.id,"docwsid":node.id.rsplit("::").next().unwrap(),"zone":"com.apple.CloudDocs","type":"FILE",
+            "name":name.rsplit_once('.').unwrap().0,"extension":name.rsplit_once('.').unwrap().1,"size":node.size,
+            "parentId":if old&&s.trashed{"TRASH_ROOT"}else if old&&s.moved{"FOLDER::com.apple.CloudDocs::elsewhere"}else{FOLDER},
+            "restorePath":if old&&s.trashed{json!(["owned"])}else{json!(null)},"etag":etag});
+    }
+    let name = if old || s.installed {
+        &p.target_name
+    } else {
+        &p.staged_name
+    };
+    json!({"drivewsid":if old{OLD}else{NEW},"docwsid":if old{"old"}else{"new"},"zone":"com.apple.CloudDocs","type":"FILE",
+        "name":name.rsplit_once('.').unwrap().0,"extension":name.rsplit_once('.').unwrap().1,"size":17,
+        "parentId":if old&&s.trashed{"TRASH_ROOT"}else if old&&s.moved{"FOLDER::com.apple.CloudDocs::elsewhere"}else{FOLDER},
+        "restorePath":if old&&s.trashed{json!(["owned"])}else{json!(null)},
+        "etag":if old&&s.changed{"changed"}else if old&&s.trashed{"trash-v2"}else if old{"old-v1"}else if s.installed{"new-v2"}else{"new-v1"}})
+}
+impl Server {
+    async fn start(
+        plan: Plan,
+        source: Vec<u8>,
+        lost_registration: bool,
+        lost_trash: bool,
+        lost_rename: bool,
+        pause: Option<&'static str>,
+    ) -> Self {
+        Self::start_with_generation(
+            plan,
+            source,
+            lost_registration,
+            lost_trash,
+            lost_rename,
+            pause,
+            None,
+        )
+        .await
+    }
+    async fn start_generation(plan: Plan, source: Vec<u8>, generation: Generation) -> Self {
+        Self::start_with_generation(plan, source, false, false, false, None, Some(generation)).await
+    }
+    #[allow(clippy::too_many_arguments)]
+    async fn start_with_generation(
+        plan: Plan,
+        source: Vec<u8>,
+        lost_registration: bool,
+        lost_trash: bool,
+        lost_rename: bool,
+        pause: Option<&'static str>,
+        generation: Option<Generation>,
+    ) -> Self {
+        let decoder = base64::engine::general_purpose::STANDARD;
+        let cert = decoder
+            .decode(
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../cirrove-icloud/src/package_create/fixtures/server-cert.b64"
+                ))
+                .trim(),
+            )
+            .unwrap();
+        let key = decoder
+            .decode(
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../cirrove-icloud/src/package_create/fixtures/server-key.b64"
+                ))
+                .trim(),
+            )
+            .unwrap();
+        let config = ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(
+                vec![CertificateDer::from(cert.clone())],
+                PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(key)),
+            )
+            .unwrap();
+        let acceptor = TlsAcceptor::from(Arc::new(config));
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .resolve("fixture.icloud-content.com", listener.local_addr().unwrap())
+            .tls_certs_only([reqwest::Certificate::from_der(&cert).unwrap()])
+            .redirect(reqwest::redirect::Policy::none())
+            .timeout(Duration::from_secs(3))
+            .build()
+            .unwrap();
+        let state = Arc::new(Mutex::new(State {
+            generation,
+            ..State::default()
+        }));
+        let observed = state.clone();
+        let paused = Arc::new(tokio::sync::Notify::new());
+        let release = Arc::new(tokio::sync::Notify::new());
+        let reached = paused.clone();
+        let resume = release.clone();
+        let task = tokio::spawn(async move {
+            loop {
+                let (socket, _) = listener.accept().await.unwrap();
+                tokio::time::timeout(Duration::from_secs(3),async {
+                let mut stream=acceptor.accept(socket).await.unwrap();let mut raw=Vec::new();
+                let (path,body)=loop {let mut buf=[0;4096];let n=stream.read(&mut buf).await.unwrap();assert!(n>0);raw.extend_from_slice(&buf[..n]);assert!(raw.len()<128*1024);
+                    let Some(end)=raw.windows(4).position(|w|w==b"\r\n\r\n") else{continue};let head=std::str::from_utf8(&raw[..end]).unwrap();
+                    let size=head.lines().find_map(|v|v.to_ascii_lowercase().strip_prefix("content-length: ").map(str::to_owned)).map(|v|v.parse::<usize>().unwrap()).unwrap_or(0);
+                    if raw.len()>=end+4+size {break(head.lines().next().unwrap().split_whitespace().nth(1).unwrap().to_owned(),raw[end+4..end+4+size].to_vec())}
+                };
+                let mut status = "200 Fixture";
+                let mut reply={let mut s=observed.lock().unwrap();s.requests+=1;let url=reqwest::Url::parse(&format!("{ORIGIN}{path}")).unwrap();
+                let old_id=s.generation.as_ref().map(|g|g.original.id.clone()).unwrap_or_else(||OLD.into());
+                let new_id=s.generation.as_ref().map(|g|g.current.id.clone()).unwrap_or_else(||NEW.into());
+                let old_doc=old_id.rsplit("::").next().unwrap().to_owned();
+                let new_doc=new_id.rsplit("::").next().unwrap().to_owned();
+                let old_etag=s.generation.as_ref().and_then(|g|g.original.etag.clone()).unwrap_or_else(||"old-v1".into());
+                let staged_etag=s.generation.as_ref().map(|g|g.staged_etag.clone()).unwrap_or_else(||"new-v1".into());
+                match url.path(){
+                    "/retrieveItemDetailsInFolders"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request[0]["drivewsid"],FOLDER);let mut items=if s.registered{vec![entry(&plan,&s,false)]}else{vec![]};if !s.trashed&&!s.moved&&!s.deleted{items.push(entry(&plan,&s,true));}
+                    if s.collision{let mut other=entry(&plan,&s,false);other["drivewsid"]=json!("FILE::com.apple.CloudDocs::foreign");other["name"]=json!("Target");items.push(other);}Some(json!([{"drivewsid":FOLDER,"parentId":ROOT_ID,"name":"Owned","zone":"com.apple.CloudDocs","type":"FOLDER","numberOfItems":items.len(),"items":items}]).to_string().into_bytes())},
+                    "/ws/com.apple.CloudDocs/upload/web"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["type"],"PACKAGE");assert_eq!(r["filename"],plan.staged_name);assert_eq!(r["size"],s.flat_wire.as_ref().map(|wire|wire.0).unwrap_or(source.len() as u64));s.allocations+=1;assert_eq!(s.allocations,1);Some(json!([{"url":format!("{ORIGIN}/signed-upload"),"document_id":new_doc,"owner_id":""}]).to_string().into_bytes())},
+                    "/signed-upload"=>{if let Some((size,sha,semantic))=&s.flat_wire {
+                        assert_eq!(body.len() as u64,*size);
+                        assert_eq!(hex::encode(Sha256::digest(&body)),*sha);
+                        let mut file=tempfile::tempfile().unwrap();file.write_all(&body).unwrap();
+                        assert_eq!(package_archive_semantic_identity_versioned(&file,&PackageDownload{size:*size,sha256:sha.clone()},&plan.staged_name,2,&CancellationToken::new()).unwrap(),*semantic);
+                    }else{assert_eq!(body,source);}s.body_calls+=1;assert_eq!(s.body_calls,1);Some(json!({"hexBrSyntheticChecksum":"aa","ckSectionAssets":[{"hexFileChecksum":"bb","hexReferenceChecksum":"cc","hexWrappingKey":"dd","receiptToken":"YQ==","size":body.len()}]}).to_string().into_bytes())},
+                    "/ws/com.apple.CloudDocs/update/documents"=>{let r:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(r["command"],"add_package");assert_eq!(r["document_id"],new_doc);assert_eq!(r["path"]["path"],plan.staged_name);assert_eq!(r["path"]["starting_document_id"],"owned");assert_eq!(r["allow_conflict"],false);assert_eq!(s.body_calls,1);s.registrations+=1;assert_eq!(s.registrations,1);s.registered=true;if lost_registration{None}else{Some(json!({"status":{"status_code":0},"results":[{"status":{"status_code":0},"document":{"document_id":new_doc,"item_id":format!("{new_doc}-item"),"etag":staged_etag,"size":17,"name":plan.staged_name}}]}).to_string().into_bytes())}},
+                    "/retrieveItemDetails"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();let old=request["items"][0]["drivewsid"]==old_id;assert!(old||request["items"][0]["drivewsid"]==new_id);Some(json!({"items":if old&&s.deleted{vec![]}else{vec![entry(&plan,&s,old)]}}).to_string().into_bytes())},
+                    "/ws/com.apple.CloudDocs/download/by_id"=>{let id=url.query_pairs().find(|(key,_)|key=="document_id").unwrap().1;assert!(id==old_doc||id==new_doc);Some(json!({"package_token":{"url":format!("{ORIGIN}/archive/{id}")}}).to_string().into_bytes())},
+                    archive_path if archive_path.starts_with("/archive/")=>{
+                        let document=archive_path.strip_prefix("/archive/").unwrap();
+                        assert!(document==old_doc||document==new_doc);
+                        let old=document==old_doc;
+                        if !old && s.trashed && !s.installed && s.package_507_after_trash_once {
+                            s.package_507_after_trash_once=false;
+                            s.package_507_responses+=1;
+                            status="507 Insufficient Storage";
+                            Some(b"PRIVATE PACKAGE PROVIDER BODY auth-secret".to_vec())
+                        } else {
+                            let name=if old||s.installed{&plan.target_name}else{&plan.staged_name};
+                            Some(if let Some(generation)=&s.generation {
+                                crate::native_import::synthetic_package_archive(&format!("{name}/Document"), if s.corrupt {b"divergent"} else if old {&generation.original_body} else {&generation.current_body})
+                            } else {archive(name,old,s.corrupt)})
+                        }
+                    },
+                    "/moveItemsToTrash"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],old_id);assert_eq!(request["items"][0]["etag"],old_etag);s.trash_calls+=1;assert_eq!(s.trash_calls,1);assert!(!s.changed&&!s.moved&&!s.deleted);s.trashed=true;if lost_trash{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
+                    "/renameItems"=>{let request:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(request["items"][0]["drivewsid"],new_id);assert_eq!(request["items"][0]["etag"],staged_etag);assert_eq!(request["items"][0]["name"],plan.target_name);s.rename_calls+=1;assert_eq!(s.rename_calls,1);assert!(s.trashed);s.installed=true;if lost_rename{None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
+                    _=>panic!("unexpected synthetic native handoff route"),
+                }};
+                if pause.is_some_and(|route|path.split('?').next()==Some(route)) {reached.notify_one();resume.notified().await;reply=None;}
+                if let Some(reply)=reply{stream.write_all(format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",reply.len()).as_bytes()).await.unwrap();stream.write_all(&reply).await.unwrap();stream.shutdown().await.unwrap();}
+            }).await.unwrap();
+            }
+        });
+        Self {
+            state,
+            task,
+            client,
+            paused,
+            release,
+        }
+    }
+}
+
+fn directory() -> tempfile::TempDir {
+    tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir_in("/var/tmp")
+        .unwrap()
+}
+fn original() -> Node {
+    Node {
+        id: OLD.into(),
+        parent_id: Some(FOLDER.into()),
+        name: "Target.pages".into(),
+        kind: NodeKind::Folder,
+        size: 17,
+        modified_unix: 0,
+        etag: Some("old-v1".into()),
+        content_version: None,
+        target: None,
+        package: true,
+    }
+}
+fn parent() -> Node {
+    Node {
+        id: FOLDER.into(),
+        parent_id: Some(ROOT_ID.into()),
+        name: "Owned".into(),
+        kind: NodeKind::Folder,
+        size: 0,
+        modified_unix: 0,
+        etag: None,
+        content_version: None,
+        target: None,
+        package: false,
+    }
+}
+fn request(row: &UploadRecord) -> UploadRequest {
+    UploadRequest {
+        scope: row.scope.clone(),
+        intent: row.intent.clone(),
+        size: row.size,
+        sha256: row.sha256.clone(),
+        representation: row.representation.clone(),
+    }
+}
+fn provider(server: &Server, staging: &Path, row: &UploadRecord) -> Arc<ICloudFileReplace> {
+    Arc::new(
+        ICloudFileReplace::synthetic_native_package(
+            request(row),
+            parent(),
+            row.id,
+            staging,
+            server.client.clone(),
+        )
+        .unwrap(),
+    )
+}
+#[derive(Default)]
+struct WrappingKeys(Mutex<std::collections::BTreeMap<String, secrecy::SecretString>>);
+#[async_trait::async_trait]
+impl CredentialVault for WrappingKeys {
+    async fn load(&self, key: &str) -> anyhow::Result<Option<secrecy::SecretString>> {
+        Ok(self.0.lock().unwrap().get(key).cloned())
+    }
+    async fn save(&self, key: &str, value: secrecy::SecretString) -> anyhow::Result<()> {
+        // This store must receive wrapping keys only, never checkpoint text.
+        assert!(value.expose_secret().starts_with("icloud-seal-v1:"));
+        assert!(value.expose_secret().len() < 256);
+        self.0.lock().unwrap().insert(key.into(), value);
+        Ok(())
+    }
+    async fn remove(&self, key: &str) -> anyhow::Result<()> {
+        self.0.lock().unwrap().remove(key);
+        Ok(())
+    }
+}
+struct Arm {
+    root: tempfile::TempDir,
+    staging: tempfile::TempDir,
+    state: tempfile::TempDir,
+    row: UploadRecord,
+    bytes: Vec<u8>,
+    keys: Arc<WrappingKeys>,
+}
+impl Arm {
+    fn create() -> Self {
+        let root = directory();
+        let staging = directory();
+        let state = directory();
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let bytes = archive("Source.pages", false, false);
+        let source = staging.path().join("edited.pages");
+        {
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&source)
+                .unwrap();
+            f.write_all(&bytes).unwrap();
+            f.sync_all().unwrap();
+        }
+        let validated = ValidatedPackageArchive::capture(
+            &source,
+            staging.path(),
+            "Source.pages",
+            &CancellationToken::new(),
+        )
+        .unwrap();
+        let mut journal = UploadJournal::open(root.path(), &scope.account, 1024 * 1024).unwrap();
+        let row = journal
+            .enqueue_validated_package_replacement(
+                scope,
+                original(),
+                semantic("Target.pages", true, 1),
+                validated,
+                &CancellationToken::new(),
+            )
+            .unwrap();
+        drop(journal);
+        Self {
+            root,
+            staging,
+            state,
+            row,
+            bytes,
+            keys: Arc::new(WrappingKeys::default()),
+        }
+    }
+    fn journal(&self) -> UploadJournal {
+        UploadJournal::open(self.root.path(), &self.row.scope.account, 1024 * 1024).unwrap()
+    }
+    fn vault(&self) -> Arc<SealedUploadCheckpointVault> {
+        Arc::new(
+            SealedUploadCheckpointVault::with_test_key_vault(
+                self.state.path(),
+                &self.row.scope.account,
+                self.keys.clone(),
+            )
+            .unwrap(),
+        )
+    }
+    fn plan(&self) -> Plan {
+        Plan {
+            target_name: "Target.pages".into(),
+            staged_name: format!("staged-by-cirrove-{}.pages", self.row.id),
+        }
+    }
+    fn retained_export(&self, suffix: usize) {
+        let recovery = RecoveryJournal::open(self.root.path(), &self.row.scope.account).unwrap();
+        let before = serde_json::to_value(recovery.list(0, 10).unwrap()).unwrap();
+        let export = self.staging.path().join(format!("recovery-{suffix}.zip"));
+        let receipt = recovery
+            .local_export_source(self.row.id)
+            .unwrap()
+            .copy_to(&export, &CancellationToken::new(), |_| {})
+            .unwrap();
+        assert_eq!(receipt.sha256, self.row.sha256);
+        assert_eq!(std::fs::read(export).unwrap(), self.bytes);
+        assert_eq!(
+            serde_json::to_value(recovery.list(0, 10).unwrap()).unwrap(),
+            before
+        );
+    }
+    async fn sealed_checkpoint(&self, expected_phase: &str) {
+        let key = format!("upload/{}", self.row.id);
+        assert!(self.keys.0.lock().unwrap().contains_key(&key));
+        let secret = self
+            .vault()
+            .load(&key)
+            .await
+            .unwrap()
+            .expect("durable checkpoint");
+        assert!(secret.expose_secret().len() <= 96 * 1024);
+        let path = self
+            .state
+            .path()
+            .join("accounts")
+            .join(&self.row.scope.account)
+            .join("upload-checkpoints")
+            .join(self.row.id.to_string())
+            .join("checkpoint.sealed");
+        let encrypted = std::fs::read(path).unwrap();
+        for forbidden in [
+            b"fixture.icloud-content.com".as_slice(),
+            b"account_hash".as_slice(),
+            b"PackageReplacementArchive".as_slice(),
+        ] {
+            assert!(!encrypted.windows(forbidden.len()).any(|v| v == forbidden));
+        }
+        let saved: serde_json::Value = serde_json::from_str(secret.expose_secret()).unwrap();
+        assert_eq!(saved["operation"], self.row.id.to_string());
+        if expected_phase == "registration" {
+            assert_eq!(
+                saved["phase"]["Stage"]["inner"]["phase"],
+                "RegistrationArmed"
+            );
+        } else {
+            assert_eq!(saved["phase"]["Handoff"]["phase"], expected_phase);
+        }
+    }
+    fn complete(&self) {
+        let journal = self.journal();
+        let row = journal.get(self.row.id).unwrap();
+        assert_eq!(row.state, UploadState::Uploaded);
+        let remote = row.remote.unwrap();
+        assert_eq!(remote.id, NEW);
+        assert_eq!(remote.name, "Target.pages");
+        assert_eq!(remote.size, 17);
+        assert!(remote.package);
+        assert_eq!(
+            row.package_completion,
+            Some(semantic("Source.pages", false, 2))
+        );
+        let backup = row
+            .identity_handoff
+            .as_ref()
+            .and_then(|r| r.backup.as_ref())
+            .expect("old identity receipt");
+        assert_eq!(backup.id, OLD);
+        assert_eq!(backup.parent_id.as_deref(), Some(TRASH_ROOT));
+        assert_eq!(
+            std::fs::read(journal.objects.join(row.id.to_string())).unwrap(),
+            self.bytes
+        );
+    }
+}
+fn counts(server: &Server) -> (usize, usize, usize, usize, usize) {
+    let s = server.state.lock().unwrap();
+    (
+        s.allocations,
+        s.body_calls,
+        s.registrations,
+        s.trash_calls,
+        s.rename_calls,
+    )
+}
+async fn pass(arm: &Arm, server: &Server, retry: bool) -> UploadState {
+    let mut journal = arm.journal();
+    if retry {
+        journal.request_retry(arm.row.id).unwrap();
+    }
+    let journal = Arc::new(Mutex::new(journal));
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider(server, arm.staging.path(), &arm.row),
+        arm.vault(),
+        CancellationToken::new(),
+    );
+    let result = tokio::time::timeout(Duration::from_secs(30), worker.run_once())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    drop(worker);
+    drop(journal);
+    result.state
+}
+#[tokio::test]
+async fn native_coordinator_real_worker_reopens_sealed_checkpoints_after_each_lost_reply() {
+    let arm = Arm::create();
+    let server = Server::start(arm.plan(), arm.bytes.clone(), true, true, true, None).await;
+    for attempt in 0..3 {
+        assert_eq!(
+            pass(&arm, &server, attempt > 0).await,
+            UploadState::VerifyRequired
+        );
+        arm.sealed_checkpoint(match attempt {
+            0 => "registration",
+            1 => "move_old",
+            _ => "install_inspected",
+        })
+        .await;
+        arm.retained_export(attempt);
+        let expected = match attempt {
+            0 => (1, 1, 1, 0, 0),
+            1 => (1, 1, 1, 1, 0),
+            _ => (1, 1, 1, 1, 1),
+        };
+        assert_eq!(counts(&server), expected);
+    }
+    assert_eq!(pass(&arm, &server, true).await, UploadState::Uploaded);
+    arm.complete();
+    assert_eq!(counts(&server), (1, 1, 1, 1, 1));
+    assert!(
+        arm.vault()
+            .load(&format!("upload/{}", arm.row.id))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(arm.keys.0.lock().unwrap().is_empty());
+}
+#[tokio::test]
+async fn native_coordinator_worker_abort_and_cancellation_keep_armed_checkpoint_without_replay() {
+    for abort in [true, false] {
+        let arm = Arm::create();
+        let server = Server::start(
+            arm.plan(),
+            arm.bytes.clone(),
+            false,
+            false,
+            false,
+            Some("/moveItemsToTrash"),
+        )
+        .await;
+        let journal = Arc::new(Mutex::new(arm.journal()));
+        let cancel = CancellationToken::new();
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider(&server, arm.staging.path(), &arm.row),
+            arm.vault(),
+            cancel.clone(),
+        );
+        let task = tokio::spawn(async move { worker.run_once().await });
+        tokio::time::timeout(Duration::from_secs(20), server.paused.notified())
+            .await
+            .unwrap();
+        assert_eq!(counts(&server), (1, 1, 1, 1, 0));
+        if abort {
+            task.abort();
+            assert!(task.await.unwrap_err().is_cancelled());
+        } else {
+            cancel.cancel();
+            assert_eq!(
+                tokio::time::timeout(Duration::from_secs(2), task)
+                    .await
+                    .expect("cancel before held response release")
+                    .unwrap()
+                    .unwrap()
+                    .unwrap()
+                    .state,
+                UploadState::VerifyRequired
+            );
+        }
+        drop(journal);
+        server.release.notify_one();
+        arm.sealed_checkpoint("move_old").await;
+        arm.retained_export(0);
+        assert_eq!(pass(&arm, &server, true).await, UploadState::Uploaded);
+        arm.complete();
+        assert_eq!(counts(&server), (1, 1, 1, 1, 1));
+    }
+}
+
+#[tokio::test]
+async fn native_coordinator_worker_package_readback_storage_refusal_requires_explicit_retry() {
+    let arm = Arm::create();
+    let server = Server::start(arm.plan(), arm.bytes.clone(), false, false, false, None).await;
+    server.state.lock().unwrap().package_507_after_trash_once = true;
+    let journal = Arc::new(Mutex::new(arm.journal()));
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider(&server, arm.staging.path(), &arm.row),
+        arm.vault(),
+        CancellationToken::new(),
+    );
+    let result = tokio::time::timeout(Duration::from_secs(30), worker.run_once())
+        .await
+        .unwrap()
+        .unwrap()
+        .expect("registered native replacement must run once");
+    assert_eq!(result.id, arm.row.id);
+    assert_eq!(counts(&server), (1, 1, 1, 1, 0));
+    {
+        let state = server.state.lock().unwrap();
+        assert!(state.trashed);
+        assert!(!state.installed);
+        assert_eq!(state.package_507_responses, 1);
+        assert!(!state.package_507_after_trash_once);
+    }
+    assert_eq!(result.state, UploadState::Failed);
+    let expected_issue = cirrove_core::upload::UploadError::InsufficientStorage.to_string();
+    assert_eq!(result.issue.as_deref(), Some(expected_issue.as_str()));
+    let issue = result.issue.as_deref().unwrap();
+    for forbidden in [
+        "PRIVATE",
+        "auth-secret",
+        "fixture.icloud-content.com",
+        "/archive/new",
+    ] {
+        assert!(
+            !issue.contains(forbidden),
+            "worker issue exposed response details"
+        );
+    }
+    let retained_row = journal.lock().unwrap().get(arm.row.id).unwrap();
+    assert!(retained_row.remote.is_none());
+    assert!(retained_row.package_completion.is_none());
+    assert!(retained_row.native_replacement_receipt().is_none());
+    let reservation = serde_json::to_value(
+        retained_row
+            .identity_handoff
+            .as_ref()
+            .expect("reserved original identity"),
+    )
+    .unwrap();
+    let recovery_name = format!("recovery-by-cirrove-{}.pages", arm.row.id);
+    assert_eq!(reservation["old_item"], OLD);
+    assert_eq!(reservation["recovery_name"], recovery_name);
+    assert_eq!(reservation["trash_parent"], TRASH_ROOT);
+    assert!(reservation["backup"].is_null());
+    let recovery_id = Uuid::parse_str(reservation["recovery_object"].as_str().unwrap()).unwrap();
+    let recovery = journal
+        .lock()
+        .unwrap()
+        .namespace_object(recovery_id)
+        .unwrap();
+    assert_eq!(recovery.id, recovery_id);
+    assert_eq!(recovery.scope, arm.row.scope);
+    assert!(recovery.unlinked);
+    assert!(!recovery.remote_owned);
+    assert_eq!(recovery.remote.as_ref(), Some(&original()));
+    assert_eq!(recovery.node.id, format!("local-recovery-{recovery_id}"));
+    assert_eq!(recovery.node.name, recovery_name);
+    assert!(recovery.latest.is_none());
+    assert!(recovery.working_file.is_none());
+    let retained_recovery = serde_json::to_value(recovery).unwrap();
+    let retained = serde_json::to_value(retained_row).unwrap();
+    let requests = server.state.lock().unwrap().requests;
+    // Storage has already recovered because the injected refusal fires once.
+    // A failed operation must still require the explicit user retry below.
+    let idle = tokio::time::timeout(Duration::from_secs(2), worker.run_once())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        idle.is_none(),
+        "storage recovery silently restarted native work"
+    );
+    assert_eq!(server.state.lock().unwrap().requests, requests);
+    assert_eq!(counts(&server), (1, 1, 1, 1, 0));
+    assert_eq!(
+        serde_json::to_value(journal.lock().unwrap().get(arm.row.id).unwrap()).unwrap(),
+        retained
+    );
+    assert_eq!(
+        serde_json::to_value(
+            journal
+                .lock()
+                .unwrap()
+                .namespace_object(recovery_id)
+                .unwrap()
+        )
+        .unwrap(),
+        retained_recovery
+    );
+    drop(worker);
+    drop(journal);
+    arm.sealed_checkpoint("move_old").await;
+    arm.retained_export(507);
+    assert_eq!(pass(&arm, &server, true).await, UploadState::Uploaded);
+    arm.complete();
+    assert_eq!(counts(&server), (1, 1, 1, 1, 1));
+    assert_eq!(server.state.lock().unwrap().package_507_responses, 1);
+}
+
+#[path = "worker_transport/fuse_https.rs"]
+mod fuse_https;
+
+#[cfg(feature = "icloud-write-probe")]
+#[path = "../../validation/icloud_account/native_final_recovery/tls_tests.rs"]
+mod native_final_tests;

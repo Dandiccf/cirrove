@@ -13,6 +13,10 @@ struct PackageProvider {
     representation_count: AtomicUsize,
     listing_calls: AtomicUsize,
     fail_listing: AtomicBool,
+    streamed: AtomicBool,
+    hangs: AtomicBool,
+    stream_fails: Arc<AtomicBool>,
+    stream_reads: Arc<AtomicUsize>,
 }
 
 fn node(id: &str, parent: Option<&str>, name: &str, kind: NodeKind, package: bool) -> Node {
@@ -60,6 +64,14 @@ impl MetadataProvider for PackageProvider {
 
 #[async_trait::async_trait]
 impl ReadProvider for PackageProvider {
+    fn content_read_timeout(&self, _: &Node) -> Duration {
+        if self.hangs.load(Ordering::SeqCst) {
+            Duration::from_millis(20)
+        } else {
+            Duration::from_secs(30)
+        }
+    }
+
     fn refresh_cached_packages_on_first_open(&self) -> bool {
         true
     }
@@ -110,7 +122,11 @@ impl ReadProvider for PackageProvider {
             return Err(ProviderError::Unavailable);
         }
         let mut nodes = vec![Node {
-            size: 7,
+            size: if self.streamed.load(Ordering::SeqCst) {
+                2 * crate::content::BLOCK_SIZE as u64 + 17
+            } else {
+                7
+            },
             ..node(
                 "derived-export",
                 Some("package"),
@@ -142,7 +158,27 @@ impl ReadProvider for PackageProvider {
         _: u32,
         _: &CancellationToken,
     ) -> std::result::Result<Vec<u8>, ProviderError> {
+        if self.hangs.load(Ordering::SeqCst) {
+            std::future::pending::<()>().await;
+        }
         Err(ProviderError::Permission)
+    }
+
+    async fn staged_content_session(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        _: &CancellationToken,
+    ) -> std::result::Result<Option<Arc<dyn cirrove_core::reads::ReadSession>>, ProviderError> {
+        if !self.streamed.load(Ordering::SeqCst) {
+            return Ok(None);
+        }
+        Ok(Some(Arc::new(PackageSession {
+            identity: cirrove_core::reads::ReadIdentity::new(scope, node)?,
+            reads: self.stream_reads.clone(),
+            fails: self.stream_fails.clone(),
+            invalid: 0,
+        })))
     }
 
     async fn staged_content(
@@ -151,6 +187,10 @@ impl ReadProvider for PackageProvider {
         node: &Node,
         _: &CancellationToken,
     ) -> std::result::Result<Option<Arc<[u8]>>, ProviderError> {
+        assert!(
+            !self.streamed.load(Ordering::SeqCst),
+            "disk artifact must not request a whole-memory copy"
+        );
         Ok(matches!(node.id.as_str(), "derived-export" | "derived-pdf")
             .then(|| Arc::from(&b"content"[..])))
     }
@@ -332,3 +372,219 @@ async fn directory_fetch_passes_committed_parent_metadata_to_provider_packages()
     assert_eq!(bytes, b"content");
     engine.stop().await;
 }
+
+struct PackageSession {
+    identity: cirrove_core::reads::ReadIdentity,
+    reads: Arc<AtomicUsize>,
+    fails: Arc<AtomicBool>,
+    invalid: u8,
+}
+#[async_trait::async_trait]
+impl cirrove_core::reads::ReadSession for PackageSession {
+    fn identity(&self) -> &cirrove_core::reads::ReadIdentity {
+        &self.identity
+    }
+    async fn read_range(
+        &self,
+        offset: u64,
+        length: u32,
+        cancel: &CancellationToken,
+    ) -> std::result::Result<Vec<u8>, ProviderError> {
+        assert!(length <= crate::content::BLOCK_SIZE);
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.fails.load(Ordering::SeqCst) && offset > 0 {
+            return Err(ProviderError::VersionChanged);
+        }
+        let mut bytes: Vec<_> = (offset..offset + u64::from(length))
+            .map(|v| (v % 251) as u8)
+            .collect();
+        if self.invalid == 1 {
+            bytes.pop();
+        }
+        if self.invalid == 2 {
+            cancel.cancel();
+        }
+        Ok(bytes)
+    }
+}
+
+#[tokio::test]
+async fn streamed_generated_content_is_cached_before_publication_and_survives_restart() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let provider = Arc::new(PackageProvider::default());
+    provider.streamed.store(true, Ordering::SeqCst);
+    let state = temp.path().join("state");
+    let engine = Engine::new(account.clone(), provider.clone(), state.clone())
+        .await
+        .unwrap();
+    let scope = engine.scope("primary");
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
+    let children = engine.children(&scope, "package").await.unwrap();
+    assert_eq!(children.len(), 1);
+    assert_eq!(provider.stream_reads.load(Ordering::SeqCst), 3);
+    let child = children[0].clone();
+    engine.stop().await;
+    drop(engine);
+    let engine = Engine::new(account, provider.clone(), state).await.unwrap();
+    let stored = engine.node(&scope, &child.id).await.unwrap();
+    assert_eq!(stored, child);
+    for offset in [
+        0,
+        crate::content::BLOCK_SIZE as u64 - 17,
+        2 * crate::content::BLOCK_SIZE as u64,
+    ] {
+        let length = (child.size - offset).min(64) as u32;
+        let bytes = engine
+            .cache
+            .read(
+                provider.as_ref(),
+                &scope,
+                &child,
+                offset,
+                length,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            bytes,
+            (offset..offset + length as u64)
+                .map(|v| (v % 251) as u8)
+                .collect::<Vec<_>>()
+        );
+    }
+    assert_eq!(
+        provider.stream_reads.load(Ordering::SeqCst),
+        3,
+        "reopened reads must come from the shared cache"
+    );
+    engine.stop().await;
+}
+
+#[tokio::test]
+async fn failed_generated_stream_does_not_publish_its_directory_entry() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let provider = Arc::new(PackageProvider::default());
+    provider.streamed.store(true, Ordering::SeqCst);
+    provider.stream_fails.store(true, Ordering::SeqCst);
+    let engine = Engine::new(account, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let scope = engine.scope("primary");
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(engine.children(&scope, "package").await.is_err());
+    assert_eq!(provider.stream_reads.load(Ordering::SeqCst), 2);
+    assert!(
+        Store::open(&engine.db)
+            .unwrap()
+            .node(&scope, "derived-export")
+            .unwrap()
+            .is_none()
+    );
+    engine.stop().await;
+}
+
+#[tokio::test]
+async fn staged_session_refuses_foreign_identity_short_ranges_and_cancelled_results() {
+    let temp = tempfile::tempdir().unwrap();
+    let cache = crate::content::ContentCache::new(
+        temp.path().join("cache"),
+        temp.path().join("blocks"),
+        64 * 1024 * 1024,
+    )
+    .unwrap();
+    let scope = Scope {
+        account: "account".into(),
+        provider: "fixture".into(),
+        collection: "drive".into(),
+    };
+    for invalid in [1, 2, 3] {
+        let item = Node {
+            size: 7,
+            ..node(
+                &format!("case-{invalid}"),
+                Some("package"),
+                "Archive",
+                NodeKind::File,
+                false,
+            )
+        };
+        let mut identity = cirrove_core::reads::ReadIdentity::new(&scope, &item).unwrap();
+        if invalid == 3 {
+            identity.scope.account = "foreign".into();
+        }
+        let reads = Arc::new(AtomicUsize::new(0));
+        let session = PackageSession {
+            identity,
+            reads: reads.clone(),
+            fails: Arc::new(AtomicBool::new(false)),
+            invalid,
+        };
+        let result = cache
+            .stage_session(&scope, &item, &session, &CancellationToken::new())
+            .await;
+        assert!(result.is_err());
+        assert_eq!(
+            reads.load(Ordering::SeqCst),
+            if invalid == 3 { 0 } else { 1 }
+        );
+        let key = crate::content::block_key(&scope, &item, 0).unwrap();
+        assert!(!temp.path().join("cache").join(key).exists());
+    }
+}
+
+#[tokio::test]
+async fn generated_content_miss_obeys_provider_deadline_even_if_transport_ignores_cancel() {
+    let temp = tempfile::tempdir().unwrap();
+    let cache = crate::content::ContentCache::new(
+        temp.path().join("cache"),
+        temp.path().join("blocks"),
+        64 * 1024 * 1024,
+    )
+    .unwrap();
+    let provider = PackageProvider::default();
+    provider.hangs.store(true, Ordering::SeqCst);
+    let scope = Scope {
+        account: "account".into(),
+        provider: "fixture".into(),
+        collection: "drive".into(),
+    };
+    let item = Node {
+        size: 7,
+        ..node("derived", Some("package"), "Archive", NodeKind::File, false)
+    };
+    let outcome = tokio::time::timeout(
+        Duration::from_secs(1),
+        cache.read(&provider, &scope, &item, 0, 7, &CancellationToken::new()),
+    )
+    .await;
+    assert!(
+        matches!(outcome, Ok(Err(ProviderError::Unavailable))),
+        "cache miss must obey the provider deadline"
+    );
+}
+
+#[path = "packages/revision_retry.rs"]
+mod revision_retry;

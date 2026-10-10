@@ -1,9 +1,20 @@
 //! Experimental local edit projection. Network hydration never holds the journal
 //! or namespace mutex. Ordinary daemon mounts do not construct this layer yet.
+mod admission;
 mod ancestry;
 mod handoff;
+mod native_abandon;
+mod native_atomic;
+mod native_backup;
+pub(super) mod native_edit;
+mod native_import;
+mod native_retirement;
+mod native_trash;
+mod native_trash_publication;
+mod package_publication;
 mod publication;
 mod replacement;
+mod sealing;
 mod unlinked;
 use super::*;
 use crate::journal::{
@@ -24,7 +35,9 @@ pub(super) struct Writeback {
     pub wake: Arc<tokio::sync::Notify>,
     projection: Arc<Mutex<Projection>>,
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
+    sealing: sealing::Sealing,
     activity: Mutex<HashMap<EditKey, Weak<tokio::sync::RwLock<()>>>>,
+    native_retirement: Arc<tokio::sync::Semaphore>,
     maintenance_cursor: Mutex<Option<Uuid>>,
     preserving_cursor: Mutex<u64>,
     maintenance_retries: Mutex<HashMap<Uuid, (u32, tokio::time::Instant)>>,
@@ -35,6 +48,10 @@ struct Projection {
     frontier: u64,
     ancestry: std::cell::OnceCell<RetainedAncestors>,
     objects: HashMap<Uuid, NamespaceObject>,
+    native_archives: HashMap<Uuid, Uuid>,
+    native_local: HashMap<Uuid, crate::journal::NativeLocalStream>,
+    native_readers:
+        HashMap<cirrove_core::reads::ReadIdentity, Weak<dyn cirrove_core::reads::ReadSession>>,
     local_identities: HashMap<EditKey, Uuid>,
     remote_bindings: HashMap<EditKey, Uuid>,
     files: HashMap<Uuid, WorkingFile>,
@@ -48,8 +65,43 @@ impl Projection {
         &self,
         object: &NamespaceObject,
         working: Option<&WorkingFile>,
+        local: Option<&crate::journal::NativeLocalStream>,
     ) -> Result<bool> {
-        if !object.remote_owned && !object.unlinked {
+        let retired = object
+            .native_archive
+            .as_ref()
+            .is_some_and(|role| role.retired);
+        if retired && (!object.valid_retired_native_archive() || working.is_some()) {
+            return Err(Errno::EIO);
+        }
+        if working.is_some_and(|file| file.native)
+            != ((object.native_archive.is_some() && !retired) || local.is_some())
+        {
+            return Err(Errno::EIO);
+        }
+        if object.native_archive.is_some() && !retired {
+            if !working.is_some_and(|file| object.valid_native_archive_shape(file)) {
+                return Err(Errno::EIO);
+            }
+        } else if let Some(local) = local {
+            if object.remote_owned
+                || object.remote.is_some()
+                || object.latest.is_some()
+                || object.follows_remote
+                || (!local.backup && object.unlinked != local.detached)
+                || (local.backup && !local.detached)
+                || object.node.kind != NodeKind::File
+                || object.node.package
+                || object.node.target.is_some()
+                || object.working_file != Some(object.id)
+                || object.node.id != format!("local-native-archive-{}", object.id)
+            {
+                return Err(Errno::EIO);
+            }
+        } else if !object.remote_owned && !object.unlinked {
+            return Err(Errno::EIO);
+        }
+        if local.is_some() && object.native_archive.is_some() {
             return Err(Errno::EIO);
         }
         if object.follows_remote
@@ -66,6 +118,7 @@ impl Projection {
             if old.scope != object.scope
                 || old.node.id != object.node.id
                 || old.names != object.names
+                || !self.valid_native_transition(old, object, local)
             {
                 return Err(Errno::EIO);
             }
@@ -97,8 +150,19 @@ impl Projection {
         object: &NamespaceObject,
         working: Option<&WorkingFile>,
     ) -> Result<bool> {
-        if !self.validate_snapshot(object, working)? {
+        if !self.validate_snapshot(object, working, None)? {
             return Ok(false);
+        }
+        if let Some(role) = &object.native_archive {
+            let owner = self.objects.get(&role.source_owner).ok_or(Errno::EIO)?;
+            if !object.valid_native_archive_owner(owner)
+                || self
+                    .native_archives
+                    .get(&role.source_owner)
+                    .is_some_and(|id| *id != object.id)
+            {
+                return Err(Errno::EIO);
+            }
         }
         if object.remote_owned
             && object.remote.as_ref().is_some_and(|remote| {
@@ -115,7 +179,52 @@ impl Projection {
         self.ancestry
             .get_or_init(|| RetainedAncestors::new(self.objects.values()))
     }
-    fn apply(&mut self, object: NamespaceObject, working: Option<WorkingFile>) {
+    fn valid_native_transition(
+        &self,
+        old: &NamespaceObject,
+        new: &NamespaceObject,
+        local: Option<&crate::journal::NativeLocalStream>,
+    ) -> bool {
+        let old_role = old
+            .native_archive
+            .as_ref()
+            .map(|r| (r.source_owner, r.working));
+        let new_role = new
+            .native_archive
+            .as_ref()
+            .map(|r| (r.source_owner, r.working));
+        if old_role == new_role {
+            return self.native_local.get(&old.id) == local
+                || (old_role.is_none()
+                    && !old.unlinked
+                    && new.unlinked
+                    && self.native_local.get(&old.id).is_some_and(|before| {
+                        !before.detached
+                            && local.is_some_and(|after| {
+                                after.detached && after.source_owner == before.source_owner
+                            })
+                    }));
+        }
+        match (old_role, new_role) {
+            (Some((owner, id)), None) => {
+                local.is_some_and(|r| r.detached && r.source_owner == owner && id == new.id)
+            }
+            (None, Some((owner, id))) => {
+                local.is_none()
+                    && self
+                        .native_local
+                        .get(&old.id)
+                        .is_some_and(|r| !r.detached && r.source_owner == owner && id == new.id)
+            }
+            _ => false,
+        }
+    }
+    fn apply(
+        &mut self,
+        object: NamespaceObject,
+        working: Option<WorkingFile>,
+        local: Option<crate::journal::NativeLocalStream>,
+    ) {
         self.ancestry.take();
         let identity = key(&object.scope, &object.node.id);
         if let Some(old) = self.objects.get(&object.id)
@@ -147,12 +256,20 @@ impl Projection {
         if let Some(file) = working {
             self.files.insert(file.id, file);
         }
+        if let Some(role) = &object.native_archive {
+            self.native_archives.insert(role.source_owner, object.id);
+        }
+        if let Some(local) = local {
+            self.native_local.insert(object.id, local);
+        } else {
+            self.native_local.remove(&object.id);
+        }
         self.objects.insert(object.id, object);
     }
     #[cfg(test)]
     fn merge(&mut self, object: NamespaceObject, working: Option<WorkingFile>) -> Result<()> {
         if self.validate_merge(&object, working.as_ref())? {
-            self.apply(object, working);
+            self.apply(object, working, None);
         }
         Ok(())
     }
@@ -229,7 +346,9 @@ impl Writeback {
             wake: Arc::new(tokio::sync::Notify::new()),
             projection: Arc::new(Mutex::new(projection)),
             hydrating: Mutex::new(HashMap::new()),
+            sealing: Default::default(),
             activity: Mutex::new(HashMap::new()),
+            native_retirement: Arc::new(tokio::sync::Semaphore::new(1)),
             maintenance_cursor: Mutex::new(None),
             preserving_cursor: Mutex::new(0),
             maintenance_retries: Mutex::new(HashMap::new()),
@@ -431,6 +550,9 @@ impl Writeback {
     }
     /// Saves that did not reach the cloud, from the upload journal. See
     /// `UploadJournal::failed_uploads`.
+    pub async fn unconfirmed_changes(&self) -> Result<u64> {
+        self.local(|j| j.unconfirmed_changes()).await
+    }
     pub async fn failed_uploads(&self) -> Result<u64> {
         self.local(|j| j.failed_uploads()).await
     }
@@ -460,6 +582,11 @@ impl Writeback {
                     MutationIntent::RemoveFile { before } => {
                         ("delete file", before.name.clone(), Some(before.id.clone()))
                     }
+                    MutationIntent::TrashNativeDocument { before } => (
+                        "trash native document",
+                        before.name.clone(),
+                        Some(before.id.clone()),
+                    ),
                     MutationIntent::RemoveFolder { before } => (
                         "delete folder",
                         before.name.clone(),
@@ -512,6 +639,37 @@ impl Writeback {
             })
             .collect())
     }
+    /// Pin an immutable source under the journal lock; copy it after releasing the lock.
+    pub async fn local_export_source(
+        &self,
+        id: uuid::Uuid,
+    ) -> Result<crate::journal::LocalExportSource> {
+        self.local(move |j| j.local_export_source(id)).await
+    }
+    pub async fn working_recovery_list(
+        &self,
+        after: Option<uuid::Uuid>,
+        limit: u32,
+    ) -> Result<(Vec<crate::journal::WorkingRecovery>, Option<uuid::Uuid>)> {
+        self.local(move |j| j.working_recovery_list(after, limit))
+            .await
+    }
+    /// Select working bytes without sealing; staging must run outside the journal lock.
+    pub async fn working_export_source(
+        &self,
+        id: uuid::Uuid,
+        generation: u64,
+    ) -> Result<crate::journal::WorkingExportSource> {
+        self.local(move |j| j.working_export_source(id, generation))
+            .await
+    }
+    /// Verify that no byte mutation occurred while a private recovery copy was staged.
+    pub async fn verify_working_export(
+        &self,
+        prepared: crate::journal::PreparedWorkingExport,
+    ) -> Result<crate::journal::VerifiedWorkingExport> {
+        self.local(move |j| j.verify_working_export(prepared)).await
+    }
     /// The saves that could be kept beside the remote version, with what the
     /// caller needs to name the copy. A create already knows its parent and
     /// name; a replace knows only the item it was acting on, and the caller is
@@ -553,15 +711,16 @@ impl Writeback {
                 Ok(kept)
             })
             .await?;
+        self.refresh_projection().await?;
         self.wake.notify_waiters();
         Ok(kept)
     }
     pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
-        let records = self.local(|j| j.list(0, 10_000)).await?;
+        let records = self
+            .local(move |j| j.recent_uploads(limit.min(200) as u32))
+            .await?;
         Ok(records
             .into_iter()
-            .rev()
-            .take(limit)
             .map(|record| {
                 let (name, item) = match &record.intent {
                     cirrove_core::upload::UploadIntent::Create { name, .. } => (name.clone(), None),
@@ -570,6 +729,7 @@ impl Writeback {
                     }
                 };
                 crate::recent::LocalChange {
+                    operation: Some(record.id),
                     sequence: record.sequence,
                     name,
                     item,
@@ -625,6 +785,104 @@ impl Writeback {
         }
         Ok(listing.nodes)
     }
+    async fn observed_folder_source(
+        &self,
+        engine: &Engine,
+        scope: &Scope,
+        selected: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<(Node, Option<NamespaceObject>)> {
+        if cancel.is_cancelled() {
+            return Err(Errno::ENODEV);
+        }
+        let lookup_scope = scope.clone();
+        let lookup_node = selected.clone();
+        let (known, canonical) = self
+            .local(move |j| {
+                let known = j.namespace_by_local(&lookup_scope, &lookup_node.id)?;
+                let mut canonical = lookup_node;
+                if let Some(known) = &known
+                    && known.node.kind == NodeKind::Folder
+                    && !known.node.package
+                    && known.follows_remote
+                {
+                    canonical.id = known
+                        .remote
+                        .as_ref()
+                        .ok_or(JournalError::Corrupt)?
+                        .id
+                        .clone();
+                    canonical.parent_id = canonical
+                        .parent_id
+                        .as_ref()
+                        .map(|parent| j.provider_parent(&lookup_scope, parent))
+                        .transpose()?;
+                }
+                Ok((known, canonical))
+            })
+            .await?;
+        let Some(known) = known.filter(|o| o.node.kind == NodeKind::Folder && !o.node.package)
+        else {
+            return Ok((selected.clone(), None));
+        };
+        if !known.follows_remote {
+            // Bind pending creation as well, so a concurrent handoff cannot
+            // legitimize an old receipt view without a new source observation.
+            return Ok((selected.clone(), Some(known)));
+        }
+        if known.scope != *scope
+            || known.unlinked
+            || !known.remote_owned
+            || known.latest.is_some()
+            || known.working_file.is_some()
+        {
+            return Err(Errno::ESTALE);
+        }
+        let expected = known.remote.as_ref().ok_or(Errno::EIO)?;
+        let db = engine.db.clone();
+        let read_scope = scope.clone();
+        let item = expected.id.clone();
+        // Existing filesystem activity leases may be held by the caller.
+        // Read only scoped metadata already observed; no provider IO fallback.
+        let cached = tokio::select! { biased;
+            _ = cancel.cancelled() => return Err(Errno::ENODEV),
+            result = tokio::task::spawn_blocking(move || Store::open(db)?.node(&read_scope, &item)) =>
+                result.map_err(|_| Errno::EIO)?.map_err(|_| Errno::EIO)?.ok_or(Errno::ESTALE)?,
+        };
+        let observed = self.present_observation(expected, cached)?;
+        if observed.id != expected.id
+            || observed.kind != NodeKind::Folder
+            || observed.package
+            || observed.target.is_some()
+        {
+            return Err(Errno::ESTALE);
+        }
+        // The cache may contain a genuine external rename/move. Validate the
+        // selected path/shape against that observation, never the old receipt.
+        let mut shape = canonical;
+        shape.etag = observed.etag.clone();
+        shape.content_version = observed.content_version.clone();
+        shape.modified_unix = observed.modified_unix;
+        if shape != observed {
+            return Err(Errno::ESTALE);
+        }
+        if cancel.is_cancelled() {
+            return Err(Errno::ENODEV);
+        }
+        Ok((observed, Some(known)))
+    }
+    fn recheck_folder_source(
+        journal: &UploadJournal,
+        snapshot: Option<&NamespaceObject>,
+    ) -> crate::journal::Result<()> {
+        if let Some(snapshot) = snapshot {
+            let current = journal.namespace_object(snapshot.id)?;
+            if serde_json::to_value(&current)? != serde_json::to_value(snapshot)? {
+                return Err(JournalError::Stale);
+            }
+        }
+        Ok(())
+    }
     fn materialize(
         j: &mut UploadJournal,
         scope: Scope,
@@ -643,15 +901,28 @@ impl Writeback {
     }
     pub async fn relocate(
         &self,
+        engine: &Engine,
         scope: Scope,
         node: Node,
-        source_parent: String,
-        source_name: String,
+        source: (String, String),
         parent: String,
         name: String,
     ) -> Result<Node> {
+        let (source_parent, source_name) = source;
+        let admission = self
+            .admit_write(engine, &scope, &node, &engine.cancel)
+            .await?;
+        let (node, folder_snapshot) = self
+            .observed_folder_source(engine, &scope, &node, &engine.cancel)
+            .await?;
+        let source_cancel = engine.cancel.clone();
         let object = self
             .local(move |j| {
+                if source_cancel.is_cancelled() {
+                    return Err(JournalError::Stale);
+                }
+                admission.recheck(j)?;
+                Self::recheck_folder_source(j, folder_snapshot.as_ref())?;
                 let object = Self::materialize(j, scope, node)?;
                 // Recheck the source at the journal's serialization point. Another
                 // rename may have completed after the cached directory was read.
@@ -660,7 +931,7 @@ impl Writeback {
                 {
                     return Err(JournalError::Stale);
                 }
-                j.relocate_namespace_file(object.id, object.revision, parent, name)?;
+                j.relocate_namespace_item(object.id, object.revision, parent, name)?;
                 j.namespace_object(object.id)
             })
             .await?;
@@ -680,8 +951,41 @@ impl Writeback {
         &self,
         engine: &Engine,
         view: &View,
+        pathname: Option<&Node>,
         truncate: bool,
         cancel: &CancellationToken,
+    ) -> Result<WorkingFile> {
+        self.prepare_inner(
+            engine,
+            view,
+            truncate.then_some(0),
+            cancel,
+            true,
+            pathname.cloned(),
+        )
+        .await
+    }
+    /// Pathname truncation keeps admission and the final size mutation bound to
+    /// one journal serialization point. Existing descriptors use `truncate`.
+    pub async fn truncate_path(
+        &self,
+        engine: &Engine,
+        view: &View,
+        pathname: Option<&Node>,
+        size: u64,
+        cancel: &CancellationToken,
+    ) -> Result<WorkingFile> {
+        self.prepare_inner(engine, view, Some(size), cancel, true, pathname.cloned())
+            .await
+    }
+    async fn prepare_inner(
+        &self,
+        engine: &Engine,
+        view: &View,
+        truncate: Option<u64>,
+        cancel: &CancellationToken,
+        write_admission: bool,
+        pathname: Option<Node>,
     ) -> Result<WorkingFile> {
         let identity = key(&view.scope, &view.id);
         let gate = {
@@ -701,8 +1005,30 @@ impl Writeback {
             _ = cancel.cancelled() => return Err(Errno::ENODEV),
             guard = gate.lock() => guard,
         };
+        let admission = if write_admission {
+            let node = view.node.as_ref().ok_or(Errno::EINVAL)?;
+            Some(
+                self.admit_write_path(engine, &view.scope, node, pathname, cancel)
+                    .await?,
+            )
+        } else {
+            None // Retaining bytes for existing read handles is not a new edit.
+        };
         let working = match self.working(&view.scope, &view.id)? {
-            Some(working) => working,
+            Some(working) => {
+                let record = self
+                    .local(move |j| {
+                        if let Some(admission) = &admission {
+                            admission.recheck(j)?;
+                        }
+                        match truncate {
+                            Some(size) => j.truncate_working(working.id, size),
+                            None => j.working_file(working.id),
+                        }
+                    })
+                    .await?;
+                return self.publish(record).await;
+            }
             None => {
                 // A link is resolved at lookup to its target scope and local
                 // owner. Only target file metadata may become a working copy;
@@ -714,24 +1040,41 @@ impl Writeback {
                 }
                 let scope = view.scope.as_ref().clone();
                 let node = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
+                let preparation_admission = admission.clone();
                 let object = self
-                    .local(move |j| Self::materialize(j, scope, node))
+                    .local(move |j| {
+                        if let Some(admission) = &preparation_admission {
+                            admission.recheck(j)?;
+                        }
+                        Self::materialize(j, scope, node)
+                    })
                     .await?;
                 let expected = object.id;
+                let materialized_admission = admission
+                    .as_ref()
+                    .map(|_| admission::WriteAdmission::materialized(&object));
                 if let Some(id) = object.working_file {
-                    let record = self.local(move |j| j.working_file(id)).await?;
-                    let record = self.publish(record).await?;
-                    return if truncate {
-                        self.truncate(record.id, 0).await
-                    } else {
-                        Ok(record)
-                    };
+                    let record = self
+                        .local(move |j| {
+                            if let Some(admission) = &materialized_admission {
+                                admission.recheck(j)?;
+                            }
+                            match truncate {
+                                Some(size) => j.truncate_working(id, size),
+                                None => j.working_file(id),
+                            }
+                        })
+                        .await?;
+                    return self.publish(record).await;
                 }
                 let node = object.remote.ok_or(Errno::ESTALE)?;
-                if truncate {
+                if truncate == Some(0) {
                     let scope = view.scope.as_ref().clone();
                     let record = self
                         .local(move |j| {
+                            if let Some(admission) = &materialized_admission {
+                                admission.recheck(j)?;
+                            }
                             let current = j.namespace_object(expected)?;
                             if let Some(id) = current.working_file {
                                 return j.truncate_working(id, 0);
@@ -757,21 +1100,24 @@ impl Writeback {
                     .local(move |j| {
                         // A background replacement preparation may have materialized
                         // this same stream while its read was in flight.
-                        let current = j.namespace_object(expected)?;
-                        if let Some(id) = current.working_file {
-                            return j.working_file(id);
+                        if let Some(admission) = &materialized_admission {
+                            admission.recheck(j)?;
                         }
-                        j.publish_working_for(expected, scope, node, source)
+                        let current = j.namespace_object(expected)?;
+                        let record = match current.working_file {
+                            Some(id) => j.working_file(id)?,
+                            None => j.publish_working_for(expected, scope, node, source)?,
+                        };
+                        match truncate {
+                            Some(size) => j.truncate_working(record.id, size),
+                            None => Ok(record),
+                        }
                     })
                     .await?;
                 self.publish(record).await?
             }
         };
-        if truncate {
-            self.truncate(working.id, 0).await
-        } else {
-            Ok(working)
-        }
+        Ok(working)
     }
     pub async fn create(&self, scope: Scope, node: Node) -> Result<WorkingFile> {
         let record = self
@@ -801,34 +1147,19 @@ impl Writeback {
         self.publish(record).await
     }
     pub async fn seal(&self, id: Uuid) -> Result<()> {
-        let record = self
-            .local(move |j| {
-                j.seal_working(id)?;
-                j.working_file(id)
-            })
-            .await?;
-        self.publish(record).await?;
-        self.wake.notify_waiters();
-        Ok(())
+        self.seal_bounded(id).await
     }
     pub async fn seal_all(&self) -> Result<()> {
-        // Continue across per-file failures so every dirty working descriptor
-        // receives fsync, even if one snapshot cannot fit in the remaining quota.
-        let (files, failed) = self
-            .local(|j| {
-                let files = j.working_files()?;
-                let mut failed = false;
-                for file in files.iter().filter(|f| f.dirty) {
-                    if j.seal_working(file.id).is_err() {
-                        failed = true;
-                    }
-                }
-                Ok((j.working_files()?, failed))
-            })
-            .await?;
-        for file in files {
-            self.publish(file).await?;
+        // Each native copy must release the journal lock before any large IO.
+        // Continue after one invalid archive so other dirty files remain savable.
+        let files = self.local(|j| j.working_files()).await?;
+        let mut failed = false;
+        for file in files.into_iter().filter(|f| f.dirty) {
+            if self.seal(file.id).await.is_err() {
+                failed = true;
+            }
         }
+        self.refresh_projection().await?;
         self.wake.notify_waiters();
         if failed { Err(Errno::EIO) } else { Ok(()) }
     }
@@ -838,6 +1169,78 @@ impl Writeback {
 mod tests {
     use super::*;
     use crate::journal::project_namespace;
+    #[tokio::test]
+    async fn recent_local_includes_newest_saves_beyond_the_first_thousand() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let root = temp.path().join("journal");
+        let mut journal = UploadJournal::open(&root, "fixture", 4096).expect("journal");
+        let mut row = journal
+            .enqueue(
+                Scope {
+                    account: "fixture".into(),
+                    provider: "fixture".into(),
+                    collection: "drive".into(),
+                },
+                cirrove_core::upload::UploadIntent::Create {
+                    parent: "root".into(),
+                    name: "saved.txt".into(),
+                },
+                &b"bytes"[..],
+            )
+            .expect("save");
+        // Synthetic history only; no worker or provider observes these rows.
+        let mut db = rusqlite::Connection::open(root.join("uploads.db")).expect("fixture database");
+        let tx = db.transaction().expect("transaction");
+        for sequence in 2..=1002 {
+            row.id = Uuid::new_v4();
+            row.sequence = sequence;
+            tx.execute(
+                "INSERT INTO uploads(id,resource,state,body) VALUES(?1,'fixture','pending',?2)",
+                rusqlite::params![
+                    row.id.to_string(),
+                    serde_json::to_string(&row).expect("record")
+                ],
+            )
+            .expect("history");
+        }
+        tx.commit().expect("fixture commit");
+        let writeback = Writeback {
+            journal: Arc::new(Mutex::new(journal)),
+            refusals: Default::default(),
+            wake: Default::default(),
+            projection: Default::default(),
+            hydrating: Default::default(),
+            sealing: Default::default(),
+            activity: Default::default(),
+            native_retirement: Arc::new(tokio::sync::Semaphore::new(1)),
+            maintenance_cursor: Default::default(),
+            preserving_cursor: Default::default(),
+            maintenance_retries: Default::default(),
+            provider: Default::default(),
+        };
+        let recent = writeback.recent_local(8).await.expect("recent");
+        assert_eq!(
+            recent.iter().map(|r| r.sequence).collect::<Vec<_>>(),
+            (995..=1002).rev().collect::<Vec<_>>()
+        );
+        assert_eq!(recent[0].operation, Some(row.id));
+        assert_eq!(
+            writeback
+                .recent_local(usize::MAX)
+                .await
+                .expect("bounded history")
+                .len(),
+            200
+        );
+        assert!(
+            writeback
+                .recent_local(0)
+                .await
+                .expect("empty history")
+                .is_empty()
+        );
+    }
+
     #[test]
     fn delayed_save_publication_cannot_restore_an_old_name_or_drop_a_remote_alias() {
         let temp = tempfile::tempdir().expect("temporary state");
@@ -1019,3 +1422,8 @@ mod tests {
         p.merge(other, None).expect("separate scope");
     }
 }
+
+mod native_replace;
+
+#[cfg(test)]
+mod native_seal_tests;

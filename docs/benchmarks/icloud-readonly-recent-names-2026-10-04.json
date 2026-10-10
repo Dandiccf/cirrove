@@ -1,0 +1,386 @@
+{
+  "version": 1,
+  "date": "2026-10-04",
+  "status": "local-source-validation-and-fullcheck-passed",
+  "source_base": "ac1ee641a9e74867fb14b9793da056cebb42600a",
+  "question": "Does public read-only recent activity name a completed ordinary replacement by its historical document receipt rather than the hidden local Trash recovery alias, while preserving exact account/recorded collection/item identity and journal bytes?",
+  "corrections": [
+    {
+      "original_inference": "Hard-coded DATA recovery .txt names may lose native format identity in provider Trash or export.",
+      "corrected_scope": "Modern DATA handoff directly trashes the original without renaming; verified backup reads the actual provider basename. Hidden .txt aliases and staged internal names alone are not a format-loss defect. Checkpoint/version expansion canceled. The concrete issue is the public recent activity label."
+    },
+    {
+      "original_contract": "Require every row to match the primary drive collection.",
+      "corrected_contract": "A single account journal may retain linked OneDrive collections. Preserve the nonempty recorded collection; exact account/provider binding does not imply primary collection or active-feed membership."
+    },
+    {
+      "original_inference": "A completed Trash handoff necessarily makes RO recent resolve the original intent ID to the hidden recovery alias.",
+      "observed_correction": "The registered hydrated-origin ordinary working fixture preserves local node.id equal to original provider item. retained_name by_local(original item) finds the document owner first, ahead of by_remote hidden backup. Actual one-test/four-case original run passed. No product fix can be claimed from this baseline.",
+      "next_hypothesis_unexecuted": "A genuinely locally-created and provider-acknowledged file has a stable local UUID distinct from old provider item. Its later staged replacement might expose the hidden alias. Needs a separate preregistered ordinary lifecycle fixture and root authorization; no raw database mutation or forced future naming assertion."
+    }
+  ],
+  "fixture": {
+    "public_endpoint": "Manager::recent -> RecoveryControl::recent_local; desktop ActivityEntry renders returned name",
+    "transport": "Synthetic Microsoft account uses a loopback read adapter pointed at an unavailable local endpoint. The exercised read-only branch uses journal metadata only; no provider request or credentials are needed. This is not real iCloud DATA or Apple application fidelity.",
+    "lifecycle": "For each of four independent private fixtures, ordinary FileBytes working stream -> edit -> sealed save -> claim -> Trash reservation -> typed acknowledge_identity_handoff -> writer close -> public read-only recent lookup. Exact operation owner/current receipt and hidden unlinked recovery scope/actual backup basename are asserted.",
+    "names": [
+      "Report.txt",
+      "Owned.pages",
+      "Owned.numbers",
+      "Owned.key"
+    ],
+    "before_endpoint_assertion": "All four cases verify no writer, unchanged journal database bytes and unchanged retained upload records before the final vector name assertion."
+  },
+  "arms": [
+    {
+      "id": "original-baseline",
+      "test": "manager::recovery_tests::read_only_recent_completed_trash_handoff_uses_document_name_not_hidden_alias",
+      "expected_executed_tests": 1,
+      "expected_fixture_cases": 4,
+      "prediction": "Original code completes all four binding/preservation checks, returns four recovery-by-cirrove-UUID.txt aliases and fails the final exact document-basename vector assertion. Build, selection, earlier preservation or binding failures are authoring/runtime failures, not this intended red.",
+      "expected_failure_marker": "all four completed activities must name their documents, not hidden Trash aliases",
+      "actual_result": "passed; predicted red not observed"
+    },
+    {
+      "id": "corrected-identical-baseline",
+      "status": "executed-passed-as-hydrated-control-in-reviewed-seven-tests",
+      "prediction": "After a narrow historical receipt name-selection fix the identical baseline passes; no checkpoint/schema/provider changes.",
+      "previous_status": "not-authorized-or-implemented-yet",
+      "actual_result": "Original hydrated control and separately proved local-create regression both pass in reviewed-focused-runtime.json."
+    },
+    {
+      "id": "original-locally-created-followup",
+      "test": "manager::recovery_tests::read_only_recent_locally_created_then_replaced_uses_receipt_name_not_hidden_alias",
+      "expected_executed_tests": 1,
+      "expected_fixture_cases": 4,
+      "prediction": "A real local Create acknowledged under a provider ID retains its independent stable local UUID. After its next edited generation is confirmed via ordinary Trash handoff, by_local(old provider ID) no longer finds the current owner and by_remote(old ID) finds the hidden backup alias. All4 binding/preservation/no-writer checks should complete, then final vector name assertion should fail with4 .txt aliases. If original code passes instead, close this naming hypothesis rather than expand it.",
+      "expected_failure_marker": "all four locally created replacement activities must name their documents, not hidden Trash aliases",
+      "preregistered_proposal_sha256": "b243764c8f3c78b3c6030134a623f0a4e6c96b05ca3b5f09e8cdcd9eb726169c",
+      "fixture_difference": "Normal public journal create_working(new=true), initial seal/claim/acknowledge(Create), then edit/seal/claim/reserve/acknowledge_identity_handoff(Replace). No raw database metadata rewriting. The originally green hydrated lifecycle remains unchanged.",
+      "actual_result": "one executed fixture test, four cases; expected final vector assertion failed after all preservation checks"
+    },
+    {
+      "id": "corrected-six-focused-tests",
+      "selector": "manager::recovery_tests::read_only_recent_",
+      "expected_executed_tests": 6,
+      "expected_passed": 6,
+      "expected_failed": 0,
+      "expected_ignored": 0,
+      "fixture_cases": 23,
+      "controls": [
+        {
+          "test": "read_only_recent_same_identity_receipt_keeps_historical_name_after_namespace_rename",
+          "cases": 1,
+          "prediction": "Same-ID ordinary acknowledgement followed by actual handoff_namespace rename still displays historical receipt basename, not later namespace name."
+        },
+        {
+          "test": "read_only_recent_unconfirmed_saves_keep_document_name_and_state",
+          "cases": 5,
+          "prediction": "Pending/Uploading/VerifyRequired/Conflict/Failed keep exact existing retained document name/state; no confirmed receipt fabricated and DB bytes unchanged."
+        },
+        {
+          "test": "read_only_recent_rejects_foreign_scope_and_invalid_completed_receipt_name",
+          "cases": 7,
+          "prediction": "Foreign account/provider, empty recorded collection, empty/slashed/control-character completed name or missing remote receipt refuse without DB writes."
+        },
+        {
+          "test": "read_only_recent_keeps_legitimate_linked_collection_receipts_distinct",
+          "cases": 2,
+          "prediction": "Primary and linked historical collections in same account/provider may share item string; their exact operation receipts retain distinct document names. No primary-drive restriction or live lookup."
+        }
+      ],
+      "prediction": "Previously green hydrated control remains green; previously red localCreate control now names all4 documents; all4 supplemental tests pass. A build failure or earlier fixture failure is not productfix evidence.",
+      "status": "superseded-before-runtime-by-static-review; compiler-only succeeded"
+    },
+    {
+      "id": "corrected-seven-reviewed-focused-tests",
+      "selector": "manager::recovery_tests::read_only_recent_",
+      "expected_executed_tests": 7,
+      "expected_passed": 7,
+      "expected_failed": 0,
+      "expected_ignored": 0,
+      "expected_filtered_out": 504,
+      "fixture_cases": 27,
+      "controls": [
+        {
+          "test": "read_only_recent_same_identity_receipt_keeps_historical_name_after_namespace_rename",
+          "cases": 1,
+          "prediction": "Same-ID ordinary acknowledgement followed by actual handoff_namespace rename still displays historical receipt basename, not later namespace name."
+        },
+        {
+          "test": "read_only_recent_unconfirmed_saves_keep_document_name_and_state",
+          "cases": 5,
+          "prediction": "Pending/Uploading/VerifyRequired/Conflict/Failed keep exact existing retained document name/state; no confirmed receipt fabricated and DB bytes unchanged."
+        },
+        {
+          "test": "read_only_recent_rejects_foreign_scope_and_invalid_completed_receipt_name",
+          "cases": 9,
+          "prediction": "Foreign account/provider, empty recorded collection, empty/slashed/NUL completed name, missing remote, reservation.old_item mismatch or missing typed backup refuse without DB writes; each arm starts from an actual acknowledged ordinary staged Trash handoff."
+        },
+        {
+          "test": "read_only_recent_keeps_legitimate_linked_collection_receipts_distinct",
+          "cases": 2,
+          "prediction": "Primary and linked historical collections in same account/provider may share item string; their exact operation receipts retain distinct document names. No primary-drive restriction or live lookup."
+        },
+        {
+          "test": "read_only_recent_google_receipt_keeps_permitted_lf_and_tab_basenames",
+          "cases": 2,
+          "prediction": "Actual synthetic Google account registration/provider ID and ordinary same-ID acknowledgement return exact LF/tab historical basename through public Manager::recent without a provider call, writer creation or DB byte change."
+        }
+      ],
+      "prediction": "Original hydrated green remains a control; original localCreate finalname red becomes green; same-ID/later-rename, all5 unconfirmed states,9 malformedbindings,2 linkedcollections and2 permitted Google names pass under shared historical receipt guards. No further omission run needed: actual original-vs-fix endpoint already discriminates the requested change.",
+      "actual_result": "7 passed,0 failed,0 ignored,504 filtered; 27 local fixturearms; source unchanged"
+    }
+  ],
+  "execution": {
+    "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-recent-names-20261004",
+    "sqlite_tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-recent-names-20261004",
+    "filesystem": "ext4 verified via findmnt before execution",
+    "private_evidence": ".local-state/icloud-data-recovery-format-20261004",
+    "build": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "cirrove-service",
+      "--lib",
+      "manager::recovery_tests::read_only_recent_completed_trash_handoff_uses_document_name_not_hidden_alias",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "runtime": "Resolve compiler JSON exact test executable, record executable SHA/command/PID before launch; run one exact selector with --exact --nocapture --test-threads=1. Source pins must be byte-equal before/after each arm. Root granted sole Cargo/source lease.",
+    "followup_build": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "cirrove-service",
+      "--lib",
+      "manager::recovery_tests::read_only_recent_locally_created_then_replaced_uses_receipt_name_not_hidden_alias",
+      "--no-run",
+      "--message-format=json"
+    ]
+  },
+  "spectator_source_changes": {
+    "description": "Previously validated read-only retained-status fix already present before this baseline. Its source pins are spectators, not the proposed activity fix.",
+    "sha256": {
+      "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+      "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+      "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+      "crates/cirrove-service/src/manager/retained_status_tests.rs": "83ccfe4ba1afa68efca50156366eac2989956b7b985c91611512ebc2e459cad3"
+    }
+  },
+  "proposal_pins": {
+    "baseline_patch_sha256": "4cd46d97b693290414ea598dbbbe02514744ef2bb49d57dbef4636baaaab1b61",
+    "applied_baseline_source_sha256": "63a86389a01ad86f654668bb67a7615e5644433fed771635f7d7c2c1a356aa59",
+    "private_contract_audit_sha256": "81431ff52f943faa8eca65e6f76c261ffc932c4de8cce7f55e2b166ec8fbf68a",
+    "authoring_revision_sha256": "fa06a15c098a9884f2b3afaa308059f0b09df1e469b3f5ccd08898a76167abbf",
+    "local_create_baseline_source_sha256": "f026068b4dc08e735660d5328ef50c96cc17fac5556f80f0d1842ac2e12a5916"
+  },
+  "limits": [
+    "Local synthetic activity-label defect only; not Apple document/application/export acceptance.",
+    "No cloud, mounted filesystem, credentials, installed service, upload replay or provider requests.",
+    "No timing repeatability or performance claims.",
+    "All six full-iCloud acceptance gates remain open.",
+    "Production fix followed the meaningful local-create baseline failure; reviewed seven-test validation and the complete local check passed. No additional cloud authorization or acceptance is implied."
+  ],
+  "results": {
+    "original_baseline": {
+      "executed": 1,
+      "fixture_cases": 4,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 504,
+      "seconds": 0.53,
+      "exit_code": 0,
+      "expected_prediction_observed": false,
+      "actual_names": [
+        "Report.txt",
+        "Owned.pages",
+        "Owned.numbers",
+        "Owned.key"
+      ],
+      "preservation_and_binding_checks": "all four passed before final vector assertion",
+      "build_manifest": ".local-state/icloud-data-recovery-format-20261004/baseline-build.json",
+      "build_manifest_sha256": "9efc95b65bc4a6f48d138310faaf90aaaf2fc40d21fd09ee6d28434130020d83",
+      "build_log_sha256": "1161c4f936f7c9a83a84e1c336219e38244625b8afc7977a2870ad89ddc5d202",
+      "compiler_selection": ".local-state/icloud-data-recovery-format-20261004/baseline-compiler-selection.json",
+      "compiler_selection_sha256": "6317b9abd02dbd0579621b0f08b5a33558d5db220f58216aec85a8a739b661db",
+      "runtime_manifest": ".local-state/icloud-data-recovery-format-20261004/baseline-runtime.json",
+      "runtime_manifest_sha256": "66bd007425d1d0a6eeca9249d5886dc7528e9e9a0cd1a6493ebbad23414b2849",
+      "runtime_log_sha256": "eb208e9f0f1f22179aaa6b759918c69b98bd5e5f91a88a413a39a8dce5023741",
+      "executable": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+      "executable_sha256": "842ad985ea032437a92898ab54f1ce0228500d18a5fba91ff9044ed744a7e739",
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+        "crates/cirrove-service/src/manager/recovery_tests.rs": "63a86389a01ad86f654668bb67a7615e5644433fed771635f7d7c2c1a356aa59",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "83ccfe4ba1afa68efca50156366eac2989956b7b985c91611512ebc2e459cad3",
+        "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+        "docs/benchmarks/icloud-readonly-recent-names-2026-10-04.json": "f757c5a8163a2e777e0f421728ac942f6144240095fdd14f58356aec5ef4a593"
+      }
+    },
+    "original_locally_created_followup": {
+      "executed": 1,
+      "fixture_cases": 4,
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "filtered_out": 505,
+      "seconds": 0.59,
+      "exit_code": 101,
+      "expected_prediction_observed": true,
+      "observed_name_shape": "four distinct recovery-by-cirrove-<operation UUID>.txt aliases",
+      "expected_names": [
+        "Report.txt",
+        "Owned.pages",
+        "Owned.numbers",
+        "Owned.key"
+      ],
+      "failure_marker": "all four locally created replacement activities must name their documents, not hidden Trash aliases",
+      "preservation_and_binding_checks": "all four actual normal Create acknowledgement, distinct stable local UUID, subsequent Replace/Trash current+backup receipts, no-writer, DB bytes and retained records passed before final vector assertion",
+      "build_manifest": ".local-state/icloud-data-recovery-format-20261004/local-create-baseline-build.json",
+      "build_manifest_sha256": "aff404a2bf32636a69099a80fdc3b5fc7677486db6d1ef22a466e0afdf8244ab",
+      "build_log_sha256": "189f4ee7b1198ebb839e03f1870ec5fbdcf9294de05a2a405bcb7192ddca01f0",
+      "compiler_selection": ".local-state/icloud-data-recovery-format-20261004/local-create-compiler-selection.json",
+      "compiler_selection_sha256": "555df7cc3eac8134e32c8e170e4a9b246abbd33fd2250334f2d80085b15677dc",
+      "runtime_manifest": ".local-state/icloud-data-recovery-format-20261004/local-create-baseline-runtime.json",
+      "runtime_manifest_sha256": "916590d23fd416b885f91a762327c099f97e361f1a0477d9e46f04d2b4cb931f",
+      "runtime_log_sha256": "2bbf6c94ced82c486c6629e8971f5487ce6a8f6c3174d554dc9b87b56f423c86",
+      "executable": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+      "executable_sha256": "9c85ff95aca5c42e98b2c562ced6c75c52516eb483e65bc00425999a7e9673f3",
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+        "crates/cirrove-service/src/manager/recovery_tests.rs": "f026068b4dc08e735660d5328ef50c96cc17fac5556f80f0d1842ac2e12a5916",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "83ccfe4ba1afa68efca50156366eac2989956b7b985c91611512ebc2e459cad3",
+        "crates/cirrove-service/src/recovery.rs": "f33e0d34237afe403d786212498b471891eef593ce0e2d241704fa355855643a",
+        "docs/benchmarks/icloud-readonly-recent-names-2026-10-04.json": "55be0d1903901f4a689062d1a4fedc54191337614f8c9bb442cf842dbee30d1c"
+      }
+    },
+    "corrected_reviewed_focused": {
+      "executed": 7,
+      "fixture_cases": 27,
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 504,
+      "seconds": 3.47,
+      "exit_code": 0,
+      "names_and_guards": "all7 registered tests passed; original hydrated source control and identical locally-created name assertion retained,27 planned local arms completed",
+      "build_manifest": ".local-state/icloud-data-recovery-format-20261004/reviewed-focused-build.json",
+      "build_manifest_sha256": "8312e664790f76c1ae8800f7d6634600740c87972b62be25fbcb75c3c22996f6",
+      "build_log_sha256": "15627ad7cc1c2e9e59c85fcb630e7ac1e097ca374d92f7116d769bc084bddbbf",
+      "compiler_selection": ".local-state/icloud-data-recovery-format-20261004/reviewed-compiler-selection.json",
+      "compiler_selection_sha256": "0d6b5b2de5cbfb4ca7a0c8e19198bbf20c1b6b0c7c91e79445189c4060aeb71a",
+      "runtime_manifest": ".local-state/icloud-data-recovery-format-20261004/reviewed-focused-runtime.json",
+      "runtime_manifest_sha256": "305216a83f52426a909d5176e0a4c13945bb17433c0878e4b38e0bffce82318e",
+      "runtime_log_sha256": "6331997fe8bdfcf618b3f75414b0b06f6ac188c8cae168d20217b3cb2f113aa8",
+      "executable": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-cdedc9d277a4cb05",
+      "executable_sha256": "d62f0b954c5b5f1d12e1efecffc7174846b5317eaa11766c1825a4f1c749ab5e",
+      "source_before_after_equal": true,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-service/src/journal.rs": "001e655537b396b701dfb9a5ffb035adb9edf432c3ae8b932ef228a3e0e51203",
+        "crates/cirrove-service/src/journal/export.rs": "8617d466e6ab52bf2309349c49e1493d64613df196c892aadf0e5ca35a347e5d",
+        "crates/cirrove-service/src/journal/identity_handoff.rs": "ad37b8ae2a254a30d4cad4ccbe285ea46f5253ef9b9ba7c680840eb55bcf2fea",
+        "crates/cirrove-service/src/manager.rs": "a4d0df99647a3195168ac3217993e8662c49ad055552c2e0f78d4d5b309fa672",
+        "crates/cirrove-service/src/manager/recovery_tests.rs": "80d579ebd8913d361365b0b0e1b7802d1771a6dfefb3fb3c15fc2aab176a653b",
+        "crates/cirrove-service/src/manager/retained_status_tests.rs": "83ccfe4ba1afa68efca50156366eac2989956b7b985c91611512ebc2e459cad3",
+        "crates/cirrove-service/src/recovery.rs": "b19bda884e5a4e0240551ddf93656989d42c1622f3842d6da59980267866f07f",
+        "docs/benchmarks/icloud-readonly-recent-names-2026-10-04.json": "c536efb28834d5d1e83206cc01c053044b182380de433ad282d9459709f586f1"
+      },
+      "compiler_messages": []
+    },
+    "first_corrected_compiler_only": {
+      "exit_code": 0,
+      "compiler_messages": [],
+      "source_before_after_equal": true,
+      "runtime_executed": false,
+      "manifest": ".local-state/icloud-data-recovery-format-20261004/corrected-focused-build.json",
+      "manifest_sha256": "ccbe9f39c2fe49d5d90e6c98fb2920e655b3f650d919c02f2b17992f5d426be3",
+      "scope": "Superseded before runtime by ordinary-handoff binding and generic-basename review corrections; not productfix green evidence."
+    }
+  },
+  "concrete_gap": "For an originally local-created file, stable local node ID differs from acknowledged provider item ID. After its subsequent staged Trash replacement, RO recent retained_name(original intent item) misses current owner by_local and selects the hidden recovery object by_remote, presenting its internal .txt alias as the completed saved document name. Hydrated-source four-case control passes; actual cloud Trash basename and file payload are not shown to be damaged.",
+  "name_contract": "Completed replacement activity should display its historical current receipt document basename while preserving original intent item identity and exact account/provider/recorded nonempty collection. Linked collections remain legitimate; later namespace changes do not invalidate historical receipt naming. Pending/uncertain fallback unchanged, no network or inferred path identity.",
+  "implementation_scope": {
+    "sources": [
+      "crates/cirrove-service/src/recovery.rs",
+      "crates/cirrove-service/src/journal/identity_handoff.rs"
+    ],
+    "source_sha256": {
+      "crates/cirrove-service/src/recovery.rs": "b19bda884e5a4e0240551ddf93656989d42c1622f3842d6da59980267866f07f",
+      "crates/cirrove-service/src/journal/identity_handoff.rs": "ad37b8ae2a254a30d4cad4ccbe285ea46f5253ef9b9ba7c680840eb55bcf2fea",
+      "crates/cirrove-service/src/manager/recovery_tests.rs": "80d579ebd8913d361365b0b0e1b7802d1771a6dfefb3fb3c15fc2aab176a653b"
+    },
+    "change": "Read-only completed replacement displays historical durable current receipt basename. Account/provider/nonempty recorded collection required, ordinary same-ID or bound staged historical handoff allowed; strict native PACKAGE receipt validator unchanged. Internal helper validates existing persisted old_item/current/backup/location, never active namespace state. Basename uses established NUL/slash/dot/length contract; legitimate linked collections and Google LF/tab names preserved. Pending fallback/old intent item/status reader methods unchanged. No checkpoint/schema/provider/coretrait change."
+  },
+  "authoring_corrections": [
+    {
+      "event": "controls.v3.patch context no longer ended the source after new locally-created baseline; apply failed without source mutation",
+      "correction": "Identical4 control test bodies rebased and appended as controls.v4.patch. Formatting only; both baseline assertions/lifecycles remain unchanged. No compiler/runtime run counted for failed patch application."
+    },
+    {
+      "event": "First fixed source compiled successfully but review found completed ordinary handoff trusted reservation presence without old_item/backup binding. No runtime was launched.",
+      "correction": "Add narrow historical UploadRecord::ordinary_handoff_receipt validator, preserving current namespace independence. Corruption controls now build real staged handoffs and include mismatched reservation.old_item and missing backup."
+    },
+    {
+      "event": "Proposed shared completed basename validation incorrectly rejected all control characters. Google ordinary LF/tab basenames are permitted by the established provider-neutral basename contract. No runtime had executed this proposal.",
+      "correction": "Use established NUL/slash/dot/4096-byte bounds; change the invalid LF case to NUL and add actual synthetic Google registration+GoogleDrive public recent LF/tab positive. No cloud/auth/provider requests."
+    }
+  ],
+  "reviewed_proposal_versions": [
+    {
+      "source": "crates/cirrove-service/src/recovery.rs",
+      "source_sha256": "7a5564b2a844348286a3086451be34bca3f6999a16a51972b04a1d8aea4bd406",
+      "tests_source_sha256": "77f81494094050ea4b7e6878da3a33f2c3b831e221803f65d2eb5d3bf65ef44e",
+      "production_patch_sha256": "c7a3d0c17b58e8cca4eac6351671d820f7d8db9a9f35b2871ff934655d46c81b",
+      "control_patch_sha256": "20de3e8eb1e0438b1cf8b4874f16cd0f5568855c746a3038669d9ac69df83895",
+      "change": "Read-only completed replacement chooses recorded current receipt name. Account/provider and nonempty historical collection required; ordinary receipt shape/size/same-or-staged identity guards and existing strict native PACKAGE receipt guard. Unconfirmed fallback, original intent item, recent bound limit, status reader methods remain unchanged. No accessor/schema/provider/checkpoint change."
+    }
+  ],
+  "review": {
+    "independent_static_review": "regression_review reported CLEAR for actual final3 source hashes before reviewed-focused-build launch",
+    "code_pins": {
+      "crates/cirrove-service/src/recovery.rs": "b19bda884e5a4e0240551ddf93656989d42c1622f3842d6da59980267866f07f",
+      "crates/cirrove-service/src/journal/identity_handoff.rs": "ad37b8ae2a254a30d4cad4ccbe285ea46f5253ef9b9ba7c680840eb55bcf2fea",
+      "crates/cirrove-service/src/manager/recovery_tests.rs": "80d579ebd8913d361365b0b0e1b7802d1771a6dfefb3fb3c15fc2aab176a653b"
+    },
+    "omission_control": "No additional omission build/run: actual original locally-created public endpoint red versus identical corrected final assertion already discriminates the requested regression.",
+    "full_project_check": "Pending root scripts/check.sh; not run by this agent."
+  },
+  "full_check": {
+    "status": "passed",
+    "question": "Does the complete required local check pass with both reviewed read-only corrections?",
+    "command": [
+      "scripts/check.sh"
+    ],
+    "prediction": "Formatting, clippy, workspace and feature tests, available kernel fixtures, script tests, ledger and documentation pass in one uninterrupted command. No cloud or installed-state acceptance is implied.",
+    "expected_duration_seconds": 2400,
+    "private_manifest": ".local-state/icloud-readonly-consolidation-20261004/full-check-v1.json",
+    "tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-consolidation-20261004",
+    "sqlite_tmpdir": "/home/dandiccf/Storage/cirrove-tmp/readonly-consolidation-20261004",
+    "filesystem": "ext4 verified before execution",
+    "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "exit_code": 0,
+    "manifest_sha256": "377dc49e7882e6921b57c2532d7c354bb5208c20911c37e6cd36613dfb8a8cea",
+    "log_sha256": "4e4cf45fa8b00602a1e2c3a3a69607219446fbdab02f6d6342aab1ada9e1f30b",
+    "source_before_after_equal": true,
+    "kernel_tests_executed": true,
+    "desktop_display_tests_executed": false,
+    "all_eleven_new_test_names_verified": true,
+    "scope": "Local synthetic/check validation; no installed delivery, cloud mutation or full-iCloud gate closure."
+  },
+  "superseded_limits": [
+    "Additional controls and production fix await meaningful original baseline and root grant."
+  ]
+}

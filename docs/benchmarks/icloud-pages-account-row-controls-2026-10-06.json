@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "status": "original-desired-failure-corrected-five-passes",
+  "question": "Can the bounded desktop chooser select the one owned, visible, expandable iCloud account row when a title label shares its name?",
+  "prediction": "The prior name-only selector fails the desired one-row endpoint. Selecting ownership and actionable state before checking ambiguity passes that endpoint and refuses foreign or ambiguous rows.",
+  "arms": {
+    "original": "Exactly one desired failure, zero errors, using the actual prior selector and unchanged final row guard.",
+    "corrected": "Exactly five passes: label plus row, duplicate rows, missing/nonexpandable/hidden/wrong name, foreign PID, and own row preferred to foreign PID."
+  },
+  "scope": "Pure AST-selected controller methods with synthetic nodes; no GTK, GI, browser, account, provider, FUSE, or import submission.",
+  "limits": [
+    "The prior live chooser refused ambiguous names but did not retain actual matching roles; these controls do not prove that historical runtime cause.",
+    "A separate fresh local chooser Cancel preflight is still required, followed by actual owned public Pages import and independent application acceptance.",
+    "All six full-iCloud acceptance rows remain open."
+  ],
+  "result": [
+    {
+      "arm": "baseline",
+      "exit_code": 1,
+      "expected_tests_executed": 1,
+      "failures": 1,
+      "errors": 0,
+      "original_popen_reaped": true,
+      "duration_seconds": 0.051866823981981725,
+      "log_sha256": "541c6a4ce602a127dcf87996b70aab7dd8e0d3bd10cdaaf623fa2289dc486fb9",
+      "source_unchanged": true,
+      "test_unchanged": true,
+      "cloud_dispatched": false
+    },
+    {
+      "arm": "corrected",
+      "exit_code": 0,
+      "expected_tests_executed": 5,
+      "failures": 0,
+      "errors": 0,
+      "original_popen_reaped": true,
+      "duration_seconds": 0.05067875003442168,
+      "log_sha256": "888a0c0ed615e57d32cf72be501b0c355f33b8613c81dfdaa99db33d7959487e",
+      "source_unchanged": true,
+      "test_unchanged": true,
+      "cloud_dispatched": false
+    }
+  ],
+  "preregistration_sha256": "25443ab4f4abc8cda3c208168cccd21b98a75701e5a1104582a909d1a8e3ae3d"
+}

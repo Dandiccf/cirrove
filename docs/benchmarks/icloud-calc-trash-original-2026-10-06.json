@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "status": "independent-original-raw-verified-with-wrapper-status-error",
+  "question": "Can a separate read-only observer verify the exact original XLSX bytes in iCloud Trash after the completed fresh Calc A/B save and read-only remount?",
+  "writer_run": "3df92c58-7185-4452-9647-94994ada2400",
+  "observer_run": "e5f343bc-4c48-4753-b7cb-114d30b0e3ce",
+  "prediction": "The completed target replacement receipt identifies the original A, not the distinct zero-byte source shadow. A new saved-session reader will find that exact Trash item and verify its 5281 bytes with SHA-256 3645854724d003f2a18ce55f2fc6f1b5a9e761598f5e9d8d93ee23b1c77b1dba.",
+  "arms": {
+    "synthetic_guards": {
+      "prediction": "Five new-feature unit tests and one CLI refusal test pass. Foreign identity, scope, revision, representation, source, unknown fields, elapsed window and duplicate attempt are refused.",
+      "cloud_requests": false,
+      "regression_before_fix_claim": false
+    },
+    "owned_provider_observation": {
+      "mutation_allowed": false,
+      "original_window_seconds": 90,
+      "cleanup_reserve_seconds": 20,
+      "automatic_retry": false,
+      "endpoint": "Exact completed target backup identity/revision and independent streamed original A size/digest, with metadata checked before and after; original child handle reaped within the registered window."
+    }
+  },
+  "prerequisites": [
+    "Actual stopped writer audit PASS and all original handles reaped; no writer reopen or mutation replay.",
+    "A fixture, independent A read receipt and full typed target upload record copied and digest-bound; original source bytes held unchanged.",
+    "A newly built feature-only observer bound to the actual source and complete scripts/check.sh result; no reuse of a CLI without this command.",
+    "Fresh private read-only settings and sealed saved session retaining the same account/credential identity; no other cloud client state or installed daemon change.",
+    "Disk-backed TMPDIR and SQLITE_TMPDIR, with no overlapping compile or measurement."
+  ],
+  "limits": [
+    "One owned ordinary XLSX observation; no general provider reliability or native iWork fidelity claim.",
+    "Trash presence and raw bytes do not prove restoration, restore destination or whole Trash inventory.",
+    "Synthetic guards validate observer instrumentation, not provider acceptance.",
+    "All six full-iCloud acceptance rows remain open; installed schema transition remains held."
+  ],
+  "actual_observer_build": {
+    "head": "5f9b9c83e423ed13a5894da1b0fb5ef4b90707a9",
+    "feature": "icloud-write-probe",
+    "source_count": 480,
+    "binary": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-trash-original-e5f343bc-4c48-4753-b7cb-114d30b0e3ce/observer-cli",
+      "size": 507041136,
+      "sha256": "fdae090c492ff3e97721140c1655cb91310fee902937a194d7795e35cdce2d9e"
+    },
+    "build_duration_seconds": 21.979249875992537,
+    "compiler_log_sha256": "cc1f1a9bb3897fbd8c7f3a4b6d5a35a57260258bdd65b46bf8d6e67dcad717ee",
+    "source_binding_sha256": "5f94c5bb0a0e99eaa0910d1fd12e004c35a540b0cdf91410fbf0997b87b153dd",
+    "controller_sha256": "c12e8ae16238c3d8ea9692c13a786d5d672089135468c11b0e52615700eac279",
+    "preparer_sha256": "6533dfe4844a80fb1eb46415a8212a350fd3ff132b77743f555843c99e5758e3",
+    "full_check_log_sha256": "608be994883c78f436527a434cf621a3e4e403603b506b6de543adb7218f8ab6"
+  },
+  "actual_observer_window": {
+    "started_unix_seconds": 1791255425,
+    "deadline_unix_seconds": 1791255515,
+    "started_monotonic": 280052.939074212,
+    "deadline_monotonic": 280142.939074212,
+    "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+    "original_window_seconds": 90,
+    "cleanup_reserve_seconds": 20,
+    "duration_seconds": 3.6440000340226106,
+    "parent_observation_deadline_exceeded": false
+  },
+  "result": {
+    "source_head": "5f9b9c83e423ed13a5894da1b0fb5ef4b90707a9",
+    "trash_presence_and_raw_identity_verified": true,
+    "original_a_bytes": 5281,
+    "original_a_sha256": "3645854724d003f2a18ce55f2fc6f1b5a9e761598f5e9d8d93ee23b1c77b1dba",
+    "exact_completed_backup_identity_and_revision": true,
+    "observer_proof_sha256": "a501bdef3f84591c0907936225d45fa3d0bccd3c63a6dcf5a53fcfcd5571398d",
+    "independent_terminal_audit_sha256": "01f2d8043417b941a713bab26a98a29d8088b2ef1b8e1bbc1eb423343afd8ddf",
+    "cli_exit_code": 0,
+    "controller_retained_overall": true,
+    "historical_outer_exit_code": 1,
+    "original_child_and_controller_handles_reaped": true,
+    "owned_processes_mount_socket_absent": true,
+    "all_480_runtime_and_537_checked_sources_unchanged": true,
+    "installed_19_files_unit_pid_birth_unchanged": true,
+    "cloud_mutated": false,
+    "automatic_retry": false,
+    "restore_destination_verified": false,
+    "whole_trash_inventory_verified": false,
+    "gui_fidelity_verified": false,
+    "full_icloud_gate_closed": false
+  },
+  "preregistration_sha256": "28e8cff899198e7700553f1a98a80056c5823161575fcf4cb06361ecc75b758f",
+  "local_validation": {
+    "status": "PASS synthetic instrumentation only",
+    "baseline_regression_claim": false,
+    "source_count": 480,
+    "private_cli_fixture_root_mode": "0700",
+    "arms": [
+      {
+        "phase": "root-calc-trash-original-guards-v1",
+        "executed_test_count": 5,
+        "exit_code": 0,
+        "duration_seconds": 43.15363969100872,
+        "log_sha256": "6f26f789b952d937e608a4ce204722a31be9bcf179b283441fbdf3b03a000378",
+        "artifacts": [
+          {
+            "target": "cirrove_service",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_service-665a793169bb44a0",
+            "size": 621383400,
+            "sha256": "24e495e9b402251921e6b3084e8602d570b509a42241c38221b02d10c7b186ab",
+            "fresh": false,
+            "test": true
+          }
+        ],
+        "cloud_mutated": false,
+        "installed_actions": false
+      },
+      {
+        "phase": "root-calc-trash-original-cli-safety-v1",
+        "executed_test_count": 1,
+        "exit_code": 0,
+        "duration_seconds": 4.161123858997598,
+        "log_sha256": "ce4a476483736d0518e68964065a5d33dc8cd8c0c6da9c54eb66cc9f3af1c082",
+        "artifacts": [
+          {
+            "target": "owned_icloud_calc_trash_original_cli",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/owned_icloud_calc_trash_original_cli-617004592e811261",
+            "size": 10923112,
+            "sha256": "3efc9dfd954498499a5ee9d3eadf2001c974bbf3f9394e80a3225cb74818eefa",
+            "fresh": false,
+            "test": true
+          },
+          {
+            "target": "cirroved",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirroved",
+            "size": 505467608,
+            "sha256": "54799c52f7cc149f10204eceb433694d9b65f91c2ae8b6be0aff1ca7565e5f60",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove-icloud-write-probe",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-write-probe",
+            "size": 434799720,
+            "sha256": "adfc6288ab6911bb543623242ce05d1b96f53d29be15707d8b2a5ac1ee65ed97",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove-icloud-mounted-write-probe",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove-icloud-mounted-write-probe",
+            "size": 503600776,
+            "sha256": "932d215aa20f842ef2e4c582202dc815db335cb75134a38b442447f9fc1c7727",
+            "fresh": false,
+            "test": false
+          },
+          {
+            "target": "cirrove",
+            "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/cirrove",
+            "size": 508011104,
+            "sha256": "e0e5406e1e8e4c6e592ce4a4e58336f345c739e5f59d869dd3f409b93ff31c74",
+            "fresh": false,
+            "test": false
+          }
+        ],
+        "cloud_mutated": false,
+        "installed_actions": false
+      }
+    ],
+    "full_check": {
+      "command": "scripts/check.sh",
+      "fast": false,
+      "exit_code": 0,
+      "duration_seconds": 611.0128533809911,
+      "log_sha256": "608be994883c78f436527a434cf621a3e4e403603b506b6de543adb7218f8ab6",
+      "source_count": 480,
+      "code_script_policy_count": 537,
+      "all_registered_sources_unchanged": true,
+      "all_23_registered_documentation_files_unchanged": true,
+      "kernel_fuse_scenarios_ran": true,
+      "desktop_display_scenarios_separate": true,
+      "cloud_mutated": false,
+      "installed_actions": false
+    }
+  },
+  "provider_preregistration_sha256": "aeb94c141b1e1bef118669b13d526fa69a755770caeb5d5abec216b2fd132d76",
+  "wrapper_status_correction": {
+    "cause": "The actual controller caught its own successful SystemExit(0) with except BaseException and then exited1, after retaining the successful content proof and CLI exit0.",
+    "historical_exit1_preserved": true,
+    "provider_read_repeated": false,
+    "future_controller_sha256": "67f54906e547840c2e367492f7ef30a21a29f199453f9c5cea8a7dbe87b19578",
+    "future_full_controller_executed": false,
+    "offline_actual_main_controls": {
+      "original_actual_exit": 1,
+      "corrected_actual_exit": 0,
+      "one_stub_run_each": true,
+      "provider_calls": 0,
+      "result_sha256": "024f3b98a5aec92fde40f792b81924cec557773fd47d2865838a4813a832aebd"
+    },
+    "control_harness_setup_correction": "Initial namespace omitted sys.stderr and failed with AttributeError before a valid endpoint. The corrected namespace preserved actual selected source and desired exit endpoint; initial attempt retained separately."
+  },
+  "documentation_after_check": "Results/build bindings and README progress are appended after the complete successful check; the actual 23 documents were unchanged at check completion. Production/script/policy pins remain identical."
+}

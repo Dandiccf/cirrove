@@ -1,0 +1,34 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfsc7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfsc7v1",
+  "active": false,
+  "active_measurement": false,
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "prediction": "Both omissions fail exact selected assertion, currentV12 guard and correctedV14 handler pass; full13 pass V12 andV14; no installed/provider execution",
+  "provider_actions": false,
+  "question": "Do actual source-selected forward-install guards refuse ordinary writable start and keep admission held if marker publication fails?",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/root-local-controls-v1/registration-v1.json",
+    "sha256": "58b3d3977e4b944ca4c3741a098c87385efffd64ba36f9edfd42f58dfeb0d5fc",
+    "size": 83108
+  },
+  "status": "closed_source_controls_success",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/root-local-controls-v1/terminal-v1.json",
+    "size": 10503,
+    "sha256": "f78b6009de2f7099b5c7e9ba3d1f92fbe4a3582907784c12b38b427dabb79572"
+  },
+  "deployment_ready": false,
+  "controls_scope": "Six source-selected arms: two exact failure controls, corrected successful guards and full13 guard suites against V12 and V14. No actual supervisor installation execution, lease handoff, privileged child, SIGINT/restoration or real-state migration proof.",
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 50,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/root-local-controls-v1/audit-independent-source-controls-terminal-v1.json",
+      "size": 15072,
+      "sha256": "ed05e3f0f13cbde52421df8a02e73c54a69f4815188ba75525851a78d685e447"
+    }
+  }
+}

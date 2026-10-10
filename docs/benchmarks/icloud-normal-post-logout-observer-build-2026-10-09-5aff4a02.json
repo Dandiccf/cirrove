@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "run": "5aff4a02-9b4b-4aea-812e-ed0f194ea8f5",
+  "question": "Can the private read-only observer build against the checked normal tracked SDK folder421 fix without private diagnostic instrumentation?",
+  "arms": [
+    "offline Linux metadata exact Root seeded registry subset",
+    "normal[] observer build",
+    "owned debug-strip guest artifact"
+  ],
+  "endpoint": "Exact helper and SDK normal[] CargoJSON; Root SDK source path; source pins unchanged; all original processes closed. No provider execution.",
+  "prediction": "One normal observer ELF builds against the checked folder-only421 mapping. Future live typed rejection remains unproved by compilation.",
+  "active": false,
+  "active_measurement": false,
+  "state": "closed_private_observer_build_pass",
+  "command": [
+    "python3",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/normal-sdk-post-logout-read-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5-preparation-v1/build_once_v1.py"
+  ],
+  "binary": {
+    "path": "/home/dandiccf/.local/share/mise/installs/python/3.14.8/bin/python3.14",
+    "size": 17688,
+    "sha256": "b94d53946ff12738210e33e1b333d0b2101eb2438aa57085ec5511fd6980f806"
+  },
+  "manifest": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/normal-sdk-post-logout-read-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5-preparation-v1/build-manifest-v1.json",
+    "size": 121153,
+    "sha256": "23b022468017c7753c2a9625aecfa962cf7378536658c92c41a0a5f79341b0ab"
+  },
+  "fullcheck": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-folder421-fix-f818b201-75bc-4606-a149-714d09e61f6c/fullcheck-final.json",
+    "size": 1165,
+    "sha256": "4e64f42ce7e0b94ec6030e06ab542813b522c837dda641e2d5b077d8be7bfd6f"
+  },
+  "source_head": "1ccb5ac8e59cc7175db9e531cdfacb923b25bbee",
+  "source_dirty": true,
+  "source_change": "exact checked minimal folder421 production change plus health tests; not committed yet",
+  "TMPDIR": "/home/dandiccf/Storage/ct/npl-5aff4a02",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/npl-5aff4a02",
+  "filesystem": "ext4",
+  "expected_seconds": 300,
+  "max_seconds": 1200,
+  "provider_calls": 0,
+  "full490_closed": false,
+  "preparation_refusal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/normal-sdk-post-logout-read-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5-preparation-v1/preparation-only-relative-pin-refusal-v1.json",
+    "size": 249,
+    "sha256": "ab88ea7274d7f749436713047da738ad40a84c6f59e3aa3f42b8c6edee4ad88c"
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/normal-sdk-post-logout-read-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5-preparation-v1/build-actual-v1/terminal-v1.json",
+    "size": 122978,
+    "sha256": "c9347d0c92421491d86a67f0fd2f79a57bc06d06e08de307e18ac9e2af111b78"
+  },
+  "export": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/normal-sdk-post-logout-read-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5-preparation-v1/export-v1.json",
+    "size": 7296,
+    "sha256": "5254defb019dfa14958efb82ca031997b14260a59f6e4801e1857c41499128f4"
+  },
+  "guest_ELF": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-guest-session-rejection-successor-20261009-private-v1/normal-sdk-post-logout-read-5aff4a02-9b4b-4aea-812e-ed0f194ea8f5-preparation-v1/build-actual-v1/guest-observer",
+    "size": 32638840,
+    "sha256": "3f5963b73d771a503d83020c9573691e611ef3d6c4700d6020e7121f4f0842a2"
+  }
+}

@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "run": "c4f645a7-8892-487f-9356-e9aa43a8f8d9",
+  "question": "Does one normal public native replacement request with a deliberately mismatched selected ETag refuse before durable replacement admission and preserve the exact newly imported original?",
+  "prediction": "A unique failed replacement job reports fixed selected-document-resolution admission context and no replacement progress. Exact journal rows and private payload inventories remain unchanged; stopped independent postflight preserves the full original Node, actual ETag and semantic V2 content.",
+  "arms": [
+    {
+      "name": "fresh_setup_and_reference",
+      "actions": "Create one new owned folder and perform one normal public flat Numbers import; stop the writer and independently acquire the exact original metadata and complete V2 content."
+    },
+    {
+      "name": "deliberately_mismatched_selection",
+      "actions": "Submit once through normal public replace-native-package, using that actual item ID, one intentionally different non-wildcard ETag and the same source archive. Require a bound failed job with no native_replace progress or durable replacement operation."
+    },
+    {
+      "name": "preservation_and_postflight",
+      "actions": "Compare exact journal rows and fixed private payload inventories across refusal and original writer closure; perform one stopped independent postflight requiring full original Node/ETag/V2 equality."
+    }
+  ],
+  "endpoints": [
+    "Exactly one completed folder mutation and one completed import/publication are bound to genuine public jobs and typed receipts.",
+    "The sole replacement job fails before durable replacement admission, with exact requested path and fixed admission-stage issue; successful replacement is not intended.",
+    "Exact SQLite cell values and length-framed sorted rows remain equal in query_only snapshots. Database/WAL/SHM page stamps are not substitutes for row equality.",
+    "Metadata and byte inventories remain equal for native-import, journal/objects, journal/working, upload-checkpoints and native-trash-checkpoints under the private account root, without mount traversal.",
+    "The original full Node/ETag and complete semantic V2 remain equal in independent postflight; raw remote ZIP equality is not required.",
+    "All original Popen handles are reaped and processes absent; mount/socket closed, immutable source/runtime pins match and nineteen installed files/unit/daemon identity preserved."
+  ],
+  "source": {
+    "same_for_import_and_refused_replacement": true,
+    "source_layout": "flat_numbers",
+    "root": null,
+    "size": 139044,
+    "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da",
+    "semantic": {
+      "version": 2,
+      "entries": 46,
+      "files": 42,
+      "expanded_bytes": 133252,
+      "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7"
+    }
+  },
+  "root": "/var/tmp/cirrove-native-trash-c4f645a7-8892-487f-9356-e9aa43a8f8d9",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/nt-c4f645a7",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/nt-c4f645a7",
+  "temporary_filesystem": "ext4",
+  "lifetime": {
+    "total_seconds": 600,
+    "cleanup_reserve_seconds": 45,
+    "original_window": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/original-window.json",
+      "size": 330,
+      "sha256": "99b8fae825d0a80eaece2e8fe473cb2eded0e79dd8100b7288dcb09e95454569"
+    },
+    "renewal_allowed": false,
+    "original_Popen_pidfd_ownership_required": true
+  },
+  "role_provenance": {
+    "normal_cirrove_and_cirroved_build_head": "3dccbbe19e1ffbd9772bd55cf11add9397713b9f",
+    "normal_compiler_features": [],
+    "native_trash_probe_build_head": "442ba77e67600a6cc1eed01066ecdcb39fd27599",
+    "probe_compiler_features": [
+      "icloud-write-probe"
+    ],
+    "common_compiled_head_claimed": false,
+    "required_runtime_source_count": 561,
+    "composite_binding_sha256": "96a5a785f02bc5d1929f40c022eb443be37d1bc478a3a1451d02e44e5d071e7c",
+    "actual_execution_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/ready-binding-v4.json",
+      "size": 78905,
+      "sha256": "125693f2bbd6affc68c27352541880aac85ad1e1d0b0fa8406fd94f7a81515af"
+    }
+  },
+  "bindings": {
+    "checkout_head": "700e7619baa6b9287885a8ec8055bb597ad41ab9",
+    "runtime_sources": {
+      "binding": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/ready-binding-v4.json",
+        "size": 78905,
+        "sha256": "125693f2bbd6affc68c27352541880aac85ad1e1d0b0fa8406fd94f7a81515af"
+      },
+      "field": "runtime_sources",
+      "count": 561
+    },
+    "executable_pins": {
+      "cirrove": {
+        "path": "/var/tmp/cirrove-native-trash-c4f645a7-8892-487f-9356-e9aa43a8f8d9/bin/cirrove",
+        "sha256": "a05aeaae79185042043f025715ce3b761aeb63bbf98a545d28f9cb301099bb54",
+        "size": 474129616
+      },
+      "cirroved": {
+        "path": "/var/tmp/cirrove-native-trash-c4f645a7-8892-487f-9356-e9aa43a8f8d9/bin/cirroved",
+        "sha256": "c88ba1681641c4cc142fc6f20be4af5eba1904d6f9303fbc56b154b82843e641",
+        "size": 475720944
+      },
+      "native-trash-probe": {
+        "path": "/var/tmp/cirrove-native-trash-c4f645a7-8892-487f-9356-e9aa43a8f8d9/bin/native-trash-probe",
+        "sha256": "e4ae4cfe46e7c9ff00a64d00e5a67f2ee7c7af1f86c80c08e49c991b42a4dea2",
+        "size": 512869024
+      }
+    },
+    "prepared_assets": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/prepared-assets.json",
+      "size": 3051,
+      "sha256": "430f339e278d86e349333cb0cc1d24f99444396fe814c57fbf748712b6f01e17"
+    },
+    "opaque_ciphertext": {
+      "path": "/var/tmp/cirrove-pages-desktop-ab963a3b-1a34-4f25-99d6-7ee5b604626e/state/accounts/ca43ba36-9f5c-4784-9ae9-20e5c3cbe319/icloud-session.sealed",
+      "size": 11770,
+      "sha256": "d4be0148de9b44f2aadc82e55d4133b2f277a5eef5aae3c7ac689680d14bc820"
+    },
+    "closed_donor_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-live-cli-import-ab963a3b-1a34-4f25-99d6-7ee5b604626e-private-v1/audit-admission-cli-terminal-proof-closure-installed-v1.json",
+      "sha256": "9c9b3a8c605a0baa0b47d573dbb632d8401f3c663a0748dce50e10d439457ba9",
+      "size": 39462
+    },
+    "installed_baseline": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/installed-fresh-before-v1.json",
+      "size": 4080,
+      "sha256": "d13e4cc6a4bcce747beaf15b60dc83e97bb6b1f71c8afc9fd129328b1c4112c2"
+    },
+    "authorization": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/authorization.json",
+      "size": 883,
+      "sha256": "a9251b6bc5d7a0552f82269639c0ac58d90c6e34505e937ae290a4f59617bef8"
+    },
+    "root_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/runtime-registration-final.json",
+      "size": 151700,
+      "sha256": "0c776ebfdb83b5dd56e46a217474caf8a0f3d57a40ef29c84496231bd6b43f35"
+    },
+    "ready": true,
+    "fullcheck_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full8-result-v1.json",
+      "size": 346,
+      "sha256": "6eef9079a21c12b28a2cd3d6171c4a0c3b94bea373620eeb77b5da379d7e0e53"
+    }
+  },
+  "reviewed_proposal": {
+    "path": ".local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/proposal-v1.json",
+    "sha256": "83f49be3792c35b0e901636d10f46d3a0ce45bf3b2fea1d6a037b80fbb8e0f11"
+  },
+  "local_archive_controls": {
+    "controls_executed": 3,
+    "passed": true,
+    "same_root_bytes_modes_inodes_preserved": true,
+    "existing_destination_refused_before_move": true,
+    "synthetic_cross_device_failure_preserved_sources": true,
+    "real_8d650_errno_proven": false,
+    "provider_calls": false,
+    "result": {
+      "path": ".local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/archive-controls-result-v1.json",
+      "sha256": "e885aa985cd29c2c7744a972e185c53e22101f0e1b565d99242fb67f6ddfcb22"
+    },
+    "root_result": {
+      "path": ".local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/archive-controls-root-result-v1.json",
+      "sha256": "d09d27fb6e3ab7ad03e06a794f46f597467cd992eda10c84774625882d30c08b"
+    }
+  },
+  "historical_partial": {
+    "artifact": "docs/benchmarks/icloud-native-replacement-mismatched-selection-2026-10-06.json",
+    "outcome": "8d650 completed setup/import/typed metadata but stopped at a local proof-file move before any replacement. Its unretained errno and exact filesystem cause remain unproved.",
+    "replayed": false
+  },
+  "preconditions": [
+    "Root binds reviewed scripts, actual composite roles/current561source pins, successful full8, fresh installed baseline, private assets, authorization and original clock before dispatch.",
+    "Fresh state copies only closed-donor opaque session ciphertext under the same account/credential AAD; no old journal/cache/state replay. Proof files are archived individually within the same ROOT."
+  ],
+  "real_provider_writes_allowed": "Only fresh owned folder creation and one public flat Numbers import, followed by the sole authorized wrong-ETag replacement request to test refusal; no successful replacement intended.",
+  "automatic_retry": false,
+  "on_unclear_result": "Stop and retain the frontier; no requeue, retry or replay.",
+  "limits": [
+    "Deliberately mismatched selection, not a naturally stale previously valid ETag or concurrent same-name race.",
+    "Same genuine B archive for import and refusal; no new editor-fidelity claim.",
+    "No accepted replacement/Trash, loss recovery, repeatability or installed acceptance. HTTP requests are not instrumented."
+  ],
+  "installed_actions": false,
+  "installation_policy": "HOLD: packaged14/7 is not switched to candidate21/8.",
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "outcome": {
+    "success": true,
+    "driver_exit_code": 0,
+    "driver_elapsed_seconds": 120.74148010299541,
+    "outer_elapsed_seconds": 120.28139912901679,
+    "public_replace_cli_exit_code": 1,
+    "failed_job": "212cff27-89c3-40cf-ad1f-dee79647895c",
+    "fixed_failure_stage": "selected-document resolution",
+    "no_durable_replacement_admission": true,
+    "no_native_replace_progress": true,
+    "exact_journal_rows_and_private_payloads_unchanged": true,
+    "original_full_node_etag_and_semantic_v2_preserved": true,
+    "original_managed_children": 9,
+    "original_handles_reaped_and_processes_absent": true,
+    "mount_absent": true,
+    "socket_absent": true,
+    "immutable_sources_unchanged": true,
+    "installed_artifacts_unit_daemon_preserved": true,
+    "naturally_stale_revision_tested": false,
+    "competing_name_occupant_tested": false,
+    "independent_audit_pending": false,
+    "independent_audit_passed": true
+  },
+  "script_bindings": {
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/controller_mismatched_selection_v4.py",
+      "sha256": "b6f0e48c485218d1cd6853d04df68d0ede9fcbff5f4ba365c033043e77a9d80c",
+      "size": 43874
+    },
+    "preparer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/prepare_assets_v5.py",
+      "sha256": "678a75ec6be41c8dd47c8002f3e1f6ec22455aa0213d376b78676921adadddc7",
+      "size": 16228
+    },
+    "root_outer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/root_outer_v5.py",
+      "sha256": "6db1bb882d4dcb54377ecbd6961247a32e8c817a9aca16885176bb458e00d1cc",
+      "size": 13374
+    }
+  },
+  "source_proof": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-final-flat-edited-b-plan-a6431dd4-1a45-4539-92fb-bcb0804ff679/genuine-b-normalized-witness-v1.json",
+    "sha256": "5010f5ca48acb5b57710d7087a75b3bbe763478b31107ce7eaad92e4ab6d0070",
+    "size": 3789
+  },
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "collection": "drive",
+  "evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1",
+  "local_preparation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/prepare1-result-v1.json",
+    "size": 413,
+    "sha256": "ab820f46a45fb8bc219e10bb47d2c33e936d9450702f1f719a913b5e37dfe710"
+  },
+  "local_checks": {
+    "runtime_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/runtime-registration-v2.json",
+      "size": 151304,
+      "sha256": "92704c0fbd85c58414c50c14be4786d304d2bd268b9024d7652786f18f0896f6"
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/localcheck2-result-v1.json",
+      "size": 524,
+      "sha256": "7f82aa559d88818c923c32acce38f56a039ac25799f35adf8347c6698d232f99"
+    },
+    "assembly_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/assemble2-result-v1.json",
+      "size": 414,
+      "sha256": "d3a57ef5dac3bae4830c1b3b52dfef6254f82f2246757421ac9394dae029cebc"
+    }
+  },
+  "root_launch_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/root-launch-registration-v1.json",
+    "size": 2800,
+    "sha256": "7890242b3c3d7f006b0dfd0cae726d7bf904e4da51b9dcab28596e0cbc2b0915"
+  },
+  "root_launch_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/root-launch-owner-v1.json",
+    "size": 1307,
+    "sha256": "5e9eb0ef6fa6610bd375a6bcc3899e152ee9673758b8dc6a738cfa9abee666a4"
+  },
+  "evidence_pins": {
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/controller-result.json",
+      "size": 2263,
+      "sha256": "b3ced42178ddcf84145e5812b3df6e15150504a1f2bbc03d5f32183db7879be0"
+    },
+    "outer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/root-outer-result.json",
+      "size": 4987,
+      "sha256": "d3cd5d1d28ad0721318299e32609688fb47483e892d2d214f6d417d5903181e4"
+    },
+    "launcher": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/root-launch-result-v1.json",
+      "size": 467,
+      "sha256": "c385879adabe332297996ecf3652752734eb4f34db00f31f8ca2e3ba386768bd"
+    },
+    "public_import": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/public-import-binding.json",
+      "size": 156,
+      "sha256": "0da6092fdad19d5640080499a5760c404e772c3ef7486473ff000fff80e089e9"
+    },
+    "refusal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/selection-refusal-proof.json",
+      "size": 643,
+      "sha256": "bc3d33cc5dfc6f2a3af80022c2ac25c08805b78701f3a3456c1b6796df5995cb"
+    },
+    "before_frontier": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/before-refusal-frontier.json",
+      "size": 5876,
+      "sha256": "f6e618b7fe56cf1d0be95faea62d25407555b1300c916ab957b1e663754ffecd"
+    },
+    "independent_original": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/independent-original-preserved.json",
+      "size": 1127,
+      "sha256": "0361d2ff58b152250c5c8a793c442d8372102184f2c41598fd31343c75cd0db3"
+    },
+    "initial_metadata": {
+      "path": "/var/tmp/cirrove-native-trash-c4f645a7-8892-487f-9356-e9aa43a8f8d9/initial-readback/metadata-acquired.json",
+      "size": 3928,
+      "sha256": "93130d70e1406116c8e3b16f511a38be39e34d415a827dd0d342f2560f72578a"
+    },
+    "postflight_metadata": {
+      "path": "/var/tmp/cirrove-native-trash-c4f645a7-8892-487f-9356-e9aa43a8f8d9/metadata-acquired.json",
+      "size": 3928,
+      "sha256": "161d62bcfc38998e6c70023f0c0883d2f56b07bab0f5c2057ddd1724f050e47c"
+    },
+    "installed_after": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/installed-fresh-after-v1.json",
+      "size": 4077,
+      "sha256": "665a6e37dc3299b9dac30cf999b017f5ac37c7c79dcc584e2d0cb378f5e4d58e"
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-replacement-mismatched-selection-c4f645a7-8892-487f-9356-e9aa43a8f8d9-private-v1/audit-gate-agent-terminal-v1.json",
+      "size": 7909,
+      "sha256": "d6439ee1eb64dc6a6f7c26e3e04b158f23b4942fcfa28e44f91276fa1f3dbbef"
+    }
+  },
+  "subsequent_repository_validation": {
+    "command": [
+      "bash",
+      "scripts/check.sh"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 621.0104741339455,
+    "completed_test_groups": 87,
+    "original_handle_reaped_and_process_absent": true,
+    "registered_source_change": "Only the test equality assertion was expanded by the check script formatter; all561 after-format source pins stayed unchanged through closure.",
+    "display_scenarios_repeated": false,
+    "provider_mutations": false,
+    "installed_actions": false,
+    "pins": {
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-registration-v1.json",
+        "size": 73481,
+        "sha256": "6fe9afad0226b9597fd2dd1f5e0a687030ad59cb514847071277954998dc99ad"
+      },
+      "owner": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-owner-v1.json",
+        "size": 198,
+        "sha256": "7bc8f79b49e2105d8e9787fa2b07dba93b4ffe24b4df43cff9357822685d1f42"
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-result-v1.json",
+        "size": 437,
+        "sha256": "4d2cac964ac7024038a38eb668d1181f4f8550b9a528c73592e9d4cc625d0f42"
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-v1.log",
+        "size": 287970,
+        "sha256": "5976e24dae4e5f7fad08075eb944e9a77b96bb81a1090322288a4bcb74887f6c"
+      },
+      "after_format_source_map": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-after-format-source-map-v1.json",
+        "size": 72840,
+        "sha256": "b2db15d37b2bea11ac1a1bbb2717745e9e1a981f6300126aec4f7d3c2fe24658"
+      },
+      "source_closure": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-source-closure-v1.json",
+        "size": 423,
+        "sha256": "548c780ba3a686af23d43ef2a8ad378c3c449c98aee739245f862c0d6ba2e216"
+      }
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/audit-gate-agent-full9-terminal-v1.json",
+      "sha256": "f4b2b346cbf3f8c36c573cfceec6567e4931c2b70dd68488c2ce6d4533ca31ea",
+      "size": 4164,
+      "checks_passed": 13
+    }
+  }
+}

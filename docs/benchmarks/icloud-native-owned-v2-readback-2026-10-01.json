@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "registered_at": "2026-10-01T21:28:51.337388+00:00",
+  "question": "Does the completed replacement preserve edited current content and original recoverable Trash content, despite the historical v1 original proof?",
+  "prediction": "Both versioned proofs match the same retained original archive; current content equals edited v2 proof and Trash content equals original v2 proof; old Stage remains retained.",
+  "run": "99aa5d99-abf8-45bf-85fd-366e6ec89365",
+  "operation": "bcab1c38-1a48-4747-8234-37568f6b742d",
+  "binary_sha256": "e17b2362338e301156b9a5bdeb6e3adcaf204453747aecc17baec926d145ce26",
+  "verifier_source_sha256": "349b940bb51e3574e1841fb599f76e380118dfa48f7b9e921b3a5a4f9b31e07d",
+  "maximum_seconds": 900,
+  "cloud_mutations": false,
+  "daemon_restart": false,
+  "regression_test": "v2_readback_bridge_binds_both_archive_proofs_and_exact_receipt passed; strict prior binding rejects fixture",
+  "command": [
+    "/home/dandiccf/Storage/.cirrove-builds/icloud-feasibility/target/debug/cirrove-icloud-mounted-write-probe",
+    "--native-v2-verify",
+    "99aa5d99-abf8-45bf-85fd-366e6ec89365",
+    "bcab1c38-1a48-4747-8234-37568f6b742d"
+  ],
+  "limitations": [
+    "One owned Pages fixture only",
+    "Apple GUI open and general application saves remain unverified",
+    "No mutation replay"
+  ],
+  "finished_at": "2026-10-01T21:29:07.836245+00:00",
+  "exit_code": 0,
+  "filesystem": "ext4",
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/cirrove-access-0_r4at2x",
+  "evidence": ".local-state/icloud-access-v2-readback-live-2026-10-01",
+  "observed": {
+    "current_content_verified": true,
+    "original_trash_content_verified": true,
+    "old_stage_retained": true,
+    "old_v1_record_and_payload_preserved": true,
+    "cloud_mutated": false,
+    "apple_pages_gui_verified": false
+  }
+}

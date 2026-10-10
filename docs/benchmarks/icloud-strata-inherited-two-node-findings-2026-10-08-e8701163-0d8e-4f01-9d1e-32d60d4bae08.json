@@ -1,0 +1,150 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "automatic_retries": 0,
+  "child": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+  "cleanup_seconds": 15,
+  "endpoint": "Metadata observation: exact requested parent+child IDs and bounded current ETags with current kind/size and safe comparison flags. Separate owned_tuple_admissible requires name+parent+kind+target on both; it is not a DATA/raw-byte proof.",
+  "fixed_scope": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "collection": "drive",
+    "provider": "icloud"
+  },
+  "helper": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-findings-e8701163-0d8e-4f01-9d1e-32d60d4bae08-preparation-private-v1/root-build-execution-v1/two-node-metadata",
+    "sha256": "d516536478ecfc7ef0432d038ca2af86613f9f2b9dc90e65251d45e153779bcd",
+    "size": 189764560
+  },
+  "helper_build": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-findings-e8701163-0d8e-4f01-9d1e-32d60d4bae08-preparation-private-v1/root-build-execution-v1/terminal-v1.json",
+    "sha256": "a19bc7323997f47123d33bc4ad7c96c93f55e413a5b9b951c75e779a22fa0926",
+    "size": 202032
+  },
+  "helper_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-findings-e8701163-0d8e-4f01-9d1e-32d60d4bae08-preparation-private-v1/root-build-execution-v1/audit-independent-build-terminal-v1.json",
+    "sha256": "246336ebe5274d30aacbccc5b759bc68882de9bd12de6d5453ba4e3a47ddc83b",
+    "size": 5516
+  },
+  "http_request_count": "uninstrumented",
+  "installed_actions": false,
+  "limits": [
+    "This new arm is separate from the closed a865 and20cc reads; no automatic retry or old proof update.",
+    "Metadata observation success means two exact typed IDs were read. owned_tuple_admissible is a separate scope/name/kind/target classification, not raw-byte or representation proof.",
+    "Provider metadata size is reported without comparison to historical138943 or a claim of encoded archive length.",
+    "No DATA/PACKAGE, content digest, pin inheritance, residency or editor claim.",
+    "Foreign current name and parent strings are suppressed; only exact known literals can cross the boundary.",
+    "Two public node API calls can involve more HTTP requests; HTTP count uninstrumented.",
+    "Read existing broker via the same public sealed-session API; no credential writes and no new claim of broker key provenance or excluding existing legacy fallback.",
+    "The later child size138902 differs from historical138943; it does not retroactively identify the discarded20cc guard operand or the cause of the remote change."
+  ],
+  "maximum_metadata_method_calls": 2,
+  "maximum_work_seconds": 120,
+  "output_fields": [
+    "fixed id",
+    "name only if exact registered literal else null",
+    "parent_id only if exact registered literal else null",
+    "kind",
+    "provider metadata size",
+    "bounded current etag",
+    "name_matches_registered",
+    "parent_matches_registered_owner",
+    "child parent_matches_known_owned_folder",
+    "kind_matches_expected",
+    "target_absent",
+    "owned_tuple_admissible"
+  ],
+  "parent": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+  "prediction": "Both requested active identities yield current metadata. Current provider size and fixed name/parent/kind/target comparisons distinguish the old grouped refusal without asserting current DATA bytes.",
+  "previous_metadata_refusal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-metadata-20cc01ca-3dec-4c3f-8fcb-3214b0f6a03e/terminal-v1.json",
+    "sha256": "4bb96cb957d16622d7257d65d8c7a637df51865459bebd9660bfa9290f6e6b12",
+    "size": 1309
+  },
+  "previous_metadata_refusal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-metadata-20cc01ca-3dec-4c3f-8fcb-3214b0f6a03e/audit-independent-metadata-refusal-terminal-v1.json",
+    "sha256": "f85cbec3d2c704960db0393ab390400ab01483996b426b8899ed0b1d2d095ab3",
+    "size": 6076
+  },
+  "provider_mutations": false,
+  "question": "What safe current typed findings does the exact registered D267 child have under the same account, after20cc discarded its returned node on a grouped historical guard?",
+  "ready": false,
+  "registered_utc": "2026-10-08T14:43:40.741588+00:00",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-findings-e8701163-0d8e-4f01-9d1e-32d60d4bae08/registration-v1.json",
+    "sha256": "53b147eac329ecbb1e943931349e89576c4017de2fc224093b9b49f6a4aa2e9d",
+    "size": 11707
+  },
+  "run": "e8701163-0d8e-4f01-9d1e-32d60d4bae08",
+  "size_admission": false,
+  "status": "closed_metadata_observed",
+  "subject_run": "8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-findings-e8701163-0d8e-4f01-9d1e-32d60d4bae08/terminal-v1.json",
+    "sha256": "99373bfa6a0d4aef0a1bf3b4836784a6570914e710a012af4c8a0bc02d6a663e",
+    "size": 3012
+  },
+  "version": 1,
+  "window": null,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-findings-e8701163-0d8e-4f01-9d1e-32d60d4bae08/audit-independent-findings-terminal-v1.json",
+    "size": 5430,
+    "sha256": "ed3ba0d761f0473a53e02a32bacc97f9db880c51dbf09c1ee47c796508c36ad7"
+  },
+  "independent_checks_passed": 26,
+  "root_postrun_unit_preservation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-inherited-two-node-findings-e8701163-0d8e-4f01-9d1e-32d60d4bae08/root-postrun-unit-preservation-v1.json",
+    "size": 471,
+    "sha256": "33aeb43c1fcd4fae106975bb09c3727e722e915a67e0fbce47f33903fbd9705b"
+  },
+  "current_metadata_findings": {
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "child": {
+      "etag": "i2vo::i2vn",
+      "id": "FILE::com.apple.CloudDocs::D267B8BF-7A8F-425D-B354-7A77010B950C",
+      "kind": "file",
+      "kind_matches_expected": true,
+      "name": "Cirrove-Numbers-Data-8bbfa670-42ac-4f04-91d1-a6cbd6afc018.numbers",
+      "name_matches_registered": true,
+      "owned_tuple_admissible": true,
+      "parent_id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+      "parent_matches_known_owned_folder": true,
+      "parent_matches_registered_owner": true,
+      "size": 138902,
+      "target_absent": true
+    },
+    "cloud_mutations": 0,
+    "collection": "drive",
+    "content_requested": false,
+    "editor_readiness_proved": false,
+    "error_class": null,
+    "http_request_count": "uninstrumented",
+    "metadata_method_calls_started": 2,
+    "metadata_observation_success": true,
+    "owned_tuple_admissible": true,
+    "parent": {
+      "etag": "i2vp",
+      "id": "FOLDER::com.apple.CloudDocs::D8DD5A1F-8A48-49A2-92E7-0E06F7E1D199",
+      "kind": "folder",
+      "kind_matches_expected": true,
+      "name": "Cirrove-Native-8bbfa670-42ac-4f04-91d1-a6cbd6afc018",
+      "name_matches_registered": true,
+      "owned_tuple_admissible": true,
+      "parent_id": "FOLDER::com.apple.CloudDocs::root",
+      "parent_matches_known_owned_folder": null,
+      "parent_matches_registered_owner": true,
+      "size": 0,
+      "target_absent": true
+    },
+    "representation_proved": false,
+    "run": "e8701163-0d8e-4f01-9d1e-32d60d4bae08",
+    "stage": "local_preservation",
+    "success": true,
+    "version": 1
+  },
+  "source_count": 573,
+  "elapsed_seconds": 1.9292287270072848,
+  "representation_proved": false,
+  "editor_readiness_proved": false,
+  "gate489_closed": false,
+  "installed_HOLD_released": false
+}

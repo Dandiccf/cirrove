@@ -1,0 +1,136 @@
+{
+  "Apple_B_open": {
+    "actual_after_reload": {
+      "A2": 17,
+      "B2": 3,
+      "C2": 20,
+      "formula": "SUM(A2:B2)"
+    },
+    "cell_edits": 0,
+    "document_name_verified": true,
+    "reloads": 1,
+    "repair_dialog_observed": false,
+    "same_new_item_initial_docws_route_observed": true,
+    "within_original_browser600": true
+  },
+  "actual": {
+    "all_child_actual_exit_codes": {
+      "cleanup-mount": 0,
+      "import-a": 0,
+      "metadata-a": 0,
+      "postflight": 0,
+      "recover": 0,
+      "replace-b": 1,
+      "start-a": 0,
+      "start-loss": 86
+    },
+    "children_reaped_and_process_absent": 10,
+    "cleanup_reserve_seconds": 45,
+    "cloud_mutation_replayed": false,
+    "controlled_loss_process_exit_code": 86,
+    "controller_exit_code": 0,
+    "elapsed_seconds": 382.9816333989729,
+    "exact_current_new_and_original_in_Trash_identity_revision_bindings_verified": true,
+    "independent_A_preflight_passed": true,
+    "independent_currentB_semantic_v2": {
+      "entries": 46,
+      "expanded_bytes": 133252,
+      "files": 42,
+      "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+      "version": 2
+    },
+    "independent_originalA_Trash_semantic_v2": {
+      "entries": 46,
+      "expanded_bytes": 133153,
+      "files": 42,
+      "sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+      "version": 2
+    },
+    "independent_terminal_audit": {
+      "checks_passed": 32,
+      "sha256": "47a695037d4716d6b9f93dbef63c77ea190470c275f595efc788a0ee393d1000"
+    },
+    "installed19_unit_daemon_birth_unchanged": true,
+    "loss_injection": "Withheld local final acknowledgement after backend returned its receipt; real test-process exit86. No provider reply-loss claim.",
+    "metadata_publication_confirmed": true,
+    "normal_public_A_import_passed": true,
+    "original_window_seconds": 600,
+    "outer_exit_code": 0,
+    "owned_mount_and_socket_absent": true,
+    "preclock_cli_argument_refusal_retained": {
+      "clock_started": false,
+      "controller_dispatched": false,
+      "corrected_before_first_provider_dispatch": true,
+      "exit_code": 2
+    },
+    "public_cli_one_is_expected_socket_owner_loss_not_success": true,
+    "public_replace_cli_exit_code": 1,
+    "raw_Trash_ZIP_equality_verified": false,
+    "raw_stopped_uploading_frontier_and_encrypted_checkpoint_bound_before_reopen": true,
+    "recovery_counts": {
+      "inspections": 1,
+      "reconciliations": 0,
+      "refused_namespace": 0,
+      "refused_uploads": 0
+    },
+    "recovery_same_operation": true,
+    "source_runtime_549_unchanged": true
+  },
+  "arms": [
+    "fresh owned Numbers flat A normal public CLI import and independent metadata/content proof",
+    "genuine edited B replacement with controlled final-confirmation process exit 86",
+    "same-operation encrypted-checkpoint inspection-only recovery",
+    "fresh independent current B and original A Trash complete semantic proof"
+  ],
+  "automatic_retry": false,
+  "build_head": "b64d995fd23d564b907b951d7c18a82a7c859db4",
+  "concurrency": "One measurement; no compilation or tracked runtime edits.",
+  "date": "2026-10-06",
+  "endpoint": "All four arms completed under one original 600-second window with 45 seconds reserved for original-handle cleanup; no retry after uncertainty.",
+  "full_icloud_release_criteria": {
+    "closed": 1,
+    "open": 5
+  },
+  "installed_actions": false,
+  "later_readonly_remount": {
+    "artifact": "icloud-flat-numbers-native-final-ro-remount-2026-10-06.json",
+    "native_replacement_recovery_and_Apple_open_results_not_reclassified": true,
+    "semantic_remount_acceptance": false,
+    "status": "closed_failed_capture"
+  },
+  "latest_published_head_CI": {
+    "conclusion": "success",
+    "head": "b64d995fd23d564b907b951d7c18a82a7c859db4",
+    "jobs_succeeded": 7,
+    "previous_failed_run_not_erased": 37454516389,
+    "run": 37457246802,
+    "status": "completed"
+  },
+  "limits": [
+    "One controlled run supports a bounded case, not sustained provider reliability.",
+    "Apple Numbers opening and reload were separately measured; read-only remount remains pending.",
+    "No installed delivery or full iCloud release acceptance; five of six release criteria remain open."
+  ],
+  "next": "Run a separately preregistered strict semantic read-only remount on a new owned subject before Apple application opening; broader full-iCloud release criteria remain open.",
+  "original_preregistration_sha256": "2d3b1225d051f4a3afb8dab3373fa0fbaea45d0885c32568c75768c0606f2c4f",
+  "prediction": "Fresh normal CLI import publishes A; B replacement reaches a durable uncertain checkpoint; inspection-only recovery resolves current B and original A without replay. All raw and complete semantic V2 source bindings remain unchanged.",
+  "question": "Can a freshly imported native Numbers A be replaced by the genuine edited flat B, survive a controlled final-confirmation process exit, and recover the same operation by inspection only while preserving original A in Trash?",
+  "run": "27d24fba-caa3-4454-b504-dc4f33180960",
+  "runtime_source_count": 549,
+  "session_root_filesystem": "btrfs",
+  "source_a": {
+    "bytes": 138945,
+    "sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae"
+  },
+  "source_b": {
+    "bytes": 139044,
+    "semantic_v2_sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+    "sha256": "525b7c34dac5c5c96e868542f4ddb15c6dbfdf7c1b3806943c63bca12fc1f3da"
+  },
+  "source_b_evidence": "icloud-numbers-edited-b-donor-2026-10-06.json",
+  "status": "fresh_genuine_flat_B_replacement_process_recovery_and_Apple_open_verified_remount_pending",
+  "tmpdir_filesystem": "ext4",
+  "version": 1,
+  "subsequent_readonly_metadata_correction": "icloud-native-package-backup-publication-2026-10-06.json",
+  "subsequent_strict_readonly_arm": "icloud-native-package-readonly-backfill-2026-10-06.json"
+}

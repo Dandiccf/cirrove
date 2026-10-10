@@ -1,0 +1,118 @@
+{
+  "TMPDIR_filesystem": "ext4",
+  "active_measurement": false,
+  "assessment": {
+    "a": {
+      "ooxml": {
+        "document_xml_sha256": "5892eb22c9b3f8c24da7c0330ccebc821d199ce78f64401ab353e482f79817b5",
+        "expanded_bytes": 15117,
+        "members": 11,
+        "text_bytes": 93,
+        "text_sha256": "48f06d400e55647f0ef92b210e6888ae3acde97ef488dac8de0adc2ea74b5c97"
+      },
+      "raw_source": {
+        "sha256": "e9338e4adf12153a5a8eb509726e4e04f3554e5e247edfc315e7cc1626580482",
+        "size": 5829
+      }
+    },
+    "actual_exit": 0,
+    "all_original_outer_and_descendants_closed": true,
+    "application_save_calls": {
+      "A": 1,
+      "B": 1
+    },
+    "automatic_retries": 0,
+    "b": {
+      "ooxml": {
+        "document_xml_sha256": "70668797c0d13b03e0c771d0cdf751657d0d268e643796bb4ff3e7c5386e9dc6",
+        "expanded_bytes": 15280,
+        "members": 11,
+        "text_bytes": 158,
+        "text_sha256": "6f8e3f0cb6757b74bbfea87ecdad3f5b1d9ebd4cb4db0cb87d7d8438b152499a"
+      },
+      "raw_source": {
+        "sha256": "850ae7612d4f6ba00e1ae2cb74818f347c6d01cc9f5c6b4c911990e9c7102870",
+        "size": 5906
+      }
+    },
+    "case_success": true,
+    "complete_journal_frontier_unchanged_across_observation": true,
+    "controller_owned_children_closed": 12,
+    "elapsed_seconds": 472.410733910976,
+    "full_487_closed": false,
+    "independent_DATA_reads_match_A_and_B": true,
+    "independent_audit": {
+      "passed": 29,
+      "sha256": "cf7581c18c56e783bd05d62acac4941613464f5a6bd82599a27dd64d06e89c20",
+      "total": 29
+    },
+    "installed_artifacts_unchanged": 19,
+    "measurement_result_scope": "A single end-to-end functional scenario; elapsed time is descriptive, not a comparative performance measurement.",
+    "normal_readonly_remount_exact_B": true,
+    "original_window_seconds": 600,
+    "outer_owned_children_closed": 2,
+    "parent_elapsed_seconds": 473.25888359796954,
+    "root_terminal_sha256": "420b57bf101c680958b24773109ae81d58d4bc9af1656e7218f5f6481c95bce7",
+    "typed_Trash_original_A_matches": true
+  },
+  "base_head": "19f604d1694c1914c265c1f95aa446775b548b74",
+  "case_filesystems": {
+    "/home/dandiccf/Storage/ct/wd-f015bd4d": "ext4",
+    "/var/tmp/cirrove-writer-editor-f015bd4d-44a1-4676-88ca-a0a0445ed9ab": "btrfs",
+    "/var/tmp/cirrove-writer-trash-observer-c31fee04-2957-4985-8cfe-d497d6ca5003": "btrfs"
+  },
+  "clock": {
+    "cleanup_reserve_seconds": 45,
+    "per_application_cleanup_seconds": 30,
+    "per_application_work_seconds": 60,
+    "renewal": false,
+    "same_clock_for_metadata_readback_ro_and_trash": true,
+    "total_seconds": 600
+  },
+  "cloud_write_authorization": "Standing explicit own iCloud test authorization; fresh own document only. No replay after uncertainty.",
+  "controller_sha256": "3bb6f1b11aed9f15a0f8deb9d3cda515c05be73bd0c86aed0b99c9105dc43389",
+  "date": "2026-10-07",
+  "dispatched_at": "2026-10-07T07:27:03.974444+00:00",
+  "endpoints": [
+    "Writer A writable local copy loaded as MS Word 2007 XML, exact original paragraph, one storeAsURL into the own mount, actual read-only reopen and bounded CRC/word/document.xml paragraph crosscheck.",
+    "Stopped schema21 exact account journal selection, completed queue/receipt/body identity and ordinary FileBytes authority, typed Writer metadata capture and independent raw DATA readback A.",
+    "Writer B actual mounted A load, own fixed text change and exactly one doc.store, read-only reopen and same bounded paragraph/CRC proof.",
+    "Stopped B typed receipt and exact backupA lineage, independent raw DATA B readback, no uncertain mutation/upload state.",
+    "Normal configured read-only remount; exact account-local cached current B Node plus canonical FD capture raw SHA/size B; immutable transfer/queue/body frontier after remount.",
+    "Separate explicit Writer Trash observer using the same original window, copied A fixture/read receipt and exact completed target upload. Exact originalA/backupA ID, revision, size and SHA verified; no restore or mutation.",
+    "Every original outer/controller/bwrap/office handle is retained and reaped. Mount/socket absence and all protected source, seed, role, office-module and installed bytes/PID birth are checked."
+  ],
+  "full_487_closed": false,
+  "installed_actions": false,
+  "limits": [
+    "No application/provider/observer phase rerun.",
+    "Headless ordinary DOCX create then save, not GUI proof or native Pages save.",
+    "Exact authored paragraphs/ordinary raw DOCX fidelity only; no fonts/layout/media/general-format claim.",
+    "12 controller and two outer recorded originals; host unified tool termination is Root receipt, not an invented separate pidfd owner.",
+    "Private PID namespace Office handle PID3 is checked through worker namespace receipt; not host PID3.",
+    "No installed action, release acceptance or full487 closure.",
+    "Application network access was disabled; authorized mounted saves used host-daemon provider operations. HTTP request counts were not instrumented.",
+    "The normal read-only daemon is the frozen56 source role; feature proof tools were built from the exact formatter-final568 source map before commit19f604d.",
+    "One bounded successful scenario does not establish sustained reliability or repeatability."
+  ],
+  "new_feature_roles_source": "Exact formatter-final568 map validated by complete check and fresh Cargo artifacts, built before19f604d commit from97bee0e plus those exact pending changes.",
+  "normal_daemon_CLI_source": "56a2496a284434e94be9cce70f290a95c9f45d83",
+  "prediction": "The two Writer calls produce completed ordinary file-byte uploads and an exact recoverable identity handoff. Independent reads agree with the captured A/B bytes; the read-only remount shows exact B and the exact original A remains readable in Trash. The case stops on any uncertain or mismatched outcome.",
+  "prepared_assets_sha256": "1d9b9d07bb9f2bc2eb91256e956b1abf059ea575520bc5a4aa580ecdf82287ee",
+  "question": "Does one supported ordinary DOCX created and subsequently edited by Writer through a fresh isolated iCloud mount retain exact A and B DATA identities, preserve original A in Trash, and reopen/read B after a normal read-only remount?",
+  "registration_limits_before_run": [
+    "This source packet has only Python AST syntax checks. No local fake UNO/controller controls, app, service, keyring, provider, compiler or installer execution occurred.",
+    "The current source proof helpers are still undergoing Root controls/full check. Feature ELF pins and the final source map are unresolved, so no live readiness is claimed.",
+    "The feature-role template is a Root-authored admission input that must cite actual build receipts; no existing Cargo producer schema is invented or normalized.",
+    "The stopped 805f donor is a candidate only. Root must verify current same-AAD keyring/session coherence without exposing credentials before it is copied or used.",
+    "Bwrap prevents application network access but authorized mounted filesystem saves cause host-daemon provider operations. Provider HTTP count remains uninstrumented.",
+    "The saved-text/OOXML assertions cover one exact paragraph. They do not prove layout, fonts, images, native Pages save, native package semantics, PPTX behavior, exporter reliability or full criterion487.",
+    "Ambiguous folder/save outcome stops the arm and preserves all own files. If forced outer termination prevents a complete descendant receipt, the result records unresolved ownership rather than claiming closure; Root retains the evidence and must not start another arm."
+  ],
+  "run": "f015bd4d-44a1-4676-88ca-a0a0445ed9ab",
+  "runtime_source_count": 568,
+  "scope": "One genuine converted DOCX seed, actual ordinary Writer mounted create A and later save B, independently selected DATA receipts/readback, normal read-only remount B and exact original A in Trash. No native Pages save, native PACKAGE editing, replay or installed change.",
+  "status": "closed_completed",
+  "version": 1,
+  "worker_sha256": "9cfd4609eb29621242c2e05aabf3f1cc4e40dbbe9a16fb5d936040370e2c3aba"
+}

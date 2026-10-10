@@ -1,0 +1,93 @@
+{
+  "Apple_Numbers_reopen": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/nr-b6ce3c1e",
+  "TMPDIR": "/home/dandiccf/Storage/ct/nr-b6ce3c1e",
+  "active": false,
+  "active_measurement": false,
+  "actual_elapsed_seconds": 6.587667639949359,
+  "arms": [
+    "local-only state preparation",
+    "once normal RO remount and offline fullV2 verification"
+  ],
+  "automatic_retries": 0,
+  "cleanup_reserve_seconds": 45,
+  "date": "2026-10-07",
+  "endpoints": [
+    "Ready RO mount for exact account and collection",
+    "Canonical mounted archive fullV2 B and exact receipt/frontier binding",
+    "Source state bytes/stamps and installed19 preserved; owned daemon and children reaped, mount/socket absent"
+  ],
+  "expected_seconds": 600,
+  "filesystem_required": "ext4",
+  "full487_closed": false,
+  "full_semantic_V2_verified": true,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/audit-independent-normal-ro-terminal-v1.json",
+    "sha256": "a7604ebc0078b8cd6a30fbc75793a501c2be14392dce6b7f383244dc3fcba16f",
+    "size": 6292
+  },
+  "independent_audit_passed": 34,
+  "independent_audit_total": 34,
+  "installed_actions": false,
+  "installed_artifacts_preserved": 19,
+  "installed_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/fresh-installed-baseline-v2.json",
+    "sha256": "ece8e869f0c9591136ffbcb8523fe9e05aba3c3d8544ec26393cd5fe20955b7d",
+    "size": 4940
+  },
+  "local_prepare_cleanup_seconds": 10,
+  "local_prepare_work_seconds": 120,
+  "maximum_seconds": 600,
+  "normal_RO_remount": true,
+  "normal_roles_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-build-v2/normal-roles-binding-v1.json",
+    "sha256": "3f87991f4fd9ea79279f1eb6a041e12ed2a3f25b77d7a90fca08464c1fa5513f",
+    "size": 77926
+  },
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/observe-outer-owner.json",
+    "sha256": "81d89660458cdf7629baf03f6060d6d65a6c594a7b2c784139022a4598439689",
+    "size": 373
+  },
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/original-window.json",
+    "sha256": "0a08f4acbdca2fa12154c0f9a5e1517c3f1bffb63b41b4d86026452ae93535db",
+    "size": 314
+  },
+  "original_writer_case_success": false,
+  "prediction": "Normal no-feature daemon reaches ready on a genuinely read-only isolated mount; captured canonical archive matches full semantic V2 B; exact replacement frontier remains stable; all original handles close and source/installed state stays unchanged.",
+  "provider_mutations": false,
+  "question": "Does the exact confirmed Numbers B remain fully readable through a fresh normal read-only mount, preserving the stopped source state and installed daemon?",
+  "root_actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/root-actual-observe-tool-terminal-v1.json",
+    "sha256": "f8fe17f2984e4ee31b886cc724adf1d5c0df411750eae53a1adc78b03304b656",
+    "size": 1626
+  },
+  "root_launcher": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/launch_numbers_ro_root_once_v1.py",
+    "sha256": "d354ca8843fabcb3df3609d562e47f9cdcc657d58419726412b108b38a8faf35",
+    "size": 6722
+  },
+  "run": "b6ce3c1e-f8e7-4dfd-8a2f-b2d46b66150a",
+  "scanner_controls_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/normal-scanner-build-preparation-v1/root-scanner-controls-v1/scanner-controls-result.json",
+    "sha256": "195080820144fe23d439c3b23d9d77919ee9ad236ddb713a04867a8891c4eb75",
+    "size": 10238
+  },
+  "separate_postflight_read_audit_passed": 28,
+  "source_bytes_and_stamps_preserved": true,
+  "status": "closed_success",
+  "subject_run": "33711731-75c5-4d9e-bc26-aa385cab9748",
+  "supervisor": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/supervise_numbers_ro_v4.py",
+    "sha256": "2a74f0d004fef3067b1c69145fa2a3d9ec3308113aad9658c0a86459bfdb7e38",
+    "size": 19013
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/successor-v2/root-terminal-result.json",
+    "sha256": "9652bd68a3f36a95c9b8f8a6910e77c7de5dbc933aef6691bf2d9bfb26ca6144",
+    "size": 828
+  },
+  "version": 1,
+  "writer_replays": 0
+}

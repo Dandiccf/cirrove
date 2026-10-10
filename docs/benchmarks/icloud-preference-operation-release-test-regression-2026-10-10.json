@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "question": "Does the interrupted-preference test wait for bounded operation-lock release without changing production Busy semantics or retrying writes?",
+  "prediction": "A controlled owner keeps the next preference Busy without the test barrier; with the WouldBlock-only bounded release barrier, contention is observed and exactly one later public preference succeeds. The interrupted-preference group passes.",
+  "arms": [
+    "Omission RED: deterministic controlled held operation, test wait omitted, expected preference-success assertion fails with Busy.",
+    "GREEN: same controlled owner and exact assertions with release wait restored, then interrupted-preference group once."
+  ],
+  "endpoint": "Expected RED Busy failure, GREEN controlled test pass, complete interrupted-preference group pass, original processes/groups closed; production bytes unchanged.",
+  "active": false,
+  "active_measurement": false,
+  "temporary_filesystem": "ext4",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pref-release",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pref-release",
+  "cloud_calls": 0,
+  "full490_closed": false,
+  "production_behavior_changed": false,
+  "original_fullcheck_failure_retained": true,
+  "maximum_seconds_per_arm": 900,
+  "registered_unix": 1791626511.2404697,
+  "state": "closed_test_only_regression_passed",
+  "private_owner_sha256": "46fe317dfa5ca4d7dab1e403b26b754592718c65befabdc9c3fd915f94ede9a7",
+  "format_exit": 0,
+  "RED_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-preference-operation-release-test-fix-20261010-private-v1/red-registration.json",
+    "sha256": "82b6c36fb9cd23a84c392ac727abfcb29f2b1dac222f11eacbb4dbcb8ab1647f"
+  },
+  "fixture_compile_refusal": {
+    "exit_code": 101,
+    "tests_executed": 0,
+    "error_code": "E0282",
+    "reason": "Omitting wait removed the sole mpsc channel type inference; explicit unit-channel type now shared by both arms.",
+    "terminal_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-preference-operation-release-test-fix-20261010-private-v1/red-terminal.json",
+    "terminal_sha256": "5c4ca2a46f9f13bcd89b160c93bfa4c688746b43f3955658db4f62c1afca5a1b"
+  },
+  "corrected_RED_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-preference-operation-release-test-fix-20261010-private-v1/red2-registration.json",
+    "sha256": "a42e0c649bf0308a6e4ca209740a9a30b3efa50f6b8175d7c8e115916913f744"
+  },
+  "actual_RED": {
+    "exit_code": 101,
+    "passed": 0,
+    "failed": 1,
+    "expected_Busy_assertion_observed": true,
+    "original_process_closed": true,
+    "terminal_path": "/home/dandiccf/Work/cirrove/.local-state/icloud-preference-operation-release-test-fix-20261010-private-v1/red2-terminal.json",
+    "terminal_sha256": "25684175514486da7e73b1f6be6897ebcbbcb814bc218152a833db656b77105a"
+  },
+  "GREEN_group_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-preference-operation-release-test-fix-20261010-private-v1/green-group-registration.json",
+    "sha256": "45b0f5cc4f8e4b2efc2c5615600a857190e2abdd463edefb53744261d48f57fc"
+  },
+  "GREEN_registration_preparation_refusal": {
+    "version": 1,
+    "source_preparation_refusal": true,
+    "compiler_launched": false,
+    "tests_executed": 0,
+    "reason": "Registration builder incorrectly assumed --lib command index; its assertion refused before writing registration. Subsequent launcher found no registration and refused before Popen. Replaced indexing with explicit complete command.",
+    "recorded_unix": 1791626720.0561848
+  },
+  "actual_GREEN_group": {
+    "actual_exit": 0,
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0,
+    "includes_original_failing_test": true,
+    "includes_live_signin_Busy_negative": true,
+    "controlled_wait_observed_actual_contention_and_joined_release_thread": true
+  },
+  "actual_controlled_RED": {
+    "expected_exit": 101,
+    "actual_exit": 101,
+    "passed": 0,
+    "failed": 1,
+    "expected_Busy_assertion_observed": true,
+    "omitted_only_control_wait": true
+  },
+  "all_four_original_process_groups_closed": true,
+  "production_prefix_unchanged": true,
+  "production_Busy_semantics_unchanged": true,
+  "source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/accounts.rs",
+    "size": 151386,
+    "sha256": "6263d141e4baef05aa377db1d4768eb7aaeb402bba8279d845a12a77cdb4b5c9"
+  },
+  "actual_closed_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-preference-operation-release-test-fix-20261010-private-v1/closed-test-stabilization-receipt.json",
+    "size": 7151,
+    "sha256": "c81398ef90ab07a32d3f4458c255afa91fc09b697c861a5274821dc774679738"
+  },
+  "scope_limitation": "Mechanism-sensitive synthetic test stabilization; does not uniquely identify the failed CI holder, establish provider reliability, or close490. Original fullcheck and fixture/preparation refusals retained.",
+  "fullcheck_successor_pending": true
+}

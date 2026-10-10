@@ -138,7 +138,7 @@ fn later_saves_follow_receipts_across_creation_upload_and_restart() {
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        14
+        21
     );
 }
 
@@ -872,4 +872,61 @@ fn keeping_both_refuses_a_save_that_is_still_on_its_way() {
          would leave the person with two files where they saved one"
     );
     assert_eq!(journal.get(queued.id).unwrap().state, UploadState::Pending);
+}
+
+#[test]
+fn unconfirmed_count_tracks_both_journals_across_restart_and_completion() {
+    use cirrove_core::mutation::{MutationIntent, MutationReceipt, MutationRequest};
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+    let upload = journal
+        .enqueue(scope(), create("Upload.txt"), BYTES)
+        .unwrap();
+    let mutation = journal
+        .enqueue_mutation(MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::CreateFolder {
+                parent: "root".into(),
+                name: "Folder".into(),
+            },
+        })
+        .unwrap();
+    assert_eq!(journal.unconfirmed_changes().unwrap(), 0);
+    journal.claim_next().unwrap().unwrap();
+    journal.claim_mutation().unwrap().unwrap();
+    assert_eq!(
+        journal.unconfirmed_changes().unwrap(),
+        0,
+        "ordinary in-flight work is separate"
+    );
+    drop(journal);
+    let mut journal = open(&root);
+    assert_eq!(journal.unconfirmed_changes().unwrap(), 2);
+    assert_eq!(journal.failed_uploads().unwrap(), 0);
+    assert_eq!(journal.stuck_mutations().unwrap(), 0);
+    let verification = journal.claim_verification(upload.id).unwrap();
+    let change = journal.claim_mutation().unwrap().unwrap();
+    assert_eq!(
+        journal.unconfirmed_changes().unwrap(),
+        2,
+        "inspection is still unconfirmed"
+    );
+    journal
+        .acknowledge(upload.id, verification.attempt.unwrap(), remote(&upload))
+        .unwrap();
+    assert_eq!(journal.unconfirmed_changes().unwrap(), 1);
+    let mut folder = remote(&upload);
+    folder.id = "folder-id".into();
+    folder.name = "Folder".into();
+    folder.kind = NodeKind::Folder;
+    folder.size = 0;
+    journal
+        .acknowledge_mutation(
+            mutation.id,
+            change.attempt.unwrap(),
+            MutationReceipt::Upsert(folder),
+        )
+        .unwrap();
+    assert_eq!(journal.unconfirmed_changes().unwrap(), 0);
 }

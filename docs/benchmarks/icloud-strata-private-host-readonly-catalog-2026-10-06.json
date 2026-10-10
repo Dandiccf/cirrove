@@ -1,0 +1,827 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_actual_native_catalog_and_menu_passed_dialog_timeout",
+  "active_measurement": false,
+  "run": "00f1a150-85e4-4786-9bd0-40796fb8a265",
+  "question": "Can a fresh normal read-only iCloud mount expose one owned native Numbers package and its actual indexed canonical archive child to Strata in a private host display, with the native menu offering only Show availability and all protected state and installed components preserved?",
+  "prediction": "After separate private Xvfb/X11/capture health succeeds, the real cached catalog will bind the current exact native identity and revision. Strata will show the native item as On demand with can_pin=false and only Show availability; one actual indexed file child will retain its catalog eligibility without activating a pin transition. Any setup, ownership, revision or closure refusal stops this arm.",
+  "arms": [
+    "One new nonce and derived read-only state; no replay of the closed6311 arm or uncertain175 operation",
+    "One bounded normal daemon catalog prime, then cached-only Strata menu and availability observation in an owned private host display",
+    "Close the owned GUI/display/bus children before the normal daemon, retaining original-handle waits and mount/socket closure evidence"
+  ],
+  "endpoint": [
+    "Exact account/collection/item and current typed parent/document revision binding; no path-only identity or old B revision substitution",
+    "Actual native Show availability menu/dialog and screenshots; one actual indexed canonical archive child, with paths-cached only and no fallback path or content open",
+    "No pin/unpin activation, cell edit, provider mutation, installed delivery or whole companion gate closure",
+    "Original Popen/pidfd ownership and terminal waits; GUI/display/bus closure before daemon teardown; exact owned mount/socket absent",
+    "Original protected state, derived upload/mutation/queue rows and settings, current source pins, installed packaged files and daemon PID/birth, and installed Strata files unchanged"
+  ],
+  "lifetime": {
+    "total_seconds": 600,
+    "cleanup_reserve_seconds": 45,
+    "gui_work_seconds": 300,
+    "gui_cleanup_seconds": 30,
+    "single_original_root_clock": true,
+    "epoch_and_monotonic_deadlines_bound_before_dispatch": true,
+    "GUI_window_inside_original_root_work_deadline": true
+  },
+  "bindings": {
+    "root": "/var/tmp/cirrove-strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265",
+    "evidence": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sh-00f1a150",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/sh-00f1a150",
+    "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+    "collection": "drive",
+    "parent": {
+      "expected_name": "Cirrove-Native-a6431dd4-1a45-4539-92fb-bcb0804ff679",
+      "scope": "Fresh cached Node parent/root/name checked during original window"
+    },
+    "native_item": "FILE::com.apple.CloudDocs::A17A25DE-125E-4967-AC11-B55AC23182D7",
+    "indexed_child": "Selected during original window from actual paths-cached after two owned listings; no predicted identity",
+    "checkout_head": "442ba77e67600a6cc1eed01066ecdcb39fd27599",
+    "build_head": "3dccbbe19e1ffbd9772bd55cf11add9397713b9f",
+    "runtime_source_count": 561,
+    "runtime_sources": {
+      "binding": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/ready-binding-v2.json",
+        "size": 73737,
+        "sha256": "30728da63fdea247f124562b7c38f29b8c034fc45c0250943cc117b90798eeae"
+      },
+      "map_sha256": "65d6726318d5b8c09bac225b7f93ed47883ab4c76f73d32990d5abb1f39c5d7a"
+    },
+    "role_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/ready-binding-v2.json",
+      "size": 73737,
+      "sha256": "30728da63fdea247f124562b7c38f29b8c034fc45c0250943cc117b90798eeae"
+    },
+    "normal_daemon": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/cirroved",
+      "size": 475720944,
+      "sha256": "c88ba1681641c4cc142fc6f20be4af5eba1904d6f9303fbc56b154b82843e641"
+    },
+    "supervisor": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/root_supervise_host_v3.py",
+      "size": 15518,
+      "sha256": "be2763695154210bc208e2952078a4d4c0a1ef8bff824f87a605c5c2e2303145"
+    },
+    "prime": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/prime_host_catalog_v1.py",
+      "size": 4325,
+      "sha256": "bc8a745216684088e77b183c9ca26b48b711cd78d7d3e8201b8f45b04eea1c57"
+    },
+    "gui_driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/host_catalog_gui_v2.py",
+      "size": 15721,
+      "sha256": "33cdb100d03032ecafb4fdedbb3bd2644cfb713f32e076f1de2c07746226c3bd"
+    },
+    "gui_template": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/gui-inputs-unready.json",
+      "size": 23845,
+      "sha256": "f030267c029799af4cea432769e85f72f066c4c5de11d99f915d61ecf4a4f90f"
+    },
+    "private_Xvfb": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/bin/Xvfb",
+      "size": 1973888,
+      "sha256": "567a9b39284e303522fdc178059fe60d0e9917b811bd5066fb63260fd198a97c"
+    },
+    "dependencies": [
+      {
+        "path": "/usr/bin/dbus-daemon",
+        "size": 199176,
+        "sha256": "e9ffeaea83965fa53077f716e352d3038794200bacb8eee043fe55117ce2c7d7"
+      },
+      {
+        "path": "/usr/bin/dbus-send",
+        "size": 30736,
+        "sha256": "766bc6689f77833dff31b34613ab4f7eea0f0661bb89140f9126ba89c2d1e371"
+      },
+      {
+        "path": "/usr/bin/magick",
+        "size": 14824,
+        "sha256": "dbc5182c0a05e4a12cdba9effb3184890612cdf6dbb716c07524a55eb1079b18"
+      },
+      {
+        "path": "/usr/bin/python3.14",
+        "size": 14424,
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+      },
+      {
+        "path": "/usr/lib/ImageMagick-7.1.2/modules-Q16HDRI/coders/png.so",
+        "size": 182208,
+        "sha256": "16bc1035021c17f9a49fb09096f4302cf648ab079d95cbebc66799dc90d77124"
+      },
+      {
+        "path": "/usr/lib/at-spi2-registryd",
+        "size": 84624,
+        "sha256": "b3791824a03aafbef63ed992218ee1e53aab46d19ffec715896d4e909ec21898"
+      },
+      {
+        "path": "/usr/lib/girepository-1.0/Atspi-2.0.typelib",
+        "size": 63204,
+        "sha256": "102b98b6e1d6a37731c602b7c045bec4ebeca61a2f00c5cf5a266191f110873d"
+      },
+      {
+        "path": "/usr/lib/girepository-1.0/GLib-2.0.typelib",
+        "size": 229416,
+        "sha256": "35facbf001bf5c0221223d223547c33658113f6019c624e0ca8d384b45ec1459"
+      },
+      {
+        "path": "/usr/lib/girepository-1.0/GObject-2.0.typelib",
+        "size": 66424,
+        "sha256": "9183189e8ff86c2bd8438252948ce0eed61480ee28d63c916ffbcac1f818bc64"
+      },
+      {
+        "path": "/usr/lib/girepository-1.0/Gio-2.0.typelib",
+        "size": 361660,
+        "sha256": "c2bd4915bed0427d1900834cc11f55d026030326f8773c9900528b6b54c5af95"
+      },
+      {
+        "path": "/usr/lib/girepository-1.0/Gtk-4.0.typelib",
+        "size": 567776,
+        "sha256": "be3cd0d766aaa67e532e773e908e1d9812e8734e75ab794d60d52e9714b33f6e"
+      },
+      {
+        "path": "/usr/lib/ld-linux-x86-64.so.2",
+        "size": 263152,
+        "sha256": "d011113b7054c641c8ca064f58bcc23804fd2654a3dff2444dad06ddeda61bfb"
+      },
+      {
+        "path": "/usr/lib/libGL.so.1.7.0",
+        "size": 460816,
+        "sha256": "185fa8c5a729e2e30d01a3015d53b1aaa953dffca41e59bf1c025ed5d0d5737f"
+      },
+      {
+        "path": "/usr/lib/libXau.so.6.0.0",
+        "size": 14232,
+        "sha256": "3e229dba702d7b56f1c58ac0e004ae691ae2ad5ede7b50968e1cd7d8b2ccdecc"
+      },
+      {
+        "path": "/usr/lib/libXdmcp.so.6.0.0",
+        "size": 26488,
+        "sha256": "0c572ba75de0f967c9c4d088161d3e435ea721bd99c169aae707aba6870a71b1"
+      },
+      {
+        "path": "/usr/lib/libXfont2.so.2.0.0",
+        "size": 189216,
+        "sha256": "93e4a6b6f110ad22bf9b9f070f9b2bcf43fd44b26c6df73abdc3eb0033bb81ed"
+      },
+      {
+        "path": "/usr/lib/libc.so.6",
+        "size": 2215072,
+        "sha256": "e221b10fee9ee4776d8f0f1701253bc06817f7a4dbe6c5292487277d0bf8ffff"
+      },
+      {
+        "path": "/usr/lib/libcairo.so.2.11804.4",
+        "size": 1293032,
+        "sha256": "f64d0a970ce4bbc63afad18fe2d6ff18ef0b4d4f88aade037f3dc3e68026d63f"
+      },
+      {
+        "path": "/usr/lib/libfontconfig.so.1.17.0",
+        "size": 501720,
+        "sha256": "9d103ae2234c4a8140250935ec6f8d72b0ce1a389fc1a75e17a485c16adc566b"
+      },
+      {
+        "path": "/usr/lib/libgcc_s.so.1",
+        "size": 182512,
+        "sha256": "e618cb9c90c2eb3a1dad1cfea5b6c1eebcf2e799ad805976f4ae47bdd61c716a"
+      },
+      {
+        "path": "/usr/lib/libgdk_pixbuf-2.0.so.0.4400.7",
+        "size": 232632,
+        "sha256": "95335a5f334e092ea1a3c07ba7eac14adb09e0d3a2bd942bfafbd130139357f0"
+      },
+      {
+        "path": "/usr/lib/libgio-2.0.so.0.8800.3",
+        "size": 1949024,
+        "sha256": "3cc245fc1d3071b164d544cda090a529eed9f6e37ca2fec0373b15a924bb83cc"
+      },
+      {
+        "path": "/usr/lib/libglib-2.0.so.0.8800.3",
+        "size": 1449352,
+        "sha256": "a09a06c2e7d70361dff4b7516b18c8493b7eb1e6b2f301cf82072148f143ad92"
+      },
+      {
+        "path": "/usr/lib/libgobject-2.0.so.0.8800.3",
+        "size": 399456,
+        "sha256": "27bf7b1dbd23e444f8d7a24daeb6b1f094c02860af2ae255f2e6c9b1d4465f49"
+      },
+      {
+        "path": "/usr/lib/libgraphene-1.0.so.0.1000.8",
+        "size": 116616,
+        "sha256": "dc336282f2243850ad02b6dd228ae40bba87ecfcbbfb5ddffe082634240f479a"
+      },
+      {
+        "path": "/usr/lib/libgstapp-1.0.so.0.2806.0",
+        "size": 100520,
+        "sha256": "34b9f1bd263310040ccb436f8f901a2eb1acfb20d203bcc144704c74c4245af4"
+      },
+      {
+        "path": "/usr/lib/libgstbase-1.0.so.0.2806.0",
+        "size": 550864,
+        "sha256": "d21b1659f4ce6e43ee0a54c3683ddab097bbe20186e29a3a679c683fd40541eb"
+      },
+      {
+        "path": "/usr/lib/libgstreamer-1.0.so.0.2806.0",
+        "size": 1514032,
+        "sha256": "e772fb955a22c738ed8185ceaecbbb9c5982b606dee5664ec56eae8dc8549c6d"
+      },
+      {
+        "path": "/usr/lib/libgtk-4.so.1.2200.4",
+        "size": 11823816,
+        "sha256": "191573fa61ffee70af2af82f1caf4c8d45b336523f56b7d6097fd34c13a5a809"
+      },
+      {
+        "path": "/usr/lib/libgtksourceview-5.so.0.0.0",
+        "size": 3049680,
+        "sha256": "2cca7042fadcf224074cc3ee3b24f1f185c4b2f51bc15c66266209c3a96ae312"
+      },
+      {
+        "path": "/usr/lib/libm.so.6",
+        "size": 1268336,
+        "sha256": "965106704753eefe8c31ae7da6daba3ead3d18c52b19b5fcc41178bcc4aa999d"
+      },
+      {
+        "path": "/usr/lib/libnettle.so.9.0",
+        "size": 370824,
+        "sha256": "5cfa2daa591d62161d2f26aa4b8347e3704da1b830e9aba0a312ed1b5f0c7a38"
+      },
+      {
+        "path": "/usr/lib/libpango-1.0.so.0.5800.2",
+        "size": 450312,
+        "sha256": "ea03a7e253f59f3876282947e23880e3ac313ec28e5de314c9ccbd124289978d"
+      },
+      {
+        "path": "/usr/lib/libpangocairo-1.0.so.0.5800.2",
+        "size": 71688,
+        "sha256": "e5e08c1444829436f85dbef91897578b7f3740107ac55a86e24458d55c99af88"
+      },
+      {
+        "path": "/usr/lib/libpixman-1.so.0.46.4",
+        "size": 714800,
+        "sha256": "97d04f1a534e26e26cf993a350b13ddc33fa4f9741444b08c27bc04582c70fd8"
+      },
+      {
+        "path": "/usr/lib/libpoppler-glib.so.8.31.0",
+        "size": 567344,
+        "sha256": "9962174846545c6429772c9962ffd9941384cec2021c75067d1e6ed32c27a594"
+      },
+      {
+        "path": "/usr/lib/libstdc++.so.6.0.36",
+        "size": 2939928,
+        "sha256": "f5fc7380f2ae46fa4053a64be04e7b98109f1066a4bbfff3c37042488aa0be0e"
+      },
+      {
+        "path": "/usr/lib/libsystemd.so.0.44.0",
+        "size": 1336840,
+        "sha256": "2e971237c56af98844a847344edeae0f59ae2e3437de84162b37f308f82c1615"
+      },
+      {
+        "path": "/usr/lib/libtirpc.so.3.0.0",
+        "size": 182784,
+        "sha256": "544a891f09cff0b7ca5b04d4f5e24c8fbe55dc7ceb9f8e4ba50f8a9657f98209"
+      },
+      {
+        "path": "/usr/lib/libunwind.so.8.2.0",
+        "size": 67480,
+        "sha256": "7b6dc90a7732b5633d622ce0b78e1ebee75e3c1dd7b7ce1f56d60c3fc60a22e7"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/__init__.py",
+        "size": 7134,
+        "sha256": "d37e2a129b8757ec576ad0bd5c4fac7c1f6256996c0de4d37d810cc78f0f94f0"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_constants.py",
+        "size": 1925,
+        "sha256": "9f94e3df807894065bd9e7b8684feb1ef622ec4aebc7221930d8087ca7495440"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_enum.py",
+        "size": 2717,
+        "sha256": "fc29fa65f9c9cfcdb111c57e59060809a24faeb5a74984d4760205540c400315"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_error.py",
+        "size": 2231,
+        "sha256": "a47de3e804dcd51d504c7cca6827acbc05ab30bee9bf8eb7311457f8a99a131c"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_gi.cpython-314-x86_64-linux-gnu.so",
+        "size": 343008,
+        "sha256": "6d0f1aa0997121807fea47b0e4c5b4303ad16ada96f151a05c3208743d91067b"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_gi_cairo.cpython-314-x86_64-linux-gnu.so",
+        "size": 22576,
+        "sha256": "95775692f610af585ae7acda7ee693cccf0c87d5f7b27e83fa3f096f2f2541f8"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_gtktemplate.py",
+        "size": 9946,
+        "sha256": "660ee43c4f2bb2bce175129f66d66f55eb7c17862cc08419c56b384cdf4914a0"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_ossighelper.py",
+        "size": 8748,
+        "sha256": "790802fa17cecd3e0edf11087091a3794a7c1b2a8e88726392e97d67de82693e"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_propertyhelper.py",
+        "size": 14851,
+        "sha256": "afa39455233f13f4ae8e3f257862f4c6f6aa7262d8ca2ead667e3583dce468cb"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_signalhelper.py",
+        "size": 9508,
+        "sha256": "f9dcd0683a0c78b8f8a853bece180b142e4ec4bfac9c4b575d38b5877fbcb6a7"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/_signature.py",
+        "size": 6519,
+        "sha256": "e99b994a9b1c7cd53351689d20803f7a3e30558d2e3403a3a062b542286c133a"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/docstring.py",
+        "size": 6139,
+        "sha256": "bb73bfaf85cd91c06cdffda690095bceb2e7ae8f3f227f14bf67ca4bbbcc8588"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/events.py",
+        "size": 35437,
+        "sha256": "875804a8769933694a645f10b777ca05bddd7dbac752ab4ed2e51219f21e0422"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/importer.py",
+        "size": 5276,
+        "sha256": "4b06aee75a1bcfb8655536e9522a01b527846923352d4081c67b5edfc044fd54"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/module.py",
+        "size": 10393,
+        "sha256": "e0c034fb609f56d659ba15d4735d49158732908e00fcaba9d5c1312caa1d4bce"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/Atspi.py",
+        "size": 1957,
+        "sha256": "9debf73e0cb76623dba5a77add922cc14d41d103f3a8b1e480478badd836e8e5"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/GExiv2.py",
+        "size": 2894,
+        "sha256": "8dbb667932514eba6ac13c6109270940577aead8bfc8c305dccf18cf014846d6"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/GIMarshallingTests.py",
+        "size": 2156,
+        "sha256": "52ab43aa5140e0844cc255cef74329de3307cd1f6ed478ae13f613324ba699d3"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/GLib.py",
+        "size": 35104,
+        "sha256": "2500e0555f88ccee9229574b5b458dca554e4798f955ded30fbcf7020e5a0b85"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/GLibUnix.py",
+        "size": 418,
+        "sha256": "a3c637c3872da76e9fbb04442fc040c199152c1c677293350cd903c6ef01de63"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/GObject.py",
+        "size": 27327,
+        "sha256": "153e758c6b71e85b16eb5836050100331ecbc13658af24ed342a6c1177e9f2da"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/Gdk.py",
+        "size": 15983,
+        "sha256": "48621ec689ec2df4e16ac7d872c9d3b37a5df7d935f15e31b235fed1318caee9"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/GdkPixbuf.py",
+        "size": 1797,
+        "sha256": "c58a61cfe95cad3f0d6ac679bf0660144e3910ba5f381cf547d90abbdd13a2cb"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/Gio.py",
+        "size": 22540,
+        "sha256": "d885379e8a0faa9a2668de0492bd76f5d4867d594d89b6a5e0f7a5f6d08a7f48"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/GioUnix.py",
+        "size": 5274,
+        "sha256": "b48f25a603024cf8f3183fb1df370983b339f623dedb0dac43bb2bfe59fdf2c1"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/Gtk.py",
+        "size": 62764,
+        "sha256": "da88308bcaf6004d38d81b0435b423c5d1263435c80f51e298d8264bf5a04255"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/Pango.py",
+        "size": 2383,
+        "sha256": "67dd0b7e5e64215ffeeaac16e9513441373146a6eabe61d0e29bb1fc4f7a0a8c"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/overrides/__init__.py",
+        "size": 13502,
+        "sha256": "3632855cd289704645b3d564fd24a36945e2ce8e04deca58fb1bf431708fe9e3"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/repository/__init__.py",
+        "size": 916,
+        "sha256": "9e914d85ddff42f140712a113f4dac742f2701e6f8112dcada87169703085f99"
+      },
+      {
+        "path": "/usr/lib/python3.14/site-packages/gi/types.py",
+        "size": 13833,
+        "sha256": "ff9c3eb2136b9689d267e853d907475ef0baa3493b48e025ef4e4307808bd2cf"
+      }
+    ],
+    "full_check_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full7-result-v1.json",
+      "size": 346,
+      "sha256": "c95e9667b495ca10bc64f19ad28562e6535d51614789e3b99cc3e4ee01646b7b"
+    },
+    "installed_baseline": {
+      "packaged_files": 19,
+      "Strata_files": 3,
+      "daemon_pid": 1243,
+      "daemon_start_ticks": "2318",
+      "binding": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/prepared-assets.json",
+        "size": 88254,
+        "sha256": "beb11bf3f9fa763b3fd3cea3a8e83c80cee79589453190f7a44d125c3a412942"
+      }
+    },
+    "prepared_assets": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/prepared-assets.json",
+      "size": 88254,
+      "sha256": "beb11bf3f9fa763b3fd3cea3a8e83c80cee79589453190f7a44d125c3a412942"
+    },
+    "root_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/preparation-registration.json",
+      "size": 6413,
+      "sha256": "1722f3728aef0f06061364fd9039e52c0a65af450efc84a739cbfd8a35b7773a"
+    },
+    "window": {
+      "created_by_original_supervisor_after_all_local_checks": true,
+      "epoch_and_monotonic_bound_once": true,
+      "duration_seconds": 600,
+      "cleanup_reserve_seconds": 45
+    }
+  },
+  "temporary_filesystem": "ext4",
+  "normal_daemon_compiler_features": [],
+  "private_display_health": {
+    "required_before_provider_arm": true,
+    "candidate_reference": ".local-state/icloud-strata-private-host-capsule-20261006/display_health_v1.py",
+    "script_pin": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/display_health_v1.py",
+      "size": 4526,
+      "sha256": "32820e49923df37e7fed0c6a4799de62a64d47edbbb0d42125fedf2a3a178409"
+    },
+    "registration": {
+      "path": "/home/dandiccf/Storage/cirrove-tmp/xh-80c32071/registration.json",
+      "size": 1347,
+      "sha256": "cf706d01434e7c5f9d21c3770a84fe63ae2b25a50a6c442d51fd170b2615acff"
+    },
+    "result": {
+      "path": "/home/dandiccf/Storage/cirrove-tmp/xh-80c32071/result.json",
+      "size": 654,
+      "sha256": "97a878d2f5564c0a3ff04b240f0f5be4aa67327682c2953dcb1338297925995d"
+    },
+    "scope": "Separate owned Xvfb/X11 readiness and genuine PNG capture only; no application or accessibility-bus acceptance. Private accessibility buses are exercised by the actual GUI arm.",
+    "actual_result": {
+      "run": "80c32071-d448-4515-9a0b-f9e56002a306",
+      "success": true,
+      "failure_class": null,
+      "own_display_ready": true,
+      "X11_connection_verified": true,
+      "genuine_png": true,
+      "original_Xvfb_reaped": true,
+      "Xvfb_proc_absent": true,
+      "png_children": [
+        {
+          "pid": 2827805,
+          "returncode": 0,
+          "original_wait_completed": true,
+          "process_absent": true,
+          "size": 296,
+          "sha256": "c60e95daf500ceb9f6f7433b5ce0439040053374890f40a4a211cce22fd6cad6",
+          "genuine_png": true
+        }
+      ],
+      "elapsed_seconds": 0.1498103699996136,
+      "within_original_window": true,
+      "provider_calls": 0,
+      "real_GUI_application": false
+    }
+  },
+  "isolation": "Private host Xvfb, HOME/XDG and session/accessibility buses; no use of the host desktop bus/display, no Docker-root FUSE bind, no allow_other or host system configuration change. Root must bind exact binaries and dependencies before dispatch.",
+  "historical_failure": {
+    "artifact": "icloud-strata-real-readonly-catalog-2026-10-06.json",
+    "run": "6311c4fb-6160-47d8-bdb0-fac8520d082b",
+    "status": "closed_setup_refusal_host_readonly_catalog_passed_GUI_not_started",
+    "scope": "Host cached catalog passed, but Docker refused the user-only FUSE bind with exit126 before the Strata application started. Initial daemon original wait remained incomplete; later recorded-PID absence and exact mount/socket cleanup are separate evidence. None is reclassified by this new arm."
+  },
+  "root_requirements_before_dispatch": [
+    "Fill every execution binding and validate fresh private runtime/TMP paths and disk-backed ext4 before starting the sole original clock",
+    "Bind successful private display/X11/capture health separately, current fullcheck/source/normal-role proof and unchanged installed baseline",
+    "Preserve exact preregistration bytes before execution, change status to registered, and bind the actual new run and original600/45 epoch/monotonic window",
+    "Reject unknown or changed scoped identities; no automatic provider retry, daemon restart or uncertainty replay"
+  ],
+  "provider_HTTP_count": "not instrumented; no zero-read-request claim",
+  "real_provider_writes_allowed": false,
+  "automatic_retry": false,
+  "installed_actions": false,
+  "gate489_closed": false,
+  "full_integration_accepted": false,
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "outcome": {
+    "root_exit_code": 1,
+    "root_success": false,
+    "normal_readonly_cached_prime": {
+      "passed": true,
+      "actual_directory_listings": 2,
+      "content_open_calls": 0,
+      "fallback_paths_calls": 0,
+      "native_state": {
+        "item": "FILE::com.apple.CloudDocs::A17A25DE-125E-4967-AC11-B55AC23182D7",
+        "kind": "folder",
+        "can_pin": false,
+        "pinned": null,
+        "size": 139004,
+        "resident": 0
+      },
+      "actual_indexed_child": {
+        "path": "Cirrove-Native-a6431dd4-1a45-4539-92fb-bcb0804ff679/Cirrove-Numbers-Parent-a6431dd4-1a45-4539-92fb-bcb0804ff679.numbers/Cirrove-Numbers-Parent-a6431dd4-1a45-4539-92fb-bcb0804ff679.numbers",
+        "item": "icloud-artifact:FILE::com.apple.CloudDocs::A17A25DE-125E-4967-AC11-B55AC23182D7",
+        "kind": "file",
+        "can_pin": true
+      }
+    },
+    "actual_Strata": {
+      "application_started": true,
+      "native_menu_observed": true,
+      "native_can_pin_false": true,
+      "native_Kept_badge_absent": true,
+      "cirrove_Show_availability_offered": true,
+      "cirrove_Keep_offline_actions_absent": true,
+      "genuine_menu_PNG": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/host-gui/01-native-menu.png",
+        "size": 80365,
+        "sha256": "356ac67c5f508332558c47b6c18dba507bbbdd4fdf1232f37cc409f09c2fedcd"
+      },
+      "availability_dialog_expected_label_confirmed": false,
+      "failure": {
+        "stage": "dialog",
+        "class": "TreeTimeout"
+      },
+      "whole_GUI_endpoint_passed": false
+    },
+    "original_outer_children": [
+      {
+        "name": "daemon",
+        "pid": 2842358,
+        "birth": {
+          "pid": 2842358,
+          "start_ticks": "34155329",
+          "exe": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/cirroved",
+          "argv": [
+            "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-trash-roles2/cirroved",
+            "--state-dir",
+            "/var/tmp/cirrove-strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/state",
+            "--socket",
+            "/var/tmp/cirrove-strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/control.sock"
+          ]
+        },
+        "returncode": 0,
+        "original_wait_completed": true,
+        "recorded_birth_absent": true
+      },
+      {
+        "name": "prime",
+        "pid": 2842450,
+        "birth": {
+          "pid": 2842450,
+          "start_ticks": "34155835",
+          "exe": "/usr/bin/python3.14",
+          "argv": [
+            "/usr/bin/python3.14",
+            "-I",
+            "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/prime_host_catalog_v1.py",
+            "--inputs",
+            "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/prime-inputs.json",
+            "--sha256",
+            "d97faf7d837589d26de93b98d231ae0528bad7973ba763f98d505a7131963ed3"
+          ]
+        },
+        "returncode": 0,
+        "original_wait_completed": true,
+        "recorded_birth_absent": true
+      },
+      {
+        "name": "host-gui",
+        "pid": 2842655,
+        "birth": {
+          "pid": 2842655,
+          "start_ticks": "34156423",
+          "exe": "/usr/bin/python3.14",
+          "argv": [
+            "/usr/bin/python3.14",
+            "-I",
+            "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/host_catalog_gui_v2.py",
+            "--inputs",
+            "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/gui-inputs.json",
+            "--sha256",
+            "f32f2eb566a8aaff96c477430a37e178331cfb46e1db3e16d7f6baf9c460ff39"
+          ]
+        },
+        "returncode": 1,
+        "original_wait_completed": true,
+        "recorded_birth_absent": true
+      }
+    ],
+    "original_GUI_children": [
+      {
+        "name": "xvfb-90",
+        "pid": 2842663,
+        "returncode": 0,
+        "original_wait_completed": true,
+        "process_absent": true
+      },
+      {
+        "name": "dbus-daemon",
+        "pid": 2842673,
+        "returncode": 0,
+        "original_wait_completed": true,
+        "process_absent": true
+      },
+      {
+        "name": "private-a11y-bus",
+        "pid": 2842675,
+        "returncode": 0,
+        "original_wait_completed": true,
+        "process_absent": true
+      },
+      {
+        "name": "at-spi2-registryd",
+        "pid": 2842677,
+        "returncode": -15,
+        "original_wait_completed": true,
+        "process_absent": true
+      },
+      {
+        "name": "strata",
+        "pid": 2842680,
+        "returncode": -15,
+        "original_wait_completed": true,
+        "process_absent": true
+      }
+    ],
+    "original_PNG_children": [
+      {
+        "pid": 2842751,
+        "returncode": 0,
+        "original_wait_completed": true,
+        "process_absent": true,
+        "size": 80365,
+        "sha256": "356ac67c5f508332558c47b6c18dba507bbbdd4fdf1232f37cc409f09c2fedcd",
+        "genuine_png": true
+      }
+    ],
+    "closure": {
+      "all_original_waits_completed": true,
+      "all_recorded_children_absent": true,
+      "GUI_closure_before_daemon_teardown": true,
+      "normal_daemon_exit_code": 0,
+      "cleanup_errors": [],
+      "mount_socket_absent": true,
+      "original_source14_derived_rows_settings_runtime561_GUI_dependencies_and_installed_unchanged": true,
+      "installed_daemon_birth_unchanged": true,
+      "single_original_window": {
+        "started_monotonic": 341553.291115665,
+        "started_epoch": 1791316926.1680386,
+        "deadline_monotonic": 342153.12307715416,
+        "deadline_epoch": 1791317526,
+        "duration_seconds": 600,
+        "cleanup_reserve_seconds": 45,
+        "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+      },
+      "within_original_window": true
+    },
+    "retained_artifacts": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/root-result.json",
+        "size": 3008,
+        "sha256": "ab52048cad82429ca04bd30cec29d55d9d577d9a96d3410bf3f19e95e99f608a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/prime-result.json",
+        "size": 875,
+        "sha256": "9679ba64a31b36a078a10d69b96c407a212c517989a7959e1164b5ae1245f61a"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/host-gui/result.json",
+        "size": 2476,
+        "sha256": "6bf433f4b7a746eb04b5e1a6706b9a257c7d411e641bf4d784f33dbcd498e333"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/gui-inputs.json",
+        "size": 24739,
+        "sha256": "f32f2eb566a8aaff96c477430a37e178331cfb46e1db3e16d7f6baf9c460ff39"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/root-approved-inputs-v2.json",
+        "size": 3047,
+        "sha256": "cd4d83a109ae00a4e7cac90489c83a18c8d8d0fecc57062335458537e6b1090b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/root-dispatch-registration-v2.json",
+        "size": 1564,
+        "sha256": "ff44ddcc1ff0a3d995d185329508efa7c50451339603a7e116d079f4b4459bbd"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/public-preregistration-v2.json",
+        "size": 26363,
+        "sha256": "d58f8326637ea30a8859756843f596a62c8bb733caf4b49ef3cae53296805a13"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/original-window.json",
+        "size": 272,
+        "sha256": "c5138f9dcf672765bb896914145269cea6f9fda86a516c21c765b7d1b11ec452"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/daemon-owner.json",
+        "size": 1336,
+        "sha256": "74bd024a898df93ef261052d30a3c78c4f6851aaf5598e427e981dfd8724ddc3"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/prime-owner.json",
+        "size": 1314,
+        "sha256": "2eb8772a49069cd10d9910796c02372093f452be426dfc9ae4e0dde5fa94f776"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/host-gui-owner.json",
+        "size": 1306,
+        "sha256": "2bbce4a10c64760e35a01125dcccbb3ba2ccd3d1c3d8dc38c3a0cdd4c39cb455"
+      }
+    ],
+    "provider_HTTP_count": "uninstrumented",
+    "driver_cloud_mutator_calls": 0,
+    "provider_writes_authorized": false,
+    "installed_actions": false,
+    "gate489_closed": false,
+    "no_same_arm_retry": true
+  },
+  "limits": [
+    "This planned arm covers native menu/availability and a cached indexed child only. It does not establish real pin/fetch/kept transitions, notification fidelity, native editing, installed companion acceptance or sustained reliability.",
+    "Only a new registered controlled arm can supply evidence; awaiting Root bindings is not runtime readiness. Historical6311 and175 outcomes remain unchanged."
+  ],
+  "local_preparation_correction": {
+    "first_local_helper": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/prepare_host_scope_v1.py",
+      "size": 12301,
+      "sha256": "e35875ed3ec830cbe67afe488b1bec0833e80f7cfd6913e0374e166190161638"
+    },
+    "exit_code": 1,
+    "category": "Incorrect serialized driveType: helper expected icloud instead of actual icloud_drive",
+    "source_or_cloud_changes": false,
+    "source_and_clone14_byte_mode_verified": true,
+    "finish_script": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/root_finish_verified_clone_00f1_v1.py",
+      "size": 6510,
+      "sha256": "c50ff92555bc49d13febe7a7a001352e71cf9ef0c891300f10c4065dd0c2f7eb"
+    },
+    "finish_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/local-preparation-correction-registration.json",
+      "size": 605,
+      "sha256": "82d17e339240e904c861d8a5506239ae523a97ef62b0daa21ef65fd1a08f9099"
+    },
+    "finish_exit_code": 0,
+    "clone_repeated": false,
+    "provider_dispatched": false,
+    "clock_started": false,
+    "root_identity_verified_before_dispatch": true,
+    "narrative_correction": "Initial local correction record described the in-progress draft as also expecting a nonexistent drive.root_id. The final frozen first helper actually checked the correct top-level account.root_id. Only driveType caused this setup refusal; the retained first record is not rewritten."
+  },
+  "original_handle_exception_policy": "An unproven started GUI child leaves an explicit unresolved record and retains original daemon Popen/pidfd in passive wait beyond the closed window, with no renewed work. This exceptional path cannot claim timely success.",
+  "execution_command": [
+    "/usr/bin/python3.14",
+    "-I",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-strata-private-host-capsule-20261006/root_supervise_host_v3.py",
+    "--inputs",
+    "/home/dandiccf/Work/cirrove/.local-state/strata-real-ro-00f1a150-85e4-4786-9bd0-40796fb8a265/root-approved-inputs.json",
+    "--sha256",
+    "actual_input_digest_recorded_before_dispatch"
+  ],
+  "post_run_limits": [
+    "Real normal read-only native catalog, indexed child and actual Strata menu were observed. The expected availability dialog label did not confirm before the test timeout; no successful dialog endpoint is inferred.",
+    "All original daemon, prime, GUI, display, session/accessibility bus, registry and PNG capture handles were reaped; exact owned mount and socket are absent. The failed dialog endpoint is retained despite clean closure.",
+    "This fresh private-host arm is distinct from the closed6311 Docker setup refusal; historical outcomes remain unchanged.",
+    "No real pin/fetch/kept transition, notification, editor, installed acceptance or full companion release criterion closed. Five full-iCloud criteria remain open.",
+    "The initial planned execution_command names the earlier unexecuted input. The actual once-only runtime command and final digest are preserved in root-dispatch-registration-v2.json; the earlier registration was not launched."
+  ]
+}

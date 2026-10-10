@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "run": "80e1cb43-f10d-4ca0-a688-7e3abd9754d7",
+  "registered_at": "2026-10-07T01:32:06.325451+00:00",
+  "question": "Can one fresh own Apple Pages blank document produce genuine native A then edited B exports?",
+  "prediction": "Visible registered A text exports once, changed B text exports once, full native identities differ. No provider DATA/PACKAGE inference.",
+  "scope": "One fresh own Pages blank donor, exact rename and text A, native A export once, edit same donor to text B and native B export once. Stop unclear mutation without automatic replay. No sharing/deletion/Cirrove writes/installed changes.",
+  "authorization": "Standing direct user authorization for own iCloud writes and tests",
+  "document_title": "Cirrove-Pages-Edited-Source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7",
+  "text_a": "Cirrove Pages A 80e1cb43-f10d-4ca0-a688-7e3abd9754d7\nOwned native replacement source A",
+  "text_b": "Cirrove Pages B 80e1cb43-f10d-4ca0-a688-7e3abd9754d7\nOwned genuine editor replacement source B",
+  "private_directory": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7",
+  "expected_duration_seconds": 600,
+  "maximum_duration_seconds": 1200,
+  "clock_start_monotonic": 361353.448575474,
+  "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7",
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/p7",
+  "filesystem": "ext4",
+  "browser_command": "CUA browser1 create own Pages donor and export each native arm once",
+  "candidate_binaries_used": false,
+  "status": "genuine-native-source-pair-exported",
+  "active": false,
+  "full_iCloud_gate_closures": 0,
+  "source_preparation_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/source-preparation-terminal-v1.json",
+    "size": 1745,
+    "sha256": "eef30012ad9bba6a6abc3d46ffc5e20a00a3119dc9f9ea81748d81149451fcae"
+  },
+  "scope_amendment": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/one-paragraph-scope-amendment-v1.json",
+    "size": 682,
+    "sha256": "07bdc9cec8c7bacc3ebe4a3ed801832b960c81e20a075c6941ea91e87f7d4718"
+  },
+  "wrapping_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/wrapping-terminal-v1.json",
+    "size": 427,
+    "sha256": "a2b3786ff9a14c58997098c8835a607f4d554352eb7fae97ab0097e07f1460d4"
+  },
+  "own_browser_tabs_closed": true,
+  "Cirrove_import_started": false,
+  "results": {
+    "elapsed_seconds": 256.54971763602225,
+    "native_exports": {
+      "a": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-a.pages",
+        "size": 100824,
+        "sha256": "e2323fab788a34a15ac68c127d04597cfcf7adafeea40093146aaf51e61c3a46"
+      },
+      "b": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages",
+        "size": 101769,
+        "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc"
+      }
+    },
+    "metadata": {
+      "a": {
+        "physical_entries": 12,
+        "expanded_bytes": 99260,
+        "methods": [
+          0
+        ],
+        "zip64_extras": 0
+      },
+      "b": {
+        "physical_entries": 12,
+        "expanded_bytes": 100205,
+        "methods": [
+          0
+        ],
+        "zip64_extras": 0
+      }
+    },
+    "changed_member_contents": [
+      "Index/Document.iwa",
+      "Index/Metadata.iwa",
+      "Metadata/Properties.plist",
+      "preview-micro.jpg",
+      "preview-web.jpg",
+      "preview.jpg"
+    ],
+    "added_members": [],
+    "removed_members": [],
+    "own_browser_tabs_closed": true,
+    "own_donor_retained": true,
+    "Cirrove_import_started": false,
+    "representation_inferred": false,
+    "full_iCloud_gate_closures": 0
+  },
+  "retained_wrapping_failure": {
+    "exit_code": 1,
+    "reason": "Native Apple exports carry two local-only redundant ZIP64 size mirror fields; strict wrapper refuses. No source rewrite/provider retry or output created. Initial metadata quickprobe considered central extras only and missed local extras.",
+    "diagnosis": ".local-state/pages-genuine-export-wrapping-private-v1/actual-pages-local-size-mirror-diagnosis-v1.json"
+  },
+  "next_scope": "Transport source admission completed; separately registered actual PACKAGE import/replacement closed successfully in icloud-pages-genuine-replacement-2026-10-07-96aa715d.json. Separate normal readonly remount and exact Apple UI reopen remain. Direct unmodified native-export import still needs the separately authored FlatPages product support and validation.",
+  "source_admission_correction": {
+    "completed": true,
+    "contract": "pages-local-size-mirror-removal-v1",
+    "original_exports_unchanged": true,
+    "per_arm_removed_local_mirror_fields": 2,
+    "per_arm_removed_local_mirror_bytes": 40,
+    "old_all_encoding_metadata_preserved_flag": false,
+    "central_only_quickprobe_correction": "The initial results.metadata zip64_extras counts described central extras only. Each original also contains two validated local-only redundant size mirrors. No other encoding metadata or file contents were removed.",
+    "actual_production_original_flat_vs_transport_wrapped_full_V2_match": true,
+    "Root_production_annex": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/root-production-source-admission-annex-v1.json",
+      "size": 5537,
+      "sha256": "54f708e8305546417cde754e6e4e67528745f8f1be19ab5a27138fe79961dd91"
+    },
+    "independent_source_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/audit-independent-canonical-pages-source-admission-v1.json",
+      "size": 105785,
+      "sha256": "7ed734b721d5984f3912eff77e7fa271865d650f86aa83d1004d1ea44a68df69"
+    },
+    "canonical_transport_sources": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/canonical-wrapped-assets-v2/wrapped-source-assets-v1.json",
+      "size": 3362,
+      "sha256": "22bda8583c03dc2c82188dd2a34a85797a8ef0ea2ec7e0cf85626fbd6b0cc0a8"
+    },
+    "normalization_receipt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/canonical-wrapped-assets-v2/encoding-normalization-receipt-v1.json",
+      "size": 3107,
+      "sha256": "c152466f00bdc85963b3cd74f0c5127e6f27c64acc0de84b46f427008ff81aba"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "run": "cccc3080-ca53-4397-9498-1b4d83152b78",
+  "question": "Which safe request stage/category/HTTP status occurs for one read of the retained post-logout target session?",
+  "prediction": "HTTP421 at the folder status boundary rather than ordinary401/403; retain non-Authentication classification under unchanged mapping. This is a prediction, not the historical unknown cause.",
+  "endpoint": "One logical root-list call, durable safe diagnostic regardless of observer exit, exact four retained row bodies/three payloads/fresh object absence, settings/cipher/key, immutable backings and original owners preserved. No reliability gate closure.",
+  "status": "closed_read_only_diagnostic_observed",
+  "active": false,
+  "active_window": false,
+  "active_measurement": false,
+  "maximum_seconds": 600,
+  "cleanup_reserve_seconds": 90,
+  "maximum_logical_root_reads": 1,
+  "HTTP_transmission_count": "not_instrumented",
+  "logout_requests": 0,
+  "provider_data_mutations": 0,
+  "reauthentication_performed": false,
+  "source_result_image_sha256": "9daf2d11a2ed81c2e90db547cd2bca3b4589995ae405e675fc561147ebfd2b14",
+  "source_image_lineage": "closed runtime-v5 after one logoutHTTP200; original failed arm retained and not repeated",
+  "original_host_delivery": "HOLD",
+  "full_490_closed": false,
+  "guest_installed_version": "0.2.0dev.r1017.ga3fa14e-1",
+  "guest_installed_runtime": "1b734741c7b92d828a7d86fa94b294956b9a265e",
+  "private_diagnostic_SDK_and_observer": true,
+  "product_source_changed": false,
+  "helper": {
+    "path": "/home/tester/cirrove-post-logout-read-cccc3080/bin/observer",
+    "size": 32685768,
+    "sha256": "dac6eb3a883380563d0454fb5be897ba80ef3e1560c24a4f93c90e77dc268f54"
+  },
+  "SDK_export_sha256": "6daa9e962e1041eaacee12ba277e2eb25874029f505194f2a7bc3903c28271f7",
+  "helper_export_sha256": "d54f3fffc2ae4c21459c5199cdaf0a54db1e136e825ad2c00f487e9f12897dc1",
+  "started_unix": 1791574815.318359,
+  "deadline_unix": 1791575415.318359,
+  "closed_unix": 1791574887.6159546,
+  "success": true,
+  "original_native_session": 47644,
+  "original_native_exit_code": 0,
+  "observed": {
+    "classification": "unknown_failure",
+    "diagnostic": {
+      "stage": "status",
+      "category": "http_status",
+      "http_status": 421
+    },
+    "logical_root_reads": 1,
+    "HTTP_transmission_count": "not_instrumented",
+    "logout_requests": 0,
+    "reauthentication_performed": false,
+    "provider_data_mutations": 0
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Storage/cirrove-post-logout-read-diagnostic-cccc3080-ca53-4397-9498-1b4d83152b78/audit-independent-closed-read-diagnostic-v1.json",
+    "size": 6951,
+    "sha256": "f52a8ae26b240ebce73e5cef5ad4bdac44bfecf8e05989dfd872179e455d14a6"
+  },
+  "retained_snapshot_equal": true,
+  "guest_preservation_basis": "Reviewed source plus safe guest equality receipt; no independent raw guest SQL/payload extraction by auditor.",
+  "immutable_backing_preservation": {
+    "count": 7,
+    "full_sha256_and_stat9_equal": true,
+    "strict_fuser_no_owner": true,
+    "receipt": {
+      "path": "/home/dandiccf/Storage/cirrove-post-logout-read-diagnostic-cccc3080-ca53-4397-9498-1b4d83152b78/audit-backings-result-v1.json",
+      "size": 6197,
+      "sha256": "f42fcf549cd9913b8d4a80456bc48fb5faa0200b292b2d0d071f28e43ae50d88"
+    }
+  },
+  "host_postflight": {
+    "path": "/home/dandiccf/Storage/cirrove-post-logout-read-diagnostic-cccc3080-ca53-4397-9498-1b4d83152b78/root-host-postflight-v1.json",
+    "size": 6716,
+    "sha256": "544dd026b50cf5b05de08cb0ec226b185e0e3da338ce4a7c9f0c3e8f0f591274"
+  },
+  "historical_unknown_cause_unchanged": true,
+  "natural_expiry_proved": false,
+  "session_rejection_proved": false,
+  "reliability_claim": false
+}

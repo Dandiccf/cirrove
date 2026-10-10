@@ -1,0 +1,1191 @@
+{
+  "closed_f6_parent_snapshot_extension": {
+    "actual_f6_failure_cause_proven": false,
+    "outcome": {
+      "actual": {
+        "actual_tests": 1,
+        "daemon_started": false,
+        "elapsed_seconds": 0.06579414702719077,
+        "errors": 0,
+        "exit_code": 0,
+        "failures": 0,
+        "issues": [],
+        "live_birth_claimed": false,
+        "original_handle_reaped": true,
+        "phase": "v8-closed-f6-parent-one",
+        "pid": 2609439,
+        "pidfd_retained": true,
+        "proc_absent": true,
+        "provider_calls": 0,
+        "real_mount_created": false,
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/closed-f6-parent-snapshot-run1/v8-closed-f6-parent-one-registration.json",
+          "sha256": "1c189143eb2d175e83b6b04af18f3d1793e6f65233b88a9a98ae2f093b24206e",
+          "size": 1252
+        },
+        "signals": [],
+        "source_sha256": "036adaa25f5c5b42f4305923897cbd2c2564be0db9da9967f982a4a818c8c10c",
+        "sources_unchanged": true,
+        "stderr_sha256": "c346f1228fe88f4ab3cb336ffa610dc3a34ec7c7bb7d05df7a1c222f2d928881",
+        "stdout_sha256": "0d0ebcc95af776291f4ca811ae76728ab5ca9afc5a8346adb68266716d15386c",
+        "test_sha256": "92fa724cb1fcece14f0862f72a3a59e56b1a2bb9904468480595c274c27889cb",
+        "version": 1
+      },
+      "aggregate": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/closed-f6-parent-snapshot-run1/aggregate-result-v1.json",
+        "sha256": "3bc804009a6540dc79df6b4dc3f6fffaebde3231f59a252bbe24061f01ef9b65",
+        "size": 1950
+      },
+      "claim": "Actual V8 exact parent predicate returned the recorded Boolean against this closed later snapshot. Source-private path and actual SQL/body/owner fences passed; DB/WAL/SHM bytes/identity unchanged. This does not establish readiness at original f6 admission or its failure cause.",
+      "evidence_pins": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/closed-f6-parent-snapshot-run1/terminal-evidence-pins-v1.json",
+        "sha256": "435778c9c160e0b2b0dbf45688e861363b44bbaeb848f7c470736b11657e2a3e",
+        "size": 3163
+      },
+      "runner_tool_chunk_id": "02b03b",
+      "runner_tool_exit_code": 0,
+      "snapshot_witness": {
+        "actual_parent_ready": true,
+        "after": {
+          "uploads.db": {
+            "dev": 31,
+            "ino": 2771422,
+            "mode": 384,
+            "present": true,
+            "sha256": "acd91334f98a7f78896be903d35e9bd5dc64445513116d3758f5bc307536bff9",
+            "size": 454656,
+            "uid": 1000
+          },
+          "uploads.db-shm": {
+            "dev": 31,
+            "ino": 2771650,
+            "mode": 384,
+            "present": true,
+            "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+            "size": 32768,
+            "uid": 1000
+          },
+          "uploads.db-wal": {
+            "dev": 31,
+            "ino": 2771649,
+            "mode": 384,
+            "present": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0,
+            "uid": 1000
+          }
+        },
+        "before": {
+          "uploads.db": {
+            "dev": 31,
+            "ino": 2771422,
+            "mode": 384,
+            "present": true,
+            "sha256": "acd91334f98a7f78896be903d35e9bd5dc64445513116d3758f5bc307536bff9",
+            "size": 454656,
+            "uid": 1000
+          },
+          "uploads.db-shm": {
+            "dev": 31,
+            "ino": 2771650,
+            "mode": 384,
+            "present": true,
+            "sha256": "fd4c9fda9cd3f9ae7c962b0ddf37232294d55580e1aa165aa06129b8549389eb",
+            "size": 32768,
+            "uid": 1000
+          },
+          "uploads.db-wal": {
+            "dev": 31,
+            "ino": 2771649,
+            "mode": 384,
+            "present": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0,
+            "uid": 1000
+          }
+        },
+        "clock": "separate bounded local-observation stub; original cloud clock not resumed or renewed",
+        "closed_original_children": [
+          {
+            "actual_proc_absent": true,
+            "phase": "start-import",
+            "pid": 2572901,
+            "recorded_original_handle_reaped": true
+          },
+          {
+            "actual_proc_absent": true,
+            "phase": "import",
+            "pid": 2573770,
+            "recorded_original_handle_reaped": true
+          }
+        ],
+        "controller_imported": false,
+        "database_bytes_unchanged": true,
+        "historical_clock_resumed": false,
+        "input_sha256": "eeb0c04ce246fecf8e72d29159513bb169a91176df3d375b6263089601e1de46",
+        "observation_not_historical_frontier": true,
+        "parent_creation": "14114d1c-5c8a-4906-b70b-88d42b04cb8b",
+        "provider_calls": 0,
+        "receipt_sha256": "bd1fe1c2559d165af9dd595620c6e074a984c621393fca4a7e5da440e2c44a6a",
+        "source_private_path_guard_actual": true,
+        "source_sha256": "036adaa25f5c5b42f4305923897cbd2c2564be0db9da9967f982a4a818c8c10c",
+        "subject_run": "f6c6fed4-3179-43a0-b91d-99b6514f1e22",
+        "version": 1,
+        "writer_started": false
+      }
+    },
+    "prediction": "One selected-method local test passes with actual strict journal binding and bool type. Record actual bool (either True or False), not a presumed historical readiness result. Refusal or bytes change fails the arm.",
+    "question": "Is the V8 exact parent fence compatible with actual retained closed f6 typed rows, returning a legitimate bound Boolean without database byte changes?",
+    "registration": {
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "arms": [
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 1,
+          "label": "v8-closed-f6-parent-one",
+          "names": [],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v8.py",
+            "sha256": "036adaa25f5c5b42f4305923897cbd2c2564be0db9da9967f982a4a818c8c10c",
+            "size": 41382
+          }
+        }
+      ],
+      "cleanup_reserve_seconds": 5,
+      "filesystem": {
+        "source": "/dev/nvme1n1p1",
+        "target": "/home/dandiccf/Storage",
+        "type": "ext4"
+      },
+      "max_child_seconds": 30,
+      "phase": "native-trash-closed-f6-parent-snapshot-v1",
+      "python": {
+        "path": "/usr/bin/python3.14",
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+        "size": 14424
+      },
+      "registered_before_execution": true,
+      "root_authorized": true,
+      "runner": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/closed-f6-parent-snapshot-run1/run-controls-v1.py",
+        "sha256": "c3ef17d6ae8923b8ff5a418e8f96e48352807752e2c5a5f551b8671dc8c15bf1",
+        "size": 6368
+      },
+      "scope": "Actual V8.parent_ready plus actual private/plain_path/require/Refusal AST-selected against CLOSED f6 sqlite3 mode=ro/query_only snapshot. ROOT/FOLDER override binds closed subject only; source clock honestly stubbed with a separate bounded local deadline; historical clock not renewed.",
+      "subject_input": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-f6c6fed4-3179-43a0-b91d-99b6514f1e22-private-v1/inputs-final.json",
+        "sha256": "eeb0c04ce246fecf8e72d29159513bb169a91176df3d375b6263089601e1de46",
+        "size": 5718
+      },
+      "subject_original_closure": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-f6c6fed4-3179-43a0-b91d-99b6514f1e22-private-v1/controller-result.json",
+        "sha256": "1f37f90669f819693b12c6c745f0a067a41e3beca0d91c1d416486bc8fafb80d",
+        "size": 1226
+      },
+      "subject_terminal_audit": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-f6c6fed4-3179-43a0-b91d-99b6514f1e22-private-v1/root-failed-import-terminal-audit-v1.json",
+        "sha256": "e3508a6f4c6190ddf3328092230d37e89648ce99dae79a3090a24403ac089264",
+        "size": 1917
+      },
+      "test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/closed-f6-parent-snapshot-run1/test_closed_snapshot_v1.py",
+        "sha256": "92fa724cb1fcece14f0862f72a3a59e56b1a2bb9904468480595c274c27889cb",
+        "size": 4844
+      },
+      "version": 1
+    },
+    "scope_limits": [
+      "closed current snapshot is later than historical failure, cannot establish initial guard operands/cause",
+      "no full controller import/start, no provider call, no writer/recovery/old-arm retry",
+      "actual SQLite URI mode=ro + query_only; actual private-path guard; database/WAL/SHM byte/hash and identity before/after",
+      "original cloud handles remain recorded reaped and actually absent; only new bounded disposable test child is executed"
+    ],
+    "status": "completed-bounded-local-snapshot-control"
+  },
+  "closed_live_529": "failed before mkdir; retained unchanged; not rerun by these controls",
+  "desired_endpoints": [
+    "empty protocol-v1/restart-false accounts vector returns waiting; valid exact singleton admits; wrong version/restart/scope/multiple accounts still refuse",
+    "already-present exact owned mount/socket recorded before unchanged status refusal"
+  ],
+  "execution_order": [
+    "v4-two-red",
+    "v5-two-green",
+    "v5-seven-green"
+  ],
+  "import_diagnostics_extension": {
+    "closed_f6_replayed": false,
+    "outcome": {
+      "actual": {
+        "actual_tests": 3,
+        "daemon_started": false,
+        "elapsed_seconds": 0.06690198997966945,
+        "errors": 0,
+        "exit_code": 0,
+        "failures": 0,
+        "issues": [],
+        "live_birth_claimed": false,
+        "original_handle_reaped": true,
+        "phase": "v7-import-diagnostic-three",
+        "pid": 2587822,
+        "pidfd_retained": true,
+        "proc_absent": true,
+        "provider_calls": 0,
+        "real_mount_created": false,
+        "registration": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/import-diagnostics-controls-run1/v7-import-diagnostic-three-registration.json",
+          "sha256": "aed21c4094a080994c67add1cfa1998546d4f1ffd737bf7a9de5cbb8e6e62de5",
+          "size": 1215
+        },
+        "signals": [],
+        "source_sha256": "8801da1ff7e7642d9a614c65da65af66e8bb5ab13026f5960668481490b43498",
+        "sources_unchanged": true,
+        "stderr_sha256": "33060fd73862c5e1af97335504d5b45211fce6d229657f556d8deceeadc52ce4",
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "test_sha256": "08521865f0642685b64be69272ef6c494c96b76e5c48de4e61830e349672a1ac",
+        "version": 1
+      },
+      "aggregate": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/import-diagnostics-controls-run1/aggregate-result-v1.json",
+        "sha256": "afed57a048d2f035d8ae8a83954dbbf073a33f185a17fbca043b716f3d2d058b",
+        "size": 1964
+      },
+      "claim": "All three source-selected controls passed. Valid Running remains admitted; Failed remains refused after safe artifact; untrusted issue and name content omitted. Observability-only, no artificial RED or actual f6 failure operand attribution.",
+      "evidence_pins": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/import-diagnostics-controls-run1/terminal-evidence-pins-v1.json",
+        "sha256": "0ee58a0f2071920361c42d40e26c9c21ebd4a1948eff92bd40e2b5aef8c39a0a",
+        "size": 2981
+      },
+      "runner_tool_chunk_id": "3ac4f9",
+      "runner_tool_exit_code": 0
+    },
+    "prediction": "Exactly three source-selected controls PASS/ERROR0: valid Running accepted; Failed refused after fixed diagnostic; unknown issue and name omitted. This is observability validation only, with no artificial RED claim.",
+    "question": "Does the fixed-operand diagnostic preserve valid Running acceptance and Failed refusal, persist safe operand facts, and omit untrusted issue/name text?",
+    "registration": {
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "arms": [
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 3,
+          "label": "v7-import-diagnostic-three",
+          "names": [],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v7.py",
+            "sha256": "8801da1ff7e7642d9a614c65da65af66e8bb5ab13026f5960668481490b43498",
+            "size": 38214
+          }
+        }
+      ],
+      "cleanup_reserve_seconds": 5,
+      "filesystem": {
+        "source": "/dev/nvme1n1p1",
+        "target": "/home/dandiccf/Storage",
+        "type": "ext4"
+      },
+      "max_child_seconds": 30,
+      "phase": "native-trash-import-sanitized-diagnostics-v1",
+      "python": {
+        "path": "/usr/bin/python3.14",
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+        "size": 14424
+      },
+      "registered_before_execution": true,
+      "root_authorized": true,
+      "runner": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/import-diagnostics-controls-run1/run-controls-v1.py",
+        "sha256": "09312dd661a378c844a97b571a6b00d930b30e0b3f7fffbcf2cbd3aa9abb2750",
+        "size": 6369
+      },
+      "scope": "Pure AST source-selected diagnostic helper and unchanged actual import guard. No behavior-fix RED claim, no real Rust/provider/import runtime proof; failed f6 preserved without replay.",
+      "test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_import_diagnostic_controls_v1.py",
+        "sha256": "08521865f0642685b64be69272ef6c494c96b76e5c48de4e61830e349672a1ac",
+        "size": 3930
+      },
+      "version": 1
+    },
+    "scope_limits": [
+      "actual Python helper/guard are AST-selected; provider, journal, daemon and filesystem facts are not exercised",
+      "real disposable test child original Popen/pidfd retained and reaped; no live birth claim",
+      "no cloud import retry, no standalone Trash acceptance, no installed acceptance"
+    ],
+    "status": "completed-bounded-local-controls"
+  },
+  "installed_acceptance": false,
+  "late_publication_extension": {
+    "outcome": {
+      "arms": [
+        {
+          "actual_tests": 1,
+          "elapsed_seconds": 0.06621555599849671,
+          "errors": 0,
+          "exit_code": 1,
+          "failures": 1,
+          "label": "v5-late-one-red",
+          "original_handle_reaped": true,
+          "proc_absent": true,
+          "result": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run1/v5-late-one-red-result.json",
+            "sha256": "12451dd3ea373aee951adc138845ebea1ca994ebbda9437454e206063571d991",
+            "size": 1093
+          },
+          "signals": [],
+          "sources_unchanged": true,
+          "stderr_sha256": "0b4444d1d3dc6a0af73009bf2eae025516f4dbdc54269dbdc89a3fd781de74c4"
+        },
+        {
+          "actual_tests": 1,
+          "elapsed_seconds": 0.06562488799681887,
+          "errors": 1,
+          "exit_code": 1,
+          "failures": 0,
+          "label": "v6-late-one-green",
+          "original_handle_reaped": true,
+          "proc_absent": true,
+          "result": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run1/v6-late-one-green-result.json",
+            "sha256": "cce3037e5bcfb4d6ccfa9c5505f9295f40621816c4936bdffb3a5d400c1fa8bf",
+            "size": 1097
+          },
+          "signals": [],
+          "sources_unchanged": true,
+          "stderr_sha256": "bdd100b6745f7fd9c2d256213a9ee687ac39b732df0b65d4aeec2cb25ae8c018"
+        }
+      ],
+      "correction": "V5 actual desired assertion FAIL1/ERROR0; V6 ERROR1 because AST fixture omitted RUN at socket-unlink artifact. Controller source unchanged. This is not production-failure evidence.",
+      "dependent_full6_startup7_executed": false,
+      "runner_tool_chunk_id": "214795",
+      "runner_tool_exit_code": 1
+    },
+    "prediction": "V5 desired1 FAIL1/ERROR0; byteexact same test on V6 PASS1, full late6 PASS, prior startup7 PASS.",
+    "question": "Can actual private closed() safely capture exact owned objects published during termination only after original reap and immutable namespace grant, while refusing changed/foreign/unknown identities?",
+    "registration": {
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "arms": [
+        {
+          "expected_errors": 0,
+          "expected_exit": 1,
+          "expected_failures": 1,
+          "expected_tests": 1,
+          "label": "v5-late-one-red",
+          "names": [
+            "LateClosureControls.test_late_owned_mount_and_socket_are_closed_after_original_reap"
+          ],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v5.py",
+            "sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+            "size": 34155
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 1,
+          "label": "v6-late-one-green",
+          "names": [
+            "LateClosureControls.test_late_owned_mount_and_socket_are_closed_after_original_reap"
+          ],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+            "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "size": 36049
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 6,
+          "label": "v6-late-six-green",
+          "names": [],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+            "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "size": 36049
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 7,
+          "label": "v6-startup-seven-green",
+          "names": [],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+            "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "size": 36049
+          },
+          "test": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_startup_controls_v2.py",
+            "sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb",
+            "size": 4039
+          }
+        }
+      ],
+      "cleanup_reserve_seconds": 5,
+      "controller_baseline": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v5.py",
+        "sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+        "size": 34155
+      },
+      "controller_corrected": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+        "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+        "size": 36049
+      },
+      "evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run1",
+      "filesystem": {
+        "source": "/dev/nvme1n1p1",
+        "target": "/home/dandiccf/Storage",
+        "type": "ext4"
+      },
+      "limits": [
+        "pure actual AST-selected closed/capture/namespace/grant/status/ready methods with synthetic Child/socket/filesystem facts",
+        "runner test-subprocess originals are real retained Popen+pidfd; daemon and mount facts inside tests are mocked",
+        "no real Rust/provider/mount/GUI/shutdown timing proof",
+        "no original529 state/provider retry",
+        "no performance/reliability acceptance"
+      ],
+      "max_child_seconds": 30,
+      "phase": "native-trash-late-closure-source-selected-v1",
+      "python": {
+        "path": "/usr/bin/python3.14",
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+        "size": 14424
+      },
+      "registered_before_execution": true,
+      "root_authorized": true,
+      "startup_test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_startup_controls_v2.py",
+        "sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb",
+        "size": 4039
+      },
+      "test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_late_closure_controls_v2.py",
+        "sha256": "e0cce9944fabdb50bb1ec9265f629f9ae8d8e7c105c01262fe9ef567ca572149",
+        "size": 5179
+      },
+      "version": 1
+    },
+    "scope_limits": [
+      "pure actual AST-selected closed/capture/namespace/grant/status/ready methods with synthetic Child/socket/filesystem facts",
+      "runner test-subprocess originals are real retained Popen+pidfd; daemon and mount facts inside tests are mocked",
+      "no real Rust/provider/mount/GUI/shutdown timing proof",
+      "no original529 state/provider retry",
+      "no performance/reliability acceptance"
+    ],
+    "status": "partial-fixture-error-retained"
+  },
+  "late_publication_fixture_correction": {
+    "outcome": {
+      "aggregate": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/aggregate-result-v1.json",
+        "sha256": "9b84a1e867999352af89910e24e637dc1ed3f5da1b1f76197566934bea273593",
+        "size": 6702
+      },
+      "all_original_handles_reaped": true,
+      "all_pidfds_retained": true,
+      "all_proc_absent": true,
+      "all_sources_unchanged": true,
+      "arms": [
+        {
+          "pin": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v5-late-one-red-result.json",
+            "sha256": "3e044718ea549095c1128a27166b515d32676a11c186bcc8a35953fc441a4224",
+            "size": 1093
+          },
+          "result": {
+            "actual_tests": 1,
+            "daemon_started": false,
+            "elapsed_seconds": 0.06559676001779735,
+            "errors": 0,
+            "exit_code": 1,
+            "failures": 1,
+            "issues": [],
+            "live_birth_claimed": false,
+            "original_handle_reaped": true,
+            "phase": "v5-late-one-red",
+            "pid": 2571770,
+            "pidfd_retained": true,
+            "proc_absent": true,
+            "provider_calls": 0,
+            "real_mount_created": false,
+            "registration": {
+              "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v5-late-one-red-registration.json",
+              "sha256": "a622b2f32267d901403e8677c6e84b26d27822b5cb618bdcff92c40f8231a9c0",
+              "size": 1285
+            },
+            "signals": [],
+            "source_sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+            "sources_unchanged": true,
+            "stderr_sha256": "c15debe6f9d721c9bf5ae9e056498e65796f2dd6537f0f3b5081042276c7c96e",
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "test_sha256": "0eec69441806ef1dac2315ebb362de4a0cd2d216b0210308fe5aa6ec4205c760",
+            "version": 1
+          }
+        },
+        {
+          "pin": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v6-late-one-green-result.json",
+            "sha256": "0e676ad2fdfcc5e1b95d518a0c223be675c73a4b1e1a6194e37d8f030c40762c",
+            "size": 1097
+          },
+          "result": {
+            "actual_tests": 1,
+            "daemon_started": false,
+            "elapsed_seconds": 0.06508173799375072,
+            "errors": 0,
+            "exit_code": 0,
+            "failures": 0,
+            "issues": [],
+            "live_birth_claimed": false,
+            "original_handle_reaped": true,
+            "phase": "v6-late-one-green",
+            "pid": 2571771,
+            "pidfd_retained": true,
+            "proc_absent": true,
+            "provider_calls": 0,
+            "real_mount_created": false,
+            "registration": {
+              "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v6-late-one-green-registration.json",
+              "sha256": "bb661268eac3a7d0e847ab5485520b8ee5228263abdd2190fe75534d834208df",
+              "size": 1287
+            },
+            "signals": [],
+            "source_sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "sources_unchanged": true,
+            "stderr_sha256": "fb184ea57734512b1f088f9181209901b9cd46df3eb7eaa2500ea9e48dde20b5",
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "test_sha256": "0eec69441806ef1dac2315ebb362de4a0cd2d216b0210308fe5aa6ec4205c760",
+            "version": 1
+          }
+        },
+        {
+          "pin": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v6-late-six-green-result.json",
+            "sha256": "9c28de0353a58ccd35bb598b220aea715cd11d0b086b19a47e3e42f316e45024",
+            "size": 1097
+          },
+          "result": {
+            "actual_tests": 6,
+            "daemon_started": false,
+            "elapsed_seconds": 0.06551366002531722,
+            "errors": 0,
+            "exit_code": 0,
+            "failures": 0,
+            "issues": [],
+            "live_birth_claimed": false,
+            "original_handle_reaped": true,
+            "phase": "v6-late-six-green",
+            "pid": 2571781,
+            "pidfd_retained": true,
+            "proc_absent": true,
+            "provider_calls": 0,
+            "real_mount_created": false,
+            "registration": {
+              "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v6-late-six-green-registration.json",
+              "sha256": "5cdf9f9818671d64dac1c105bd440636da48ff29da19940eb643977974157850",
+              "size": 1196
+            },
+            "signals": [],
+            "source_sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "sources_unchanged": true,
+            "stderr_sha256": "dcd2147edfda2291b456dfb6d9f3021f0fed07760d5a1c8869fc5446f30e28fe",
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "test_sha256": "0eec69441806ef1dac2315ebb362de4a0cd2d216b0210308fe5aa6ec4205c760",
+            "version": 1
+          }
+        },
+        {
+          "pin": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v6-startup-seven-green-result.json",
+            "sha256": "74e6460f9c41dfaf33c30a8aa4675308559c0b781e86159e4e85a43ea2235000",
+            "size": 1107
+          },
+          "result": {
+            "actual_tests": 7,
+            "daemon_started": false,
+            "elapsed_seconds": 0.06549471302423626,
+            "errors": 0,
+            "exit_code": 0,
+            "failures": 0,
+            "issues": [],
+            "live_birth_claimed": false,
+            "original_handle_reaped": true,
+            "phase": "v6-startup-seven-green",
+            "pid": 2571792,
+            "pidfd_retained": true,
+            "proc_absent": true,
+            "provider_calls": 0,
+            "real_mount_created": false,
+            "registration": {
+              "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/v6-startup-seven-green-registration.json",
+              "sha256": "8307ed15d1abb8b0cb20055b0380dbf0328b486569a180b6ee7d9744f2823928",
+              "size": 1191
+            },
+            "signals": [],
+            "source_sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "sources_unchanged": true,
+            "stderr_sha256": "fe836cbecd3b6b4f70bec51b58d30c3e45ad72ae7fb3cb63421a0f7337e651ae",
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "test_sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb",
+            "version": 1
+          }
+        }
+      ],
+      "controls_match_predictions": true,
+      "daemon_started": false,
+      "earlier_fixture_error_preserved": true,
+      "evidence_pins": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2/terminal-evidence-pins-v1.json",
+        "sha256": "e8c40051e940159d40e55d6f2a53af89f1a4a909fc5f55e1b6769a060e33ae43",
+        "size": 8544
+      },
+      "limits": [
+        "pure actual AST-selected closed/capture/namespace/grant/status/ready methods with synthetic Child/socket/filesystem facts",
+        "runner test-subprocess originals are real retained Popen+pidfd; daemon and mount facts inside tests are mocked",
+        "no real Rust/provider/mount/GUI/shutdown timing proof",
+        "no original529 state/provider retry",
+        "no performance/reliability acceptance"
+      ],
+      "original529_replayed": false,
+      "provider_calls": 0,
+      "real_mount_created": false,
+      "same_regression_body": "V3 adds only RUN to AST fixture namespace; desired test body byte unchanged between V5 RED and V6 GREEN. V2 fixture NameError is retained separately, not counted as desired RED.",
+      "signals": []
+    },
+    "prediction": "V5 desired1 FAIL1/ERROR0; byteexact same body V6 PASS1; V6 full late6 PASS; prior startup7/V6 PASS.",
+    "question": "With only the missing fixture RUN supplied, do the unchanged desired late-closure body and refusal/startup controls match preregistered endpoints?",
+    "registration": {
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "arms": [
+        {
+          "expected_errors": 0,
+          "expected_exit": 1,
+          "expected_failures": 1,
+          "expected_tests": 1,
+          "label": "v5-late-one-red",
+          "names": [
+            "LateClosureControls.test_late_owned_mount_and_socket_are_closed_after_original_reap"
+          ],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v5.py",
+            "sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+            "size": 34155
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 1,
+          "label": "v6-late-one-green",
+          "names": [
+            "LateClosureControls.test_late_owned_mount_and_socket_are_closed_after_original_reap"
+          ],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+            "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "size": 36049
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 6,
+          "label": "v6-late-six-green",
+          "names": [],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+            "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "size": 36049
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 7,
+          "label": "v6-startup-seven-green",
+          "names": [],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+            "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+            "size": 36049
+          },
+          "test": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_startup_controls_v2.py",
+            "sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb",
+            "size": 4039
+          }
+        }
+      ],
+      "cleanup_reserve_seconds": 5,
+      "controller_baseline": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v5.py",
+        "sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+        "size": 34155
+      },
+      "controller_corrected": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v6.py",
+        "sha256": "28ddda7a42c0e26df0c964dbf9b617b45a7b882e78fa50ca69bea2dbcaebc8aa",
+        "size": 36049
+      },
+      "evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/late-controls-run2",
+      "filesystem": {
+        "source": "/dev/nvme1n1p1",
+        "target": "/home/dandiccf/Storage",
+        "type": "ext4"
+      },
+      "fixture_correction": "Exactly one globals mapping entry RUN=fixture-run; all actual test bodies/source methods byte unchanged. Original V2 error retained.",
+      "limits": [
+        "pure actual AST-selected closed/capture/namespace/grant/status/ready methods with synthetic Child/socket/filesystem facts",
+        "runner test-subprocess originals are real retained Popen+pidfd; daemon and mount facts inside tests are mocked",
+        "no real Rust/provider/mount/GUI/shutdown timing proof",
+        "no original529 state/provider retry",
+        "no performance/reliability acceptance"
+      ],
+      "max_child_seconds": 30,
+      "phase": "native-trash-late-closure-source-selected-v2",
+      "python": {
+        "path": "/usr/bin/python3.14",
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+        "size": 14424
+      },
+      "registered_before_execution": true,
+      "root_authorized": true,
+      "startup_test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_startup_controls_v2.py",
+        "sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb",
+        "size": 4039
+      },
+      "test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_late_closure_controls_v3.py",
+        "sha256": "0eec69441806ef1dac2315ebb362de4a0cd2d216b0210308fe5aa6ec4205c760",
+        "size": 5199
+      },
+      "version": 1
+    },
+    "scope_limits": [
+      "pure actual AST-selected closed/capture/namespace/grant/status/ready methods with synthetic Child/socket/filesystem facts",
+      "runner test-subprocess originals are real retained Popen+pidfd; daemon and mount facts inside tests are mocked",
+      "no real Rust/provider/mount/GUI/shutdown timing proof",
+      "no original529 state/provider retry",
+      "no performance/reliability acceptance"
+    ],
+    "status": "completed-bounded-local-controls"
+  },
+  "outcome": {
+    "all_three_original_handles_reaped_absent_no_signals": true,
+    "arms": [
+      {
+        "actual_tests": 2,
+        "elapsed_seconds": 0.06590955302817747,
+        "errors": 0,
+        "exit_code": 1,
+        "failures": 2,
+        "issues": [],
+        "label": "v4-two-red",
+        "original_handle_reaped": true,
+        "pidfd_retained": true,
+        "proc_absent": true,
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/startup-controls-run1/v4-two-red-result.json",
+          "sha256": "e8818a5998ac5b16e35b0ee3a9296ef3432bd34f3de31adf98e2a169c0633fbb",
+          "size": 1086
+        },
+        "signals": [],
+        "source_sha256": "8a33a8d941af50aba8310bd8bb80045b5bbbfd23e9ee184cad3185b134197cf9",
+        "sources_unchanged": true,
+        "stderr_sha256": "7a9ec852e2acf2cc5a7953c0ba59c6f81b22f752599718a271a2d74333b5d7b8",
+        "test_sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb"
+      },
+      {
+        "actual_tests": 2,
+        "elapsed_seconds": 0.06551230401964858,
+        "errors": 0,
+        "exit_code": 0,
+        "failures": 0,
+        "issues": [],
+        "label": "v5-two-green",
+        "original_handle_reaped": true,
+        "pidfd_retained": true,
+        "proc_absent": true,
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/startup-controls-run1/v5-two-green-result.json",
+          "sha256": "a88688bc864dfcc56688dc65c76db8d423321eda4313fea3900f279d691b2359",
+          "size": 1090
+        },
+        "signals": [],
+        "source_sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+        "sources_unchanged": true,
+        "stderr_sha256": "a6707d4eff38012da33ddc34bc6dc076a3b17151cfc9aef223c8790cbe64c3da",
+        "test_sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb"
+      },
+      {
+        "actual_tests": 7,
+        "elapsed_seconds": 0.06597278005210683,
+        "errors": 0,
+        "exit_code": 0,
+        "failures": 0,
+        "issues": [],
+        "label": "v5-seven-green",
+        "original_handle_reaped": true,
+        "pidfd_retained": true,
+        "proc_absent": true,
+        "result": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/startup-controls-run1/v5-seven-green-result.json",
+          "sha256": "dabdfffa53f4282573461397a8cb72beeba77ff0ca39632143e4e938dff720b3",
+          "size": 1094
+        },
+        "signals": [],
+        "source_sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+        "sources_unchanged": true,
+        "stderr_sha256": "fe836cbecd3b6b4f70bec51b58d30c3e45ad72ae7fb3cb63421a0f7337e651ae",
+        "test_sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb"
+      }
+    ],
+    "daemon_started": false,
+    "late_publication_case_not_covered": true,
+    "original_529_replayed": false,
+    "predictions_matched": true,
+    "preregistered_snapshot_sha256": "1eabb6baba5bbc5bfaf3e39f833d8659beba6515fc6b64a97f209781da982fd8",
+    "provider_calls": 0,
+    "real_mount_created": false,
+    "runner_tool_chunk_id": "5db4d5",
+    "runner_tool_exit_code": 0,
+    "test_file_byteexact_all_arms": true,
+    "test_sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb"
+  },
+  "parent_readiness_extension": {
+    "actual_f6_cause_proven": false,
+    "closed_f6_replayed": false,
+    "outcome": {
+      "actual_f6_cause_proven": false,
+      "aggregate": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/aggregate-result-v1.json",
+        "sha256": "5df837aefdb8554a460dcc1f1d3274f8144f9ccbf284a73f6ff8eb29b93800a1",
+        "size": 5223
+      },
+      "arms": [
+        {
+          "pin": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/v7-parent-one-red-result.json",
+            "sha256": "a0ec61a08e0e694818079ce8fb6caf81906e88a301b59b7fdb316187c9d71798",
+            "size": 1104
+          },
+          "result": {
+            "actual_tests": 1,
+            "daemon_started": false,
+            "elapsed_seconds": 0.0660151910269633,
+            "errors": 0,
+            "exit_code": 1,
+            "failures": 1,
+            "issues": [],
+            "live_birth_claimed": false,
+            "original_handle_reaped": true,
+            "phase": "v7-parent-one-red",
+            "pid": 2600383,
+            "pidfd_retained": true,
+            "proc_absent": true,
+            "provider_calls": 0,
+            "real_mount_created": false,
+            "registration": {
+              "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/v7-parent-one-red-registration.json",
+              "sha256": "a344878df3e8e10143fc3857050bee8aba5e6b43cfc4db5bd3bbecfea5b8d2e8",
+              "size": 1299
+            },
+            "signals": [],
+            "source_sha256": "8801da1ff7e7642d9a614c65da65af66e8bb5ab13026f5960668481490b43498",
+            "sources_unchanged": true,
+            "stderr_sha256": "2dcab75b1060626774ae5bcf3a05295ef5d011240e921e493ed88681e82c3680",
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "test_sha256": "3ac59bec2b9ea2308841b2dd6e2f268305b27fd3f67160419f7be31e58090cb3",
+            "version": 1
+          }
+        },
+        {
+          "pin": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/v8-parent-one-green-result.json",
+            "sha256": "d09bca993cd6440e8f863165723deb39c6c1e668e66380e91ca8e518273fbb40",
+            "size": 1106
+          },
+          "result": {
+            "actual_tests": 1,
+            "daemon_started": false,
+            "elapsed_seconds": 0.06571370101301,
+            "errors": 0,
+            "exit_code": 0,
+            "failures": 0,
+            "issues": [],
+            "live_birth_claimed": false,
+            "original_handle_reaped": true,
+            "phase": "v8-parent-one-green",
+            "pid": 2600385,
+            "pidfd_retained": true,
+            "proc_absent": true,
+            "provider_calls": 0,
+            "real_mount_created": false,
+            "registration": {
+              "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/v8-parent-one-green-registration.json",
+              "sha256": "68f6a821ceed9e6cc43ec0d2d81d288399059907b47bc6454b1d255ce864c1e7",
+              "size": 1301
+            },
+            "signals": [],
+            "source_sha256": "036adaa25f5c5b42f4305923897cbd2c2564be0db9da9967f982a4a818c8c10c",
+            "sources_unchanged": true,
+            "stderr_sha256": "fb184ea57734512b1f088f9181209901b9cd46df3eb7eaa2500ea9e48dde20b5",
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "test_sha256": "3ac59bec2b9ea2308841b2dd6e2f268305b27fd3f67160419f7be31e58090cb3",
+            "version": 1
+          }
+        },
+        {
+          "pin": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/v8-parent-five-green-result.json",
+            "sha256": "58c36a1709cd8bc5ea6e99152a48b5864ed0a40711291eeaaa3bfcde0a2f5f22",
+            "size": 1111
+          },
+          "result": {
+            "actual_tests": 5,
+            "daemon_started": false,
+            "elapsed_seconds": 0.06584397499682382,
+            "errors": 0,
+            "exit_code": 0,
+            "failures": 0,
+            "issues": [],
+            "live_birth_claimed": false,
+            "original_handle_reaped": true,
+            "phase": "v8-parent-five-green",
+            "pid": 2600386,
+            "pidfd_retained": true,
+            "proc_absent": true,
+            "provider_calls": 0,
+            "real_mount_created": false,
+            "registration": {
+              "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/v8-parent-five-green-registration.json",
+              "sha256": "6d7326f7fa972abb93e897e5905bacf60d6f3b43ffb50d2858a00f8c20ab1c50",
+              "size": 1207
+            },
+            "signals": [],
+            "source_sha256": "036adaa25f5c5b42f4305923897cbd2c2564be0db9da9967f982a4a818c8c10c",
+            "sources_unchanged": true,
+            "stderr_sha256": "6273232de4d3ef7acd4ecafa5c86beeeb974f56586b21089a2990b3f72facbe6",
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "test_sha256": "3ac59bec2b9ea2308841b2dd6e2f268305b27fd3f67160419f7be31e58090cb3",
+            "version": 1
+          }
+        }
+      ],
+      "closed_f6_replayed": false,
+      "controls_match_predictions": true,
+      "daemon_started": false,
+      "evidence_pins": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/terminal-evidence-pins-v1.json",
+        "sha256": "0284ba4286b8832a4948cde610d3482f6ad3cce39a38366414891643ae40e496",
+        "size": 5982
+      },
+      "provider_calls": 0,
+      "real_mount_created": false,
+      "runner_tool_chunk_id": "0208ed",
+      "runner_tool_exit_code": 0,
+      "same_test_body": "The identical source-selected desired test body first asserts V7 premature dispatch while follows_remote=false/latest=operation, then passes V8 after exactly one synthetic pause and one import spawn."
+    },
+    "prediction": "V7 same desired1 FAIL1/ERROR0 at early import submission assertion; V8 byteexact same body PASS1; V8 whole5 PASS including foreign scope/replaced remote/mismatched owner/foreign latest refusal before import.",
+    "question": "Does an Applied folder receipt alone submit prematurely, while the exact account/operation/owner namespace handoff fence waits under the original clock then dispatches exactly one import?",
+    "registration": {
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+      "arms": [
+        {
+          "expected_errors": 0,
+          "expected_exit": 1,
+          "expected_failures": 1,
+          "expected_tests": 1,
+          "label": "v7-parent-one-red",
+          "names": [
+            "ParentReadinessControls.test_import_waits_for_exact_parent_handoff_then_dispatches_once"
+          ],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v7.py",
+            "sha256": "8801da1ff7e7642d9a614c65da65af66e8bb5ab13026f5960668481490b43498",
+            "size": 38214
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 1,
+          "label": "v8-parent-one-green",
+          "names": [
+            "ParentReadinessControls.test_import_waits_for_exact_parent_handoff_then_dispatches_once"
+          ],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v8.py",
+            "sha256": "036adaa25f5c5b42f4305923897cbd2c2564be0db9da9967f982a4a818c8c10c",
+            "size": 41382
+          }
+        },
+        {
+          "expected_errors": 0,
+          "expected_exit": 0,
+          "expected_failures": 0,
+          "expected_tests": 5,
+          "label": "v8-parent-five-green",
+          "names": [],
+          "source": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v8.py",
+            "sha256": "036adaa25f5c5b42f4305923897cbd2c2564be0db9da9967f982a4a818c8c10c",
+            "size": 41382
+          }
+        }
+      ],
+      "cleanup_reserve_seconds": 5,
+      "filesystem": {
+        "source": "/dev/nvme1n1p1",
+        "target": "/home/dandiccf/Storage",
+        "type": "ext4"
+      },
+      "max_child_seconds": 30,
+      "phase": "native-trash-exact-parent-readiness-v1",
+      "python": {
+        "path": "/usr/bin/python3.14",
+        "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+        "size": 14424
+      },
+      "registered_before_execution": true,
+      "root_authorized": true,
+      "runner": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/parent-ready-controls-run1/run-controls-v1.py",
+        "sha256": "be3be8ca4a7cb32e17a26273752ac787b44448035c0a4922adf86f2d3ac69c90",
+        "size": 6402
+      },
+      "scope": "Actual folder_and_import prefix and parent_ready are AST-selected against synthetic database/Child facts. Desired synthetic early-submit RED, no live f6 cause/provider/runtime claim.",
+      "test": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_parent_readiness_controls_v1.py",
+        "sha256": "3ac59bec2b9ea2308841b2dd6e2f268305b27fd3f67160419f7be31e58090cb3",
+        "size": 5565
+      },
+      "version": 1
+    },
+    "scope_limits": [
+      "synthetic source-selected Python control, no Rust/provider/daemon/FUSE proof",
+      "real disposable test children retain original Popen/pidfd and are reaped",
+      "no extra mkdir/import replay, clock extension, installed acceptance or live standalone Trash gate claim"
+    ],
+    "status": "completed-bounded-local-controls"
+  },
+  "prediction": "V4 first two tests: 2 desired failures, 0 errors. Same source-selected tests with V5: 2 passes; full corrected controls: 7 passes.",
+  "question": "Does the private NativeTrash controller wrongly refuse the unpublished empty Manager status, and lose already-present owned mount/socket capture when the status guard refuses?",
+  "registration": {
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+    "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+    "arms": [
+      {
+        "expected_errors": 0,
+        "expected_exit": 1,
+        "expected_failures": 2,
+        "expected_tests": 2,
+        "label": "v4-two-red",
+        "names": [
+          "StartupControls.test_initial_empty_account_vector_waits",
+          "StartupControls.test_mount_and_socket_captured_before_status_refusal"
+        ],
+        "source": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v4.py",
+          "sha256": "8a33a8d941af50aba8310bd8bb80045b5bbbfd23e9ee184cad3185b134197cf9",
+          "size": 33571
+        }
+      },
+      {
+        "expected_errors": 0,
+        "expected_exit": 0,
+        "expected_failures": 0,
+        "expected_tests": 2,
+        "label": "v5-two-green",
+        "names": [
+          "StartupControls.test_initial_empty_account_vector_waits",
+          "StartupControls.test_mount_and_socket_captured_before_status_refusal"
+        ],
+        "source": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v5.py",
+          "sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+          "size": 34155
+        }
+      },
+      {
+        "expected_errors": 0,
+        "expected_exit": 0,
+        "expected_failures": 0,
+        "expected_tests": 7,
+        "label": "v5-seven-green",
+        "names": [],
+        "source": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v5.py",
+          "sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+          "size": 34155
+        }
+      }
+    ],
+    "cleanup_reserve_seconds": 5,
+    "controller_baseline": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v4.py",
+      "sha256": "8a33a8d941af50aba8310bd8bb80045b5bbbfd23e9ee184cad3185b134197cf9",
+      "size": 33571
+    },
+    "controller_corrected": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/controller_native_trash_v5.py",
+      "sha256": "ba5db064de03f0345730a1530067ccfa1307d8a626c2e1f2fbcefc1234f2f5e2",
+      "size": 34155
+    },
+    "evidence": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/startup-controls-run1",
+    "filesystem": {
+      "source": "/dev/nvme1n1p1",
+      "target": "/home/dandiccf/Storage",
+      "type": "ext4"
+    },
+    "limits": [
+      "pure AST selected actual Python controller methods with mocked socket/filesystem/process facts",
+      "no real Rust daemon/provider/mount/GUI runtime proof",
+      "V5 capture-before-status case only; later mount/socket publication race remains pending V6",
+      "no original529 state/controller/provider retry",
+      "no performance/reliability acceptance"
+    ],
+    "max_child_seconds": 30,
+    "phase": "native-trash-controller-startup-source-selected-v1",
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+      "size": 14424
+    },
+    "registered_before_execution": true,
+    "root_authorized": true,
+    "test": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/native-trash-live-controller-draft-v1/test_startup_controls_v2.py",
+      "sha256": "49d093ffc768a7d2189ea926c60ab57439b0d214902044e5c9de44deb3e85cbb",
+      "size": 4039
+    },
+    "version": 1
+  },
+  "release_acceptance": false,
+  "scope_limits": [
+    "pure AST selected actual Python controller methods with mocked socket/filesystem/process facts",
+    "no real Rust daemon/provider/mount/GUI runtime proof",
+    "V5 capture-before-status case only; later mount/socket publication race remains pending V6",
+    "no original529 state/controller/provider retry",
+    "no performance/reliability acceptance"
+  ],
+  "status": "completed-bounded-local-controls",
+  "version": 1
+}

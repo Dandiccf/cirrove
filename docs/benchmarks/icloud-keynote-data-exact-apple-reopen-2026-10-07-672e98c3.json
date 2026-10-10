@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "subject_run": "672e98c3-39b6-45a1-85bd-16cc77a6404b",
+  "status": "closed-Apple-refusal",
+  "exact_visible_row_item": "FILE::com.apple.CloudDocs::CA40E09C-022C-4137-8197-84B7F99216B5",
+  "exact_editor_URL_contains_current_CloudDocs_ID": true,
+  "expected_slide_content_observed": false,
+  "Apple_error": "This presentation can\u2019t be opened right now.",
+  "elapsed_seconds": 220.0272719200002,
+  "maximum_seconds": 600,
+  "edits": 0,
+  "uploads": 0,
+  "all_own_tabs_closed": true,
+  "normal_RO_remount_passed": false,
+  "proofs": {
+    "preregistration-v1.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-reopen-case672-private-v1/preregistration-v1.json",
+      "size": 1322,
+      "sha256": "7631bab07e92b922a43eb662683774bbd9fbf33b3e3423759f2fe63bbbdc71da"
+    },
+    "apple-refusal-full-ax-v1.txt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-reopen-case672-private-v1/apple-refusal-full-ax-v1.txt",
+      "size": 814,
+      "sha256": "50236e3a094eccb33f60dfc6a83761e50c108355805a1a63256b71ff877717df"
+    },
+    "apple-refusal-v1.png": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-reopen-case672-private-v1/apple-refusal-v1.png",
+      "size": 14757,
+      "sha256": "fde7833905d5ce1f30f832d7ed4520754ddcc2c2936f1ce7f0587cd95b620df4"
+    },
+    "visible-row-identity-v1.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-reopen-case672-private-v1/visible-row-identity-v1.json",
+      "size": 274,
+      "sha256": "2e348ffc1495af85b91d052a64ab2e16a56d2962e3e034f25ec9fe63e906e1b3"
+    },
+    "ui-witness-v1.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-reopen-case672-private-v1/ui-witness-v1.json",
+      "size": 504,
+      "sha256": "ccd4110f159cb8482689a4a2e4f3f7949b05ced3f0b7b8c87a85ae109cff49f8"
+    },
+    "own-tabs-closed-v1.json": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-reopen-case672-private-v1/own-tabs-closed-v1.json",
+      "size": 95,
+      "sha256": "616d6ebb7036aa3533eb1ca3561d8bf1094208ea108cb81a1dab6ba16d895978"
+    }
+  },
+  "limits": "One exact DATA open failed; the successful PACKAGE case remains separate. No automatic open retry or provider mutation; no general cause or reliability inferred. Full487 remains open.",
+  "independent_refusal_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/keynote-data-exact-apple-reopen-case672-private-v1/audit-independent-exact-apple-refusal-v1.json",
+    "size": 6194,
+    "sha256": "16cc5dfdfb7b092de7b54cc97e3c26ace39aedc312596965948e6613f6f720ab",
+    "passed": 30,
+    "total": 30,
+    "scope": "Audit of recorded refusal and exact identity; not a successful editor open."
+  }
+}

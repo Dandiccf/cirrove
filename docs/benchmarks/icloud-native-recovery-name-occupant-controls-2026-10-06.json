@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "question": "Does the actual TLS native handoff path refuse a foreign occupant of its reserved recovery name before mutation and preserve all three identities?",
+  "prediction": "The new test fails when only the recovery-name guard slot is omitted, and passes with the unchanged production guard. Passing uses actual TLS listing before and after and requires zero Trash/rename calls.",
+  "arms": [
+    "counterfactual_recovery_name_slot_omitted",
+    "unchanged_production_guard"
+  ],
+  "endpoints": [
+    "Exactly one intended test executes in each arm.",
+    "Counterfactual fails at the specific before-Trash refusal assertion.",
+    "Unchanged guard passes complete identity/metadata preservation and zero mutation counters."
+  ],
+  "test": "handoff_transport::packages::tests::native_handoff_recovery_name_occupant_preserves_all_identities",
+  "source_before": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-icloud/src/handoff_transport.rs",
+    "size": 39505,
+    "sha256": "9176f4503a5219aaadf0d9524fe7b8187a530c1bc2a27fdad53dfb0c90c4afa9"
+  },
+  "test_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-icloud/src/handoff_transport/packages/tests.rs",
+    "size": 18654,
+    "sha256": "a989951ab47fac28514249f3da7a649db8f6dcd11f9b241b21a8bd574ece88f8"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/run_controls_v1.py",
+    "size": 7425,
+    "sha256": "02a1de805da79fcded7cac30dd18aec834f26a7cddcbcebb1a39566d505fdb77"
+  },
+  "build_command": [
+    "cargo",
+    "test",
+    "-p",
+    "cirrove-icloud",
+    "--lib",
+    "--locked",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "test_command": [
+    "<exact-built-test-executable>",
+    "handoff_transport::packages::tests::native_handoff_recovery_name_occupant_preserves_all_identities",
+    "--exact",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "temporary_filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "maximum_seconds_per_child": 600,
+  "provider_calls": false,
+  "installed_actions": false,
+  "limits": [
+    "Synthetic controlled TLS responses, not a live iCloud conflict or atomic race.",
+    "No full acceptance gate closes.",
+    "Cargo reused the test executable path between arms. Each executable hash was captured immediately before its exact test execution; the red binary itself is not retained as a separate artifact."
+  ],
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "outcome": {
+    "success": true,
+    "arms": {
+      "red": {
+        "build": {
+          "exit_code": 0,
+          "elapsed_seconds": 8.52915183902951,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/red-build.log",
+            "size": 271435,
+            "sha256": "078315658f77bb000fee8b02dc2818eee44a24a73b3ae70eb6363bfc6c91a0d0"
+          }
+        },
+        "test": {
+          "exit_code": 101,
+          "elapsed_seconds": 0.11469489801675081,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/red-test.log",
+            "size": 694,
+            "sha256": "4974e4290f7e04879adb3f2ca83982b0993cf33aa824d21b57bb9449fc01a6f1"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-0556cc07e27d13cb",
+          "size": 256364760,
+          "sha256": "81357bb6bc3616629063bf5dbdcdf4dc64e450f34e4e5c489c9e64a4b6e1a568"
+        },
+        "executed_test_count": 1,
+        "expected_result_observed": true
+      },
+      "green": {
+        "build": {
+          "exit_code": 0,
+          "elapsed_seconds": 3.0720335179939866,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/green-build.log",
+            "size": 271435,
+            "sha256": "19bbd271abc8fd26b6e905d3a919f099feb4bbf15385a79d1850b6ad7e777c63"
+          }
+        },
+        "test": {
+          "exit_code": 0,
+          "elapsed_seconds": 0.06455588201060891,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/green-test.log",
+            "size": 225,
+            "sha256": "e89a403be99850bb7a59c1c2aec1d8dcde908bf991a10fe19f230e695c956809"
+          }
+        },
+        "binary": {
+          "path": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-0556cc07e27d13cb",
+          "size": 256364832,
+          "sha256": "b81d6ca6c7e5b08f811c4897a1ba1cdd064b11a17ba3dd1026ea6958f1cb2742"
+        },
+        "executed_test_count": 1,
+        "expected_result_observed": true
+      }
+    },
+    "production_source_restored": true,
+    "test_source_unchanged": true,
+    "provider_calls": false,
+    "installed_actions": false,
+    "managed_original_handles": 5,
+    "root_handle_reaped_and_process_absent": true,
+    "independent_audit_passed": true
+  },
+  "result_pin": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/controls-result-v1.json",
+    "size": 2950,
+    "sha256": "64c2a6b048312b59f33a5522166287e391d54f3d1ef8d83506431166bd93ecc7"
+  },
+  "root_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/root-controls-registration-v1.json",
+    "size": 521,
+    "sha256": "f0b03c8e1c32445d2dcd9a00dca6edfb5a4a7b7b49769aa1e359b1191326ab9d"
+  },
+  "root_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/root-controls-result-v1.json",
+    "size": 139,
+    "sha256": "ae1ea6a95804eb74a2337f5834feca33947ce375671f58a88715c1eb3a1b885e"
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-replacement-recovery-name-collision-private-v1/audit-gate-agent-terminal-controls-v1.json",
+    "sha256": "0266e7355b690cf374078e028b9df8913fbf80d00653cd36d2a268951317aeb8",
+    "size": 5382,
+    "checks_passed": 20
+  },
+  "post_control_formatting": {
+    "changed_test_source_sha256": "4a8ef18e2a7ca1a9414929465f13b2e11355f70089b0cb7e309d89565e2dabe8",
+    "change": "Only whitespace expansion of the final metadata equality assertion by scripts/check.sh; the registered full9 checks run on this formatted source.",
+    "production_guard_unchanged": true
+  },
+  "subsequent_repository_validation": {
+    "command": [
+      "bash",
+      "scripts/check.sh"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 621.0104741339455,
+    "completed_test_groups": 87,
+    "original_handle_reaped_and_process_absent": true,
+    "registered_source_change": "Only the test equality assertion was expanded by the check script formatter; all561 after-format source pins stayed unchanged through closure.",
+    "display_scenarios_repeated": false,
+    "provider_mutations": false,
+    "installed_actions": false,
+    "pins": {
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-registration-v1.json",
+        "size": 73481,
+        "sha256": "6fe9afad0226b9597fd2dd1f5e0a687030ad59cb514847071277954998dc99ad"
+      },
+      "owner": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-owner-v1.json",
+        "size": 198,
+        "sha256": "7bc8f79b49e2105d8e9787fa2b07dba93b4ffe24b4df43cff9357822685d1f42"
+      },
+      "result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-result-v1.json",
+        "size": 437,
+        "sha256": "4d2cac964ac7024038a38eb668d1181f4f8550b9a528c73592e9d4cc625d0f42"
+      },
+      "log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-v1.log",
+        "size": 287970,
+        "sha256": "5976e24dae4e5f7fad08075eb944e9a77b96bb81a1090322288a4bcb74887f6c"
+      },
+      "after_format_source_map": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-after-format-source-map-v1.json",
+        "size": 72840,
+        "sha256": "b2db15d37b2bea11ac1a1bbb2717745e9e1a981f6300126aec4f7d3c2fe24658"
+      },
+      "source_closure": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full9-source-closure-v1.json",
+        "size": 423,
+        "sha256": "548c780ba3a686af23d43ef2a8ad378c3c449c98aee739245f862c0d6ba2e216"
+      }
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/audit-gate-agent-full9-terminal-v1.json",
+      "sha256": "f4b2b346cbf3f8c36c573cfceec6567e4931c2b70dd68488c2ce6d4533ca31ea",
+      "size": 4164,
+      "checks_passed": 13
+    }
+  }
+}

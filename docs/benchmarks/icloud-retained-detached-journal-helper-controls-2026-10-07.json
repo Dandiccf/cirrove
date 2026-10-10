@@ -1,0 +1,44 @@
+{
+  "HOLD_lifted": false,
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/pfch7v2",
+  "TMPDIR": "/home/dandiccf/Storage/ct/pfch7v2",
+  "active": false,
+  "active_measurement": false,
+  "endpoint": "One actual assertion RED101, five GREEN tests, actual normal CargoJSON-selected ELF and all original command owners closed",
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "maximum_seconds_per_child": 1200,
+  "normal_source_count": 571,
+  "prediction": "Actual direct-reader omission fails input preservation after SQLite creates SHM; six finalV5 controls pass with detached journal observers and unchanged input. No real backup, provider, credentials or installed state is opened",
+  "private_copy_unmodified": true,
+  "provider_actions": false,
+  "question": "Does the actual normal-source detached recovery-only clone verifier observe committed WAL rows without changing retained journal files?",
+  "real_retained_clone_run": false,
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v2/registration-v1.json",
+    "sha256": "d6755a6e41f3759a6a63a65e57db047616e219ec650ac24d8396bdd37b75e0a1",
+    "size": 337763
+  },
+  "root_head": "b498af7d3b363b4e0bb255fad336a029aed3d7fb",
+  "status": "closed_failure",
+  "vault_actions": false,
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v2/terminal-v1.json",
+    "size": 3991,
+    "sha256": "5d976f73b0b0621970159b19319db10af9cb9e0b9998ce3027ec664ae2ec8b68"
+  },
+  "owned_command_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v2/owned-command-closure-v1.json",
+    "size": 1594,
+    "sha256": "a8b01c8289275b05878dbd390d15ffd870057c9473a523fad63e566cb72ef410"
+  },
+  "assessment": "The expected exit101 was a Member Debug compiler error, not an assertion. The classifier rejected it; zero controls executed. All two original children closed; source restored only after original closure.",
+  "desired_RED_proved": false,
+  "tests_executed": 0,
+  "corrected_attempt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/packages-only-retained-forward-supervisor-20261007-private-v1/real-state-clone-verifier-v1/root-build-controls-v3/registration-v1.json",
+    "size": 338892,
+    "sha256": "c385cd964d241c24c9e9c53fd104a862830674d5149a700e17a8bf118759e5e1"
+  }
+}

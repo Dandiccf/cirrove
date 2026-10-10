@@ -1,0 +1,245 @@
+{
+  "Root_HEAD": "aa02b8d1cf6b2644e7500908016548b49f71a833",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "actual_first_arm_outcome": {
+    "content_tls_cut_bytes": 32768,
+    "kernel_bytes_returned": 0,
+    "kernel_content_success": false,
+    "kernel_errno": 5,
+    "owners_closed": true,
+    "registered_safe_cut_outcome": true
+  },
+  "actual_summary": {
+    "cause_of_recovery_failure": "unresolved pre-content failure; 30.76-second interval suggests but does not prove a deadline",
+    "content_connections": 0,
+    "content_tls_bytes_forwarded": 0,
+    "full490_closed": false,
+    "full_exact_read_pass": false,
+    "installed_HOLD_lifted": false,
+    "journal_all33_preserved": true,
+    "kernel_bytes_returned": 0,
+    "kernel_errno": 5,
+    "no_automatic_repeat": true,
+    "one_content_cut_proved": false,
+    "safe_cut_outcome": false,
+    "whole_arm_success": false
+  },
+  "actual_terminal": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/evidence/a5bbb689-638c-4dc2-bad1-e5c23d004fbe/terminal-v1.json",
+    "sha256": "f9c95e179b9de5707df335b776e0019b9b1167df2f24cbd1b9998344b8f4f779",
+    "size": 10655
+  },
+  "arm": "recovery",
+  "arms": [
+    "recovery separately retained normal[] daemon/kernel reader; one fixed32768 opaque content TLS cut only in interruption; recovery never dispatched automatically"
+  ],
+  "cache_deleted": false,
+  "cache_policy": "Complete copied cache retained. Interruption resident0 mandatory. Recovery observed resident0..138943 accepted without deletion; complete exact capture mandatory; cold0 alone supports new remote-fetch inference.",
+  "candidate_installed": false,
+  "cleanup_reserve_seconds": 15,
+  "command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-read-interruption-recovery-20261009-private-v1/run_normal_interruption_recovery_once_v2.py",
+    "observe",
+    "--inputs",
+    "ROOT_FILLED_ABSOLUTE_INPUTS",
+    "--sha256",
+    "ROOT_FILLED_INPUTS_SHA256"
+  ],
+  "committed_sync_receipt": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/root-committed-runtime-sync-v1.json",
+    "sha256": "33aa47e5e6524778eddb55d8153ebfa98b335a67704f89061bcd406ee3a3dd23",
+    "size": 76447
+  },
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": []
+  },
+  "content_tls_cut_threshold": null,
+  "credential_reset": false,
+  "daemon_command": [
+    "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirroved",
+    "--state-dir",
+    "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/state",
+    "--socket",
+    "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/control.sock"
+  ],
+  "daemon_environment_addition": {
+    "CIRROVE_ICLOUD_PROBE_DIAGNOSTICS": "1"
+  },
+  "diagnostic_only": true,
+  "diagnostic_reasons_allowlist": [
+    "complete response has mismatched Content-Range",
+    "partial response lacks Content-Range",
+    "partial response has mismatched Content-Range",
+    "unexpected HTTP status or full response for partial range",
+    "response stream interrupted",
+    "response exceeds requested length",
+    "response shorter than requested"
+  ],
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-read-interruption-recovery-20261009-private-v1/run_normal_interruption_recovery_once_v2.py",
+    "sha256": "7bdd785465a6ffbb84710b2342b0ad9057dadb439048905e6f8cc122fe898f66",
+    "size": 38127
+  },
+  "duration_seconds": 540,
+  "endpoint": "After first original closure: same retained clone, no cut/reset/cache deletion, full138943/SHA223e kernel read, exact all33 logical frontier and protected payload/source/installed preservation, complete original closure",
+  "full490_closed": false,
+  "full_490_closed": false,
+  "fullcheck_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-icloud-body-transfer-deadline-regression-20261009-private-v1/fullcheck-actual-v1/audit-independent-complete-fullcheck-committed-sync-v2.json",
+    "sha256": "5d6408b1267a2333afaa7eeb3c7096dc403b06f48664334fad92213635f03a6a",
+    "size": 82626
+  },
+  "host_automatic_rerun": false,
+  "independent_review": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/evidence/a5bbb689-638c-4dc2-bad1-e5c23d004fbe/independent-reviewed-pair-failure-v1.json",
+    "sha256": "f60dbf67b8bce654b4bc7ccd0f8fd901013eddf2a01bc1d5073034ca6d5326f1",
+    "size": 6090
+  },
+  "installed_HOLD": true,
+  "installed_actions": false,
+  "installed_before": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-scoped-session-rejection-preparation-20261009-private-v1/runtime-owner-preparation-v1/full-target-clone-source-preparation-v1/actual-copy-81cca9ba-b494-4013-a7a2-6ceeae71bdf1/installed-current-baseline-v1.json",
+    "sha256": "dd086804f2b98628c02de46ce02d728b2e85b92e59813dd3f002fae5fc7a239f",
+    "size": 8685
+  },
+  "internal_read_attempt_count_not_preassumed": true,
+  "interruption_original_exec_closure": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-read-interruption-recovery-20261009-private-v1/root-approved-interruption-authorities-v1/root-original-exec-closure-v1.json",
+    "sha256": "9d4010fd1fa789cc9c34ea6bbd113fd57e02b98f7cc4baff51c2d39cc0c5e38c",
+    "size": 660
+  },
+  "interruption_terminal": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/evidence/c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/terminal-v1.json",
+    "sha256": "3141cf4dcb8cf3d11631f861ae419957426cf51e041568a54993254df0e56acd",
+    "size": 10601
+  },
+  "journal_guard": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/normal-ro-300s-successor-7f959f9c-0d90-4317-8011-3c46029558ca-private-v1/journal_semantic_guard_bounded_retries_v2.py",
+    "sha256": "8082b3625dcc8cddef79622d52d84ca148cdc97e27c3a5b37fb0f3b5282ad978",
+    "size": 9182
+  },
+  "journal_policy": "Complete schema/PRAGMAs/all33 tables/all typed cells and persistent payload exact; sole registered b13b publication row may be untouched OR acknowledged done1/retry_after0 with SAME operation/body and integer failures monotonically1..6, matching production min(failures+1,6). Record actual counter delta; no arbitrary pending retry timestamp or other-row changes.",
+  "journal_recovery_policy": "Actual first-after journal frontier is used. All33 tables/schema/cells must remain exactly unchanged after prior acknowledged row. No pending publication state is reset.",
+  "limits": [
+    "one run, no repeatability claim",
+    "cached parent/item observations are not independent remote postflight",
+    "The new candidate must explicitly prove the actual request300/ordinary service overall360 ceilings by its checked source and focused RED/GREEN audit; no prior30s or270s binary is relabelled.",
+    "aggregate encrypted TLS pacing includes normal daemon metadata discovery; no decryption or raw transport/error logging",
+    "clone metadata/cache/blocks may change; journal complete semantic guard with only exact singleton acknowledgment plus source-capped monotonic failure-counter transition and known sidecar lifetimes; original30 remains exact",
+    "no editor/native save/expiry/auth recovery/delivery/installed lifecycle or full488-490 credit",
+    "unknown owner closure stays passively held and public remains active; no synthetic closure",
+    "cleanup sends TERM then original pidfd-bound KILL only inside remaining original reserve; no process-pattern/group signal; truly unclosed resources stay passive",
+    "Diagnostic normal[] arm only: existing static rejection emitter retained, no feature build or product edit by this preparation. One run is not repeatability or full normal/installed acceptance.",
+    "Only seven exact compile-time rejection reasons are retained, max32 records. Every other line including timing/URLs/provider errors is discarded and counted without decode/hash/storage. Buffers512B and read chunks4096B; consumer drained toEOF and passively owned through closure.",
+    "A failure before response processing may emit no reason. Static response stream interrupted is not itself a typed timeout; no underlying error/body retained."
+  ],
+  "maximum_send_quantum": 512,
+  "namespace_replacement_expiry_proved": false,
+  "new_auth": false,
+  "new_feature_build_required": false,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "5ba6d4f13c1503a94bd6f2e179ea5a1778e512c7e46fbe99c1527797fcdc6a1b",
+    "size": 79418
+  },
+  "normal_build_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/audit-independent-normal574-build-terminal-v1.json",
+    "sha256": "e44736841f5b61d9228ea306a1c0046b8df3a89deaaba3d84d3f40665fcba8f8",
+    "size": 7349
+  },
+  "normal_features": {
+    "cirrove": [],
+    "cirroved": []
+  },
+  "normal_roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirrove",
+      "sha256": "537d26bc081375745376674967c63ceeac9c3ab72ca4f769f3df56256c024b16",
+      "size": 476354464
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/ordinary-body-deadline-successor-preparation-20261009-private-v1/normal-build-source-v1/normal574-roles-build-v1/frozen/cirroved",
+      "sha256": "dac71584fb9b5cc3dd3d6a67e362cfa1ef4e0f3f2a3de30a10e2032c67a5e1d6",
+      "size": 478050672
+    }
+  },
+  "normal_startup_policy": "Actual ordinary normal RO startup; prepare_write returns None for saved AccessMode::ReadOnly, hence no WriteContext/write workers/FUSE working overlay; exact known metadata publication acknowledgment permitted and independently compared",
+  "observe_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-read-interruption-recovery-20261009-private-v1/run_normal_interruption_recovery_once_v2.py",
+    "observe",
+    "--inputs",
+    "ROOT_FILLED_ABSOLUTE_INPUTS",
+    "--sha256",
+    "ROOT_FILLED_INPUTS_SHA256"
+  ],
+  "original_SQL": false,
+  "paired_recovery_success": false,
+  "prediction": "At32768 forwarded TLS bytes on one own content connection, one socket-pair cut likely maps to response interruption/EIO with no validated partial success. Legitimate internal read/protocol fallback may instead complete exact bytes; both outcomes are recorded. A separately owned fault-disabled read should return all138943 registered bytes on the same clone. If the first completed and cache is warm, recovery proves verified cached continuity, not a second remote fetch. No natural expiry, namespace/replacement or installed acceptance is inferred.",
+  "private_prepare_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-read-interruption-recovery-20261009-private-v1/run_normal_interruption_recovery_once_v2.py",
+    "recovery-prepare",
+    "--inputs",
+    "ROOT_FILLED_ABSOLUTE_INPUTS",
+    "--sha256",
+    "ROOT_FILLED_INPUTS_SHA256"
+  ],
+  "provider_mutations": false,
+  "question": "Does one registered opaque content TLS interruption yield exact validated bytes or a bounded retained read failure, followed by safe read recovery on the same retained clone without cache deletion?",
+  "rate_bytes_per_second": 8192,
+  "read_only": true,
+  "reader": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/kernel_read_once_v3.py",
+    "sha256": "808f6a5358555758f8e3e25ee9de8257c0a367ba91d5445678cf26a017c4eb4b",
+    "size": 4170
+  },
+  "recovery_only": false,
+  "relay": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-read-interruption-recovery-20261009-private-v1/opaque_single_content_cut_v1.py",
+    "sha256": "53eafc4ed2d36cabe2ad77583d356581bedcd4f912a326780efe0128bece7a39",
+    "size": 7908
+  },
+  "root": "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b",
+  "run": "a5bbb689-638c-4dc2-bad1-e5c23d004fbe",
+  "same_retained_clone": true,
+  "source_count": 574,
+  "source_map_relation": "Root and deadline worktree574 source maps exactly equal; Git commit IDs intentionally distinct.",
+  "state": "closed_interruption_recovery_failure",
+  "status": "closed_interruption_recovery_failure",
+  "subject_run": "5c522758-bf2d-4203-941d-0a79567b7aca",
+  "system_roles": {
+    "fusermount": {
+      "path": "/usr/bin/fusermount3",
+      "sha256": "a5d1d1e9eac4012cf1567c34a256d28913afa75d0f1f48c628d2ec162067865a",
+      "size": 39016
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+      "size": 14424
+    }
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/evidence/a5bbb689-638c-4dc2-bad1-e5c23d004fbe/terminal-v1.json",
+    "sha256": "f9c95e179b9de5707df335b776e0019b9b1167df2f24cbd1b9998344b8f4f779",
+    "size": 10655
+  },
+  "tmpdir": "/home/dandiccf/Storage/ct/normal-fuse-interruption-c6e840c6-6146-4b56-bd4c-58ec7bc2fe9b/tmp",
+  "tuple": {
+    "etag": "i32b::i32a",
+    "item": "FILE::com.apple.CloudDocs::D304DC65-6716-4DEB-B786-ECA04C76ED0D",
+    "parent": "FOLDER::com.apple.CloudDocs::6F755250-4EE2-4220-9AEE-27BB1668DC57",
+    "parent_etag": "i328",
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "version": 1,
+  "window_reason": "Separate original540s(525work+15cleanup) per preregistered arm; request300/service360 unchanged. Recovery original begins only after first original closed.",
+  "work_seconds": 525,
+  "worktree_HEAD": "a3bc650a7c5b2c4d68696d44245e82e03759e9e4"
+}

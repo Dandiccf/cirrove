@@ -10,7 +10,9 @@
 # installed at all.
 #
 # Accounts, credentials and the journal under ~/.local/state/cirrove are not
-# touched. The mount goes away for the seconds between stopping one daemon and
+# removed by this script. Retained state currently refuses switching because
+# package schema provenance is not attested. On a permitted fresh-state switch,
+# the mount goes away for the seconds between stopping one daemon and
 # starting the other; close files in it first.
 set -euo pipefail
 
@@ -20,6 +22,11 @@ for binary in cirroved cirrove cirrove-tray cirrove-desktop; do
 done
 test -f /usr/lib/systemd/user/cirroved.service \
   || { echo "the packaged unit is not installed" >&2; exit 1; }
+
+# Validate the actual package route before the first stop, removal or restart.
+# Package presence does not prove that its daemon can read retained local state.
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+/usr/bin/python3 "$repo/scripts/install-preflight.py" --repo "$repo" --package-switch
 
 user_unit="$HOME/.config/systemd/user/cirroved.service"
 if [[ -f $user_unit ]]; then

@@ -13,6 +13,10 @@ use std::{
 };
 
 mod connect;
+mod native_import;
+mod offline_recovery;
+mod recovery;
+mod saved_native_imports;
 
 #[derive(Clone)]
 pub enum Backend {
@@ -41,6 +45,7 @@ struct AccountRow {
     identity: adw::ActionRow,
     access: adw::ActionRow,
     consent: gtk::Button,
+    unconfirmed: adw::ActionRow,
     refused: adw::ActionRow,
     discard: gtk::Button,
     /// Offered beside Discard, and insensitive when every refusal is a conflict:
@@ -48,6 +53,13 @@ struct AccountRow {
     /// would act on whatever is there now.
     retry: gtk::Button,
     keep_both: gtk::Button,
+    export: gtk::Button,
+    recovery: adw::ActionRow,
+    import: adw::ActionRow,
+    import_choose: gtk::Button,
+    saved_imports: adw::ActionRow,
+    saved_imports_choose: gtk::Button,
+    destruction: adw::ActionRow,
     destroy: gtk::Button,
     wastebasket: adw::ActionRow,
     unsent: adw::ActionRow,
@@ -278,7 +290,7 @@ impl Window {
             .label(gettext(if matches!(backend, Backend::Demo) {
                 n("Interface preview · sample accounts")
             } else {
-                n("Files download when opened · changes upload in the background")
+                n("Files download when opened")
             }))
             .xalign(0.0)
             .wrap(true)
@@ -608,8 +620,8 @@ impl Window {
             .build();
         // Changing an account's consent was the last ordinary flow that needed a
         // terminal (`cirrove reauth --write-access`). It is a re-sign-in either
-        // way, so the provider's own consent screen is what actually grants or
-        // narrows the access; this button only asks for it.
+        // way. OAuth providers receive a consent request; iCloud changes only
+        // Cirrove's local access policy after the same account signs in.
         let consent = gtk::Button::builder()
             .label(gettext("Allow changes"))
             .valign(gtk::Align::Center)
@@ -621,6 +633,12 @@ impl Window {
             .build();
         // Shown only while there is something to discard. The daemon has
         // stopped retrying these; the user decides what happens to the copies.
+        let unconfirmed = adw::ActionRow::builder()
+            .title(gettext("Checking cloud confirmation"))
+            .use_markup(false)
+            .subtitle_lines(0)
+            .visible(false)
+            .build();
         let refused = adw::ActionRow::builder()
             .title(gettext("Changes the cloud refused"))
             .use_markup(false)
@@ -694,6 +712,38 @@ impl Window {
         // Deliberately not beside "Keep offline": a surface that puts keeping
         // and destroying next to each other invites the wrong click. It sits
         // with the other destructive thing instead, and asks twice.
+        let import = adw::ActionRow::builder()
+            .title(gettext("Import an iWork document"))
+            .subtitle(gettext("Create a new iCloud document from a local Pages, Numbers or Keynote ZIP archive. Existing documents are never replaced."))
+            .use_markup(false).subtitle_lines(0).build();
+        let import_choose = gtk::Button::builder()
+            .label(gettext("Import document…"))
+            .valign(gtk::Align::Center)
+            .build();
+        import.add_suffix(&import_choose);
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        import_choose.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.choose_native_import(&key);
+            }
+        });
+        let saved_imports = adw::ActionRow::builder()
+            .title(gettext("Saved iWork imports"))
+            .subtitle(gettext("Find retained imports and check an existing operation without submitting another copy."))
+            .use_markup(false).subtitle_lines(0).build();
+        let saved_imports_choose = gtk::Button::builder()
+            .label(gettext("Saved imports…"))
+            .valign(gtk::Align::Center)
+            .build();
+        saved_imports.add_suffix(&saved_imports_choose);
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        saved_imports_choose.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.load_saved_native_imports(&key, None);
+            }
+        });
         let destruction = adw::ActionRow::builder()
             .title(gettext("Delete a file permanently"))
             .subtitle(gettext(
@@ -746,6 +796,29 @@ impl Window {
             .valign(gtk::Align::Center)
             .build();
         unsent.add_suffix(&keep_both);
+        let export = gtk::Button::builder()
+            .label(gettext("Save a local copy…"))
+            .valign(gtk::Align::Center)
+            .build();
+        let recovery = adw::ActionRow::builder()
+            .title(gettext("Recover local changes"))
+            .subtitle(gettext(
+                "Save a copy outside the cloud without retrying the upload.",
+            ))
+            .use_markup(false)
+            .build();
+        recovery.add_suffix(&export);
+        row.add_row(&recovery);
+        row.add_row(&import);
+        row.add_row(&saved_imports);
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        export.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.choose_recovery_save(&key);
+            }
+        });
+        row.add_row(&unconfirmed);
         row.add_row(&refused);
         row.add_row(&unsent);
         row.add_row(&wastebasket);
@@ -837,11 +910,19 @@ impl Window {
             access,
             consent,
             storage,
+            unconfirmed,
             refused,
             discard,
             retry,
             unsent,
             keep_both,
+            export,
+            recovery,
+            import,
+            import_choose,
+            saved_imports,
+            saved_imports_choose,
+            destruction,
             destroy,
             wastebasket,
             remove,
@@ -880,11 +961,19 @@ impl Window {
         row.mount.set_label(&gettext(card.action_label()));
         row.mount.set_sensitive(card.controls_available && idle);
         row.open.set_sensitive(card.mounted && live);
+        row.import.set_visible(card.can_import_native_package());
+        row.import_choose
+            .set_sensitive(idle && live && card.can_import_native_package());
+        row.saved_imports
+            .set_visible(card.can_list_native_imports());
+        row.saved_imports_choose
+            .set_sensitive(idle && live && card.can_list_native_imports());
         // Offered wherever the state says so, in the preview too: the preview
         // shows what the window does, and the actions themselves are what
         // check for a live service.
-        row.sign_in
-            .set_visible(card.state == ConnectionState::SignInRequired);
+        row.sign_in.set_visible(
+            card.state == ConnectionState::SignInRequired || card.provider_id == "icloud",
+        );
         row.sign_in.set_sensitive(idle);
         row.spinner
             .set_spinning(writing.is_some() || card.state.busy());
@@ -892,12 +981,11 @@ impl Window {
             .set_visible(writing.is_some() || card.state.busy());
         row.location
             .set_subtitle(&card.mount_path.to_string_lossy());
-        row.identity
-            .set_title(&if card.provider_id == "googledrive" {
-                gettext("Google account")
-            } else {
-                gettext("Microsoft account")
-            });
+        row.identity.set_title(&match card.provider_id {
+            "googledrive" => gettext("Google account"),
+            "icloud" => gettext("Apple Account"),
+            _ => gettext("Microsoft account"),
+        });
         row.identity.set_subtitle(&card.username);
         row.access.set_subtitle(if card.writable {
             "Changes made in this drive are uploaded to the cloud."
@@ -909,8 +997,10 @@ impl Window {
         } else {
             "Allow changes"
         });
-        row.consent.set_tooltip_text(Some(if card.writable && card.provider_id == "googledrive" {
-            "Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Google Account"
+        row.consent.set_tooltip_text(Some(&if card.provider_id == "icloud" {
+            gettext("Sign in again to change Cirrove's local access policy. Apple session permissions stay unchanged; native document packages remain protected.")
+        } else if card.writable && card.provider_id == "googledrive" {
+            gettext("Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Google Account")
         } else if card.writable {
             // Deliberately about what Cirrove will do, not about what the token
             // can do. Asking for the narrower scope does not take the wider one
@@ -918,9 +1008,9 @@ impl Window {
             // may return it again, and only the person can withdraw it in their
             // provider account. Saying the permission is gone would be a
             // stronger promise than this button keeps.
-            "Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Microsoft account"
+            gettext("Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Microsoft account")
         } else {
-            "Sign in again asking to make changes, so files in this drive can be saved"
+            gettext("Sign in again asking to make changes, so files in this drive can be saved")
         }));
         // Asking to write is the direction that grants something, so it is the
         // one marked; asking to read less is ordinary.
@@ -939,6 +1029,15 @@ impl Window {
                 card.cache_bytes as f64 / 1024_f64.powi(3)
             )],
         ));
+        row.unconfirmed.set_visible(card.unconfirmed_changes > 0);
+        row.unconfirmed.set_subtitle(&if card.writable {
+            fill(
+                &gettext("{} changes have no confirmed cloud result yet. Cirrove is checking their outcome before continuing. Local recovery data is retained."),
+                &[&card.unconfirmed_changes.to_string()],
+            )
+        } else {
+            fill(&gettext("{} changes have no confirmed cloud result. Recovery data is retained; read-only mode does not retry these changes."), &[&card.unconfirmed_changes.to_string()])
+        });
         row.refused.set_visible(card.stuck > 0);
         // The count, then which ones. A person told that two changes were
         // refused and not which cannot do anything about either -- the fourteen
@@ -951,7 +1050,11 @@ impl Window {
         };
         // "They will not be retried" was true of all of them and is now true of
         // only some: a change that failed is one the cloud never decided about.
-        let mut refused = if card.retryable == 0 {
+        let mut refused = if !card.writable {
+            gettext(
+                "Local changes are retained while this connection is read-only. Recover a copy before deciding how to continue.",
+            )
+        } else if card.retryable == 0 {
             fill(
                 &gettext(
                     "{} that the cloud would not accept. The cloud has decided about these, so they are not re-sent; discarding removes the local copies and the cloud keeps its version.",
@@ -993,24 +1096,34 @@ impl Window {
             }
         }
         row.refused.set_subtitle(&refused);
-        row.discard.set_sensitive(idle);
-        row.retry.set_sensitive(idle && card.retryable > 0);
+        row.discard.set_visible(card.writable);
+        row.discard
+            .set_sensitive(idle && card.mounted && card.writable);
+        row.retry.set_visible(card.writable);
+        row.retry
+            .set_sensitive(idle && card.mounted && card.writable && card.retryable > 0);
         row.retry.set_tooltip_text(Some(if card.retryable > 0 {
             "Send these to the cloud again"
         } else {
             "The cloud has decided about these; sending them again would act on what is there now"
         }));
         row.unsent.set_visible(card.failed_uploads > 0);
-        let mut unsent = fill(
-            &gettext(
-                "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
-            ),
-            &[&if card.failed_uploads == 1 {
-                gettext("1 save")
-            } else {
-                fill(&gettext("{} saves"), &[&card.failed_uploads.to_string()])
-            }],
-        );
+        let mut unsent = if !card.writable {
+            gettext(
+                "Local saves are retained while this connection is read-only. Saving a recovery copy does not upload or discard them.",
+            )
+        } else {
+            fill(
+                &gettext(
+                    "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
+                ),
+                &[&if card.failed_uploads == 1 {
+                    gettext("1 save")
+                } else {
+                    fill(&gettext("{} saves"), &[&card.failed_uploads.to_string()])
+                }],
+            )
+        };
         // Which file, not just how many. Without this the row is a warning sign
         // a person cannot act on: the owner met exactly that on 2026-09-16 and
         // asked what the triangle meant, and answering it needed the journal
@@ -1041,9 +1154,20 @@ impl Window {
                 &[name],
             ));
         }
+        row.destruction
+            .set_visible(card.supports_permanent_delete && card.writable);
         row.destroy
-            .set_sensitive(idle && card.mounted && card.writable);
-        row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
+            .set_sensitive(idle && card.can_delete_permanently());
+        let offline_recovery = !card.enabled && !card.mounted;
+        row.recovery
+            .set_visible(card.local_recovery || offline_recovery);
+        row.export.set_sensitive(
+            idle && (offline_recovery || (card.enabled && card.mounted && card.local_recovery)),
+        );
+        row.recovery.set_title(&gettext("Recover local changes"));
+        row.keep_both.set_visible(card.writable);
+        row.keep_both
+            .set_sensitive(idle && card.mounted && card.writable && card.failed_uploads > 0);
         row.keep_both.set_tooltip_text(Some(&gettext(
             "Put your version beside the cloud's, under a new name, instead of losing one of them",
         )));
@@ -1095,6 +1219,32 @@ impl Window {
                 }
                 bar.update_property(&[gtk::accessible::Property::Label(&job.detail)]);
                 entry.add_suffix(&bar);
+            }
+            if job.native_import
+                && !job.running
+                && let Some(progress) = &job.import_progress
+            {
+                let check = gtk::Button::builder()
+                    .label(gettext("Check saved import"))
+                    .valign(gtk::Align::Center)
+                    .sensitive(idle && card.can_watch_native_import())
+                    .build();
+                let weak = Rc::downgrade(self);
+                let selected = card.clone();
+                let operation = progress.operation;
+                check.connect_clicked(move |_| {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.watch_saved_native_import(
+                            &selected,
+                            cirrove_service::WatchNativeImportRequest {
+                                label: selected.label.clone(),
+                                expected_account_id: selected.id.clone(),
+                                operation,
+                            },
+                        );
+                    }
+                });
+                entry.add_suffix(&check);
             }
             let stop = gtk::Button::builder()
                 // The same button whether the work is running or over: one asks
@@ -1155,7 +1305,22 @@ impl Window {
         // The summary of what is running belongs where it can be read without
         // opening anything: a progress bar inside a collapsed expander is a
         // progress bar nobody sees.
+        row.kept.set_title(&gettext(
+            if card
+                .running
+                .iter()
+                .any(|job| job.native_import || job.native_replace)
+            {
+                n("Transfers and kept offline")
+            } else {
+                "Kept offline"
+            },
+        ));
         let summary = match card.running.iter().find(|job| job.running) {
+            Some(job) if job.native_replace => job.detail.clone(),
+            Some(job) if job.native_import => {
+                fill(&gettext("Importing {} · {}"), &[&job.name, &job.detail])
+            }
             Some(job) => fill(
                 &gettext("Keeping {} offline · {}"),
                 &[&job.name, &job.detail],
@@ -1320,6 +1485,10 @@ impl Window {
         let Some(card) = self.card(id) else {
             return;
         };
+        if card.provider_id == "icloud" {
+            connect::present_icloud_reauth(self, id, access);
+            return;
+        }
         if card.provider_id == "googledrive" {
             let Some(window) = self.window.upgrade() else {
                 return;
@@ -1480,7 +1649,7 @@ impl Window {
     /// Files only. The daemon refuses a folder, and offering a folder chooser
     /// here would be an invitation to be told no.
     pub fn choose_file_to_destroy(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.mounted && c.writable) else {
+        let Some(card) = self.card(id).filter(AccountCard::can_delete_permanently) else {
             return;
         };
         let Backend::Live { .. } = &self.backend else {
@@ -1517,7 +1686,7 @@ impl Window {
     /// The second question. Choosing a file in a chooser is not consent to
     /// destroy it, and the daemon will not act until a client says it asked.
     fn confirm_destruction(self: &Rc<Self>, id: &str, path: &std::path::Path) {
-        let Some(card) = self.card(id) else {
+        let Some(card) = self.card(id).filter(AccountCard::can_delete_permanently) else {
             return;
         };
         let Some(window) = self.window.upgrade() else {
@@ -1559,7 +1728,7 @@ impl Window {
 
     /// The half that needs no dialogue, so a test can reach it.
     pub fn destroy_path(self: &Rc<Self>, id: &str, relative: &str) {
-        let Some(card) = self.card(id) else {
+        let Some(card) = self.card(id).filter(AccountCard::can_delete_permanently) else {
             return;
         };
         let Backend::Live {
@@ -1755,6 +1924,14 @@ impl Window {
             label: card.label.clone(),
             id: job.to_owned(),
         };
+        let native_replace = card
+            .running
+            .iter()
+            .any(|entry| entry.id == job && entry.native_replace);
+        let native_import = card
+            .running
+            .iter()
+            .any(|entry| entry.id == job && entry.native_import);
         let shown = name.to_owned();
         let (send, receive) = tokio::sync::oneshot::channel();
         runtime.spawn(async move {
@@ -1773,6 +1950,8 @@ impl Window {
             match result {
                 Ok(Ok(reply)) => match (&reply.refusal, reply.stopped, running) {
                     (Some(refusal), _, _) => ui.notify(refusal),
+                    (None, true, true) if native_replace => ui.notify(&gettext("Stopped watching the replacement; its saved operation remains retained.")),
+                    (None, true, true) if native_import => ui.notify(&gettext("Stopped watching the import. An already queued document may still finish uploading.")),
                     (None, true, true) => ui.notify(&fill(
                         &gettext("Stopping. {} will not be kept offline."),
                         &[&shown],
@@ -1794,7 +1973,10 @@ impl Window {
     /// Abandon the changes the cloud refused. The daemon does the unwinding
     /// and says how many it could; the row disappears with the last one.
     pub fn discard(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.stuck > 0) else {
+        let Some(card) = self
+            .card(id)
+            .filter(|c| c.mounted && c.writable && c.stuck > 0)
+        else {
             return;
         };
         let Backend::Live {
@@ -1855,7 +2037,10 @@ impl Window {
     /// digest, so they go beside the cloud's version under a new name and the
     /// person decides afterwards, with both in front of them.
     pub fn keep_both_saves(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.failed_uploads > 0) else {
+        let Some(card) = self
+            .card(id)
+            .filter(|c| c.mounted && c.writable && c.failed_uploads > 0)
+        else {
             return;
         };
         let Backend::Live {
@@ -1910,7 +2095,10 @@ impl Window {
         });
     }
     pub fn retry_refused(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|c| c.retryable > 0) else {
+        let Some(card) = self
+            .card(id)
+            .filter(|c| c.mounted && c.writable && c.retryable > 0)
+        else {
             return;
         };
         let Backend::Live {

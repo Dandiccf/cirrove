@@ -15,9 +15,11 @@ with a shared filesystem, cache and recovery journal for its cloud adapters.
 [Version 0.1.0](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0), released
 on 18 September 2026, is the first OneDrive-focused release.
 [0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
-packages the newer OneDrive and Google Drive previews for testing. iCloud is
-being developed separately and is not included in `main` or the released
-packages. The table below describes implementation and validation status; it is not a general reliability guarantee.
+packages OneDrive and Google Drive previews; that historical snapshot does not
+include iCloud. **The current source includes an experimental native iCloud
+adapter.** Canary 2 is its intended first package snapshot; consult
+[Releases](https://github.com/Dandiccf/cirrove/releases) for actual publication,
+installation commands and the exact scope of each snapshot. The table below describes implementation and validation status; it is not a general reliability guarantee.
 See the [user guide](docs/user-guide.md) to get started and the
 [compatibility matrix](docs/compatibility.md) for the tested boundaries. Keep a
 separate copy of data you cannot replace while the preview is under validation.
@@ -61,7 +63,7 @@ filesystem operations have their own limits.
 | **SharePoint document libraries** | Linked-library discovery and projection in `main` | Libraries and shortcuts use separate provider identities. Broader tenant permissions, folder-only sharing and revoked-access behavior still need real-account validation; general SharePoint support is not claimed by 0.1.0. |
 | **Google Drive My Drive** | Read/write preview in `main` and Canary 1 | Browser sign-in, ordinary-file create/edit/rename/move/trash, cache and offline pins, with bounded two-account live checks. The Cirrove OAuth app remains limited to test users pending public-app verification. |
 | **Google Workspace Shared Drives** | Read/write preview in `main` and Canary 1 | Explicit drive selection, listings, ordinary-file reads and writes, restart recovery and bounded live checks on an owned Workspace drive. Restricted roles and broader long-session acceptance remain open. |
-| **Apple iCloud Drive** | Experimental development in [draft PR 86](https://github.com/Dandiccf/cirrove/pull/86) | Native Linux sign-in, read-only mounts and owned ordinary-file saves have live evidence. Twelve bounded Pages, Numbers and Keynote workflows cover DATA/PACKAGE documents, ordinary saves and atomic replacement, preserved originals in Trash, remount and reopening in Apple's editors. Export fidelity has documented limits. Installed read-only sign-in, explicit write opt-in and Strata preservation have now been observed. Complete installed recovery/downgrade and broader reliability remain open. This integration is not yet part of `main` or a release; see [the progress and limits](#icloud-integration-progress). |
+| **Apple iCloud Drive** | Experimental preview in the current source; package availability on [Releases](https://github.com/Dandiccf/cirrove/releases) | Native Linux sign-in, on-demand reads, opt-in ordinary-file saves and scoped iWork archive-copy/recovery workflows have bounded live evidence. See [progress and limits](#icloud-integration-progress). |
 
 Google Docs and Sheets are presented as **read-only export folders**, with selected
 DOCX/PDF/ODT and XLSX/PDF/ODS exports. Editing those exports does not write back to
@@ -76,19 +78,27 @@ boundaries are recorded in the [validation record](docs/validation.md).
 
 ### Install a release
 
-The [0.1.0 release](https://github.com/Dandiccf/cirrove/releases/tag/v0.1.0)
-contains Linux x86_64 packages for **Arch, Ubuntu 24.04 and Fedora**, installation
-commands, checksums and package-attestation instructions. Install the core and
-desktop packages for your distribution, then open **Cirrove** from the application
-menu. This release is OneDrive-focused. To test Google Drive without compiling,
-use [0.2.0 Canary 1](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1),
-a prerelease snapshot with the same three package families. `du` can overreport
-virtual files' disk allocation in this snapshot; use `cirrove local-data` for
-cache/index accounting. Its Google app is limited to approved testers; your own
-OAuth app is an alternative. Canary packages retain their development version and commit suffix, and do not imply that the
-[stable Google release gates](docs/google-release-gate.json) have closed.
-The [user guide](docs/user-guide.md) explains connections, offline pins,
-file-manager extras and recovery.
+The [Releases page](https://github.com/Dandiccf/cirrove/releases) lists the
+published Linux x86_64 packages for **Arch, Ubuntu 24.04 and Fedora**, exact
+installation commands, checksums and package-attestation instructions. Install
+the core and desktop packages for your distribution, then open **Cirrove** from
+the application menu. Optional Dolphin integration is packaged separately where
+supported.
+
+**0.1.0 is the regular OneDrive-focused release.** Canary snapshots are opt-in
+previews. Historical Canary 1 adds Google and does not include iCloud; Canary 2
+is the intended first iCloud snapshot and is available only once its verified
+prerelease is published. Choose packages by their release notes, not by assuming
+that current-source features are in an older download. Canary packages retain
+their development version and commit suffix; they do not close the
+[stable Google gates](docs/google-release-gate.json). Google's app is limited
+to approved testers; your own OAuth app is an alternative below.
+
+For existing accounts, read the
+[deployment policy](docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
+before changing packages or restarting the service. The iCloud candidate's
+retained-state installation hold remains in force. The
+[user guide](docs/user-guide.md) covers setup, file-manager extras and recovery.
 
 ### Build and try without a cloud account
 
@@ -156,8 +166,9 @@ account details removed.
 ## Connecting your own accounts
 
 You can try Cirrove with your own accounts before wider onboarding is available.
-Use the [0.2.0 Canary 1 packages](https://github.com/Dandiccf/cirrove/releases/tag/v0.2.0-canary.1)
-for the newer OneDrive and Google Drive previews, or build `main` following
+Choose a published preview from
+[Releases](https://github.com/Dandiccf/cirrove/releases), checking its provider
+scope, or build the current source following
 [the development installation guide](docs/development.md). Canary is an opt-in
 testing snapshot, with no automatic nightly/update channel. The 0.1.0 release
 remains OneDrive-focused. See [the user guide](docs/user-guide.md#connecting-a-drive)
@@ -190,117 +201,75 @@ cirrove connect-google --label my-google \
   --mount-path "$HOME/Cloud/Cirrove-MyGoogle"
 ```
 
-Each account signs in through its provider's browser flow. These commands use
-your own registration; they do not import credentials from another cloud client.
-For writable preview setup and Shared Drive selection, follow the provider guide.
-iCloud remains a development integration rather than a general onboarding route.
+Microsoft and Google use their provider's browser sign-in. These commands use
+your own registration; they do not import another cloud client's credentials.
+For writable previews and Shared Drive selection, follow the provider guide.
+Experimental iCloud uses Cirrove's native local Apple sign-in. Follow the
+[fresh isolated testing guide](docs/user-guide.md#icloud-development-preview)
+and retained-state deployment policy; Canary 1 has no iCloud adapter, and a new
+package publication does not itself authorize a regular-host upgrade.
 
 ## iCloud integration progress
 
-**Experimental development, 9 October 2026:** iCloud is being validated in
-[PR 86](https://github.com/Dandiccf/cirrove/pull/86). It is not part of `main`
-or a released Cirrove version. **Full iCloud acceptance remains open and
-candidate delivery is on HOLD.** New connections default to read-only;
-writes require an explicit experimental opt-in. Four of the six full-integration
-criteria are closed: public Pages import, native replacement/removal recovery,
-application workflows and installed Strata preservation. Installed account
-lifecycle and reliability remain open.
-
-Cirrove has its own native Linux iCloud adapter using Apple's undocumented
-web transport. It does not import another cloud client's credentials or
-configuration. Bounded live trials have covered native sign-in, browsing,
-on-demand and ranged reads, saved-session restart, remote-change detection,
-and owned-file create/save/replacement, relocation and recoverable Trash.
-Permanent deletion is unsupported.
+**Experimental preview, 10 October 2026:** the current source includes native
+iCloud support. All six registered integration criteria are complete within
+[their documented test boundaries](docs/benchmarks/icloud-full-integration-acceptance-2026-10-10.json).
+This is bounded acceptance, not a general provider reliability guarantee.
+Canary 2 is the intended first iCloud package snapshot; consult
+[Releases](https://github.com/Dandiccf/cirrove/releases) for actual availability.
+The retained-state deployment policy remains on HOLD. The
+[integration record](docs/icloud-write-integration.md) preserves the measured
+scopes, corrections and failed trials.
 
 ### What has been tested
 
-- **iWork archive-copy workflows:** all twelve registered Pages, Numbers and
-  Keynote DATA/PACKAGE workflows completed ordinary or atomic saves, exact
-  replacement/original-in-Trash checks, normal read-only remounts and reopening
-  in Apple's editors. These use genuine document copies; they do not establish
-  native iWork editing or saving in Linux applications.
-- **Office export copies:** bounded Writer/DOCX and Impress/PPTX workflows
-  preserved one paragraph and one slide's title/subtitle. Calc/XLSX saves and
-  Apple's Excel export preserved the tested values, SUM formula and source
-  marker. Direct native Numbers imports into Calc flattened SUM to a cached
-  value in two trials. Export-copy success does not repair that import limit
-  or write changes back to the native iWork source.
-- **Slow and interrupted reads:** one normal mounted slow-link trial returned
-  the complete 138,943-byte owned file with its expected checksum. A controlled
-  interruption returned an error without delivering incomplete content; a
-  later fair-proxy diagnostic read the same retained copy exactly. Earlier
-  failures remain recorded, and that diagnostic does not uniquely establish
-  their cause or demonstrate repeated provider reliability.
-- **Retained local recovery:** bounded copied-state trials preserved and
-  exported sealed/dirty working bytes, including an abandoned native Stage.
-  Offline migration and running recovery-only checks remained separate from
-  installing a writer against the user's original state.
+- **Native Linux access:** Apple sign-in, browsing, on-demand and ranged reads,
+  saved-session restart and remote-change detection. Cirrove uses its own
+  credentials and configuration. New connections default to read-only; changes
+  require an explicit experimental opt-in.
+- **Ordinary files and recovery:** owned-file create/save/replacement,
+  relocation and recoverable Trash have bounded live evidence. Exact public
+  recovery exports preserve retained local bytes without replaying uncertain
+  mutations. Permanent deletion is unsupported.
+- **iWork archive copies:** twelve registered Pages, Numbers and Keynote
+  DATA/PACKAGE workflows cover ordinary and atomic saves, exact current and
+  original-in-Trash checks, normal read-only remount and Apple-editor reopening.
+  They do not enable native iWork editing or saving in Linux applications.
+- **Installed account and desktop lifecycle:** test-machine trials cover write
+  opt-in, same-account reauthentication, read-only downgrade and retained-byte
+  exports while preserving other connections. Strata trials cover cached paths,
+  direct/inherited pins, branded kept/fetching badges and event refresh.
+  Controlled server-rejection recovery passed; natural temporal session expiry
+  was not demonstrated.
 
-The [application acceptance assessment](https://github.com/Dandiccf/cirrove/blob/bfeda1ba4705a94d90e7fc88200358e5ef67b11b/docs/benchmarks/icloud-iwork-application-acceptance-2026-10-08.json)
-records the completed document criterion and exact content limits. Layout,
-fonts, images, charts, animation, macros, external links and arbitrary formulas
-or documents remain untested; native Linux Pages/Numbers/Keynote saving is
-unsupported by the tested filters.
+### Know the boundaries
 
-### Installed test-machine checkpoint
+The bounded Numbers conflict trial and its separate read-only continuation
+verified the original in Trash, retained replacement and competing document by
+exact identity and content, together with exact local replacement-byte export.
+The replacement remained Conflict; no mutation was replayed. This does not
+establish successful canonical installation of the replacement or automatic
+conflict resolution.
 
-A new Arch test machine installed the attested **aa02** candidate packages and
-optional Strata companion. Initial public native iCloud sign-in produced a
-ready, mounted read-only account; attempted creation returned EROFS, and a
-read returned the exact 138,943-byte Numbers fixture. Strata's four actual GUI
-actions—direct Keep/Stop and parent Keep/Stop—showed direct, inherited and
-unpinned states with event refresh and exact readback. Installed provider
-files, default Nautilus association and absent Strata preferences were preserved.
+Office-copy evidence is deliberately narrow: one Writer/DOCX paragraph, one
+Impress/PPTX title/subtitle, and tested Calc/XLSX values and SUM formula. Native
+Numbers imports into Calc flattened SUM to its cached value. Editing an Office
+copy does not update the iWork source; arbitrary layout, fonts, media and formula
+fidelity are unclaimed.
 
-The first fixture was already resident and tested aa02. After upgrading to
-attested **7dc061c** packages, Cirrove restored the same saved session and ready
-read-only mount without changing account identity or settings. A second Strata
-trial used a fresh, independently verified **8 MiB file with zero resident
-bytes**. All four actions passed again, including a visibly observed **Fetching**
-badge, kept/inherited badges, availability dialogs, subscribed event refresh and
-exact readback. Installed provider files, preferences and default Nautilus
-survived deployment and testing. This closes the installed Strata preservation
-criterion; it does not establish every desktop or general iCloud reliability.
+The [tested samples and limits](docs/icloud-write-integration.md#tested-samples-and-implementation-limits)
+separate file-specific results from implementation bounds. Native staging has
+four reservations per Engine account runtime and a 64 MiB bound per anonymous
+upload/verification file, not a host-wide quota. Abandoned staging retains
+recovery bytes and identities, without automatic remote TTL cleanup or Stage
+deletion. Historical failures remain visible in the public record.
 
-Explicit native reauthentication then enabled writes on the same installed
-account. The following normal save exposed a remaining bug: its newly created
-folder reached iCloud, but the file stayed locally retained as Conflict. The
-trial was stopped without retrying the upload; this sequence is under
-investigation and does not count as successful installed write acceptance.
-The [targeted parent-lookup correction](https://github.com/Dandiccf/cirrove/blob/bfeda1ba4705a94d90e7fc88200358e5ef67b11b/docs/benchmarks/icloud-fresh-mkdir-parent-regression-2026-10-09.json)
-passes nine local controls after the identical primary fixture failed on the old code.
-A fresh installed cloud retest is still required.
-The [registered installed trial](https://github.com/Dandiccf/cirrove/blob/bfeda1ba4705a94d90e7fc88200358e5ef67b11b/docs/benchmarks/icloud-installed-bundled-2026-10-09-432da505-cb17-4658-8982-15a75dc67588.json)
-also verified offline exports of a **44-byte sealed save** and a **52-byte
-unlinked working file**, both with matching checksums. Read-only downgrade
-and active recovery of those same generations remain untested. The trial
-records the separate transport failure and each outcome’s scope.
-
-### What still blocks full acceptance
-
-1. **Complete installed account lifecycle:** a successful owned-file save
-   after the observed same-account write opt-in, followed by read-only downgrade
-   and retained sealed/dirty-byte recovery, preserving other accounts and
-   permanent-deletion refusal.
-2. **Reliability:** remaining in-flight replacement and namespace uncertainty,
-   expired-session recovery, storage/staging limits and abandoned-work handling,
-   with registered real-account evidence and explicit size/format bounds.
-
-Newly received saved cookies now retain absolute expiry. The identical
-[local regression fixture](https://github.com/Dandiccf/cirrove/blob/bfeda1ba4705a94d90e7fc88200358e5ef67b11b/docs/benchmarks/icloud-cookie-expiration-local-2026-10-09.json)
-failed on the old code and passed eleven controls with the fix; the complete
-project check also passed. Whole-second precision may expire cookies up to one
-second early. Unchanged legacy ciphertext lacks its original receipt time;
-its labelled restoration anchor persists only after an explicit snapshot save.
-This local fix does not prove natural Apple session expiry or its recovery.
-
-Read the [full integration record](https://github.com/Dandiccf/cirrove/blob/bfeda1ba4705a94d90e7fc88200358e5ef67b11b/docs/icloud-write-integration.md) for historical
-successes, retained failures and measured limits, and the
-[deployment policy](https://github.com/Dandiccf/cirrove/blob/bfeda1ba4705a94d90e7fc88200358e5ef67b11b/docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
-before trying the branch with isolated state and mounts. Synthetic controls,
-green CI, one bounded live pass and an installed test-machine checkpoint each
-support their stated scope; none establishes a generally reliable iCloud release.
+Use disposable, personally owned files and keep an independent copy of data you
+cannot replace. Follow the [isolated development guide](docs/user-guide.md#icloud-development-preview)
+and the [deployment policy](docs/development.md#flat-numbers-source-journal-schema21-held-prerelease-policy)
+before trying the preview. Green CI, one bounded live result and an installed
+test-machine trial each support their stated scope; they do not authorize a
+regular-host upgrade or guarantee general provider reliability.
 
 ## Upcoming cloud services and community contributions
 
@@ -328,7 +297,8 @@ too.
 | `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
 | `cirrove-onedrive` | Microsoft Graph metadata, version-checked reads and conditional/resumable uploads |
 | `cirrove-googledrive` | Google Drive v3 reads plus v2 conditional writes for writable My Drive and Shared Drive preview mounts |
-| `cirrove-auth` | Microsoft/Google browser authentication, shared keyring and refresh broker |
+| `cirrove-icloud` | Native Apple sessions, iCloud Drive reads and experimental ordinary-file/iWork archive-copy writes and recovery transport |
+| `cirrove-auth` | Microsoft/Google browser authentication, native Apple sign-in, shared keyring credentials and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 | `cirrove-desktop` | Native account overview and asynchronous service controls |
 

@@ -1,0 +1,598 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_synthetic_companion_gui_passed",
+  "run": "a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+  "question": "Does the exact matching production companion render and activate current Cirrove cached provider actions, including inherited Keep, direct Stop and native can_pin=false, with event refresh and no rendering mutations?",
+  "prediction": "Matching CI ELF accepts the current protocol; each requested activation produces exactly one expected RPC, inherited pins offer Keep rather than Stop, native ineligible entries offer only availability, and unmount events withdraw actions/badges.",
+  "arms": [
+    "ONE controlled actual matching Strata GTK companion on a private display/container with a synthetic Cirrove cached-status socket; network none, no real Cirrove service/account/mount."
+  ],
+  "endpoint": [
+    "Existing kept/fetching badges; no initial pin/unpin RPC.",
+    "One On demand Keep RPC then direct Stop RPC with exact label/path/recursive=false.",
+    "Inherited row has Keep and no Stop; one Keep RPC switches event-rendered menu to direct Stop.",
+    "Native.numbers synthetic PACKAGE-like row with can_pin=false has Show availability and no Keep/Stop; availability activation causes no pin/unpin.",
+    "Unmount event removes badges and provider menus; only allowed cached/status/events/action verbs recorded.",
+    "Explicit ELF digest and full stat stamp unchanged before launch and after endpoint.",
+    "After original app/display/socket handler closure, exact complete ordered mutation sequence: pin On demand.txt, unpin On demand.txt, pin Inherited.txt, each literal label Validation/path/recursive=false; no additional mutation requests.",
+    "Success JSON emitted only after that final sequence assertion; exact Strata ELF unchanged.",
+    "Outer original Docker Popen wait, exact recorded birth absence where available and exact named-container stopped state; retain outputs/logs and all fixture directories."
+  ],
+  "lifetime": {
+    "work_seconds": 300,
+    "cleanup_reserve_seconds": 30,
+    "maximum_seconds": 330,
+    "single_original_monotonic_clock": true,
+    "reserve_inside_original_window": true,
+    "clock_started": false,
+    "automatic_retry": false,
+    "supervisor": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/supervise_v3.py",
+      "size": 16789,
+      "sha256": "ec6dd5cdd33dddb2db7d6dd1e625bdbe428f54fb211f51a8639f019e4a98a002"
+    },
+    "inputs_template": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/inputs-template-v3.json",
+      "size": 6104,
+      "sha256": "33d48a0d0ab4c1491fc9319ad2703eea5e19680d0df57c3e6f5f039b2194384a"
+    },
+    "reviewed_runtime_inputs": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/root-inputs-reviewed-v1.json",
+      "size": 6166,
+      "sha256": "2d6c7d21a7024027ef102ca0a974404c4c89169bf5d58b6ed10ee4c5c2489627"
+    },
+    "command": [
+      "/usr/bin/python3",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/supervise_v3.py",
+      "--inputs",
+      "ROOT-REVIEWED-NEW-0400-INPUTS-PATH",
+      "--sha256",
+      "ROOT-REVIEWED-INPUTS-SHA256"
+    ],
+    "ownership": "Original Docker/control Popen handles and pidfds retained. Stop only exact64hex ID after inspecting private labels/name/image/network. No pattern kill, --rm or recursive cleanup.",
+    "closure_boundary": "Outer CLI/container closure is separate from GUI passed. Existing harness does not emit individual GTK/helper original-handle receipts; these are not independently claimed.",
+    "actual_command": [
+      "/usr/bin/python3",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/supervise_v3.py",
+      "--inputs",
+      "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/root-inputs-reviewed-v1.json",
+      "--sha256",
+      "2d6c7d21a7024027ef102ca0a974404c4c89169bf5d58b6ed10ee4c5c2489627"
+    ]
+  },
+  "candidate_source": {
+    "cirrove_head_before_uncommitted_validator_patch": "6cee221412172f4134fea212bc99f587220e4106",
+    "validator": {
+      "path": "scripts/validate-strata.py",
+      "sha256": "09ea8a2c877b8bd15e523b7a3f230c3953de90cedc87c9e3f2b5fda55ec82c41",
+      "size": 14048,
+      "binding": "Exact reviewed private V2 source; canonical application by Root required before dispatch."
+    },
+    "private_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-proposal-20261006-v1/validate-strata-v2.py.proposed",
+      "size": 14048,
+      "sha256": "09ea8a2c877b8bd15e523b7a3f230c3953de90cedc87c9e3f2b5fda55ec82c41"
+    },
+    "patch": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-proposal-20261006-v1/production-v2.patch",
+      "size": 12591,
+      "sha256": "63c8de008f9aa7259ac1b69353dc12274619f51756399c47a1b0a0fe6341d4fa"
+    },
+    "supervisor_proposal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/proposal-v3.json",
+      "size": 5205,
+      "sha256": "00fabe3525a7e8de5fd1b7e7f9a5c9cf8878f342f8b01c2e0191657e7f659501"
+    },
+    "required_source_pins": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/packaging/strata/cirrove-provider.py",
+        "size": 11749,
+        "sha256": "98214721d5551b1fb54b1e5a8cdb505604771b30c6394945f9e14b1f2af6d82b"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/scripts/install-developer.sh",
+        "size": 7150,
+        "sha256": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/scripts/validate-strata.py",
+        "size": 14048,
+        "sha256": "09ea8a2c877b8bd15e523b7a3f230c3953de90cedc87c9e3f2b5fda55ec82c41"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/target/provider-maintainer-oct6-ci-bundle/metadata.json",
+        "size": 425,
+        "sha256": "1dc677603e053f35a91eae13209b2ec2f322418d0082e2e67241a0fc1ea63c04"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/target/provider-maintainer-oct6-ci-bundle/plan.json",
+        "size": 113261,
+        "sha256": "31bc94ec075374c34a9b8127ba08cd5d3586edc3b9b217f668dada2b0c7de45a"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/target/provider-maintainer-oct6-ci-bundle/strata",
+        "size": 151255152,
+        "sha256": "116f66f5403534dd41559c992470290fe1d46db74f562d5ba9d4b3a1848ed261"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/__init__.py",
+        "size": 97,
+        "sha256": "82653e1285f6b54fa7ce09fce27810dcb4c09ea10a72cf586285fdb24cf7f9bf"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/application.py",
+        "size": 4834,
+        "sha256": "23fb055f9dd0abd03db8ced49a55bd3d698531f4652969161df54aab3ace0f69"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/artifacts.py",
+        "size": 2453,
+        "sha256": "665408cc4bd037320adbf73d4fae3cce99e05b0a957d71a1ee1208bc2633d038"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/browser.py",
+        "size": 23980,
+        "sha256": "e6b74c7d8cf0f6bec8ccad28ce4fe003abe1756c09305aa0feb34401ceb51608"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/ci_plugin.py",
+        "size": 4668,
+        "sha256": "30733904b6517b3c08a3f496e5747f21a1c4998f3faf8ff89ad22d188f15b4b0"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/display.py",
+        "size": 11236,
+        "sha256": "93bdbd353c79ada4b79a9097be0022f03d282ff4ea1fad2f134734dfbb61de23"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/environment.py",
+        "size": 6667,
+        "sha256": "b9b1900b5218e1e1c861b91b214be1c74223fbc97b04f63e2dffda68e9b37e69"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/fixtures.py",
+        "size": 3597,
+        "sha256": "187ced9645f2842b9efe6e84b3ce64f350c844172069846a41a2747ecdecb499"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/interaction.py",
+        "size": 12251,
+        "sha256": "5b7da95b23ef1f1a916fff85d852096c455b803b8ec7ded62e5d029a1a488ccc"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/modes.py",
+        "size": 1096,
+        "sha256": "c1fde29ca0dcf6132f77bf15124f8c2013bbb2eb899da56bc5e897036d8c9ef1"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/process.py",
+        "size": 2597,
+        "sha256": "cb97f3b8b8978c5337f1b0cffc87ca26233f47e92cb70f71acb8ced0090239ee"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/raw_photo.py",
+        "size": 3180,
+        "sha256": "77675edbb8cccd688a3d1528db249e7cbf8d779434800af3880476a1cbc52904"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/resources.py",
+        "size": 4311,
+        "sha256": "a203b5754c95098084926e9a7abed49641757d5fae98cfda59d1de77cbfd256f"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/screenshots.py",
+        "size": 5212,
+        "sha256": "96514f89e611d05414ba4788abf6022512a1d861c7eab4ad7d8eb22e988e0938"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/sharding.py",
+        "size": 5043,
+        "sha256": "d27ab2dfef0d603657ce8210a02a27c255ce26bb3bc18a14796370fb9e10f13c"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/tree.py",
+        "size": 13879,
+        "sha256": "bcafb02ef703118dc7be3ab686585b8e6a53843cd16ff9f76ba873a67236f967"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/warnings_plugin.py",
+        "size": 749,
+        "sha256": "bd8ac190c50920fdb9054002f063ac350a11d24cf95908651dafe44e33f5bafa"
+      },
+      {
+        "path": "/home/dandiccf/Work/strata-cirrove/tests/e2e/harness/xtest.py",
+        "size": 11881,
+        "sha256": "1e1b8b72f9a6bf3d1ed2e5d6fd28f8daa0d4f791a88d1871cb44e78cd92b5193"
+      }
+    ]
+  },
+  "companion": {
+    "checkout": "/home/dandiccf/Work/strata-cirrove",
+    "head": "48187c2439c1a3239a20f6535c5e7353bca1a242",
+    "tree": "172f38dbab72bbd872ed56f6f1f9bb548c2b1f75",
+    "clean": true,
+    "version": "0.21.0",
+    "ci_merge_commit": "2bad69901e6f1628a40610878750889685bdb281",
+    "ci_merge_tree": "172f38dbab72bbd872ed56f6f1f9bb548c2b1f75",
+    "tree_equal": true,
+    "ci_run_from_retained_manifest": 37425670774,
+    "source_key": "224103ab1947265016c21d34c87db28f83d38f52b0a0016b5e7ec76e9f6b7467",
+    "source_file_count": 726,
+    "image_key": "803375aac22e811398d4735497f466405fd4c6e77b0629e5edaff52b8428aa6e",
+    "image_input_count": 5,
+    "bundle_metadata": {
+      "path": "/home/dandiccf/Work/strata-cirrove/target/provider-maintainer-oct6-ci-bundle/metadata.json",
+      "size": 425,
+      "sha256": "1dc677603e053f35a91eae13209b2ec2f322418d0082e2e67241a0fc1ea63c04"
+    },
+    "elf": {
+      "path": "/home/dandiccf/Work/strata-cirrove/target/provider-maintainer-oct6-ci-bundle/strata",
+      "size": 151255152,
+      "sha256": "116f66f5403534dd41559c992470290fe1d46db74f562d5ba9d4b3a1848ed261"
+    },
+    "plan": {
+      "path": "/home/dandiccf/Work/strata-cirrove/target/provider-maintainer-oct6-ci-bundle/plan.json",
+      "size": 113261,
+      "sha256": "31bc94ec075374c34a9b8127ba08cd5d3586edc3b9b217f668dada2b0c7de45a"
+    },
+    "build_recipe": {
+      "file": "/home/dandiccf/Work/strata-cirrove/tests/e2e/Dockerfile",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--bin",
+        "strata"
+      ],
+      "features": "default recipe; no separately retained compiler-JSON feature receipt reviewed"
+    }
+  },
+  "container": {
+    "image": "sha256:11576762c41f3533603d868dd46fa9af7794eb722225a4fe0b182144816eecf5",
+    "available": "Root read-only verified local pinned image before this registration",
+    "network": "none",
+    "platform": "linux/amd64",
+    "user": "1000:1000",
+    "interpreter": "/opt/e2e-venv/bin/python",
+    "readonly_repository_binds": true,
+    "own_config_HOME_display_bus_only": true,
+    "container_name": "cirrove-strata-a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+    "container_labels": "Exact run, immutable prereg SHA and supervisor SHA recorded in predispatch attempt manifest",
+    "fresh_evidence": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+    "fresh_tmp": "/home/dandiccf/Storage/cirrove-tmp/st-a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+    "evidence_filesystem": "btrfs (disk)",
+    "tmp_filesystem": "ext4 (disk), mounted as /tmp because harness uses explicit /tmp",
+    "passwd_fixture": {
+      "path": "/home/dandiccf/Work/strata-cirrove/target/e2e-container/accounts-1000-1000/passwd",
+      "size": 88,
+      "sha256": "56fdbd0b0d5cde888ba479a1d60d3b439d32dba9d51136f07d9169cf0e3ce694"
+    },
+    "group_fixture": {
+      "path": "/home/dandiccf/Work/strata-cirrove/target/e2e-container/accounts-1000-1000/group",
+      "size": 29,
+      "sha256": "e01141838769d47fb88fc2257abf010f2c71cb6a582a72164edde29d39f28f8c"
+    },
+    "docker_binary": {
+      "path": "/usr/bin/docker",
+      "size": 29327600,
+      "sha256": "70f68a7702346cf4bb1a2568091cfee92216cc8498a627a488c4b212bc5f45c9"
+    }
+  },
+  "local_negative_controls": {
+    "status": "completed_before_GUI",
+    "test": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-proposal-20261006-v1/test_pin_refusals_v1.py",
+      "size": 4543,
+      "sha256": "65faf56ad5cbec8cbec3991e3f6c6a8bc62aac6b3d4559d97186ae1b318431d1"
+    },
+    "candidate_source": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-proposal-20261006-v1/validate-strata-v2.py.proposed",
+      "size": 14048,
+      "sha256": "09ea8a2c877b8bd15e523b7a3f230c3953de90cedc87c9e3f2b5fda55ec82c41"
+    },
+    "root_reported_tests_passed": 3,
+    "actual_retained_refusal_cases": 8,
+    "root_reported_duration_seconds": 0.353,
+    "root_reported_outer_exit": 0,
+    "root_reported_tool_receipt": "rootf50dcc",
+    "fixture_inventory": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/strata-validator-owned-gui-root-supervisor-20261006-v1/root-pin-refusal-controls-retained-inventory-v1.json",
+      "size": 4588,
+      "sha256": "d79bc48e95bf70654ab9dcf454f4dd99bb5540017ddb77c022c4479d881b970d"
+    },
+    "attempts": [
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-1-attempt.json",
+        "size": 638,
+        "sha256": "e2fa73cd6a6387c66cb08765a47e8c264f5ac797c4df923834d8094bbf69bada"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-2-attempt.json",
+        "size": 639,
+        "sha256": "f733febac0987869692f077f2691769ce0bdc753aaa2c5b976f842b471264e99"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-3-attempt.json",
+        "size": 732,
+        "sha256": "a2a32e9d45d671094d2c8902cf44850dd4eff2f274263bffc48e23a9689ae75b"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-4-attempt.json",
+        "size": 732,
+        "sha256": "64df8533359b4014eb7efa85e414ccbc2c59581d7e4c9d39558b2e16a3e640c6"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-5-attempt.json",
+        "size": 732,
+        "sha256": "fe7426e056b9ee79cb693450a794c8f1347ed095dc9d9bd20f9a1c1fb050beac"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-6-attempt.json",
+        "size": 732,
+        "sha256": "652f2e03ed345c08aadb337a2dfccfd7708bced4f32021bdee0e13f78fe9896a"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-7-attempt.json",
+        "size": 736,
+        "sha256": "837e26c90bf1dfeca1aa3b34988e7a081743872272a161d661116056fa0ec5bf"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-8-attempt.json",
+        "size": 734,
+        "sha256": "c2f0dcfca03e27fcc988a2798131d56d055912842b2106900696bacaa7e7ac3c"
+      }
+    ],
+    "results": [
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-1-result.json",
+        "size": 444,
+        "sha256": "0ae64a5396fb7b441df822bd4aef745aeea71e4a84fb9023467da32402c10be4"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-2-result.json",
+        "size": 444,
+        "sha256": "0ae64a5396fb7b441df822bd4aef745aeea71e4a84fb9023467da32402c10be4"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-3-result.json",
+        "size": 425,
+        "sha256": "569b4fcfcf374042f196c0e8e50fec718da91dbc5c867397d948f6a2360cc45b"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-4-result.json",
+        "size": 426,
+        "sha256": "25c03c5e5ed382332032996210fd601afbc762340e0bfa728cf1d3c0b49ca53a"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-5-result.json",
+        "size": 494,
+        "sha256": "d335b2af16756f1a1567f63ee9307a0f1817302c68a24ebc6c4aee625b5c83c1"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-6-result.json",
+        "size": 430,
+        "sha256": "8fe08958f74aff04f2b230e81821224a321ea1ea8b1869fc9cb7253785295b34"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-7-result.json",
+        "size": 430,
+        "sha256": "8fe08958f74aff04f2b230e81821224a321ea1ea8b1869fc9cb7253785295b34"
+      },
+      {
+        "path": "/home/dandiccf/Storage/ct-nt1006/strata-pin-controls-75_sd9_p/refusal-8-result.json",
+        "size": 404,
+        "sha256": "2e0121b88c4af329906fbc6fbd3e97cd6eff160af9f71f1f3df048a7c9f8d24d"
+      }
+    ],
+    "observed_guards": {
+      "no_harness_import_marker": true,
+      "no_output_setup_directories": true
+    },
+    "source_unchanged": true,
+    "TMPDIR_SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006 (ext4)",
+    "scope": "New-feature safety controls: refusal before output/harness/installer/GUI and no fake ELF execution. No baseline bug-regression claim."
+  },
+  "active_measurement": false,
+  "gui_dispatched": true,
+  "gui_result": {
+    "success": true,
+    "actual_seconds": 9.42713269602973,
+    "outer_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/result.json",
+      "size": 8205,
+      "sha256": "e61836a7fb67e62a15e617b46b0d0032fcb18d35b42488870c2b127f2d17b8d3"
+    },
+    "inner_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/result.json",
+      "size": 1429,
+      "sha256": "7d9ca8ae8a6769b2c228442c9943cf5cd7fdb9a6ab83331178345283c2291741"
+    },
+    "independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/audit-independent-terminal-v1.json",
+      "size": 11820,
+      "sha256": "fb8a9721cc652bd9316b37094c4c5e76936c895f52cf9190202bcdb556949302"
+    },
+    "attempt": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/attempt.json",
+      "size": 8409,
+      "sha256": "7c209da24648852d6eac98f99d62553ab51b73e1714d9ceac172c0d25a52234d"
+    },
+    "original_clock": {
+      "start_epoch": 1791310422.722885,
+      "start_monotonic": 335049.845961493,
+      "work_deadline_monotonic": 335349.845961493,
+      "deadline_monotonic": 335379.845961493,
+      "duration_seconds": 330,
+      "boot_id": "9dbc2557-0ac0-41e8-8d07-951ed068cac7"
+    },
+    "actual_docker_exit": 0,
+    "root_outer_execsession": {
+      "handle": 85002,
+      "terminal_exit": 0,
+      "source": "Root observed original execsession completion; no independent parent PID/start pair claimed."
+    },
+    "final_rpc_counts": {
+      "unpin": 1,
+      "pin": 2,
+      "subscribe": 1,
+      "paths-cached": 18,
+      "status": 19,
+      "capabilities": 19
+    },
+    "exact_mutation_sequence": [
+      [
+        "pin",
+        {
+          "label": "Validation",
+          "path": "On demand.txt",
+          "recursive": false
+        }
+      ],
+      [
+        "unpin",
+        {
+          "label": "Validation",
+          "path": "On demand.txt",
+          "recursive": false
+        }
+      ],
+      [
+        "pin",
+        {
+          "label": "Validation",
+          "path": "Inherited.txt",
+          "recursive": false
+        }
+      ]
+    ],
+    "final_allowed_rpc_verbs": true,
+    "late_extra_pin_unpin": false,
+    "success_written_after_cleanup": true,
+    "all_four_recorded_Docker_original_waits_and_birth_absence": true,
+    "container": {
+      "id": "fb21f9e964379e07795eb83d5546ee8c851df9930149d8306bc66f77524bc22e",
+      "running": false,
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false,
+      "name": "/cirrove-strata-a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+      "image": "sha256:11576762c41f3533603d868dd46fa9af7794eb722225a4fe0b182144816eecf5",
+      "labels": {
+        "cirrove.validation.run": "a9e24745-046a-47a5-a3e2-353b7c0a45ca",
+        "cirrove.validation.prereg": "7db00d9b923185c9d66c9763a2f8650f58405afde6214e37d164a6e0ede635cf",
+        "cirrove.validation.supervisor": "ec6dd5cdd33dddb2db7d6dd1e625bdbe428f54fb211f51a8639f019e4a98a002"
+      }
+    },
+    "container_stop_needed": false,
+    "source_binding": {
+      "source_key": "224103ab1947265016c21d34c87db28f83d38f52b0a0016b5e7ec76e9f6b7467",
+      "image_key": "803375aac22e811398d4735497f466405fd4c6e77b0629e5edaff52b8428aa6e",
+      "source_file_count": 726
+    },
+    "required_source_pins_unchanged": true,
+    "screenshot_count": 7,
+    "artifacts": {
+      "01-badges.png": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/01-badges.png",
+        "size": 40311,
+        "sha256": "9248496921d9fbddde5818eaf1183e82644c7977c7ac0fcf74c067090d21403c"
+      },
+      "02-keep-menu.png": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/02-keep-menu.png",
+        "size": 85029,
+        "sha256": "cbfbac77eb275700587e08a38942e29d058c4936da8a048ef774c3a70ac4797d"
+      },
+      "03-pinned-menu.png": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/03-pinned-menu.png",
+        "size": 86087,
+        "sha256": "ea2fbe95f95f9b5011c3f0eac8a4b814ad02343dcb9013e4151e67fc1a1de933"
+      },
+      "04-availability.png": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/04-availability.png",
+        "size": 64340,
+        "sha256": "b7630651f10a0ad03b70fc35804adc5546681ab639e1fa7d1ba3d1ca094d65d4"
+      },
+      "05-inherited-menu.png": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/05-inherited-menu.png",
+        "size": 84637,
+        "sha256": "f6d1026263d410dfcbb4666673e411192319475d01449afb31c50ab27ea3e804"
+      },
+      "06-native-availability-only.png": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/06-native-availability-only.png",
+        "size": 82901,
+        "sha256": "cc0d5cea0d94742cffb25325efb5250fcebde8c2f67503e9eb26a290112bf3a1"
+      },
+      "07-unmounted.png": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/07-unmounted.png",
+        "size": 77408,
+        "sha256": "0f145e8a2fe07bcfc3bdb1420fb1d6f1008f46d5c03c295164f34eae775bbd1f"
+      },
+      "environment.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/environment.json",
+        "size": 54,
+        "sha256": "7bde8aa5976701e40e02fcae96e4e9dae7c766d302ca2b6ef9e813140d48e6f3"
+      },
+      "result.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/result.json",
+        "size": 1429,
+        "sha256": "7d9ca8ae8a6769b2c228442c9943cf5cd7fdb9a6ab83331178345283c2291741"
+      },
+      "strata.log": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/run/strata.log",
+        "size": 1271,
+        "sha256": "6f5cd800f79e0e06eaf079f7951f464007146670005875aceae420867ee9d5b8"
+      }
+    },
+    "closure_scope": "Exact named Docker container exited0 with PID0, and four original Docker client handles waited/reaped with recorded births absent. No separate GTK/helper original-handle receipts are exposed by the existing harness.",
+    "performance_scope": "One functional arm; duration is recorded, not a performance or reliability estimate."
+  },
+  "production_service": false,
+  "real_provider_requests": 0,
+  "provider_mutations": 0,
+  "installed_actions": false,
+  "gate489_closed": false,
+  "full_integration_accepted": false,
+  "limits": [
+    "This question verifies actual companion GUI against synthetic cached rows/events, including a native PACKAGE-like can_pin=false fixture; it is not a real native catalog/provider-content proof.",
+    "The separately retained successful maintainer GUI used another Cirrove worktree and is not substituted for this arm.",
+    "Production RO daemon/native metadata integration and installed artifact/default-handler/config preservation still need separate acceptance; gate489 remains open."
+  ],
+  "preregistration_before_GUI": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/strata-gui-a9e24745-046a-47a5-a3e2-353b7c0a45ca/primary-preregistration-original-v1.json",
+    "size": 19294,
+    "sha256": "7db00d9b923185c9d66c9763a2f8650f58405afde6214e37d164a6e0ede635cf"
+  },
+  "interpretation": "The exact companion GUI and current Cirrove helper rendered and activated the scoped cached-state actions: kept/fetching badges, Keep and direct Stop, inherited-to-direct refresh, native can_pin=false availability-only, and unmount withdrawal. Final complete RPC trace contains exactly the registered three local fixture mutations and no unexpected verb. No real Cirrove daemon/account/provider or installed service was exercised; gate489 remains open.",
+  "workspace_verification_after_validator_change": {
+    "command": "bash scripts/check.sh",
+    "elapsed_seconds": 554.6508136150078,
+    "exit_code": 0,
+    "source_count": 561,
+    "sources_unchanged": true,
+    "installed_actions": false,
+    "real_provider_mutations": false,
+    "receipts": [
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full6-registration-v1.json",
+        "sha256": "cba6598730dffd087bac562097fdc65473eddbe3d6cad93844f9b59974975934",
+        "size": 73188
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full6-owner-v1.json",
+        "sha256": "625d2553b3f5447e1665efcf8455886f3501e9190cae46f75125ce6cc2edeb59",
+        "size": 199
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full6-result-v1.json",
+        "sha256": "fa71aa585e50921c9e43b7e4d29a044e58384d7257e9ee0edf9671dca9b694d1",
+        "size": 346
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/full6-v1.log",
+        "sha256": "ea20ba267e548ee18ee9e393f5352f025ca53a91d22b1431281e950534ec1606",
+        "size": 284563
+      }
+    ]
+  }
+}

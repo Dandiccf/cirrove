@@ -1,0 +1,40 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/docref7v1",
+  "TMPDIR": "/home/dandiccf/Storage/ct/docref7v1",
+  "active": false,
+  "active_measurement": false,
+  "command": [
+    "/usr/bin/bash",
+    "/home/dandiccf/Work/cirrove/scripts/check.sh"
+  ],
+  "endpoint": "One whole scripts/check.sh, ten sections including workspace/kernel/scripts/ledger, original owner/group closed",
+  "filesystem": "ext4",
+  "installed_actions": false,
+  "maximum_seconds": 1800,
+  "prediction": "All ten sections pass, Root571 runtime sources and staged documentation/workflow inputs remain unchanged; no live cloud/installed actions",
+  "provider_actions": false,
+  "question": "Does the complete required project check pass in Root with documented Pages/Numbers DATA editor refusals, actual metadata read and Linux-only CI timeout correction?",
+  "registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-documentation-complete-check-v1/registration-v1.json",
+    "sha256": "700abf108e88db7dc5571b32e3b211afe4fdd9a2a21fd04efd3912db93f64421",
+    "size": 81146
+  },
+  "source_count": 571,
+  "status": "closed_complete_check_success",
+  "version": 1,
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-documentation-complete-check-v1/terminal-v1.json",
+    "size": 76417,
+    "sha256": "e6b2a4191c8c03ee1353758f86e6744613ef7296d5d50fc52b14abe41857c859"
+  },
+  "independent_terminal_audit": {
+    "status": "passed",
+    "checks": 18,
+    "artifact": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-data-exact-metadata-admission-diagnostic-private-v1/root-documentation-complete-check-v1/audit-independent-terminal-v1.json",
+      "size": 4720,
+      "sha256": "2864894ddaa55b59ef39b8a692602bee40084b3146374f415028532ba53bb6c4"
+    }
+  },
+  "completion_evidence_appended_after_check": true
+}

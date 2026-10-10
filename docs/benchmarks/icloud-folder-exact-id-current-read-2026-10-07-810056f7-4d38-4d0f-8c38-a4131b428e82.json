@@ -1,0 +1,101 @@
+{
+  "HTTP_request_count": "uninstrumented",
+  "active_measurement": false,
+  "arms": [
+    "One direct read-only reconciliation invocation; no mutation, worker, ACK, import or retry."
+  ],
+  "binary_sha256": "e477815b3cc83ebb9471b332a4868050befe46ceca78c2478b9dad35eb752187",
+  "build_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-current-read-810056f7-4d38-4d0f-8c38-a4131b428e82-private-v1/root-current-build-v3/build-current-helper-result.json",
+    "sha256": "e304e39bea1b429a9ec3382214f2452af30d9509c2dd0b2d5dcd2aa514d4c432",
+    "size": 74984
+  },
+  "clock": {
+    "cleanup_seconds": 10,
+    "maximum_seconds": 60,
+    "reuse_original_clock": false,
+    "work_seconds": 50
+  },
+  "cloud_mutations_authorized": 0,
+  "current_id": "FOLDER::com.apple.CloudDocs::8DF53411-120A-481E-9286-35C4DAA569F3",
+  "current_runtime_protection": {
+    "map": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/desktop-flat-pages-root-executor-private-v1/execution-b640ce19-8011-434c-a37d-2b4f86004798/source-pins-terminal.json",
+      "sha256": "4dbf845a526479b8aee4cf39ab8ac81592747bec7a6ab4d1f834e5045e73f2e7",
+      "size": 72732
+    },
+    "source_count": 568
+  },
+  "dependency_features": {
+    "cirrove_icloud": [
+      "write-probe"
+    ]
+  },
+  "endpoint": "Exact safe typed current classification; full13file stamps preserved; original child reaped/absent before closure.",
+  "helper_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-current-read-810056f7-4d38-4d0f-8c38-a4131b428e82-private-v1/exact_id_current_read_v1.rs",
+    "sha256": "7e0be8022dadacc946a4b93a218544d5cb812c58bcba39c397dab9b4746512c1",
+    "size": 28128
+  },
+  "installed_actions_authorized": false,
+  "journal_ACK_authorized": 0,
+  "limits": [
+    "Current presence only; no historical failure-cause inference.",
+    "The fresh current-source helper and read completed; the immutable preregistration retains their original pending wording.",
+    "Current Applied does not acknowledge, replay or retrospectively complete the original uncertain folder trial.",
+    "HTTP request count is uninstrumented; one direct read-only reconciliation API invocation was authorized.",
+    "The helper uses explicit write-probe dependency provenance, not a normal/default role or installed delivery.",
+    "No full iCloud gate closure."
+  ],
+  "operation": "875969b5-b87d-4bbb-8049-7f240e53de76",
+  "prediction": "Expected applied exact-ID receipt, but every result or refusal leaves the stopped original journal untouched and never authorizes replay or ACK. The historical first-read classification remains unknown.",
+  "question": "Is the exact owned Created folder ID currently present with its registered identity, parent and name?",
+  "results": {
+    "cloud_mutations": 0,
+    "current_classification": "applied",
+    "current_source568_unchanged": true,
+    "gate_closed": false,
+    "inner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-current-read-810056f7-4d38-4d0f-8c38-a4131b428e82-private-v1/exact-id-read-result-v1.json",
+      "sha256": "50ae3c7bb843ecf3be37bea4de1110f759abaf362d9cc5069dddc73f4132e372",
+      "size": 1778
+    },
+    "journal_ACK": 0,
+    "outer": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-current-read-810056f7-4d38-4d0f-8c38-a4131b428e82-private-v1/root-once-read-outer-v1/current-read-once-result.json",
+      "sha256": "0758679b84d0fddf104c290e6729d37013b2d5060271e455be8f06dc7b4fc446",
+      "size": 74978
+    },
+    "outer_exit": 0,
+    "owned_inner_closed": true,
+    "state13_unchanged": true
+  },
+  "root_runner_sha256": "9cdf94257243e1e4516a62986a33ff8b0f5df9344a774fa47a9773c1ad85beed",
+  "run": "810056f7-4d38-4d0f-8c38-a4131b428e82",
+  "status": "closed_read_only_observation",
+  "subject_run": "175a90ac-a82d-40d4-9214-518101308d1b",
+  "version": 1,
+  "independent_assessment": {
+    "audit": {
+      "path": ".local-state/icloud-native-trash-receipt-loss-development-20261006/folder175-exact-id-current-read-810056f7-4d38-4d0f-8c38-a4131b428e82-private-v1/audit-independent-current-exact-id-read-terminal-v1.json",
+      "size": 4515,
+      "sha256": "40541f8ad534832fb78e91ef664c640e77d2ab20d0cf50f1069cf6e1b8345371"
+    },
+    "passed": 20,
+    "total": 20,
+    "classification": "applied",
+    "current_presence_verified": true,
+    "exact_owned_identity_parent_name_verified": true,
+    "current_etag": "i1u1",
+    "protected13_full_bytes_and_stamps_preserved": true,
+    "current568_sources_preserved": true,
+    "fresh_compiled_current_feature_helper_verified": true,
+    "all_recorded_original_handles_closed": true,
+    "cloud_mutations": 0,
+    "journal_ACK": 0,
+    "HTTP_request_count": "uninstrumented",
+    "historical_read_classification_still_unknown": true,
+    "original_journal_not_acknowledged_or_replayed": true,
+    "interpretation": "A fresh bounded read observed the exact owned folder currently present. It does not determine the historical trial failure or recover the first read\u2019s lost classification; the stopped original journal remains unchanged."
+  }
+}

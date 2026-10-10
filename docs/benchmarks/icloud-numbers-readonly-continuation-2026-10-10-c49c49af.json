@@ -1,0 +1,38 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-continuation-20261010-v1",
+  "TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-continuation-20261010-v1",
+  "active": false,
+  "binary": {
+    "path": "/var/tmp/cirrove-native-final-c49c49af-a8a3-42c0-ae69-90ae225c2514/bin/native-final-probe",
+    "sha256": "b569ce8e6c9bb3c6569e05586556e5c96e25184c887bb7b3c7e708f170c9ed00",
+    "size": 522180496
+  },
+  "cleanup_reserve_seconds": 45,
+  "deadline_unix": 1791632461,
+  "endpoint": "typed three-identity preservation receipt plus exact original child closure within600seconds",
+  "filesystem": "btrfs",
+  "full_gate490_closed": false,
+  "maximum_seconds": 600,
+  "original_run": "c49c49af-a8a3-42c0-ae69-90ae225c2514",
+  "original_trial_success": false,
+  "prediction": "All three identities retain their registered content; inspection reports conflict or uncertain; local authority and B bytes unchanged.",
+  "provider_mutation": false,
+  "question": "Are original A in Trash, staged B and canonical C semantically preserved after the one released conflict?",
+  "result": {
+    "authority_files_unchanged": true,
+    "elapsed_seconds": 6.810609533102252,
+    "exit_code": 1,
+    "failure_class": "AssertionError",
+    "full_gate490_closed": false,
+    "original_handle_reaped": true,
+    "original_window_unchanged": true,
+    "process_absent": true,
+    "provider_mutation": false,
+    "success": false,
+    "term_sent": false
+  },
+  "scope": "separate read-only continuation of closed failed c49c; no replay or original-window extension",
+  "started_monotonic": 656488.676575288,
+  "started_unix": 1791631861,
+  "version": 1
+}

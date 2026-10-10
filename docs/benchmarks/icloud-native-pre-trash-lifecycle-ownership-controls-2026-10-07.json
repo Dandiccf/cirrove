@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "date": "2026-10-07",
+  "status": "closed_passed",
+  "active_measurement": false,
+  "question": "Do the actual selected lifecycle functions retain and reap original children when pidfd acquisition fails, with honest PID/birth records and no signal after natural exit?",
+  "prediction": "OldV1 fails the exact original-child ownership assertion after fixture cleanup; correctedV2 passes the same control plus natural exit without signals.",
+  "arms": [
+    "old_missing_pidfd_cleanup_v1",
+    "corrected_original_Popen_cleanup_v2"
+  ],
+  "controls": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/test_lifecycle_ownership_controls_v2.py",
+    "size": 6914,
+    "sha256": "18534006945e42927b0ca1b8d5bd8f780dea5351002f83e8c19fade2b0df4069"
+  },
+  "controller_sources": {
+    "v1": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/lifecycle_source_v1.py",
+      "size": 66575,
+      "sha256": "a694ef0c78376ff89445bdba0478b4801ce62569524fdc7493e416a452a56fe1"
+    },
+    "v2": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/lifecycle_source_v2.py",
+      "size": 67472,
+      "sha256": "46fc4bc9f88ef3efd660b2a464d0c69f514e3d7e46a68cd1995eaecc231a12a2"
+    }
+  },
+  "lifecycle_source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-competitor-live-private-v1/lifecycle_source_v1.py",
+    "size": 66575,
+    "sha256": "a694ef0c78376ff89445bdba0478b4801ce62569524fdc7493e416a452a56fe1"
+  },
+  "python_binary": {
+    "path": "/usr/bin/python3.14",
+    "size": 14424,
+    "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-lifecycle-ownership-controls-actual-v1/run_controls_v1.py",
+    "size": 6882,
+    "sha256": "013a49b5302a48166f07c399adf75c896eedd540ef1c33ddea52161aa5969942"
+  },
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "temporary_filesystem": "ext4",
+  "expected_test_counts": [
+    1,
+    2
+  ],
+  "provider_calls": false,
+  "installed_actions": false,
+  "limits": [
+    "Source-selected actual lifecycle methods with synthetic collaborators; tests retain actual small local Python children and always clean them through original Popen objects.",
+    "No full controller lifecycle or real-provider acceptance is claimed.",
+    "No integration gate closes."
+  ],
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "outcome": {
+    "success": true,
+    "outcomes": [
+      {
+        "name": "red-original-ownership",
+        "result": {
+          "exit_code": 1,
+          "elapsed_seconds": 2.117198057996575,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-lifecycle-ownership-controls-actual-v1/red-original-ownership.log",
+            "size": 2009,
+            "sha256": "95799982f32be0c2927b65c2a13e73102d508a46df9b52f28ab6cec119ee32dd"
+          }
+        },
+        "expected_endpoint_observed": true
+      },
+      {
+        "name": "green-two-controls",
+        "result": {
+          "exit_code": 0,
+          "elapsed_seconds": 0.1643190989852883,
+          "original_handle_reaped": true,
+          "process_absent": true,
+          "signals": [],
+          "log": {
+            "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-lifecycle-ownership-controls-actual-v1/green-two-controls.log",
+            "size": 364,
+            "sha256": "165505d3c709517ab80e06960db08b40c5d9e64589b7add3d003f4cd67dbe7e9"
+          }
+        },
+        "expected_endpoint_observed": true
+      }
+    ],
+    "sources_unchanged": true,
+    "provider_calls": false,
+    "installed_actions": false
+  },
+  "result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-lifecycle-ownership-controls-actual-v1/controls-result-v1.json",
+    "size": 1366,
+    "sha256": "c08288bb96f06f5277ea03a3e44413902157975c858fd15c89cde751461bc30e"
+  },
+  "root_controller": {
+    "exit_code": 0,
+    "elapsed_seconds": 2.321006755984854,
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-lifecycle-ownership-controls-actual-v1/root-controls-v1.log",
+      "size": 77,
+      "sha256": "656b82351684d71557d40291bf2010d6499ea0aa0234c132c4c78f2c1a83ee7d"
+    }
+  },
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-lifecycle-ownership-controls-actual-v1/audit-gate-agent-terminal-v1.json",
+    "size": 6102,
+    "sha256": "dab11acac6a7fc3186579b9620332e3232c3171cc3a4e8199f1bb9c9aa5363c9",
+    "result": "PASS",
+    "checks": 9
+  }
+}

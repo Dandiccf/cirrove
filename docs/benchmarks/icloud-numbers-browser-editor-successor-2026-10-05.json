@@ -1,0 +1,329 @@
+{
+  "version": 1,
+  "run": "49ebf6e3-8a48-4485-ab36-aa583dfe9e9e",
+  "registered_at": "2026-10-05T05:16:51.648150+00:00",
+  "status": "Live partial: fresh folder/public import A, writer stop, RO settings, independent metadata/content A passed. Unexpected browser cell contents before planned edit stopped trial; exact owners/mount settled, no automatic retry. No current B or RO remount B evidence.",
+  "question": "Can the corrected fresh Numbers workflow complete one public import, one browser edit/reopen/native export and independent current-provider/read-only-remount B proofs without changing the stopped journal frontier?",
+  "prediction": "Immutable settings snapshots0400 permit the actual operational read-only transition; fresh A read, browser7/3/10\u219211/3/14, unchanged native export and actual source/provider/remount semantic-v2 identities agree. Any uncertainty stops this new arm without replay.",
+  "execution_owner": "ROOT, one exclusive compile/measurement/runtime lane",
+  "standing_cloud_authorization": "Explicit user authorization for ongoing iCloud writes and tests. One fresh owned Numbers document only; no closed3db/5ad trial replay.",
+  "logical_limits": {
+    "fresh_folder": 1,
+    "public_import_a": 1,
+    "browser_A2_change": 1,
+    "native_export_b": 1,
+    "cirrove_replace_b": 0,
+    "automatic_retries": 0,
+    "max_window_seconds": 1800
+  },
+  "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-49ebf6e3",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/ne-49ebf6e3",
+  "filesystem": "ext4, ROOT independently verifies before runtime",
+  "preparation_preregistration": {
+    "question": "Does corrected once-only preparation copy the same-account/same-credential opaque session and exact compiled ELFs into a fresh isolated root, emit immutable settings400 and mutable accounts600, and keep original inputs unchanged?",
+    "prediction": "Local assets and exact sourceA proof prepare without journal/cache/ops/runtime/grant inheritance. Same AAD identity, no decryption or key reads.",
+    "source": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/prepare-assets-successor-draft-v7.py",
+    "source_sha256": "35e17d966bd0d2cdef57bd648f42a6a91a691b5fece7488821570c5cc0bc32cf",
+    "registration": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/asset-preparation-registration-v1.json",
+    "registration_sha256": "73349816b3be18454927d5353572dc263c34f14d187829f929a637d277ab4d53",
+    "same_account_context_sha256": "530f99999b52ccc3e046e7b19d54056e39c556bd2b0f052ef682eac580dc5e92",
+    "known_source_owner_records": 9,
+    "settings_mode_fix_proof": "Separate original1 desired assertion FAIL then identical corrected1 PASS, prior benchmark holds both actual results.",
+    "endpoint": "Actual once-only result/root identity, exact input/source stability, settings modes before any finite authority or provider dispatch."
+  },
+  "scope_limits": [
+    "Browser editing is not a Linux editor save through FUSE.",
+    "No installed service/package/config/schema change; installed14/7 to development19/8 HOLD remains.",
+    "Prior source-bound controls are distinct; actual selected successor execution counts and source hashes must be retained.",
+    "Source B comes only from this actual new native export; no old export reuse, root invention, repacking or ignoring semantic differences.",
+    "No full-iCloud requirement closes from this bounded trial alone."
+  ],
+  "actual_results": [
+    {
+      "exit_code": 0,
+      "duration_seconds": 1.6574077009863686,
+      "sources_unchanged": true,
+      "log_sha256": "95a6f67949ebefc0c9a1a91579d64a4654241d316156afbbe136428b840f4bf9",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-local-assets-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-local-assets-v1-result.json",
+      "record_sha256": "74521e9932ab827e110d51596fcfed90f8266f2984ae6cca76a7db88ee940eb8"
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.01629174200934358,
+      "sources_unchanged": true,
+      "log_sha256": "3696556dc6c7ced7554df510dcf71fde75810edcb14d9caedb2cdd2ac0541f1a",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-source-a-proof-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-source-a-proof-v1-result.json",
+      "record_sha256": "da9ce736a7dc942f2e588e40edd009bc6d6552511a4d91c039094a9f91e8c33c"
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.204765893984586,
+      "sources_unchanged": true,
+      "log_sha256": "021f3e25b459c70ec8dbec02880f842dbff2529973dc69daa934fc04ada50528",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-lifecycle-twentythree-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-lifecycle-twentythree-v1-result.json",
+      "record_sha256": "84533f617f29112e2085d8ad8b5e4ce4ea41f74455738745ae5344731c153148",
+      "actual_tests": 23,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.08000098197953776,
+      "sources_unchanged": true,
+      "log_sha256": "42f41e15642e1453dc52f873d3bf2df0980225320856f3f5f8a9e96e43caf1ef",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-flat-launcher-six-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-flat-launcher-six-v1-result.json",
+      "record_sha256": "59393253b2a19504fa3dfa7ecc4b6d873bfa2016632bd2924d2e1a1698f7433c",
+      "actual_tests": 6,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.08348194998688996,
+      "sources_unchanged": true,
+      "log_sha256": "2ebbc72efa58fd37c3518741fa5dfe86aaf965acac711c078fdcdd8bc1c44952",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-roles-three-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-roles-three-v1-result.json",
+      "record_sha256": "6f7424885efebb144f32f885ad35673986299dffb9f3fdf613a4d065533f2a95",
+      "actual_tests": 3,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.05923912499565631,
+      "sources_unchanged": true,
+      "log_sha256": "4e9470175fd15a0b2760759c83e120449c87fff2094f4a12045d5f96b0f6335f",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-supervisor-six-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-supervisor-six-v1-result.json",
+      "record_sha256": "113e93fc77bfe8ea2048ed393cb9dce4cde744a83b412e74e337a63b31ace4ed",
+      "actual_tests": 6,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.04353059999994002,
+      "sources_unchanged": true,
+      "log_sha256": "47f33128a1d9d601d1697ec0b381a931f7a964f6b4d12c49bdb3c7f2f7da18b1",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-actual-ro-read-bridge-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-actual-ro-read-bridge-v1-result.json",
+      "record_sha256": "1a9e903791218dfb4ce1387bfdcd988482ffa59ed57856072df274f11b358f97"
+    },
+    {
+      "exit_code": 1,
+      "duration_seconds": 0.607608922990039,
+      "sources_unchanged": true,
+      "log_sha256": "800fa660621cbc5d4e84be26b738702e834cb40f24e7e8ef3a8a2da99957d40f",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-runtime-inputs-v1",
+      "scope": "Authoring refusal before any assembly output, runtime, authorization or provider action.",
+      "cause": "Root passed the later5ad baseline, while the unchanged assembler intentionally requires original3db baseline. Read-only diagnostic identified exact reference baseline scope guard.",
+      "runtime_or_authorization_created": false
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.6513430299819447,
+      "sources_unchanged": true,
+      "log_sha256": "534cdcd85bf26170c887de6b3a5df31c208ba8e0976e98defed0d46c585f9982",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-runtime-inputs-v2",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-runtime-inputs-v2-result.json",
+      "record_sha256": "b47516ab65e53f1f35a7a90c460df43374a788f749afed08997b91d186b614a6"
+    },
+    {
+      "exit_code": 0,
+      "duration_seconds": 0.7476963310036808,
+      "sources_unchanged": true,
+      "log_sha256": "b2d406408c31ed8dfc89f844e6327a8ea833e735e1f1d344ed0fc202f7da66e6",
+      "cloud_mutated": false,
+      "installed_actions": false,
+      "phase": "root-successor49-check-local-v1",
+      "record": ".local-state/icloud-owned-account-snapshot-20261005/root-successor49-check-local-v1-result.json",
+      "record_sha256": "1a3acdf0b20e9daee1943ac583c4f8a93be70b6be32dc86e7c005dcb560beed5"
+    }
+  ],
+  "source_a_preregistration": {
+    "registered_at": "2026-10-05T05:18:31.172157+00:00",
+    "question": "Does fresh immutable A compute wrapped semantic-v2 before any provider action?",
+    "prediction": "Actual source-only scanner proves exact68997-byte archive and semantic1bb0cea81e718c18fd213c9e00915a6c25a12944b60314e17f12510ba34604fb, offlineonly.",
+    "registration_sha256": "0c806ec5fd0091bfe2e6451cf82761a8dec2159286eb1e698b8f62b717808374",
+    "binary_sha256": "ef15786b77991cdc0fae0a75de2b0693986f7848258f6654f90a793885278075",
+    "root_dev": 31,
+    "root_ino": 2128573
+  },
+  "local_controls_preregistration": {
+    "registered_at": "2026-10-05T05:21:20.411125+00:00",
+    "question": "Do the existing selected contracts pass against the actual freshly frozen controller/watcher/launcher sources?",
+    "prediction": "23+6+3 controller tests and6 supervisor tests pass with exact paths/hashes/counts and unchanged source. The actual produced RO snapshot separately passes its real0400 reader before finite authority.",
+    "counts": [
+      23,
+      6,
+      3,
+      6
+    ],
+    "total": 38,
+    "control_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "control_SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "source_pins": {
+      ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/controller-frozen-v12.py": "59a65ee8621f60943c492024ecad695e1c5cd96a7d0e04861903ccaa16f7ab93",
+      ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/root-launch-supervisor-frozen-v5.py": "bf4447e95e3ea8da40c14075056813bd2c3bfefa27d81b5d5766de4feff400c2",
+      ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/external-supervisor-frozen-v6.py": "355c2af17f912cb44d25d9fd291c377fb2aad39aa07c0e7914b7803b88abf4de"
+    },
+    "tests_byte_equal_to_preceding_sources": true,
+    "limits": "Synthetic controls do not prove actual Apple session, current provider contents, browser fidelity or remount. Historical40 belonged to preceding5ad source; this new selected execution has38."
+  },
+  "runtime_input_assembly_preregistration": {
+    "registered_at": "2026-10-05T05:23:08.244694+00:00",
+    "question": "Can exact new sourceA proof, selected32 source-bound controller controls, preserved real ELF/build evidence and read-only installed baseline be assembled into ready:false inputs without creating authority or state?",
+    "prediction": "Frozen ASM assembles correct newrun inputs and baseline; all19 packaged files, installedPID/ticks/unit unchanged. No finite authorization, phase or provider dispatch.",
+    "source": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/assemble-runtime-inputs-frozen-v4.py",
+    "source_sha256": "c7f93f8cf36adc8a42028ea904ede0a02332948ee5888401d842dfed4aa7db8c",
+    "endpoint": "Actual ready:false result/input and source stability, baseline and raw preregistration archives.",
+    "corrected_reference_before_v2": {
+      "recorded_at": "2026-10-05T05:24:41.177022+00:00",
+      "original_reference": ".local-state/icloud-numbers-browser-editor-20261005/root-installed-baseline-before-browser-v1.json",
+      "guard_changed": false,
+      "all_v1_output_paths_absent": true,
+      "no_cloud_trial_started_or_repeated": true
+    }
+  },
+  "live_dispatch_preregistration": {
+    "registered_at": "2026-10-05T05:26:02.305997+00:00",
+    "runtime_sha256": "466a91b621bf1908268f961b3788e3ed1348a30ef1db3f8602ecce4e11bf48a8",
+    "controller_sha256": "59a65ee8621f60943c492024ecad695e1c5cd96a7d0e04861903ccaa16f7ab93",
+    "watcher_sha256": "355c2af17f912cb44d25d9fd291c377fb2aad39aa07c0e7914b7803b88abf4de",
+    "launcher_sha256": "bf4447e95e3ea8da40c14075056813bd2c3bfefa27d81b5d5766de4feff400c2",
+    "original_max_window_seconds": 1800,
+    "deadline_reset_allowed": false,
+    "scope": "Fresh folder/public importA, writer stop, independentA, one browserA2edit/reopen/export, freshsourceB/currentB/normalROremountB, exactowner settlement. No closed trial replay or automatic retries.",
+    "installed_actions": false
+  },
+  "live_result": {
+    "overall_arm_success": false,
+    "started_unix": 1791177978,
+    "deadline_unix": 1791179778,
+    "deadline_reset": false,
+    "confirmed_phases": [
+      "create-folder",
+      "import-a",
+      "install-ro-settings",
+      "metadata-a",
+      "read-a",
+      "start-rw",
+      "stop-rw"
+    ],
+    "actual_logical_cloud_mutations": [
+      "fresh-owned-folder-create",
+      "sole-public-import-a"
+    ],
+    "planned_browser_a2_edit_dispatched": false,
+    "native_export_dispatched": false,
+    "current_b_verified": false,
+    "read_only_remount_b_verified": false,
+    "a_content_identity_verified": true,
+    "gui_fidelity_verified": false,
+    "unexpected_browser_state": {
+      "path": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/root-browser-unexpected-state-observation-v1.json",
+      "size": 799,
+      "sha256": "887386447f6f0d023a9f7e546dc56d382a90e9de94ff69cd210ccf93248e83df"
+    },
+    "automatic_retry": false,
+    "abort_result": {
+      "path": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/abort.result.json",
+      "size": 182,
+      "sha256": "27e573e003a3aedc709b2f31625ab83fd9e0e0c574183fb18361633f56d1a01a"
+    },
+    "controller_result": {
+      "all_owned_processes_gone_and_unmounted": true,
+      "automatic_retry": false,
+      "fresh_dispatch_disabled": true,
+      "overall_arm_success": false,
+      "status": "aborted-unresolved"
+    },
+    "supervisor_result": {
+      "path": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/external-supervisor-result.json",
+      "size": 630,
+      "sha256": "1c152859eb713be03c50b1781db9c6a8a933af39ad8076b7dad241a69a27de4a"
+    },
+    "watcher_exit_code": 0,
+    "watcher_externally_reaped": true,
+    "watcher_parent_receipt": {
+      "path": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/root-supervisor-launch-result-v1.json",
+      "size": 336,
+      "sha256": "737f0c7d3fd48e791ef79558bbfb07e0bced883cc0d2576ca79e55fbb1839d5b"
+    },
+    "outer_root_result": {
+      "exit_code": 0,
+      "duration_seconds": 558.308748904994,
+      "sources_unchanged": true,
+      "log_sha256": "15a6ee4dfb762ad77816a76650b9eb3635e74dd21cd6ebefe600a0645f15957e",
+      "scope": "Wrapper did not itself mutate cloud; actual two logical mutations recorded separately above."
+    },
+    "independent_closure_audit_pending": false,
+    "installed_actions": false,
+    "release_gate_closed": false,
+    "independent_closure_audit": {
+      "path": ".local-state/icloud-numbers-browser-editor-49ebf6e3-8a48-4485-ab36-aa583dfe9e9e/audit-gate-agent-closed49-owner-mount-installed-v1.json",
+      "size": 13877,
+      "sha256": "0550e625b0f329610042d1b517a2184dbb8b8f51e2724ff4e19f6fec13202247",
+      "unique_recorded_owner_pairs_absent": 13,
+      "owned_mount_absent": true,
+      "installed_unit_pid_start_ticks_executable_and_19_packaged_files_unchanged": true,
+      "home_daemon_shadow_absent": true,
+      "provider_reads": false,
+      "installed_actions": false
+    }
+  },
+  "post_terminal_contributor_check_preregistration": {
+    "registered_at": "2026-10-05T05:39:54.978325+00:00",
+    "command": [
+      "/usr/bin/bash",
+      "scripts/check.sh"
+    ],
+    "phase": "root-consolidated-evidence-full-check-v1",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/as-20261005",
+    "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "expected_duration_seconds": 900,
+    "question": "Does the full contributor check pass on the consolidated evidence and unchanged implementation after exact terminal closure of all owned live processes?",
+    "prediction": "Full format/clippy/workspace/features/kernel/scripts/ledger/docs pass; no cloud sign-in/write or installed service action. Desktop window acceptance remains separate.",
+    "cloud_trial_terminal_before_build": true,
+    "measurement": false,
+    "release_gate_closed_by_this_check": false
+  },
+  "post_terminal_contributor_check_result": {
+    "exit_code": 0,
+    "duration_seconds": 524.5180360689992,
+    "sources_unchanged": true,
+    "log_sha256": "59fec87e67502a319468a2ce389506d73ae2ab79673089393369af5aa58da918",
+    "cloud_mutated": false,
+    "installed_actions": false,
+    "record": {
+      "path": ".local-state/icloud-owned-account-snapshot-20261005/root-consolidated-evidence-full-check-v1-result.json",
+      "size": 231,
+      "sha256": "2527ad68113a23ba6cdb8da496aa0fc7fc76fb4f44121887fc90ddaab9a5d5e4"
+    },
+    "scope": "Complete local scripts/check.sh passed with all registered sources unchanged. Result recording and historical-scope clarification are documentation-only follow-ups; executable sources unchanged. No window/GTK chooser acceptance, cloud mutation, installed transition or full release closure."
+  }
+}

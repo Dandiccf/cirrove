@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "run": "8119e9b5-093a-4b77-bfdc-4c546c56c2f4",
+  "status": "closed_refused",
+  "active_measurement": false,
+  "question": "Can exact released Canary14/7 source-linked producer ordinary pending/sealed/dirty generations and metadata/cursor survive current7e21/8 migration, read-only exact exports, old-writer refusal and terminal synthetic resume without changing legacy state during refusal?",
+  "prediction": "Current read-only RecoveryJournal first exports exact old14 retained bytes without migration. Explicit current open then migrates14/7 to21/8 preserving legacy rows/cursor and ownership; old source-linked writer refuses both new schemas without changing full snapshot. Current exact read-only exports and synthetic resume then succeed with all18 originals closed.",
+  "arms": [
+    "old-tag source-linked produce14/7",
+    "current read-only recover14",
+    "current explicit migrate21/8",
+    "exact old-source writer refuse migrated state",
+    "current read-only recover21",
+    "current synthetic resume"
+  ],
+  "endpoint": [
+    "exact producer account/scope/UUID chain and immutable pending/sealed/dirty bytes",
+    "before and after old-writer refusal exact all-file/protected-stat/logical-table snapshot equality",
+    "migration exact legacy columns, visible metadata and completed cursor; new queue tables empty",
+    "both recovered generation digest sets exact",
+    "terminal18 original child handles reaped/absent/exact process groups empty and all source maps unchanged"
+  ],
+  "sources": {
+    "candidate_head": "7e727bc89adbc8b5c19c1f86fc31873eb0c3af48",
+    "candidate_count": 568,
+    "Canary_head": "a9e24291230b213c00843f939ee94c57213b1fa5",
+    "Canary_count": 181,
+    "current_normal_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-current-build-collector-private-v1/roles-after-direct-flat-pages-v1/ready-binding-v1.json",
+      "size": 85434,
+      "sha256": "357a6ff038b3b97fc202dee8bcbe9c60cab724e29278b972f47e116696a42ac5"
+    },
+    "actual24_validation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/root-suite-terminal-result.json",
+      "size": 1853932,
+      "sha256": "11fb3064a76b6e8923bbf760072b8a4ec976e9add266e04d949a03af73b55776"
+    },
+    "actual_final568map": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/direct-flat-pages-root-checks-20261007-v1/remaining-suite-v4/source-pins-terminal.json",
+      "size": 72732,
+      "sha256": "4714da7fe8f5d5bc935797543c743d159c9ee189575c13d77835b8b5f34d64bb"
+    }
+  },
+  "own_fixture": {
+    "kind": "synthetic ordinary FileBytes only",
+    "provider": "synthetic",
+    "collection": "owned-fixture",
+    "account": "synthetic-canary-compatibility",
+    "maximum_payload_bytes": 1048576,
+    "producer_bytes": "three fixed private source constants, each below100bytes",
+    "native_checkpoint_or_saved_credentials": false
+  },
+  "execution": {
+    "driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/root_canary21_final_v1.py",
+      "size": 20055,
+      "sha256": "e1ace04442df911b5473174bb7331f76cb921c7d7d7eaa74422a9ecbcbab04ad"
+    },
+    "separate_targets": [
+      "/home/dandiccf/Storage/ct/cc21-8119e9b5/old-target",
+      "/home/dandiccf/Storage/ct/cc21-8119e9b5/current-target"
+    ],
+    "fixture_work_seconds": 600,
+    "cleanup_reserve_seconds": 45,
+    "clock_starts_after_both_helper_builds": true,
+    "original_clock_renewed": false,
+    "automatic_retries": 0,
+    "provider_actions": false,
+    "credential_access": false,
+    "daemon_or_mount_started": false,
+    "installed_actions": false,
+    "root_result": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/execution-8119e9b5-093a-4b77-bfdc-4c546c56c2f4/root-terminal-result.json",
+    "TMPDIR": "/home/dandiccf/Storage/ct/cc21-8119e9b5/tmp",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/cc21-8119e9b5/tmp",
+    "filesystem_required": "ext4",
+    "maximum_seconds_per_lock_or_build_command": 1800,
+    "lock_or_build_commands": 4,
+    "outer_maximum_work_seconds": 9000,
+    "outer_cleanup_reserve_seconds": 45
+  },
+  "limitations": [
+    "Source-linked exact released tag helper executes, not released normal daemon ELF.",
+    "Synthetic ordinary sealed generation is not encrypted native checkpoint/session/reauthentication or real mounted/installed upgrade.",
+    "No wrong-manifest negative arm is included; exact old refusal is verified by source-specific helper and unchanged before/after snapshot.",
+    "Any failure stops without automatic rerun; existing held21/8 install policy and gate488 remain open."
+  ],
+  "gates_closed": false,
+  "installed_HOLD_lifted": false,
+  "root_public_copy_required_before_execution": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-canary21-offline-compatibility-2026-10-07-8119e9b5.json",
+  "root_outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/execution-8119e9b5-093a-4b77-bfdc-4c546c56c2f4/root-outer-registration-v1.json",
+    "size": 3405,
+    "sha256": "b6089f7356280a2f5435ac7ab379958938abf3998f6f7efe0846d86ddc92c69b"
+  },
+  "compile_bound_correction": "1800 seconds applies separately to each offline lock generation or build command; it is not a total helper-build bound. The fixture600/45 clock starts only after both builds.",
+  "root_outer_terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/execution-8119e9b5-093a-4b77-bfdc-4c546c56c2f4/root-outer-result-v1.json",
+    "size": 1919,
+    "sha256": "f0781528aab0d3c116b8047a7ce503bb308fc497c839cd0e07fc474d8a4e5455"
+  },
+  "outer_original_closed": true,
+  "inner_originals_closed": true,
+  "no_outer_child_started": false,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-canary21-compatibility-preparation-private-v1/final-head-successor-private-v1/execution-8119e9b5-093a-4b77-bfdc-4c546c56c2f4/audit-independent-closed-failure-v1.json",
+    "size": 6306,
+    "sha256": "c31c93a1f1e7a5878da81d61cede20bf4b46033583d2e424203f5be415e0eb8e"
+  },
+  "actual_outcome": {
+    "success": false,
+    "inner_originals": 4,
+    "outer_exit_code": 1,
+    "all_originals_closed": true,
+    "fixture_clock_started": false,
+    "helpers_compiled": false,
+    "failure_boundary": "The offline old-lock command exited0 but generated12 registry versions outside the exact released Canary lock. The unchanged strict registry guard refused before old-compile.",
+    "correction_pending": "Preserve registry versions when adding only the source-linked helper workspace package; prove the method with separate fresh offline lock controls. No rerun of this closed cell.",
+    "provider_actions": false,
+    "installed_changes": false
+  }
+}

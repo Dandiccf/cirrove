@@ -1,0 +1,226 @@
+{
+  "run": "62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f",
+  "state": "closed_readonly_reauthentication_and_active_recovery_passed",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "question": "Inspect persisted result of timed-out login; if unchanged disabledRW and no interrupted marker, supervise person-requested genuine RO reauth, enable and active44/52 exports",
+  "arms": [
+    "one state inspection and user-requested supervised reauthentication; stop if ambiguous persisted state"
+  ],
+  "prediction": "Prior timeout leaves disabledRW; genuine completed login changes only access and sealed session, then active RO recovery preserves exact44/52",
+  "endpoint": "Reduced persisted-state inspection, observed reauth exit, same account/credential/settings, mountedRO EROFS and exact active exports; clean owner closure",
+  "source_head": "e0e7c06fc06c2debd4b2debb566fe730de8aa11d",
+  "actual_package_version": "0.2.0dev.r1017.ga3fa14e-1",
+  "expected_duration_seconds": 3600,
+  "cleanup_reserve_seconds": 45,
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/owner.py"
+  ],
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/ir-62cd9ece",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/ir-62cd9ece",
+  "filesystem": "ext4",
+  "immutable_backing_pins": [
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-return-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c/guest-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c.qcow2",
+      "sha256": "11678c46ab8301da2067e0cfbd9d1b199c968a5374afc70d81c64c29e1bfded0",
+      "size": 39649280,
+      "stat9": [
+        66305,
+        73531397,
+        33152,
+        1000,
+        1000,
+        1,
+        39649280,
+        1791564305795016043,
+        1791564305795016043
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/guest-63bf1f2c-e404-47a9-a318-1ffafbf77b81.qcow2",
+      "sha256": "81d8f53d2f501f1eb4e54d5fa49ec93517ac80b8e40fee4e778f275f49c1f43c",
+      "size": 85196800,
+      "stat9": [
+        66305,
+        19267607,
+        33152,
+        1000,
+        1000,
+        1,
+        85196800,
+        1791547504113129992,
+        1791547504113129992
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/guest-ae484a4d-4a97-4eca-b470-6c270eec8220.qcow2",
+      "sha256": "58c7fa1b752f80e0e6a54de12bd05f26a593b30b8f9cd2b7d8cc0a2247d62551",
+      "size": 85262336,
+      "stat9": [
+        66305,
+        8912918,
+        33152,
+        1000,
+        1000,
+        1,
+        85262336,
+        1791539230485007029,
+        1791539230485007029
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2",
+      "sha256": "d6ec9e817b100515f03349e9ae2dfbd307f894aeb0da583bcc979c31b895e227",
+      "size": 7191658496,
+      "stat9": [
+        66305,
+        69468170,
+        33152,
+        1000,
+        1000,
+        1,
+        7191658496,
+        1791525577178827114,
+        1791525577178827114
+      ]
+    }
+  ],
+  "owner": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/owner.py",
+    "sha256": "e928ad1d82701ef30d17dea082efd7e0ea20926f966ead958b02c734bf6cab42"
+  },
+  "manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/manifest.json",
+    "sha256": "1d8d2b4a7ec4f8c8d5ac2e2451f03efb548449c413a575df13148d28816588ea"
+  },
+  "auth_stream_capture": false,
+  "automatic_retry": false,
+  "original_host_changes": false,
+  "criteria_closed": [],
+  "registered_unix": 1791567573.167934,
+  "tool_pins": {
+    "qemu": {
+      "path": "/usr/bin/qemu-system-x86_64",
+      "sha256": "019b1b48156d0eb84b3042bdab29120a5464b2d6707563858461d6880a491d54"
+    },
+    "qemu_img": {
+      "path": "/usr/bin/qemu-img",
+      "sha256": "451668d2855d188429cf06eeea9a96cde62cf0ef835491be57b4a5f07f1b1410"
+    },
+    "ssh": {
+      "path": "/usr/bin/ssh",
+      "sha256": "95848d6de3e8056a24ab03d3710c43deb39048a0e7ffbfc339b7c768e42573ad"
+    },
+    "foot": {
+      "path": "/usr/bin/foot",
+      "sha256": "81d2fafbea91915da055dbd1e6f368eb92d0409d18e1823420d33b525ca00a47"
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    }
+  },
+  "predecessor_run": "7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c",
+  "new_login_requested_by_person": true,
+  "status": "closed_installed_bundle",
+  "started_unix": 1791567580.736082,
+  "deadline_unix": 1791571180.736082,
+  "closed_unix": 1791567920.0881581,
+  "outcomes_require_individual_records": true,
+  "outcome": {
+    "observed_unix": 1791567880.6473825,
+    "authentication_exit": 0,
+    "same_account_credential_and_all_identity_settings": true,
+    "reauth_preserved_disabled_preference": true,
+    "genuine_access_change": "read_write_to_read_only",
+    "explicit_enable_exit": 0,
+    "normal_installed_daemon_recovery_only": false,
+    "kernel_create_errno": 30,
+    "create_probe_created": false,
+    "active_exports": [
+      {
+        "phase": "active_export",
+        "selected": "sealed",
+        "exit_code": 0,
+        "destination": "/home/tester/cirrove-recovery-62cd9ece/sealed-after-reauth.txt",
+        "command": [
+          "/usr/bin/cirrove",
+          "export-save",
+          "--label",
+          "ICloud-Owned",
+          "--operation",
+          "c9b39dd2-e0e5-45e4-b137-0554f6a18fcb"
+        ],
+        "actual_size": 44,
+        "actual_sha256": "7e630a79286479306a0e19b3a20b29924253b3c707cd8cb28d45a3485ea49472"
+      },
+      {
+        "phase": "active_export",
+        "selected": "working",
+        "exit_code": 0,
+        "destination": "/home/tester/cirrove-recovery-62cd9ece/dirty-after-reauth.txt",
+        "command": [
+          "/usr/bin/cirrove",
+          "export-working",
+          "--active",
+          "--label",
+          "ICloud-Owned",
+          "--file",
+          "876349a9-939f-49a8-b4e1-1860202aa7b2",
+          "--generation",
+          "4"
+        ],
+        "actual_size": 52,
+        "actual_sha256": "24dc6c37d435fabd591e5d4bc8b012f43fbb6f61900e20ab533b57cced8282ff"
+      }
+    ],
+    "working_receipt_selected_generation_confirmed": true,
+    "three_retained_records_byte_equal": true,
+    "final_state": "ready",
+    "final_access": "read_only",
+    "observer_v1_exit": 1,
+    "observer_v1_cause": "observer used WorkingRecovery.id instead of file; stopped before any export",
+    "observer_v2_exit": 0,
+    "provider_mutation_retry": false,
+    "original_host_changed": false,
+    "full_488_closed": false,
+    "full_490_closed": false,
+    "owner_closure_pending": false,
+    "receipts": {
+      "active-readonly-recovery-observation.jsonl": "9bf3ca511471f3ee0117065916177edb1e91fb2c0364d41064fb20096c7e27e6",
+      "active-readonly-recovery-observation-v2.jsonl": "8c94a589617dc8e39816633e0ed38f2672c1ee4b6ad8b13b46bbf9347355af1f",
+      "enable-and-retention-observation.jsonl": "a83acef13fae95e773d60d6b2f1f2c6508e18f41576a21c2f6d77bfdafbaf330"
+    },
+    "owner_closed": true,
+    "all_original_children_reaped_and_absent": true,
+    "immutable_backing_pins_preserved": true
+  },
+  "observer_correction": {
+    "first_observer_exit": 1,
+    "cause": "observer used WorkingRecovery.id instead of public field file",
+    "first_observer_exports_dispatched": false,
+    "corrected_observer_exit": 0,
+    "same_original_vm_window": true,
+    "cloud_mutation_retry": false
+  },
+  "closure": {
+    "native_owner_exit": 0,
+    "all_original_children_reaped_and_absent": true,
+    "child_count": 8,
+    "backing_pin_count_preserved": 4,
+    "strict_fuser_exit": 1
+  },
+  "endpoint_audit": {
+    "checks_passed": 28,
+    "checks_total": 28,
+    "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/audit-independent-active-readonly-recovery-endpoint-v1.json",
+    "sha256": "e8f7c7774bb65e63d1dabf2913873be448957adffa41bec64570c1934f3226bf"
+  },
+  "limits": [
+    "One bounded installed genuine read-only downgrade and active recovery endpoint; no whole488 or490 closure.",
+    "No fresh writable save, natural Apple session expiry or general provider reliability claim.",
+    "Historical timeout and first observer field mismatch remain recorded."
+  ]
+}

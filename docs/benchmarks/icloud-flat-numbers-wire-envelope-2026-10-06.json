@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "status": "transport_correction_complete_project_check_passed_live_acceptance_open",
+  "question": "Does fresh explicit flat Numbers preserve Index/Metadata/Tables paths and all previews under observed PACKAGE outer-component interpretation?",
+  "prediction": "Desired endpoint fails with typed Conflict without a wire envelope, after original source preservation and exactly-once frontier controls; same test must later pass without relaxing V2.",
+  "scope": "Synthetic inferred-model control, not Apple protocol guarantee or live acceptance",
+  "run": "f465fb99-4f9a-4269-b837-5cf24ce83bb2",
+  "arms": [
+    "Uncorrected flat wire with compilable payload-aware begin default",
+    "Corrected explicit flat source with separately bound deterministic wrapped wire"
+  ],
+  "endpoint": "Exact original request/source preserved, exactly-one allocation/body/registration/download, typed PACKAGE completion strict source V2, all original paths and previews returned",
+  "temporary_filesystem": "ext4",
+  "expected_tests": 1,
+  "cloud_calls": 0,
+  "live_acceptance": false,
+  "fixture_source_sha256": "06a590dec71d252191b9c46bf46076e150a1ef5e5d252bb4095ff8070693ab37",
+  "known_failed_live_arm": "icloud-flat-numbers-fresh-public-cli-import-2026-10-06.json",
+  "installed_delivery": "HOLD, unchanged packaged14/7",
+  "baseline": {
+    "exit_code": 101,
+    "elapsed_seconds": 11.321172530995682,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "log_sha256": "2bd4e66ba1c8285938861a036b1667e4f8f75d8d2a850fc6b5ddc98467ed4b85",
+    "actual_tests": 1,
+    "failure_category": "typed Conflict at desired preservation endpoint",
+    "original_source_request_and_frontier_controls_passed": true
+  },
+  "green": {
+    "exit_code": 0,
+    "elapsed_seconds": 12.526932804961689,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 546,
+    "log_sha256": "f3a4ddf5f2306b9bcd73777b3be7d14d47e2f856d7616b38ba7ffa19e178a8b5",
+    "actual_tests": 1,
+    "test_source_unchanged_from_red": true
+  },
+  "corrections": [
+    {
+      "attempt": "green1",
+      "stage": "compile",
+      "issue": "New helper test reused moved JSON value",
+      "resolution": "Clone test JSON only; no product/parser/equality change",
+      "actual_tests": 0
+    },
+    {
+      "attempt": "case-red and case-green",
+      "stage": "fixture setup",
+      "issue": "Anonymous test file adopted with mode0644, refused by budget",
+      "resolution": "Test-only0600 fixture correction; neither attempt is product regression proof"
+    },
+    {
+      "attempt": "icloud-focused",
+      "stage": "old fixture callback",
+      "issue": "Four Flat fixtures used legacy no-payload begin",
+      "resolution": "Update Flat-only synthetic fixtures to payload-aware begin and actual wire sizes; wrapped callback unchanged"
+    },
+    {
+      "attempt": "icloud-focused2",
+      "stage": "fixture setup",
+      "issue": "Two native Flat fixtures adopted mode0644 files",
+      "resolution": "Test-only0600 correction"
+    },
+    {
+      "attempt": "service-allocation",
+      "stage": "compile",
+      "issue": "Equality assertion required unavailable Debug representation",
+      "resolution": "Use same equality predicate without printing representation"
+    },
+    {
+      "attempt": "service-allocation2",
+      "stage": "fixture setup",
+      "issue": "Corruption injection tried writing sealed0400 fixture",
+      "resolution": "Test-only temporarily permit fixture write and restore0400 before worker"
+    },
+    {
+      "attempt": "service-allocation3",
+      "stage": "endpoint correction",
+      "issue": "Journal rejects damaged payload at claim before worker result",
+      "resolution": "Assert actual typed Journal(Corrupt) and zero begin/allocation; do not change product refusal"
+    },
+    {
+      "attempt": "service-packages",
+      "stage": "fixture setup",
+      "issue": "Admission fixture root not private0700",
+      "resolution": "Set test-only directory0700; actual admission remains unchanged"
+    },
+    {
+      "attempt": "completecheck",
+      "stage": "Clippy",
+      "issue": "Nested receipt validation if was collapsible",
+      "resolution": "Equivalent let-chain before complete rerun",
+      "result": {
+        "exit_code": 101,
+        "elapsed_seconds": 10.808657184999902,
+        "original_handle_reaped": true,
+        "sources_unchanged": true,
+        "source_count": 546,
+        "log_sha256": "17277c516866284ac1666c8576d4b414c67bd1110a669f63c6a037bb8fc42ef7"
+      }
+    },
+    {
+      "attempt": "completecheck2",
+      "stage": "workspace service tests",
+      "issue": "Existing retained-status busy-reader control missed initial10-second status publication deadline under full-suite load",
+      "result": {
+        "exit_code": 101,
+        "elapsed_seconds": 192.73652520601172,
+        "original_handle_reaped": true,
+        "sources_unchanged": true,
+        "source_count": 546,
+        "log_sha256": "69491cea356f0e1bc891c867703f36b1311d93574cf9648c96969436f7cf2a5e"
+      },
+      "workspace_service_passed": 511,
+      "workspace_service_failed": 1,
+      "workspace_service_ignored": 29,
+      "code_change": false,
+      "isolated_unchanged_control": {
+        "exit_code": 0,
+        "elapsed_seconds": 39.729991892003454,
+        "original_handle_reaped": true,
+        "sources_unchanged": true,
+        "source_count": 546,
+        "log_sha256": "a618ccc9379219113262d61cccdf7121fd9894757719623eabd5ba58e6e7d71f",
+        "actual_tests": 1,
+        "passed": 1
+      },
+      "resolution": "No timeout or product change; rerun complete command, retaining both failure and isolated result",
+      "causation": "Load sensitivity suspected; not independently established"
+    }
+  ],
+  "suffix_control": {
+    "status": "actual_red_then_green",
+    "question": "Does derived wire preserve exact uppercase .NUMBERS wrapper spelling admitted by public source contract?",
+    "prediction": "Initial helper guard fails because it only accepts lowercase suffix; same control must pass after case-insensitive suffix match without changing root bytes.",
+    "filter": "flat_wire_preserves_uppercase_destination_wrapper",
+    "expected_tests": 1,
+    "cloud_calls": 0,
+    "baseline": {
+      "exit_code": 101,
+      "elapsed_seconds": 1.8261528949951753,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "95c3e9a4549ea664fbb59376f010253d54bf8bb5f79dcccba944dbe6af9a4986",
+      "actual_tests": 1
+    },
+    "green": {
+      "exit_code": 0,
+      "elapsed_seconds": 1.8043124630348757,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "d68b0bb7dab6163636a619abd73499ba24f4cf34e52235f258bf561473404b3b",
+      "actual_tests": 1
+    },
+    "test_body_unchanged_from_actual_red": true
+  },
+  "focused_controls": {
+    "icloud-focused3": {
+      "exit_code": 0,
+      "elapsed_seconds": 5.968715527036693,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "ee71e3db85322f50c1248bfab3f49c1f968d38fee9ecae83a6b13b70e7db4f49",
+      "actual_passed": 262,
+      "actual_ignored": 0
+    },
+    "service-allocation4": {
+      "exit_code": 0,
+      "elapsed_seconds": 1.1402582679875195,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "342f26461606a07465fb1aa26a5fd8bd6de4c192981793b714d83735ce937ddb",
+      "actual_passed": 8,
+      "actual_ignored": 1
+    },
+    "service-packages2": {
+      "exit_code": 0,
+      "elapsed_seconds": 7.1328298969892785,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "1c2ee0cae04bdfc88abd752b623fa36bfd08ccdd5d81bdc1107553be7baa6c6e",
+      "actual_passed": 7,
+      "actual_ignored": 0
+    }
+  },
+  "actual_apple_export_offline": {
+    "result": {
+      "exit_code": 0,
+      "elapsed_seconds": 10.581388793012593,
+      "original_handle_reaped": true,
+      "sources_unchanged": true,
+      "source_count": 546,
+      "log_sha256": "bc8b44ad43d16cd0b6fd34a0343699f9badef8a903f73b3ba08b13b3330d675e"
+    },
+    "actual_tests": 1,
+    "source_size": 138945,
+    "source_sha256": "b880a3a3a5bfac54957a4b89dfa44e83dc56a5f8fa95cb29d094ade81aa91cae",
+    "source_v2_sha256": "ac93db9418ab5e9eb0f6d88564171ca9640abf09597136d86ddca6440b35b80c",
+    "wire_size": 141475,
+    "wire_sha256": "8d6c4d202c8e84c6fe12fb78ea14ae81f2ca8aad0a027fd501dad4bc93048a90",
+    "source_unchanged": true,
+    "source_v2_unchanged": true,
+    "deterministic_two_derivations": true,
+    "cloud_calls": 0,
+    "temporary_private_test_removed_after_original_handle_reaped": true,
+    "apple_numbers_open": false
+  },
+  "checkpoint_policy": {
+    "fresh_flat_package_version": 2,
+    "wire_required": true,
+    "wrapped_version": 1,
+    "wrapped_serialization_unchanged": true,
+    "legacy_flat_package_transport_mutations_refused": [
+      "allocate",
+      "body",
+      "register"
+    ],
+    "legacy_flat_package_inspection_supported": true,
+    "verified_existing_replacement_handoff_recovery_preserved": true,
+    "valid_shape_digest_or_size_tamper_detected_at_stream_rederivation": true
+  },
+  "release_criteria_closed": 1,
+  "release_criteria_open": 5,
+  "complete_project_check": {
+    "exit_code": 0,
+    "elapsed_seconds": 670.6070548450225,
+    "original_handle_reaped": true,
+    "sources_unchanged": true,
+    "source_count": 546,
+    "log_sha256": "8011608c7d86e785fb86def8c5748e403281ac635c774f7a49160fe1f88c7140",
+    "command": [
+      "bash",
+      "scripts/check.sh"
+    ],
+    "temporary_filesystem": "ext4",
+    "display_scenarios_not_run": true,
+    "actual_kernel_fuse_controls_run": true,
+    "source_pin_scope": "tracked crates/scripts/Cargo/toolchain/translation/policy files plus new wire module"
+  },
+  "installed_preservation": {
+    "version": 1,
+    "installed_actions": false,
+    "all_19_packaged_files_unchanged": true,
+    "unit_unchanged": true,
+    "process_identity_unchanged": true,
+    "home_shadow_absent": true,
+    "recorded_at": 1791273660.8139045
+  },
+  "next_live_arm": {
+    "status": "private_source_draft_syntax_checked_not_executed",
+    "fresh_run_required": true,
+    "old_failed_operation_remains_closed": true,
+    "normal_roles_require_fresh_build_and_pins": true,
+    "stdout_stderr_separation_required": true
+  }
+}

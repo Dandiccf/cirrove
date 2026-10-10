@@ -356,6 +356,169 @@ fn a_full_budget_and_a_full_disk_are_reported_as_different_problems() {
     assert!(j.working_file(working.id).unwrap().dirty);
 }
 
+// Optional extension of the legacy full-device fixture. Validate both destinations
+// before creating the journal or ballast; never guess a recovery path on this host.
+fn full_disk_export_directory(root: &Path) -> Option<std::path::PathBuf> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let destination =
+        std::env::var_os("CIRROVE_FULL_DISK_EXPORT_DIR").map(std::path::PathBuf::from)?;
+    for path in [root, destination.as_path()] {
+        assert!(
+            path.is_absolute(),
+            "full-disk fixture paths must be absolute"
+        );
+        assert_eq!(
+            path.canonicalize().unwrap(),
+            path,
+            "use canonical fixture paths without symlinks"
+        );
+        let metadata = std::fs::symlink_metadata(path).unwrap();
+        assert!(metadata.is_dir());
+        assert_eq!(
+            metadata.uid(),
+            std::fs::metadata("/proc/self").unwrap().uid()
+        );
+        assert_eq!(
+            metadata.permissions().mode() & 0o077,
+            0,
+            "fixture directories must be private"
+        );
+        let file = std::fs::File::open(path).unwrap();
+        let stats = rustix::fs::fstatfs(&file).unwrap();
+        assert_ne!(
+            stats.f_type,
+            libc::FUSE_SUPER_MAGIC,
+            "never fill or export through a cloud mount"
+        );
+        assert_ne!(
+            stats.f_type,
+            libc::TMPFS_MAGIC,
+            "use a disk-backed fixture, not tmpfs"
+        );
+    }
+    assert_ne!(
+        std::fs::metadata(root).unwrap().dev(),
+        std::fs::metadata(&destination).unwrap().dev(),
+        "recovery exports require a different filesystem from the full device"
+    );
+    let device = rustix::fs::fstatfs(std::fs::File::open(root).unwrap()).unwrap();
+    assert!(
+        u128::from(device.f_blocks) * u128::try_from(device.f_bsize).unwrap() <= 512 * 1024 * 1024,
+        "recovery validation may fill only a disposable filesystem of at most 512 MiB"
+    );
+    assert!(
+        std::fs::read_dir(root).unwrap().next().is_none(),
+        "use a fresh empty fixture directory"
+    );
+    let directory = destination.join(format!("full-disk-recovery-{}", uuid::Uuid::new_v4()));
+    cirrove_service::private_dir(&directory).unwrap();
+    Some(directory)
+}
+
+// Refill only this fixture's ballast: a failed journal transaction or the old
+// probe's unlink can have freed blocks since the initial full-device check.
+// Leave each boundary probe present until after export, so the proof itself does
+// not return any allocated block to the filesystem before recovery starts.
+fn confirm_full_device(root: &Path, ballast: &Path, probe_name: &str) -> anyhow::Result<()> {
+    use std::io::Write;
+    let mut sink = std::fs::OpenOptions::new().append(true).open(ballast)?;
+    for size in [4096, 512, 1] {
+        let block = vec![0u8; size];
+        loop {
+            match sink.write_all(&block) {
+                Ok(()) => (),
+                Err(error) if error.raw_os_error() == Some(libc::ENOSPC) => break,
+                Err(error) => return Err(error.into()),
+            }
+        }
+    }
+    let _ = sink.sync_all();
+    drop(sink);
+    let result = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(root.join(probe_name))
+        .and_then(|mut file| {
+            file.write_all(&[0])?;
+            file.sync_all()
+        });
+    anyhow::ensure!(
+        result.as_ref().err().and_then(|error| error.raw_os_error()) == Some(libc::ENOSPC),
+        "source filesystem is not independently confirmed full at export boundary"
+    );
+    Ok(())
+}
+
+fn export_full_disk_survivors(
+    journal: &UploadJournal,
+    saved: uuid::Uuid,
+    working: uuid::Uuid,
+    destination: &Path,
+    expected_working: &[u8],
+    root: &Path,
+    ballast: &Path,
+) -> anyhow::Result<serde_json::Value> {
+    use sha2::Digest;
+    let snapshot = |journal: &UploadJournal| -> anyhow::Result<serde_json::Value> {
+        Ok(serde_json::json!({
+            "working": journal.working_files()?,
+            "uploads": journal.list(0, 200)?,
+            "mutations": journal.list_mutations(0, 200)?,
+        }))
+    };
+    let before = snapshot(journal)?;
+    let record = journal.working_file(working)?;
+    anyhow::ensure!(
+        record.dirty,
+        "the retained working version must remain dirty"
+    );
+    let expected = journal.read_working(working, 0, 8192)?;
+    anyhow::ensure!(
+        expected == expected_working,
+        "retained working bytes differ from the independently maintained successful-write model"
+    );
+    anyhow::ensure!(
+        expected != b"changed!",
+        "the newer working version must be distinct from the sealed save"
+    );
+    let cancel = cirrove_core::CancellationToken::new();
+    let sealed_path = destination.join("sealed-copy");
+    confirm_full_device(root, ballast, "sealed-export-enospc-probe")?;
+    let sealed = journal
+        .local_export_source(saved)?
+        .copy_to(&sealed_path, &cancel, |_| {})?;
+    anyhow::ensure!(sealed.operation == saved && sealed.destination == sealed_path);
+    anyhow::ensure!(sealed.size == 8);
+    anyhow::ensure!(std::fs::read(&sealed_path)? == b"changed!");
+    anyhow::ensure!(sealed.sha256 == hex::encode(sha2::Sha256::digest(b"changed!")));
+    let working_path = destination.join("working-copy");
+    confirm_full_device(root, ballast, "working-export-enospc-probe")?;
+    let prepared = journal
+        .working_export_source(working, record.generation)?
+        .prepare_copy(&working_path, &cancel, |_| {})?;
+    let copied = journal.verify_working_export(prepared)?.publish(&cancel)?;
+    anyhow::ensure!(copied.source.file == working && copied.source.generation == record.generation);
+    anyhow::ensure!(
+        copied.destination == working_path && copied.source.size == expected.len() as u64
+    );
+    anyhow::ensure!(copied.source.recorded_size == record.node.size);
+    anyhow::ensure!(std::fs::read(&working_path)? == expected);
+    anyhow::ensure!(copied.sha256 == hex::encode(sha2::Sha256::digest(&expected)));
+    anyhow::ensure!(
+        snapshot(journal)? == before,
+        "recovery changed the working records or queues"
+    );
+    Ok(serde_json::json!({
+        "sealed": sealed,
+        "working": copied,
+        "journal_unchanged": true,
+        "performed_before_freeing_ballast": true,
+        "sealed_boundary_errno": libc::ENOSPC,
+        "working_boundary_errno": libc::ENOSPC,
+        "independent_working_model_verified": true,
+    }))
+}
+
 /// A constructed `io::Error` shows the mapping from ENOSPC to `DeviceFull`
 /// exists. It cannot show that a real full filesystem reaches that mapping,
 /// because the path a save actually takes is chosen by the journal and not by
@@ -364,12 +527,17 @@ fn a_full_budget_and_a_full_disk_are_reported_as_different_problems() {
 ///
 /// Ignored by default: it needs its own filesystem, since it deliberately
 /// consumes every free block. See docs/benchmarks/full-disk-journal-errors.json.
+/// Set CIRROVE_FULL_DISK_EXPORT_DIR to an existing private canonical directory
+/// on a different disk-backed filesystem to also require actual recovery exports
+/// while the source filesystem remains full. Without it, legacy checks still run;
+/// that invocation is not evidence for export-on-full-device recovery.
 #[test]
 #[ignore = "set CIRROVE_FULL_DISK_DIR to a directory on a small, disposable filesystem"]
 fn a_genuinely_full_filesystem_explains_what_to_free() {
     let Some(root) = std::env::var_os("CIRROVE_FULL_DISK_DIR").map(std::path::PathBuf::from) else {
         panic!("CIRROVE_FULL_DISK_DIR is required; this test fills the filesystem it names");
     };
+    let export_directory = full_disk_export_directory(&root);
     let mut report = serde_json::Map::new();
 
     // A sealed payload made while there is still room, so that the preservation
@@ -381,7 +549,11 @@ fn a_genuinely_full_filesystem_explains_what_to_free() {
     j.write_working(working.id, 0, b"changed!").unwrap();
     let saved = j.seal_working(working.id).unwrap().unwrap();
     assert_eq!(payload(&j, saved.id), b"changed!");
-    j.write_working(working.id, 0, b"newer".as_slice()).unwrap();
+    let (written, _) = j.write_working(working.id, 0, b"newer".as_slice()).unwrap();
+    // Independent expected bytes, fixed before the device is filled. Do not
+    // derive the export oracle from whatever happens to survive a refusal.
+    assert_eq!(written, 5);
+    let mut expected_working = b"newered!".to_vec();
 
     // Fill it. Chunks shrink so the last free block is consumed, not merely
     // most of them: a filesystem with one block left is not the one under test.
@@ -421,18 +593,22 @@ fn a_genuinely_full_filesystem_explains_what_to_free() {
     // The edit that has nowhere to go.
     let mut first: Option<JournalError> = None;
     let mut steps = vec![];
-    for (name, outcome) in [
-        (
-            "write_working",
-            j.write_working(working.id, 0, b"after the disk filled")
-                .map(|_| ()),
-        ),
-        (
-            "truncate_working",
-            j.truncate_working(working.id, 4096).map(|_| ()),
-        ),
-        ("seal_working", j.seal_working(working.id).map(|_| ())),
-    ] {
+    for name in ["write_working", "truncate_working", "seal_working"] {
+        // Evaluate lazily: stop at the first refusal rather than executing all
+        // three calls while constructing an array before the loop starts.
+        let outcome = match name {
+            "write_working" => j
+                .write_working(working.id, 0, b"after the disk filled")
+                .map(|(count, _)| {
+                    let count = count as usize;
+                    expected_working.resize(expected_working.len().max(count), 0);
+                    expected_working[..count].copy_from_slice(&b"after the disk filled"[..count]);
+                }),
+            "truncate_working" => j.truncate_working(working.id, 4096).map(|_| {
+                expected_working.resize(4096, 0);
+            }),
+            _ => j.seal_working(working.id).map(|_| ()),
+        };
         match outcome {
             Ok(()) => steps.push(serde_json::json!({ "step": name, "ok": true })),
             Err(error) => {
@@ -464,6 +640,33 @@ fn a_genuinely_full_filesystem_explains_what_to_free() {
     }));
     report.insert("readable_while_full".into(), while_full.is_ok().into());
 
+    // Keep the ballast throughout both real exports. Record failure before
+    // releasing this fixture's ballast so a failed validation still reports why.
+    let exports = export_directory.as_ref().map(|directory| {
+        export_full_disk_survivors(
+            &j,
+            saved.id,
+            working.id,
+            directory,
+            &expected_working,
+            &root,
+            &ballast,
+        )
+    });
+    report.insert(
+        "recovery_exports_requested".into(),
+        exports.is_some().into(),
+    );
+    match &exports {
+        Some(Ok(receipts)) => {
+            report.insert("recovery_exports".into(), receipts.clone());
+        }
+        Some(Err(error)) => {
+            report.insert("recovery_export_error".into(), error.to_string().into());
+        }
+        None => (),
+    }
+
     std::fs::remove_file(&ballast).unwrap();
     assert_eq!(
         payload(&j, saved.id),
@@ -477,6 +680,10 @@ fn a_genuinely_full_filesystem_explains_what_to_free() {
     report.insert("payload_survived".into(), true.into());
 
     println!("FULL_DISK_RESULT {}", serde_json::Value::Object(report));
+
+    if let Some(exports) = exports {
+        exports.expect("both retained versions must export while the source device remains full");
+    }
 
     // The claim the acceptance box actually makes.
     let message = format!("{first}");
@@ -895,4 +1102,205 @@ fn failed_and_conflicted_saves_are_counted_and_the_in_flight_ones_are_not() {
         "the third is uploading, in flight, and is not counted: {:?}",
         c.state
     );
+}
+
+fn conflicted_save(j: &mut UploadJournal) -> (WorkingFile, uuid::Uuid) {
+    let working = j
+        .create_working(scope(), node(8), false, b"original".as_slice())
+        .unwrap();
+    j.write_working(working.id, 0, b"local-v1").unwrap();
+    let save = j.seal_working(working.id).unwrap().unwrap();
+    let attempt = j.claim_next().unwrap().unwrap().attempt.unwrap();
+    j.stop_attempt(save.id, attempt, UploadState::Conflict)
+        .unwrap();
+    (j.working_file(working.id).unwrap(), save.id)
+}
+
+#[test]
+fn keep_both_rolls_back_copy_namespace_and_resolution_together() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut j = open(&root, 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    let fault = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
+    fault.execute_batch("CREATE TRIGGER refuse_resolution BEFORE UPDATE OF state ON uploads WHEN NEW.state='resolved' BEGIN SELECT RAISE(ABORT,'synthetic resolution failure'); END;").unwrap();
+    assert!(
+        j.keep_both(refused, "root".into(), "copy.txt".into())
+            .is_err()
+    );
+    assert_eq!(
+        j.list(0, 10).unwrap().len(),
+        1,
+        "no half-published rescue upload"
+    );
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+    assert_eq!(j.working_file(working.id).unwrap().node, working.node);
+    assert_eq!(payload(&j, refused), b"local-v1");
+    fault
+        .execute_batch("DROP TRIGGER refuse_resolution;")
+        .unwrap();
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
+    assert_eq!(copy.working_file, Some(working.id));
+    assert!(
+        j.keep_both(refused, "root".into(), "duplicate.txt".into())
+            .is_err()
+    );
+    drop(fault);
+    drop(j);
+    let j = open(&root, 4096);
+    assert_eq!(j.list(0, 10).unwrap().len(), 2);
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Resolved);
+    assert_eq!(payload(&j, copy.id), b"local-v1");
+    let rescued = j.working_file(working.id).unwrap();
+    assert_eq!(rescued.node.name, "copy.txt");
+    assert_eq!(rescued.node.id, working.node.id);
+    assert!(rescued.initial_remote.is_none());
+    let cloud = j
+        .namespace_by_remote(&scope(), "remote-file")
+        .unwrap()
+        .unwrap();
+    assert!(cloud.follows_remote);
+    assert_ne!(cloud.node.id, rescued.node.id);
+    let listing = j
+        .namespace_overlay(&scope(), "root", vec![node(8)])
+        .unwrap();
+    assert_eq!(listing.nodes.len(), 2);
+    assert!(listing.conflicts.is_empty());
+}
+
+#[test]
+fn keep_both_rescues_newer_unsealed_bytes_without_losing_the_refused_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
+    assert_eq!(payload(&j, refused), b"local-v1");
+    assert_eq!(payload(&j, copy.id), b"local-v2");
+    assert_eq!(j.read_working(working.id, 0, 8).unwrap(), b"local-v2");
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Resolved);
+    assert_eq!(j.claim_next().unwrap().unwrap().id, copy.id);
+}
+
+#[test]
+fn keep_both_refuses_occupied_or_original_slots_without_resolving() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 4096);
+    let (_, refused) = conflicted_save(&mut j);
+    let mut occupied = node(0);
+    occupied.name = "copy.txt".into();
+    j.create_working(scope(), occupied, true, b"".as_slice())
+        .unwrap();
+    for name in ["copy.txt", "COPY.TXT", &node(8).name] {
+        assert!(j.keep_both(refused, "root".into(), name.into()).is_err());
+        assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+        assert_eq!(j.list(0, 10).unwrap().len(), 1);
+    }
+}
+
+#[test]
+fn keep_both_rescues_the_last_sealed_generation_and_restarts_without_replaying_earlier_saves() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut j = open(&root, 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    let second = j.seal_working(working.id).unwrap().unwrap();
+    j.write_working(working.id, 0, b"local-v3").unwrap();
+    let third = j.seal_working(working.id).unwrap().unwrap();
+    assert!(j.claim_next().unwrap().is_none());
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
+    assert_eq!(payload(&j, copy.id), b"local-v3");
+    assert_eq!(payload(&j, refused), b"local-v1");
+    assert_eq!(payload(&j, second.id), b"local-v2");
+    for id in [refused, second.id, third.id] {
+        assert_eq!(j.get(id).unwrap().state, UploadState::Resolved);
+    }
+    assert_eq!(j.working_file(working.id).unwrap().latest, Some(copy.id));
+    drop(j);
+    let mut j = open(&root, 4096);
+    let claimed = j.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, copy.id);
+    assert_eq!(
+        claimed.intent,
+        UploadIntent::Create {
+            parent: "root".into(),
+            name: "copy.txt".into()
+        }
+    );
+    assert!(j.claim_next().unwrap().is_none());
+    assert!(
+        j.namespace_by_remote(&scope(), "remote-file")
+            .unwrap()
+            .unwrap()
+            .follows_remote
+    );
+}
+
+#[test]
+fn keep_both_rolls_back_every_generation_when_later_resolution_fails() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut j = open(&root, 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    let next = j.seal_working(working.id).unwrap().unwrap();
+    let fault = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
+    fault.execute_batch(&format!("CREATE TRIGGER refuse_tail BEFORE UPDATE OF state ON uploads WHEN OLD.id='{}' AND NEW.state='resolved' BEGIN SELECT RAISE(ABORT,'synthetic tail failure'); END;", next.id)).unwrap();
+    assert!(matches!(
+        j.keep_both(refused, "root".into(), "copy.txt".into()),
+        Err(JournalError::Storage)
+    ));
+
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+    assert_eq!(j.get(next.id).unwrap().state, UploadState::Pending);
+    assert_eq!(j.list(0, 10).unwrap().len(), 2);
+    assert_eq!(j.working_file(working.id).unwrap().latest, Some(next.id));
+    assert_eq!(j.working_file(working.id).unwrap().node.name, node(8).name);
+    assert!(j.claim_next().unwrap().is_none());
+    assert_eq!(payload(&j, next.id), b"local-v2");
+    fault.execute_batch("DROP TRIGGER refuse_tail;").unwrap();
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
+    assert_eq!(payload(&j, copy.id), b"local-v2");
+}
+
+#[test]
+fn keep_both_refuses_external_dependents_before_sealing_or_releasing_any_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    let next = j.seal_working(working.id).unwrap().unwrap();
+    j.write_working(working.id, 0, b"local-v3").unwrap();
+    let other = j
+        .enqueue(
+            scope(),
+            UploadIntent::Create {
+                parent: "root".into(),
+                name: "other.txt".into(),
+            },
+            b"else".as_slice(),
+        )
+        .unwrap();
+    let dependent = j
+        .enqueue_after_all(other.id, &[next.id], b"dependent".as_slice())
+        .unwrap();
+    assert!(
+        j.keep_both(refused, "root".into(), "copy.txt".into())
+            .is_err()
+    );
+    assert_eq!(j.list(0, 10).unwrap().len(), 4);
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+    assert_eq!(j.get(next.id).unwrap().state, UploadState::Pending);
+    assert_eq!(j.get(dependent.id).unwrap().state, UploadState::Pending);
+    assert!(j.working_file(working.id).unwrap().dirty);
+    assert_eq!(j.read_working(working.id, 0, 8).unwrap(), b"local-v3");
 }

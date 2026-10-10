@@ -1,0 +1,357 @@
+{
+  "version": 1,
+  "run": "ac218c35-1985-4dbd-a844-55a9e175756a",
+  "registered_at": "2026-10-04T21:26:01.489216+00:00",
+  "question": "Does the actual Pages desktop import publish on its original warm public mount and retain matching mounted/cloud V2 contents, with exact Apple Pages open?",
+  "status": "Final private runtime locally checked; human chooser availability and fresh finite live window still pending; no GUI, daemon or cloud dispatch",
+  "live_executed": false,
+  "cloud_mutated": false,
+  "all_full_icloud_gates_open": true,
+  "max_live_seconds": 1800,
+  "live_readiness_blockers": [
+    "Human actual GTK chooser availability",
+    "Fresh finite grant and independent freshness/installed identity checks immediately before first dispatch",
+    "Actual public job, original warm mount and typed independent cloud readback plus Apple Pages open"
+  ],
+  "source_semantic_v2": {
+    "sha256": "b3b18c0379a3d7ccf802221d1a2bae8f4078e97698003721f6779cea4e2c02f6",
+    "entries": 10,
+    "files": 7,
+    "expanded_bytes": 98835
+  },
+  "offline_validation": {
+    "registered_before_execution": true,
+    "executed": true,
+    "question": "Do original warm-mount identity and a prearmed actual public GUI-job observer refuse remount/replacement, missing witness, expiry, duplicate dispatch and wrong-PID abort?",
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/controller-draft-v3.py",
+      "size": 62204,
+      "sha256": "fdd4ab7aca3c7ccf6e4e8f4595e5d8dfe524fddd9fd7b188aad7b48f6d33196b"
+    },
+    "tests": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/test_controller_offline-v3.py",
+      "size": 11402,
+      "sha256": "62a3265914b81001ca9d1ae689df6c048984a72a100b863a8a1676b9990032f2"
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "size": 14424,
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    },
+    "expected_test_names": [
+      "test_mountinfo_records_actual_identity_fields",
+      "test_mountinfo_wrong_source_refuses",
+      "test_mountinfo_missing_or_duplicate_target_refuses",
+      "test_same_directory_on_remounted_mount_is_refused",
+      "test_mount_device_root_fs_source_namespace_changes_refuse",
+      "test_warm_directory_replacement_refuses",
+      "test_daemon_or_boot_identity_change_refuses",
+      "test_collector_ready_requires_bound_live_identity_before_permit",
+      "test_collector_dead_changed_account_or_late_ready_refuses",
+      "test_fast_completed_actual_public_job_is_accepted_without_history",
+      "test_failed_uncertain_or_changed_public_job_receipt_refuses",
+      "test_expired_or_wrong_scope_authorization_refuses",
+      "test_duplicate_attempt_refuses_before_durable_write",
+      "test_exact_abort_signals_only_owned_pid",
+      "test_abort_changed_start_ticks_never_signals",
+      "test_prearmed_collector_captures_fast_actual_public_completion",
+      "test_completed_history_without_public_job_never_proves_gui"
+    ],
+    "arms": [
+      {
+        "name": "mount-identity-omission-first",
+        "source": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/controller-mount-identity-omission-v1.py",
+          "size": 62182,
+          "sha256": "a15b34e633dd411c56d893b7816df967ff83dc7e49af59bc26152948dd4741c4"
+        },
+        "exact_test": "Offline.test_same_directory_on_remounted_mount_is_refused",
+        "prediction": "One selected test fails with expected Refusal not raised, demonstrating the omission is detected; all operational observations are synthetic."
+      },
+      {
+        "name": "intact-final-17",
+        "source": {
+          "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/controller-draft-v3.py",
+          "size": 62204,
+          "sha256": "fdd4ab7aca3c7ccf6e4e8f4595e5d8dfe524fddd9fd7b188aad7b48f6d33196b"
+        },
+        "prediction": "All 17 actual selected controls pass; original source/tests remain byte-identical."
+      }
+    ],
+    "limitations": [
+      "private controller instrumentation, no production defect or real-provider reliability claim",
+      "no mounts, native UI, signals, credentials, provider requests or real runtime state are used",
+      "one omission then one intact suite; no timing/repeatability claim"
+    ],
+    "registered_public_sha256_before_execution": "0f16ecd1f532bea1dd021250c9bb686e6c7c85f2c266e27f3fd2eee693eb602c",
+    "results": [
+      {
+        "arm": "mount-identity-omission-first",
+        "exit_code": 1,
+        "expected_endpoint_met": true,
+        "canonical_source_and_tests_unchanged": true,
+        "elapsed_seconds": 0.11566054201102816,
+        "log_sha256": "a532e38b952c9856c58dfd195482b2799ba676b5aa91841eac89bc992d32ef88",
+        "actual_test_count": 1,
+        "cloud_dispatched": false
+      },
+      {
+        "arm": "intact-final-17",
+        "exit_code": 0,
+        "expected_endpoint_met": true,
+        "canonical_source_and_tests_unchanged": true,
+        "elapsed_seconds": 0.11550157301826403,
+        "log_sha256": "5f48bb99002db9ad48d26de659596d101b874aeef529acb5ca4bccf01316facd",
+        "actual_test_count": 17,
+        "cloud_dispatched": false
+      }
+    ],
+    "conclusion": "Exact omission control fails as predicted; intact controller executes all 17 named synthetic controls and passes. No live acceptance established."
+  },
+  "status_updated_at": "2026-10-04T21:42:45.701695+00:00",
+  "typed_metadata_helper_validation": {
+    "registered_at": "2026-10-04T21:31:54.412608+00:00",
+    "executed": true,
+    "question": "Does actual full DriveEntry binding preserve optional fields and refuse scope/revision/deadline/settings/source substitutions before using the existing verifier?",
+    "prediction": "All five named synthetic guard tests execute and pass; source/settings/subscope/deadline substitutions refuse; optional fields are retained without claiming that nonempty nested items are readable.",
+    "selector": "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::",
+    "expected_count": 5,
+    "exact_test_names": [
+      "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_registration_binds_two_owned_arm_shapes",
+      "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_registration_rejects_expired_or_excessive_window",
+      "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_actual_entries_preserve_optional_metadata",
+      "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_actual_entries_reject_identity_and_revision_changes",
+      "validation::icloud_account::owned_package::fixture_verify::native_import_fixture::tests::native_fixture_source_and_settings_guards_refuse_changed_bytes"
+    ],
+    "private_patch_pins": {
+      "production": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/typed-fixture-helper-v1/production.patch",
+        "sha256": "34261f17a4cca37d46fd46185d38921bcbae281136f5dedce5395160e66d4eb9",
+        "size": 16306
+      },
+      "tests": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/typed-fixture-helper-v1/tests.patch",
+        "sha256": "32aaa0464f9f3400b3fefe72280a8fc20cd795d04ce41cc03e2ffbe79308d3c9",
+        "size": 10594
+      }
+    },
+    "scope": "Feature-only actual metadata acquisition and existing source/current verifier for two concrete owned arm shapes; no new provider API or GUI path.",
+    "limits": [
+      "No session/provider/daemon/GUI call executed; no tracked edits",
+      "Operation IDs are registered controller provenance, not independently journal-proved by helper",
+      "Caller must separately prove stopped ownership, durable exact receipt/publication/queue/namespace",
+      "Parent creator Node binds identity/name/root; actual parent ETag may legitimately advance",
+      "Document metadata exact to typed receipt and includes actual optional fields",
+      "No new scanner/provider API, no GUI fidelity/editor-save/installed gate claim"
+    ],
+    "omission_experiment_scheduled": false,
+    "omission_note": "No demonstrated production defect/fix; focused negative input controls validate new instrumentation. Extra omission rebuild is not required before first integration.",
+    "actual_result": {
+      "tests": 5,
+      "passed": 5,
+      "failed": 0,
+      "log_sha256": "d154269b12812ebf80896df82872598f5911a8fcb54d7b7fcf52e33fca055f83",
+      "source_unchanged": true,
+      "same_elf_native_recovery_tests": 5,
+      "elf_sha256": "bf16b07151e662db8480dc20e777286baca2ecf6d91e02eaad89f3e69c38a16c",
+      "handoff_sha256": "069bb7eb6130ce49c64100da75ea967de8d28dc33ddd1f1eb02944c7ffa6b932",
+      "no_compiler_warnings": true,
+      "initial_authoring_failure_retained": {
+        "correction": "Only synthetic semantic-v2 fixture entries1->2: core requires root entry beyond file count. First actual5 outcomes2pass/3fail are fixture-authoring errors, no product red.",
+        "before_sha256": "b25f6d6d43586e7a520b1cf1355515b104e8851f97fc99983df832fbfd18f695",
+        "after_sha256": "b05ff6709f4279047c182872f5e0aed1f82b4f0a58e02282fd94061288a9c936",
+        "original_file_copy": "tests-before-semantic-fixture-correction-v1.rs",
+        "literal_diff": "- entries: 1,\n+ entries: 2,",
+        "first_runtime_log_sha256": "f5f6b808167f3eddc9618eacbae571e14744b03a359612b5b722025e6b6ef121"
+      },
+      "omission_executed": false
+    }
+  },
+  "v4_offline_preregistration": {
+    "registered_at": "2026-10-04T22:04:12.617370+00:00",
+    "executed": true,
+    "cloud_mutated": false,
+    "question": "Does the Pages controller use exact stopped journal Nodes and actual warm-mount archive input with narrow metadata observer output binding, while retaining all17 prior lifecycle/mount/public-status controls?",
+    "prediction": "All8 new metadata mock tests pass, refusing foreign scope, revision, producer, operation, source and unsupported proof claims; all17 existing controls pass against v4. No provider/GUI/state/process operations occur.",
+    "controller_sha256": "80d908a6a6baffa8dd8a0de62819827f1c492132fb5467e4da00a90b6afc988b",
+    "metadata_controls_sha256": "95d04f88cc913433703102b0ab2af1a1e2c8e5507acc43af570382ceaa2313f5",
+    "prior_controls_sha256": "62a3265914b81001ca9d1ae689df6c048984a72a100b863a8a1676b9990032f2",
+    "proposal_sha256": "50b00ae61f4041552ea7e5fb383bedcdb204155f3f08ce46847ca21c4220cf6e",
+    "expected_metadata_tests": 8,
+    "expected_prior_controls": 17,
+    "endpoint": "Exact8+17 names execute against immutable v4 privatecontroller; all mocked only.",
+    "execution_constraint": "Root sole lease only after whole scripts/check.sh terminal; no concurrent compile/tests.",
+    "omission_experiment_executed": false,
+    "limits": [
+      "No actual desktop chooser, mounted read, cloud metadata, or GUI fidelity claim.",
+      "New observer ELF/source bindings and finite runtime remain missing."
+    ],
+    "result": {
+      "verified_at": "2026-10-04T22:12:22.892016+00:00",
+      "metadata_tests_passed": 8,
+      "prior_controls_passed": 17,
+      "sources_unchanged": true,
+      "arms": {
+        "root-v4-metadata-eight": {
+          "exit_code": 0,
+          "source_unchanged": true,
+          "duration_seconds": 0.11506541300332174,
+          "log_sha256": "14d0f9b2b53f570d0af53f5bc2495394b47067b7731646dd445b9d94d1955a7d",
+          "expected_tests": 8,
+          "cloud_mutated": false,
+          "actual_test_names": [
+            "test_existing_registration_is_identical_or_refused_without_overwrite",
+            "test_observer_accepts_actual_acquisition_and_distinct_raw_cloud_zip",
+            "test_observer_command_and_process_owner_use_same_typed_flag_and_digest",
+            "test_observer_refuses_foreign_acquisition_scope_producer_or_metadata",
+            "test_observer_refuses_foreign_registration_source_and_unproved_journal_gui_trash",
+            "test_observer_refuses_wrong_current_identity_revision_semantics_or_claims",
+            "test_registration_refuses_wrong_capture_and_stopped_operation",
+            "test_registration_uses_exact_journal_nodes_and_independent_warm_archive"
+          ],
+          "actual_tests": 8
+        },
+        "root-v4-prior-seventeen": {
+          "exit_code": 0,
+          "source_unchanged": true,
+          "duration_seconds": 0.11552270999527536,
+          "log_sha256": "90c9747277513660636621610f25ad23962c8d019907b205a29f2b958496c336",
+          "expected_tests": 17,
+          "cloud_mutated": false,
+          "actual_test_names": [
+            "test_abort_changed_start_ticks_never_signals",
+            "test_collector_dead_changed_account_or_late_ready_refuses",
+            "test_collector_ready_requires_bound_live_identity_before_permit",
+            "test_completed_history_without_public_job_never_proves_gui",
+            "test_daemon_or_boot_identity_change_refuses",
+            "test_duplicate_attempt_refuses_before_durable_write",
+            "test_exact_abort_signals_only_owned_pid",
+            "test_expired_or_wrong_scope_authorization_refuses",
+            "test_failed_uncertain_or_changed_public_job_receipt_refuses",
+            "test_fast_completed_actual_public_job_is_accepted_without_history",
+            "test_mount_device_root_fs_source_namespace_changes_refuse",
+            "test_mountinfo_missing_or_duplicate_target_refuses",
+            "test_mountinfo_records_actual_identity_fields",
+            "test_mountinfo_wrong_source_refuses",
+            "test_prearmed_collector_captures_fast_actual_public_completion",
+            "test_same_directory_on_remounted_mount_is_refused",
+            "test_warm_directory_replacement_refuses"
+          ],
+          "actual_tests": 17,
+          "source_binding_correction": "Historical manifest pinned V4 but omitted the test loader environment; its default loader selects V3. Preserve the passing17 as historical evidence without claiming an attested V4 import. A fresh explicitly bound V4 invocation is recorded below."
+        }
+      },
+      "scope": "Private mocked controller controls only; no cloud/GUI/mount/provider/process action; runtime still not ready."
+    }
+  },
+  "local_readiness_2026_10_05": {
+    "recorded_at": "2026-10-04T23:52:01.081453+00:00",
+    "status": "Private final local preparation; no live dispatch, no GUI or provider acceptance",
+    "observer_copy_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-freeze-observer-v1-result.json",
+      "size": 423,
+      "sha256": "301aa0b5d076f0cf7e9073558defe8f75434f16b333e5b41e333c75de76dde22"
+    },
+    "observer_binding": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/metadata-observer-frozen-binding-v1.json",
+      "size": 3069,
+      "sha256": "d5b7e6d39e6361364bab9df6ef9b115bd6dd4be668869e4a5898b8746ceb9345"
+    },
+    "controller": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/controller-draft-v4.py",
+      "size": 62567,
+      "sha256": "80d908a6a6baffa8dd8a0de62819827f1c492132fb5467e4da00a90b6afc988b"
+    },
+    "explicit_v4_lifecycle_controls": {
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-v4-lifecycle-bound-v1-registration.json",
+        "size": 1961,
+        "sha256": "c69de8e254ff06bd794c09dac6ea708dcf0506e86778da3a60f6bbcffa271026"
+      },
+      "attempt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-v4-lifecycle-bound-v1-attempt.json",
+        "size": 688,
+        "sha256": "9d68648b6667bc34ab2271b0e8a249706c706eb149012677f705f79836ae4b21"
+      },
+      "result": {
+        "exit_code": 0,
+        "actual_tests": 17,
+        "actual_controller": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/controller-draft-v4.py",
+        "actual_controller_sha256": "80d908a6a6baffa8dd8a0de62819827f1c492132fb5467e4da00a90b6afc988b",
+        "source_unchanged": true,
+        "duration_seconds": 0.005959528993116692,
+        "log_sha256": "9d5578273224ee4684a16cbbfd3200deb14b70630d35a29f67099d352764f53b",
+        "cloud_dispatched": false,
+        "installed_actions": false,
+        "observations": "synthetic mocks only"
+      },
+      "result_pin": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-v4-lifecycle-bound-v1-result.json",
+        "size": 546,
+        "sha256": "f8e753b04e06fc473d6db680d0ae0a3524257856381d99c5d49f430008d53d72"
+      },
+      "endpoint": "Actual imported controller path and SHA equal V4 under explicitly recorded loader environment; all17 mocks pass.",
+      "reason": "Resolve historical loader binding uncertainty; no repeatability claim."
+    },
+    "installed_baseline": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-installed-baseline-before-pages-v1.json",
+      "size": 5248,
+      "sha256": "93bd076401c37469ec26b37a1ef52fdfc348e85e9021e398271ad44ebb0d998b"
+    },
+    "all_full_icloud_gates_open": true,
+    "cloud_dispatched": false,
+    "live_ready": false,
+    "reporting_correction": "First summary writer expected plural results instead of actual result key; failed before any artifact write or execution. Corrected reporting only, no test/provider replay.",
+    "peer_review": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/regression-review-pages-v4-local-readiness-v1.json",
+      "size": 5178,
+      "sha256": "9ad964506529bf85ea0f4c24a83c96bfa7ccd134af653f1d5416cd9288261a6f"
+    },
+    "runtime": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/runtime-registration.json",
+      "size": 6894,
+      "sha256": "42dfcbf8d9f12ad872b6d4c974a4e80b416ce08e0a17fa0ba033938bfd04273d"
+    },
+    "check_local": {
+      "registration": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-check-local-v1-registration.json",
+        "size": 1659,
+        "sha256": "f5baf405a08f36bab2586a3abf774df6cbcecbd63c28afc67388ce599c2f10e3"
+      },
+      "attempt": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-check-local-v1-attempt.json",
+        "size": 195,
+        "sha256": "979c217ab7aa751a88707e7de82de22a3d52006c25852436c8a6404754f8ee55"
+      },
+      "result_pin": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-desktop-ac218c35-1985-4dbd-a844-55a9e175756a/root-check-local-v1-result.json",
+        "size": 309,
+        "sha256": "212a968a70fd244218330a85dab27f71fab6a4f172f4ec374bd23358924fd6b2"
+      },
+      "result": {
+        "exit_code": 0,
+        "timed_out": false,
+        "duration_seconds": 0.5192687670059968,
+        "log_sha256": "27ed65a513ae09fd81ef9aaf41d1ff1cba96248749cff9169ef2e93e6b1cbe6d",
+        "inputs_unchanged": true,
+        "child_reaped": true,
+        "cloud_dispatched": false,
+        "installed_actions": false,
+        "live_arm_started": false
+      },
+      "actual_output": {
+        "cloud_dispatched": false,
+        "provider_readiness_verified": false,
+        "run": "ac218c35-1985-4dbd-a844-55a9e175756a",
+        "status": "local-pins-valid"
+      },
+      "limits": "Local integrity only; no account freshness, fresh-run proof, provider or native chooser dispatch."
+    },
+    "local_pins_ready": true,
+    "remaining_live_dependencies": [
+      "Human actual GTK chooser availability",
+      "Fresh finite grant and independent freshness/installed identity checks immediately before first dispatch",
+      "Actual public job, original warm mount and typed independent cloud readback plus Apple Pages open"
+    ]
+  }
+}

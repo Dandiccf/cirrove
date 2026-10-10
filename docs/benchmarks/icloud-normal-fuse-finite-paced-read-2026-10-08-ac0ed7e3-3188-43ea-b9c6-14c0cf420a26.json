@@ -1,0 +1,188 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "actual_summary": {
+    "TLS_downstream_bytes": 286019,
+    "TLS_forwarding_span_seconds": 44.883497075992636,
+    "all_original_handles_closed": true,
+    "cold_residency_proved": false,
+    "content_TLS_connections": 0,
+    "failure_class": "Refusal",
+    "kernel_reader_started": false,
+    "metadata_TLS_connections": 2,
+    "normal_cli_prime_exit": 0,
+    "original30_and_installed19_preserved": true,
+    "rate_envelope_verified": true,
+    "stage": "normal-cli-prime",
+    "verification_audit": {
+      "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/evidence/audit-actual-normal-fuse-failed-terminal-v1.json",
+      "sha256": "795a36c09c1b2f644cf18d2a3af4f18b7002811c4fb9c9317a9df8a577e43cea",
+      "size": 3964
+    },
+    "verification_audit_authorship": "author of private test driver; verification of failed whole arm only",
+    "verification_checks_passed": 32,
+    "within_original_window": true
+  },
+  "actual_terminal": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/evidence/terminal-v1.json",
+    "sha256": "fe26927fb9e2b5e4ad5922b002ad7fb1b5f181e17526c341983e2122a58acfa0",
+    "size": 2211
+  },
+  "arms": [
+    "one normal[] daemon --recovery-only, owned copied saved state, actual resident0, one O_RDONLY kernel open/read"
+  ],
+  "automatic_retries": 0,
+  "bounded_kernel_read_verified": false,
+  "cache_policy": "complete cloned state retained; resident0 required; no cache or journal deletion",
+  "cleanup_reserve_seconds": 15,
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": []
+  },
+  "daemon_command": [
+    "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/frozen/cirroved",
+    "--state-dir",
+    "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/state",
+    "--socket",
+    "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/control.sock",
+    "--recovery-only"
+  ],
+  "diagnosis": {
+    "actual_paths_cached_reply_not_retained": true,
+    "copied_effective_item_name_was_old_staged_name": true,
+    "copied_item_etag": "i322::i321",
+    "copied_parent_etag": "i323",
+    "correct_store_query": {
+      "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/evidence/offline-metadata-diagnosis-root-v1/diagnosis-correct-store-query-v2.json",
+      "sha256": "295dd991497961f0fdb5fdc7d9fccdad68d216d01385b91151932d426afd8cdd",
+      "size": 1693
+    },
+    "initial_wrong_table_query_failed": {
+      "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/evidence/offline-metadata-diagnosis-root-v1/failed-query-v1.json",
+      "sha256": "d8b467e689e9667af608fbee3b241ba7b38b01eb2e8b6607aa16cb31ae01c4fd",
+      "size": 199
+    },
+    "normal_readonly_publication_repair_was_suppressed_by_recovery_only": true,
+    "precise_failed_predicate_unproved": true,
+    "private_cached_helper_schema_wrong_and_not_reached": true,
+    "provider_or_old_arm_repeated": false,
+    "scope": "offline new copy of stopped owned clone metadata family; no provider call",
+    "source_peer_review_missed_helper_schema": true
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/run_normal_fuse_paced_once_v6.py",
+    "sha256": "814fad08cbf81637aed8a3700b28d0507e1b255a675e7359aaf5cb66073b6424",
+    "size": 27326
+  },
+  "duration_seconds": 120,
+  "endpoint": "ready owned RO mount, cold0 before file open, exact138943-byte/SHA223e capture, stable cached owned tuple, actual content TLS pacing, all original processes/groups/mount/socket/relay closed, original30 state and installed19+PID preserved",
+  "full_490_closed": false,
+  "installed_HOLD": true,
+  "installed_actions": false,
+  "limits": [
+    "one run, no repeatability claim",
+    "cached parent/item observations are not independent remote postflight",
+    "normal OrdinarySession streamed-window path and range fallback validate requested item ETag/size before/after fetched bytes; streamed response has an existing30-second product deadline",
+    "aggregate encrypted TLS pacing includes normal daemon metadata discovery; no decryption or raw transport/error logging",
+    "clone cache/metadata/blocks and SQLite sidecar lifetimes may change; original state remains exact",
+    "no editor/native save/expiry/auth recovery/delivery/installed lifecycle or full488-490 credit",
+    "unknown owner closure stays passively held and public remains active; no synthetic closure",
+    "cleanup sends TERM then original pidfd-bound KILL only inside remaining original reserve; no process-pattern/group signal; truly unclosed resources stay passive"
+  ],
+  "maximum_send_quantum": 512,
+  "new_auth": false,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/normal-roles-binding-v1.json",
+    "sha256": "8090463dcad034d24ad2d0c5b0e776e0a709c756d2666a85447e2175f9867da1",
+    "size": 78969
+  },
+  "normal_roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/frozen/cirrove",
+      "sha256": "f4c5f76bb499a721b2dfe963a57d9e536a37b3e78d86fb849c4dd7d4da8c2568",
+      "size": 476354712
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-validation-20261008-private-v1/role-build-preparation-private-v1/normal-roles-build-v1/frozen/cirroved",
+      "sha256": "0d7de6e4042b52f6a1b34214553022a49dd288f4a09bcd8c2dfffb6ad8e8b3d8",
+      "size": 478050920
+    }
+  },
+  "observe_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/run_normal_fuse_paced_once_v6.py",
+    "observe",
+    "--inputs",
+    "ROOT_APPROVED_OBSERVE_INPUT",
+    "--sha256",
+    "SHA256"
+  ],
+  "original_SQL": false,
+  "prediction": "The current normal mounted range reader will complete the selected bytes under finite pacing inside105 seconds work, followed by15 seconds cleanup; warm selected cache or a refusal yields failure without stripping or retry.",
+  "preserved_summary_predecessor": {
+    "path": "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/evidence/closed-public-before-summary-root-v1.json",
+    "sha256": "8b4cef8699305565c5ba46596993911d457a79b733814330c91ca0bc580c8a51",
+    "size": 6745
+  },
+  "private_prepare_command_template": [
+    "/usr/bin/python3.14",
+    "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/run_normal_fuse_paced_once_v6.py",
+    "prepare",
+    "--inputs",
+    "ROOT_APPROVED_PREPARE_INPUT",
+    "--sha256",
+    "SHA256"
+  ],
+  "provider_mutations": false,
+  "question": "Does the frozen normal-feature daemon complete one cold kernel FUSE read of the exact owned Numbers DATA revision under a finite opaque aggregate8192-byte/s downstream relay, closing every original owner inside its single120-second window?",
+  "rate_bytes_per_second": 8192,
+  "read_only": true,
+  "reader": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-normal-fuse-finite-paced-preparation-20261008-private-v1/kernel_read_once_v3.py",
+    "sha256": "808f6a5358555758f8e3e25ee9de8257c0a367ba91d5445678cf26a017c4eb4b",
+    "size": 4170
+  },
+  "recovery_only": true,
+  "relay": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-finite-paced-read-41a5a972-4633-4e0d-865f-400f5b4507eb-preparation-private-v1/opaque_finite_pace_v3.py",
+    "sha256": "98ecdcf08c9afed0555b10ede57276081c9c7b2004749d67daac0a3dd43bac6a",
+    "size": 6889
+  },
+  "root": "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26",
+  "run": "ac0ed7e3-3188-43ea-b9c6-14c0cf420a26",
+  "source_count": 573,
+  "state": "closed_normal_fuse_finite_paced_read_failure",
+  "status": "closed_normal_fuse_finite_paced_read_failure",
+  "subject_run": "5c522758-bf2d-4203-941d-0a79567b7aca",
+  "success": false,
+  "summary_record_before_correction": {
+    "path": "/home/dandiccf/Work/cirrove/docs/benchmarks/icloud-normal-fuse-finite-paced-read-2026-10-08-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26.json",
+    "sha256": "8b4cef8699305565c5ba46596993911d457a79b733814330c91ca0bc580c8a51",
+    "size": 6745
+  },
+  "summary_recorded_at": "2026-10-08T21:25:53.442463+00:00",
+  "system_roles": {
+    "fusermount": {
+      "path": "/usr/bin/fusermount3",
+      "sha256": "a5d1d1e9eac4012cf1567c34a256d28913afa75d0f1f48c628d2ec162067865a",
+      "size": 39016
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c",
+      "size": 14424
+    }
+  },
+  "tmpdir": "/home/dandiccf/Storage/ct/normal-fuse-paced-ac0ed7e3-3188-43ea-b9c6-14c0cf420a26/tmp",
+  "tuple": {
+    "etag": "i32b::i32a",
+    "item": "FILE::com.apple.CloudDocs::D304DC65-6716-4DEB-B786-ECA04C76ED0D",
+    "parent": "FOLDER::com.apple.CloudDocs::6F755250-4EE2-4220-9AEE-27BB1668DC57",
+    "parent_etag": "i328",
+    "sha256": "223e42672ba3735b6464719ed6e2be70a107b437f0b11d267fbef0552e965724",
+    "size": 138943
+  },
+  "version": 1,
+  "work_seconds": 105
+}

@@ -266,11 +266,19 @@ fn schema_thirteen_migrates_and_missing_or_future_destination_state_fails_closed
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        14
+        21
     );
     db.execute_batch("DROP TABLE write_destinations;").unwrap();
     assert!(UploadJournal::open(&root, &scope().account, 1024 * 1024).is_err());
-    db.execute_batch("PRAGMA user_version=15;").unwrap();
+    let future_schema = u32::try_from(
+        cirrove_service::storage_format_attestation()["journal_schema"]
+            .as_u64()
+            .unwrap(),
+    )
+    .unwrap()
+        + 1;
+    db.pragma_update(None, "user_version", future_schema)
+        .unwrap();
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 1024 * 1024),
         Err(JournalError::Schema)
@@ -319,7 +327,7 @@ fn moving_a_new_file_waits_for_both_its_upload_and_its_destination_folder() {
         let save = child(&mut j, "root", "first.txt");
         let object = j.namespace_for_operation(save.id).unwrap().unwrap();
         let movement = j
-            .relocate_namespace_file(
+            .relocate_namespace_item(
                 object.id,
                 object.revision,
                 parent.node.id.clone(),

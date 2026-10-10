@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "date": "2026-10-06",
+  "status": "closed_setup_refused",
+  "active_measurement": false,
+  "question": "Does the feature-only persisted pre-Trash pause refuse blocking or unauthorized releases within its original lifetime, while valid authority delegates once?",
+  "prediction": "The exact FIFO control fails at its intended before-writer assertion when only O_NONBLOCK is omitted, passes when restored, and all seven actual TLS worker/vault controls pass with registered source and mutation counters preserved.",
+  "arms": [
+    "counterfactual_nonblock_flag_omitted",
+    "nonblock_flag_restored"
+  ],
+  "endpoints": [
+    "Exactly one intended test executes in each arm.",
+    "Counterfactual fails at the specific completed-before-FIFO-writer assertion after bounded rescue and original worker join.",
+    "Restored guard passes exact FIFO plus seven controls for FIFO, symlink, invalid tuple, cancellation, expiry, valid release and changed journal frontier."
+  ],
+  "control_group": "native_final_pre_trash_pause_",
+  "control_count": 7,
+  "factory_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery/registration.rs",
+    "size": 50754,
+    "sha256": "3a345e66d8895dff0ef53ff99f8230faa3658e1f7b6b72060be938b38e12c2c7"
+  },
+  "test": "journal::package_replacement::worker_transport::native_final_tests::pre_trash_pause_controls::native_final_pre_trash_pause_fifo_refuses_without_waiting_for_writer",
+  "source_before": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery.rs",
+    "size": 31099,
+    "sha256": "4937b4ad8cccc255bf0e7843d271cb4365361abeebf2fcd45f8d0e2f2530db3d"
+  },
+  "test_source": {
+    "path": "/home/dandiccf/Work/cirrove/crates/cirrove-service/src/validation/icloud_account/native_final_recovery/tls_tests.rs",
+    "size": 44670,
+    "sha256": "897b4aca332f015b07371761a2d4d6fa06bf7b575507083a2f7b839eb4a49cb9"
+  },
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-native-trash-receipt-loss-development-20261006/native-pre-trash-pause-controls-actual-v1/run_controls_v2.py",
+    "size": 9013,
+    "sha256": "2dd3a97f248bbc3bd685c26e2f7a8db69a3e5194585ae453634e2baf17adab12"
+  },
+  "build_command": [
+    "cargo",
+    "test",
+    "-p",
+    "cirrove-service",
+    "--lib",
+    "--features",
+    "icloud-write-probe",
+    "--locked",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "test_command": [
+    "<exact-built-test-executable>",
+    "journal::package_replacement::worker_transport::native_final_tests::pre_trash_pause_controls::native_final_pre_trash_pause_fifo_refuses_without_waiting_for_writer",
+    "--exact",
+    "--test-threads=1",
+    "--nocapture"
+  ],
+  "TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct-nt1006",
+  "temporary_filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "maximum_seconds_per_child": 600,
+  "provider_calls": false,
+  "installed_actions": false,
+  "limits": [
+    "Controlled synthetic TLS worker/vault responses, not a live iCloud conflict or atomic race.",
+    "No full acceptance gate closes."
+  ],
+  "gate486_closed": false,
+  "full_integration_accepted": false,
+  "outcome": {
+    "control_executed": false,
+    "build_refused": true,
+    "reason": "New FIFO fixture used unsafe libc::mkfifo, but the crate forbids unsafe code. This is a compilation refusal, not the intended FIFO counterfactual failure.",
+    "root_exit_code": 1,
+    "root_elapsed_seconds": 21.62788454099791,
+    "root_handle_reaped_and_process_absent": true,
+    "guard_restored": true,
+    "provider_calls": false,
+    "installed_actions": false
+  }
+}

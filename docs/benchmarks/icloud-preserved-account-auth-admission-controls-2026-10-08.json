@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "observed_utc": "2026-10-08T15:48:17.186130+00:00",
+  "status": "synthetic_controls_passed",
+  "active": false,
+  "active_measurement": false,
+  "question_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/account-auth-admission-successor-private-v1/root-controls-execution-v1/question-v1.json",
+    "size": 1552,
+    "sha256": "6a7cb2eddc666284434027f2a3b22f550e4c14f6923487e834e03ae515e897c4"
+  },
+  "terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/account-auth-admission-successor-private-v1/root-controls-execution-v1/terminal-v1.json",
+    "size": 4142,
+    "sha256": "5ab95dee22822d81eee28974d267c470d5da400852981493b7afaffb53e7797b"
+  },
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/account-auth-admission-successor-private-v1/audit-independent-account-auth-source-v2.json",
+    "size": 2760,
+    "sha256": "41192acfa24f43467ffa6c7bb78e1f51e4b7f3e2faace44cc437b701978654f0"
+  },
+  "old_V5_desired_case_failed": true,
+  "new_V6_same_case_passed": true,
+  "new_V6_controls_passed": 12,
+  "limits": [
+    "Private caller predicate only; no product runtime change.",
+    "Preserves exact saved accounts, desired RW grants and Ready/authentication-required/disabled classifications; mounted enabled accounts must be read-only.",
+    "Missing future account baseline/status/mount proofs remain refusal. No actual retained clone or installed lifecycle proof."
+  ],
+  "provider_calls": 0,
+  "SQL_actions": 0,
+  "service_actions": 0,
+  "gate488_closed": false,
+  "installed_HOLD_released": false,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-installed-candidate-next-build-plan-20261008-private-v1/account-auth-admission-successor-private-v1/root-controls-execution-v1/audit-independent-account-auth-controls-terminal-v1.json",
+    "size": 3783,
+    "sha256": "5a8a536da57a7ae0d64d5e6e4a04193068a5d2c1661c1063880fd06de3dd0223"
+  },
+  "independent_checks_passed": 16
+}

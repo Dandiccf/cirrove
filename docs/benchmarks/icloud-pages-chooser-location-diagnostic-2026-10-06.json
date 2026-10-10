@@ -1,0 +1,641 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-location-diagnostic-private-v1/chooser_location_diagnostic_v21_v2.py",
+    "sha256": "83fa9658c88d2663285a0d02bbe882cbf272843e4beced1bc7f5eb8fb26d455b",
+    "size": 58784
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "controller": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-location-diagnostic-private-v1/outer_location_diagnostic_v21.py",
+    "sha256": "4be9683da68732344b38878ae22d2aa071869c752f4382b278d568625b44fc25",
+    "size": 24738
+  },
+  "endpoint": "Local public chooser evidence and complete original handle/socket closure; no import submission or provider request.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_attestation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-owned-tab-root-launch-private-af971-v1/primary-attestation-v4.json",
+    "sha256": "bf05ff87cd4d7e8a617d55cd04519fb8439aa4b189e61763975849a437b29f2a",
+    "size": 6447
+  },
+  "limits": [
+    "Fresh local synthetic account only, no full iCloud/provider acceptance credit.",
+    "Owned-window addressed keyboard navigation only; original time/birth/GTK guards retained.",
+    "Previous run remains closed and is not reopened."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "The bounded diagnostic will expose the owned interactive roles, standard names and placeholder metadata, with no entry-text or filename-label reads and no extra action before the same refusal.",
+  "question": "Which exact owned GTK chooser controls expose a local pathname input before the current unchanged location-control refusal?",
+  "run": "b23936ba-b9ef-4b29-8bb9-f2ab11ce5598",
+  "source_count": 480,
+  "status": "actual-local-complete-diagnostic-location-control-refusal",
+  "version": 1,
+  "performed": {
+    "local_ui": true,
+    "owned_chooser_diagnostic": true,
+    "path_entry": false,
+    "archive_selection": false,
+    "confirmation_cancel": false,
+    "import_submission": false,
+    "provider": false,
+    "installed_actions": false
+  },
+  "actual_outcome": {
+    "preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-location-diagnostic-root-b239-v1/public-location-diagnostic-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2259,
+      "sha256": "7e19d101beb73ae412266ec339604e9af083b82585e9bb00bef14aad42979ca6"
+    },
+    "root_frozen_preregistration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-location-diagnostic-root-b239-v1/preregistration-frozen-v1.json",
+      "size": 2259,
+      "sha256": "7e19d101beb73ae412266ec339604e9af083b82585e9bb00bef14aad42979ca6"
+    },
+    "original_tool_session": 31138,
+    "terminal": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1354058,
+      "controller_proc_absent": true,
+      "duration_seconds": 2.4723622429883108,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "b23936ba-b9ef-4b29-8bb9-f2ab11ce5598",
+      "signals": []
+    },
+    "diagnostic": {
+      "actions_before": [
+        "navigate-own-account-tab-01",
+        "navigate-own-account-tab-02",
+        "navigate-own-account-tab-03",
+        "navigate-own-account-tab-04",
+        "expand-own-account-space-once",
+        "public-import-document-once"
+      ],
+      "child_limit": 512,
+      "chooser": {
+        "owned": true,
+        "pid": 1354080,
+        "title": "Choose a local iWork archive",
+        "title_redacted": false
+      },
+      "collection_complete": true,
+      "collection_error_class": null,
+      "depth_limit": 64,
+      "desktop_pid": 1354080,
+      "desktop_startticks": 28376069,
+      "entry_text_read": false,
+      "filename_labels_read": false,
+      "interactive_nodes": [
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            2
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0,
+            0,
+            2
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            0,
+            0,
+            2
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            5,
+            0,
+            0,
+            2
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            6,
+            0,
+            0,
+            2
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": null,
+          "name_redacted": true,
+          "owned": true,
+          "path": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": "Cancel",
+          "name_redacted": false,
+          "owned": true,
+          "path": [
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": "Search",
+          "name_redacted": false,
+          "owned": true,
+          "path": [
+            1,
+            0,
+            0,
+            2,
+            0
+          ],
+          "pid": 1354080,
+          "role": "toggle button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        },
+        {
+          "action_count": 1,
+          "action_iface_present": true,
+          "action_names": [
+            "click"
+          ],
+          "attributes": {
+            "placeholder-text": null,
+            "placeholder_redacted": false,
+            "toolkit": "GTK"
+          },
+          "editable_text_iface_present": false,
+          "name": "Open",
+          "name_redacted": false,
+          "owned": true,
+          "path": [
+            1,
+            0,
+            0,
+            2,
+            1
+          ],
+          "pid": 1354080,
+          "role": "button",
+          "states": {
+            "BUSY": false,
+            "DEFUNCT": false,
+            "EDITABLE": false,
+            "ENABLED": false,
+            "EXPANDED": false,
+            "FOCUSABLE": true,
+            "FOCUSED": false,
+            "SENSITIVE": true,
+            "SHOWING": true,
+            "VISIBLE": true
+          },
+          "text_iface_present": false
+        }
+      ],
+      "missing_location_guard_unchanged": true,
+      "monotonic": 283762.307938802,
+      "node_limit": 512,
+      "nonstandard_control_names_redacted": true,
+      "one_observation_no_action": true,
+      "original_action_deadline": 283910.141312166,
+      "run": "b23936ba-b9ef-4b29-8bb9-f2ab11ce5598"
+    },
+    "summary": "Four addressed TABs and one SPACE focused/expanded the exact owned account; the public Import document action opened Choose a local iWork archive in the same Desktop PID 1354080. The complete bounded capture contains nine owned interactive controls: six redacted-name buttons plus Cancel, Search and Open. None exposes an editable-text interface or a recognized Location entry/button. The unchanged location guard refused after recording this diagnostic.",
+    "failure": {
+      "class": "Refusal",
+      "positions": [
+        {
+          "file": "chooser_location_diagnostic_v21_v2.py",
+          "function": "main",
+          "line": 1050
+        },
+        {
+          "file": "chooser_location_diagnostic_v21_v2.py",
+          "function": "run",
+          "line": 775
+        },
+        {
+          "file": "chooser_location_diagnostic_v21_v2.py",
+          "function": "require",
+          "line": 38
+        }
+      ]
+    },
+    "cause_limits": "Only accessible roles, standard names, state/interface flags and redacted placeholder metadata were captured. No entry text or filename labels were read. This does not prove that GTK lacks a supported keyboard location route or that product UI is broken.",
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once"
+    ],
+    "import_rpc_count": 0,
+    "cloud_called": false,
+    "provider_verified": false,
+    "full_chooser_confirmation_cancel": false,
+    "closure": {
+      "all_five_outer_original_handles_reaped": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1354076,
+          "startticks": 28376050,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1354065,
+          "startticks": 28376037,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1354064,
+          "startticks": 28376035,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1354063,
+          "startticks": 28376035,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1354061,
+          "startticks": 28376035,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "desktop": {
+        "original_handle_reaped": true,
+        "pid": 1354080,
+        "returncode": -15,
+        "startticks": 28376069
+      },
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "utility_count": 19,
+      "utility_original_handles_all_reaped_exit_zero": true,
+      "closure_errors": [],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "outer_errors": [
+        "RuntimeError"
+      ],
+      "outer_error_scope": "RuntimeError propagates the refused chooser child; original handle/socket closure is complete.",
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "root-public-chooser-registration-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-location-diagnostic-root-b239-v1/root-public-chooser-registration-v2.json",
+        "size": 6617,
+        "sha256": "98a9981d5af9abd6eee9512ec5b48e5308bbd51b032cf3f45bb1a19e6888be8e"
+      },
+      "root-public-chooser-launch-manifest-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-location-diagnostic-root-b239-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66446,
+        "sha256": "b305dc2db99a9e361dd43e19093429fb7868c348719290807b8c917352cc0691"
+      },
+      "root-public-chooser-launch-result-v2.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-chooser-location-diagnostic-root-b239-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "306a20d4f53e133e2be1f33d401170abebe31dad432538d0a9b7806bd89355df"
+      },
+      "result.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-b23936ba-b9ef-4b29-8bb9-f2ab11ce5598/chooser/result.json",
+        "size": 3750,
+        "sha256": "30e0a28c07dfb06106229d5ec998cb3e9b4de328b661acebb7e17a94cd4a4cbe"
+      },
+      "chooser-location-controls-before-refusal.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-b23936ba-b9ef-4b29-8bb9-f2ab11ce5598/chooser/chooser-location-controls-before-refusal.json",
+        "size": 8802,
+        "sha256": "e4879d871046d3f545b46797eaf59e7a339e82a6f886d4c00d0a22e9ee54ecdf"
+      },
+      "desktop-reaped.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-b23936ba-b9ef-4b29-8bb9-f2ab11ce5598/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "38c3ddf5a2810b8355e8eb5e02313365cceb48137ae42af1537000c891fd958b"
+      },
+      "gtk-library-mapping-calibration.json": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-b23936ba-b9ef-4b29-8bb9-f2ab11ce5598/chooser/gtk-library-mapping-calibration.json",
+        "size": 1249,
+        "sha256": "226ed3744d74f0f7a243f754fbfa455e3455b85b3cc111d23e7900580b322af2"
+      }
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "SQLITE_TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v3",
+  "TMPDIR": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v3",
+  "active": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-readonly-preservation-20261010-v3/native-observer",
+    "sha256": "61ba32575d7d0dbb51057525f11399ccb4403b7fedc2784dc73c1e68a99bc347",
+    "size": 522614648
+  },
+  "cleanup_reserve_seconds": 45,
+  "deadline_unix": 1791633353,
+  "endpoint": "typed three-identity preservation receipt plus exact original child closure within600seconds",
+  "filesystem": "btrfs",
+  "full_gate490_closed": false,
+  "maximum_seconds": 600,
+  "original_run": "c49c49af-a8a3-42c0-ae69-90ae225c2514",
+  "original_trial_success": false,
+  "prediction": "The third B name explains prior selection refusal; only B name and revision may differ, all other B metadata and full semantic content must match. A Trash and C remain exact; reconciliation retains conflict/uncertainty. Prior failures remain failed.",
+  "provider_mutation": false,
+  "question": "Does the exact staged B identity retain its full content under the observed provider-assigned name while original A in Trash and canonical C remain exact?",
+  "result": {
+    "authority_files_unchanged": true,
+    "elapsed_seconds": 17.218888311996125,
+    "exit_code": 1,
+    "failure_class": "AssertionError",
+    "full_gate490_closed": false,
+    "original_handle_reaped": true,
+    "original_window_unchanged": true,
+    "process_absent": true,
+    "provider_mutation": false,
+    "success": false,
+    "term_sent": false
+  },
+  "scope": "separate read-only continuation of closed failed c49c; no replay or original-window extension",
+  "started_monotonic": 657380.890542343,
+  "started_unix": 1791632753,
+  "version": 1,
+  "diagnostic": {
+    "observer_diagnostic": {
+      "baseline_occupant_equal": true,
+      "baseline_original_equal": true,
+      "baseline_parent_equal": true,
+      "baseline_parent_equal_except_revision": true,
+      "baseline_parent_revision_equal": true,
+      "baseline_stage_equal": false,
+      "baseline_stage_equal_except_name_revision": true,
+      "baseline_trash_revision_equal": true,
+      "occupant": {
+        "canonical_name": true,
+        "exact_name": true,
+        "exact_parent": true,
+        "expected_revision": true,
+        "file_zone_and_document_id": true,
+        "nonempty_revision": true,
+        "numbers_extension": true,
+        "selected_id_unique": true
+      },
+      "original_absent_from_active": true,
+      "parent_has_revision": true,
+      "parent_id_unique": true,
+      "parent_name_unique": true,
+      "parent_shape_and_name": true,
+      "phase": "content_read",
+      "stage": {
+        "canonical_name": false,
+        "exact_name": false,
+        "exact_parent": true,
+        "expected_revision": false,
+        "file_zone_and_document_id": true,
+        "nonempty_revision": true,
+        "numbers_extension": true,
+        "selected_id_unique": true
+      },
+      "stage_name_is_canonical": false,
+      "stage_name_unchanged": false
+    }
+  },
+  "interpretation": "Parent, C, original Trash revision, and B metadata excluding name/revision matched; observation failed in content_read before C transfer/reconciliation. The saved B archive has the declared canonical root and local semantic reconstruction matches sourceB; this does not turn the failed observer into a pass.",
+  "independent_audit_sha256": "f7e6131f5b6a06f099362d745c1f737445e8c665f4dd0d2221c563d81753da0d"
+}

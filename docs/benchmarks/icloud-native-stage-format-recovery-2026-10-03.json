@@ -1,0 +1,513 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "status": "format-correction-full-check-and-subsequent-b513-source-CI-passed-original-0e-timeout-retained",
+  "registered_at": "2026-10-03T18:30:47.748113+00:00",
+  "source_head": "378a96d5ab1dc9c4e40abdd384019c1312f31a59",
+  "question": "Can explicit observation-only native Stage abandonment accept the already allocated exact Numbers/Keynote staging names while preserving original content, operation identity and refusal of foreign stage names?",
+  "defect": "The native coordinator creates staged-by-cirrove-{operation}{canonical native suffix}, but NativeReplacementAbandonRecord::validate still requires .pages. Correct Numbers/Keynote observations are rejected at final record validation. Mixed-case Pages already uses canonical .pages and is a baseline control.",
+  "arms": [
+    {
+      "name": "unchanged-production",
+      "expected": "Four filtered abandonment tests execute: original Pages and new mixed-case Pages pass; Numbers and Keynote fail only the final-record-validation marker after five exact read-only metadata requests and original semantic-v2 reverification."
+    },
+    {
+      "name": "format-bound-correction",
+      "expected": "Same four tests pass, with five new format arms (.numbers/.NuMbErS/.key/.KEY/.PAGES), three strict stage-name tamper refusals per arm, no Trash/rename or repeated upload."
+    },
+    {
+      "name": "combined-contributor-check",
+      "expected": "Full scripts/check.sh required before commit; existing native abandonment, all native FUSE/HTTPS and writable kernel scenarios remain covered."
+    }
+  ],
+  "endpoint": {
+    "selector": "owned_mounted_replace::native::tests::native_stage_abandonment_",
+    "expected_filtered_tests": 4,
+    "expected_baseline_failed": 2,
+    "expected_baseline_passed": 2,
+    "new_tests": [
+      "native_stage_abandonment_numbers_keeps_exact_operation_and_original",
+      "native_stage_abandonment_keynote_keeps_exact_operation_and_original",
+      "native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original"
+    ],
+    "new_positive_format_arms": 5,
+    "new_tamper_refusals": 15,
+    "expected_failure_marker": "valid native Stage format rejected at final record validation after exact metadata reads",
+    "mutation_counts_per_new_arm": [
+      1,
+      1,
+      1,
+      0,
+      0
+    ],
+    "mutation_count_order": [
+      "allocate",
+      "upload body",
+      "register package",
+      "Trash",
+      "rename"
+    ],
+    "observation_metadata_requests_per_new_arm": 5,
+    "observation_archive_downloads": 0,
+    "independent_original_proof": "Actual native_before_stage() semantic-v2 recheck after Stage observation; immutable source bytes and mutation counts unchanged."
+  },
+  "private_proposal_sha256": {
+    ".local-state/icloud-full-integration-20261003/native-abandon-format/production.patch": "5dea3817a62fb1b01a07f45ac906c39a4c8196815b98487f82dcbf056dba5724",
+    ".local-state/icloud-full-integration-20261003/native-abandon-format/tests.patch": "57967dc6e3c9e99666dfe68784b8477858cadfb9826bf828d7e99c1a3f770413",
+    ".local-state/icloud-full-integration-20261003/native-abandon-format/plan.json": "77188dc2b8f0b7bb276e15a3fdf02ace9f447e46d04884186bcb7ec778428e19",
+    ".local-state/icloud-full-integration-20261003/native-abandon-format/pins.json": "59b429ed13f8abcbc56314012a1c483d3ca36707c3e25da0db514ebdfa8580e7"
+  },
+  "production_before_sha256": {
+    "crates/cirrove-icloud/src/owned_mounted_replace/native/abandon.rs": "8109182eba218a59f214dc86f569926f7527edb5b85f812700a8668482def924"
+  },
+  "runner": {
+    "path": ".local-state/icloud-full-integration-20261003/run-native-abandon-format-v1.py",
+    "sha256": "872438ea305db5e1c2626386091a11ccb7b32b300fbc558ce2189e0956474565"
+  },
+  "invariants": [
+    "Retain all existing account/collection/original/operation/parent/revision/representation/checkpoint checks.",
+    "Canonical lowercase suffix derived with the existing native_package_suffix helper; stage name equality remains exact, including UUID and case.",
+    "Use actual adapter and local synthetic HTTPS only; no Apple, installed daemon, user journal, credentials or mounted user files.",
+    "One local controlled run at a time; build and runtime separate; disk TMPDIR/SQLITE_TMPDIR and unique worktree Cargo target pinned before each arm."
+  ],
+  "claim_limits": [
+    "This fixes a fail-closed recovery defect, not data loss or a completed replacement.",
+    "Direct read-only checkpoint inspector uses a synthetic registered Stage; encrypted current-vault, journal commit and socket/restart coverage remain separately exercised by existing tests.",
+    "Dummy ZIP contents do not prove Numbers/Keynote Apple fidelity, normal account routing or live abandonment.",
+    "No installed transition or full-iCloud gate closure; all485-490 remain open."
+  ],
+  "results": {
+    "native-abandon-format-baseline-build": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-icloud",
+        "--features",
+        "test-support",
+        "--lib",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/native-abandon-format-baseline-build.json",
+      "manifest_sha256": "4af447ff57b4c179039dce1efe35d50102b0b5e98bffc049d71b4b8261d9c9bc",
+      "log": ".local-state/icloud-full-integration-20261003/native-abandon-format-baseline-build.log",
+      "log_sha256": "7c26f99e03a183a44e2522ba66978388b127f524548fdf4d69c07f31edc286c6",
+      "exit_code": 0,
+      "started_at": "2026-10-03T18:31:59.292430+00:00",
+      "finished_at": "2026-10-03T18:32:13.858157+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs": "a44c00dc58fe1c9d3980a97fb84f1097ed9959789439c7db849b5c0284115fac",
+        "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json": "779ac1caaa72a3d1f4d7f62a7802816ca8355909fdba8e8b81989f2f9aa57a95",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {}
+    },
+    "native-abandon-format-baseline-red": {
+      "command": [
+        "/usr/bin/timeout",
+        "180s",
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-359b49b3f6962b85",
+        "owned_mounted_replace::native::tests::native_stage_abandonment_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/native-abandon-format-baseline-red.json",
+      "manifest_sha256": "3832f5602827a120b0fabf6c0a0ab47fd18d9cb7faadf7fc078424ecbe2553bd",
+      "log": ".local-state/icloud-full-integration-20261003/native-abandon-format-baseline-red.log",
+      "log_sha256": "e96649d876d555ffb720066c92e0f08151af9f82f72f6fd2e4626aa5b1161dda",
+      "exit_code": 127,
+      "started_at": "2026-10-03T18:33:50.825178+00:00",
+      "finished_at": "2026-10-03T18:33:50.827588+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs": "a44c00dc58fe1c9d3980a97fb84f1097ed9959789439c7db849b5c0284115fac",
+        "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json": "779ac1caaa72a3d1f4d7f62a7802816ca8355909fdba8e8b81989f2f9aa57a95",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {}
+    },
+    "native-abandon-format-baseline-red-v2": {
+      "command": [
+        "/usr/bin/timeout",
+        "180s",
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-60e1e60b360fc954",
+        "owned_mounted_replace::native::tests::native_stage_abandonment_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/native-abandon-format-baseline-red-v2.json",
+      "manifest_sha256": "1f7cbdd489bfd22e167d7f1d76acd6ec4eac5458cffeba7e4e08a9a29ba92b7e",
+      "log": ".local-state/icloud-full-integration-20261003/native-abandon-format-baseline-red-v2.log",
+      "log_sha256": "7b40e785eafda0e7ed0f7b167613ecc8669322557ffcf12abcd88d1440ec37bd",
+      "exit_code": 101,
+      "started_at": "2026-10-03T18:34:28.697430+00:00",
+      "finished_at": "2026-10-03T18:34:29.861240+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs": "a44c00dc58fe1c9d3980a97fb84f1097ed9959789439c7db849b5c0284115fac",
+        "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json": "779ac1caaa72a3d1f4d7f62a7802816ca8355909fdba8e8b81989f2f9aa57a95",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-60e1e60b360fc954": "8e7ea65e90cf31a9f9fd1aa617705df64972741c540b5a7703c4db44016fadd8"
+      },
+      "executed_tests": 4,
+      "passed": 2,
+      "failed": 2,
+      "filtered": 232,
+      "endpoint": "Numbers and Keynote fail only registered final-validation marker after exact five-request read-only observation and independent original v2 proof; original and mixed-case Pages pass."
+    },
+    "native-abandon-format-corrected-build": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "cirrove-icloud",
+        "--features",
+        "test-support",
+        "--lib",
+        "--locked",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/native-abandon-format-corrected-build.json",
+      "manifest_sha256": "be6e075ba7da60d642a06270b8dd58388bfcfafaab4960713078dfdf15d3e27a",
+      "log": ".local-state/icloud-full-integration-20261003/native-abandon-format-corrected-build.log",
+      "log_sha256": "3fc36213b2338d8a8b8a9020cf2faa48065ba8c3703f529e7a1187e74bdfc5e3",
+      "exit_code": 0,
+      "started_at": "2026-10-03T18:35:42.459125+00:00",
+      "finished_at": "2026-10-03T18:35:44.848572+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/abandon.rs": "237a275f1775346b82943f9fb1a09d4201960303f894939dcad1318c6a296987",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs": "a44c00dc58fe1c9d3980a97fb84f1097ed9959789439c7db849b5c0284115fac",
+        "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json": "c26c69cabd8f5e2f559c4d37e5460110b4998552525bd62b4c41304e93e2d861",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {}
+    },
+    "native-abandon-format-corrected-green": {
+      "command": [
+        "/usr/bin/timeout",
+        "180s",
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-60e1e60b360fc954",
+        "owned_mounted_replace::native::tests::native_stage_abandonment_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/native-abandon-format-corrected-green.json",
+      "manifest_sha256": "bbdc36e2711bb599cdd7a5791ba5eeacb7b43e384e8bfdc460b14045904ea8d3",
+      "log": ".local-state/icloud-full-integration-20261003/native-abandon-format-corrected-green.log",
+      "log_sha256": "4c15b94656076fc60995ce0697e7a578c3be344128d49f87a807b4f1bee1923e",
+      "exit_code": 0,
+      "started_at": "2026-10-03T18:37:25.755043+00:00",
+      "finished_at": "2026-10-03T18:37:27.283062+00:00",
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/abandon.rs": "237a275f1775346b82943f9fb1a09d4201960303f894939dcad1318c6a296987",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs": "a44c00dc58fe1c9d3980a97fb84f1097ed9959789439c7db849b5c0284115fac",
+        "docs/acceptance-ledger.json": "0b92893ed6a0f6c2f61c73e5f8f9f9334873805db9b5f10b81abc4a736dcf631",
+        "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json": "c26c69cabd8f5e2f559c4d37e5460110b4998552525bd62b4c41304e93e2d861",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "nested_executable_sha256": {
+        "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-60e1e60b360fc954": "bfb3e8a4f4da473bcaada8e98f9b3863ae54aa7b28ace15e6df9b2e82d72f96d"
+      },
+      "executed_tests": 4,
+      "passed": 4,
+      "failed": 0,
+      "filtered": 232,
+      "new_positive_format_arms": 5,
+      "strict_stage_name_tamper_refusals": 15,
+      "mutation_replays": 0,
+      "Trash_calls": 0,
+      "rename_calls": 0,
+      "endpoint": "All registered arms pass with complete read-only Stage observation, original v2 proof/source preservation and three exact-name tamper refusals per new arm."
+    },
+    "combined_full_check": {
+      "command": [
+        "scripts/check.sh"
+      ],
+      "manifest": ".local-state/icloud-full-integration-20261003/native-abandon-format-combined-full-check.json",
+      "manifest_sha256": "28101377ea6fa1dbfb85dfb0bb90f2bf32c8a6c30028494b6eef4158d983f828",
+      "log": ".local-state/icloud-full-integration-20261003/native-abandon-format-combined-full-check.log",
+      "log_sha256": "735b1c898e7bf906dedfdf853d5e820ce1d1150a646a415ed6cb007f0ecf09d3",
+      "exit_code": 0,
+      "started_at": "2026-10-03T18:39:02.700616+00:00",
+      "finished_at": "2026-10-03T18:47:31.997617+00:00",
+      "elapsed_seconds": 509.297001,
+      "source_sha256": {
+        "Cargo.lock": "e9ab3da569a22fa74433b21e3f42bd2bf8cbe54e12c734ea0901cc4228dc646c",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/abandon.rs": "237a275f1775346b82943f9fb1a09d4201960303f894939dcad1318c6a296987",
+        "crates/cirrove-icloud/src/owned_mounted_replace/native/tests.rs": "a44c00dc58fe1c9d3980a97fb84f1097ed9959789439c7db849b5c0284115fac",
+        "docs/acceptance-ledger.json": "0b92893ed6a0f6c2f61c73e5f8f9f9334873805db9b5f10b81abc4a736dcf631",
+        "docs/benchmarks/icloud-native-stage-format-recovery-2026-10-03.json": "2f66e6523431295d5d1b5010f2ba8ce8b7eb7ade236bd1a738df3f4061bc7f51",
+        "packaging/systemd/cirroved.service": "8a57822abd8f5b8001f606bce154c45fd727fac3f184a2ed1331cbb5725646e9",
+        "scripts/check.sh": "75a41057abfe2ac5758caa31dbb6ac7cd5d4f9a9811828fa9c7a105acdd383d4",
+        "scripts/install-developer.sh": "eca700e893dcb58fa6e519f362265e98ecb8846de61792fe8073118c10cb86d9",
+        "scripts/switch-to-package.sh": "6a213c6b04702bf47713b1afe0f0f72b971f4109422e9784cf6b714b49a12f4d"
+      },
+      "executable_source_unchanged_during_check": true,
+      "new_tests_success_occurrences": {
+        "native_stage_abandonment_numbers_keeps_exact_operation_and_original": 2,
+        "native_stage_abandonment_keynote_keeps_exact_operation_and_original": 2,
+        "native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original": 2
+      },
+      "native_fuse_https": {
+        "passed": 3,
+        "filtered": 496
+      },
+      "writable_kernel": {
+        "passed": 55,
+        "filtered": 1
+      },
+      "installer_preflight_tests": 39,
+      "full_icloud_gates_open": 6,
+      "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+      "filesystem": "ext4",
+      "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+      "scope": "Complete scripts/check.sh: format, Clippy/probes, workspace/features, kernel mounts, scripts, coverage, ledger and docs. Existing provider/current-vault and service/journal/socket abandonment tests executed. Display not repeated locally for this non-UI correction; source CI remains separate."
+    }
+  },
+  "authoring_and_launch_corrections": [
+    "Root applied tests only and ran cargo fmt before baseline build; production before-SHA verified unchanged.",
+    "First runtime command used an incorrect nonexistent executable path and exited127 before any test. Not a defect reproduction. Subsequent launcher obtains the actual executable from the compiler-artifact JSON; immutable127 record retained."
+  ],
+  "binary_pins": {
+    "baseline": {
+      "binary": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-60e1e60b360fc954",
+      "sha256": "8e7ea65e90cf31a9f9fd1aa617705df64972741c540b5a7703c4db44016fadd8",
+      "build_log_sha256": "7c26f99e03a183a44e2522ba66978388b127f524548fdf4d69c07f31edc286c6"
+    },
+    "corrected": {
+      "binary": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target/debug/deps/cirrove_icloud-60e1e60b360fc954",
+      "sha256": "bfb3e8a4f4da473bcaada8e98f9b3863ae54aa7b28ace15e6df9b2e82d72f96d",
+      "build_log_sha256": "3fc36213b2338d8a8b8a9020cf2faa48065ba8c3703f529e7a1187e74bdfc5e3"
+    }
+  },
+  "evidence_recorded_at": "2026-10-03T18:39:02.574970+00:00",
+  "runtime_environment": {
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/icloud-full-20261003",
+    "filesystem": "ext4",
+    "cargo_target_dir": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+    "one_local_controlled_arm_at_a_time": true,
+    "performance_claim": false
+  },
+  "decision": "Correct exact-format Stage abandonment is demonstrated by unchanged production failures and corrected local HTTPS passes with source/original preservation. Complete contributor check passed. No live Numbers/Keynote or installed/application/full-iCloud gate closure.",
+  "remote_ci": {
+    "run": 37145716828,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37145716828",
+    "requested_head": "0e48e13ad84af25534abc020df8b9fa17213e5bc",
+    "actual_pull_request_merge_checkout": "24d624c3d1a5a28bbb641748fac0e2b771fc3f99",
+    "head_merge_exact_tree_equality": {
+      "0e48e13ad84af25534abc020df8b9fa17213e5bc": {
+        "tree": "feb40d67aac983f1001b303c9b6236b1e3d1edd3",
+        "parents": [
+          "378a96d5ab1dc9c4e40abdd384019c1312f31a59"
+        ],
+        "raw": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192217356582Z-git-commit-0e48e13ad84af25534abc020df8b9fa17213e5bc.json",
+        "raw_sha256": "b3a0db59fbe89fc81c5217a41fd38d10442ab3670676296efd7c1c8720feca13"
+      },
+      "24d624c3d1a5a28bbb641748fac0e2b771fc3f99": {
+        "tree": "feb40d67aac983f1001b303c9b6236b1e3d1edd3",
+        "parents": [
+          "f3e76aeb373f6614dea1e73ef62a96f9f7ef1872",
+          "0e48e13ad84af25534abc020df8b9fa17213e5bc"
+        ],
+        "raw": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192217356582Z-git-commit-24d624c3d1a5a28bbb641748fac0e2b771fc3f99.json",
+        "raw_sha256": "873b86bb5f6755e79b963639605991a730bc731b0a2bbb1167be68b85fba6aff"
+      }
+    },
+    "status": "completed",
+    "conclusion": "cancelled",
+    "jobs": [
+      {
+        "id": 111269105297,
+        "name": "linux",
+        "conclusion": "cancelled"
+      },
+      {
+        "id": 111269105429,
+        "name": "arch-package",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105437,
+        "name": "deb-package",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105464,
+        "name": "dependency-audit",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105469,
+        "name": "rpm-package",
+        "conclusion": "success"
+      },
+      {
+        "id": 111269105497,
+        "name": "mounted-read-workloads",
+        "conclusion": "success"
+      },
+      {
+        "id": 111271442371,
+        "name": "headless-package-install",
+        "conclusion": "success"
+      }
+    ],
+    "linux_log": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192142940986Z-linux-job-111269105297-cancelled.log",
+    "linux_log_sha256": "2d509f435d110acac154175e3721a31d9e895c5838a77451cb9f33c86298a4b7",
+    "terminal_run_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192120491858Z-run.json",
+      "sha256": "02272c8cdbe9d2e657a8c5064d8d6e3f817cae4600452360f5790143556c16d8"
+    },
+    "terminal_jobs_metadata": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192120491858Z-jobs.json",
+      "sha256": "0fbd0cf513838a5114ea027e842be929b8d968879d578e1b81d5c3b5c1979928"
+    },
+    "new_abandonment_format_tests": {
+      "unique_tests": 3,
+      "workspace_occurrences": 3,
+      "feature_adapter_occurrences": 3,
+      "evidence": [
+        {
+          "line": 2731,
+          "text": "2026-10-03T19:01:19.5155642Z test owned_mounted_replace::native::tests::native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 2732,
+          "text": "2026-10-03T19:01:19.8815448Z test owned_mounted_replace::native::tests::native_stage_abandonment_keynote_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 2733,
+          "text": "2026-10-03T19:01:20.4845626Z test owned_mounted_replace::native::tests::native_stage_abandonment_numbers_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 4343,
+          "text": "2026-10-03T19:05:06.3985748Z test owned_mounted_replace::native::tests::native_stage_abandonment_mixed_pages_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 4344,
+          "text": "2026-10-03T19:05:06.7800947Z test owned_mounted_replace::native::tests::native_stage_abandonment_keynote_keeps_exact_operation_and_original ... ok"
+        },
+        {
+          "line": 4345,
+          "text": "2026-10-03T19:05:07.1960534Z test owned_mounted_replace::native::tests::native_stage_abandonment_numbers_keeps_exact_operation_and_original ... ok"
+        }
+      ]
+    },
+    "original_pages_exact_metadata_and_current_vault_proof": {
+      "workspace_and_feature_occurrences": 2,
+      "evidence": [
+        {
+          "line": 2735,
+          "text": "2026-10-03T19:01:20.5779484Z test owned_mounted_replace::native::tests::native_stage_abandonment_proof_is_exact_and_only_reads_metadata ... ok"
+        },
+        {
+          "line": 4347,
+          "text": "2026-10-03T19:05:07.2895551Z test owned_mounted_replace::native::tests::native_stage_abandonment_proof_is_exact_and_only_reads_metadata ... ok"
+        }
+      ],
+      "scope": "Original Pages proof test contains current vault state refusal controls; this is synthetic code coverage, not live recovery."
+    },
+    "chooser_1": {
+      "command_line": 4760,
+      "result_line": 4772,
+      "result": "2026-10-03T19:09:41.5605442Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 1.05s"
+    },
+    "window_1_1_20": [
+      {
+        "command_line": 4774,
+        "result_line": 4806,
+        "result": "2026-10-03T19:09:52.6836557Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out"
+      },
+      {
+        "command_line": 4808,
+        "result_line": 4822,
+        "result": "2026-10-03T19:10:00.1387429Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out"
+      },
+      {
+        "command_line": 4824,
+        "result_line": 4877,
+        "result": "2026-10-03T19:10:22.6173519Z test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out"
+      }
+    ],
+    "native_fuse_https_3": {
+      "command_line": 5013,
+      "result_line": 5025,
+      "result": "2026-10-03T19:14:23.7410434Z test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 496 filtered out; finished in 4.40s"
+    },
+    "writable_session_55": {
+      "command_line": 5134,
+      "result_line": 5198,
+      "result": "2026-10-03T19:18:17.3089576Z test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 108.38s"
+    },
+    "installer_preflight_39": {
+      "step_number": 44,
+      "command_line": 5381,
+      "count_line": 5387,
+      "ok_line": 5389,
+      "summary": "2026-10-03T19:18:42.7643740Z Ran 39 tests in 10.610s",
+      "outcome": "2026-10-03T19:18:42.7643981Z OK"
+    },
+    "scope_audit": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192340926614Z-cancelled-scope-audit.json",
+      "sha256": "59a734cde8abc1a34e3f7e08e04c906feaa1e7a31b3e4f83f56b05a697f310ae"
+    },
+    "cause_audit": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192637946660Z-cancellation-cause-audit.json",
+      "sha256": "9e34e59f74467da996db478c4fa54e5b63f146244321b097cb271773d3a54ee0"
+    },
+    "explicit_cause": "GitHub check annotation explicitly reports maximum job execution time of 30m0s exceeded. Linux aggregate job budget exhausted; cargo doc step49 cancelled, all steps1\u201348 succeeded.",
+    "raw_annotation": {
+      "path": ".local-state/icloud-full-integration-20261003/remote-ci-0e48e13-agent/20261003T192637946660Z-annotations.json",
+      "sha256": "bd4979890a23d4351ed3be16de9e737199105304d76e69b15dbf5f36c51efbf4",
+      "messages": [
+        {
+          "annotation_level": "failure",
+          "message": "The job has exceeded the maximum execution time of 30m0s"
+        },
+        {
+          "annotation_level": "failure",
+          "message": "The operation was canceled."
+        }
+      ]
+    },
+    "claim_limit": "Prior checks executed successfully; Linux overall cancelled at final documentation, six other jobs successful. Not seven green; excludes new account-router fixture and job-budget correction."
+  },
+  "subsequent_remote_ci": {
+    "run": 37148483127,
+    "url": "https://github.com/Dandiccf/cirrove/actions/runs/37148483127",
+    "requested_head": "b5136fd3dcde3ec3e86f088b8b13796266c0e87c",
+    "actual_pull_request_merge_checkout": "07f58b45f3b1ca7e4601d4e9de4e5ac94c71a8b0",
+    "status": "completed",
+    "conclusion": "success",
+    "linux_elapsed_seconds": 1776.0,
+    "scope": "Exact b5136fd source only. Later native WRITE staging correction, installed transitions, live Apple/application fidelity and repeatability remain unproven.",
+    "public_scope_evidence": "docs/benchmarks/icloud-native-account-router-https-2026-10-03.json",
+    "seven_jobs_success": true,
+    "original_0e_run_remains_cancelled": true
+  }
+}

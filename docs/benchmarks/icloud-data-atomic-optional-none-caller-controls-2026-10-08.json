@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "question": "Does the exact selected postrename guard accept Rust omitted optionalNone while retaining foreign-value and SQL-owner refusals?",
+  "prediction": "Old PagesV2 selected1 fails expected KeyError assertion; corrected same1 and full5 pass.",
+  "endpoint": "Actual serialized ReplacementRecord fixture, exact source need AST,3 serial local commands, no helper import/provider/SQL/runtime/cloud replay.",
+  "active_measurement": false,
+  "status": "closed-controls-pass",
+  "TMPDIR": "/home/dandiccf/Storage/ct/daopt7v1",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/daopt7v1",
+  "filesystem": "ext4",
+  "proposal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-controller-preparation-20261008-private-v1/controller-optional-none-correction-private-v1/proposal-v1.json",
+    "size": 7219,
+    "sha256": "3c5018ceabdbe76c568a5e96660b82b36dc6b5105402aaea986c03cbd3121273"
+  },
+  "source_peer": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-controller-preparation-20261008-private-v1/controller-optional-none-correction-private-v1/audit-independent-optional-none-source-v1.json",
+    "size": 5988,
+    "sha256": "f9d528a4f057f248c896f92f4756fb4e31a17e98cd67e52a0fb54724468f78d6"
+  },
+  "failed_case_preserved": true,
+  "full_487_closed": false,
+  "actual_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-controller-preparation-20261008-private-v1/controller-optional-none-correction-private-v1/root-controls-execution-private-v1/terminal-v1.json",
+    "size": 1419,
+    "sha256": "ecea3ba14ab21fd9f2353b9d2a028c74c6f102697700595ad76fc2339ca4a557"
+  },
+  "independent_actual_controls_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-data-three-format-atomic-controller-preparation-20261008-private-v1/controller-optional-none-correction-private-v1/root-controls-execution-private-v1/audit-independent-optional-none-controls-terminal-v1.json",
+    "size": 6191,
+    "sha256": "e130cccbc0e637af1df31c18206ee83fc57bc79466cc4c93095c1c1ce7b6b9ae"
+  },
+  "independent_actual_checks_passed": 16,
+  "scope_limit": "Exact selected post-rename AST guard against actual serialized record: old same-case red, corrected same-case green, five controls green. Does not prove full controller runtime or provider handoff."
+}

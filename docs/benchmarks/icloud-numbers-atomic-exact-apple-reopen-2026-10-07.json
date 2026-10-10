@@ -1,0 +1,47 @@
+{
+  "Apple_Numbers_reopen": true,
+  "URL_GUID_prediction_corrected_in_witness": true,
+  "active": false,
+  "active_measurement": false,
+  "browser_tab": "1216489923",
+  "cells": [
+    7,
+    3,
+    10
+  ],
+  "current_item_guid": "D541B87B-E2FC-470C-A841-25A815F6D819",
+  "date": "2026-10-07",
+  "editor_uses_shortGUID_route": true,
+  "endpoints": [
+    "Visible exact subject name and current receipt GUID",
+    "Apple editor cells7/3/10 and formulaSUM(A2:B2)",
+    "No upload/replace/delete/repeatedwriter or typed content"
+  ],
+  "exact_current_item_matched": true,
+  "expected_seconds": 180,
+  "formula": "SUM(A2:B2)",
+  "full487_closed": false,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/apple-exact-reopen-v1/audit-independent-Apple-Numbers-UI-witness-v1.json",
+    "sha256": "b6cda22d6838d6618318411060a153f7ac50099a03f36d33d50fa7d2d4f0de09",
+    "size": 6625
+  },
+  "independent_audit_passed": 24,
+  "independent_audit_total": 24,
+  "installed_actions": false,
+  "normal_RO_run": "b6ce3c1e-f8e7-4dfd-8a2f-b2d46b66150a",
+  "original_writer_case_success": false,
+  "prediction": "The unique subject document opens at URL guid D541B87B-E2FC-470C-A841-25A815F6D819 and shows cells7,3,10 with SUM(A2:B2), without any typed cell input or cloud mutation by Cirrove.",
+  "provider_mutations_by_Cirrove": false,
+  "question": "Does Apple Numbers open the exact confirmed current B document with expected cells and formula after normal RO remount verification?",
+  "run": "4c04741c-10dc-46cf-b579-8147466ee7de",
+  "status": "closed_UI_open_passed",
+  "subject_run": "33711731-75c5-4d9e-bc26-aa385cab9748",
+  "version": 1,
+  "witness": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-numbers-package-atomic-ro-followup-preparation-private-v1/apple-exact-reopen-v1/root-UI-witness-v1.json",
+    "sha256": "40d4c3c1f5010e970c3b19874722fcc181fc5c38e511f5d459e616c290250bbd",
+    "size": 3053
+  },
+  "writer_replays": 0
+}

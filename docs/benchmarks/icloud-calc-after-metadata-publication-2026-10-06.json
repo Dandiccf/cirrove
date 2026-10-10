@@ -1,0 +1,258 @@
+{
+  "actual_outcome": {
+    "A": {
+      "independent_DATA_readback": true,
+      "item": "FILE::com.apple.CloudDocs::C7BD4F48-F5AA-44A6-A3D2-C963D7D1458C",
+      "reopened": {
+        "A2": 7,
+        "B2": 3,
+        "C2": 10,
+        "formula": "=SUM(A2:B2)"
+      },
+      "sha256": "3645854724d003f2a18ce55f2fc6f1b5a9e761598f5e9d8d93ee23b1c77b1dba",
+      "size": 5281
+    },
+    "B": {
+      "independent_DATA_readback": true,
+      "item": "FILE::com.apple.CloudDocs::7F3C3EBE-6007-48DE-AC19-549900494A13",
+      "remounted_raw_sha256": "309095700a7965e6e377c06d826766f0cacb54c6be6c06e32d69c2b5af8b4ca0",
+      "remounted_raw_size": 5612,
+      "reopened": {
+        "A2": 11,
+        "B2": 3,
+        "C2": 14,
+        "formula": "=SUM(A2:B2)"
+      },
+      "sha256": "309095700a7965e6e377c06d826766f0cacb54c6be6c06e32d69c2b5af8b4ca0",
+      "size": 5612
+    },
+    "cleanup_reserve_seconds": 45,
+    "closure": {
+      "all477_runtime_sources_unchanged": true,
+      "all534_checked_sources_unchanged": true,
+      "all_original_children_reaped_and_gone": true,
+      "four_frozen_role_pins_unchanged": true,
+      "original_children": 13,
+      "original_controller_reaped_and_gone": true,
+      "original_outer_runner_gone": true,
+      "owned_mounts_absent": true,
+      "owned_socket_absent": true
+    },
+    "installed": {
+      "daemon_executable_unchanged": true,
+      "daemon_pid": 1243,
+      "daemon_start_ticks": 2318,
+      "home_daemon_shadow_absent": true,
+      "packaged_files_unchanged": 19,
+      "state_migration_or_restart": false,
+      "unit_unchanged": true
+    },
+    "journal": {
+      "all_complete": 15,
+      "all_queue_entries": 15,
+      "cleanup_sequence14": "Applied",
+      "failed_attempts": 0,
+      "mutations_applied": 6,
+      "ordinary_metadata_publication_jobs": 3,
+      "publication_backoff": 0,
+      "publication_failures": 0,
+      "publication_jobs_done": 3,
+      "schema": 20,
+      "source_sequence12": "Uploaded",
+      "target_sequence13": "Uploaded",
+      "uploads_uploaded": 9
+    },
+    "original_window_seconds": 600,
+    "runtime_duration_seconds": 479.1900877029984,
+    "source_head": "b078a4146fe544159e9e5037c732bb1e2a8950b5",
+    "terminal_exit_code": 0,
+    "typed_receipt_and_cache": {
+      "B_sole_original_folder_and_name": true,
+      "cached_A_exact_target_Trash_backup": true,
+      "independent_Trash_raw_bytes": false,
+      "source12_backup_empty_size": 0,
+      "source_shadow_item_distinct_from_A": true,
+      "target_backup_A_size": 5281,
+      "target_backup_matches_A_item_revision_size": true,
+      "target_operation": "8ee2a12e-0b53-4921-af06-f52d9d2f171a"
+    }
+  },
+  "arms": [
+    {
+      "cleanup_complete": true,
+      "independent_A_B_verified": true,
+      "name": "historical-b729-cache-reproduction",
+      "readonly_remount_passed": false,
+      "run": "b72959f1-10a4-4f00-97d1-cb88462c6f4f",
+      "status": "closed-never-replayed"
+    },
+    {
+      "automatic_retry": false,
+      "cleanup_complete": true,
+      "cleanup_reserve_seconds": 45,
+      "duration_seconds": 479.1900877029984,
+      "exit_code": 0,
+      "independent_A_B_verified": true,
+      "name": "fresh-metadata-publication-correction",
+      "readonly_remount_passed": true,
+      "run": "3df92c58-7185-4452-9647-94994ada2400",
+      "status": "completed-pass",
+      "window_seconds": 600
+    }
+  ],
+  "candidate_formats": {
+    "journal": 20,
+    "metadata": 8
+  },
+  "cloud_mutations_authorized": true,
+  "cloud_mutations_possible": true,
+  "desktop_import_or_native_iWork_fidelity": "not tested by ordinary XLSX arm",
+  "evidence": {
+    "A_DATA": {
+      "path": "/var/tmp/cirrove-calc-editor-3df92c58-7185-4452-9647-94994ada2400/calc-a-data-proof.json",
+      "sha256": "53f4dc99e10d631419221b2e92df580b5b5e57928300f151527d5dfcc142055e",
+      "size": 607
+    },
+    "A_UNO": {
+      "path": "/var/tmp/cirrove-calc-editor-3df92c58-7185-4452-9647-94994ada2400/calc-uno-a-proof.json",
+      "sha256": "3b1eb89040de73703ced22ebc92a2282d71dd5831dfac36bba7d4b0fa84a6d04",
+      "size": 442
+    },
+    "B_DATA": {
+      "path": "/var/tmp/cirrove-calc-editor-3df92c58-7185-4452-9647-94994ada2400/calc-b-data-proof.json",
+      "sha256": "9918a644d08362b1812d3dd9521baf67b916081f96a420b2cd4acf0870ca9e62",
+      "size": 607
+    },
+    "B_UNO": {
+      "path": "/var/tmp/cirrove-calc-editor-3df92c58-7185-4452-9647-94994ada2400/calc-uno-b-proof.json",
+      "sha256": "0a7ff7ee68838e81e86656dd235aaba2f23b39584cd8b786dbea8da3963122e9",
+      "size": 443
+    },
+    "installed_baseline": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/root-calc-after-metadata-publication-installed-baseline-v1.json",
+      "sha256": "4fbc5b303bbef506e9fd4e0f9c3e87997ed281261fb8f47d98694bbf0fd6bdd3",
+      "size": 4139
+    },
+    "journal_cache_independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/audit-admission-stopped-journal-cache-v1.json",
+      "sha256": "4c09f7e687f5ed650ba9b930f506bb68c3eb0cd6b278e6984fd61660536dde5d",
+      "size": 23747
+    },
+    "launch_manifest": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/root-cloud-launch-manifest-v1.json",
+      "sha256": "6590d5c75e807c96134cc36b5a83f23901ff09d8dfe34344d79d33c5c769c60f",
+      "size": 69633
+    },
+    "launch_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/root-cloud-launch-result-v1.json",
+      "sha256": "a688a64fdb435a18395a825c8619ced87efbb911ce858a0c38eb31a161dfa831",
+      "size": 1040
+    },
+    "owned_closure": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/owned-closure.json",
+      "sha256": "4ba4c5aeca330598f11a3e124eeb86abd2cd22f1484057c8fc78b8e48a52f0ef",
+      "size": 9703
+    },
+    "remount_proof": {
+      "path": "/var/tmp/cirrove-calc-editor-3df92c58-7185-4452-9647-94994ada2400/remount-b-proof.json",
+      "sha256": "cc2c9c251dc8be4ab54250fd5debd2e4be557fd3227c7a126252457af071cc5a",
+      "size": 934
+    },
+    "remount_raw_capture": {
+      "path": "/var/tmp/cirrove-calc-editor-3df92c58-7185-4452-9647-94994ada2400/remounted-b.xlsx",
+      "sha256": "309095700a7965e6e377c06d826766f0cacb54c6be6c06e32d69c2b5af8b4ca0",
+      "size": 5612
+    },
+    "terminal_independent_audit": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/audit-admission-terminal-proofs-closure-installed-v1.json",
+      "sha256": "ea64285658473cbc5a73cfc52f41f089bd2dafeaae5b1db3f7302254754efcb8",
+      "size": 18870
+    },
+    "typed_target_B_private_record": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/audit-admission-target-b-upload-record-v1.json",
+      "sha256": "681d9dcb7901bf5f7342d6a06e8d7e3c2bb6324e53a4ea6171f5885676932ce2",
+      "size": 2245
+    }
+  },
+  "full_check": {
+    "duration_seconds": 644.8667800939875,
+    "exit_code": 0,
+    "log_sha256": "f6e470a4680f47b54be6c095f6d15e687c6fd49a39cf20a095740f4a6815bfb8",
+    "phase": "root-ordinary-handoff-effective-readonly-context-fullcheck-v1",
+    "rust_cargo_sources": 477,
+    "source_pins": 534
+  },
+  "full_icloud_gate_closed": false,
+  "independent_original_Trash_raw_bytes": "separate observer still required",
+  "installed_actions": false,
+  "installed_formats_unchanged": {
+    "journal": 14,
+    "metadata": 7
+  },
+  "limits": [
+    "One actual successful fresh owned XLSX arm, no repeated-arm spread.",
+    "Ordinary DATA Calc A/B/remount acceptance does not establish native Pages/Numbers/Keynote editing or public Desktop import.",
+    "The exact typed original-A Trash receipt and local cache equality do not independently verify original Trash raw bytes or restoration.",
+    "Visible-window UNO checks are recorded without a human GUI witness.",
+    "All six full-iCloud gates and schema20/metadata8 installed-migration HOLD remain open; installed14/7 provenance is unchanged."
+  ],
+  "one_runtime_compile_lane": true,
+  "performed": {
+    "actual_local_visible_Calc_A_storeAs_reopen": true,
+    "automatic_retry": false,
+    "distinct_normal_readonly_remount_and_raw_capture": true,
+    "human_gui_witness": false,
+    "independent_A_DATA_before_B": true,
+    "independent_current_B_DATA": true,
+    "independent_original_Trash_raw_bytes": false,
+    "installed_actions": false,
+    "native_iWork_editing": false,
+    "old_writer_replay": false,
+    "one_actual_local_B_store_reopen": true,
+    "one_fresh_cloud_arm": true
+  },
+  "prediction": "Fresh A7/3/SUM10 and B11/3/SUM14 save/reopen locally; all real journal operations complete; independent iCloud DATA raw size/SHA matches each actual source; read-only remount exposes exact B and bounded capture matches B source. Duplicate old-A visible name is gone. No native iWork fidelity or restore claim.",
+  "preregistration_preservation": {
+    "archive_proof": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/public-preregistration-archive-proof-v1.json",
+      "sha256": "bb14d7fb7dd8c0b9eb79a0c8d672518b7276322cdb83685e21c16e9e0c1b25a1",
+      "size": 635
+    },
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-calc-editor-3df92c58-7185-4452-9647-94994ada2400/public-preregistration-byteexact-before-outcomes-v1.json",
+      "sha256": "7868d4a97deb7122f063d5b505da94e080c88282559d84c410b3bfb767ee8fd9",
+      "size": 2370
+    },
+    "matched_actual_launch_manifest_and_input": true,
+    "question_and_prediction_unchanged": true
+  },
+  "question": "Does durable exact ordinary handoff metadata publication preserve both confirmed Calc saves and expose exact B after distinct normal read-only remount, without replaying a provider mutation?",
+  "read_only_audit_caveat": {
+    "DB_WAL_SHM_byte_hashes_dev_ino_and_size_unchanged": true,
+    "actual_timestamp_delta": {
+      "/var/tmp/cirrove-calc-editor-3df92c58-7185-4452-9647-94994ada2400/state/accounts/ca43ba36-9f5c-4784-9ae9-20e5c3cbe319/journal/uploads.db-shm": {
+        "ctime_ns": [
+          1791253937857114373,
+          1791253951553037465
+        ],
+        "mtime_ns": [
+          1791253937857114373,
+          1791253951553037465
+        ]
+      }
+    },
+    "all_filesystem_stamps_unchanged": false,
+    "difference": "Read-only WAL coordination advanced uploads.db-shm mtime/ctime; its byte hash remained unchanged. No DB/WAL byte change or writable UploadJournal open occurred.",
+    "journal_open": "SQLite mode=ro/query_only with existing WAL; immutable was not used for this journal",
+    "metadata_open": "SQLite mode=ro/query_only/immutable only with no WAL present"
+  },
+  "registered_at": "2026-10-06T02:14:19.783995+00:00",
+  "run": "3df92c58-7185-4452-9647-94994ada2400",
+  "runtime_role_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/calc-editor-bin-after-metadata-publication-20261006/runtime-binding.json",
+    "sha256": "796999a7d6c37ed1e45e6a0e115a416a9d32fa12d1eb3a4a1cb71ed492119628",
+    "size": 64715
+  },
+  "source_head": "b078a4146fe544159e9e5037c732bb1e2a8950b5",
+  "status": "bounded-owned-ordinary-calc-A-B-readonly-remount-passed"
+}

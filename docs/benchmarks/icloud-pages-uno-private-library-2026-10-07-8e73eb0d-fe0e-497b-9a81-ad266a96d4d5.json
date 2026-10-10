@@ -1,0 +1,145 @@
+{
+  "active_measurement": false,
+  "clock": {
+    "inner_cleanup_seconds": 30,
+    "inner_work_seconds": 60,
+    "outer_closure_seconds": 10,
+    "outer_maximum_seconds": 100,
+    "renewal": false,
+    "starts": "after pinned input validation, before actual Office capsule"
+  },
+  "endpoint_order": [
+    "exact installed FilterFactory Apple Pages registration",
+    "exact PagesImportFilter service construction",
+    "SimpleFileAccess openFileRead of unchanged genuine B",
+    "actual getLength/getPosition/seek method observations",
+    "XExtendedFilterDetection.detect(InputStream,URL): fixed reply-shape and type categories only",
+    "close input stream; terminate desktop service; original launcher wait plus PID namespace absence",
+    "all protected input/tool/registry/filter/parser pins unchanged"
+  ],
+  "independent_assessment": {
+    "actual_operands": {
+      "descriptor_type_matches": true,
+      "detect_reply_shape": "return_and_descriptor",
+      "detected_type_class": "expected_pages",
+      "filter_registered": true,
+      "filter_service_present": true,
+      "initial_and_rewound_position_zero": true,
+      "seekability_methods_present": true,
+      "source_length_matched": true,
+      "source_stream_present": true,
+      "three_registration_properties_matched": true
+    },
+    "audit": {
+      "path": ".local-state/pages-uno-filter-private-lib-8e73eb0d-fe0e-497b-9a81-ad266a96d4d5-private-v1/audit-independent-private-library-filter-terminal-v1.json",
+      "sha256": "838a52041521125992f76d4102703101651561dbfb6971d93cb77db4e5f0b0a3",
+      "size": 3329
+    },
+    "checks_passed": 21,
+    "checks_total": 21,
+    "closure": "Original supervisor, sandbox and Office wrapper waited and absent; private namespace empty, no signals or deadline overrun.",
+    "dependency_assessment": "Adding the exact verified missing libwpg dependency in the private loader capsule restored filter-service activation and Pages type detection for the same immutable specimen. The earlier697 arm remains failed.",
+    "document_creation_calls": 0,
+    "document_load_calls": 0,
+    "export_calls": 0,
+    "gate487_closed": false,
+    "host_system_repair": false,
+    "limits": [
+      "Service/stream/detection success is not DOCX conversion or application fidelity.",
+      "No document load/create/export, native Pages save/export, provider mutation or installed delivery was performed.",
+      "Transient Office children were checked through standard-launcher wait and namespace emptiness, not individually instrumented.",
+      "Full gate487 remains open."
+    ],
+    "outcome": "passed_isolated_private_dependency_filter_probe",
+    "preservation": "All17 original registered pins, private library, resolver receipt and original raw Pages B full stamp remained exact.",
+    "system_package_install_performed": false
+  },
+  "limits": [
+    "Preregistration originally described this fresh packet as unexecuted; the retained actual outcome now proves the bounded service/stream/type-detection endpoint.",
+    "No document load, text or export acceptance was tested in this filter-only arm.",
+    "Historical Writer null-load causes remain unproved; this corrected private-library filter envelope successfully activated and detected the registered Pages specimen.",
+    "Installed package/source declaration correspondence is source-backed; upstream source is not a reproduced build attestation.",
+    "Standard launcher internal children are checked by launcher wait and private PID namespace emptiness, not individually instrumented.",
+    "The verified private library did not repair or install a host system dependency."
+  ],
+  "not_called": [
+    "loadComponentFromURL",
+    "create document",
+    "document text access",
+    "export",
+    "native save",
+    "provider HTTP",
+    "source edit"
+  ],
+  "outcome": {
+    "all_owned_processes_closed": true,
+    "fidelity_passed": false,
+    "gate487_closed": false,
+    "root_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-uno-filter-private-lib-8e73eb0d-fe0e-497b-9a81-ad266a96d4d5-private-v1/root-outer-result-v1.json",
+      "protected_stat": [
+        57,
+        75145140,
+        33024,
+        1000,
+        1,
+        1791353024615238691,
+        1791353024615238691
+      ],
+      "sha256": "0bd14f90268b8967f1b360f5ecd8d17417d0f1b466d4bb631e2a11c76741cdd3",
+      "size": 1133
+    },
+    "workflow_completed": true
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-uno-filter-private-lib-8e73eb0d-fe0e-497b-9a81-ad266a96d4d5-private-v1/root-outer-registration-v1.json",
+    "protected_stat": [
+      57,
+      75145137,
+      33024,
+      1000,
+      1,
+      1791353024161584271,
+      1791353024161584271
+    ],
+    "sha256": "d118e1df36105c5d67d43d1ef4b18937862e675c6a174b8f182cd45228f9c0fb",
+    "size": 3028
+  },
+  "prediction": "Providing exact verified libwpg-0.3.so.3 should permit component construction. Stream and detection operands remain independent actual observations; no document-load or export prediction.",
+  "primary_sources": [
+    "https://raw.githubusercontent.com/LibreOffice/core/libreoffice-26.8.0.2/writerperfect/source/writer/PagesImportFilter.cxx",
+    "https://raw.githubusercontent.com/LibreOffice/core/libreoffice-26.8.0.2/writerperfect/inc/ImportFilter.hxx",
+    "https://raw.githubusercontent.com/LibreOffice/core/libreoffice-26.8.0.2/offapi/com/sun/star/document/XExtendedFilterDetection.idl"
+  ],
+  "prior_failed_service_case": "697c1f07-ba06-40c4-a420-e3b7340c3177",
+  "private_library": {
+    "directory": "/home/dandiccf/Work/cirrove/.local-state/libwpg-verified-private-capsule-20261007-v1/lib",
+    "library": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/libwpg-verified-private-capsule-20261007-v1/lib/libwpg-0.3.so.3",
+      "sha256": "532279196939058f4f6b66399e13323836a2313b6575cee0508c8d498a1080aa",
+      "size": 124976
+    },
+    "resolver_map": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/libwpg-verified-private-capsule-20261007-v1/verified-capsule-and-resolver-map-v1.json",
+      "sha256": "4eb30c71d93e0e8e0d2768e65e2d740f6a7bede923594ca427d5e7bc26dd1c59",
+      "size": 47348
+    },
+    "reviewed_dependency_resolution": true
+  },
+  "question": "Does the same registered Pages filter service construct and detect genuine B after the exact missing SONAME is supplied only from a verified private library capsule?",
+  "registered_at": "2026-10-07T06:02:46.134967+00:00",
+  "retained_operands": "filter-operands.json: fixed bool/null fields plus enum reply shape/type only; original_clock_active. No property values, source URL, raw UNO descriptor or exception string.",
+  "root": "/home/dandiccf/Storage/puf-8e73eb0d",
+  "run": "8e73eb0d-fe0e-497b-9a81-ad266a96d4d5",
+  "source": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-edited-source-80e1cb43-f10d-4ca0-a688-7e3abd9754d7/apple-source-b.pages",
+    "sha256": "b512fbccdd0e00f4bb3447cac4c88bc22b9f2acbbedfd7e8d99df196e56e2efc",
+    "size": 101769
+  },
+  "source_head": "97bee0e6634ec1bbd540d405e8bd2560e42f11e7",
+  "status": "closed_completed",
+  "success": "filter probe expected type observed with all guarded prerequisites and actual owned process closure; no fidelity or gate claim. Unknown detection/failed prerequisites are a closed refusal if closure is proven.",
+  "system_package_install_performed": false,
+  "type_detection_scope": "Direct PagesImportFilter XExtendedFilterDetection, not Desktop loader/import pipeline. Reply string or documented return-plus-inout-descriptor tuple is classified separately; unexpected wire shape refuses without printing it.",
+  "version": 1
+}

@@ -23,8 +23,10 @@ concurrency:
 jobs:
   linux:
     runs-on: ubuntu-24.04
-    # Cold builds and slow package mirrors must leave time for every test group.
-    timeout-minutes: 30
+    # Runs 37145716828 and 37608761744 exhausted 30 and 40 minutes, respectively,
+    # at the end of the job. Leave cold builds time to finish the whole
+    # job; the individual test-group timeout commands remain unchanged.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,6 +37,14 @@ jobs:
         run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Compile the experimental iCloud mount probe
+        run: cargo clippy -p cirrove-service --features icloud-probe --bin cirrove-icloud-mount-probe --locked -- -D warnings
+      - name: Check the isolated iCloud write probe
+        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-write-probe --locked -- -D warnings
+      - name: Check the feature-gated iCloud editor metadata CLI
+        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove --test owned_icloud_editor_metadata_cli --test owned_icloud_editor_source_proof_cli --test owned_account_snapshot --test owned_icloud_calc_trash_original_cli --locked -- -D warnings
+      - name: Check the isolated mounted iCloud write probe
+        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-mounted-write-probe --locked -- -D warnings
       - name: Credential round trip against a throwaway Secret Service
         # The vault has one integration test and nothing ran it: dbus-run-session
         # was already here for the desktop step, but a session bus is not a Secret
@@ -52,12 +62,41 @@ jobs:
       - name: No acceptance box is ticked without a test asserting it
         run: python3 scripts/acceptance-ledger.py
       - run: cargo test --workspace --locked
+      - name: Feature-gated iCloud write adapter tests
+        run: cargo test -p cirrove-icloud --features write-probe --locked
+      - name: Feature-gated mounted iCloud ownership tests
+        run: cargo test -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-mounted-write-probe --locked
+      - name: iCloud account-router validator guards
+        run: cargo test -p cirrove-service --features icloud-write-probe --lib validation::icloud_account --locked
+      - name: iCloud editor metadata CLI refuses before state access
+        run: cargo test -p cirrove-service --features icloud-write-probe --test owned_icloud_editor_metadata_cli --locked
+      - name: Calc Trash original CLI refuses before session access
+        run: cargo test -p cirrove-service --features icloud-write-probe --test owned_icloud_calc_trash_original_cli --locked
+      - name: iCloud editor source proof CLI refuses without state access
+        run: cargo test -p cirrove-service --features icloud-write-probe --test owned_icloud_editor_source_proof_cli --locked
+      - name: Opaque stopped owned-account snapshot contracts
+        run: cargo test -p cirrove-service --features icloud-write-probe --test owned_account_snapshot --locked -- --test-threads=1
+      - name: Native final-confirmation loss and inspection-only recovery
+        run: >-
+          cargo test -p cirrove-service --features icloud-write-probe --lib
+          journal::package_replacement::worker_transport::native_final_tests::
+          --locked -- --test-threads=1
       # Package-specific feature resolution can rebuild dependencies. Keep that
       # compilation outside the native window's unchanged runtime deadline.
       - name: Build native desktop test
         run: cargo test -p cirrove-desktop --test window --locked --no-run
+      - name: Build native archive chooser filter test
+        run: cargo test -p cirrove-desktop --lib --locked --no-run
+      - name: Native archive chooser accepts supported filename cases
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --lib --locked ui::native_import::tests::native_import_chooser_filter_accepts_case_variants_only -- --ignored --exact --test-threads=1
+      # Keep the ten read-only receipt arms out of the original group budget.
+      # Three groups retain 30 seconds and together select every window scenario.
+      - name: Read-only recovery verifies exact saved and working receipts
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked readonly_recovery_requires_exact_saved_and_working_receipts -- --ignored --exact --test-threads=1
+      - name: Saved native imports resume exact observers after reconnect
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked saved_native_imports_are_paged_account_bound_and_observer_only -- --ignored --exact --test-threads=1
       - name: Native desktop with isolated account settings and status service
-        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads=1
+        run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --skip readonly_recovery_requires_exact_saved_and_working_receipts --skip saved_native_imports_are_paged_account_bound_and_observer_only --test-threads=1
       # The tray registered with a watcher, answered every property it declared,
       # and drew nothing, because the set was incomplete and a host reads the
       # whole of it. No unit test could see that; this one asks over a bus.
@@ -96,6 +135,11 @@ jobs:
         # Keep independent mounts from competing with latency/memory fixtures.
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
+      - name: Build native FUSE HTTPS integration test
+        run: cargo test -p cirrove-service --lib --locked 'journal::package_replacement::worker_transport::fuse_https::' --no-run
+      - name: Native kernel saves through the actual synthetic HTTPS package worker
+        # Same loopback fixture protocol as coordinator tests, fed by real FUSE bytes.
+        run: timeout 90s cargo test -p cirrove-service --lib --locked 'journal::package_replacement::worker_transport::fuse_https::' -- --ignored --test-threads=1
       - name: Google Drive through the shared kernel mount (synthetic)
         run: timeout 60s cargo test -p cirrove-service --test google_drive --locked real_ -- --ignored --nocapture --test-threads=1
       - name: Namespace reclamation, deep-alias churn and held file versions
@@ -208,6 +252,10 @@ jobs:
       - run: python3 scripts/test-observe-service.py
       - run: python3 scripts/test-install-tray-autostart.py
       - run: python3 scripts/test-install-scripts.py
+      - name: Developer installer preserves held state and declared windows
+        run: python3 scripts/test-installer-preflight.py
+      - name: Package switch refuses unsafe routing and unknown retained-state compatibility
+        run: python3 scripts/test-package-switch-preflight.py
       - name: The Files extension holds to what it promises, against a daemon that is only a socket
         run: python3 scripts/test-nautilus-extension.py
       - name: Nothing is reachable only through one file manager
@@ -390,7 +438,7 @@ jobs:
           if-no-files-found: error
       - name: Install, run, validate what a desktop would read, and remove
         run: |
-          sudo apt-get install -y ./target/deb/cirrove_*.deb ./target/deb/cirrove-desktop_*.deb
+          sudo apt-get install -y --no-install-recommends ./target/deb/cirrove_*.deb ./target/deb/cirrove-desktop_*.deb
           cirrove --help >/dev/null
           cirroved --help >/dev/null
           grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
@@ -481,7 +529,9 @@ jobs:
     runs-on: ubuntu-24.04
     container: ubuntu:24.04
     needs: deb-package
-    timeout-minutes: 20
+    # The recommended desktop dependency download exceeded 20 minutes; keep
+    # the integration checks intact and allow the same install more time.
+    timeout-minutes: 40
     steps:
       - name: A container with a package manager and nothing else
         run: |

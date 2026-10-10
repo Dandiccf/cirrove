@@ -1,0 +1,212 @@
+{
+  "automatic_retry": false,
+  "binary": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-account-row-root-launch-private-b592-v1/default-desktop",
+    "sha256": "b250e0d1b97bc1996a193a5d6e4584b80aa66a05819818c7f9e4ee9f680fb73f",
+    "size": 508661032
+  },
+  "chooser": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-attribute-mapped-library-private-v1/chooser_keyboard_cancel_v16.py",
+    "sha256": "0bbc1f05c7567c8f86696ddac6dcf5864edc696b407aa880f00ba89c1378437e",
+    "size": 46314
+  },
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "endpoint": "Public chooser exact owned path, matching confirmation Cancel, zero import RPC; original helpers/Desktop/controller reaped and sockets closed.",
+  "head": "65a25139c7a1b1d6a5ab36a7157b2f0fea5d3961",
+  "import_submission_allowed": false,
+  "keyboard_control": {
+    "config_provider": "lua",
+    "gtk_library": {
+      "path": "/usr/lib/libgtk-4.so.1.2200.4",
+      "sha256": "191573fa61ffee70af2af82f1caf4c8d45b336523f56b7d6097fd34c13a5a809",
+      "size": 11823816
+    },
+    "gtk_state_contract": "gtk4-sensitive-without-enabled-v1",
+    "gtk_version": "4.22.4",
+    "hyprctl": {
+      "path": "/usr/bin/hyprctl",
+      "sha256": "2780a8bb56494917a725f817c9cf70fb5cc2f39aac5abc62ecf2e619a1f13ec5",
+      "size": 272680
+    },
+    "hyprland_commit": "efb50993780079460b0cbed1363e2166a2de1d9f",
+    "hyprland_version": "0.56.2",
+    "primary_attestation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-mapped-root-launch-private-f060-v1/primary-attestation-v2.json",
+      "sha256": "4fc2f6833b2b37e870ff00950f0e8b7bb0e287f49738d8d329df4053109e3295",
+      "size": 4084
+    },
+    "version": 1
+  },
+  "limits": [
+    "Local synthetic account only, no full-gate or provider claim.",
+    "Exact address-bound one-key route with source-bound state, provenance, birth/time and cleanup guards; no fallback or retry.",
+    "Pinned physical mapped GTK ELF establishes version rather than absent legacy getters."
+  ],
+  "original_window_seconds": 180,
+  "prediction": "Observed unset legacy toolkit getters no longer refuse a GTK attribute backed by exact mapped GTK4.22.4 ELF. One focused owned SPACE expands the account; real chooser selects the owned archive and reaches confirmation Cancel.",
+  "question": "Does GTK attribute and exact mapped-library admission permit one owned address-bound SPACE expansion and the real chooser-to-confirmation Cancel flow?",
+  "run": "f060da76-54f8-4654-98e5-789baee862f5",
+  "source_count": 480,
+  "status": "performed-local-mapped-library-admission-refused-before-input",
+  "version": 1,
+  "preregistration_preserved": {
+    "byteexact_archive": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-mapped-root-launch-private-f060-v1/public-mapped-library-preregistration-byteexact-before-outcome-v1.json",
+      "size": 2712,
+      "sha256": "18b546e564947b8d1ec1f8c5ebd6a1d4a80c5c9f12036e07457009983935d856"
+    },
+    "launched_registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-mapped-root-launch-private-f060-v1/root-public-chooser-registration-v2.json",
+      "size": 6607,
+      "sha256": "0aefc759b123d4461f610dab5b774c493f572a6c7dc4ad240830418843a34329"
+    },
+    "public_pin_matches_launch": true,
+    "question_prediction_preserved": true
+  },
+  "result": {
+    "exit_code": 1,
+    "duration_seconds": 1.3204048500047065,
+    "overall_success": false,
+    "first_refusal": {
+      "failure": {
+        "class": "Refusal",
+        "positions": [
+          {
+            "file": "chooser_keyboard_cancel_v16.py",
+            "function": "main",
+            "line": 845
+          },
+          {
+            "file": "chooser_keyboard_cancel_v16.py",
+            "function": "run",
+            "line": 607
+          },
+          {
+            "file": "chooser_keyboard_cancel_v16.py",
+            "function": "expand_account_keyboard",
+            "line": 501
+          },
+          {
+            "file": "chooser_keyboard_cancel_v16.py",
+            "function": "gtk_ready",
+            "line": 408
+          },
+          {
+            "file": "chooser_keyboard_cancel_v16.py",
+            "function": "require",
+            "line": 38
+          }
+        ]
+      },
+      "predicate": "require(self.gtk_library_mapped(node.get_process_id()))",
+      "prior_GTK_attribute_predicate_passed": true,
+      "mapped_library_guard_returned": false,
+      "actual_matching_map_metadata_retained": false
+    },
+    "interpretation": "The GTK attribute predicate passed, then the exact mapped-library device/inode admission returned false. The differing mapping field/cause was not retained. This is neither successful mapped-library runtime validation nor a keyboard-route, UI or provider failure.",
+    "utility_children": [],
+    "actions": [],
+    "keys_focus_UI_actions": 0,
+    "import_rpc_count": 0,
+    "rpc_counts": {
+      "capabilities": 1,
+      "recent": 1,
+      "status": 1
+    },
+    "cloud_called": false,
+    "provider_verified": false,
+    "gate485_complete": false,
+    "automatic_retry": false,
+    "installed_actions": false,
+    "closure": {
+      "original_controller_reaped": true,
+      "controller_proc_absent": true,
+      "outer_children": [
+        {
+          "name": "chooser",
+          "pid": 1328312,
+          "start_ticks": 28251169,
+          "returncode": 1,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "health",
+          "pid": 1328307,
+          "start_ticks": 28251156,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "registry",
+          "pid": 1328306,
+          "start_ticks": 28251156,
+          "returncode": -15,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "a-bus",
+          "pid": 1328305,
+          "start_ticks": 28251155,
+          "returncode": 0,
+          "original_handle_reaped": true
+        },
+        {
+          "name": "s-bus",
+          "pid": 1328304,
+          "start_ticks": 28251155,
+          "returncode": 0,
+          "original_handle_reaped": true
+        }
+      ],
+      "five_original_outer_handles_reaped": true,
+      "desktop_original_handle": {
+        "original_handle_reaped": true,
+        "pid": 1328316,
+        "returncode": -15,
+        "startticks": 28251190
+      },
+      "desktop_process_absent": true,
+      "owned_bus_sockets_absent": true,
+      "fixture_socket_absent": true,
+      "chooser_socket_absent": true,
+      "closure_errors": [],
+      "outer_failure_class": [
+        "RuntimeError"
+      ],
+      "launcher_errors": [],
+      "launcher_signals": [],
+      "desktop_signals": [],
+      "inputs_unchanged": true
+    },
+    "evidence": {
+      "launch_manifest": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-mapped-root-launch-private-f060-v1/root-public-chooser-launch-manifest-v2.json",
+        "size": 66434,
+        "sha256": "feab6707282697342aa6ab6468243a69a000422f43583e36f4736ad8200357ba"
+      },
+      "launch_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-owned-account-snapshot-20261005/pages-gtk-mapped-root-launch-private-f060-v1/root-public-chooser-launch-result-v2.json",
+        "size": 454,
+        "sha256": "51ec4c6f7b0484df0f18eb82b6a1d4c85018298b1df092a8c43f4800beaf6fb2"
+      },
+      "outer_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-f060da76-54f8-4654-98e5-789baee862f5/result.json",
+        "size": 4218,
+        "sha256": "1dbcaf2e3b11cd650fbb73303b444758199bab3aa959730538135c36e8507821"
+      },
+      "chooser_result": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-f060da76-54f8-4654-98e5-789baee862f5/chooser/result.json",
+        "size": 1362,
+        "sha256": "a9baae7e520e40c5cb05b70395542952ebbc4a19d831999a0a3d6d40b6e36406"
+      },
+      "desktop_reaped": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-f060da76-54f8-4654-98e5-789baee862f5/chooser/desktop-reaped.json",
+        "size": 102,
+        "sha256": "52be653125327828747722a7f2ccb75185ad857d90105f4c658c2c9fa772501d"
+      }
+    },
+    "closed_run_not_replayed": true,
+    "full_release_gates_closed": false
+  }
+}

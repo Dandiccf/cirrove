@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "registered_date": "2026-10-05",
+  "registered_at": "2026-10-05T21:39:25.924939+00:00",
+  "run": "7e6434b7-c7c8-4e57-a3c3-cc4ebd4c0688",
+  "status": "stopped-at-local-office-cleanup-identity-refusal",
+  "source_head": "b144846a85ec82582f8512702120b5a63b77267a",
+  "question": "Does correcting only the metadata-registration integer clock shape allow a fresh actual Calc XLSX A save, independent generic DATA A verification, one conditional B save, independent generic DATA B verification and read-only remount?",
+  "prediction": "The preceding arm completed all seven journal entries and both removals. Flooring only metadata-registration epoch seconds should preserve the original finite clock while passing the actual strict Rust registration schema. The full fresh A/B/current-content/remount endpoint remains unproven; stop on any uncertainty with no automatic save retry.",
+  "arms": [
+    {
+      "name": "fresh-owned-calc-a-then-conditionally-b",
+      "maximum_seconds": 600,
+      "cleanup_reserve_seconds": 45,
+      "store_as_a_count_max": 1,
+      "store_b_count_max": 1,
+      "b_admission": "exact stopped journal completion and independent current generic DATA A verification",
+      "automatic_save_retry": false
+    }
+  ],
+  "scope": {
+    "folder": "Cirrove-Native-7e6434b7-c7c8-4e57-a3c3-cc4ebd4c0688",
+    "document": "Cirrove-Calc-7e6434b7-c7c8-4e57-a3c3-cc4ebd4c0688.xlsx",
+    "native_iwork_editing": false,
+    "installed_delivery": false,
+    "full_release_gate_closed": false
+  },
+  "execution_policy": {
+    "provider_mutations_authorized": true,
+    "old_writer_reopened": false,
+    "old_fixture_mutation_replayed": false,
+    "compile_during_cloud_arm": false,
+    "installed_actions": false,
+    "stop_on_uncertainty": true
+  },
+  "inputs": {
+    "runtime_binding_sha256": "84ca7cd12ee8c145b9d4e617d1044e3bcfa1dbf49c3f7669602df4ebdeb83174",
+    "source_count": 476,
+    "all_four_prior_frozen_b144_roles_reused_exactly": true,
+    "controller_sha256": "b3b57ef52abee7f6c45741cb5edff7598b2624d70f821ebdaf85434b252a89e1",
+    "worker_sha256": "56d94fe4d8a5831d204f6cea5a3f3e15fba61a28a892d996bed51716f11a0106",
+    "preparation_script_sha256": "e1bde73334a7f652345a5df295d63ddf44ac09bca5d0dd34d31b36cbd9e8cdc5",
+    "closed_donor_terminal_audit_sha256": "1158a66835863e0ac89aeebf96431cb09f825eaa86cf13464def63282aeb13fe"
+  },
+  "controller_change": "Only boundary metadata-registration started_unix_seconds/deadline_unix_seconds become int(original values). Original float controller/worker wall clocks, monotonic deadline and 45-second cleanup reserve remain unchanged.",
+  "controls_before_cloud": [
+    "Actual old boundary must expose the fractional schema mismatch; corrected boundary must emit Rust-compatible whole seconds without extending or reinitializing the original clock.",
+    "Five existing actual Rust metadata controls must execute their exact count with unchanged source pins.",
+    "Exact V9-to-V10 bytes and stopped-donor closure, same-AAD ciphertext-only copy, unchanged installed baseline and exact four-role reuse must be reviewed."
+  ],
+  "limits": [
+    "All earlier retained writers remain closed and are not replayed.",
+    "The previous run confirms upload/cleanup acknowledgement, not independent current bytes.",
+    "Programmatic UNO store/reopen is not human GUI clickthrough.",
+    "XLSX success does not establish native Pages/Numbers/Keynote editing, installed transition/Strata acceptance or general provider reliability."
+  ],
+  "outcome": {
+    "original_registered_status": "preregistered-not-dispatched",
+    "preregistration_frozen_before_cloud": true,
+    "preregistration_sha256": "47049765230ffe88d9c6cd548477999cc3981194c6957b7538b4926479b6fb23",
+    "tool_exit_code": 1,
+    "overall_success": false,
+    "elapsed_seconds_to_failure_diagnostic": 73.95059239398688,
+    "local_controller_schema_controls": {
+      "actual_boundary_captured_phases": 2,
+      "same_private_actual_parser_original_endpoint_exit": 1,
+      "corrected_endpoint_exit": 0,
+      "corrected_phases_accepted": 2,
+      "guard_checks": 10,
+      "actual_existing_rust_tests_passed": 5,
+      "original_float_clocks_unchanged": true,
+      "audit_sha256": "a6c179d84d600a5bd32f115bc5c29a8d26e4adfa6e2f369f9699207898598c03",
+      "limit": "Privately extracted byte-exact parser and mocked boundary lifecycle, not a public CLI or cloud-content test.",
+      "retained_precompile_correction": "The declared raw parser slice hash originally excluded one final newline; registration refused before any compiler child. A separately retained map corrected the scope without changing consumer or production code."
+    },
+    "ordinary_calc_a": {
+      "local_source_size": 5283,
+      "local_source_sha256": "4e7968b40a0f787f3cd42dcc677ec9e3a65abbb26a77db40ffb0b1702f5ee66e",
+      "programmatic_store_and_reopen": true,
+      "reopened": {
+        "A2": 7.0,
+        "B2": 3.0,
+        "C2": 10.0,
+        "formula": "=SUM(A2:B2)"
+      },
+      "visible_window_api_checked": true,
+      "human_gui_witness_recorded": false,
+      "worker_exit_code": 0,
+      "independent_current_data_verified": false
+    },
+    "stop": {
+      "stage": "office-a-finally-cleanup",
+      "predicate": "Exact /proc argv/executable identity check refused before any signal while the original restarted Office Child was not yet terminal.",
+      "which_identity_component_differed": "not recorded",
+      "natural_exit_race_proven": false,
+      "metadata_a_started": false,
+      "b_admitted": false,
+      "readonly_remount_started": false,
+      "automatic_retry": false
+    },
+    "journal": {
+      "failure_diagnostic_completed_entries": 1,
+      "failure_diagnostic_unfinished_entries": 6,
+      "first_two_uploads_at_diagnostic": "uploading",
+      "first_two_uploads_after_shutdown": "verify-required",
+      "first_two_failed_attempts_after_shutdown": 1,
+      "first_two_transferred_bytes_after_shutdown": 0,
+      "remaining_uploads": "pending",
+      "removals": "pending",
+      "provider_first_error_or_definite_failure_inferred": false,
+      "interpretation": "Shutdown retained uncertain first-upload checkpoints; the later states do not establish a provider failure or current content."
+    },
+    "closure": {
+      "original_child_handles_recorded_reaped": 3,
+      "original_restarted_office_handle_recorded_reaped": false,
+      "original_all_reaped_flag": false,
+      "recorded_errors": 1,
+      "all_exact_recorded_processes_now_absent": true,
+      "mount_and_socket_absent": true,
+      "later_absence_is_not_retrospective_reap_proof": true
+    },
+    "installed_baseline": {
+      "changed": false,
+      "packaged_regular_files_checked": 19,
+      "unit_and_daemon_identity_unchanged": true,
+      "home_daemon_shadow_exists": false
+    },
+    "runtime": {
+      "roles_checked": 4,
+      "rust_and_cargo_sources_checked": 476,
+      "rust_and_cargo_sources_unchanged": true
+    },
+    "evidence": {
+      "stopped_fullscope_audit_sha256": "787e411265fe8c0b95b48d16f82087deed8684cd3d69ac99b91a4846d8d3ae7f",
+      "failure_diagnostic_sha256": "308b8ea7268d381ea665c7d637b0243b8ba15fc246ace84ef30befc4498443a8",
+      "owned_closure_sha256": "a0eadf8a71525beda95c068db86ce4d0cc79eafba338c1fd0964525ac966c0f0",
+      "local_uno_proof_sha256": "63b63f6ee4e6f4812618876e98cc8847f3f9a892d851ee3eeebc632c6a5b493c"
+    },
+    "separate_original_handle_controls": {
+      "question": "Can a retained original Popen handle safely reach natural termination after a genuine identity-refusal poll without signalling an unknown process?",
+      "original_v10_positive_exit": 1,
+      "corrected_v11_positive_exit": 0,
+      "corrected_guard_arms_passed": [
+        "still-live-refusal",
+        "expired-cutoff-no-wait",
+        "supervised-stop-propagation"
+      ],
+      "actual_children_original_handles_reaped": 5,
+      "signals": 0,
+      "canonical_sources_unchanged": true,
+      "audit_sha256": "f6f8fbdd4727a6b62f91c08d23b1655bf681f518cdf61403f9206697fc0f9e83",
+      "controller_v11_sha256": "890c7383b89b8ae7c833d63b5d9bcb235563b6b5ec039739b89859a51246161c",
+      "scope": "A timeout allowance of at most one second on the original handle, bounded by the original cutoff remaining. This does not promise a hard elapsed-time limit under scheduler delays. Same identity authority; no unknown-process signal. Controlled actual children, not historical race or cloud acceptance proof."
+    },
+    "interpretation": "The local registration mismatch is corrected and tested. This fresh cloud arm stopped earlier at local Office cleanup after its A proof, before waiting for upload completion or independent content. It supplies no new complete cloud editor, native iWork, installed or release acceptance."
+  }
+}

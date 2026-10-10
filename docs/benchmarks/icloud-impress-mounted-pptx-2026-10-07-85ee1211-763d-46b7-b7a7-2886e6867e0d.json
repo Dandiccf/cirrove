@@ -1,0 +1,110 @@
+{
+  "TMPDIR_filesystem": "ext4",
+  "active_measurement": false,
+  "all_roles_source": "W39 head19f604d plus exact fullcheck-final569 pending source, equivalent to committed Root a28dd0f; normal roles frozen before feature build; actual Cargo artifact receipts retained.",
+  "assessment": {
+    "a": {
+      "all_ZIP_member_CRC_and_independent_slide_XML_verified": true,
+      "raw_source": {
+        "sha256": "a6701156afd94044106ef525c5e0a3305a9baa917b44f55531b1c09abdea7199",
+        "size": 8304
+      },
+      "slide_count": 1,
+      "title_subtitle_exact_after_readonly_reopen": true
+    },
+    "actual_exit": 0,
+    "all_original_outer_and_descendants_closed": true,
+    "application_save_calls": {
+      "A": 1,
+      "B": 1
+    },
+    "automatic_retries": 0,
+    "b": {
+      "all_ZIP_member_CRC_and_independent_slide_XML_verified": true,
+      "raw_source": {
+        "sha256": "bcf243f45e6939868ece222f9ef2c28b59726deefdc8a405c30465e03f890eda",
+        "size": 8416
+      },
+      "slide_count": 1,
+      "title_subtitle_exact_after_readonly_reopen": true
+    },
+    "case_success": true,
+    "cleanup_reserve_seconds": 45,
+    "complete_journal_frontier_unchanged_across_observation": true,
+    "completed_atomic_replacement": {
+      "local_ready": true,
+      "preserved_original_backup": true,
+      "remote_applied": true
+    },
+    "controller_owned_children_closed": 12,
+    "elapsed_seconds": 465.6460594040109,
+    "exact_original_A_Trash_raw_verified": true,
+    "full_487_closed": false,
+    "independent_DATA_reads_match_A_and_B": true,
+    "independent_audit": {
+      "passed": 24,
+      "sha256": "7baa7003b28519d2a4aac6536b9d150904de743e9fefb02ff098694527d68267",
+      "total": 24
+    },
+    "installed_artifacts_unchanged": 19,
+    "installed_unit_and_daemon_birth_unchanged": true,
+    "measurement_result_scope": "One end-to-end functional scenario; elapsed time descriptive, not a comparative performance measurement.",
+    "native_Keynote_save": false,
+    "normal_read_only_remount_matches_B": true,
+    "original_window_seconds": 600,
+    "outer_original_owners_closed": 2,
+    "private_Office_original_owners_closed": 2,
+    "root_terminal_sha256": "f3ce2a928c496cec1728ba14854bafec1695fa46f627860366da5dcbcad7c8e9",
+    "runtime_source_count": 569
+  },
+  "base_head": "a28dd0fbcba7a7517bd1f9aaf45ee88ccbdd7605",
+  "case_filesystems": {
+    "/home/dandiccf/Storage/ct/ip-85ee1211": "ext4",
+    "/var/tmp/cirrove-impress-editor-85ee1211-763d-46b7-b7a7-2886e6867e0d": "btrfs",
+    "/var/tmp/cirrove-impress-trash-observer-6a2fd5d2-626f-470d-992f-b3aed1839af4": "btrfs"
+  },
+  "clock": {
+    "automatic_retry": false,
+    "cleanup_reserve_seconds": 45,
+    "seconds": 600
+  },
+  "cloud_write_authorization": "Standing explicit own iCloud test authorization; fresh own document only. No replay after uncertainty.",
+  "controller_sha256": "49b8cf29db81b8e016173bd98c63b9173a28b3482c2ecc9e27f2cc800e8f39ca",
+  "date": "2026-10-07",
+  "dispatched_at": "2026-10-07T08:36:04.172388+00:00",
+  "endpoints": [
+    "Root prepares fresh private seed400+working600, contexts and opaque coherent stopped donor clone without old journal/cache.",
+    "One original paired600 seconds starts before daemon or provider,45 cleanup reserved; no renewal.",
+    "Normal RW daemon ready/own parent creation/complete receipt, actual Impress A storeAsURL once; capture400, stop daemon, exact journal21 selection and metadata/DATA proof.",
+    "Restart same owned fresh context, actual Impress B text edit and doc.store once; capture400, stop, completed receipt and currentB/backupA lineage plus metadata/DATA proof.",
+    "Configured normal ReadOnly remount currentB, account-local cached identity and exact rawB FD readback, stop; immutable transfers/receipts preserved.",
+    "Separate prepared readonly Trash context under same original clock, exact supplied completed operation and independently readbackA receipt, exact TrashA raw size/SHA.",
+    "All original controller/CLI/probe/bwrap/Office handles close; own mount/socket absent, original source/scripts/runtime/installed pins preserved."
+  ],
+  "full_487_closed": false,
+  "installed_actions": false,
+  "limits": [
+    "One headless ordinary PPTX create and edited save; no native Keynote save, PACKAGE representation claim, GUI, repeatability or full criterion487 closure.",
+    "Exact one-slide title/subtitle and ZIP member CRC/slide XML; layout, fonts, media, transitions and animations remain unproved.",
+    "Application network access disabled; authorized host-daemon writes performed through the mount. Provider HTTP counts uninstrumented; journal operation counts are not HTTP counts.",
+    "Trash raw bytes verified by the typed reader, with no second retained archive CRC parse, whole Trash inventory or restoration test.",
+    "Installed19 artifacts, unit and daemon birth unchanged. Installed acceptance remains HOLD."
+  ],
+  "normal_daemon_CLI_source": "19f604d1694c1914c265c1f95aa446775b548b74",
+  "prediction": "One storeAsURL(A), one later store(B), exact single-slide title/subtitle A and B in actual readonly reopen and independent PPTX ZIP CRC/slide XML. Completed ordinary identity handoff has exact originalA backup. Independent DATA readbacks, RO B and Trash A raw size/SHA match actual captured saves.",
+  "prepared_assets_sha256": "aec7195e3d62207387b804e86bfea749fd51fb1535893f4905e881929fcf67bd",
+  "question": "Can an actual isolated Impress create then later save the owned PPTX through a fresh writable iCloud mount, preserving exact uploaded A/B bytes and original A in Trash and the current B through normal RO remount?",
+  "registration_limits_before_run": [
+    "Ordinary supported PPTX create/save only. No native Keynote save, PACKAGE claim or content replacement hook.",
+    "Exact one slide title/subtitle and ZIP CRC/XML. No fonts/layout/media/animations/general fidelity or full487 closure.",
+    "Application direct network isolated; mounted FUSE save reaches owned host daemon provider. HTTP count uninstrumented.",
+    "Original600/45 and each Office60+30; insufficient budget refuses before phase. Forced termination without full owned-descendant receipt remains unresolved.",
+    "Source-only scripts AST parsed; no local controls/app/provider/build executed by author. Fresh feature roles/current source map/clock/window/live readiness null or false."
+  ],
+  "run": "85ee1211-763d-46b7-b7a7-2886e6867e0d",
+  "runtime_source_count": 569,
+  "scope": "One ordinary PPTX create and one later Impress save, independent actual DATA A/B, normal read-only remount B and exact original A in Trash. No native Keynote save or installed change.",
+  "status": "closed_completed",
+  "version": 1,
+  "worker_sha256": "804f64dbce03110475ae46a07d6f557e6982ccdedbd4449e13b0461a7158aa3b"
+}

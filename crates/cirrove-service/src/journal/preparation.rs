@@ -64,6 +64,8 @@ impl UploadJournal {
         }
         barriers::validate(&self.db, &scope, &order.prerequisites)?;
         let mut record = UploadRecord {
+            representation: Default::default(),
+            package_completion: None,
             id: Uuid::new_v4(),
             sequence: 0,
             scope: scope.clone(),
@@ -74,6 +76,7 @@ impl UploadJournal {
             sha256: String::new(),
             attempt: None,
             remote: None,
+            identity_handoff: None,
             base: order.base,
             working_file: None,
             session_key: None,

@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "status": "closed_passed",
+  "active_measurement": false,
+  "question": "Can actual current8820546 default CLI/daemon and Pages-aware feature proof roles be frozen after successful full retry while retaining the failed initial run?",
+  "prediction": "All568 current tracked sources stay exact; normal CargoJSON roles features[] freeze before featureprobe [icloud-write-probe]. All actualoriginals close with no provider or installed actions.",
+  "arms": [
+    "normal CargoJSON build and frozen CLI/daemon",
+    "feature CargoJSON build and frozen observer"
+  ],
+  "endpoint": "Actual source/head/features/artifact hashes, normal-before-feature order, original process closure and readybinding.",
+  "checkout_head": "88205461c5814768a5eaebd08ad0c82cffeefcf7",
+  "source_count": 568,
+  "TMPDIR": "/home/dandiccf/Storage/ct/p7",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/p7",
+  "filesystem": "ext4",
+  "CARGO_TARGET_DIR": "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target",
+  "evidence_directory": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1",
+  "driver": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/collect_pages_current_roles_v2.py",
+    "sha256": "7e728af751c4edef4c949bf2b2ccfae41eca968f8db09f9e79dc873ed359efa0",
+    "size": 29631
+  },
+  "expected_seconds": 1900,
+  "maximum_outer_seconds": 2050,
+  "initial_failed_full_check_retained": true,
+  "no_provider_or_installed_actions": true,
+  "full487_closed": false,
+  "outcome": {
+    "exit_code": 0,
+    "elapsed_seconds": 31.239919510961045,
+    "failure_class": null,
+    "signals": [],
+    "original_handle_reaped": true,
+    "process_absent": true,
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/root-collector-v1.log",
+      "size": 1883,
+      "sha256": "b6b2e081a23bf2c5da1016392c20de58d714428a4f7b6d6534f825ab8c56ab25"
+    },
+    "cloud_dispatched": false,
+    "installed_actions": false
+  },
+  "ready_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/roles-after-pages-v2/ready-binding-v1.json",
+    "size": 85652,
+    "sha256": "b71adcf4148066507f4343a3660f53d60043ed83c8c098edd6638ca2870c2682"
+  },
+  "roles": {
+    "cirrove": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/roles-after-pages-v2/cirrove",
+      "sha256": "7617f7a7da712d28dbda9be831dc284b7e59cb8f71875a0c443e8f3e1a98e533",
+      "size": 474129648
+    },
+    "cirroved": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/roles-after-pages-v2/cirroved",
+      "sha256": "cf5c136f63b55d7d4a973f269fab7927b46ef0d96708b0ae582d25efeb755ac4",
+      "size": 475720960
+    },
+    "native-trash-probe": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/roles-after-pages-v2/native-trash-probe",
+      "sha256": "1ab233ccdd3f8ed03e57d91765d8a827758cec0c49a7a4f35a98491af347534b",
+      "size": 516042944
+    }
+  },
+  "compiler_features": {
+    "cirrove": [],
+    "cirroved": [],
+    "native-trash-probe": [
+      "icloud-write-probe"
+    ]
+  },
+  "compiler_artifacts_fresh": {
+    "normal": {
+      "cirrove": true,
+      "cirroved": false
+    },
+    "probe": {
+      "cirrove-icloud-mounted-write-probe": false
+    }
+  },
+  "normal_copies_frozen_before_feature_build": true,
+  "independent_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/pages-current-build-collector-private-v1/audit-independent-pages-collector-terminal-v2.json",
+    "size": 77807,
+    "sha256": "a9ea2eb36ce28985bfda28c9b8afc8215df22c1c069c048ecd5f01cf9664fa5f"
+  },
+  "managed_original_handles": 9,
+  "all568sources_preserved": true,
+  "fullcheck": {
+    "driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/retry_full_check_v1.py",
+      "sha256": "3ec1d77c9585cf933227f64276be76f65a50e4099d0a15ce34beb09142017f6c",
+      "size": 6931
+    },
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry.log",
+      "sha256": "35d917ed2732adf22ef6d00fa9ed7f7370d7b27f4e3d76627819fd2525f1ef82",
+      "size": 291769
+    },
+    "owner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry-owner.json",
+      "sha256": "c64fd4b89e9548a25c234689621a38925b4e244c56f696c1be87fab96be1d3de",
+      "size": 130
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry-registration.json",
+      "sha256": "d4c20e3d4aa883be070df6bfcb998482205e5f3f7023ab1cf3d899fa859bfeea",
+      "size": 1168
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-retry-result.json",
+      "sha256": "329f3938e37d1011da68967338bfe8dbbd4164cd75575bcdb0a388af5eceee75",
+      "size": 764
+    },
+    "source_pins_after": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/source-pins-after-retry.json",
+      "sha256": "6488116ce753e43a278d6e88f1d32ceb985a81c1f58c12e6c3a781a95bd3d201",
+      "size": 72732
+    },
+    "source_pins_before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/source-pins-before.json",
+      "sha256": "6488116ce753e43a278d6e88f1d32ceb985a81c1f58c12e6c3a781a95bd3d201",
+      "size": 72732
+    },
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/root-full-retry-terminal-result.json",
+      "sha256": "10b3220e3d13aaebdff08f348413e9c4e62b9ea1a476932ac42d0afffd527f65",
+      "size": 9503
+    }
+  },
+  "initial_checks": {
+    "driver": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/run_checks_v2.py",
+      "sha256": "f6ad978643fa6b64e9c33871649664b72c54ad5217c1c899183b36455ba250ea",
+      "size": 7730
+    },
+    "log": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full.log",
+      "sha256": "a243594b871cb28ccb388b6c1473ada7a4ab749aaba0067eed0f063015041a8c",
+      "size": 279550
+    },
+    "owner": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-owner.json",
+      "sha256": "4667b7da7e2a2285a0d660d317082cb5d07b605ce372bfb98dd512fda7d3264f",
+      "size": 130
+    },
+    "registration": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-registration.json",
+      "sha256": "869e17c2d843fa2173fa859e0c61bad69284e9a68592716e050af445a3115184",
+      "size": 1242
+    },
+    "result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/full-result.json",
+      "sha256": "553dc313d92f4baa229fb144230cfc1343cde1c022a68aac25f445363663fe26",
+      "size": 753
+    },
+    "source_pins_after": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/source-pins-after.json",
+      "sha256": "6488116ce753e43a278d6e88f1d32ceb985a81c1f58c12e6c3a781a95bd3d201",
+      "size": 72732
+    },
+    "source_pins_before": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/source-pins-before.json",
+      "sha256": "6488116ce753e43a278d6e88f1d32ceb985a81c1f58c12e6c3a781a95bd3d201",
+      "size": 72732
+    },
+    "terminal": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-pages-observer-root-checks-20261007-v1/root-check-terminal-result.json",
+      "sha256": "e5332064e1eeb6c0f7c481c5d9905526327d00d118fe68be36c11c48c4556502",
+      "size": 7477
+    }
+  },
+  "limits": [
+    "Source-bound compilation/freezing only; no provider execution, new live Pages acceptance, installed lifecycle or release gate closure.",
+    "Fresh=true Cargo artifacts are verified cached outputs, not claimed newly executed rustc."
+  ]
+}

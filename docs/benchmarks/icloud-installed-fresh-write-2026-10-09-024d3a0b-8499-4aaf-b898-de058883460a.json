@@ -1,0 +1,203 @@
+{
+  "run": "024d3a0b-8499-4aaf-b898-de058883460a",
+  "state": "closed_installed_fresh_write_cold_read_and_permanent_refusal_passed",
+  "active": false,
+  "active_measurement": false,
+  "active_window": false,
+  "question": "Can current installed normal packages connect a new writable account and complete one fresh owned folder/file save, independent cold read through originalRO connection and permanent-delete refusal without replaying originalretainedwork?",
+  "arms": [
+    "one person-supervised new connection, one own mkdir/save and bounded observations; stop on unclear outcomes"
+  ],
+  "prediction": "Fresh connection has independent UUID/credential/emptyjournal; newmkdir parent lookup succeeds, file uploads exactly; originalRO reads exactcloudbytes and permanentdelete refuses before network; old3records unchanged.",
+  "endpoint": "Observed native login, sameoldROstate preserved, newaccount ReadyRW; unique own mkdir/file Uploaded; independently selected oldRO coldmount read exactbytes; permanentdelete refused with contents unchanged; cleanoriginalownerclosure.",
+  "expected_duration_seconds": 3600,
+  "cleanup_reserve_seconds": 45,
+  "source_head": "e0e7c06fc06c2debd4b2debb566fe730de8aa11d",
+  "actual_package_version": "0.2.0dev.r1017.ga3fa14e-1",
+  "command": [
+    "/usr/bin/python3",
+    "/home/dandiccf/Storage/cirrove-installed-fresh-write-024d3a0b-8499-4aaf-b898-de058883460a/owner.py"
+  ],
+  "owner": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-fresh-write-024d3a0b-8499-4aaf-b898-de058883460a/owner.py",
+    "sha256": "761640fc5feb1eb74442c661efb89eba42e08d6c66015004d2d052e3273468d5"
+  },
+  "manifest": {
+    "path": "/home/dandiccf/Storage/cirrove-installed-fresh-write-024d3a0b-8499-4aaf-b898-de058883460a/manifest.json",
+    "sha256": "20b1f0741363b5dcb8cb3f6b8769543cda2b924a292d145965f42745bbc13096"
+  },
+  "private_TMPDIR": "/home/dandiccf/Storage/ct/iw-024d3a0b",
+  "SQLITE_TMPDIR": "/home/dandiccf/Storage/ct/iw-024d3a0b",
+  "filesystem": "ext4",
+  "immutable_backing_pins": [
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-return-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f/guest-62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f.qcow2",
+      "sha256": "c6be4401682c8be7a77410d17909eac6288d7bacb7d04e7326ba82f16dfaa864",
+      "size": 40697856,
+      "stat9": [
+        66305,
+        33423362,
+        33152,
+        1000,
+        1000,
+        1,
+        40697856,
+        1791567919949580400,
+        1791567919949580400
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-return-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c/guest-7dd7cc9e-5ec4-4826-9e4d-0b58aff7f72c.qcow2",
+      "sha256": "11678c46ab8301da2067e0cfbd9d1b199c968a5374afc70d81c64c29e1bfded0",
+      "size": 39649280,
+      "stat9": [
+        66305,
+        73531397,
+        33152,
+        1000,
+        1000,
+        1,
+        39649280,
+        1791564305795016043,
+        1791564305795016043
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-63bf1f2c-e404-47a9-a318-1ffafbf77b81/guest-63bf1f2c-e404-47a9-a318-1ffafbf77b81.qcow2",
+      "sha256": "81d8f53d2f501f1eb4e54d5fa49ec93517ac80b8e40fee4e778f275f49c1f43c",
+      "size": 85196800,
+      "stat9": [
+        66305,
+        19267607,
+        33152,
+        1000,
+        1000,
+        1,
+        85196800,
+        1791547504113129992,
+        1791547504113129992
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-offline-installed-upgrade-ae484a4d-4a97-4eca-b470-6c270eec8220/guest-ae484a4d-4a97-4eca-b470-6c270eec8220.qcow2",
+      "sha256": "58c7fa1b752f80e0e6a54de12bd05f26a593b30b8f9cd2b7d8cc0a2247d62551",
+      "size": 85262336,
+      "stat9": [
+        66305,
+        8912918,
+        33152,
+        1000,
+        1000,
+        1,
+        85262336,
+        1791539230485007029,
+        1791539230485007029
+      ]
+    },
+    {
+      "path": "/home/dandiccf/Storage/cirrove-installed-aa02-empty-guest-6aaa8536-fc8f-45ff-9796-bd06e228a9e2/arch/disk.qcow2",
+      "sha256": "d6ec9e817b100515f03349e9ae2dfbd307f894aeb0da583bcc979c31b895e227",
+      "size": 7191658496,
+      "stat9": [
+        66305,
+        69468170,
+        33152,
+        1000,
+        1000,
+        1,
+        7191658496,
+        1791525577178827114,
+        1791525577178827114
+      ]
+    }
+  ],
+  "tool_pins": {
+    "qemu": {
+      "path": "/usr/bin/qemu-system-x86_64",
+      "sha256": "019b1b48156d0eb84b3042bdab29120a5464b2d6707563858461d6880a491d54"
+    },
+    "qemu_img": {
+      "path": "/usr/bin/qemu-img",
+      "sha256": "451668d2855d188429cf06eeea9a96cde62cf0ef835491be57b4a5f07f1b1410"
+    },
+    "ssh": {
+      "path": "/usr/bin/ssh",
+      "sha256": "95848d6de3e8056a24ab03d3710c43deb39048a0e7ffbfc339b7c768e42573ad"
+    },
+    "foot": {
+      "path": "/usr/bin/foot",
+      "sha256": "81d2fafbea91915da055dbd1e6f368eb92d0409d18e1823420d33b525ca00a47"
+    },
+    "python": {
+      "path": "/usr/bin/python3.14",
+      "sha256": "d78f9cf7178ecff09963551399855543c297f37ac207e626228bfe43cb26a70c"
+    }
+  },
+  "auth_stream_capture": false,
+  "automatic_retry": false,
+  "original_host_changes": false,
+  "criteria_closed": [],
+  "registered_unix": 1791568056.9193892,
+  "cloud_mutations_authorized": "Standing explicit user authorization for owned iCloud write tests; no oldNumbers or retained-operation replay",
+  "fresh_label": "ICloud-Write-024d3a0b",
+  "fresh_mount": "/home/tester/Cloud/Cirrove-iCloud-Write-024d3a0b",
+  "remote_folder_name": "Cirrove-Installed-Write-024d3a0b",
+  "predecessor_readonly_run": "62cd9ece-4faa-42e5-88bc-fa0fa2a8a05f",
+  "status": "closed_installed_bundle",
+  "started_unix": 1791568078.8992314,
+  "deadline_unix": 1791571678.8992314,
+  "closed_unix": 1791568440.448524,
+  "outcomes_require_individual_records": true,
+  "outcome": {
+    "authentication_exit": 0,
+    "same_apple_identity_drive_root": true,
+    "fresh_separate_account_and_credential": true,
+    "fresh_account_id": "e65c2710-70e0-4a30-923f-986d53112847",
+    "fresh_initial_journal_counts": {
+      "uploads": 0,
+      "working_files": 0,
+      "mutations": 0
+    },
+    "one_immediate_mkdir_save": true,
+    "folder_mutation": "applied",
+    "operation": "c3aac3ba-8d8b-4de5-bef1-2b698246515c",
+    "upload_state": "uploaded",
+    "payload_size": 4224,
+    "payload_sha256": "ee714cbbb75114495644113e12634f13df17ab3f48f04d69eaafe7756bfc86c0",
+    "remote_identity_sha256": "90631f861fc08ff44b53993f3d2ecea550650d9fb794621f5323c6ea3ba78e41",
+    "old_readonly_cold_resident_before": 0,
+    "old_readonly_resident_after": 4224,
+    "independent_old_readonly_payload_digest_equal": true,
+    "permanent_delete_exit": 1,
+    "expected_static_unsupported_refusal": true,
+    "ordinary_delete_fallback": false,
+    "new_file_uploaded_record_preserved": true,
+    "original_three_retained_rows_unchanged": true,
+    "final_new_account_disabled_and_unmounted": true,
+    "final_original_account_ready_readonly": true,
+    "all_original_children_reaped_and_absent": true,
+    "immutable_backing_pins_preserved": true,
+    "host_original_daemon_unchanged": true,
+    "full_488_closure_pending_assessment": true,
+    "full_490_closed": false,
+    "provider_reliability_claim": false,
+    "owned_cloud_folder_retained": "Cirrove-Installed-Write-024d3a0b",
+    "receipts": {
+      "cold-read-and-permanent-refusal-observation.jsonl": "2d5d6c164ed891224f296d02a9c863b9bd906d67c2a60d8399ded571a5575377",
+      "single-owned-save-observation.jsonl": "ec02af712f8e58d7b6e585b9fda2333d71853cbf55c60adbef2cf4f3a332cb28",
+      "disable-fresh-connection-observation.jsonl": "68710acc31b13f959752bd1de375ae9981fe80fea2b2d564ed3bc81cbfec6f72"
+    }
+  },
+  "closure": {
+    "native_owner_exit": 0,
+    "all_original_children_reaped_and_absent": true,
+    "child_count": 8,
+    "backing_pin_count_preserved": 5,
+    "strict_fuser_exit": 1
+  },
+  "limits": [
+    "One bounded4224-byte ordinary-file workflow, not arbitrary files, repeatedreliability or full490.",
+    "Independent oldRO mount selected same provider item with residency0 before solecontentread and4224after; iCloud read_path counters unavailable, no HTTPcount claim.",
+    "Originalretainedaccount remainsRO; freshRW testconnection disabled at end. Ownremote testfolder retained, no cleanupdelete."
+  ]
+}

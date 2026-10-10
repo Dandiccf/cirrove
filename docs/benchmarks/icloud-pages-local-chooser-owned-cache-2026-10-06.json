@@ -1,0 +1,116 @@
+{
+  "actual_outcome": {
+    "actions": [
+      "navigate-own-account-tab-01",
+      "navigate-own-account-tab-02",
+      "navigate-own-account-tab-03",
+      "navigate-own-account-tab-04",
+      "expand-own-account-space-once",
+      "public-import-document-once",
+      "focus-own-chooser-once",
+      "real-chooser-owned-control-l-once",
+      "real-chooser-exact-own-local-path",
+      "real-chooser-open-once"
+    ],
+    "closure_errors": [],
+    "cloud_called": false,
+    "controller_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-722d128d-782e-469d-9460-32d2beb749d5/result.json",
+      "sha256": "1ecd6fc7246bf9dbb8c9355368ad686b37814e23b2e7824e1698f428d8396aa3",
+      "size": 4214
+    },
+    "desktop_reaped_and_absent": true,
+    "failure": {
+      "class": "Error",
+      "positions": [
+        {
+          "file": "chooser_owned_focus_v29.py",
+          "function": "main",
+          "line": 1288
+        },
+        {
+          "file": "chooser_owned_focus_v29.py",
+          "function": "run",
+          "line": 971
+        },
+        {
+          "file": "chooser_owned_focus_v29.py",
+          "function": "poll",
+          "line": 307
+        },
+        {
+          "file": "chooser_owned_focus_v29.py",
+          "function": "fresh_confirmation",
+          "line": 959
+        },
+        {
+          "file": "chooser_owned_focus_v29.py",
+          "function": "walk",
+          "line": 263
+        }
+      ]
+    },
+    "gate485_complete": false,
+    "import_rpc_count": 0,
+    "inputs_unchanged": true,
+    "local_chooser_confirmation_cancel": false,
+    "location-before-open": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-722d128d-782e-469d-9460-32d2beb749d5/chooser/location-before-open.json",
+      "sha256": "a705a8bf7dd4035389a00acf3a1ea1e982f7d40c59bc41df75dfa6b1124c8162",
+      "size": 166
+    },
+    "original_tool_session": 70297,
+    "outer_original_children_reaped": true,
+    "owned-chooser-focus-once": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-722d128d-782e-469d-9460-32d2beb749d5/chooser/owned-chooser-focus-once.json",
+      "sha256": "cad95733e9df8679ac2dac06dcd9d15772e708713db7946344c34c8882cb569b",
+      "size": 325
+    },
+    "post-open-observation": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-722d128d-782e-469d-9460-32d2beb749d5/chooser/post-open-observation.json",
+      "sha256": "42da01ac3e90bf930d30171530db920657644fd32a96c69a0773bbb104112e1b",
+      "size": 286
+    },
+    "private_sockets_absent": true,
+    "root_result": {
+      "automatic_retry": false,
+      "cloud_allowed": false,
+      "controller_pid": 1435529,
+      "controller_proc_absent": true,
+      "duration_seconds": 3.4772423839895055,
+      "errors": [],
+      "exit_code": 1,
+      "gate485_complete": false,
+      "installed_actions": false,
+      "local_public_chooser_only": true,
+      "original_controller_reaped": true,
+      "overall_success": false,
+      "provider_verified": false,
+      "run": "722d128d-782e-469d-9460-32d2beb749d5",
+      "signals": []
+    },
+    "three_confirmation_field_readbacks_verified": false,
+    "ui_result": {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/pages-isolated-chooser-722d128d-782e-469d-9460-32d2beb749d5/chooser/result.json",
+      "sha256": "b2ae2a090a75a9e29e56642853f9dc91a17122812be2140c5682886c6366e2ed",
+      "size": 5203
+    },
+    "utility_children_reaped": 27
+  },
+  "automatic_retry": false,
+  "baseline": "Closed actualV28 passed ownfocus/CtrlL/path/Open then active guard refused. Its time-versus-child-liveness cause remains unproved; no repeated actions or provider calls.",
+  "cleanup_reserve_seconds": 30,
+  "cloud_allowed": false,
+  "installed_actions": false,
+  "limits": "Refresh is observation only; success would not prove the cause of V28 timeout or general reliability. No mutation submission.",
+  "open_action_limit": 1,
+  "owned_chooser_focus_limit": 1,
+  "prediction": "After one owned focus and sole Open, owned-app cache refresh will expose the confirmation; all three field readbacks and Cancel will pass with zero provider/import calls. A failed transition will retain own-only chooser/location focus predicates without extra actions.",
+  "question": "Does refreshing the exact owned accessibility cache after the sole Open expose the real confirmation following exact chooser focus?",
+  "run": "722d128d-782e-469d-9460-32d2beb749d5",
+  "scope": "local-public-pages-isolated-chooser-fields-cancel-only",
+  "status": "actual-local-partial-refused",
+  "utility_limit": 43,
+  "version": 1,
+  "window_seconds": 180
+}

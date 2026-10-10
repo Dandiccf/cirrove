@@ -1,0 +1,40 @@
+{
+  "Apple_followup": "separate exact-ID observation after normal RO succeeds",
+  "active": false,
+  "active_measurement": false,
+  "actual_representation_before_B_required": "folder/package; DATA refuses without coercion",
+  "cleanup_reserve_seconds": 120,
+  "endpoint": "One A import, one temporary promotion, exact typed identity/revision/working/receipt authority and full V2 proofs, original owners closed and preserved installed/source pins.",
+  "full_487_closed": false,
+  "native_linux_editor_save_claimed": false,
+  "normal_RO_followup": "separate fresh preregistered case after actual terminal audit",
+  "original_seconds": 1200,
+  "prediction": "Temporary fsync creates no upload; rename creates exactly one typed native save. Held A/current B and original Trash A independently match registered full V2, and clean fsync creates no second save.",
+  "question": "Does a fresh owned Pages PACKAGE imported once support one canonical archive temporary write/fsync/rename B through normal FUSE without replay?",
+  "ready": false,
+  "run": "9b5bcd1d-b3b5-4010-bcc0-d2d9daf01c88",
+  "source_contract": "Pages canonical wrappers remove only already-audited redundant local ZIP64 size mirrors; original raw Apple exports remain untouched.",
+  "status": "local_preparation_failed_no_cloud_dispatch",
+  "version": 1,
+  "normal_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-iwork-atomic-complete-check-preparation-20261008-private-v1/normal-roles-build-v1/normal-roles-binding-v1.json",
+    "size": 78465,
+    "sha256": "618245a34fcbaa03ee1809d639e4c8ec280b6b92369c3147eb9c70f908dba41b"
+  },
+  "feature_binding": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/native-iwork-atomic-complete-check-preparation-20261008-private-v1/feature-roles-build-v1/ready-binding-v1.json",
+    "size": 80764,
+    "sha256": "1f44445391d4d796a8139bc1b8cd00408681359f404a3c6ed8129ee1ff2499af"
+  },
+  "runtime_source_count": 572,
+  "assessment": {
+    "local_preparation_exit": 1,
+    "cause": "ZIP zero external_attr normalized by local rewrite; strict comparison rejected it.",
+    "local_resume_exit": 1,
+    "local_resume_cause": "PermissionError during own-UID proc visibility census before rename.",
+    "original_failed_B_preserved": true,
+    "provider_dispatched": false,
+    "clock_started": false,
+    "fresh_successor_local_nonce": "d34f610e-e05d-4e1c-8341-098c6dd935f2"
+  }
+}

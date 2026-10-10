@@ -1,0 +1,29 @@
+{
+  "active_measurement": false,
+  "assessment": {
+    "completion_field_appended_after_check": true,
+    "formatter_changed_paths": [
+      "crates/cirrove-service/src/bin/cirrove-icloud-mounted-write-probe.rs",
+      "crates/cirrove-service/src/validation.rs",
+      "crates/cirrove-service/src/validation/icloud_account.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/numbers_data.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/numbers_data/pages_tests.rs",
+      "crates/cirrove-service/src/validation/icloud_account/owned_package/fixture_verify/receipt_bound/numbers_data/tests.rs"
+    ],
+    "new_named_tests_executed": 12,
+    "runtime_source_count": 570,
+    "rust_result_groups": 87,
+    "sections": 10,
+    "terminal_sha256": "e77704f473570e4033952eee427066e04f6554356f55cf2e9ea4fb4bb78b3de2"
+  },
+  "date": "2026-10-07",
+  "endpoint": "Full scripts/check.sh exit0, exact12 new names, final570 source map and original ownership closure; focused14 arms completed separately.",
+  "full_487_closed": false,
+  "installed_actions": false,
+  "prediction": "Formatting changes only the9 integrated paths; all10 sections pass including12 Pages controls.",
+  "provider_actions": false,
+  "question": "Does explicit native Pages DATA proof tooling preserve existing contracts and pass the complete project check?",
+  "status": "complete_check_passed",
+  "version": 1
+}

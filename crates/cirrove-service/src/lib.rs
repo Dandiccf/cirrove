@@ -7,16 +7,21 @@ pub mod diagnostics;
 pub mod engine;
 pub mod events;
 pub mod filesystem;
+pub mod icloud_writes;
 pub mod jobs;
 pub mod journal;
 pub mod manager;
 pub mod mutations;
+pub mod native_abandon;
+pub mod native_import;
+pub mod native_trash;
 pub mod recent;
+mod recovery;
 pub mod transfers;
 pub mod validation;
 pub mod writable;
 use anyhow::{Context, Result, bail};
-use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
+use cirrove_core::{CancellationToken, FeedMode, MetadataProvider, ProviderError, Scope};
 use cirrove_store::Store;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -30,6 +35,17 @@ use tokio::{
 };
 
 pub const STATUS_PROTOCOL_VERSION: u32 = 1;
+
+/// The formats this executable writes. Reporting does not open local state,
+/// establish package authenticity, or authorize migration/downgrade.
+pub fn storage_format_attestation() -> serde_json::Value {
+    serde_json::json!({
+        "version": 1,
+        "product": "cirroved",
+        "journal_schema": journal::JOURNAL_SCHEMA,
+        "metadata_schema": cirrove_store::SCHEMA_VERSION,
+    })
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Status {
@@ -261,13 +277,23 @@ pub async fn refresh(
 ) -> Result<u64> {
     let path = db_path.to_owned();
     let s = scope.clone();
-    let mut cursor =
-        tokio::task::spawn_blocking(move || Store::open(path)?.begin(&s, reset)).await??;
+    let mode = provider.feed_mode();
+    let mut cursor = tokio::task::spawn_blocking(move || {
+        let mut store = Store::open(path)?;
+        if reset {
+            store.begin(&s, true)
+        } else if mode == FeedMode::FullSnapshot {
+            store.begin_snapshot(&s)
+        } else {
+            store.begin(&s, false)
+        }
+    })
+    .await??;
     // Whether this refresh continues from a saved cursor, decided once: a
     // baseline can run to several pages, and every page after the first
     // carries a cursor too. The first version looked at the page and recorded
     // a whole drive's second page as activity.
-    let continuation = cursor.is_some() && !reset;
+    let continuation = mode == FeedMode::Incremental && cursor.is_some() && !reset;
     let mut pages = 0u64;
     loop {
         let page = provider.changes(scope, cursor.as_ref(), cancel).await?;
@@ -432,6 +458,9 @@ pub const PATHS_PER_REQUEST: usize = 200;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PathState {
     pub path: String,
+    /// Whether indexed metadata supports a pin; false when unknown.
+    #[serde(default)]
+    pub can_pin: bool,
     #[serde(default)]
     pub item: String,
     /// "file" or "folder".
@@ -574,6 +603,428 @@ pub struct KeepBothReply {
     pub considered: u64,
     #[serde(default)]
     pub refusal: Option<String>,
+}
+
+/// Explicit replacement of one exact selected native PACKAGE revision.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(try_from = "ReplaceNativePackageWire")]
+pub struct ReplaceNativePackageRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub path: String,
+    pub item_id: String,
+    pub etag: String,
+    pub archive: PathBuf,
+    #[serde(default, skip_serializing_if = "package_source_is_wrapped")]
+    pub source_layout: native_import::PackageSourceLayout,
+    pub expected_root: Option<String>,
+}
+fn package_source_is_wrapped(layout: &native_import::PackageSourceLayout) -> bool {
+    *layout == native_import::PackageSourceLayout::Wrapped
+}
+fn validate_package_source_shape(
+    layout: native_import::PackageSourceLayout,
+    root: &Option<String>,
+) -> std::result::Result<(), &'static str> {
+    match (layout, root) {
+        (native_import::PackageSourceLayout::Wrapped, Some(_))
+        | (
+            native_import::PackageSourceLayout::FlatNumbers
+            | native_import::PackageSourceLayout::FlatPages,
+            None,
+        ) => Ok(()),
+        _ => Err("source layout and archive root disagree"),
+    }
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReplaceNativePackageWire {
+    label: String,
+    expected_account_id: String,
+    path: String,
+    item_id: String,
+    etag: String,
+    archive: PathBuf,
+    #[serde(default)]
+    source_layout: native_import::PackageSourceLayout,
+    expected_root: Option<String>,
+}
+impl TryFrom<ReplaceNativePackageWire> for ReplaceNativePackageRequest {
+    type Error = &'static str;
+    fn try_from(wire: ReplaceNativePackageWire) -> std::result::Result<Self, Self::Error> {
+        validate_package_source_shape(wire.source_layout, &wire.expected_root)?;
+        Ok(Self {
+            label: wire.label,
+            expected_account_id: wire.expected_account_id,
+            path: wire.path,
+            item_id: wire.item_id,
+            etag: wire.etag,
+            archive: wire.archive,
+            source_layout: wire.source_layout,
+            expected_root: wire.expected_root,
+        })
+    }
+}
+/// Observation only; never submits a replacement or changes its archive.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchNativeReplacementRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub operation: uuid::Uuid,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct NativeReplacementReply {
+    #[serde(default)]
+    pub job: Option<jobs::Job>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListNativeReplacementsRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    #[serde(default)]
+    pub after: Option<u64>,
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ListNativeReplacementsReply {
+    #[serde(default)]
+    pub operations: Vec<journal::NativeReplacementSelection>,
+    #[serde(default)]
+    pub next: Option<u64>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn replace_native_package(
+    socket: &Path,
+    body: &ReplaceNativePackageRequest,
+) -> Result<NativeReplacementReply> {
+    request(
+        socket,
+        "replace-native-package",
+        Some(body),
+        "Cirrove explicit native replacement",
+    )
+    .await
+}
+pub async fn watch_native_replacement(
+    socket: &Path,
+    body: &WatchNativeReplacementRequest,
+) -> Result<NativeReplacementReply> {
+    request(
+        socket,
+        "watch-native-replacement",
+        Some(body),
+        "Cirrove native replacement observation",
+    )
+    .await
+}
+pub async fn list_native_replacements(
+    socket: &Path,
+    body: &ListNativeReplacementsRequest,
+) -> Result<ListNativeReplacementsReply> {
+    request(
+        socket,
+        "list-native-replacements",
+        Some(body),
+        "Cirrove retained native replacements",
+    )
+    .await
+}
+
+/// Discover retained native Trash operations after a lost reply or daemon restart.
+/// This bounded read never enqueues, wakes a worker or retries a mutation.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListNativeTrashRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    #[serde(default)]
+    pub after: Option<u64>,
+    /// One bounded page; valid range is 1..=100.
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ListNativeTrashReply {
+    #[serde(default)]
+    pub operations: Vec<native_trash::NativeTrashSelection>,
+    #[serde(default)]
+    pub next: Option<u64>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn list_native_trash(
+    socket: &Path,
+    body: &ListNativeTrashRequest,
+) -> Result<ListNativeTrashReply> {
+    request(
+        socket,
+        "list-native-trash",
+        Some(body),
+        "Cirrove retained native Trash operations",
+    )
+    .await
+}
+
+/// Explicit, exact-revision removal into provider recovery; never permanent delete.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TrashNativeDocumentRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub path: String,
+    pub item_id: String,
+    pub etag: String,
+}
+/// Observer only: cannot enqueue or replay a removal. Completion means recorded
+/// historical removal/publication evidence, not current state after an external restore.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchNativeTrashRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub operation: uuid::Uuid,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct NativeTrashReply {
+    #[serde(default)]
+    pub job: Option<jobs::Job>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn trash_native_document(
+    socket: &Path,
+    body: &TrashNativeDocumentRequest,
+) -> Result<NativeTrashReply> {
+    request(
+        socket,
+        "trash-native-document",
+        Some(body),
+        "Cirrove native document Trash",
+    )
+    .await
+}
+pub async fn watch_native_trash(
+    socket: &Path,
+    body: &WatchNativeTrashRequest,
+) -> Result<NativeTrashReply> {
+    request(
+        socket,
+        "watch-native-trash",
+        Some(body),
+        "Cirrove native Trash observation",
+    )
+    .await
+}
+
+/// Discover saved explicit imports without capture, upload, retry or provider IO.
+/// Completion evidence is historical; current availability requires explicit watch.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ListNativeImportsRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    #[serde(default)]
+    pub after: Option<u64>,
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ListNativeImportsReply {
+    #[serde(default)]
+    pub operations: Vec<journal::NativeImportSelection>,
+    #[serde(default)]
+    pub next: Option<u64>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn list_native_imports(
+    socket: &Path,
+    body: &ListNativeImportsRequest,
+) -> Result<ListNativeImportsReply> {
+    request(
+        socket,
+        "list-native-imports",
+        Some(body),
+        "Cirrove saved native imports",
+    )
+    .await
+}
+
+/// Attach an observer to an existing durable native import, never enqueue again.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchNativeImportRequest {
+    pub label: String,
+    pub expected_account_id: String,
+    pub operation: uuid::Uuid,
+}
+pub async fn watch_native_import(
+    socket: &Path,
+    body: &WatchNativeImportRequest,
+) -> Result<ImportNativePackageReply> {
+    request(
+        socket,
+        "watch-native-import",
+        Some(body),
+        "Cirrove native import observation",
+    )
+    .await
+}
+
+/// Explicit native archive import; representation is verified by the daemon.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(try_from = "ImportNativePackageWire")]
+pub struct ImportNativePackageRequest {
+    pub label: String,
+    /// Optional consent binding for callers that selected an existing account.
+    /// None preserves deliberate CLI label lookup; Some must match before a job starts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_account_id: Option<String>,
+    pub archive: PathBuf,
+    #[serde(default, skip_serializing_if = "package_source_is_wrapped")]
+    pub source_layout: native_import::PackageSourceLayout,
+    pub expected_root: Option<String>,
+    /// Visible relative destination directory inside the selected mount.
+    pub parent: String,
+    pub name: String,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ImportNativePackageWire {
+    label: String,
+    #[serde(default)]
+    expected_account_id: Option<String>,
+    archive: PathBuf,
+    #[serde(default)]
+    source_layout: native_import::PackageSourceLayout,
+    expected_root: Option<String>,
+    parent: String,
+    name: String,
+}
+impl TryFrom<ImportNativePackageWire> for ImportNativePackageRequest {
+    type Error = &'static str;
+    fn try_from(wire: ImportNativePackageWire) -> std::result::Result<Self, Self::Error> {
+        validate_package_source_shape(wire.source_layout, &wire.expected_root)?;
+        Ok(Self {
+            label: wire.label,
+            expected_account_id: wire.expected_account_id,
+            archive: wire.archive,
+            source_layout: wire.source_layout,
+            expected_root: wire.expected_root,
+            parent: wire.parent,
+            name: wire.name,
+        })
+    }
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ImportNativePackageReply {
+    pub job: Option<jobs::Job>,
+    pub refusal: Option<String>,
+}
+pub async fn import_native_package(
+    socket: &Path,
+    body: &ImportNativePackageRequest,
+) -> Result<ImportNativePackageReply> {
+    request(
+        socket,
+        "import-native-package",
+        Some(body),
+        "Cirrove native import",
+    )
+    .await
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExportSaveRequest {
+    pub label: String,
+    pub operation: uuid::Uuid,
+    pub destination: PathBuf,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ExportSaveReply {
+    #[serde(default)]
+    pub job: Option<jobs::Job>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn export_save(
+    socket: &Path,
+    request_body: &ExportSaveRequest,
+) -> Result<ExportSaveReply> {
+    request(
+        socket,
+        "export-save",
+        Some(request_body),
+        "Cirrove local export",
+    )
+    .await
+}
+
+/// Metadata-only active working-file recovery, never a cloud refresh.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RecoveryWorkingRequest {
+    pub label: String,
+    pub after: Option<uuid::Uuid>,
+    pub limit: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RecoveryWorkingReply {
+    pub files: Vec<journal::WorkingRecovery>,
+    pub next: Option<uuid::Uuid>,
+    pub refusal: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExportWorkingRequest {
+    pub label: String,
+    pub file: uuid::Uuid,
+    pub generation: u64,
+    pub destination: PathBuf,
+}
+impl ExportWorkingRequest {
+    /// Match an exact service receipt, never merely a terminal job status.
+    pub fn confirmed_receipt<'a>(
+        &self,
+        initial: &jobs::Job,
+        completed: &'a jobs::Job,
+    ) -> Option<&'a journal::WorkingExportReceipt> {
+        let receipt = completed.working_export.as_ref()?;
+        (initial.kind == jobs::JobKind::ExportLocal
+            && completed.kind == jobs::JobKind::ExportLocal
+            && completed.id == initial.id
+            && completed.state == jobs::JobState::Succeeded
+            && completed.export.is_none()
+            && receipt.source.file == self.file
+            && receipt.source.generation == self.generation
+            && receipt.source.size == initial.bytes_total
+            && receipt.destination == self.destination
+            && receipt.sha256.len() == 64
+            && receipt.sha256.bytes().all(|b| b.is_ascii_hexdigit()))
+        .then_some(receipt)
+    }
+}
+pub async fn recovery_working(
+    socket: &Path,
+    body: &RecoveryWorkingRequest,
+) -> Result<RecoveryWorkingReply> {
+    request(
+        socket,
+        "recovery-working",
+        Some(body),
+        "Cirrove working recovery",
+    )
+    .await
+}
+pub async fn export_working(socket: &Path, body: &ExportWorkingRequest) -> Result<ExportSaveReply> {
+    request(
+        socket,
+        "export-working",
+        Some(body),
+        "Cirrove working export",
+    )
+    .await
 }
 
 /// Put the person's version of every refused save beside the cloud's, under a
@@ -853,9 +1304,23 @@ impl Capabilities {
                 // the key and its refusal of the verb is the same answer.
                 ("discard-stuck".to_string(), 1),
                 ("paths".to_string(), 1),
+                ("paths-cached".to_string(), 1),
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
                 ("keep-both".to_string(), 1),
+                ("export-save".to_string(), 1),
+                ("import-native-package".to_string(), 1),
+                ("watch-native-import".to_string(), 1),
+                ("list-native-imports".to_string(), 1),
+                ("trash-native-document".to_string(), 1),
+                ("watch-native-trash".to_string(), 1),
+                ("list-native-trash".to_string(), 1),
+                ("replace-native-package".to_string(), 1),
+                ("watch-native-replacement".to_string(), 1),
+                ("list-native-replacements".to_string(), 1),
+                ("abandon-native-stage".to_string(), 1),
+                ("native-stage-abandonment".to_string(), 1),
+                ("import-native-package-account-binding".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
@@ -1060,6 +1525,147 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
+                        if verb=="recovery-working" {
+                            let reply=match (serde_json::from_str::<RecoveryWorkingRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.recovery_working(&r).await {
+                                    Ok((files,next))=>RecoveryWorkingReply{files,next,refusal:None},
+                                    Err(error)=>RecoveryWorkingReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                _=>RecoveryWorkingReply{refusal:Some("working recovery request or account service is unavailable".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="export-working" {
+                            let reply=match (serde_json::from_str::<ExportWorkingRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.export_working(&r).await {
+                                    Ok(job)=>ExportSaveReply{job:Some(job),refusal:None},
+                                    Err(error)=>ExportSaveReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                _=>ExportSaveReply{refusal:Some("working export request or account service is unavailable".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if matches!(verb, "abandon-native-stage" | "native-stage-abandonment") {
+                            return write_reply(&mut stream, &native_abandon::handle(verb, body, manager.as_ref()).await).await;
+                        }
+                        if verb=="replace-native-package" {
+                            let reply=match (serde_json::from_str::<ReplaceNativePackageRequest>(body),&manager){
+                                (Ok(r),Some(m)) if !r.label.is_empty()=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.start_native_replacement(engine,crate::native_import::NativeReplaceInput{selected:crate::native_trash::NativeTrashInput{expected_account_id:r.expected_account_id,path:r.path,item_id:r.item_id,etag:r.etag},source:r.archive,source_layout:r.source_layout,expected_root:r.expected_root}).await {
+                                        Ok(job)=>NativeReplacementReply{job:Some(job),refusal:None},Err(_)=>NativeReplacementReply{job:None,refusal:Some("native replacement admission could not be started".into())},
+                                    },_=>NativeReplacementReply{job:None,refusal:Some("selected replacement account changed or is unavailable".into())},
+                                },_=>NativeReplacementReply{job:None,refusal:Some("replacement requires an exact account and available service".into())},
+                            };return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="watch-native-replacement" {
+                            let reply=match (serde_json::from_str::<WatchNativeReplacementRequest>(body),&manager){
+                                (Ok(r),Some(m)) if !r.label.is_empty()=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.watch_native_replacement(engine,&r.expected_account_id,r.operation).await {
+                                        Ok(job)=>NativeReplacementReply{job:Some(job),refusal:None},Err(_)=>NativeReplacementReply{job:None,refusal:Some("saved replacement observation could not attach".into())},
+                                    },_=>NativeReplacementReply{job:None,refusal:Some("selected replacement account changed or is unavailable".into())},
+                                },_=>NativeReplacementReply{job:None,refusal:Some("replacement observation request or service unavailable".into())},
+                            };return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="list-native-replacements" {
+                            let reply=match (serde_json::from_str::<ListNativeReplacementsRequest>(body),&manager){
+                                (Ok(r),Some(m)) if !r.label.is_empty() && (1..=100).contains(&r.limit) && r.after.is_none_or(|n|n<=i64::MAX as u64)=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.list_native_replacements(&engine,&r.expected_account_id,r.after,r.limit).await {
+                                        Ok(page)=>ListNativeReplacementsReply{operations:page.operations,next:page.next,refusal:None},Err(_)=>ListNativeReplacementsReply{refusal:Some("retained replacements unavailable for selected account".into()),..Default::default()},
+                                    },_=>ListNativeReplacementsReply{refusal:Some("selected replacement account changed or is unavailable".into()),..Default::default()},
+                                },_=>ListNativeReplacementsReply{refusal:Some("replacement listing requires an exact account and bounded page".into()),..Default::default()},
+                            };return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="list-native-trash" {
+                            let reply=match (serde_json::from_str::<ListNativeTrashRequest>(body),&manager) {
+                                (Ok(r),Some(m)) if (1..=100).contains(&r.limit) && r.after.is_none_or(|n|n<=i64::MAX as u64)=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match m.list_native_trash(&engine,&r.expected_account_id,r.after,r.limit).await {
+                                        Ok(list)=>ListNativeTrashReply{operations:list.operations,next:list.next,refusal:None},
+                                        Err(_)=>ListNativeTrashReply{refusal:Some("retained native Trash operations are unavailable for the selected account".into()),..Default::default()},
+                                    },
+                                    _=>ListNativeTrashReply{refusal:Some("selected native Trash account is unavailable or changed".into()),..Default::default()},
+                                },
+                                _=>ListNativeTrashReply{refusal:Some("native Trash listing requires an exact account and a page limit between 1 and 100".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="trash-native-document" {
+                            let reply=match (serde_json::from_str::<TrashNativeDocumentRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match engine.start_native_trash(m.clone(),crate::native_trash::NativeTrashInput{expected_account_id:r.expected_account_id,path:r.path,item_id:r.item_id,etag:r.etag}) {
+                                        Ok(job)=>NativeTrashReply{job:Some(job),refusal:None},
+                                        Err(_)=>NativeTrashReply{job:None,refusal:Some("native Trash admission could not be started".into())},
+                                    },
+                                    _=>NativeTrashReply{job:None,refusal:Some("selected native Trash account is unavailable or changed".into())},
+                                },
+                                _=>NativeTrashReply{job:None,refusal:Some("native Trash request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="watch-native-trash" {
+                            let reply=match (serde_json::from_str::<WatchNativeTrashRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.engine(&r.label).await {
+                                    Ok(engine) if engine.account.id==r.expected_account_id && uuid::Uuid::parse_str(&r.expected_account_id).is_ok()=>match engine.start_native_trash_watch(m.clone(),r.expected_account_id,r.operation) {
+                                        Ok(job)=>NativeTrashReply{job:Some(job),refusal:None},
+                                        Err(_)=>NativeTrashReply{job:None,refusal:Some("native Trash observation could not be started".into())},
+                                    },
+                                    _=>NativeTrashReply{job:None,refusal:Some("selected native Trash account is unavailable or changed".into())},
+                                },
+                                _=>NativeTrashReply{job:None,refusal:Some("native Trash watch request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb == "list-native-imports" {
+                            let reply = match (serde_json::from_str::<ListNativeImportsRequest>(body), &manager) {
+                                (Ok(r), Some(m)) if !r.label.is_empty()
+                                    && (1..=100).contains(&r.limit)
+                                    && r.after.is_none_or(|n| n <= i64::MAX as u64) => match m.engine(&r.label).await {
+                                        Ok(engine) if engine.account.id == r.expected_account_id
+                                            && uuid::Uuid::parse_str(&r.expected_account_id).is_ok() => match m.list_native_imports(&engine, &r.expected_account_id, r.after, r.limit).await {
+                                                Ok(page) => ListNativeImportsReply { operations: page.operations, next: page.next, refusal: None },
+                                                Err(_) => ListNativeImportsReply { refusal: Some("saved native imports unavailable for selected account".into()), ..Default::default() },
+                                            },
+                                        _ => ListNativeImportsReply { refusal: Some("selected import account changed or is unavailable".into()), ..Default::default() },
+                                    },
+                                _ => ListNativeImportsReply { refusal: Some("import listing requires an exact account and bounded page".into()), ..Default::default() },
+                            };
+                            return write_reply(&mut stream, &reply).await;
+                        }
+                        if verb=="watch-native-import" {
+                            let reply=match (serde_json::from_str::<WatchNativeImportRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.watch_native_import(&r).await {
+                                    Ok(job)=>ImportNativePackageReply {job:Some(job),refusal:None},
+                                    Err(_)=>ImportNativePackageReply {job:None,refusal:Some("saved native import or selected writable connection is unavailable".into())},
+                                },
+                                _=>ImportNativePackageReply {job:None,refusal:Some("native import watch request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="import-native-package" {
+                            let reply = match (serde_json::from_str::<ImportNativePackageRequest>(body), &manager) {
+                                (Ok(r), Some(m)) => match m.engine(&r.label).await {
+                                    Ok(engine) if r.expected_account_id.as_ref().is_some_and(|expected| expected != &engine.account.id) => ImportNativePackageReply { job: None, refusal: Some("native import account changed; select the connection again".into()) },
+                                    Ok(engine) => match engine.start_native_import(m.clone(), crate::native_import::NativeImportInput {
+                                        source:r.archive, source_layout:r.source_layout, expected_root:r.expected_root, parent:r.parent, name:r.name,
+                                    }) {
+                                        Ok(job) => ImportNativePackageReply {job:Some(job), refusal:None},
+                                        Err(_) => ImportNativePackageReply {job:None, refusal:Some("native import could not be started".into())},
+                                    },
+                                    Err(_) => ImportNativePackageReply {job:None, refusal:Some("choose an active writable iCloud connection".into())},
+                                },
+                                _ => ImportNativePackageReply {job:None, refusal:Some("native import request or account service is unavailable".into())},
+                            };
+                            return write_reply(&mut stream, &reply).await;
+                        }
+                        if verb=="export-save" {
+                            let reply=match (serde_json::from_str::<ExportSaveRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.export_save(&r).await {
+                                    Ok(job)=>ExportSaveReply{job:Some(job),refusal:None},
+                                    Err(error)=>ExportSaveReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                _=>ExportSaveReply{refusal:Some("export request or account service is unavailable".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
                         if verb=="keep-both" {
                             let reply=match (serde_json::from_str::<DiscardRequest>(body),&manager) {
                                 (Ok(r),Some(m))=>match m.keep_both(&r.label).await {
@@ -1082,10 +1688,10 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
-                        if verb=="paths" {
+                        if verb=="paths" || verb=="paths-cached" {
                             let reply=match (serde_json::from_str::<PathsRequest>(body),&manager) {
                                 (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PathsReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
-                                (Ok(r),Some(m))=>match m.path_states(&r.label,&r.paths).await {
+                                (Ok(r),Some(m))=>match m.path_states_mode(&r.label,&r.paths,verb=="paths-cached").await {
                                     Ok(states)=>PathsReply{states,refusal:None},
                                     Err(error)=>PathsReply{refusal:Some(error.to_string()),..Default::default()},
                                 },
@@ -1234,6 +1840,125 @@ mod tests {
         );
         cancel.cancel();
         task.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn native_trash_capabilities_and_missing_manager_refuse_without_starting_jobs() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        let caps = capabilities(&socket).await.unwrap();
+        assert_eq!(caps.capabilities.get("trash-native-document"), Some(&1));
+        assert_eq!(caps.capabilities.get("watch-native-trash"), Some(&1));
+        let account = uuid::Uuid::new_v4().to_string();
+        let reply = trash_native_document(
+            &socket,
+            &TrashNativeDocumentRequest {
+                label: "Cloud".into(),
+                expected_account_id: account.clone(),
+                path: "Own.pages".into(),
+                item_id: "FILE::com.apple.CloudDocs::own".into(),
+                etag: "E1".into(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        let reply = watch_native_trash(
+            &socket,
+            &WatchNativeTrashRequest {
+                label: "Cloud".into(),
+                expected_account_id: account,
+                operation: uuid::Uuid::new_v4(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+    #[tokio::test]
+    async fn native_trash_list_protocol_is_bounded_and_read_only() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        assert_eq!(
+            capabilities(&socket)
+                .await
+                .unwrap()
+                .capabilities
+                .get("list-native-trash"),
+            Some(&1)
+        );
+        let body = serde_json::json!({"label":"Cloud","expected_account_id":uuid::Uuid::new_v4().to_string(),"after":0,"limit":100});
+        for field in ["path", "item_id", "etag", "retry", "permanent", "operation"] {
+            let mut extra = body.clone();
+            extra[field] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<ListNativeTrashRequest>(extra).is_err());
+        }
+        for limit in [0, 1, 100, 101] {
+            let mut request: ListNativeTrashRequest = serde_json::from_value(body.clone()).unwrap();
+            request.limit = limit;
+            let reply = list_native_trash(&socket, &request).await.unwrap();
+            assert!(reply.operations.is_empty() && reply.next.is_none() && reply.refusal.is_some());
+        }
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+
+    #[test]
+    fn native_trash_protocol_requires_binding_and_watch_has_no_mutation_arguments() {
+        let input = serde_json::json!({"label":"Cloud","expected_account_id":uuid::Uuid::new_v4().to_string(),"path":"Own.pages","item_id":"FILE::com.apple.CloudDocs::own","etag":"E1"});
+        assert!(serde_json::from_value::<TrashNativeDocumentRequest>(input.clone()).is_ok());
+        for field in ["expected_account_id", "path", "item_id", "etag"] {
+            let mut missing = input.clone();
+            missing.as_object_mut().unwrap().remove(field);
+            assert!(serde_json::from_value::<TrashNativeDocumentRequest>(missing).is_err());
+        }
+        let watch = serde_json::json!({"label":"Cloud","expected_account_id":uuid::Uuid::new_v4().to_string(),"operation":uuid::Uuid::new_v4()});
+        for field in ["path", "item_id", "etag", "retry", "permanent", "archive"] {
+            let mut extra = watch.clone();
+            extra[field] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<WatchNativeTrashRequest>(extra).is_err());
+        }
+        let mut extra = input;
+        extra["permanent"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<TrashNativeDocumentRequest>(extra).is_err());
+    }
+    #[tokio::test]
+    async fn native_trash_client_transmits_unusual_paths_as_one_structured_request() {
+        use tokio::io::AsyncBufReadExt;
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("control.sock");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let path = "Folder/Own \"quoted\"; $()\nline.pages".to_owned();
+        let expected = path.clone();
+        let task = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut reader = tokio::io::BufReader::new(stream);
+            let mut line = String::new();
+            reader.read_line(&mut line).await.unwrap();
+            let body = line.strip_prefix("trash-native-document ").unwrap();
+            let parsed: TrashNativeDocumentRequest = serde_json::from_str(body).unwrap();
+            assert_eq!(parsed.path, expected);
+            assert_eq!(line.bytes().filter(|b| *b == b'\n').count(), 1);
+            reader
+                .get_mut()
+                .write_all(b"{\"job\":null,\"refusal\":\"synthetic refusal\"}\n")
+                .await
+                .unwrap();
+        });
+        let reply = trash_native_document(
+            &socket,
+            &TrashNativeDocumentRequest {
+                label: "Cloud".into(),
+                expected_account_id: uuid::Uuid::new_v4().to_string(),
+                path,
+                item_id: "FILE::com.apple.CloudDocs::own".into(),
+                etag: "E1".into(),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(reply.refusal.as_deref(), Some("synthetic refusal"));
+        task.await.unwrap();
     }
 
     /// The daemon cannot see a dialogue, so it will not act on the assumption
@@ -1600,6 +2325,266 @@ mod tests {
             store.begin(&scope, false).unwrap(),
             Some(cirrove_core::Cursor("resume-here".into()))
         );
+    }
+
+    struct SnapshotProvider(std::sync::atomic::AtomicUsize);
+    #[async_trait::async_trait]
+    impl MetadataProvider for SnapshotProvider {
+        fn provider_id(&self) -> &'static str {
+            "snapshot-fixture"
+        }
+        fn feed_mode(&self) -> FeedMode {
+            FeedMode::FullSnapshot
+        }
+        async fn changes(
+            &self,
+            _scope: &Scope,
+            cursor: Option<&cirrove_core::Cursor>,
+            _cancel: &CancellationToken,
+        ) -> std::result::Result<cirrove_core::ChangePage, ProviderError> {
+            if cursor.is_some() {
+                return Err(ProviderError::Protocol("completed snapshot was reused"));
+            }
+            let round = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let id = format!("round-{round}");
+            Ok(cirrove_core::ChangePage {
+                changes: vec![cirrove_core::Change::Upsert(cirrove_core::Node {
+                    id: id.clone(),
+                    parent_id: None,
+                    name: id,
+                    kind: cirrove_core::NodeKind::File,
+                    size: 1,
+                    modified_unix: 0,
+                    etag: None,
+                    content_version: None,
+                    target: None,
+                    package: false,
+                })],
+                checkpoint: cirrove_core::Checkpoint::Complete(cirrove_core::Cursor(format!(
+                    "done-{round}"
+                ))),
+            })
+        }
+    }
+    #[tokio::test]
+    async fn coordinator_starts_a_new_snapshot_after_a_completed_round() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metadata.db");
+        let scope = Scope {
+            account: "a".into(),
+            provider: "snapshot-fixture".into(),
+            collection: "d".into(),
+        };
+        let provider = SnapshotProvider(std::sync::atomic::AtomicUsize::new(0));
+        for round in 0..2 {
+            refresh(
+                &provider,
+                &scope,
+                &path,
+                false,
+                &CancellationToken::new(),
+                None,
+            )
+            .await
+            .unwrap();
+            let nodes = Store::open(&path).unwrap().nodes(&scope).unwrap();
+            assert_eq!(nodes.len(), 1);
+            assert_eq!(nodes[0].id, format!("round-{round}"));
+        }
+    }
+    #[test]
+    fn native_source_layout_preserves_legacy_wire_and_rejects_ambiguous_roots() {
+        let import = serde_json::json!({"label":"Owned","archive":"/var/tmp/Owned.zip","expected_root":"Owned.numbers","parent":"","name":"Copy.numbers"});
+        let replace = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"path":"Owned.numbers","item_id":"FILE::com.apple.CloudDocs::owned","etag":"v1","archive":"/var/tmp/Owned.zip","expected_root":"Owned.numbers"});
+        for (is_replace, legacy) in [(false, import), (true, replace)] {
+            let decode =
+                |value: serde_json::Value| -> Result<serde_json::Value, serde_json::Error> {
+                    if is_replace {
+                        serde_json::from_value::<ReplaceNativePackageRequest>(value)
+                            .and_then(serde_json::to_value)
+                    } else {
+                        serde_json::from_value::<ImportNativePackageRequest>(value)
+                            .and_then(serde_json::to_value)
+                    }
+                };
+            assert_eq!(decode(legacy.clone()).unwrap(), legacy);
+            for null_root in [false, true] {
+                let mut value = legacy.clone();
+                if null_root {
+                    value["expected_root"] = serde_json::Value::Null;
+                } else {
+                    value.as_object_mut().unwrap().remove("expected_root");
+                }
+                assert!(
+                    decode(value.clone()).is_err(),
+                    "wrapped root must be present and nonnull"
+                );
+                value["source_layout"] = serde_json::json!("flat_numbers");
+                let flat = decode(value).unwrap();
+                assert_eq!(flat["source_layout"], "flat_numbers");
+                assert!(flat["expected_root"].is_null());
+            }
+            for layout in ["flat_numbers", "guessed", "flat-numbers"] {
+                let mut value = legacy.clone();
+                value["source_layout"] = serde_json::json!(layout);
+                assert!(
+                    decode(value).is_err(),
+                    "unknown layout or nonnull flat root"
+                );
+            }
+            let mut value = legacy.clone();
+            value["source_layout"] = serde_json::json!("wrapped");
+            assert_eq!(decode(value).unwrap(), legacy);
+        }
+    }
+    #[test]
+    fn native_replacement_protocol_requires_exact_selection_and_observers_reject_write_fields() {
+        let input = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"path":"Owned.pages","item_id":"FILE::com.apple.CloudDocs::owned","etag":"v1","archive":"/var/tmp/Owned.zip","expected_root":"Owned.pages"});
+        assert!(serde_json::from_value::<ReplaceNativePackageRequest>(input.clone()).is_ok());
+        for field in [
+            "expected_account_id",
+            "path",
+            "item_id",
+            "etag",
+            "archive",
+            "expected_root",
+        ] {
+            let mut v = input.clone();
+            v.as_object_mut().unwrap().remove(field);
+            assert!(
+                serde_json::from_value::<ReplaceNativePackageRequest>(v).is_err(),
+                "{field}"
+            );
+        }
+        let watch = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"operation":uuid::Uuid::new_v4()});
+        let list = serde_json::json!({"label":"Owned","expected_account_id":uuid::Uuid::new_v4(),"limit":100});
+        for key in [
+            "archive",
+            "expected_root",
+            "source_layout",
+            "item_id",
+            "etag",
+            "retry",
+        ] {
+            let mut w = watch.clone();
+            w[key] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<WatchNativeReplacementRequest>(w).is_err());
+            let mut l = list.clone();
+            l[key] = serde_json::json!("forbidden");
+            assert!(serde_json::from_value::<ListNativeReplacementsRequest>(l).is_err());
+        }
+    }
+    #[tokio::test]
+    async fn native_replacement_public_routes_refuse_missing_manager_and_invalid_pages() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        let caps = capabilities(&socket).await.unwrap();
+        for name in [
+            "replace-native-package",
+            "watch-native-replacement",
+            "list-native-replacements",
+        ] {
+            assert_eq!(caps.capabilities.get(name), Some(&1));
+        }
+        let account = uuid::Uuid::new_v4().to_string();
+        let reply = replace_native_package(
+            &socket,
+            &ReplaceNativePackageRequest {
+                label: "Owned".into(),
+                expected_account_id: account.clone(),
+                path: "Owned.pages".into(),
+                item_id: "FILE::com.apple.CloudDocs::owned".into(),
+                etag: "v1".into(),
+                archive: "/var/tmp/Owned.zip".into(),
+                source_layout: native_import::PackageSourceLayout::Wrapped,
+                expected_root: Some("Owned.pages".into()),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        let reply = watch_native_replacement(
+            &socket,
+            &WatchNativeReplacementRequest {
+                label: "Owned".into(),
+                expected_account_id: account.clone(),
+                operation: uuid::Uuid::new_v4(),
+            },
+        )
+        .await
+        .unwrap();
+        assert!(reply.job.is_none() && reply.refusal.is_some());
+        for (limit, after) in [(0, None), (101, None), (100, Some(u64::MAX)), (100, None)] {
+            let reply = list_native_replacements(
+                &socket,
+                &ListNativeReplacementsRequest {
+                    label: "Owned".into(),
+                    expected_account_id: account.clone(),
+                    limit,
+                    after,
+                },
+            )
+            .await
+            .unwrap();
+            assert!(reply.refusal.is_some() && reply.operations.is_empty() && reply.next.is_none());
+        }
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+    #[tokio::test]
+    async fn native_replacement_client_preserves_structured_archive_and_selection() {
+        use tokio::io::AsyncBufReadExt;
+        for source_layout in [
+            native_import::PackageSourceLayout::Wrapped,
+            native_import::PackageSourceLayout::FlatNumbers,
+        ] {
+            let dir = tempfile::tempdir().unwrap().keep().join("private");
+            private_dir(&dir).unwrap();
+            let socket = dir.join("control.sock");
+            let listener = UnixListener::bind(&socket).unwrap();
+            let input = ReplaceNativePackageRequest {
+                label: "Owned".into(),
+                expected_account_id: uuid::Uuid::new_v4().to_string(),
+                path: "Folder/quote \"; $(literal).pages".into(),
+                item_id: "FILE::com.apple.CloudDocs::owned".into(),
+                etag: "e-tag".into(),
+                archive: PathBuf::from("/var/tmp/source \"; $(literal)\n.zip"),
+                source_layout,
+                expected_root: (source_layout == native_import::PackageSourceLayout::Wrapped)
+                    .then(|| "Source.pages".into()),
+            };
+            let expected = serde_json::to_value(&input).unwrap();
+            if source_layout == native_import::PackageSourceLayout::Wrapped {
+                assert!(expected.get("source_layout").is_none());
+            } else {
+                assert_eq!(expected["source_layout"], "flat_numbers");
+                assert!(expected["expected_root"].is_null());
+            }
+            let task = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let mut reader = tokio::io::BufReader::new(stream);
+                let mut line = String::new();
+                reader.read_line(&mut line).await.unwrap();
+                let request: ReplaceNativePackageRequest =
+                    serde_json::from_str(line.strip_prefix("replace-native-package ").unwrap())
+                        .unwrap();
+                assert_eq!(serde_json::to_value(request).unwrap(), expected);
+                assert_eq!(line.bytes().filter(|b| *b == b'\n').count(), 1);
+                reader
+                    .get_mut()
+                    .write_all(b"{\"job\":null,\"refusal\":\"synthetic\"}\n")
+                    .await
+                    .unwrap();
+            });
+            assert_eq!(
+                replace_native_package(&socket, &input)
+                    .await
+                    .unwrap()
+                    .refusal
+                    .as_deref(),
+                Some("synthetic")
+            );
+            task.await.unwrap();
+        }
     }
 }
 

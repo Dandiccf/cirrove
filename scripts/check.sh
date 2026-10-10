@@ -30,10 +30,39 @@ cargo fmt --all -- --check
 
 step "clippy"
 cargo clippy --workspace --all-targets --locked -- -D warnings
+step "iCloud preview binary"
+cargo clippy -p cirrove-service --features icloud-probe \
+  --bin cirrove-icloud-mount-probe --locked -- -D warnings
+step "iCloud isolated write probe"
+cargo clippy -p cirrove-service --features icloud-write-probe \
+  --bin cirrove-icloud-write-probe --locked -- -D warnings
+step "iCloud editor metadata CLI"
+cargo clippy -p cirrove-service --features icloud-write-probe \
+  --bin cirrove --test owned_icloud_editor_metadata_cli \
+  --test owned_icloud_editor_source_proof_cli --test owned_account_snapshot --test owned_icloud_calc_trash_original_cli --locked -- -D warnings
+step "iCloud isolated mounted write probe"
+cargo clippy -p cirrove-service --features icloud-write-probe \
+  --bin cirrove-icloud-mounted-write-probe --locked -- -D warnings
 
 if [[ $fast != --fast ]]; then
   step "workspace tests"
   cargo test --workspace --locked
+  cargo test -p cirrove-icloud --features write-probe --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --bin cirrove-icloud-mounted-write-probe --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --lib validation::icloud_account --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --test owned_icloud_editor_metadata_cli --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --test owned_icloud_calc_trash_original_cli --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --test owned_icloud_editor_source_proof_cli --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --test owned_account_snapshot --locked -- --test-threads=1
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --lib journal::package_replacement::worker_transport::native_final_tests:: --locked \
+    -- --test-threads=1
 
   # The tests that mount. CI runs these and this script did not, which is how a
   # change that made pinning asynchronous reached CI twice in one day: the
@@ -50,6 +79,7 @@ if [[ $fast != --fast ]]; then
     CIRROVE_RECLAIM_FLOOR_BYTES=8388608 CIRROVE_RECLAIM_INTERVAL_SECONDS=1 \
       cargo test -p cirrove-service --test read_only --locked real_ \
         -- --ignored --test-threads=1
+    cargo test -p cirrove-service --lib --locked journal::package_replacement::worker_transport::fuse_https:: -- --ignored --test-threads=1
     cargo test -p cirrove-service --test google_drive --locked real_ \
       -- --ignored --test-threads=1
     cargo test -p cirrove-service --lib --locked filesystem::capacity::real_ \
@@ -73,14 +103,19 @@ python=$(command -v /usr/bin/python3 || command -v python3)
 "$python" scripts/test-observe-service.py
 "$python" scripts/test-install-tray-autostart.py
 "$python" scripts/test-install-scripts.py
+"$python" scripts/test-installer-preflight.py
+"$python" scripts/test-package-switch-preflight.py
 "$python" scripts/test-package-versions.py
 "$python" scripts/test-nautilus-extension.py
+"$python" scripts/test-strata-provider.py
 "$python" scripts/test-file-manager-docs.py
 "$python" scripts/check-oauth-site.py
 "$python" scripts/google-release-gate.py
 scripts/check-dolphin.sh
 "$python" scripts/test-icon-geometry.py
 "$python" scripts/test-translations.py
+"$python" scripts/test-acceptance-ledger.py
+"$python" scripts/ci-coverage.py
 "$python" scripts/acceptance-ledger.py
 
 step "docs"
@@ -94,5 +129,6 @@ if [[ $fast == --fast ]]; then
   printf '\033[1mNOT RUN: the workspace test suite, nor the tests that mount.\033[0m --fast skipped both.\n'
   echo "  Run scripts/check.sh with no arguments before pushing."
 fi
-echo "Not covered here: the window scenarios, which need a display --"
+echo "Not covered here: desktop display scenarios --"
 echo "  cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads=1"
+echo "  cargo test -p cirrove-desktop --lib --locked ui::native_import::tests::native_import_chooser_filter_accepts_case_variants_only -- --ignored --exact --test-threads=1"

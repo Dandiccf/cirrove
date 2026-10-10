@@ -133,3 +133,50 @@ list-then-PATCH sequence, and Drive offers no atomic sibling-name reservation. S
 [Google Drive](google-drive.md), the
 [writable mount record](benchmarks/google-drive-writable-mount.json) and the
 [broader live record](benchmarks/google-drive-live-acceptance-2.json).
+
+## iCloud development and Linux editor formats
+
+iCloud remains an experimental branch, outside the released packages. Its
+[validation record](icloud-write-integration.md) distinguishes provider content
+verification from application import and save fidelity.
+
+| Format and workflow | Observed scope | Remaining limit |
+| --- | --- | --- |
+| Native Numbers file opened read-only in LibreOffice Calc | One actual iCloud Numbers archive opened in a visible Calc session with A2=11, B2=3 and C2=14; the original archive stayed unchanged. | C2 imported as a numeric VALUE, with `getFormula()` returning `14`, rather than the SUM formula shown in Apple Numbers. Formula-preserving native Numbers editing is not established. |
+| XLSX created and edited in LibreOffice Calc | One local file was created, reopened, saved once and reopened again with `SUM(A2:B2)` preserved and values changing from 7/3/10 to 11/3/14. An independent OOXML inspection confirmed both snapshots. | This local application trial does not establish iCloud upload, atomic replacement, remount or installed acceptance. |
+| Historical isolated iCloud mount trial, 5 October | One actual Calc save and reopen retained 7/3/SUM=10; its source and sealed content stayed preserved after the trial stopped. A separate fresh read-only mount verified the owned folder, but did not list the final XLSX. | This individual trial's cloud save remains unconfirmed, and its second save was not attempted. The initiating refusal remains unexplained; later successful trials do not retroactively confirm this one. |
+| Historical Calc temporary-file cleanup controls | Diagnostics reproduced a local journal refusal. The correction passed a regression that failed before the change, retained-byte/restart checks, and three matrices of 40 hostile identity/dependency controls. | These synthetic controls alone establish no actual cloud save. The separate 6 October trial below supplies bounded provider evidence. |
+| Two Calc XLSX saves through a fresh isolated iCloud mount, 6 October | Calc saved and reopened 7/3/SUM=10, then 11/3/SUM=14. Independent DATA reads matched both source byte streams; a separate normal read-only remount matched all 5,612 B bytes. A subsequent independent Trash reader matched all 5,281 original A bytes. | One bounded ordinary XLSX workflow, with UNO observations and no human GUI witness. The Trash CLI succeeded, while its controller retained a reporting exit 1. Restoration, native iWork fidelity, repeatability and installed acceptance are not established. |
+| Genuine edited Numbers B imported into Calc and exported once as XLSX, 6 October | A fresh headless, network-isolated Calc session read the genuine Apple-edited export, preserved cached 17/3/20, exported one XLSX copy and reopened it with the same measured cells. The Numbers source stayed unchanged. | Import and reopen both exposed C2 as VALUE with `getFormula()` returning `20`, not SUM. The conversion workflow completed but formula fidelity failed; no native Numbers save or GUI acceptance was tested. |
+| [Genuine Pages B imported into Writer and exported once as DOCX, 7 October](benchmarks/icloud-pages-writer-private-library-2026-10-07-2f2fec37-6b7c-40aa-b8db-49fa98d5192c.json) | A headless, network-isolated session with a verified private `libwpg` capsule imported Pages read-only and reopened its one DOCX export read-only. Both retained the exact 93-byte text as one paragraph; independent ZIP CRC/OOXML checks agreed and the source stayed unchanged. | Text-only conversion. Fonts, layout, media, native Pages save and general format fidelity remain unproved. The host dependency remained absent; no system package repair, GUI or installed acceptance was tested. |
+| [Two Writer DOCX saves through a fresh isolated iCloud mount, 7 October](benchmarks/icloud-writer-mounted-docx-2026-10-07-f015bd4d-44a1-4676-88ca-a0a0445ed9ab.json) | Writer created and reopened A, then edited, saved and reopened B, preserving the exact registered paragraphs. Independent DATA reads matched all 5,829 A and 5,906 B bytes; a normal read-only remount matched B and a typed Trash observer verified original A. Independent audit passed 29/29; all owned processes and mounts closed. | One headless ordinary DOCX workflow using the genuine Pages-to-DOCX conversion as its seed. Native Pages saving, layout/fonts/media, GUI, repeatability and installed acceptance remain unproved. Application network access was disabled; the mounted daemon performed authorized cloud writes. |
+| [Genuine Keynote B imported into Impress and exported once as PPTX, 7 October](benchmarks/icloud-keynote-impress-pptx-2026-10-07-20d21b4e-a918-41db-b7f5-e1a0fb3c593c.json) | A headless, network-isolated session loaded Keynote read-only and reopened one PPTX export read-only with the exact title and subtitle on one slide. Independent ZIP CRC/slide XML and terminal checks passed 28/28; source and tool pins stayed unchanged. | Text-only conversion. Layout, fonts, media, transitions, animations, native Keynote save, GUI and installed acceptance remain unproved. |
+| [Two Impress PPTX saves through a fresh isolated iCloud mount, 7 October](benchmarks/icloud-impress-mounted-pptx-2026-10-07-85ee1211-763d-46b7-b7a7-2886e6867e0d.json) | Impress created and reopened A, then edited, saved and reopened B with the exact registered title and subtitle. Independent DATA reads matched all 8,304 A and 8,416 B bytes; a normal read-only remount matched B and a typed Trash observer verified original A. Independent audit passed 24/24; all owned processes and mounts closed. | One headless ordinary PPTX workflow using the genuine Keynote-to-PPTX conversion as its seed. Native Keynote saving, layout/fonts/media/animations, GUI, repeatability and installed acceptance remain unproved. Application network access was disabled; the mounted daemon performed authorized cloud writes. |
+| [Genuine Pages DATA create and overwrite through a fresh iCloud mount, 7 October](benchmarks/icloud-pages-data-create-replace-2026-10-07-e5ed45e4-02cd-45e3-8ea1-20568c3e6a3a.json) | Independent actual DATA A verification preceded the sole B overwrite. Current B and exact original A in Trash matched all source bytes; audit passed 53/53. A [separate normal read-only remount](benchmarks/icloud-pages-data-readonly-remount-2026-10-07-e751e06a-51e0-48be-b964-f510b3e78f1b.json) matched the full current B identity and all raw bytes, with audit 37/37. All owned processes/mounts closed without replay. | Genuine Apple-exported Pages archives copied through ordinary FUSE writes. The [subsequent exact-ID Apple open](benchmarks/icloud-pages-data-apple-reopen-2026-10-07-df50f6ee-f23c-4229-860d-0c209fe78821.json) failed with “This document can’t be opened right now.” Audit 28/28 verified the retained failure and owned-tab closure; cause unresolved, no reload or retry. This differs from the successful PACKAGE reopen. Native Linux Pages saving, broader fidelity, reliability and installed acceptance remain unproved. |
+
+A [separate Numbers DATA normal read-only remount](benchmarks/icloud-numbers-data-readonly-remount-2026-10-07-8d791c0c-5902-44e6-b184-d39a2ad5935e.json)
+matched the exact current B revision and all 138,943 bytes, with independent audit
+49/49. The [subsequent exact-ID Apple Numbers open](benchmarks/icloud-numbers-data-apple-reopen-2026-10-07-d6466c5a-d307-4552-90a1-887a91ff9300.json)
+failed with “This spreadsheet can’t be opened right now.” The exact row and
+editor UUID were verified; both owned tabs closed, with no reload, edit or retry.
+Independent audit 22/22 verified the retained failure and owned-tab closure;
+no values or formula were observed. Its cause remains unproved. These DATA
+refusals do not replace the separately successful genuine PACKAGE reopen evidence.
+
+
+These results are specific to the tested files and installed LibreOffice build.
+Do not infer general iWork format fidelity from readable cell values. The installed
+Numbers, Pages and Keynote LibreOffice filters are import-only; no native iWork
+save or export is promised. The same genuine Numbers B has separate
+[Apple edit/export evidence](benchmarks/icloud-numbers-edited-b-donor-2026-10-06.json)
+and [replacement/recovery evidence](benchmarks/icloud-flat-numbers-native-final-2026-10-06.json);
+content preservation there does not establish Linux application formula fidelity.
+The broader native editor matrix remains open. Preserve native originals when
+testing conversions. See the
+[two-save DATA and remount record](benchmarks/icloud-calc-after-metadata-publication-2026-10-06.json),
+[original Trash read](benchmarks/icloud-calc-trash-original-2026-10-06.json),
+[genuine-B Calc conversion and its retained initial setup refusal](benchmarks/icloud-numbers-calc-genuine-export-2026-10-06.json),
+the [registered Calc trial](benchmarks/icloud-calc-editor-2026-10-05.json),
+the [partial mounted trial](benchmarks/icloud-calc-mounted-editor-2026-10-05.json),
+the [fresh read-only observation](benchmarks/icloud-calc-retained-read-2026-10-05.json),
+and [independent Numbers decoding](benchmarks/icloud-numbers-independent-decoder-2026-10-05.json).

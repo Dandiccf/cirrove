@@ -1,0 +1,73 @@
+{
+  "active": false,
+  "active_measurement": false,
+  "cache_preserved_without_stripping": true,
+  "cleanup_reserve_seconds": 45,
+  "duration_seconds": 600,
+  "endpoint": "Exact current B full Node, typed cached path and descriptor raw138943/223e4267; original clone journal frontier unchanged and all original owners/mount/socket closed. No new Trash or native Linux save claim.",
+  "full487_closed": false,
+  "installed_actions": false,
+  "original_writer_success": true,
+  "prediction": "Copied warm cache and completed journal are retained; raw B is exact and recovery-only workers make zero mutations.",
+  "prior_failures_preserved": true,
+  "question": "Does a fresh recovery-only configured read-only normal573 daemon remount the exact completed Numbers DATA atomic B without journal replay?",
+  "readiness": false,
+  "run": "578657e8-ce08-4cbe-ae03-636aed000d44",
+  "status": "closed_failure_preserved",
+  "subject_run": "de0f154b-d2de-4daa-bce3-c734dd311ca2",
+  "uncached_provider_read_claimed": false,
+  "version": 1,
+  "original_window": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/original-window.json",
+    "size": 314,
+    "sha256": "9eed0d258adbef60bc1fc5b54f227154ca147f6381a7c7457c2a8b82e0145632"
+  },
+  "outer_registration": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/observe-outer-registration.json",
+    "size": 1649,
+    "sha256": "badb34ee98977d6ded8e2b3beeb1525fdf3aebf91fa8d331b18f8687dcbab9f0"
+  },
+  "original_outer_owner": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/observe-outer-owner.json",
+    "size": 964,
+    "sha256": "203430c08be135ff6fec194f204f94824cea45186fbfa6f00c54a0e4f7195db3"
+  },
+  "terminal_result": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/root-terminal-result.json",
+    "size": 663,
+    "sha256": "aa283ec742790459c1440fcf8695e77ca1ed6b58fe6e23561343999c74ba9cb1"
+  },
+  "normal_readonly_remount_verified": false,
+  "actual_local_preparation": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/local-prepare-check/terminal.json",
+    "size": 4203,
+    "sha256": "a8873a69a35014809e9b8e24d885fd700e285c7598312d97d88d1d0516064fec"
+  },
+  "actual_outer_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/root-terminal-result.json",
+    "size": 663,
+    "sha256": "aa283ec742790459c1440fcf8695e77ca1ed6b58fe6e23561343999c74ba9cb1"
+  },
+  "actual_inner_terminal": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/root-ro-result.json",
+    "size": 2248,
+    "sha256": "b19b63db23976743ff96a333e5e825ed9bd8f034984541f678eadfe6c50a16ad"
+  },
+  "actual_raw_capture": {
+    "path": "/var/tmp/cirrove-numbers-data-ro-578657e8-ce08-4cbe-ae03-636aed000d44/raw-capture-result.json",
+    "size": 898,
+    "sha256": "6aaa71969506655a904c9d2dc0342ae4b751c531833e6e9882fa67dc4c753e05"
+  },
+  "observed_limit": "Exact warm B Node/raw bytes verified. Independent29 audit confirms closed overall failure, unchanged original full state and clone journal byte tree. Independent detached typed frontier before/after matches exactly. Only clone uploads.db-shm mtime/ctime changed; original strict physical comparator refused. Failed run preserved; no replay or Apple admission.",
+  "completed_matrix_workflow": false,
+  "independent_closed_failure_audit": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-numbers-data-atomic-ro-578657e8-ce08-4cbe-ae03-636aed000d44/audit-independent-closed-readonly-refusal-v1.json",
+    "size": 6654,
+    "sha256": "34e2b3272e033f7c39d64bbeb6a717a88ad8156677a067d4c3c7fa774fae35a3"
+  },
+  "typed_frontier_diagnostic": {
+    "path": "/home/dandiccf/Work/cirrove/.local-state/numbers-data-atomic-de0f-readonly-preparation-private-v1/closed-ro-journal-diagnostic-v1/diagnostic-v1.json",
+    "size": 2965,
+    "sha256": "6d45e78b8065520e9a204b3cd48359789947c40266d7f41212ea9146fdd8a666"
+  }
+}

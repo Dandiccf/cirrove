@@ -26,6 +26,7 @@ async fn place(
     cancel: &CancellationToken,
 ) -> Result<Node> {
     let request = UploadRequest {
+        representation: Default::default(),
         scope: scope.clone(),
         intent: UploadIntent::Create {
             parent: parent.to_owned(),
@@ -56,10 +57,19 @@ async fn place(
                     )
                     .await?
             }
+            UploadStep::Stream(_) => {
+                anyhow::bail!("the OneDrive pinning validator received a streaming upload")
+            }
             UploadStep::Commit(checkpoint) => {
                 graph.commit_upload(&request, &checkpoint, cancel).await?
             }
             UploadStep::Complete(node) => return Ok(node),
+            UploadStep::Allocate(_)
+            | UploadStep::PackageComplete(_)
+            | UploadStep::PackageHandoffComplete(_)
+            | UploadStep::HandoffComplete { .. } => {
+                anyhow::bail!("a new OneDrive pinning fixture returned a replacement receipt")
+            }
         };
     }
 }

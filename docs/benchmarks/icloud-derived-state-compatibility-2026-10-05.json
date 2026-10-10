@@ -1,0 +1,356 @@
+{
+  "version": 1,
+  "status": "Completed bounded synthetic ordinary14/7-to19/8 compatibility slice: eight child commands and final invariant endpoint passed. Native restoration and full gate488 remain open.",
+  "question": "Does a genuinely produced exact-old ordinary14/7 account with real WAL preserve two sealed versions, dirty successor and interrupted cursor through opaque images and ONLY independent current reader/migration/resnapshot copies; does unchanged old writer refuse genuine19/8 without changing retained semantic bytes?",
+  "prediction": "All nine fixed phase endpoints exit0 and final preservation/receipt equality pass if authoring compiles. This is compatibility verification, not a production-fix RED claim, performance result, rollback/install readiness or full488 closure.",
+  "roots": {
+    "old": "/var/tmp/cirrove-owned-snapshot-9822b191-cf65-4878-9537-2defa8109dc0",
+    "migration_resnapshot": "/var/tmp/cirrove-owned-snapshot-54e1de57-e7b3-4231-82b7-f69aa24e84ef",
+    "account": "c58ce179-4b4e-40d4-b448-f35fbe86308f",
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/derived-488-9822b191",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/derived-488-9822b191",
+    "must_be_fresh": "Both fixed roots and all attempt/result markers absent; no automatic cleanup/reproduction after partial run."
+  },
+  "source_pins": [
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/exact-old-producer-derived-v2.rs",
+      "size": 6773,
+      "sha256": "91c3551712a02bdd6924220b1bbc2615d8f0c096b6e280a92c5f88ec70987b17"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/orchestration-v5/current-derived-verifier-v5.rs",
+      "size": 12586,
+      "sha256": "2f1194b3d83b09991161d0daad6bdc6453eb8375b37ab35d01b86736c27309be"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/orchestration-v5/run-derived-compatibility-v5.py",
+      "size": 14502,
+      "sha256": "c893732d6f0eb743d17614883666ca19c435417d46d4f65a4ed508b1883c2540"
+    },
+    {
+      "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/native-derived-tests-v2.patch",
+      "size": 8992,
+      "sha256": "b9af90feaba4eaf2de0778605da63b42353e65d6c331c4967993db8372a21564"
+    }
+  ],
+  "build_preregistration": {
+    "old_source": "/home/dandiccf/Storage/.cirrove-validation/canary-compat-20261003/source",
+    "old_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+    "current_code_observed_head_before_proposal": "613bebc5890a568169c01b23ffa83d51e1412872",
+    "current_actual_build_source": "Matching current feature artifacts already built on the sole main worktree target; root will pin exact Cargo-JSON RLIBs before standalone helper compile.",
+    "distinct_targets": [
+      "/home/dandiccf/Storage/.cirrove-builds/derived-488-old-9822b191/target",
+      "/home/dandiccf/Storage/.cirrove-builds/resume-icloud-20261002/target"
+    ],
+    "TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/derived-488-9822b191",
+    "SQLITE_TMPDIR": "/home/dandiccf/Storage/cirrove-tmp/derived-488-9822b191",
+    "execution": "Root alone records each command/source/toolchain/log/expected duration/ext4 first, then cargo; no builds performed by author.",
+    "old_cargo_argv": [
+      "cargo",
+      "build",
+      "--manifest-path",
+      "/home/dandiccf/Storage/.cirrove-validation/canary-compat-20261003/source/Cargo.toml",
+      "--locked",
+      "--lib",
+      "-p",
+      "cirrove-service",
+      "-p",
+      "cirrove-store",
+      "--target-dir",
+      "/home/dandiccf/Storage/.cirrove-builds/derived-488-old-9822b191/target",
+      "--message-format=json"
+    ],
+    "current_cargo_argv": "Reuse exact already-recorded current feature Cargo-JSON RLIBs after source parity verification; no arbitrary glob or source sharing across worktrees.",
+    "private_rustc_compile": {
+      "edition": "2024",
+      "old_source": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/exact-old-producer-derived-v2.rs",
+        "size": 6773,
+        "sha256": "91c3551712a02bdd6924220b1bbc2615d8f0c096b6e280a92c5f88ec70987b17"
+      },
+      "current_source": {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/orchestration-v5/current-derived-verifier-v5.rs",
+        "size": 12586,
+        "sha256": "2f1194b3d83b09991161d0daad6bdc6453eb8375b37ab35d01b86736c27309be"
+      },
+      "argv_template": [
+        "<PINNED_RUSTC>",
+        "--edition=2024",
+        "<PRIVATE_HELPER_SOURCE>",
+        "--crate-name",
+        "<UNIQUE_HELPER_NAME>",
+        "-o",
+        "<PRIVATE_HELPER_BINARY>",
+        "-L",
+        "dependency=<ITS_OWN_TARGET>/debug/deps",
+        "--extern",
+        "cirrove_core=<EXACT_CARGO_JSON_RLIB>",
+        "--extern",
+        "cirrove_service=<EXACT_CARGO_JSON_RLIB>",
+        "--extern",
+        "cirrove_store=<EXACT_CARGO_JSON_RLIB>",
+        "--extern",
+        "rusqlite=<EXACT_CARGO_JSON_RLIB>",
+        "--extern",
+        "serde_json=<EXACT_CARGO_JSON_RLIB>",
+        "--extern",
+        "sha2=<EXACT_CARGO_JSON_RLIB>",
+        "--extern",
+        "hex=<EXACT_CARGO_JSON_RLIB>"
+      ],
+      "current_only_extra_extern": [
+        "--extern",
+        "uuid=<EXACT_CURRENT_CARGO_JSON_RLIB>"
+      ],
+      "old_dependency_versions": {
+        "sha2": "0.11",
+        "rusqlite": "0.40",
+        "uuid": "1.18-compatible (not direct old helper extern)",
+        "serde_json": "1.0",
+        "hex": "0.4"
+      },
+      "rlib_resolution": "Only reason=compiler-artifact,target.kind contains lib, package_id/version+features/profile from THIS registered cargo JSON; exact single selected rlib per extern, file SHA/size bound. No glob/newest/shared-target guesses. Record compilerJSON actual package_ids; include compile targets and all source dependencies in binding. Missing/ambiguous refuses. No production dependency addition or old source/header mutation."
+    },
+    "current_actual_source_head": "e2d3ade8066e8ed055a12169535bbfe21abd748f"
+  },
+  "phase_argv": [
+    {
+      "phase": "old-produce",
+      "argv": [
+        "<EXACT_OLD_HELPER_ELF>",
+        "produce"
+      ],
+      "ready": "producer-ready.json",
+      "release": "producer-release"
+    },
+    {
+      "phase": "collect14",
+      "argv": [
+        "<ACTUAL_CURRENT_CIRROVE_ELF>",
+        "owned-account-snapshot",
+        "--registration",
+        "/var/tmp/cirrove-owned-snapshot-9822b191-cf65-4878-9537-2defa8109dc0/registration.json",
+        "--sha256",
+        "<ACTUAL_REGISTRATION_SHA>"
+      ]
+    },
+    {
+      "phase": "read14",
+      "argv": [
+        "<CURRENT_DERIVED_HELPER>",
+        "read14",
+        "<ACTUAL_PRODUCER_READY_SHA>"
+      ]
+    },
+    {
+      "phase": "migrate",
+      "argv": [
+        "<CURRENT_DERIVED_HELPER>",
+        "migrate",
+        "<ACTUAL_PRODUCER_READY_SHA>"
+      ]
+    },
+    {
+      "phase": "collect19",
+      "argv": [
+        "<ACTUAL_CURRENT_CIRROVE_ELF>",
+        "owned-account-snapshot",
+        "--registration",
+        "/var/tmp/cirrove-owned-snapshot-54e1de57-e7b3-4231-82b7-f69aa24e84ef/registration.json",
+        "--sha256",
+        "<ACTUAL_REGISTRATION_SHA>"
+      ]
+    },
+    {
+      "phase": "read19",
+      "argv": [
+        "<CURRENT_DERIVED_HELPER>",
+        "read19",
+        "<ACTUAL_PRODUCER_READY_SHA>"
+      ]
+    },
+    {
+      "phase": "old-refusal",
+      "argv": [
+        "<EXACT_OLD_HELPER_ELF>",
+        "refuse-derived"
+      ]
+    },
+    {
+      "phase": "resume",
+      "argv": [
+        "<CURRENT_DERIVED_HELPER>",
+        "resume",
+        "<ACTUAL_PRODUCER_READY_SHA>"
+      ]
+    }
+  ],
+  "count_correction_before_execution": "Eight child commands (old producer, two collectors, four current helper phases, one old refusal), plus final invariant endpoint. Nine logical endpoints, NOT nine executed child processes/tests.",
+  "driver_argv": [
+    "<PINNED_PYTHON>",
+    "<THIS_BASE>/run-derived-compatibility-v5.py",
+    "--registration",
+    "<THIS_BASE>/execution-registration.json",
+    "--sha256",
+    "<ACTUAL_REG_SHA>",
+    "--root-local-exec-lease-granted"
+  ],
+  "finite_ownership": "Overall original <=300 seconds monotonic WAIT allowance includes readiness, phase and cleanup. Cleanup still exact SIGTERM/SIGKILL even expired, with waits min(5, original remaining); unresolved terminal state refuses/no completion. No hard syscall/I/O/scheduler disappear promise. Atomic Ready publication only after filefsync+drop+same-directoryrename+dirfsync. Other V3 bindings unchanged.",
+  "state_predicates": [
+    "Exact old normal APIs create actual14/7; no PRAGMA user_version changes/old nativeDDL/session/vault/credential claims.",
+    "A/B both ordinary FileBytes Pending, exact account/provider/collection/intent/working UUID/raw size+SHA; B unresolved predecessor A. Dirty C same working UUID/higher manifest generation/latest B/raw bytes. Source payloads are plaintext.",
+    "Actual full source+first opaque image inventory matches and stays byte/mode/directory exact, including real DB/WAL/SHM. Neither ever opens in SQLite.",
+    "RO14 helper only derived-read14/account; export source exact operations + dirty exact generation. Actual schema14/7 remains; query-only staged Delete+Upsert+completed cursor+pending continuation exact.",
+    "Writer migration only second root state/accounts/account copied FROM image14, never first RO copy/source/image. UploadJournal/Store APIs produce actual19/8; retained row/working/metadata invariants same. All process owners close before collector.",
+    "Second collector root has five fresh/existing cooperative locks + copied accounts context. Quiescence exact migration helper terminal PID/ticks/exe/argv. parent-manifest.json is exact old collector manifest; new registration parent SHA binds it. Account UUID stays unchanged; run UUID changes.",
+    "Independent copies from image19: RO19/raw exports equals RO14; unchanged a9e writer refuses Schema + SchemaVersion on separate old-refusal copy; third resume copy publishes retained Delete+Upsert only after final Complete. No worker/provider or queue replay.",
+    "Derived RO/refusal/resume may touch SQLite SHM coordination; DB/WAL/payload/modes unchanged under semantic_files comparison. Full old-refusal tree equality is measured separately, never automatically asserted/renarrated. Nonempty changed WAL is not ignored. Source+images ALL bytes always exact.",
+    "All sealedA/B/C full export byte equality, receipts op/size/SHA, scope/base/generation and before/after queue/metadata shape. Final source14/image14/source19/image19 independent inventory same.",
+    "No native working/session checkpoint/AAD/key equivalence from old14; current-native two-test patch is a separate optional synthetic19/8 slice, NOT executed by this driver."
+  ],
+  "static_actual_APIs": {
+    "collector": "journal/export/account_snapshot.rs Registration, Quiescence, five locks and parent-manifest contract; bin/cirrove owned-account-snapshot",
+    "RO": "RecoveryJournal::open accepts14..JOURNAL_SCHEMA; list, local_export_source.copy_to, working_list, export_working; does NOT UploadJournal::open",
+    "migration": "UploadJournal::open old14 migration to19 + Store::open7to8; no worker construction",
+    "cursor": "Store::begin(false) returns interrupted cursor; stage(empty Complete) applies staged visibility+cursor transaction together",
+    "old": "a9e2429 UploadJournal::open version>14 returns JournalError::Schema BEFORE migration; Store::open higher schema returns SchemaVersion"
+  },
+  "execution_limits": [
+    "Root PUBLIC question/arms/endpoints/predictions before every initial arm; exclusive lease/no concurrent builds/measurements; ext4 findmnt proof and retained dirs.",
+    "Author has not compiled, imported, syntaxchecked or run proposed source. Any setup/type/fixture-preservation error must be retained as authoring correction, not meaningful red.",
+    "No root paths, executables, actual source commit/source inventories/binary hashes are fabricated; candidate ready:false and refuses.",
+    "Existing installed/source policy HOLD and full488/other gates stay open; no global/installed/config/SecretService/cloud/browser changes."
+  ],
+  "performed": {
+    "root_preregistered_only": false,
+    "actual_compatibility_arm_executed": true,
+    "old_build_executed": true,
+    "standalone_helpers_compiled": true,
+    "cloud_mutated": false,
+    "installed_actions": false
+  },
+  "private_authoring_revision": 5,
+  "authoring_correction_before_execution": {
+    "original_unexecuted_v3_driver_sha256": "d57f706270c321e9257cdd8e4da64eea6e65a726f6a641d328356b04529915d4",
+    "original_unexecuted_v3_helper_sha256": "108f445a365017ac730d9965e7e3c116153c1bc4121a51e26355a826dc285940",
+    "review_findings": [
+      "Ready path was visible before complete JSON write; actual parent could parseempty/partial. Fixed staged complete publication.",
+      "Cleanup5+5 could exceed claimed original totalwait budget. Fixed originalremaining clamp, signals stillpermitted when expired.",
+      "Collector registration scalar deadline uses original reg.deadline_unix, not renewed now+300; driver monotonic wait window was already original. V4 preserved, no executions."
+    ],
+    "no_executed_regression_or_productfix_claim": true
+  },
+  "registered_at": "2026-10-05T04:12:29.380905+00:00",
+  "execution_owner": "ROOT, exclusive compile/measurement lease",
+  "actual_results": [
+    {
+      "phase": "old-cargo-build",
+      "exit_code": 0,
+      "duration_seconds": 29.151104657008545,
+      "sources_unchanged": true,
+      "log_sha256": "20cb1a1fde01e90da6cf7eab6ab98d5cda4991e8afc1975b5c3c3f49bbcfd486",
+      "old_source_commit": "a9e24291230b213c00843f939ee94c57213b1fa5",
+      "old_source_files_pinned": 454,
+      "compatibility_arm_executed": false,
+      "installed_actions": false
+    },
+    {
+      "phase": "old-helper-rustc",
+      "exit_code": 0,
+      "duration_seconds": 0.5832771249988582,
+      "sources_unchanged": true,
+      "source_sha256": "91c3551712a02bdd6924220b1bbc2615d8f0c096b6e280a92c5f88ec70987b17",
+      "binary_sha256": "e958711e6961a2979454f1e83f1922b26743a1efeb5aaa41f23fa700178b6cf2",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_actions": false
+    },
+    {
+      "phase": "current-helper-rustc",
+      "exit_code": 0,
+      "duration_seconds": 0.8665865759830922,
+      "sources_unchanged": true,
+      "source_sha256": "2f1194b3d83b09991161d0daad6bdc6453eb8375b37ab35d01b86736c27309be",
+      "binary_sha256": "6b6064c3ee1cbfc4d664c18202cade9bc56d472ecc9dc26bff4bd7b649dfed6f",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_actions": false
+    },
+    {
+      "phase": "actual-ordinary-derived-compatibility-arm",
+      "registered_at": "2026-10-05T04:39:18.888545+00:00",
+      "exit_code": 0,
+      "duration_seconds": 3.7950268190179486,
+      "sources_unchanged": true,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "execution_registration_sha256": "0f93e4cd75da6b8966452247a4e9bde3e9e12a92b4e2c5c262d4d53c02957eb5",
+      "child_command_count": 8,
+      "logical_endpoint_count": 9,
+      "child_exit_codes": {
+        "old-produce": 0,
+        "collect14": 0,
+        "read14": 0,
+        "migrate": 0,
+        "collect19": 0,
+        "read19": 0,
+        "old-refusal": 0,
+        "resume": 0
+      },
+      "all_child_pid_start_ticks_argv_binary_and_log_bindings_verified": true,
+      "all_recorded_child_proc_entries_absent_at_independent_audit": true,
+      "journal_metadata_formats_before": [14, 7],
+      "journal_metadata_formats_after": [19, 8],
+      "sealed_a_b_export_receipts_equal_before_and_after": true,
+      "dirty_c_export_equal_before_and_after": true,
+      "completed_cursor_before": "own-completed",
+      "pending_cursor_before": "own-interrupted-next",
+      "completed_cursor_after_resume": "own-final",
+      "pending_after_resume": false,
+      "staged_changes_after_resume": 0,
+      "retained_delete_and_upsert_published_together_on_separate_resume_copy": true,
+      "source14_unchanged": true,
+      "image14_unchanged": true,
+      "source19_unchanged": true,
+      "image19_unchanged": true,
+      "snapshot14_entry_count": 15,
+      "snapshot19_entry_count": 15,
+      "parent_manifest_sha256": "ec630da4b4506fda200af17dd588ecfcfb5c5ca6a1ad6590fe56b3ca2df64486",
+      "resnapshot_manifest_sha256": "05c8ec8f73018a6b6f0af2ff64a2031dc7675e62977b53a51514da69236b35a3",
+      "exact_parent_manifest_copy_verified": true,
+      "old_journal_schema_refusal_verified": true,
+      "old_metadata_schema_refusal_verified": true,
+      "old_refusal_full_tree_equal": true,
+      "old_refusal_semantic_files_unchanged": true,
+      "provider_requests": 0,
+      "native_checkpoint_produced": false,
+      "installed_or_global_state_changed": false,
+      "full488_closed": false,
+      "independent_audit": {
+        "path": ".local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/orchestration-v5/audit-admission-root-actual-eight-v1.json",
+        "sha256": "c05afb92732ae04e71e578236c0e763d7e7f34e355c9828adc5bb5806246c5e8",
+        "registered_source_pins_verified_including_duplicates": 1502,
+        "raw_payload_sql_session_or_keys_read_by_auditor": false
+      },
+      "remaining_limits": [
+        "One functional arm; elapsed time is descriptive and is not a performance or reliability measurement.",
+        "The exact old source produced ordinary FileBytes only. No old native checkpoint, sealed-session/AAD or key compatibility was fabricated or proved.",
+        "Original and snapshot images were never opened in SQLite; only distinct derived copies were used for readers, migration, old refusal and cursor resume.",
+        "This arm measured full old-refusal tree equality, including SHM. Other derived reader coordination SHM remains separately scoped; source and image preservation includes all bytes.",
+        "Native retained-state restoration, key availability, full-root settings/global locks/cache/pins, installed delivery and retained-state migration acceptance remain open. The installation hold is unchanged."
+      ]
+    }
+  ],
+  "binding_assembly_preregistration": {
+    "registered_at": "2026-10-05T04:32:27.368806+00:00",
+    "question": "Do actual Cargo-JSON dependencies and immutable feature collector bind to the registered old/current sources before compiling the standalone compatibility helpers?",
+    "prediction": "Source and actual frozen artifact fences pass, selecting only the recorded seven old/eight current libraries and preserving original Cargo freshness. Two legitimate old Cargo hardlinks are bound narrowly; mutable primary CLI is never substituted.",
+    "assembler_source": ".local-state/icloud-full-integration-20261003/account-snapshot-derived-compatibility-20261005/orchestration-v5/assemble-derived-bindings-proposal-v5.py",
+    "assembler_sha256": "a4be424cdb4942fd0bbf3df64f8ecfe34de33632e5646e63989e91777dd8910a",
+    "registration_sha256": "6593c4ff08db537666e188d473d48e92691d9f184e37240eb4c0c848f4747667",
+    "endpoint": "Retained actual compile-plan exit and immutable selected-library/helper commands; no compatibility state or provider action."
+  },
+  "preexecution_authoring_corrections": [
+    "Ready atomic publication and original aggregate wait budget corrected before fixture execution.",
+    "Per-role actual generic/collector source provenance distinguished; immutable compile-plan/final registrations are separate.",
+    "Collector selected from frozen original CLI bytes, never overwritten mutable target path.",
+    "Exactly two old Cargo library artifacts have genuine nlink2; only their exact source/target selections permit it."
+  ]
+}
