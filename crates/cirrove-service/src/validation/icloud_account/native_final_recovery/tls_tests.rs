@@ -534,7 +534,7 @@ async fn native_final_real_tls_receipt_is_withheld_then_same_checkpoint_recovers
         1
     );
     // Exercise the unchanged unmounted metadata publication handler.
-    let fs = crate::filesystem::CloudFs::new_experimental_writable(
+    let fs = crate::filesystem::CloudFs::new_experimental_writable_archive_validation(
         fixture.engine.clone(),
         journal.clone(),
     )
@@ -850,7 +850,7 @@ async fn native_final_actual_completed_frontier_binds_queue_pairs_receipts_and_p
             .unwrap()
             .is_none()
     );
-    let fs = crate::filesystem::CloudFs::new_experimental_writable(
+    let fs = crate::filesystem::CloudFs::new_experimental_writable_archive_validation(
         fixture.engine.clone(),
         journal.clone(),
     )

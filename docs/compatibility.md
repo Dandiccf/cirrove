@@ -136,7 +136,8 @@ list-then-PATCH sequence, and Drive offers no atomic sibling-name reservation. S
 
 ## iCloud development and Linux editor formats
 
-iCloud remains an experimental branch, outside the released packages. Its
+iCloud remains experimental and is included in the opt-in Canary 2 packages,
+not the regular 0.1.0 release. Its
 [validation record](icloud-write-integration.md) distinguishes provider content
 verification from application import and save fidelity.
 
