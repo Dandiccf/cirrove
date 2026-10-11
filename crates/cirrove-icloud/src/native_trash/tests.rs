@@ -47,6 +47,7 @@ impl CredentialVault for Vault {
 }
 #[derive(Default)]
 struct Seen {
+    visible_name: Option<String>,
     trashed: bool,
     trash_calls: usize,
     reads: usize,
@@ -107,7 +108,7 @@ impl Server {
                 };
                 let reply={let mut s=observed.lock().unwrap();s.reads+=1;
                     match path.split('?').next().unwrap() {
-                        "/retrieveItemDetails"=>Some(json!({"items":[{"drivewsid":if s.wrong_identity {"FILE::com.apple.CloudDocs::other"}else{ID},"docwsid":"native","zone":"com.apple.CloudDocs","type":"FILE","name":"Target","extension":"pages","parentId":if s.trashed {"TRASH_ROOT"}else{crate::ROOT_ID},"restorePath":if s.trashed {json!(["root"])}else{json!(null)},"etag":if s.changed_revision {"changed"}else if s.trashed {"trash-v2"}else{"original-v1"},"size":17}]}).to_string().into_bytes()),
+                        "/retrieveItemDetails"=>Some(json!({"items":[{"drivewsid":if s.wrong_identity {"FILE::com.apple.CloudDocs::other"}else{ID},"docwsid":"native","zone":"com.apple.CloudDocs","type":"FILE","name":s.visible_name.as_deref().unwrap_or("Target"),"extension":"pages","parentId":if s.trashed {"TRASH_ROOT"}else{crate::ROOT_ID},"restorePath":if s.trashed {json!(["root"])}else{json!(null)},"etag":if s.changed_revision {"changed"}else if s.trashed {"trash-v2"}else{"original-v1"},"size":17}]}).to_string().into_bytes()),
                         "/ws/com.apple.CloudDocs/download/by_id"=>Some(json!({"package_token":{"url":format!("{ORIGIN}/archive")}}).to_string().into_bytes()),
                         "/archive"=>{let mut zip=zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));zip.start_file("Target.pages/Document",zip::write::SimpleFileOptions::default()).unwrap();zip.write_all(if s.changed_body {b"changed content"}else{b"synthetic content"}).unwrap();Some(zip.finish().unwrap().into_inner())},
                         "/moveItemsToTrash"=>{let value:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(value["items"][0]["drivewsid"],ID);assert_eq!(value["items"][0]["etag"],"original-v1");s.trash_calls+=1;assert_eq!(s.trash_calls,1);s.trashed = !keep_active;if lost_reply {None}else{Some(json!({"items":[{"status":"OK"}]}).to_string().into_bytes())}},
@@ -732,4 +733,50 @@ async fn native_trash_shared_staging_pressure_refuses_recovery_without_replay() 
     assert_eq!(server.state.lock().unwrap().trash_calls, 1);
     held.push(budget.create(dir.path()).await.unwrap());
     assert!(budget.create(dir.path()).await.is_err());
+}
+
+#[tokio::test]
+async fn native_trash_numbered_copy_verifies_original_archive_root_without_replay() {
+    let dir = private_directory();
+    let server = Server::start(true, false).await;
+    server.state.lock().unwrap().visible_name = Some("Target 2".into());
+    let mut request = request();
+    let MutationIntent::TrashNativeDocument { before } = &mut request.intent else {
+        unreachable!()
+    };
+    before.name = "Target 2.pages".into();
+    let vault = Arc::new(Vault::default());
+    let op = Uuid::new_v4().to_string();
+    let cancel = CancellationToken::new();
+    let first = adapter(&request, &server, dir.path(), vault.clone());
+    let prepared = first
+        .prepare_mutation_for_operation(&op, &request, &cancel)
+        .await
+        .unwrap();
+    assert!(
+        first
+            .mutate_operation(&op, &request, prepared.as_deref(), &cancel)
+            .await
+            .is_err()
+    );
+    drop(first);
+    let restarted = adapter(&request, &server, dir.path(), vault);
+    assert!(
+        matches!(restarted.reconcile_operation(&op, &request, prepared.as_deref(), &cancel).await.unwrap(), MutationReconciliation::Applied(MutationReceipt::Removed { item }) if item == ID)
+    );
+    assert!(matches!(
+        restarted
+            .mutate_operation(&op, &request, prepared.as_deref(), &cancel)
+            .await,
+        Err(MutationError::Uncertain)
+    ));
+    server.state.lock().unwrap().changed_body = true;
+    assert!(matches!(
+        restarted
+            .reconcile_operation(&op, &request, prepared.as_deref(), &cancel)
+            .await
+            .unwrap(),
+        MutationReconciliation::Indeterminate
+    ));
+    assert_eq!(server.state.lock().unwrap().trash_calls, 1);
 }

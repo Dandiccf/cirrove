@@ -462,7 +462,7 @@ impl ICloudNativeRestore {
         let root = before.display_name();
         let token = cancel.clone();
         let semantic = tokio::task::spawn_blocking(move || {
-            crate::package_archive_semantic_identity_versioned(
+            crate::package_semantic::native_package_semantic_identity(
                 file.borrowed_file(),
                 &receipt,
                 &root,

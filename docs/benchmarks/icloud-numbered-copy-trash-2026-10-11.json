@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "question": "Can normal installed native Trash verify a numbered iWork copy whose Apple export retains the original wrapper, while preserving exact identity/revision/content and inspect-only recovery?",
+  "registered_at": "2026-10-11T14:52:55.064527+00:00",
+  "status": "registered",
+  "active_measurement": false,
+  "restart_embargo": {
+    "state": "none"
+  },
+  "arms": [
+    "pre-fix synthetic reproduction and exact-ID read-only real observation",
+    "post-fix synthetic conditional Trash/restore with lost replies and exact-ID installed real cleanup"
+  ],
+  "prediction": "An explicit single numbered-copy wrapper alias will match the unchanged content tree. Unrelated roots, extra prefixes, invalid suffixes, changed bytes and retained v1 alias operations remain refused. The real copied test package should complete one normal installed Trash operation with Removed and metadata absence.",
+  "endpoint": {
+    "synthetic": "Known failing test passes; no duplicate provider mutation after lost reply; restore also verifies exact content; strict public archive API unchanged.",
+    "real": "Exact user-confirmed copied test item removed by normal public admission, independently verified in Trash with the frozen v2 semantic identity; sibling and then empty root removed conditionally."
+  },
+  "scope": "Only existing exact user-confirmed test items. No new cloud fixture or permanent purge. No general provider reliability or format fidelity claim.",
+  "read_only_pre_fix_observations": [
+    {
+      "item": "FILE::com.apple.CloudDocs::0302C7F4-64BA-4225-96BD-10FC5939D72B",
+      "visible_name": "Cirrove-Numbers-Parent-c49c49af-a8a3-42c0-ae69-90ae225c2514 2.numbers",
+      "archive_sha256": "080ac6d373c3efdf08fa991960dffe6c875a4e85550098e0ec5ac1e88649bb1e",
+      "archive_bytes": 75177
+    },
+    {
+      "item": "FILE::com.apple.CloudDocs::5239B18D-6F02-4A1B-9BA6-840CFCD7BA13",
+      "visible_name": "Cirrove-Numbers-Parent-c49c49af-a8a3-42c0-ae69-90ae225c2514.numbers",
+      "archive_sha256": "7557b7f452f4bab646d843f2f5a4ebd4c0b656e20e45e3755ade36feba458f2c",
+      "archive_bytes": 75177
+    }
+  ],
+  "pre_fix_failure": "Provider(Protocol(package entry lies outside expected root)); no mutation submitted for the copied document.",
+  "synthetic_red_test": {
+    "executed_tests": 1,
+    "failed": 1,
+    "passed": 0,
+    "exit_code": 101,
+    "test": "native_trash_numbered_copy_verifies_original_archive_root_without_replay"
+  },
+  "results": null
+}

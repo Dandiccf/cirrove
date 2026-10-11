@@ -141,6 +141,15 @@ not the regular 0.1.0 release. Its
 [validation record](icloud-write-integration.md) distinguishes provider content
 verification from application import and save fidelity.
 
+Native iWork Trash and restore verify v2 content under the selected document's
+exact archive root. For numbered copies such as `Report 2.numbers`, they also
+accept the single explicit `Report.numbers` wrapper that iCloud can retain in
+its export. All inner paths and bytes still contribute to the content identity;
+extra roots and unrelated names remain refused. Retained v1 operations and the
+strict archive-comparison API keep their original root requirements. This
+[focused regression record](benchmarks/icloud-numbered-copy-trash-2026-10-11.json)
+separates synthetic coverage from installed real-account verification.
+
 | Format and workflow | Observed scope | Remaining limit |
 | --- | --- | --- |
 | Native Numbers file opened read-only in LibreOffice Calc | One actual iCloud Numbers archive opened in a visible Calc session with A2=11, B2=3 and C2=14; the original archive stayed unchanged. | C2 imported as a numeric VALUE, with `getFormula()` returning `14`, rather than the SUM formula shown in Apple Numbers. Formula-preserving native Numbers editing is not established. |
