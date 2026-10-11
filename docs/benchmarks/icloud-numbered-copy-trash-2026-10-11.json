@@ -2,7 +2,7 @@
   "schema_version": 1,
   "question": "Can normal installed native Trash verify a numbered iWork copy whose Apple export retains the original wrapper, while preserving exact identity/revision/content and inspect-only recovery?",
   "registered_at": "2026-10-11T14:52:55.064527+00:00",
-  "status": "registered",
+  "status": "completed_scoped_validation",
   "active_measurement": false,
   "restart_embargo": {
     "state": "none"
@@ -39,5 +39,87 @@
     "exit_code": 101,
     "test": "native_trash_numbered_copy_verifies_original_archive_root_without_replay"
   },
-  "results": null
+  "results": {
+    "source_commit": "c58cb5c079379b0f9b26c8155ecef40866d76cbb",
+    "synthetic": {
+      "red_test_failed_before_fix": true,
+      "four_focused_tests_passed": true,
+      "full_scripts_check_passed": true,
+      "arch_package_build_and_checks_passed": true,
+      "github_ci_jobs_passed": 7
+    },
+    "installed": {
+      "package_version": "0.2.0dev.r1028.gc58cb5c-1",
+      "daemon_sha256": "73876847c50ccb269cf139dfa8ee0e25521c050630b887d0b08d60441b3c676e",
+      "running_binary_matches_package": true,
+      "four_accounts_ready_rw": true
+    },
+    "real": {
+      "normal_public_native_trash": true,
+      "native_documents_confirmed": 2,
+      "empty_parent_confirmed": true,
+      "all_three_outcomes_applied": true,
+      "numbered_copy_removal_receipt_and_metadata_absence_recorded": true,
+      "no_operation_replay": true,
+      "permanent_purge": false,
+      "frozen_v2_semantic_identity": {
+        "version": 2,
+        "sha256": "0f0d9936f39dad400de69a2e76164b49fa9fc9d9c11f2a69cddf98cec6c9b6b7",
+        "entries": 46,
+        "files": 42,
+        "expanded_bytes": 133252
+      },
+      "operations": [
+        {
+          "id": "0147169c-4e74-4ca0-aaeb-ca9376ae15e7",
+          "item": "FILE::com.apple.CloudDocs::5239B18D-6F02-4A1B-9BA6-840CFCD7BA13",
+          "intent": "trash_native_document",
+          "state": "applied",
+          "receipt": "removed"
+        },
+        {
+          "id": "03ae5332-4b37-4c60-9f5f-699ad37e5bc7",
+          "item": "FILE::com.apple.CloudDocs::0302C7F4-64BA-4225-96BD-10FC5939D72B",
+          "intent": "trash_native_document",
+          "state": "applied",
+          "receipt": "removed"
+        },
+        {
+          "id": "d9829752-fd53-43dc-b5e0-d4db573ec150",
+          "item": "FOLDER::com.apple.CloudDocs::26187B90-FC9A-4B3D-ADCE-3D9B72981FBA",
+          "intent": "remove_folder",
+          "state": "applied",
+          "receipt": "removed"
+        }
+      ]
+    },
+    "retained_private_evidence": [
+      {
+        "path": "/home/dandiccf/Storage/.cirrove-worktrees/icloud-delete-and-package-documents-20261011/.local-state/checks/numbered-copy-full-check-run.json",
+        "sha256": "521bb0d5febe11fd8d7f070e18bfe989efc36efc4662343b327ab0748ea86f1e"
+      },
+      {
+        "path": "/home/dandiccf/Storage/.cirrove-worktrees/icloud-delete-and-package-documents-20261011/.local-state/checks/numbered-copy-package-build-v2-run.json",
+        "sha256": "cd9851acc77f4694e5ee16e75bf5520b621902864b3f3dd1e0e58cbfbbbb8185"
+      },
+      {
+        "path": "/home/dandiccf/Storage/.cirrove-worktrees/icloud-delete-and-package-documents-20261011/.local-state/checks/installed-numbered-copy-hotfix-verification.json",
+        "sha256": "165c80f1e4fff40960e455e06b7b13d1832eac9f150486c77e57e03b4d44bcba"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/cleanup-2026-10-11/user-confirmed-numbered-inventory/plan.json",
+        "sha256": "e0790dfbf81a2d89196f451fc872029550e943644562d7f08ae5a27f4d3bfac3"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/cleanup-2026-10-11/numbered-copy-final-cleanup/root-000/receipts.json",
+        "sha256": "c6cd522ad4c7ab58d645ca5abfd2d7899e796460d1636b5603823e1b4e83a967"
+      },
+      {
+        "path": "/home/dandiccf/Work/cirrove/.local-state/cleanup-2026-10-11/numbered-copy-last-step-controller-resumed-run.json",
+        "sha256": "555a70c06260368924074b2c60a7197444f380b7a825b6699315ae21197b6634"
+      }
+    ],
+    "limits": "One exact authorized real Numbers pair and its empty parent. Synthetic coverage includes all three iWork suffixes and lost-reply Trash/restore; this is not a general provider reliability, real restore, performance or application-format fidelity result."
+  },
+  "completed_at": "2026-10-11T20:16:45.396467+00:00"
 }
