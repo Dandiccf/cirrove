@@ -463,6 +463,7 @@ mod tests {
             size: 0,
             modified_unix: 0,
             package: false,
+            native_archive_directories: false,
             node: None,
             name: format!("item-{inode}").into(),
             alias: vec![].into(),

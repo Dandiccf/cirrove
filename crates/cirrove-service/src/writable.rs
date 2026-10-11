@@ -171,6 +171,29 @@ impl WritableSession {
         vault: Arc<dyn CredentialVault>,
     ) -> io::Result<Self> {
         let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone()).await?;
+        Self::mount_filesystem(fs, engine, journal, provider, vault).await
+    }
+    /// Integration fixtures for the isolated canonical-archive editor route.
+    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support"))]
+    pub async fn mount_native_archives_for_validation(
+        engine: Arc<Engine>,
+        journal: Arc<Mutex<UploadJournal>>,
+        provider: Arc<dyn WriteProvider>,
+        vault: Arc<dyn CredentialVault>,
+    ) -> io::Result<Self> {
+        let fs =
+            CloudFs::new_experimental_writable_archive_validation(engine.clone(), journal.clone())
+                .await?;
+        Self::mount_filesystem(fs, engine, journal, provider, vault).await
+    }
+    async fn mount_filesystem(
+        fs: CloudFs,
+        engine: Arc<Engine>,
+        journal: Arc<Mutex<UploadJournal>>,
+        provider: Arc<dyn WriteProvider>,
+        vault: Arc<dyn CredentialVault>,
+    ) -> io::Result<Self> {
         let control = fs.write_control()?;
         if let Err(error) = engine.start().await {
             engine.stop().await;

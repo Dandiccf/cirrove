@@ -94,7 +94,7 @@ async fn real_native_replacement_publication_rebinds_warm_package_and_preserves_
         )
         .await
         .unwrap();
-        let path = mount.join(&old.name).join(&oldartifact.name);
+        let path = mount.join(&old.name);
         let held = tokio::task::spawn_blocking({
             let path = path.clone();
             let expected = oldbytes.clone();

@@ -110,6 +110,52 @@ pub fn package_archive_semantic_identity_versioned(
         expanded_bytes: content.expanded,
     })
 }
+// iCloud can retain the original ZIP wrapper when it numbers a copied document.
+// Bind one explicit alias derived from the already revision-bound visible name;
+// never infer a root from ZIP contents or change retained v1 verification.
+pub(crate) fn native_package_semantic_identity(
+    file: &std::fs::File,
+    receipt: &crate::PackageDownload,
+    name: &str,
+    version: u32,
+    cancel: &CancellationToken,
+) -> std::result::Result<PackageSemanticIdentity, ProviderError> {
+    let strict = package_archive_semantic_identity_versioned(file, receipt, name, version, cancel);
+    if version != 2
+        || !matches!(
+            &strict,
+            Err(ProviderError::Protocol(
+                "package entry lies outside expected root"
+            ))
+        )
+    {
+        return strict;
+    }
+    let Some((stem, extension)) = name.rsplit_once('.') else {
+        return strict;
+    };
+    if cirrove_core::upload::native_package_suffix(name).is_none() {
+        return strict;
+    }
+    let Some((original, number)) = stem.rsplit_once(' ') else {
+        return strict;
+    };
+    if original.is_empty()
+        || number.starts_with('0')
+        || !number.bytes().all(|b| b.is_ascii_digit())
+        || number.parse::<u32>().ok().is_none_or(|n| n < 2)
+    {
+        return strict;
+    }
+    package_archive_semantic_identity_versioned(
+        file,
+        receipt,
+        &format!("{original}.{extension}"),
+        version,
+        cancel,
+    )
+}
+
 /// Explicit flat ZIP content identity. Every relative entry is significant;
 /// no wrapper is inferred, removed, inserted or rewritten. This computes the
 /// same v2 content-tree identity as the strict wrapped API for equal trees.

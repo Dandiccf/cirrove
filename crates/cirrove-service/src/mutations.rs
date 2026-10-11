@@ -80,22 +80,23 @@ impl MutationWorker {
                 }
                 Ok(None) => {}
                 Err(error) => {
-                    let terminal = matches!(
-                        error,
+                    // Preparation is non-mutating, but a stale source revision is
+                    // still a conflict. Repeating the same request cannot resolve it.
+                    let state = match &error {
+                        MutationError::Conflict
+                        | MutationError::Provider(ProviderError::VersionChanged) => {
+                            MutationState::Conflict
+                        }
                         MutationError::Invalid
-                            | MutationError::Unsupported(_)
-                            | MutationError::Quota
-                            | MutationError::InsufficientStorage
-                            | MutationError::Provider(
-                                ProviderError::Permission
-                                    | ProviderError::Authentication
-                                    | ProviderError::NotFound
-                            )
-                    );
-                    let state = if terminal {
-                        MutationState::Failed
-                    } else {
-                        MutationState::Pending
+                        | MutationError::Unsupported(_)
+                        | MutationError::Quota
+                        | MutationError::InsufficientStorage
+                        | MutationError::Provider(
+                            ProviderError::Permission
+                            | ProviderError::Authentication
+                            | ProviderError::NotFound,
+                        ) => MutationState::Failed,
+                        _ => MutationState::Pending,
                     };
                     let delay = match &error {
                         MutationError::Provider(ProviderError::Throttled(delay)) => {
@@ -103,11 +104,9 @@ impl MutationWorker {
                         }
                         _ => Duration::from_secs(2u64.pow(record.failed_attempts.min(6) + 1)),
                     };
-                    if terminal {
-                        self.local(move |j| {
-                            j.defer_mutation(id, attempt, MutationState::Failed, delay)
-                        })
-                        .await?;
+                    if state != MutationState::Pending {
+                        self.local(move |j| j.defer_mutation(id, attempt, state, delay))
+                            .await?;
                     } else {
                         self.local(move |j| j.defer_mutation_preparation(id, attempt, delay))
                             .await?;

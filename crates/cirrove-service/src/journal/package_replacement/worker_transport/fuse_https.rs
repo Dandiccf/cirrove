@@ -335,12 +335,9 @@ async fn save_and_reopen(account_router: bool) {
     .unwrap()
     .unwrap();
     let path = if account_router {
-        mount
-            .join("Owned")
-            .join("Target.pages")
-            .join("Target.pages")
+        mount.join("Owned").join("Target.pages")
     } else {
-        mount.join("Target.pages").join("Target.pages")
+        mount.join("Target.pages")
     };
     let (held, edit) = tokio::task::spawn_blocking({
         let path = path.clone();

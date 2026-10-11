@@ -1,4 +1,4 @@
-//! Explicit, account-bound native-container Trash admission; never a FUSE write.
+//! Exact account/item/revision native Trash admission for explicit and mounted deletion.
 use cirrove_core::Node;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

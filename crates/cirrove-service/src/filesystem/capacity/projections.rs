@@ -36,6 +36,7 @@ fn shared_projection_payload_baseline() {
         size: 0,
         modified_unix: 0,
         package: false,
+        native_archive_directories: false,
         node: None,
         name: "root".into(),
         alias: vec![].into(),

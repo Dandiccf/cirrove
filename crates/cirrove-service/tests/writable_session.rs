@@ -500,6 +500,23 @@ impl MutationProvider for Cloud {
             remote.files.insert(node.id.clone(), (settled, vec![]));
             return Ok(MutationReceipt::Upsert(node));
         }
+        if let MutationIntent::TrashNativeDocument { before } = &request.intent {
+            let mut remote = self.remote.lock().unwrap();
+            let (node, _) = remote
+                .files
+                .get(&before.id)
+                .ok_or(ProviderError::NotFound)?;
+            if node != before || !node.package {
+                return Err(MutationError::Conflict);
+            }
+            remote.files.retain(|id, (node, _)| {
+                id != &before.id && node.parent_id.as_deref() != Some(&before.id)
+            });
+            remote.deletes.push(request.clone());
+            return Ok(MutationReceipt::Removed {
+                item: before.id.clone(),
+            });
+        }
         if let MutationIntent::RemoveFile { before } = &request.intent {
             let mut remote = self.remote.lock().unwrap();
             let (node, _) = remote
@@ -6171,3 +6188,267 @@ mod native_replacement_publication;
 
 #[path = "writable_session/native_archive_edit.rs"]
 mod native_archive_edit;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE"]
+async fn real_icloud_packages_are_single_readable_documents_and_delete_as_one_native_item() {
+    for writable in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let mount = temp.path().join("mount");
+        std::fs::create_dir(&mount).unwrap();
+        let mut account = account(&mount);
+        account.registration = AppRegistration::ICloud;
+        account.root_id = "FOLDER::com.apple.CloudDocs::root".into();
+        if !writable {
+            account.access = AccessMode::ReadOnly;
+        }
+        let cloud = Arc::new(Cloud::default());
+        cloud.icloud_identity.store(true, Ordering::SeqCst);
+        let bytes = vec![42u8; 128 * 1024];
+        let mut documents = Vec::new();
+        for suffix in ["pages", "numbers", "key"] {
+            let original = Node {
+                id: format!("FILE::com.apple.CloudDocs::owned-{suffix}"),
+                parent_id: Some(account.root_id.clone()),
+                name: format!("Owned.{suffix}"),
+                kind: NodeKind::Folder,
+                package: true,
+                size: 5,
+                modified_unix: 1,
+                etag: Some("original-E1".into()),
+                content_version: Some("original-E1".into()),
+                target: None,
+            };
+            let artifact = Node {
+                id: format!("icloud-artifact:{}", original.id),
+                parent_id: Some(original.id.clone()),
+                name: original.name.clone(),
+                kind: NodeKind::File,
+                package: false,
+                size: bytes.len() as u64,
+                modified_unix: 0,
+                etag: None,
+                content_version: Some("verified-archive-v1".into()),
+                target: None,
+            };
+            let mut remote = cloud.remote.lock().unwrap();
+            remote
+                .files
+                .insert(original.id.clone(), (original.clone(), Vec::new()));
+            remote
+                .files
+                .insert(artifact.id.clone(), (artifact, bytes.clone()));
+            documents.push(original);
+        }
+        {
+            let mut remote = cloud.remote.lock().unwrap();
+            let folder = Node {
+                id: "FOLDER::com.apple.CloudDocs::plain".into(),
+                parent_id: Some(account.root_id.clone()),
+                name: "Plain.numbers".into(),
+                kind: NodeKind::Folder,
+                package: false,
+                size: 0,
+                modified_unix: 0,
+                etag: Some("plain-v1".into()),
+                content_version: None,
+                target: None,
+            };
+            let data = Node {
+                id: "FILE::com.apple.CloudDocs::data".into(),
+                parent_id: Some(account.root_id.clone()),
+                name: "Data.numbers".into(),
+                kind: NodeKind::File,
+                package: false,
+                size: 4,
+                modified_unix: 0,
+                etag: Some("data-v1".into()),
+                content_version: Some("data-v1".into()),
+                target: None,
+            };
+            remote.files.insert(folder.id.clone(), (folder, Vec::new()));
+            remote
+                .files
+                .insert(data.id.clone(), (data, b"data".to_vec()));
+        }
+        let engine = Engine::new(account.clone(), cloud.clone(), temp.path().join("state"))
+            .await
+            .unwrap();
+        let journal = Arc::new(Mutex::new(
+            UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+        ));
+        let session = if writable {
+            Some(
+                WritableSession::mount(
+                    engine.clone(),
+                    journal.clone(),
+                    cloud.clone(),
+                    Arc::new(Vault::default()),
+                )
+                .await
+                .unwrap(),
+            )
+        } else {
+            None
+        };
+        let read_only = if !writable {
+            engine.start().await.unwrap();
+            Some(
+                cirrove_service::filesystem::CloudFs::new(engine.clone())
+                    .unwrap()
+                    .mount(&mount)
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+        tokio::task::spawn_blocking({
+            let mount = mount.clone();
+            let bytes = bytes.clone();
+            let cloud = cloud.clone();
+            move || {
+                let entries = std::fs::read_dir(&mount)
+                    .unwrap()
+                    .map(|e| e.unwrap())
+                    .collect::<Vec<_>>();
+                assert_eq!(entries.len(), 5);
+                for entry in &entries {
+                    assert_eq!(
+                        entry.file_type().unwrap().is_file(),
+                        entry.file_name() != "Plain.numbers",
+                        "only confirmed packages become documents"
+                    );
+                }
+                assert_eq!(
+                    cloud.reads.load(Ordering::SeqCst),
+                    0,
+                    "listing must not hydrate document contents"
+                );
+                assert!(
+                    std::fs::metadata(mount.join("Plain.numbers"))
+                        .unwrap()
+                        .is_dir()
+                );
+                assert_eq!(std::fs::read(mount.join("Data.numbers")).unwrap(), b"data");
+                for entry in entries
+                    .into_iter()
+                    .filter(|e| e.file_name().to_string_lossy().starts_with("Owned."))
+                {
+                    let metadata = entry.metadata().unwrap();
+                    assert!(metadata.is_file());
+                    assert_eq!(metadata.len(), bytes.len() as u64);
+                    assert_eq!(
+                        metadata
+                            .modified()
+                            .unwrap()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                        1
+                    );
+                    assert_eq!(std::fs::read(entry.path()).unwrap(), bytes);
+                    assert_eq!(
+                        std::fs::read_dir(entry.path())
+                            .err()
+                            .unwrap()
+                            .raw_os_error(),
+                        Some(libc::ENOTDIR)
+                    );
+                }
+            }
+        })
+        .await
+        .unwrap();
+        if writable {
+            let refused = tokio::task::spawn_blocking({
+                let mount = mount.clone();
+                move || {
+                    let error =
+                        std::fs::rename(mount.join("Owned.pages"), mount.join("Renamed.pages"))
+                            .unwrap_err();
+                    assert_eq!(
+                        std::fs::read(mount.join("Owned.pages")).unwrap(),
+                        vec![42u8; 128 * 1024]
+                    );
+                    assert!(!mount.join("Renamed.pages").exists());
+                    error
+                }
+            })
+            .await
+            .unwrap();
+            assert_eq!(refused.raw_os_error(), Some(libc::EOPNOTSUPP));
+            assert_eq!(cloud.write_calls.load(Ordering::SeqCst), 0);
+            let mut held = tokio::task::spawn_blocking({
+                let path = mount.join("Owned.numbers");
+                move || std::fs::File::open(path).unwrap()
+            })
+            .await
+            .unwrap();
+            tokio::task::spawn_blocking({
+                let path = mount.join("Owned.numbers");
+                move || std::fs::remove_file(path).unwrap()
+            })
+            .await
+            .unwrap();
+            tokio::time::timeout(Duration::from_secs(10), async {
+                loop {
+                    if cloud.remote.lock().unwrap().deletes.len() == 1 {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .unwrap();
+            let deleted = cloud.remote.lock().unwrap().deletes.clone();
+            assert_eq!(deleted.len(), 1);
+            assert!(
+                matches!(&deleted[0].intent, MutationIntent::TrashNativeDocument { before } if before.id==documents[1].id && before.etag==documents[1].etag)
+            );
+            assert!(
+                cloud
+                    .remote
+                    .lock()
+                    .unwrap()
+                    .files
+                    .contains_key(&documents[0].id)
+            );
+            assert!(
+                cloud
+                    .remote
+                    .lock()
+                    .unwrap()
+                    .files
+                    .contains_key(&documents[2].id)
+            );
+            let held_contents = tokio::task::spawn_blocking(move || {
+                use std::io::Read;
+                let mut contents = Vec::new();
+                held.read_to_end(&mut contents).unwrap();
+                contents
+            })
+            .await
+            .unwrap();
+            assert_eq!(held_contents, bytes);
+        } else {
+            let error = tokio::task::spawn_blocking({
+                let path = mount.join("Owned.numbers");
+                move || std::fs::remove_file(path).unwrap_err()
+            })
+            .await
+            .unwrap();
+            assert_eq!(error.raw_os_error(), Some(libc::EROFS));
+            assert!(cloud.remote.lock().unwrap().deletes.is_empty());
+        }
+        if let Some(s) = session {
+            s.shutdown().await.unwrap();
+        }
+        if let Some(s) = read_only {
+            tokio::task::spawn_blocking(move || s.umount_and_join())
+                .await
+                .unwrap()
+                .unwrap();
+            engine.stop().await;
+        }
+    }
+}

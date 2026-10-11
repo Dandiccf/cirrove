@@ -144,7 +144,7 @@ pub(super) async fn arm(
     engine.start().await?;
     let input = state.join(format!("package-read-input-{}.json", Uuid::new_v4()));
     record(&input, &relative)?;
-    let session = CloudFs::new(engine.clone())?.mount(&mount)?;
+    let session = CloudFs::new_archive_validation(engine.clone())?.mount(&mount)?;
     let result: Result<()> = async {
         let fs = tokio::process::Command::new("findmnt")
             .args(["-n", "-o", "FSTYPE", "-T"])

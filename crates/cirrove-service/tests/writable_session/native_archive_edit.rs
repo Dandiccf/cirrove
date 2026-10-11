@@ -302,15 +302,30 @@ async fn native_archive_edit(first: FirstEdit, name: &'static str) {
     let engine = Engine::new(account.clone(), provider.clone(), temp.path().join("state"))
         .await
         .unwrap();
-    let session = WritableSession::mount(
-        engine.clone(),
-        journal.clone(),
-        cloud.clone(),
-        Arc::new(Vault::default()),
-    )
-    .await
-    .unwrap();
-    let path = mount.join(name).join(name);
+    let session = if matches!(first, FirstEdit::Atomic) {
+        WritableSession::mount_native_archives_for_validation(
+            engine.clone(),
+            journal.clone(),
+            cloud.clone(),
+            Arc::new(Vault::default()),
+        )
+        .await
+        .unwrap()
+    } else {
+        WritableSession::mount(
+            engine.clone(),
+            journal.clone(),
+            cloud.clone(),
+            Arc::new(Vault::default()),
+        )
+        .await
+        .unwrap()
+    };
+    let path = if matches!(first, FirstEdit::Atomic) {
+        mount.join(name).join(name)
+    } else {
+        mount.join(name)
+    };
     let (held, mut edit, old_writer) = tokio::task::spawn_blocking({
         let path = path.clone();
         let bytes = newbytes.clone();
@@ -434,6 +449,11 @@ async fn native_archive_edit(first: FirstEdit, name: &'static str) {
             edit.rewind().unwrap();
             edit.write_all(&bytes).unwrap();
             edit.sync_all().expect("typed native fsync");
+            assert!(
+                std::fs::metadata(&path).unwrap().modified().unwrap()
+                    > std::time::UNIX_EPOCH + Duration::from_secs(1),
+                "document attributes must expose the local edit time"
+            );
             (held, edit, None)
         }
     })
@@ -591,7 +611,12 @@ async fn native_archive_edit(first: FirstEdit, name: &'static str) {
         .await
         .unwrap();
     roengine.start().await.unwrap();
-    let fs = cirrove_service::filesystem::CloudFs::new(roengine.clone()).unwrap();
+    let fs = if matches!(first, FirstEdit::Atomic) {
+        cirrove_service::filesystem::CloudFs::new_archive_validation(roengine.clone())
+    } else {
+        cirrove_service::filesystem::CloudFs::new(roengine.clone())
+    }
+    .unwrap();
     let rosession = tokio::task::spawn_blocking({
         let romount = romount.clone();
         move || fs.mount(&romount)
@@ -600,7 +625,7 @@ async fn native_archive_edit(first: FirstEdit, name: &'static str) {
     .unwrap()
     .unwrap();
     tokio::task::spawn_blocking(move || {
-        let path = romount.join(name).join(name);
+        let path = if matches!(first, FirstEdit::Atomic) { romount.join(name).join(name) } else { romount.join(name) };
         assert!(std::fs::metadata(&path).unwrap().is_file());
         if matches!(first,FirstEdit::Path) {
             let status=std::process::Command::new("python3")
@@ -733,14 +758,15 @@ async fn native_pending_chain(backup_first: bool, name: &'static str) {
         .unwrap();
 
     engine.start().await.unwrap();
-    let session = cirrove_service::filesystem::CloudFs::new_experimental_writable(
-        engine.clone(),
-        journal.clone(),
-    )
-    .await
-    .unwrap()
-    .mount(&mount)
-    .unwrap();
+    let session =
+        cirrove_service::filesystem::CloudFs::new_experimental_writable_archive_validation(
+            engine.clone(),
+            journal.clone(),
+        )
+        .await
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
     let path = mount.join(name).join(name);
     let final_bytes = archive(name, b"C retained after restart");
     tokio::task::spawn_blocking({
@@ -936,14 +962,15 @@ async fn native_pending_chain(backup_first: bool, name: &'static str) {
         .await
         .unwrap();
     engine.start().await.unwrap();
-    let session = cirrove_service::filesystem::CloudFs::new_experimental_writable(
-        engine.clone(),
-        journal.clone(),
-    )
-    .await
-    .unwrap()
-    .mount(&mount)
-    .unwrap();
+    let session =
+        cirrove_service::filesystem::CloudFs::new_experimental_writable_archive_validation(
+            engine.clone(),
+            journal.clone(),
+        )
+        .await
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
     tokio::task::spawn_blocking(move || {
         assert_eq!(std::fs::read(&path).unwrap(), final_bytes);
         let file = std::fs::OpenOptions::new()
