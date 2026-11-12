@@ -76,7 +76,7 @@ fn model_files(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
             continue;
         }
         assert!(entry.size() <= MODEL_LIMIT as u64);
-        let name = entry.name().to_owned();
+        let name = entry.name().unwrap().into_owned();
         assert!(
             name.len() <= 1024
                 && name.split('/').all(|part| !part.is_empty()

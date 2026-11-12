@@ -37,7 +37,7 @@ rpassword = "7.4"
 srp = "0.7.0-rc.3"
 tempfile.workspace = true
 zeroize = "1.8"
-zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.5.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [lints]
 workspace = true
