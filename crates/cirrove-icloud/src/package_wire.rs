@@ -135,7 +135,10 @@ fn flat_native_wire(
     for i in 0..archive.len() {
         check(cancel)?;
         let entry = archive.by_index(i).map_err(|_| invalid())?;
-        let name = format!("{expected_root}/{}", entry.name());
+        // zip 9 decodes a name on demand and can refuse one. Validation above
+        // has already held the raw bytes to exact UTF-8, so a refusal here is
+        // an archive that changed underneath, and is invalid like any other.
+        let name = format!("{expected_root}/{}", entry.name().map_err(|_| invalid())?);
         if name.len() > 1024 {
             return Err(invalid());
         }

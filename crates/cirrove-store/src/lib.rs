@@ -105,7 +105,7 @@ fn check_out(key: &Path) -> Option<Connection> {
 /// failure rather than as the cancellation it was.
 ///
 /// A connection that cannot be reset is closed instead of shared.
-fn reset_for_reuse(db: &Connection) -> Result<()> {
+fn reset_for_reuse(db: &mut Connection) -> Result<()> {
     db.progress_handler(0, None::<fn() -> bool>)?;
     let leftovers: Vec<(String, String)> = db
         .prepare("SELECT type,name FROM sqlite_temp_schema WHERE name NOT LIKE 'sqlite_%'")?
@@ -218,13 +218,13 @@ impl DerefMut for Pooled {
 
 impl Drop for Pooled {
     fn drop(&mut self) {
-        let (Some(db), Some(key)) = (self.db.take(), self.key.clone()) else {
+        let (Some(mut db), Some(key)) = (self.db.take(), self.key.clone()) else {
             return;
         };
         // An open transaction, and anything left in the temporary schema, is
         // state the next caller must not inherit. A connection carrying either
         // is closed rather than shared. The count falls either way.
-        if db.is_autocommit() && reset_for_reuse(&db).is_ok() {
+        if db.is_autocommit() && reset_for_reuse(&mut db).is_ok() {
             check_in(&key, db);
         } else {
             drop(db);

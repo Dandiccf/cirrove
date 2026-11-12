@@ -408,7 +408,7 @@ mod tests {
     fn sql_interrupt_rolls_back_publication_and_releases_writer() {
         let (tmp, stage) = fixture();
         let scope = stage.ticket.scope.clone();
-        let stage = stage
+        let mut stage = stage
             .page(DirectoryPage {
                 nodes: nodes(2048),
                 next: None,
@@ -536,7 +536,7 @@ mod tests {
             .unwrap()
             .observe_directory(&scope, "root", &[])
             .unwrap();
-        let stage = Store::open(&path)
+        let mut stage = Store::open(&path)
             .unwrap()
             .directory_publication(
                 &scope,
@@ -612,7 +612,15 @@ mod tests {
             let Ok(target) = std::fs::read_link(entry.path()) else {
                 continue;
             };
-            if !target.to_string_lossy().contains("etilqs_") {
+            // SQLite used to name a spill file etilqs_* and unlink it. The one
+            // bundled with rusqlite 0.42 (3.54.1) holds a file that never had a
+            // name, which /proc shows as "#<inode> (deleted)" in the temporary
+            // directory. Either is the file this test is about.
+            let anonymous = target.file_name().is_some_and(|name| {
+                let name = name.to_string_lossy();
+                name.starts_with('#') && name.ends_with(" (deleted)")
+            });
+            if !target.to_string_lossy().contains("etilqs_") && !anonymous {
                 continue;
             }
             let Ok(metadata) = std::fs::metadata(entry.path()) else {

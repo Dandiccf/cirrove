@@ -8,4 +8,17 @@ ignore = [
     # Cirrove holds no RSA private key anywhere. No fixed release exists;
     # revisit when openidconnect moves to one.
     "RUSTSEC-2023-0071",
+    # crypto-bigint 0.5: operations meant to be constant-time that are not,
+    # which matters for arithmetic on *secret* integers. Two copies are in the
+    # tree. The 0.7 one does secret arithmetic -- the SRP of the iCloud
+    # sign-in -- and is on a fixed release (>= 0.7.6); keep it there, because
+    # this entry would hide a regression of it too. The 0.5 one is reached only
+    # through openidconnect 4.0 and its p256/p384, which it uses to verify the
+    # ECDSA signatures on ID tokens: public keys and public signatures, no
+    # secret. The fix is not backported to 0.5. openidconnect 4.1 moves to the
+    # fixed line, but through elliptic-curve 0.14 it turns on a trait
+    # implementation that srp 0.7.0-rc.3, the newest there is, does not compile
+    # against. Revisit when srp has a release that does, and take
+    # openidconnect 4.1 then.
+    "RUSTSEC-2026-0387",
 ]

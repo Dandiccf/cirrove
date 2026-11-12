@@ -242,11 +242,17 @@ was Passive throughout, again for want of an account.
 What is reviewed, and where the review is repeated so it does not go stale:
 
 - **Advisories.** `cargo audit` against the RustSec database, in CI on every
-  push (`dependency-audit`). One advisory is passed over, with its reason in
-  `.cargo/audit.toml`: RUSTSEC-2023-0071, a timing side channel in RSA
-  private-key operations in the `rsa` crate, which reaches the tree through
+  push (`dependency-audit`). Two advisories are passed over, each with its
+  reason in `.cargo/audit.toml`. RUSTSEC-2023-0071 is a timing side channel in
+  RSA private-key operations in the `rsa` crate, which reaches the tree through
   `openidconnect` for verifying ID-token signatures -- public-key operations;
   Cirrove holds no RSA private key. No fixed release exists yet.
+  RUSTSEC-2026-0387 is timing variability in `crypto-bigint` arithmetic on
+  secret integers. The copy that does such arithmetic, for the iCloud sign-in,
+  is on a fixed release; the 0.5 copy is reached only through `openidconnect`
+  verifying ECDSA signatures on ID tokens, which involves no secret, and the fix
+  is not backported to it. `openidconnect` 4.1 leaves 0.5 behind but does not
+  yet build together with the newest `srp`.
 - **Licences.** 416 crates outside the workspace, every one under a licence
   the binaries may be distributed under (MIT, Apache-2.0, BSD, ISC, Zlib,
   Unicode-3.0, CDLA-Permissive-2.0 and their combinations; the single crate
