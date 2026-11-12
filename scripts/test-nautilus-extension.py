@@ -8,6 +8,7 @@ that a listing is asked for in batches of the daemon's ceiling and that a
 daemon that refuses draws nothing rather than raising.
 """
 
+import gc
 import importlib.util
 import json
 import os
@@ -16,7 +17,9 @@ import socket
 import sys
 import tempfile
 import threading
+import time
 import unittest
+import weakref
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "packaging/nautilus/cirrove.py"
@@ -435,6 +438,95 @@ class AgainstADaemon(unittest.TestCase):
         missing = os.path.join(self.temp.name, "absent.sock")
         self.assertEqual(ext.states_for("work", [("a", None)], path=missing), {})
         self.assertIsNone(ext.Mounts(missing).locate("/m/work/a"))
+
+
+@unittest.skipIf(ext.Nautilus is None, "needs the Nautilus typelib")
+class LettingGo(unittest.TestCase):
+    """Nothing a finished exchange touched may wait for the garbage collector.
+
+    A badge request carries the provider object Files handed over, and that is
+    a reference on an object Files owns. Files 51 frees its list of those
+    objects on the way out and only then shuts Python down; one that is
+    released as late as that, by the collector's last pass, is unlinked from a
+    list that is already gone, and Files segfaults on exit. So a callback that
+    is finished must be released by its last reference, there and then: the
+    collector is off for these.
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        status = {"accounts": [{"mount_path": "/m/work", "label": "work", "mounted": True}]}
+        self.daemon = FakeDaemon(self.temp.name, status, {})
+        gc.collect()
+        gc.disable()
+
+    def tearDown(self):
+        gc.enable()
+        self.daemon.close()
+        self.temp.cleanup()
+
+    def _settle(self, done):
+        context = ext.GLib.MainContext.default()
+        deadline = time.monotonic() + 10
+        while not done() and time.monotonic() < deadline:
+            context.iteration(True)
+        self.assertTrue(done(), "the exchange never finished")
+        # The turns in which Gio lets go of the callbacks it was holding.
+        for _ in range(20):
+            while context.pending():
+                context.iteration(False)
+            time.sleep(0.005)
+
+    def _held(self):
+        class Held:
+            """Stands for the provider object a badge request carries."""
+
+        held = Held()
+        return held, weakref.ref(held)
+
+    def test_an_answered_request_lets_go_of_what_its_callback_held(self):
+        held, alive = self._held()
+        replies = []
+
+        def on_reply(reply, held=held):
+            replies.append(reply)
+
+        ext.request_async("status", None, on_reply, path=self.daemon.path)
+        del held, on_reply
+        self._settle(lambda: replies)
+        self.assertEqual(replies[0]["accounts"][0]["label"], "work")
+        self.assertIsNone(alive(), "a finished request kept its callback alive")
+
+    def test_an_unanswered_request_lets_go_too(self):
+        held, alive = self._held()
+        replies = []
+
+        def on_reply(reply, held=held):
+            replies.append(reply)
+
+        missing = os.path.join(self.temp.name, "absent.sock")
+        ext.request_async("status", None, on_reply, path=missing)
+        del held, on_reply
+        self._settle(lambda: replies)
+        self.assertEqual(replies, [None])
+        self.assertIsNone(alive(), "a refused request kept its callback alive")
+
+    def test_an_event_stream_that_ended_lets_go_of_its_callbacks(self):
+        held, alive = self._held()
+        events, ended = [], []
+
+        def on_event(event, held=held):
+            events.append(event)
+
+        def on_end(held=held):
+            ended.append(True)
+
+        # The fake daemon answers one line and hangs up: one event, then the end.
+        ext.subscribe_async(on_event, on_end, path=self.daemon.path)
+        del held, on_event, on_end
+        self._settle(lambda: ended)
+        self.assertEqual(len(events), 1)
+        self.assertIsNone(alive(), "an ended event stream kept its callbacks alive")
 
 
 if __name__ == "__main__":

@@ -437,52 +437,130 @@ except (ImportError, ValueError):  # pragma: no cover - the tests import without
 
 if Nautilus is not None:
 
-    def request_async(verb, body, on_reply, path=None):
-        """``request`` on GLib's loop: ``on_reply(dict)``, or ``on_reply(None)``
-        for a daemon that did not answer, always from the main thread."""
-        line = verb if body is None else f"{verb} {json.dumps(body)}"
-        client = Gio.SocketClient.new()
-        client.set_timeout(int(TIMEOUT))
-        received = bytearray()
+    # Neither of the two exchanges below may hold a reference to itself.
+    #
+    # A badge request carries the provider object Files handed over, which is a
+    # reference on an object Files owns. Written as nested functions, the one
+    # that reads named itself to read again, and a function that names itself
+    # is a cycle: when the reply had been delivered nothing let go of it, and
+    # the provider waited with it for the garbage collector. Files 51 frees its
+    # list of provider objects on the way out and only then shuts Python down,
+    # so one released as late as that -- by the collector's last pass -- was
+    # unlinked from a list already freed, and Files segfaulted on exit. An
+    # object whose callbacks are its bound methods has no such cycle: Gio holds
+    # the method, the method holds the object, and when Gio is done both go.
 
-        def finish(reply):
+    class _Request:
+        """One line to the daemon and its reply, released when it is delivered."""
+
+        def __init__(self, line, on_reply):
+            self._line = line
+            self._on_reply = on_reply
+            self._received = bytearray()
+
+        def start(self, path):
+            client = Gio.SocketClient.new()
+            client.set_timeout(int(TIMEOUT))
+            client.connect_async(Gio.UnixSocketAddress.new(path or SOCKET), None, self._connected)
+
+        def _finish(self, reply):
+            # Let go of the callback before calling it: what it holds is then
+            # released when it returns, whoever still holds this object.
+            on_reply, self._on_reply = self._on_reply, None
+            if on_reply is None:
+                return
             try:
                 on_reply(reply)
             except Exception:  # noqa: BLE001 - a callback must not take Files down
                 traceback.print_exc(file=sys.stderr)
 
-        def read_more(stream, result, connection):
+        def _connected(self, client, result):
+            try:
+                connection = client.connect_finish(result)
+                # A short line into a local socket: the kernel takes it whole.
+                connection.get_output_stream().write_all((self._line + "\n").encode(), None)
+            except GLib.Error:
+                self._finish(None)
+                return
+            connection.get_input_stream().read_bytes_async(
+                65536, GLib.PRIORITY_DEFAULT, None, self._read_more, connection
+            )
+
+        def _read_more(self, stream, result, connection):
             try:
                 data = stream.read_bytes_finish(result).get_data()
             except GLib.Error:
-                finish(None)
+                self._finish(None)
                 return
             if data:
-                received.extend(data)
-                stream.read_bytes_async(65536, GLib.PRIORITY_DEFAULT, None, read_more, connection)
+                self._received.extend(data)
+                stream.read_bytes_async(
+                    65536, GLib.PRIORITY_DEFAULT, None, self._read_more, connection
+                )
                 return
             try:
                 connection.close(None)
             except GLib.Error:
                 pass
             try:
-                finish(json.loads(bytes(received)))
+                reply = json.loads(bytes(self._received))
             except ValueError:
-                finish(None)
+                reply = None
+            self._finish(reply)
 
-        def connected(client, result):
+    def request_async(verb, body, on_reply, path=None):
+        """``request`` on GLib's loop: ``on_reply(dict)``, or ``on_reply(None)``
+        for a daemon that did not answer, always from the main thread."""
+        line = verb if body is None else f"{verb} {json.dumps(body)}"
+        _Request(line, on_reply).start(path)
+
+    class _Subscription:
+        """The daemon's event stream, released when it ends."""
+
+        def __init__(self, on_event, on_end):
+            self._on_event = on_event
+            self._on_end = on_end
+
+        def start(self, path):
+            client = Gio.SocketClient.new()
+            client.connect_async(Gio.UnixSocketAddress.new(path or SOCKET), None, self._connected)
+
+        def _end(self):
+            on_end, self._on_end = self._on_end, None
+            self._on_event = None
+            if on_end is None:
+                return
+            try:
+                on_end()
+            except Exception:  # noqa: BLE001 - a callback must not take Files down
+                traceback.print_exc(file=sys.stderr)
+
+        def _connected(self, client, result):
             try:
                 connection = client.connect_finish(result)
-                # A short line into a local socket: the kernel takes it whole.
-                connection.get_output_stream().write_all((line + "\n").encode(), None)
+                connection.get_output_stream().write_all(b"subscribe\n", None)
             except GLib.Error:
-                finish(None)
+                self._end()
                 return
-            connection.get_input_stream().read_bytes_async(
-                65536, GLib.PRIORITY_DEFAULT, None, read_more, connection
-            )
+            stream = Gio.DataInputStream.new(connection.get_input_stream())
+            stream.read_line_async(GLib.PRIORITY_DEFAULT, None, self._read_line, connection)
 
-        client.connect_async(Gio.UnixSocketAddress.new(path or SOCKET), None, connected)
+        def _read_line(self, stream, result, connection):
+            try:
+                line, _ = stream.read_line_finish_utf8(result)
+            except GLib.Error:
+                self._end()
+                return
+            if line is None:
+                self._end()
+                return
+            try:
+                self._on_event(json.loads(line))
+            except ValueError:
+                pass
+            except Exception:  # noqa: BLE001
+                traceback.print_exc(file=sys.stderr)
+            stream.read_line_async(GLib.PRIORITY_DEFAULT, None, self._read_line, connection)
 
     def subscribe_async(on_event, on_end, path=None):
         """Open the daemon's event stream and call ``on_event(dict)`` per line.
@@ -492,46 +570,7 @@ if Nautilus is not None:
         Python thread inside Files runs only while the main thread is executing
         Python, which it does only inside a callback.
         """
-        client = Gio.SocketClient.new()
-        ended = [False]
-
-        def end():
-            if ended[0]:
-                return
-            ended[0] = True
-            try:
-                on_end()
-            except Exception:  # noqa: BLE001 - a callback must not take Files down
-                traceback.print_exc(file=sys.stderr)
-
-        def read_line(stream, result, connection):
-            try:
-                line, _ = stream.read_line_finish_utf8(result)
-            except GLib.Error:
-                end()
-                return
-            if line is None:
-                end()
-                return
-            try:
-                on_event(json.loads(line))
-            except ValueError:
-                pass
-            except Exception:  # noqa: BLE001
-                traceback.print_exc(file=sys.stderr)
-            stream.read_line_async(GLib.PRIORITY_DEFAULT, None, read_line, connection)
-
-        def connected(client, result):
-            try:
-                connection = client.connect_finish(result)
-                connection.get_output_stream().write_all(b"subscribe\n", None)
-            except GLib.Error:
-                end()
-                return
-            stream = Gio.DataInputStream.new(connection.get_input_stream())
-            stream.read_line_async(GLib.PRIORITY_DEFAULT, None, read_line, connection)
-
-        client.connect_async(Gio.UnixSocketAddress.new(path or SOCKET), None, connected)
+        _Subscription(on_event, on_end).start(path)
 
     class CirroveExtension(
         GObject.GObject,
