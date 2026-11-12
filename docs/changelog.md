@@ -30,6 +30,11 @@ in force. See [distribution details](distribution.md#canary-2-published-snapshot
   requiring `index.theme`, including stale caches whose icon files are already
   gone. This prevents missing Cirrove badges after switching installations.
   The Files refresh also uses the system Python rather than a version manager.
+- Files no longer crashes when its last window closes after showing a Cirrove
+  folder. The extension kept each finished badge request, and with it an object
+  Files owns, until Python's last garbage collection; Files 51 had freed its
+  list of those objects by then and segfaulted on the way out. Nothing was
+  lost, but every exit left a crash report.
 
 ## 0.2.0 Canary 1 — 2026-10-02
 
