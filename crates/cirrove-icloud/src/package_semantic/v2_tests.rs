@@ -305,3 +305,77 @@ fn v2_never_discards_extra_roots_or_traversal() {
         );
     }
 }
+
+#[test]
+fn native_numbered_copy_accepts_only_one_explicit_v2_wrapper_alias() {
+    let dir = tempfile::tempdir().unwrap();
+    let cancel = CancellationToken::new();
+    for extension in ["pages", "numbers", "key"] {
+        let root = format!("Source.{extension}");
+        let bytes = zip_entries(&root, &["empty"], &[("Index/file", b"owned")], false);
+        let (file, receipt) = staged(&bytes, dir.path());
+        let expected =
+            package_archive_semantic_identity_versioned(&file, &receipt, &root, 2, &cancel)
+                .unwrap();
+        for number in ["2", "123"] {
+            let copy = format!("Source {number}.{extension}");
+            assert_eq!(
+                native_package_semantic_identity(&file, &receipt, &copy, 2, &cancel).unwrap(),
+                expected
+            );
+            assert!(
+                package_archive_semantic_identity_versioned(&file, &receipt, &copy, 2, &cancel)
+                    .is_err()
+            );
+            assert!(native_package_semantic_identity(&file, &receipt, &copy, 1, &cancel).is_err());
+        }
+        for stem in [
+            "Source 0",
+            "Source 1",
+            "Source 02",
+            "Source +2",
+            "Source 2x",
+            "Source 4294967296",
+            "Other 2",
+            "Source 2 3",
+        ] {
+            assert!(
+                native_package_semantic_identity(
+                    &file,
+                    &receipt,
+                    &format!("{stem}.{extension}"),
+                    2,
+                    &cancel
+                )
+                .is_err()
+            );
+        }
+    }
+}
+#[test]
+fn native_numbered_copy_refuses_extra_roots_and_preserves_changed_content() {
+    let dir = tempfile::tempdir().unwrap();
+    let cancel = CancellationToken::new();
+    let good = zip_entries("Source.pages", &[], &[("Index/file", b"owned")], false);
+    let changed = zip_entries("Source.pages", &[], &[("Index/file", b"other")], false);
+    let (file, receipt) = staged(&good, dir.path());
+    let baseline =
+        native_package_semantic_identity(&file, &receipt, "Source 2.pages", 2, &cancel).unwrap();
+    let (edited, edited_receipt) = staged(&changed, dir.path());
+    assert_ne!(
+        native_package_semantic_identity(&edited, &edited_receipt, "Source 2.pages", 2, &cancel)
+            .unwrap(),
+        baseline
+    );
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for path in ["Source.pages/Index/file", "Source 2.pages/extra"] {
+        zip.start_file(path, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(b"owned").unwrap();
+    }
+    let mixed = zip.finish().unwrap().into_inner();
+    let (file, receipt) = staged(&mixed, dir.path());
+    assert!(
+        native_package_semantic_identity(&file, &receipt, "Source 2.pages", 2, &cancel).is_err()
+    );
+}

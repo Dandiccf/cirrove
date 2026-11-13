@@ -341,6 +341,14 @@ impl MutationProvider for Provider {
         _: &CancellationToken,
     ) -> Result<Option<String>> {
         self.unlocked();
+        if matches!(self.mode, "prepare_conflict" | "prepare_version_changed") {
+            self.preparations.fetch_add(1, Ordering::SeqCst);
+            return Err(if self.mode == "prepare_version_changed" {
+                cirrove_core::ProviderError::VersionChanged.into()
+            } else {
+                MutationError::Conflict
+            });
+        }
         if self.mode == "prepared_lost" {
             self.preparations.fetch_add(1, Ordering::SeqCst);
             Ok(Some("reserved-folder-id".into()))
@@ -1100,5 +1108,48 @@ async fn namespace_refusal_preserves_intent(storage: bool) {
             j.lock().unwrap().mutation(record.id).unwrap().prepared_item,
             prepared
         );
+    }
+}
+
+#[tokio::test]
+async fn preparation_conflict_stops_without_dispatch_and_survives_restart() {
+    for mode in ["prepare_conflict", "prepare_version_changed"] {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("journal");
+        let j = Arc::new(Mutex::new(journal(&root)));
+        let mut r = request();
+        let mut folder = before();
+        folder.id = "folder".into();
+        folder.kind = NodeKind::Folder;
+        folder.name = "Owned".into();
+        r.intent = MutationIntent::RemoveFolder { before: folder };
+        let record = j.lock().unwrap().enqueue_mutation(r.clone()).unwrap();
+        let p = provider(mode, &j);
+        let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+        let outcome = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(outcome.id, record.id);
+        assert_eq!(outcome.state, MutationState::Conflict);
+        assert!(outcome.issue.is_some());
+        assert!(worker.run_once().await.unwrap().is_none());
+        assert_eq!(p.preparations.load(Ordering::SeqCst), 1);
+        assert_eq!(p.mutations.load(Ordering::SeqCst), 0);
+        assert_eq!(p.checks.load(Ordering::SeqCst), 0);
+        drop(worker);
+        drop(j);
+        let j = Arc::new(Mutex::new(journal(&root)));
+        let restored = j.lock().unwrap().mutation(record.id).unwrap();
+        assert_eq!(restored.state, MutationState::Conflict);
+        assert!(restored.request == r);
+        assert!(restored.prepared_item.is_none());
+        assert!(restored.attempt.is_none());
+        assert!(matches!(
+            j.lock().unwrap().request_mutation_retry(record.id),
+            Err(JournalError::Stale)
+        ));
+        let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+        assert!(worker.run_once().await.unwrap().is_none());
+        // An unrelated item still progresses while this exact revision is held.
+        let other = j.lock().unwrap().enqueue_mutation(request()).unwrap();
+        assert_eq!(worker.run_once().await.unwrap().unwrap().id, other.id);
     }
 }

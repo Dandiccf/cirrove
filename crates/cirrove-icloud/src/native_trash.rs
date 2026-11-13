@@ -22,6 +22,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 const LIMIT: usize = 96 * 1024;
 const ARCHIVE_LIMIT: u64 = 64 * 1024 * 1024;
+
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum Phase {
@@ -350,7 +351,7 @@ impl ICloudNativeTrash {
         let root = self.before.name.clone();
         let token = cancel.clone();
         let semantic = tokio::task::spawn_blocking(move || {
-            crate::package_archive_semantic_identity_versioned(
+            crate::package_semantic::native_package_semantic_identity(
                 file.borrowed_file(),
                 &archive,
                 &root,

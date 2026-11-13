@@ -852,7 +852,9 @@ async fn recover(path: &Path, digest: &str) -> Result<()> {
             && row.package_completion.as_ref() == Some(&marker.receipt.current_semantic),
         "native recovered receipt differs"
     );
-    let fs = CloudFs::new_experimental_writable(engine.clone(), context.journal()).await?;
+    let fs =
+        CloudFs::new_experimental_writable_archive_validation(engine.clone(), context.journal())
+            .await?;
     let control = fs.write_control()?;
     ensure!(
         control.publish_completed_package().await?,

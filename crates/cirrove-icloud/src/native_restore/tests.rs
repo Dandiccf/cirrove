@@ -61,6 +61,7 @@ impl CredentialVault for Vault {
 }
 #[derive(Default)]
 struct Seen {
+    visible_name: Option<String>,
     folders: Vec<Node>,
     parent: String,
     restore_path: String,
@@ -158,7 +159,7 @@ impl Server {
 }
 
 fn item(s: &Seen) -> serde_json::Value {
-    json!({"drivewsid":if s.wrong_identity{"FILE::com.apple.CloudDocs::other"}else{ID},"docwsid":"native","zone":"com.apple.CloudDocs","type":"FILE","name":"Target","extension":"pages","parentId":if s.trashed{"TRASH_ROOT"}else{s.parent.as_str()},"restorePath":if s.trashed{json!(s.restore_path)}else{json!(null)},"etag":if s.changed_revision{"changed"}else if s.trashed{"trash-v2"}else{"restored-v3"},"size":17})
+    json!({"drivewsid":if s.wrong_identity{"FILE::com.apple.CloudDocs::other"}else{ID},"docwsid":"native","zone":"com.apple.CloudDocs","type":"FILE","name":s.visible_name.as_deref().unwrap_or("Target"),"extension":"pages","parentId":if s.trashed{"TRASH_ROOT"}else{s.parent.as_str()},"restorePath":if s.trashed{json!(s.restore_path)}else{json!(null)},"etag":if s.changed_revision{"changed"}else if s.trashed{"trash-v2"}else{"restored-v3"},"size":17})
 }
 fn archive(changed: bool) -> Vec<u8> {
     let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
@@ -236,6 +237,9 @@ fn fixture(
     adapter
 }
 fn authority(request: &NativeRestoreRequest) -> Arc<Vault> {
+    authority_version(request, 1)
+}
+fn authority_version(request: &NativeRestoreRequest, version: u32) -> Arc<Vault> {
     let bytes = archive(false);
     let mut file = tempfile::tempfile_in("/var/tmp").unwrap();
     file.write_all(&bytes).unwrap();
@@ -243,10 +247,11 @@ fn authority(request: &NativeRestoreRequest) -> Arc<Vault> {
         size: bytes.len() as u64,
         sha256: hex::encode(Sha256::digest(&bytes)),
     };
-    let semantic = crate::package_archive_semantic_identity(
+    let semantic = crate::package_archive_semantic_identity_versioned(
         &file,
         &receipt,
         "Target.pages",
+        version,
         &CancellationToken::new(),
     )
     .unwrap();
@@ -616,4 +621,37 @@ async fn native_restore_bound_staging_pressure_refuses_active_readback_before_ht
     assert_eq!(server.state.lock().unwrap().restore_calls, 1);
     held.push(budget.create(dir.path()).await.unwrap());
     assert!(budget.create(dir.path()).await.is_err());
+}
+
+#[tokio::test]
+async fn native_restore_numbered_copy_v2_lost_reply_verifies_without_resend() {
+    let dir = private();
+    let server = Server::start(true, false).await;
+    {
+        let mut s = server.state.lock().unwrap();
+        s.visible_name = Some("Target 2".into());
+        s.restore_path = "Target 2.pages".into();
+    }
+    let mut request = request();
+    request.before.name = "Target 2.pages".into();
+    let source = authority_version(&request, 2);
+    let vault = Arc::new(Vault::default());
+    let adapter = fixture(
+        &server,
+        request.clone(),
+        dir.path(),
+        source.clone(),
+        vault.clone(),
+    );
+    let op = Uuid::new_v4();
+    let cancel = CancellationToken::new();
+    adapter.prepare(op, &cancel).await.unwrap();
+    assert!(adapter.execute(op, &cancel).await.is_err());
+    drop(adapter);
+    let restarted = fixture(&server, request, dir.path(), source, vault);
+    assert!(
+        matches!(restarted.reconcile(op, &cancel).await.unwrap(), MutationReconciliation::Applied(MutationReceipt::Upsert(ref n)) if n.id == ID && n.name == "Target 2.pages")
+    );
+    assert!(restarted.execute(op, &cancel).await.is_err());
+    assert_eq!(server.state.lock().unwrap().restore_calls, 1);
 }

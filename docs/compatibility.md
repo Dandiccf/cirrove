@@ -136,9 +136,19 @@ list-then-PATCH sequence, and Drive offers no atomic sibling-name reservation. S
 
 ## iCloud development and Linux editor formats
 
-iCloud remains an experimental branch, outside the released packages. Its
+iCloud remains experimental and is included in the opt-in Canary 2 packages,
+not the regular 0.1.0 release. Its
 [validation record](icloud-write-integration.md) distinguishes provider content
 verification from application import and save fidelity.
+
+Native iWork Trash and restore verify v2 content under the selected document's
+exact archive root. For numbered copies such as `Report 2.numbers`, they also
+accept the single explicit `Report.numbers` wrapper that iCloud can retain in
+its export. All inner paths and bytes still contribute to the content identity;
+extra roots and unrelated names remain refused. Retained v1 operations and the
+strict archive-comparison API keep their original root requirements. This
+[focused regression record](benchmarks/icloud-numbered-copy-trash-2026-10-11.json)
+separates synthetic coverage from installed real-account verification.
 
 | Format and workflow | Observed scope | Remaining limit |
 | --- | --- | --- |

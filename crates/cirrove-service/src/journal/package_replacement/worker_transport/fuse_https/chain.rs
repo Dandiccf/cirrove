@@ -274,7 +274,7 @@ async fn real_native_fuse_pending_atomic_chain_rebases_https_proofs_and_preserve
     .await
     .unwrap();
     engine.start().await.unwrap();
-    let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
+    let fs = CloudFs::new_experimental_writable_archive_validation(engine.clone(), journal.clone())
         .await
         .unwrap();
     let control = fs.write_control().unwrap();
@@ -611,7 +611,7 @@ async fn real_native_fuse_pending_atomic_chain_rebases_https_proofs_and_preserve
         .await
         .unwrap();
     engine.start().await.unwrap();
-    let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
+    let fs = CloudFs::new_experimental_writable_archive_validation(engine.clone(), journal.clone())
         .await
         .unwrap();
     let session = tokio::task::spawn_blocking({
@@ -762,7 +762,7 @@ async fn uncertain_predecessor_chain() {
     .await
     .unwrap();
     engine.start().await.unwrap();
-    let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
+    let fs = CloudFs::new_experimental_writable_archive_validation(engine.clone(), journal.clone())
         .await
         .unwrap();
     let control = fs.write_control().unwrap();
@@ -1136,7 +1136,7 @@ async fn uncertain_predecessor_chain() {
     .await
     .unwrap();
     engine.start().await.unwrap();
-    let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
+    let fs = CloudFs::new_experimental_writable_archive_validation(engine.clone(), journal.clone())
         .await
         .unwrap();
     let control = fs.write_control().unwrap();
@@ -1321,7 +1321,7 @@ async fn uncertain_predecessor_chain() {
         .await
         .unwrap();
     engine.start().await.unwrap();
-    let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
+    let fs = CloudFs::new_experimental_writable_archive_validation(engine.clone(), journal.clone())
         .await
         .unwrap();
     let session = tokio::task::spawn_blocking({

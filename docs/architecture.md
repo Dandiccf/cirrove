@@ -163,6 +163,39 @@ last-known data. A folder shared without permission to enumerate its entire back
 drive may need foreground directory requests; this case is not claimed as verified
 until tested with a real tenant. A cache is not proof of current remote authorization.
 
+## Mounted iWork document presentation
+
+Confirmed iCloud Pages, Numbers and Keynote PACKAGE entries are presented as
+single regular files by FUSE. The adapter retains its protected source container
+and version-bound generated archive as separate internal identities; a filename
+extension alone never changes a folder or a DATA file into a package. Other
+providers' export containers and iCloud app containers keep their directory view.
+
+READDIR publishes document types without downloading archives. Resolving a
+selected document's attributes materializes its canonical archive when necessary,
+so its file size describes the actual readable bytes rather than Apple's logical
+package size. Consequently a file manager that stats all listed documents may
+hydrate those documents. Existing artifact limits, transfer reservations and
+verified block caching still apply. Read-only document inodes include the source
+revision, while open handles retain the exact internal archive identity.
+
+Mounted unlink uses the existing exact-account/item/revision native Trash
+admission and durable journal, never recursive deletion of generated contents.
+It moves the original document to iCloud recovery. Native rename/move and atomic
+replacement at the containing folder remain refused; this presentation does not
+claim arbitrary Linux editor compatibility. Explicit native replacement/recovery
+commands remain available. Ordinary filesystem deletion does not request a
+provider's permanent-delete API, even if a file manager labels its local action
+“permanent”.
+
+The isolated native archive probes explicitly retain their directory presentation
+through validation-only constructors (also exposed to integration fixtures by
+`test-support`). Their canonical-archive atomic-save and
+multi-generation recovery tests keep exercising that route; it is not the default
+account mount or proof of atomic editor replacement through the document view.
+The ordinary document view separately exercises in-place save through the native
+HTTPS coordinator and preserves readers admitted before native edit preparation.
+
 ## Atomic metadata and foreground observations
 
 Each collection has an optional provider notification session, independently of its

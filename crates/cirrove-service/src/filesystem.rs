@@ -7,6 +7,7 @@ mod ceiling;
 mod directories;
 mod invalidation;
 mod lifecycle;
+mod native_documents;
 mod residency;
 #[cfg(test)]
 mod trash;
@@ -132,6 +133,7 @@ struct View {
     size: u64,
     modified_unix: u64,
     package: bool,
+    native_archive_directories: bool,
     // The whole node, and only where a writeback exists.
     //
     // The write path needs all of it: `materialize` puts the node into the
@@ -245,14 +247,39 @@ impl CloudFs {
         engine: Arc<Engine>,
         journal: Arc<Mutex<crate::journal::UploadJournal>>,
     ) -> std::io::Result<Self> {
+        Self::new_writable_presentation(engine, journal, false).await
+    }
+    /// Preserve the canonical archive-directory route for the explicitly isolated
+    /// native save/recovery probes. Normal account mounts use document files.
+    #[doc(hidden)]
+    #[cfg(any(test, feature = "test-support", feature = "icloud-write-probe"))]
+    pub async fn new_experimental_writable_archive_validation(
+        engine: Arc<Engine>,
+        journal: Arc<Mutex<crate::journal::UploadJournal>>,
+    ) -> std::io::Result<Self> {
+        Self::new_writable_presentation(engine, journal, true).await
+    }
+    async fn new_writable_presentation(
+        engine: Arc<Engine>,
+        journal: Arc<Mutex<crate::journal::UploadJournal>>,
+        archive_directories: bool,
+    ) -> std::io::Result<Self> {
         let writer = writeback::Writeback::new(&engine, journal).await?;
-        let mut fs = Self::new(engine)?;
+        let mut fs = Self::new_presentation(engine, archive_directories)?;
         Arc::get_mut(&mut fs.inner)
             .ok_or_else(|| std::io::Error::other("filesystem already shared"))?
             .writeback = Some(writer);
         Ok(fs)
     }
     pub fn new(engine: Arc<Engine>) -> std::io::Result<Self> {
+        Self::new_presentation(engine, false)
+    }
+    #[doc(hidden)]
+    #[cfg(any(feature = "test-support", feature = "icloud-write-probe"))]
+    pub fn new_archive_validation(engine: Arc<Engine>) -> std::io::Result<Self> {
+        Self::new_presentation(engine, true)
+    }
+    fn new_presentation(engine: Arc<Engine>, archive_directories: bool) -> std::io::Result<Self> {
         let owner = std::fs::metadata("/proc/self")?;
         let root = Node {
             package: false,
@@ -279,6 +306,7 @@ impl CloudFs {
             size: 0,
             modified_unix: 0,
             package: false,
+            native_archive_directories: archive_directories,
             node: None,
             name: engine.account.label.as_str().into(),
             alias: vec![].into(),
@@ -660,7 +688,12 @@ impl Inner {
             size: node.size,
             modified_unix: node.modified_unix,
             package: node.package,
-            node: writable.then(|| Arc::new(node.clone())),
+            native_archive_directories: parent.native_archive_directories,
+            node: (writable
+                || (node.package
+                    && parent.scope.provider == "icloud"
+                    && node.id.starts_with("FILE::com.apple.CloudDocs::")))
+            .then(|| Arc::new(node.clone())),
             name,
             alias,
             reference: entry.is_some(),
@@ -684,7 +717,7 @@ impl Inner {
         );
         // Regular-file revisions have independent kernel page caches. Stable
         // provider identity remains account/drive/item; names never enter the key.
-        if view.kind == NodeKind::File && !writable {
+        if (view.kind == NodeKind::File || view.native_document()) && !writable {
             serde_json::to_string(&(
                 "content-inode-v1",
                 identity,
@@ -911,7 +944,11 @@ impl Inner {
         for ((view, _node), inode) in projected.drain(..).zip(inodes) {
             // READDIR does not create kernel lookup references. Only the parent
             // route is retained by the snapshot, not every projected child.
-            snapshot.push(inode, view.kind == NodeKind::Folder, &view.name)?;
+            snapshot.push(
+                inode,
+                view.kind == NodeKind::Folder && !view.native_document(),
+                &view.name,
+            )?;
         }
         Ok(())
     }
@@ -993,7 +1030,7 @@ impl Inner {
         // view keeps none; the callers that still need a whole node there --
         // `open`, and the content path behind it -- pay a store read for it,
         // which an attribute no longer does.
-        if (view.inode == ROOT_INODE || view.kind == NodeKind::File)
+        if (view.inode == ROOT_INODE || view.kind == NodeKind::File || view.native_document())
             && let Some(node) = &view.node
         {
             return Ok(node.as_ref().clone());
@@ -1006,6 +1043,24 @@ impl Inner {
     /// and modified time -- so a read-only mount answers one from the view
     /// alone: no node held for its lifetime, and no store read per call.
     async fn attributes_of(&self, view: &View) -> Result<FileAttr, ProviderError> {
+        if view.native_document() {
+            let archive = self.document_archive(view).await?;
+            let node = self.node(&archive).await?;
+            let source = self.node(view).await?;
+            let local = match &self.writeback {
+                Some(writer) => writer
+                    .working(&archive.scope, &archive.id)
+                    .map_err(|_| ProviderError::Unavailable)?
+                    .is_some(),
+                None => false,
+            };
+            let modified = if local {
+                node.modified_unix
+            } else {
+                source.modified_unix
+            };
+            return Ok(self.attributes(view, NodeKind::File, node.size, modified));
+        }
         match &self.writeback {
             None => Ok(self.attr_of(view)),
             // A working copy, an overlay or a retained recovery route can each
@@ -1156,6 +1211,10 @@ impl Filesystem for CloudFs {
                 return;
             }
         };
+        if parent.native_document() {
+            reply.error(Errno::ENOTDIR);
+            return;
+        }
         let name = name.to_os_string();
         self.inner.runtime.spawn(async move {
             let Some(_permit) = admit(gate, &inner.cancel).await else {
@@ -1494,6 +1553,11 @@ impl Filesystem for CloudFs {
                 {
                     return Err(Errno::EOPNOTSUPP);
                 }
+                // A native document is displayed as a file, but relocation still
+                // needs a typed package operation rather than a folder mutation.
+                if source.package && parent.scope.provider == "icloud" {
+                    return Err(Errno::EOPNOTSUPP);
+                }
                 if source.kind == NodeKind::Folder {
                     if parent.id == destination.id {
                         if !inner.engine.provider.supports_same_parent_folder_rename() {
@@ -1723,6 +1787,11 @@ impl Filesystem for CloudFs {
                     .into_iter()
                     .find(|n| n.name == name)
                     .ok_or(Errno::ENOENT)?;
+                let (document, _) =
+                    Inner::project(&parent, source.clone(), true).map_err(|e| errno(&e))?;
+                if document.native_document() {
+                    return inner.unlink_document(&parent, &source).await;
+                }
                 if source.kind != NodeKind::File {
                     return Err(Errno::EISDIR);
                 }
@@ -1885,21 +1954,28 @@ impl Filesystem for CloudFs {
             let _admission = admission;
             let result = async {
                 if let Some(file) = opened {
-                    if file.view.inode != ino.0 || file.flags & libc::O_ACCMODE == libc::O_RDONLY {
+                    if (file.view.inode != ino.0
+                        && !(file.view.parent == ino.0
+                            && inner.view(ino.0).is_ok_and(|v| v.native_document())))
+                        || file.flags & libc::O_ACCMODE == libc::O_RDONLY
+                    {
                         return Err(Errno::EBADF);
                     }
                     let working = writer
                         .working(&file.view.scope, &file.view.id)?
                         .ok_or(Errno::EIO)?;
                     let record = writer.truncate(working.id, size).await?;
-                    return Ok(inner.attr(&file.view, &record.node));
+                    let mut attr = inner.attr(&file.view, &record.node);
+                    attr.ino = ino;
+                    return Ok(attr);
                 }
                 let view = path_view.ok_or(Errno::EIO)?;
                 if writer.is_unlinked(&view.scope, &view.id)? {
                     return Err(Errno::ENOENT);
                 }
                 let _lease = writer.lease(&view.scope, &view.id, &inner.cancel).await?;
-                let mut view = view;
+                let presented = view.clone();
+                let mut view = inner.document_archive(&view).await.map_err(|e| errno(&e))?;
                 let pathname = (!view.reference)
                     .then(|| view.node.as_deref().cloned())
                     .flatten();
@@ -1907,7 +1983,7 @@ impl Filesystem for CloudFs {
                 let record = inner
                     .prepare_path_edit(&view, pathname.as_ref(), Some(size))
                     .await?;
-                Ok::<_, Errno>(inner.attr(&view, &record.node))
+                Ok::<_, Errno>(inner.attr(&presented, &record.node))
             }
             .await;
             match result {
@@ -2000,6 +2076,17 @@ impl Filesystem for CloudFs {
                 return;
             };
             let _admission = admission;
+            let document = view.native_document();
+            if document {
+                view = match inner.document_archive(&view).await {
+                    Ok(archive) => archive,
+                    Err(e) => {
+                        reply.error(errno(&e));
+                        return;
+                    }
+                };
+            }
+
             let result = async {
                 let lease = match &inner.writeback {
                     Some(writer) => Some(writer.lease(&view.scope, &view.id, &inner.cancel).await?),

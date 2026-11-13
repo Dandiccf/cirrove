@@ -569,10 +569,12 @@ async fn native_snapshot_real_tls_checkpoint_restores_on_distinct_copy_without_r
     );
     assert!(vault.load(&key).await.unwrap().is_none());
     assert_eq!(recovered.session_key, Some(operation));
-    let filesystem =
-        crate::filesystem::CloudFs::new_experimental_writable(engine.clone(), context.journal())
-            .await
-            .unwrap();
+    let filesystem = crate::filesystem::CloudFs::new_experimental_writable_archive_validation(
+        engine.clone(),
+        context.journal(),
+    )
+    .await
+    .unwrap();
     let control = filesystem.write_control().unwrap();
     assert!(control.publish_completed_package().await.unwrap());
     assert!(

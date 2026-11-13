@@ -136,7 +136,7 @@ impl NamespaceViews {
                 inode,
                 parent: view.parent,
                 name: view.name.clone(),
-                directory: view.kind == NodeKind::Folder,
+                directory: view.kind == NodeKind::Folder && !view.native_document(),
                 entry: !change.is_some_and(|c| c.kind == MetadataChangeKind::Directory),
             });
             true

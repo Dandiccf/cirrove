@@ -79,7 +79,7 @@ fn verify_archive(
     request: &OwnedPackageTrashRequest,
     cancel: &CancellationToken,
 ) -> std::result::Result<PackageSemanticIdentity, ProviderError> {
-    let semantic = crate::package_archive_semantic_identity_versioned(
+    let semantic = crate::package_semantic::native_package_semantic_identity(
         file,
         archive,
         &request.expected_root,

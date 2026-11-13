@@ -190,6 +190,21 @@ status/recovery before submitting again; do not delete journals, checkpoints or
 Stage files to make a test pass. Existing-state migration, compatible recovery and
 any installation transition are separate from this fresh read-only trial.
 
+### iWork documents in current source mounts
+
+Current source builds present confirmed Pages, Numbers and Keynote packages as
+single document files. The published Canary 2 still uses archive directories.
+Opening or inspecting a document may download its complete canonical archive to
+establish its exact size. Listing names alone does not download archives. Ordinary
+folders whose names end in `.numbers`, `.pages` or `.key` remain folders.
+
+Deleting one of these documents through the mount queues the exact original for
+iCloud recovery; status reports the separate provider confirmation. It does not delete the package's generated contents individually.
+A file manager's “permanent delete” wording means bypassing its local Trash;
+iCloud permanent deletion is unsupported. Native document rename/move and atomic
+editor replacement through the containing folder remain unsupported; use the
+explicit native archive workflows for validated replacement.
+
 ## Files and what happens to them
 
 **Opening** a file downloads it. Large files start streaming at once; the
